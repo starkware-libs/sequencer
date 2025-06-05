@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::create_trivial_calldata;
+use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
@@ -429,6 +429,338 @@ impl AccountTransactionGenerator {
         );
         rpc_invoke_tx(invoke_args)
     }
+
+    pub fn generate_invoke_tx_call_contract_and_storage_read_write(
+        &mut self,
+        tip: u64,
+    ) -> RpcTransaction {
+        assert!(
+            self.is_deployed(),
+            "Cannot invoke on behalf of an undeployed account: the first transaction of every \
+             account must be a deploy account transaction."
+        );
+        let nonce = self.next_nonce();
+        // Target of the inner call.
+        let key = felt!(1948_u64);
+        let value = felt!(1967_u64);
+        let inner_calldata = vec![key, value];
+
+        // Wrap the inner call as a "call_contract" entry point on the test contract.
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_storage_read_write",
+            &inner_calldata,
+        );
+
+        // Construct the invoke args with __execute__ entry point and nested call_contract logic.
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: create_calldata(
+                self.test_contract_address(),
+                "test_call_contract",
+                &outer_calldata.0
+            ),
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_invoke_tx_library_call_and_storage_read_write(&mut self, tip: u64) -> RpcTransaction {
+        assert!(
+            self.is_deployed(),
+            "Cannot invoke on behalf of an undeployed account: the first transaction of every \
+             account must be a deploy account transaction."
+        );
+        let nonce = self.next_nonce();
+        // Target of the inner call.
+        let key = felt!(1948_u64);
+        let value = felt!(1967_u64);
+        let inner_calldata = vec![key, value];
+
+        // Wrap the inner call as a "call_contract" entry point on the test contract.
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_storage_read_write",
+            &inner_calldata,
+        );
+
+        // Construct the invoke args with __execute__ entry point and nested call_contract logic.
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: create_calldata(
+                self.test_contract_address(),
+                "test_library_call",
+                &outer_calldata.0
+            ),
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_invoke_tx_send_message_to_l1(&mut self, tip: u64) -> RpcTransaction {
+        assert!(
+            self.is_deployed(),
+            "Cannot invoke on behalf of an undeployed account: the first transaction of every \
+            account must be a deploy account transaction."
+        );
+        let nonce = self.next_nonce();
+
+        // Build the calldata: [to_address, payload_len, payload...]
+        let to_address = felt!(0_u64);
+        let payload = vec![felt!(4365_u64), felt!(23_u64)];
+        let mut message_calldata = vec![to_address, felt!(2_u8)];
+        message_calldata.extend(payload);
+
+        // Wrap the message into a call to test_send_message_to_l1
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_send_message_to_l1",
+            &message_calldata,
+        );
+
+        // Construct the full invoke args
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: outer_calldata,
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_invoke_tx_emit_event(&mut self, tip: u64) -> RpcTransaction {
+        assert!(
+            self.is_deployed(),
+            "Cannot invoke on behalf of an undeployed account: the first transaction of every \
+            account must be a deploy account transaction."
+        );
+        let nonce = self.next_nonce();
+
+        // Emit event calldata: [len(keys), *keys, len(data), *data]
+        let keys = vec![felt!(2991_u64)];
+        let data = vec![felt!(42_u64), felt!(153_u64)];
+
+        let mut emit_event_calldata = vec![felt!(keys.len() as u64)];
+        emit_event_calldata.extend(keys);
+        emit_event_calldata.push(felt!(data.len() as u64));
+        emit_event_calldata.extend(data);
+
+        // Wrap calldata into call to test_emit_event
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_emit_event",
+            &emit_event_calldata,
+        );
+
+        // Construct the full invoke tx args
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: outer_calldata,
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_invoke_tx_keccak(&mut self, tip: u64) -> RpcTransaction {
+        assert!(
+            self.is_deployed(),
+            "Cannot invoke on behalf of an undeployed account: the first transaction of every \
+            account must be a deploy account transaction."
+        );
+        let nonce = self.next_nonce();
+
+        // No calldata for test_keccak
+        let empty_calldata = vec![];
+
+        // Wrap call to "test_keccak"
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_keccak",
+            &empty_calldata,
+        );
+
+        // Construct the full invoke tx args
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: outer_calldata,
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_invoke_tx_new_point_secp256k1(&mut self, tip: u64) -> RpcTransaction {
+        assert!(self.is_deployed(), "Account not deployed");
+
+        let nonce = self.next_nonce();
+
+        let calldata = vec![
+            felt!(302934307671667531413257853548643485645_u128),
+            felt!(328530677494498397859470651507255972949_u128),
+        ];
+
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_new_point_secp256k1",
+            &calldata,
+        );
+
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: outer_calldata,
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_invoke_tx_signature_verification_secp256k1(&mut self, tip: u64) -> RpcTransaction {
+        assert!(self.is_deployed(), "Account not deployed");
+
+        let nonce = self.next_nonce();
+
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_signature_verification_secp256k1",
+            &[],
+        );
+
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: outer_calldata,
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_invoke_tx_new_point_secp256r1(&mut self, tip: u64) -> RpcTransaction {
+        assert!(self.is_deployed(), "Account not deployed");
+
+        let nonce = self.next_nonce();
+
+        let calldata = vec![
+            felt!(0x2D483FE223B12B91047D83258A958B0Fu128),
+            felt!(0x502A43CE77C6F5C736A82F847FA95F8Cu128),
+        ];
+
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_new_point_secp256r1",
+            &calldata,
+        );
+
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: outer_calldata,
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_invoke_tx_signature_verification_secp256r1(&mut self, tip: u64) -> RpcTransaction {
+        assert!(self.is_deployed(), "Account not deployed");
+
+        let nonce = self.next_nonce();
+
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_signature_verification_secp256r1",
+            &[],
+        );
+
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: outer_calldata,
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_invoke_tx_library_call_sha256(&mut self, tip: u64) -> RpcTransaction {
+        assert!(self.is_deployed(), "Account not deployed");
+
+        let nonce = self.next_nonce();
+
+        let inner_calldata = vec![felt!(0_u64)];
+
+        // Wrap the inner call as a "call_contract" entry point on the test contract.
+        let calldata = create_calldata(
+            self.test_contract_address(),
+            "test_sha256",
+            &inner_calldata,
+        );
+
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_library_call",
+            &calldata.0,
+        );
+
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: outer_calldata,
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
+    pub fn generate_invoke_tx_library_call_circuit(&mut self, tip: u64) -> RpcTransaction {
+        assert!(self.is_deployed(), "Account not deployed");
+
+        let nonce = self.next_nonce();
+
+        let inner_calldata = vec![felt!(0_u64)];
+
+        let calldata = create_calldata(
+            self.test_contract_address(),
+            "test_circuit",
+            &inner_calldata,
+        );
+
+        let outer_calldata = create_calldata(
+            self.test_contract_address(),
+            "test_library_call",
+            &calldata.0,
+        );
+
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: outer_calldata,
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
 
     pub fn generate_executable_invoke(&mut self) -> AccountTransaction {
         assert!(

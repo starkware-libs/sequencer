@@ -105,14 +105,17 @@ impl TestScenario for ConsensusTxs {
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
     ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
-        (
-            create_invoke_txs(tx_generator, account_id, self.n_invoke_txs),
-            create_l1_to_l2_messages_args(tx_generator, self.n_l1_handler_txs),
-        )
+        let mut rpc_txs = create_invoke_txs(tx_generator, account_id, self.n_invoke_txs);
+        rpc_txs.extend(create_non_generic_invoke_txs(tx_generator, account_id));
+
+        // L1 handler messages
+        let l1_msgs = create_l1_to_l2_messages_args(tx_generator, self.n_l1_handler_txs);
+
+        (rpc_txs, l1_msgs)
     }
 
     fn n_txs(&self) -> usize {
-        self.n_invoke_txs + self.n_l1_handler_txs
+        self.n_invoke_txs + self.n_l1_handler_txs + 11 // 11 non-generic invoke txs
     }
 }
 
@@ -423,8 +426,10 @@ pub fn create_deploy_account_tx_and_invoke_tx(
     let undeployed_account_tx_generator = tx_generator.account_with_id_mut(account_id);
     assert!(!undeployed_account_tx_generator.is_deployed());
     let deploy_tx = undeployed_account_tx_generator.generate_deploy_account();
-    let invoke_tx = undeployed_account_tx_generator.generate_invoke_with_tip(1);
-    vec![deploy_tx, invoke_tx]
+    // let dummy_invoke_tx = undeployed_account_tx_generator.generate_invoke_with_tip(1);
+    let call_contract_and_storage_write_invoke_tx =
+        undeployed_account_tx_generator.generate_invoke_tx_library_call_and_storage_read_write(1);
+    vec![deploy_tx, call_contract_and_storage_write_invoke_tx]
 }
 
 pub fn create_invoke_txs(
@@ -435,6 +440,49 @@ pub fn create_invoke_txs(
     (0..n_txs)
         .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1))
         .collect()
+}
+
+pub fn create_non_generic_invoke_txs(
+    tx_generator: &mut MultiAccountTransactionGenerator,
+    account_id: AccountId,
+) -> Vec<RpcTransaction> {
+    // Create L1 to L2 messages with non-generic invoke transactions.
+    let txs = vec![
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_call_contract_and_storage_read_write(1),
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_library_call_and_storage_read_write(1),
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_send_message_to_l1(1),
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_emit_event(1),
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_keccak(1),
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_new_point_secp256k1(1),
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_signature_verification_secp256k1(1),
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_new_point_secp256r1(1),
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_signature_verification_secp256r1(1),
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_library_call_sha256(1),
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_tx_library_call_circuit(1),
+    ];
+    txs
 }
 
 pub fn create_l1_to_l2_messages_args(
