@@ -98,7 +98,6 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     }
 }
 
-#[allow(unused_variables)]
 impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     type Error = DeprecatedSnosSyscallError;
 
@@ -161,8 +160,8 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn deploy(
-        request: DeployRequest,
-        vm: &mut VirtualMachine,
+        _request: DeployRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<DeployResponse, Self::Error> {
         let call_info_tracker = syscall_handler
@@ -177,17 +176,17 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn emit_event(
-        request: EmitEventRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
+        _request: EmitEventRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
     ) -> Result<EmitEventResponse, Self::Error> {
         Ok(EmitEventResponse {})
     }
 
     #[allow(clippy::result_large_err)]
     fn get_block_number(
-        request: GetBlockNumberRequest,
-        vm: &mut VirtualMachine,
+        _request: GetBlockNumberRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetBlockNumberResponse, Self::Error> {
         let block_number =
@@ -197,8 +196,8 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn get_block_timestamp(
-        request: GetBlockTimestampRequest,
-        vm: &mut VirtualMachine,
+        _request: GetBlockTimestampRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetBlockTimestampResponse, Self::Error> {
         let block_timestamp = syscall_handler
@@ -211,8 +210,8 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn get_caller_address(
-        request: GetCallerAddressRequest,
-        vm: &mut VirtualMachine,
+        _request: GetCallerAddressRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetCallerAddressResponse, Self::Error> {
         // TODO(Nimrod): Don't unwrap here, use the error handling mechanism.
@@ -233,17 +232,17 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn get_contract_address(
-        request: GetContractAddressRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
+        _request: GetContractAddressRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
     ) -> Result<GetContractAddressResponse, Self::Error> {
         todo!()
     }
 
     #[allow(clippy::result_large_err)]
     fn get_sequencer_address(
-        request: GetSequencerAddressRequest,
-        vm: &mut VirtualMachine,
+        _request: GetSequencerAddressRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetSequencerAddressResponse, Self::Error> {
         let sequencer_address = syscall_handler
@@ -256,18 +255,18 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn get_tx_info(
-        request: GetTxInfoRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
+        _request: GetTxInfoRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
     ) -> Result<GetTxInfoResponse, Self::Error> {
         todo!()
     }
 
     #[allow(clippy::result_large_err)]
     fn get_tx_signature(
-        request: GetTxSignatureRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
+        _request: GetTxSignatureRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
     ) -> Result<GetTxSignatureResponse, Self::Error> {
         todo!()
     }
@@ -292,26 +291,26 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn replace_class(
-        request: ReplaceClassRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
+        _request: ReplaceClassRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
     ) -> Result<ReplaceClassResponse, Self::Error> {
         Ok(ReplaceClassResponse {})
     }
 
     #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
-        request: SendMessageToL1Request,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
+        _request: SendMessageToL1Request,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
     ) -> Result<SendMessageToL1Response, Self::Error> {
         Ok(SendMessageToL1Response {})
     }
 
     #[allow(clippy::result_large_err)]
     fn storage_read(
-        request: StorageReadRequest,
-        vm: &mut VirtualMachine,
+        _request: StorageReadRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<StorageReadResponse, Self::Error> {
         let value = *syscall_handler
@@ -324,9 +323,9 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn storage_write(
-        request: StorageWriteRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
+        _request: StorageWriteRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
     ) -> Result<StorageWriteResponse, Self::Error> {
         Ok(StorageWriteResponse {})
     }

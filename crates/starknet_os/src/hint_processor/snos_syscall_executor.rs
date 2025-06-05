@@ -76,7 +76,6 @@ impl TryExtractRevert for SnosSyscallError {
     }
 }
 
-#[allow(unused_variables)]
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     type Error = SnosSyscallError;
 
@@ -113,11 +112,11 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
             .expect("Syscall pointer is not initialized.")
     }
 
-    fn update_revert_gas_with_next_remaining_gas(&mut self, next_remaining_gas: GasAmount) {}
+    fn update_revert_gas_with_next_remaining_gas(&mut self, _next_remaining_gas: GasAmount) {}
 
     #[allow(clippy::result_large_err)]
     fn call_contract(
-        request: CallContractRequest,
+        _request: CallContractRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
@@ -137,7 +136,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn deploy(
-        request: DeployRequest,
+        _request: DeployRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
@@ -169,10 +168,10 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn emit_event(
-        request: EmitEventRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _request: EmitEventRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
+        _remaining_gas: &mut u64,
     ) -> Result<EmitEventResponse, Self::Error> {
         Ok(EmitEventResponse {})
     }
@@ -180,9 +179,9 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     #[allow(clippy::result_large_err)]
     fn get_block_hash(
         request: GetBlockHashRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> Result<GetBlockHashResponse, Self::Error> {
         let block_number = request.block_number;
         let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
@@ -199,10 +198,10 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn get_class_hash_at(
-        request: GetClassHashAtRequest,
-        vm: &mut VirtualMachine,
+        _request: GetClassHashAtRequest,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> Result<GetClassHashAtResponse, Self::Error> {
         let class_hash = syscall_handler
             .execution_helpers_manager
@@ -216,50 +215,50 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn get_execution_info(
-        request: GetExecutionInfoRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _request: GetExecutionInfoRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
+        _remaining_gas: &mut u64,
     ) -> Result<GetExecutionInfoResponse, Self::Error> {
         todo!()
     }
 
     #[allow(clippy::result_large_err)]
     fn library_call(
-        request: LibraryCallRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _request: LibraryCallRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
+        _remaining_gas: &mut u64,
     ) -> Result<LibraryCallResponse, Self::Error> {
         todo!()
     }
 
     #[allow(clippy::result_large_err)]
     fn meta_tx_v0(
-        request: MetaTxV0Request,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _request: MetaTxV0Request,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
+        _remaining_gas: &mut u64,
     ) -> Result<MetaTxV0Response, Self::Error> {
         todo!()
     }
 
     #[allow(clippy::result_large_err)]
     fn replace_class(
-        request: ReplaceClassRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _request: ReplaceClassRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
+        _remaining_gas: &mut u64,
     ) -> Result<ReplaceClassResponse, Self::Error> {
         Ok(ReplaceClassResponse {})
     }
 
     #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
-        request: SendMessageToL1Request,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _request: SendMessageToL1Request,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
+        _remaining_gas: &mut u64,
     ) -> Result<SendMessageToL1Response, Self::Error> {
         Ok(SendMessageToL1Response {})
     }
@@ -267,9 +266,9 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     #[allow(clippy::result_large_err)]
     fn storage_read(
         request: StorageReadRequest,
-        vm: &mut VirtualMachine,
+        _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _remaining_gas: &mut u64,
     ) -> Result<StorageReadResponse, Self::Error> {
         assert_eq!(request.address_domain, Felt::ZERO);
         let value = *syscall_handler
@@ -284,10 +283,10 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
 
     #[allow(clippy::result_large_err)]
     fn storage_write(
-        request: StorageWriteRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
+        _request: StorageWriteRequest,
+        _vm: &mut VirtualMachine,
+        _syscall_handler: &mut Self,
+        _remaining_gas: &mut u64,
     ) -> Result<StorageWriteResponse, Self::Error> {
         Ok(StorageWriteResponse {})
     }
