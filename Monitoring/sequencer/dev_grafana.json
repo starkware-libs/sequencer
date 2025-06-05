@@ -60,6 +60,13 @@
         "extra_params": {}
       },
       {
+        "title": "consensus_round_above_zero",
+        "description": "The number of times the consensus round has increased above zero",
+        "type": "graph",
+        "expr": "consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
         "title": "consensus_max_cached_block_number",
         "description": "How many blocks after current are cached",
         "type": "graph",
