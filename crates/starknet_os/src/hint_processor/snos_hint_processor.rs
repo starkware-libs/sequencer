@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-#[cfg(feature = "testing")]
-use std::collections::HashSet;
+use std::collections::btree_map::IntoIter;
+use std::collections::{BTreeMap, HashSet};
 
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
@@ -99,7 +98,8 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
-    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
+    pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, ContractClass>,
+    pub(crate) deprecated_class_hashes: HashSet<ClassHash>,
     pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     pub(crate) deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
@@ -158,7 +158,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             deprecated_syscall_hint_processor,
             da_segment: None,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
-            deprecated_compiled_classes,
+            deprecated_class_hashes: deprecated_compiled_classes.keys().copied().collect(),
+            deprecated_compiled_classes_iter: deprecated_compiled_classes.into_iter(),
             compiled_classes,
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
