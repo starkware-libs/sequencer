@@ -45,8 +45,8 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
-use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
+use crate::vm_utils::write_to_temp_segment;
 
 #[derive(Debug, thiserror::Error)]
 pub enum SnosSyscallError {
@@ -112,45 +112,15 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<CallContractResponse> {
-        // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
-        // error type.
-        let call_tracker = syscall_handler
-            .execution_helpers_manager
-            .get_mut_current_execution_helper()
-            .expect("No current execution helper")
-            .tx_execution_iter
-            .get_mut_tx_execution_info_ref()
-            .expect("No current tx execution info")
-            .call_info_tracker
-            .as_mut()
-            .expect("No call info tracker found");
-
-        let next_call_execution = &call_tracker
-            .inner_calls_iterator
-            .next()
-            .ok_or(ExecutionHelperError::MissingCallInfo)
-            .expect("Missing call info")
-            .execution;
-
+        let next_call_execution = syscall_handler.get_next_call_execution();
         *remaining_gas -= next_call_execution.gas_consumed;
-        let ret_data = &next_call_execution.retdata.0;
 
+        let ret_data = &next_call_execution.retdata.0;
         if next_call_execution.failed {
             return Err(SyscallExecutionError::Revert { error_data: ret_data.clone() });
         };
 
-        let relocatable_ret_data: Vec<MaybeRelocatable> =
-            ret_data.iter().map(|&x| MaybeRelocatable::from(x)).collect();
-
-        let retdata_segment_start_ptr = vm.add_temporary_segment();
-        vm.load_data(retdata_segment_start_ptr, &relocatable_ret_data)?;
-
-        Ok(CallContractResponse {
-            segment: ReadOnlySegment {
-                start_ptr: retdata_segment_start_ptr,
-                length: relocatable_ret_data.len(),
-            },
-        })
+        Ok(CallContractResponse { segment: write_to_temp_segment(ret_data, vm)? })
     }
 
     #[allow(clippy::result_large_err)]
@@ -294,7 +264,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> SyscallResult<SendMessageToL1Response> {
-        todo!()
+        Ok(SendMessageToL1Response {})
     }
 
     #[allow(clippy::result_large_err)]

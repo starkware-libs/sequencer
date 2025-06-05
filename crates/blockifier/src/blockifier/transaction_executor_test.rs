@@ -315,7 +315,7 @@ fn test_execute_txs_bouncing(#[case] concurrency_enabled: bool, #[case] external
     );
 
     let pool = if external_pool {
-        Some(Arc::new(WorkerPool::start(config.stack_size, config.concurrency_config.clone())))
+        Some(Arc::new(WorkerPool::start(&config.get_worker_pool_config())))
     } else {
         None
     };

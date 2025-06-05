@@ -6,6 +6,7 @@ use crate::deployment::{
     ConfigOverride,
     Deployment,
     DeploymentConfigOverride,
+    DeploymentType,
     InstanceConfigOverride,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
@@ -40,6 +41,7 @@ fn testing_instance_config_override() -> InstanceConfigOverride {
         true,
         "0x0101010101010101010101010101010101010101010101010101010101010101",
         "0x64",
+        DeploymentType::Operational.get_deployment_type_config_override(),
     )
 }
 

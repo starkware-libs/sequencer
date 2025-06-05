@@ -43,12 +43,44 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 
-use super::snos_hint_processor::SnosHintProcessor;
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
+use crate::vm_utils::write_to_temp_segment;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DeprecatedSnosSyscallError {
     #[error(transparent)]
     SyscallExecutorBase(#[from] DeprecatedSyscallExecutorBaseError),
+}
+
+#[derive(Debug)]
+pub enum CallRequest {
+    CallContract(CallContractRequest),
+    DelegateCall(CallContractRequest),
+    DelegateL1Handler(CallContractRequest),
+    LibraryCall(LibraryCallRequest),
+    LibraryCallL1Handler(LibraryCallRequest),
+}
+
+impl<S: StateReader> SnosHintProcessor<'_, S> {
+    #[allow(clippy::result_large_err)]
+    fn _call_contract(
+        request: CallRequest,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+    ) -> DeprecatedSyscallResult<CallContractResponse> {
+        let next_call_execution = syscall_handler.get_next_call_execution();
+
+        let ret_data = &next_call_execution.retdata.0;
+        if next_call_execution.failed {
+            // A transaction with a failed Cairo0 call should not reach the OS.
+            panic!(
+                "Unexpected reverted call (Cairo0 call failed, but reached the OS). \nRequest: \
+                 {request:?} \nReturned data: {ret_data:?}",
+            );
+        };
+
+        Ok(CallContractResponse { segment: write_to_temp_segment(ret_data, vm)? })
+    }
 }
 
 #[allow(unused_variables)]
@@ -89,7 +121,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<CallContractResponse> {
-        todo!()
+        Self::_call_contract(CallRequest::CallContract(request), vm, syscall_handler)
     }
 
     #[allow(clippy::result_large_err)]
@@ -98,7 +130,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DelegateCallResponse> {
-        todo!()
+        Self::_call_contract(CallRequest::DelegateCall(request), vm, syscall_handler)
     }
 
     #[allow(clippy::result_large_err)]
@@ -107,7 +139,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<DelegateCallResponse> {
-        todo!()
+        Self::_call_contract(CallRequest::DelegateL1Handler(request), vm, syscall_handler)
     }
 
     #[allow(clippy::result_large_err)]
@@ -210,7 +242,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<LibraryCallResponse> {
-        todo!()
+        Self::_call_contract(CallRequest::LibraryCall(request), vm, syscall_handler)
     }
 
     #[allow(clippy::result_large_err)]
@@ -219,7 +251,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<LibraryCallResponse> {
-        todo!()
+        Self::_call_contract(CallRequest::LibraryCallL1Handler(request), vm, syscall_handler)
     }
 
     #[allow(clippy::result_large_err)]
@@ -228,7 +260,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<ReplaceClassResponse> {
-        todo!()
+        Ok(ReplaceClassResponse {})
     }
 
     #[allow(clippy::result_large_err)]
@@ -237,7 +269,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<SendMessageToL1Response> {
-        todo!()
+        Ok(SendMessageToL1Response {})
     }
 
     #[allow(clippy::result_large_err)]

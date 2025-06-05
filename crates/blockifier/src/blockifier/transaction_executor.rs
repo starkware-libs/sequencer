@@ -48,6 +48,8 @@ impl LogCompatibleToStringExt for TransactionExecutorError {}
 
 pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
 
+#[cfg_attr(test, derive(PartialEq))]
+#[derive(Debug)]
 pub struct BlockExecutionSummary {
     pub state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
@@ -154,7 +156,7 @@ impl<S: StateReader> TransactionExecutor<S> {
             Ok(tx_execution_info) => {
                 let state_diff = transactional_state.to_state_diff()?.state_maps;
                 let tx_state_changes_keys = state_diff.keys();
-                lock_bouncer(&mut self.bouncer).try_update(
+                lock_bouncer(&self.bouncer).try_update(
                     &transactional_state,
                     &tx_state_changes_keys,
                     &tx_execution_info.summarize(&self.block_context.versioned_constants),
@@ -200,51 +202,59 @@ impl<S: StateReader> TransactionExecutor<S> {
     // TODO(Aner): Consume "self", i.e., remove the reference, after removing the native blockifier.
     #[allow(clippy::result_large_err)]
     pub fn finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
-        self.internal_finalize()
+        finalize_block(
+            &self.bouncer,
+            self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
+            &self.block_context,
+        )
     }
 
     #[cfg(feature = "reexecution")]
     #[allow(clippy::result_large_err)]
     pub fn non_consuming_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
-        self.internal_finalize()
-    }
-
-    #[allow(clippy::result_large_err)]
-    fn internal_finalize(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
-        log::debug!(
-            "Final block weights: {:?}.",
-            lock_bouncer(&mut self.bouncer).get_accumulated_weights()
-        );
-        let block_state = self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR);
-        let alias_contract_address = self
-            .block_context
-            .versioned_constants
-            .os_constants
-            .os_contract_addresses
-            .alias_contract_address();
-        if self.block_context.versioned_constants.enable_stateful_compression {
-            allocate_aliases_in_storage(block_state, alias_contract_address)?;
-        }
-        let state_diff = block_state.to_state_diff()?.state_maps;
-        let compressed_state_diff =
-            if self.block_context.versioned_constants.enable_stateful_compression {
-                Some(compress(&state_diff, block_state, alias_contract_address)?.into())
-            } else {
-                None
-            };
-
-        let mut bouncer = lock_bouncer(&mut self.bouncer);
-        Ok(BlockExecutionSummary {
-            state_diff: state_diff.into(),
-            compressed_state_diff,
-            bouncer_weights: *bouncer.get_accumulated_weights(),
-            casm_hash_computation_data: mem::take(&mut bouncer.casm_hash_computation_data),
-        })
+        finalize_block(
+            &self.bouncer,
+            self.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR),
+            &self.block_context,
+        )
     }
 }
 
-fn lock_bouncer(bouncer: &mut Arc<Mutex<Bouncer>>) -> MutexGuard<'_, Bouncer> {
+fn lock_bouncer(bouncer: &Arc<Mutex<Bouncer>>) -> MutexGuard<'_, Bouncer> {
     bouncer.lock().expect("Bouncer lock failed.")
+}
+
+/// Finalizes the creation of a block.
+/// Returns the state diff and the block weights.
+#[allow(clippy::result_large_err)]
+pub(crate) fn finalize_block<S: StateReader>(
+    bouncer: &Arc<Mutex<Bouncer>>,
+    block_state: &mut CachedState<S>,
+    block_context: &BlockContext,
+) -> TransactionExecutorResult<BlockExecutionSummary> {
+    log::debug!("Final block weights: {:?}.", lock_bouncer(bouncer).get_accumulated_weights());
+    let alias_contract_address = block_context
+        .versioned_constants
+        .os_constants
+        .os_contract_addresses
+        .alias_contract_address();
+    if block_context.versioned_constants.enable_stateful_compression {
+        allocate_aliases_in_storage(block_state, alias_contract_address)?;
+    }
+    let state_diff = block_state.to_state_diff()?.state_maps;
+    let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
+        Some(compress(&state_diff, block_state, alias_contract_address)?.into())
+    } else {
+        None
+    };
+
+    let mut bouncer = lock_bouncer(bouncer);
+    Ok(BlockExecutionSummary {
+        state_diff: state_diff.into(),
+        compressed_state_diff,
+        bouncer_weights: *bouncer.get_accumulated_weights(),
+        casm_hash_computation_data: mem::take(&mut bouncer.casm_hash_computation_data),
+    })
 }
 
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
@@ -359,8 +369,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             worker_pool.run_and_wait(worker_executor.clone(), chunk.len());
         } else {
             // If a pool is not given, create a new pool and wait for it to finish.
-            let worker_pool =
-                WorkerPool::start(self.config.stack_size, self.config.concurrency_config.clone());
+            let worker_pool = WorkerPool::start(&self.config.get_worker_pool_config());
             worker_pool.run_and_wait(worker_executor.clone(), chunk.len());
             worker_pool.join();
         }

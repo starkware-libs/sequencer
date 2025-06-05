@@ -355,7 +355,7 @@ async fn collect_execution_results_and_stream_txs(
             // TODO(yael 18/9/2024): add timeout error handling here once this
             // feature is added.
             Err(err) => {
-                debug!(
+                info!(
                     "Transaction {} failed with error: {}.",
                     tx_hash,
                     err.log_compatible_to_string()

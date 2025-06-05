@@ -52,7 +52,7 @@ templating_object = {
             "refresh": 1,
             "regex": "",
             "skipUrlSync": False,
-            "sort": 0,
+            "sort": 1,
             "type": "query",
         },
         {
@@ -74,7 +74,7 @@ templating_object = {
             "refresh": 1,
             "regex": "",
             "skipUrlSync": False,
-            "sort": 0,
+            "sort": 1,
             "type": "query",
         },
     ]
