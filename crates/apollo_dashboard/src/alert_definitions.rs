@@ -9,14 +9,7 @@ use apollo_mempool::metrics::{
 use apollo_metrics::metric_label_filter;
 use const_format::formatcp;
 
-use crate::dashboard::{
-    Alert,
-    AlertComparisonOp,
-    AlertCondition,
-    AlertGroup,
-    AlertLogicalOp,
-    Alerts,
-};
+use crate::alerts::{Alert, AlertComparisonOp, AlertCondition, AlertGroup, AlertLogicalOp, Alerts};
 
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
 // TODO(Tsabary): remove the following constant, and create relevant "_sum" and "_count" metric fns.
