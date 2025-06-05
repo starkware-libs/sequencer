@@ -14,11 +14,13 @@ from starkware.starknet.common.syscalls import (
     storage_read,
     storage_write,
     library_call,
+    library_call_l1_handler,
     deploy,
     call_contract,
     get_block_number,
     get_block_timestamp,
     get_caller_address,
+    get_contract_address as get_contract_address_syscall,
     get_sequencer_address,
     replace_class,
     get_tx_info,
@@ -54,6 +56,18 @@ func with_arg(num: felt) {
 @external
 func return_result(num: felt) -> (result: felt) {
     return (result=num);
+}
+
+// Not intended to be called - just so all syscall hints appear in the compiled contract.
+func other_syscalls{syscall_ptr: felt*}() {
+    library_call_l1_handler(
+        class_hash=1,
+        function_selector=2,
+        calldata_size=3,
+        calldata=new(4, 5, 6),
+    );
+    get_contract_address_syscall();
+    return ();
 }
 
 @external
