@@ -2,6 +2,20 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
+pub enum AlertSeverity {
+    #[serde(rename = "p1")]
+    SOS,
+    #[serde(rename = "p2")]
+    Regular,
+    #[serde(rename = "p3")]
+    DayOnly,
+    #[serde(rename = "p4")]
+    WorkingHours,
+    #[serde(rename = "p5")]
+    Informational,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum AlertComparisonOp {
     #[serde(rename = "gt")]
     GreaterThan,
@@ -95,6 +109,8 @@ pub struct Alert {
     // The interval in sec between evaluations of the alert.
     #[serde(rename = "intervalSec")]
     pub evaluation_interval_sec: u64,
+    // The severity level of the alert.
+    pub severity: AlertSeverity,
 }
 
 /// Description of the alerts to be configured in the dashboard.

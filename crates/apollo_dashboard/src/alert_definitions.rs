@@ -8,7 +8,15 @@ use apollo_mempool::metrics::{
 };
 use const_format::formatcp;
 
-use crate::alerts::{Alert, AlertComparisonOp, AlertCondition, AlertGroup, AlertLogicalOp, Alerts};
+use crate::alerts::{
+    Alert,
+    AlertComparisonOp,
+    AlertCondition,
+    AlertGroup,
+    AlertLogicalOp,
+    AlertSeverity,
+    Alerts,
+};
 
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
 
@@ -26,6 +34,7 @@ const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
     }],
     pending_duration: "1s",
     evaluation_interval_sec: 10,
+    severity: AlertSeverity::Regular,
 };
 
 const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
@@ -43,6 +52,7 @@ const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
+    severity: AlertSeverity::Regular,
 };
 
 const GATEWAY_ADD_TX_LATENCY_INCREASE: Alert = Alert {
@@ -61,6 +71,7 @@ const GATEWAY_ADD_TX_LATENCY_INCREASE: Alert = Alert {
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
+    severity: AlertSeverity::Regular,
 };
 
 const MEMPOOL_ADD_TX_RATE_DROP: Alert = Alert {
@@ -78,6 +89,7 @@ const MEMPOOL_ADD_TX_RATE_DROP: Alert = Alert {
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
+    severity: AlertSeverity::Regular,
 };
 
 const HTTP_SERVER_IDLE: Alert = Alert {
@@ -92,6 +104,7 @@ const HTTP_SERVER_IDLE: Alert = Alert {
     }],
     pending_duration: "5m",
     evaluation_interval_sec: 60,
+    severity: AlertSeverity::Regular,
 };
 
 // The rate of add_txs is lower than the rate of transactions inserted into a block since this node
@@ -108,6 +121,7 @@ const MEMPOOL_GET_TXS_SIZE_DROP: Alert = Alert {
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
+    severity: AlertSeverity::Regular,
 };
 
 const MEMPOOL_POOL_SIZE_INCREASE: Alert = Alert {
@@ -122,6 +136,7 @@ const MEMPOOL_POOL_SIZE_INCREASE: Alert = Alert {
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
+    severity: AlertSeverity::Regular,
 };
 
 const CONSENSUS_ROUND_HIGH_AVG: Alert = Alert {
@@ -136,6 +151,7 @@ const CONSENSUS_ROUND_HIGH_AVG: Alert = Alert {
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
+    severity: AlertSeverity::Regular,
 };
 
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
