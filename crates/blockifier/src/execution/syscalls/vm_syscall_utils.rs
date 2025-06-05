@@ -13,7 +13,13 @@ use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddr
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
-use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
+use starknet_api::transaction::{
+    EventContent,
+    EventData,
+    EventKey,
+    L2ToL1Payload,
+    TransactionVersion,
+};
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::{Felt, FromStrError};
 
@@ -40,6 +46,7 @@ use crate::execution::syscalls::hint_processor::{
 };
 use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::syscall_executor::SyscallExecutor;
+use crate::transaction::objects::TransactionInfo;
 use crate::utils::u64_from_usize;
 
 pub type WriteResponseResult = SyscallBaseResult<()>;
@@ -769,6 +776,33 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
     }
 
     execute_syscall_from_selector(syscall_executor, vm, selector)
+}
+
+pub(crate) fn replacing_to_v1_required(
+    tx_info: &TransactionInfo,
+    class_hash: &ClassHash,
+    versioned_constants: &VersionedConstants,
+) -> bool {
+    // The transaction version, ignoring the only_query bit.
+    let version = tx_info.version();
+    // The set of v1-bound-accounts.
+    let v1_bound_accounts = &versioned_constants.os_constants.v1_bound_accounts_cairo0;
+
+    // If the transaction version is 3 and the account is in the v1-bound-accounts set,
+    // the syscall should return transaction version 1 instead.
+    // In such a case, `self.tx_info_start_ptr` is not used.
+    if version == TransactionVersion::THREE && v1_bound_accounts.contains(class_hash) {
+        let tip = match tx_info {
+            TransactionInfo::Current(transaction_info) => transaction_info.tip,
+            TransactionInfo::Deprecated(_) => {
+                panic!("Transaction info variant doesn't match transaction version")
+            }
+        };
+        if tip <= versioned_constants.os_constants.v1_bound_accounts_max_tip {
+            return true;
+        }
+    }
+    false
 }
 
 pub enum SelfOrRevert<T> {

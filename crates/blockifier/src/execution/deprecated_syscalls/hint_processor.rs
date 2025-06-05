@@ -98,10 +98,13 @@ use crate::execution::execution_utils::{
 use crate::execution::hint_code;
 use crate::execution::syscalls::hint_processor::EmitEventError;
 use crate::execution::syscalls::syscall_base::should_reject_deploy;
-use crate::execution::syscalls::vm_syscall_utils::{exceeds_event_size_limit, SyscallUsageMap};
+use crate::execution::syscalls::vm_syscall_utils::{
+    exceeds_event_size_limit,
+    replacing_to_v1_required,
+    SyscallUsageMap,
+};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
-use crate::transaction::objects::TransactionInfo;
 
 #[derive(Debug, Error)]
 pub enum DeprecatedSyscallExecutionError {
@@ -298,29 +301,18 @@ impl<'a> DeprecatedSyscallHintProcessor<'a> {
         vm: &mut VirtualMachine,
     ) -> DeprecatedSyscallResult<Relocatable> {
         let tx_context = &self.context.tx_context;
-        // The transaction version, ignoring the only_query bit.
-        let version = tx_context.tx_info.version();
-        let versioned_constants = &tx_context.block_context.versioned_constants;
-        // The set of v1-bound-accounts.
-        let v1_bound_accounts = &versioned_constants.os_constants.v1_bound_accounts_cairo0;
 
+        let tx_info = &tx_context.tx_info;
+        let versioned_constants = &tx_context.block_context.versioned_constants;
         // If the transaction version is 3 and the account is in the v1-bound-accounts set,
         // the syscall should return transaction version 1 instead.
         // In such a case, `self.tx_info_start_ptr` is not used.
-        if version == TransactionVersion::THREE && v1_bound_accounts.contains(&self.class_hash) {
-            let tip = match &tx_context.tx_info {
-                TransactionInfo::Current(transaction_info) => transaction_info.tip,
-                TransactionInfo::Deprecated(_) => {
-                    panic!("Transaction info variant doesn't match transaction version")
-                }
-            };
-            if tip <= versioned_constants.os_constants.v1_bound_accounts_max_tip {
-                let modified_version = signed_tx_version(
-                    &TransactionVersion::ONE,
-                    &TransactionOptions { only_query: tx_context.tx_info.only_query() },
-                );
-                return self.allocate_tx_info_segment(vm, Some(modified_version));
-            }
+        if replacing_to_v1_required(tx_info, &self.class_hash, versioned_constants) {
+            let modified_version = signed_tx_version(
+                &TransactionVersion::ONE,
+                &TransactionOptions { only_query: tx_info.only_query() },
+            );
+            return self.allocate_tx_info_segment(vm, Some(modified_version));
         }
 
         match self.tx_info_start_ptr {
