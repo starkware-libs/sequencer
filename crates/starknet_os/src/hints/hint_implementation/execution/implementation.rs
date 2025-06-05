@@ -665,14 +665,14 @@ pub(crate) fn check_syscall_response<S: StateReader>(
         get_ptr_from_var_name(Ids::CallResponse.into(), vm, ids_data, ap_tracking)?;
     let retdata_size = vm.get_integer(get_address_of_nested_fields_from_base_address(
         call_response_ptr,
-        CairoStruct::CallContractResponse,
+        CairoStruct::DeprecatedCallContractResponse,
         vm,
         &["retdata_size"],
         hint_processor.os_program,
     )?)?;
     let retdata_base = vm.get_relocatable(get_address_of_nested_fields_from_base_address(
         call_response_ptr,
-        CairoStruct::CallContractResponse,
+        CairoStruct::DeprecatedCallContractResponse,
         vm,
         &["retdata"],
         hint_processor.os_program,
