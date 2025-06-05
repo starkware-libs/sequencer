@@ -181,7 +181,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<EmitEventResponse, Self::Error> {
-        todo!()
+        Ok(EmitEventResponse {})
     }
 
     #[allow(clippy::result_large_err)]
