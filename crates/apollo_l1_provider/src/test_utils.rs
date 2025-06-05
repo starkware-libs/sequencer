@@ -210,7 +210,9 @@ impl TransactionManagerContentBuilder {
         committed_hashes: impl IntoIterator<Item = TransactionHash>,
     ) -> Self {
         self.committed.get_or_insert_default().extend(
-            committed_hashes.into_iter().map(|tx_hash| (tx_hash, TransactionPayload::HashOnly)),
+            committed_hashes
+                .into_iter()
+                .map(|tx_hash| (tx_hash, TransactionPayload::HashOnly(tx_hash))),
         );
         self
     }
