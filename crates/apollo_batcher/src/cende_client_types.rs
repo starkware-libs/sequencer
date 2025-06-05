@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::execution_resources::GasVector;
@@ -118,4 +119,20 @@ pub(crate) struct StarknetClientTransactionReceipt {
     // if the transaction execution status is Reverted, then revert_error is Some.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     revert_error: Option<String>,
+}
+
+// Conversion logic from blockifier types to StarknetClient types.
+impl From<(TransactionHash, usize, &TransactionExecutionInfo)>
+    for StarknetClientTransactionReceipt
+{
+    fn from(
+        (_tx_hash, _tx_index, _tx_execution_info): (
+            TransactionHash,
+            usize,
+            &TransactionExecutionInfo,
+        ),
+    ) -> Self {
+        // TODO(Arni): implement the conversion logic.
+        Self::default()
+    }
 }
