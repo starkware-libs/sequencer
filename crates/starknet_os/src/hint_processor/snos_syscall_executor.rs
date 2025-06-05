@@ -25,8 +25,6 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
-    Sha256ProcessBlockRequest,
-    Sha256ProcessBlockResponse,
     StorageReadRequest,
     StorageReadResponse,
     StorageWriteRequest,
@@ -84,6 +82,16 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
 
     fn get_keccak_round_cost_base_syscall_cost(&self) -> u64 {
         todo!()
+    }
+
+    fn get_sha256_segment_end_ptr(&self, _vm: &mut VirtualMachine) -> Relocatable {
+        self.syscall_hint_processor
+            .sha256_segment_end_ptr
+            .expect("SHA256 segment must be set in OS.")
+    }
+
+    fn set_sha256_segment_end_ptr(&mut self, sha256_segment_end_ptr: Relocatable) {
+        self.syscall_hint_processor.sha256_segment_end_ptr = Some(sha256_segment_end_ptr);
     }
 
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
@@ -233,16 +241,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<MetaTxV0Response, Self::Error> {
-        todo!()
-    }
-
-    #[allow(clippy::result_large_err)]
-    fn sha256_process_block(
-        request: Sha256ProcessBlockRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
-    ) -> Result<Sha256ProcessBlockResponse, Self::Error> {
         todo!()
     }
 

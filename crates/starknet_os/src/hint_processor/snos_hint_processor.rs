@@ -322,7 +322,7 @@ impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
 pub struct SyscallHintProcessor {
     // Sha256 segments.
-    sha256_segment: Option<Relocatable>,
+    pub(crate) sha256_segment_end_ptr: Option<Relocatable>,
     syscall_ptr: Option<Relocatable>,
     pub(crate) syscall_usage: SyscallUsageMap,
 
@@ -336,16 +336,12 @@ pub struct SyscallHintProcessor {
 impl SyscallHintProcessor {
     pub fn new() -> Self {
         Self {
-            sha256_segment: None,
+            sha256_segment_end_ptr: None,
             syscall_ptr: None,
             secp256k1_hint_processor: SecpHintProcessor::default(),
             secp256r1_hint_processor: SecpHintProcessor::default(),
             syscall_usage: SyscallUsageMap::new(),
         }
-    }
-
-    pub fn set_sha256_segment(&mut self, sha256_segment: Relocatable) {
-        self.sha256_segment = Some(sha256_segment);
     }
 
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
