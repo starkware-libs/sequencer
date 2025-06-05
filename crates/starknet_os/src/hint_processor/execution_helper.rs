@@ -298,6 +298,15 @@ impl<'a> CallInfoTracker<'a> {
         execute_code_block_hash_read_iterator,
         BlockHash
     );
+    next_iterator_method!(next_inner_call, inner_calls_iterator, CallInfo);
+
+    pub fn next_deployed_contracts_iterator(
+        &mut self,
+    ) -> Result<ContractAddress, ExecutionHelperError> {
+        self.deployed_contracts_iterator.next().ok_or(ExecutionHelperError::EndOfIterator {
+            item_type: "deployed_contracts_iterator".to_string(),
+        })
+    }
 }
 
 fn check_exhausted<I>(iterator: &mut I, name: &str, unexhausteds: &mut Vec<String>)
