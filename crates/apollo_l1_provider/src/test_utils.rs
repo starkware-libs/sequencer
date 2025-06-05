@@ -162,25 +162,35 @@ impl TransactionManagerContent {
 
 impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
-        let txs: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
+        let pending: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
         let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
         let committed: IndexMap<_, _> = mem::take(&mut content.committed).unwrap_or_default();
 
-        let uncommitted = txs.into();
+        let mut records = IndexMap::with_capacity(pending.len() + rejected.len() + committed.len());
 
-        let mut processed_records = IndexMap::with_capacity(rejected.len() + committed.len());
+        for pending_tx in pending {
+            assert_eq!(records.insert(pending_tx.tx_hash, pending_tx.into()), None);
+        }
+
         for rejected_tx in rejected {
+            let tx_hash = rejected_tx.tx_hash;
             let mut record = TransactionRecord::from(rejected_tx);
             record.mark_rejected();
-            assert_eq!(processed_records.insert(record.tx.tx_hash(), record), None);
-        }
-        for (tx_hash, payload) in committed {
-            let mut record = TransactionRecord::from(payload);
-            record.mark_committed();
-            assert_eq!(processed_records.insert(tx_hash, record), None);
+            assert_eq!(records.insert(tx_hash, record), None);
         }
 
-        TransactionManager::create_for_testing(uncommitted, processed_records)
+        for (tx_hash, committed_tx) in committed {
+            let mut record = TransactionRecord::from(committed_tx);
+            record.mark_committed();
+            assert_eq!(records.insert(tx_hash, record), None);
+        }
+
+        let proposable_index = records
+            .iter()
+            .filter_map(|(&tx_hash, record)| record.is_proposable().then_some(tx_hash))
+            .collect();
+        let current_epoch = 1;
+        TransactionManager::create_for_testing(records, proposable_index, current_epoch)
     }
 }
 
