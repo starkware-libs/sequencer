@@ -114,7 +114,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<CallContractResponse, Self::Error> {
-        let next_call_execution = syscall_handler.get_next_call_execution();
+        let next_call_execution = syscall_handler.get_next_call_execution()?;
         *remaining_gas -= next_call_execution.gas_consumed;
 
         let ret_data = &next_call_execution.retdata.0;
