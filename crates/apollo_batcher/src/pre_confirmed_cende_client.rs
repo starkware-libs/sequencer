@@ -6,7 +6,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use indexmap::IndexMap;
 use reqwest::{Client, RequestBuilder};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
@@ -65,10 +65,10 @@ pub const RECORDER_WRITE_PRE_CONFIRMED_TXS_PATH: &str = "/cende_recorder/write_p
 pub const RECORDER_WRITE_EXECUTED_TXS_PATH: &str = "/cende_recorder/write_executed_txs";
 
 impl PreConfirmedCendeClient {
-    pub fn new(config: PreConfirmedCendeConfig) -> Result<Self, PreConfirmedCendeClientError> {
+    pub fn new(config: PreConfirmedCendeConfig) -> Self {
         let recorder_url = config.recorder_url;
 
-        Ok(Self {
+        Self {
             start_new_round_url: Self::construct_endpoint_url(
                 recorder_url.clone(),
                 RECORDER_START_NEW_ROUND_PATH,
@@ -82,7 +82,7 @@ impl PreConfirmedCendeClient {
                 RECORDER_WRITE_EXECUTED_TXS_PATH,
             ),
             client: Client::new(),
-        })
+        }
     }
 
     fn construct_endpoint_url(recorder_url: Url, endpoint: &str) -> Url {
@@ -122,6 +122,7 @@ impl PreConfirmedCendeClient {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct PreConfirmedCendeConfig {
     pub recorder_url: Url,
 }
@@ -228,32 +229,5 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
             &format!(", num_txs: {}", executed_txs.executed_txs.len()),
         )
         .await
-    }
-}
-
-// TODO(noamsp): Remove this empty client once the Cende client is implemented.
-pub struct EmptyPreConfirmedCendeClient;
-
-#[async_trait]
-impl PreConfirmedCendeClientTrait for EmptyPreConfirmedCendeClient {
-    async fn send_start_new_round(
-        &self,
-        _start_new_round: CendeStartNewRound,
-    ) -> PreConfirmedCendeClientResult<()> {
-        Ok(())
-    }
-
-    async fn write_pre_confirmed_txs(
-        &self,
-        _pre_confirmed_txs: CendePreConfirmedTxs,
-    ) -> PreConfirmedCendeClientResult<()> {
-        Ok(())
-    }
-
-    async fn write_executed_txs(
-        &self,
-        _executed_txs: CendeExecutedTxs,
-    ) -> PreConfirmedCendeClientResult<()> {
-        Ok(())
     }
 }
