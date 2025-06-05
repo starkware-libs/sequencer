@@ -74,7 +74,7 @@ use crate::pre_confirmed_block_writer::{
     PreConfirmedBlockWriterFactoryTrait,
     PreConfirmedBlockWriterTrait,
 };
-use crate::pre_confirmed_cende_client::PreConfirmedCendeClientTrait;
+use crate::pre_confirmed_cende_client::PreConfirmedCendeClient;
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
     deadline_as_instant,
@@ -799,15 +799,17 @@ pub fn create_batcher(
     mempool_client: SharedMempoolClient,
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
-    pre_confirmed_cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
 ) -> Batcher {
     let (storage_reader, storage_writer) = apollo_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
-    let pre_confirmed_block_writer_factory =
-        Box::new(PreConfirmedBlockWriterFactory { cende_client: pre_confirmed_cende_client });
+    let pre_confirmed_cende_client =
+        PreConfirmedCendeClient::new(config.pre_confirmed_cende_config.clone());
+    let pre_confirmed_block_writer_factory = Box::new(PreConfirmedBlockWriterFactory {
+        cende_client: Arc::new(pre_confirmed_cende_client),
+    });
     let block_builder_factory = Box::new(BlockBuilderFactory {
         block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),
