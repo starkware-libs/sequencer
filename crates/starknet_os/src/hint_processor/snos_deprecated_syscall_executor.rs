@@ -204,16 +204,11 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetCallerAddressResponse, Self::Error> {
-        // TODO(Nimrod): Don't unwrap here, use the error handling mechanism.
-        let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
-        let caller_address = execution_helper
+        let caller_address = syscall_handler
+            .get_mut_current_execution_helper()?
             .tx_execution_iter
-            .tx_execution_info_ref
-            .as_ref()
-            .unwrap()
-            .call_info_tracker
-            .as_ref()
-            .unwrap()
+            .get_tx_execution_info_ref()?
+            .get_call_info_tracker()?
             .call_info
             .call
             .caller_address;
@@ -303,19 +298,12 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<StorageReadResponse, Self::Error> {
-        // TODO(Nimrod): Don't unwrap here, use the error handling mechanism.
-        let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
-        let value = *execution_helper
+        let value = syscall_handler
+            .get_mut_current_execution_helper()?
             .tx_execution_iter
-            .tx_execution_info_ref
-            .as_mut()
-            .unwrap()
-            .call_info_tracker
-            .as_mut()
-            .unwrap()
-            .execute_code_read_iterator
-            .next()
-            .unwrap();
+            .get_mut_tx_execution_info_ref()?
+            .get_mut_call_info_tracker()?
+            .next_execute_code_read()?;
         Ok(StorageReadResponse { value })
     }
 
