@@ -42,7 +42,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 
-use crate::hint_processor::execution_helper::ExecutionHelperError;
+use crate::hint_processor::execution_helper::{CallInfoTracker, ExecutionHelperError};
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::vm_utils::write_to_temp_segment;
 
@@ -84,6 +84,17 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         };
 
         Ok(CallContractResponse { segment: write_to_temp_segment(ret_data, vm)? })
+    }
+
+    #[allow(clippy::result_large_err)]
+    fn get_mut_call_info_tracker(
+        &mut self,
+    ) -> Result<&mut CallInfoTracker<'a>, DeprecatedSnosSyscallError> {
+        Ok(self
+            .get_mut_current_execution_helper()?
+            .tx_execution_iter
+            .get_mut_tx_execution_info_ref()?
+            .get_mut_call_info_tracker()?)
     }
 }
 
@@ -296,19 +307,11 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<StorageReadResponse, Self::Error> {
-        // TODO(Nimrod): Don't unwrap here, use the error handling mechanism.
-        let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
-        let value = *execution_helper
-            .tx_execution_iter
-            .tx_execution_info_ref
-            .as_mut()
-            .unwrap()
-            .call_info_tracker
-            .as_mut()
-            .unwrap()
+        let value = *syscall_handler
+            .get_mut_call_info_tracker()?
             .execute_code_read_iterator
             .next()
-            .unwrap();
+            .expect("Iterator can not be consumed.");
         Ok(StorageReadResponse { value })
     }
 
