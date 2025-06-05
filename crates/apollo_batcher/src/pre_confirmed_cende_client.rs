@@ -4,12 +4,13 @@ use apollo_batcher_types::batcher_types::Round;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
-use blockifier::fee::receipt::TransactionReceipt;
 use reqwest::Client;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use url::Url;
+
+use crate::starknet_client_types::StarknetClientTransactionReceipt;
 
 // TODO(noamsp): rename PreConfirmed.. to Preconfirmed.. throughout the codebase.
 #[derive(Clone, Debug, Error)]
@@ -43,7 +44,7 @@ pub trait PreConfirmedCendeClientTrait: Send + Sync {
         &self,
         block_number: BlockNumber,
         proposal_round: Round,
-        executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
+        executed_txs: Vec<(TransactionHash, StarknetClientTransactionReceipt)>,
     ) -> PreConfirmedCendeClientResult<()>;
 }
 
@@ -133,7 +134,7 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
         &self,
         _block_number: BlockNumber,
         _proposal_round: Round,
-        _executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
+        _executed_txs: Vec<(TransactionHash, StarknetClientTransactionReceipt)>,
     ) -> PreConfirmedCendeClientResult<()> {
         todo!()
     }
@@ -165,7 +166,7 @@ impl PreConfirmedCendeClientTrait for EmptyPreConfirmedCendeClient {
         &self,
         _block_number: BlockNumber,
         _proposal_round: Round,
-        _executed_txs: Vec<(TransactionHash, TransactionReceipt)>,
+        _executed_txs: Vec<(TransactionHash, StarknetClientTransactionReceipt)>,
     ) -> PreConfirmedCendeClientResult<()> {
         Ok(())
     }

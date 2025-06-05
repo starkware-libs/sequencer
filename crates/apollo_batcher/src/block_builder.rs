@@ -392,9 +392,10 @@ async fn collect_execution_results_and_stream_txs(
                     .checked_add(tx_execution_info.receipt.gas.l2_gas)
                     .expect("Total L2 gas overflow.");
 
-                executed_txs.push((tx_hash, tx_execution_info.receipt.clone()));
+                let (tx_index, _) =
+                    execution_data.execution_infos.insert_full(tx_hash, tx_execution_info.clone());
 
-                execution_data.execution_infos.insert(tx_hash, tx_execution_info);
+                executed_txs.push((tx_hash, tx_index, tx_execution_info));
 
                 if let Some(output_content_sender) = output_content_sender {
                     output_content_sender.send(input_tx)?;

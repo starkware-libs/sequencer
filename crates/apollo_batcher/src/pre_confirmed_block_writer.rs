@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use apollo_batcher_types::batcher_types::Round;
 use async_trait::async_trait;
-use blockifier::fee::receipt::TransactionReceipt;
+use blockifier::transaction::objects::TransactionExecutionInfo;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::BlockNumber;
@@ -14,6 +14,7 @@ use crate::pre_confirmed_cende_client::{
     PreConfirmedCendeClientError,
     PreConfirmedCendeClientTrait,
 };
+use crate::starknet_client_types::StarknetClientTransactionReceipt;
 
 #[derive(Debug, Error)]
 pub enum BlockWriterError {
@@ -26,11 +27,9 @@ pub type BlockWriterResult<T> = Result<T, BlockWriterError>;
 pub type PreConfirmedTxReceiver = tokio::sync::mpsc::Receiver<Vec<TransactionHash>>;
 pub type PreConfirmedTxSender = tokio::sync::mpsc::Sender<Vec<TransactionHash>>;
 
-// TODO(noamsp): Change TransactionReceipt to TransactionExecutionInfo and translate into the
-// receipt type that FGW uses.
-pub type ExecutedTxReceiver =
-    tokio::sync::mpsc::Receiver<Vec<(TransactionHash, TransactionReceipt)>>;
-pub type ExecutedTxSender = tokio::sync::mpsc::Sender<Vec<(TransactionHash, TransactionReceipt)>>;
+pub type PreConfirmedExecutedTx = (TransactionHash, usize, TransactionExecutionInfo);
+pub type ExecutedTxReceiver = tokio::sync::mpsc::Receiver<Vec<PreConfirmedExecutedTx>>;
+pub type ExecutedTxSender = tokio::sync::mpsc::Sender<Vec<PreConfirmedExecutedTx>>;
 
 /// Coordinates the flow of pre-confirmed transaction data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
@@ -76,9 +75,17 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
             tokio::select! {
                 msg = { self.executed_tx_receiver.recv() } => {
                     match msg {
-                        Some(txs) => self.cende_client
-                            .send_executed_txs(self.block_number, self.proposal_round, txs)
-                            .await?,
+                        Some(txs) => {
+                            let converted_txs: Vec<(TransactionHash, StarknetClientTransactionReceipt)> =
+                                txs.into_iter().map(|tx| (tx.0, tx.into())).collect();
+                            self.cende_client
+                                .send_executed_txs(
+                                    self.block_number,
+                                    self.proposal_round,
+                                    converted_txs,
+                                )
+                                .await?
+                        }
                         None => {
                             info!("Executed tx channel closed");
                             break;
