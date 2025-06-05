@@ -5,7 +5,6 @@ pub mod communication;
 pub mod l1_provider;
 pub mod l1_scraper;
 pub mod metrics;
-pub mod soft_delete_index_map;
 pub mod transaction_manager;
 
 #[cfg(any(test, feature = "testing"))]
