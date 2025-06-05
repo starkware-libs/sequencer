@@ -157,7 +157,7 @@ impl Service {
         external_secret: Option<ExternalSecret>,
         config_filenames: Vec<String>,
         ingress_params: IngressParams,
-        // TODO(Tsabary): consider if including the environment is necessary.
+        // TODO(Tsabary): consider if including the environment is necessary..
         environment: Environment,
     ) -> Self {
         // Configs are loaded by order such that a config may override previous ones.
