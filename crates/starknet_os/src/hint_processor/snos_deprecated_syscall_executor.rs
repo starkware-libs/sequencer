@@ -72,7 +72,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<CallContractResponse, DeprecatedSnosSyscallError> {
-        let next_call_execution = syscall_handler.get_next_call_execution();
+        let next_call_execution = syscall_handler.get_next_call_execution()?;
 
         let ret_data = &next_call_execution.retdata.0;
         if next_call_execution.failed {

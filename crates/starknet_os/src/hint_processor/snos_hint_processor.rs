@@ -202,26 +202,15 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         self.execution_helpers_manager.n_helpers()
     }
 
-    pub fn get_next_call_execution(&mut self) -> &CallExecution {
-        // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
-        // error type.
-        let call_tracker = self
+    pub fn get_next_call_execution(&mut self) -> Result<&CallExecution, ExecutionHelperError> {
+        Ok(&self
             .execution_helpers_manager
-            .get_mut_current_execution_helper()
-            .expect("No current execution helper")
+            .get_mut_current_execution_helper()?
             .tx_execution_iter
-            .get_mut_tx_execution_info_ref()
-            .expect("No current tx execution info")
-            .call_info_tracker
-            .as_mut()
-            .expect("No call info tracker found");
-
-        &call_tracker
-            .inner_calls_iterator
-            .next()
-            .ok_or(ExecutionHelperError::MissingCallInfo)
-            .expect("Missing call info")
-            .execution
+            .get_mut_tx_execution_info_ref()?
+            .get_mut_call_info_tracker()?
+            .next_inner_call()?
+            .execution)
     }
 }
 
