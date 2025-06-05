@@ -788,9 +788,7 @@ pub(crate) fn replacing_to_v1_required(
     // The set of v1-bound-accounts.
     let v1_bound_accounts = &versioned_constants.os_constants.v1_bound_accounts_cairo0;
 
-    // If the transaction version is 3 and the account is in the v1-bound-accounts set,
-    // the syscall should return transaction version 1 instead.
-    // In such a case, `self.tx_info_start_ptr` is not used.
+    // Check if the transaction version is 3 and the account is in the v1-bound-accounts set.
     if version == TransactionVersion::THREE && v1_bound_accounts.contains(class_hash) {
         let tip = match tx_info {
             TransactionInfo::Current(transaction_info) => transaction_info.tip,

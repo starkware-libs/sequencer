@@ -52,6 +52,7 @@ use crate::execution::syscalls::hint_processor::{
 };
 use crate::execution::syscalls::vm_syscall_utils::{
     exceeds_event_size_limit,
+    replacing_to_v1_required,
     SyscallBaseResult,
     SyscallExecutorBaseError,
     TryExtractRevert,
@@ -206,32 +207,19 @@ impl<'state> SyscallHandlerBase<'state> {
 
     /// Returns the transaction version for the `get_execution_info` syscall.
     pub fn tx_version_for_get_execution_info(&self) -> TransactionVersion {
-        let tx_context = &self.context.tx_context;
-        // The transaction version, ignoring the only_query bit.
-        let version = tx_context.tx_info.version();
-        let versioned_constants = &tx_context.block_context.versioned_constants;
-        // The set of v1-bound-accounts.
-        let v1_bound_accounts = &versioned_constants.os_constants.v1_bound_accounts_cairo1;
+        let tx_info = &self.context.tx_context.tx_info;
+        let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
         let class_hash = &self.call.class_hash;
 
         // If the transaction version is 3 and the account is in the v1-bound-accounts set,
         // the syscall should return transaction version 1 instead.
-        if version == TransactionVersion::THREE && v1_bound_accounts.contains(class_hash) {
-            let tip = match &tx_context.tx_info {
-                TransactionInfo::Current(transaction_info) => transaction_info.tip,
-                TransactionInfo::Deprecated(_) => {
-                    panic!("Transaction info variant doesn't match transaction version")
-                }
-            };
-            if tip <= versioned_constants.os_constants.v1_bound_accounts_max_tip {
-                return signed_tx_version(
-                    &TransactionVersion::ONE,
-                    &TransactionOptions { only_query: tx_context.tx_info.only_query() },
-                );
-            }
+        if replacing_to_v1_required(tx_info, class_hash, versioned_constants) {
+            return signed_tx_version(
+                &TransactionVersion::ONE,
+                &TransactionOptions { only_query: tx_info.only_query() },
+            );
         }
-
-        tx_context.tx_info.signed_version()
+        tx_info.signed_version()
     }
 
     /// Return whether the L1 data gas should be excluded for the `get_execution_info` syscall.
