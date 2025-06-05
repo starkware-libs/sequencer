@@ -16,7 +16,7 @@ use thiserror::Error;
 pub type NativeBlockifierResult<T> = Result<T, NativeBlockifierError>;
 
 /// Defines `NativeBlockifierError` variants, their respective Python types, and implements a
-/// conversion to `PyErr`.
+/// conversion to `PyErr`..
 macro_rules! native_blockifier_errors {
     ($(($variant_name:ident, $from_error_type:ty, $py_error_name:ident)),*) => {
 
