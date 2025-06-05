@@ -8,6 +8,7 @@ mod crypto_test;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, Poseidon, StarkHash as CoreStarkHash};
+use thiserror::Error;
 
 use crate::hash::StarkHash;
 
@@ -26,7 +27,9 @@ pub enum CryptoError {
 }
 
 /// A public key.
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(
+    Debug, Default, derive_more::Deref, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize,
+)]
 pub struct PublicKey(pub Felt);
 
 impl std::fmt::LowerHex for PublicKey {
@@ -36,7 +39,9 @@ impl std::fmt::LowerHex for PublicKey {
 }
 
 /// A private key.
-#[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(
+    Debug, Default, derive_more::Deref, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize,
+)]
 pub struct PrivateKey(pub Felt);
 
 /// A signature.
@@ -121,7 +126,9 @@ impl HashChain {
 ///
 /// Before signing, the message vector should be hashed to produce a digest suitable
 /// for the signature algorithm in use (e.g., Blake hash).
-#[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize)]
+#[derive(
+    Debug, Default, derive_more::Deref, Clone, Eq, PartialEq, Hash, Deserialize, Serialize,
+)]
 pub struct Message(pub Vec<Felt>);
 
 /// A raw Stark signature, represented as a list of field elements (`Felt`).
@@ -131,5 +138,25 @@ pub struct Message(pub Vec<Felt>);
 ///
 /// This generic container allows higher-level traits to work without the burden of
 /// propagating generic signature types.
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, derive_more::Deref, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RawSignature(pub Vec<Felt>);
+
+#[derive(Clone, Debug, Error, Serialize, Deserialize, Eq, PartialEq)]
+pub enum SignatureConversionError {
+    #[error("expected a 2-element signature, but got length {0}")]
+    InvalidLength(usize),
+}
+
+impl TryFrom<RawSignature> for starknet_crypto::Signature {
+    type Error = SignatureConversionError;
+
+    fn try_from(signature: RawSignature) -> Result<Self, Self::Error> {
+        let signature_length = signature.0.len();
+        let [r, s]: [Felt; 2] = signature
+            .0
+            .try_into()
+            .map_err(|_| SignatureConversionError::InvalidLength(signature_length))?;
+
+        Ok(starknet_crypto::Signature { r, s })
+    }
+}
