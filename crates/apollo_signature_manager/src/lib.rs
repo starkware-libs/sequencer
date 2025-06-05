@@ -61,3 +61,34 @@ pub fn verify_identity(
     ecdsa_verify(&public_key.0, &message_digest.0, &signature)
         .map_err(|error| SignatureManagerError::Verify(error.to_string()))
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use starknet_api::felt;
+    use starknet_core::crypto::Signature;
+    use test_case::test_case;
+
+    use super::*;
+
+    #[test_case(
+        Signature {
+            r: felt!("0x606f47b45330e70c562306d037079eaeb0e07050dfb731be743556e796152e3"),
+            s: felt!("0x2644bef4418c2a3fcfd4d6b48e66f9c10b88884ffec6608d5d4b312024d6aa5"),
+        },
+        true;
+        "valid_signature"
+    )]
+    #[test_case(
+        Signature { r: felt!("0x1"), s: felt!("0x2") },
+        false;
+        "invalid_signature"
+    )]
+    fn test_verify_identity(signature: Signature, expected: bool) {
+        let peer_id = PeerID(b"alice".to_vec());
+        let public_key =
+            PublicKey(felt!("0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"));
+
+        assert_eq!(verify_identity(peer_id, signature.into(), public_key), Ok(expected));
+    }
+}

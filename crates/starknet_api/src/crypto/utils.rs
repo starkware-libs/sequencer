@@ -135,6 +135,12 @@ pub struct Message(pub Vec<Felt>);
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct RawSignature(pub Vec<Felt>);
 
+impl From<starknet_crypto::Signature> for RawSignature {
+    fn from(signature: starknet_crypto::Signature) -> Self {
+        Self(vec![signature.r, signature.s])
+    }
+}
+
 #[derive(Clone, Debug, Error, Serialize, Deserialize, Eq, PartialEq)]
 pub enum SignatureConversionError {
     #[error("expected a 2-element signature, but got length {0}")]
