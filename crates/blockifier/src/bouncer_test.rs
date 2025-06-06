@@ -107,6 +107,7 @@ fn test_block_weights_has_room_n_txs(
         contract_address!(0_u128),
     ])),
     bouncer_config: BouncerConfig::empty(),
+    class_hashes_to_gas_for_migration: HashMap::default(),
     accumulated_weights: BouncerWeights {
         l1_gas: 10,
         message_segment_length: 10,
@@ -151,6 +152,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     let tx_weights = TxWeights {
         bouncer_weights: weights_to_update,
         casm_hash_computation_data: casm_hash_computation_data.clone(),
+        class_hashes_to_gas_for_migration: HashMap::default(),
     };
 
     let state_changes_keys_to_update =
