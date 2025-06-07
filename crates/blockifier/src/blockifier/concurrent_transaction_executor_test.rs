@@ -146,7 +146,7 @@ fn test_concurrent_transaction_executor_stream_txs() {
 
     let mut results = vec![];
     while !tx_executor.is_done() {
-        results.extend(tx_executor.get_processed_txs());
+        results.extend(tx_executor.get_new_results());
         std::thread::sleep(Duration::from_millis(1));
     }
 
