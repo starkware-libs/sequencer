@@ -41,7 +41,8 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
         // Run the threads.
         let handlers = receivers
             .into_iter()
-            .map(|receiver| {
+            .enumerate()
+            .map(|(thread_id, receiver)| {
                 let mut thread_builder = std::thread::Builder::new();
                 // When running Cairo natively, the real stack is used and could get overflowed
                 // (unlike the VM where the stack is simulated in the heap as a memory segment).
@@ -56,8 +57,11 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
                 // The gas upper bound is MAX_POSSIBLE_SIERRA_GAS, and sequencers must not raise it
                 // without adjusting the stack size.
                 thread_builder = thread_builder.stack_size(stack_size);
-                let worker_thread =
-                    WorkerThread { a_thread_panicked: a_thread_panicked.clone(), receiver };
+                let worker_thread = WorkerThread {
+                    a_thread_panicked: a_thread_panicked.clone(),
+                    receiver,
+                    thread_id,
+                };
                 thread_builder
                     .spawn(move || worker_thread.run_thread())
                     .expect("Failed to spawn thread.")
@@ -105,15 +109,29 @@ impl<S: StateReader + Send + 'static> WorkerPool<S> {
 struct WorkerThread<S: StateReader> {
     a_thread_panicked: Arc<AtomicBool>,
     receiver: mpsc::Receiver<Option<Arc<WorkerExecutor<S>>>>,
+    thread_id: usize,
 }
 
 impl<S: StateReader> WorkerThread<S> {
     /// Fetches worker executors from the channel, until None is received.
     fn run_thread(&self) {
+        let mut i = 0;
         while let Some(worker_executor) =
             self.receiver.recv().expect("Failed to receive worker executor.")
         {
+            let block_number = worker_executor.block_context.block_info.block_number;
+            log::debug!(
+                "Worker pool (thread {}) starting worker #{} (block number {block_number})",
+                self.thread_id,
+                i,
+            );
             self._run_executor(&*worker_executor);
+            log::debug!(
+                "Worker pool (thread {}) worker done #{} (block number {block_number})",
+                self.thread_id,
+                i,
+            );
+            i += 1;
         }
     }
 
