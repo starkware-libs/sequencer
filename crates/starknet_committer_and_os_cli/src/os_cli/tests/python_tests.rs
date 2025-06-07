@@ -6,13 +6,14 @@ use cairo_vm::hint_processor::builtin_hint_processor::kzg_da::WRITE_DIVMOD_SEGME
 use cairo_vm::hint_processor::builtin_hint_processor::secp::cairo0_hints::CAIRO0_HINT_CODES;
 use starknet_os::hints::enum_definition::{AggregatorHint, HintExtension, OsHint};
 use starknet_os::hints::types::HintEnum;
+use starknet_os::test_utils::errors::OsSpecificTestError;
 use starknet_types_core::felt::Felt;
 use strum::IntoEnumIterator;
 
 use crate::os_cli::commands::{validate_input, Input};
 use crate::os_cli::tests::aliases::aliases_test;
 use crate::os_cli::tests::bls_field::test_bls_field;
-use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult, OsSpecificTestError};
+use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult};
 use crate::shared_utils::types::{PythonTestError, PythonTestRunner};
 
 // Enum representing different Python tests.
