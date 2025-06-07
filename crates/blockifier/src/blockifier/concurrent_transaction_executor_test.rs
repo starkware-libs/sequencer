@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -58,16 +58,11 @@ fn get_test_data(block_deadline: Option<Instant>) -> TestData {
     TestData { pool, tx_executor, account_address, contract_address, max_n_events_in_block }
 }
 
-#[rstest]
-fn test_concurrent_transaction_executor() {
-    let TestData {
-        pool,
-        mut tx_executor,
-        account_address,
-        contract_address,
-        max_n_events_in_block,
-    } = get_test_data(None);
-
+fn test_txs(
+    account_address: ContractAddress,
+    contract_address: ContractAddress,
+    max_n_events_in_block: usize,
+) -> (Vec<Transaction>, Vec<Transaction>) {
     let txs0 = get_txs([
         emit_n_events_tx(1, account_address, contract_address, nonce!(0_u32)),
         // Transaction too big.
@@ -88,6 +83,21 @@ fn test_concurrent_transaction_executor() {
         emit_n_events_tx(1, account_address, contract_address, nonce!(3_u32)),
     ]);
 
+    (txs0, txs1)
+}
+
+#[rstest]
+fn test_concurrent_transaction_executor() {
+    let TestData {
+        pool,
+        mut tx_executor,
+        account_address,
+        contract_address,
+        max_n_events_in_block,
+    } = get_test_data(None);
+
+    let (txs0, txs1) = test_txs(account_address, contract_address, max_n_events_in_block);
+
     // Run.
     let results0 = tx_executor.add_txs_and_wait(&txs0);
     let results1 = tx_executor.add_txs_and_wait(&txs1);
@@ -106,6 +116,52 @@ fn test_concurrent_transaction_executor() {
 
     assert_eq!(results1.len(), 1);
     assert!(results1[0].is_ok());
+
+    // Close the block.
+    let block_summary = tx_executor.close_block().unwrap();
+    assert_eq!(block_summary.state_diff.address_to_nonce[&account_address], nonce!(3_u32));
+
+    // End test by calling pool.join().
+    drop(tx_executor);
+    Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
+}
+
+#[rstest]
+fn test_concurrent_transaction_executor_stream_txs() {
+    let TestData {
+        pool,
+        mut tx_executor,
+        account_address,
+        contract_address,
+        max_n_events_in_block,
+    } = get_test_data(None);
+
+    let (txs0, txs1) = test_txs(account_address, contract_address, max_n_events_in_block);
+
+    // Run.
+    tx_executor.add_txs(&txs0);
+    tx_executor.add_txs(&txs1);
+
+    // Collect the results.
+
+    let mut results = vec![];
+    while !tx_executor.is_done() {
+        results.extend(tx_executor.get_processed_txs());
+        std::thread::sleep(Duration::from_millis(1));
+    }
+
+    // Check execution results.
+    assert_eq!(results.len(), 4);
+
+    assert!(results[0].is_ok());
+    assert_matches!(
+        results[1].as_ref().unwrap_err(),
+        TransactionExecutorError::TransactionExecutionError(
+            TransactionExecutionError::TransactionTooLarge { .. }
+        )
+    );
+    assert!(results[2].is_ok());
+    assert!(results[3].is_ok());
 
     // Close the block.
     let block_summary = tx_executor.close_block().unwrap();
