@@ -167,6 +167,7 @@ pub struct BlockBuilder {
     execution_data: BlockTransactionExecutionData,
     l2_gas_used: GasAmount,
 
+    // TODO: rename to n_concurrent_txs.
     /// Parameters to configure the block builder behavior.
     tx_chunk_size: usize,
     tx_polling_interval_millis: u64,
@@ -245,8 +246,11 @@ impl BlockBuilder {
             if is_done {
                 info!("Block is full.");
                 if self.execution_params.fail_on_err {
+                    // TODO: This should change when doing pre-send.
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
                 } else {
+                    // TODO: distinguish between full blocks and blocks that are full because of
+                    // the deadline.
                     FULL_BLOCKS.increment(1);
                 }
                 break;
@@ -260,6 +264,8 @@ impl BlockBuilder {
                 finished_adding_txs = true;
             }
         }
+
+        // TODO: call handle_executed_txs.
 
         info!(
             "Finished building block with {} out of {} transactions.",

@@ -106,6 +106,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         let worker_executor = &self.worker_executor;
         worker_executor.scheduler.halt();
 
+        // TODO: Get n_committed_txs from the caller.
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
         let mut state_after_block =
             worker_executor.commit_chunk_and_recover_block_state(n_committed_txs);
