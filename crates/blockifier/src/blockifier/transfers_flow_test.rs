@@ -81,7 +81,7 @@ pub fn transfers_flow_test_body(
     );
     let mut transfers_generator = TransfersGenerator::new(transfers_generator_config);
 
-    let n_results = transfers_generator.execute_transfers(timeout);
+    let (n_results, block_summary) = transfers_generator.execute_transfers(timeout);
     // Check that the number of results is as expected.
     match timeout {
         Some(TIME_FOR_ZERO_TXS) => {
@@ -95,5 +95,5 @@ pub fn transfers_flow_test_body(
         }
     }
 
-    transfers_generator.finalize()
+    (transfers_generator.finalize(), block_summary)
 }
