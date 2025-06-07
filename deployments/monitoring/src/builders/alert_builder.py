@@ -65,6 +65,7 @@ def create_alert_rule(
     expr: str,
     conditions: list[dict[str, any]],
     datasource_uid: str,
+    labels: dict[str, str] = {},
 ):
     logger.debug(f"Creating alert rule {name}")
     alert_rule = alert_rule_object.copy()
@@ -74,6 +75,7 @@ def create_alert_rule(
     alert_rule["ruleGroup"] = rule_group
     alert_rule["intervalSec"] = interval_sec
     alert_rule["for"] = _for
+    alert_rule["labels"] = labels
     alert_rule["data"] = [
         create_alert_query(
             datasource_uid=datasource_uid, model=create_alert_query_model(expr=expr)
@@ -205,6 +207,7 @@ def alert_builder(args: argparse.Namespace):
                 expr=expr,
                 conditions=dev_alert["conditions"],
                 datasource_uid=args.datasource_uid,
+                labels = {"og_priority": str(dev_alert.get("severity"))}
             )
         )
 
