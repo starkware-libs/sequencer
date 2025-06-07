@@ -45,7 +45,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::StarknetClientTransactionReceipt;
@@ -425,6 +425,19 @@ async fn collect_execution_results_and_stream_txs(
 
         match result {
             Ok(tx_execution_info) => {
+                if let Some(ref revert_error) = tx_execution_info.revert_error {
+                    warn!(
+                        "\nA transaction is reverted while accepted. {}\nvalidate_call_info: \
+                         {:?}\nexecute_call_info: {:?}\nfee_transfer_call_info: \
+                         {:?}\nrevert_error: {:?}\nreceipt: {:?}\n",
+                        input_tx.tx_hash(),
+                        tx_execution_info.validate_call_info,
+                        tx_execution_info.execute_call_info,
+                        tx_execution_info.fee_transfer_call_info,
+                        revert_error,
+                        tx_execution_info.receipt
+                    );
+                }
                 *l2_gas_used = l2_gas_used
                     .checked_add(tx_execution_info.receipt.gas.l2_gas)
                     .expect("Total L2 gas overflow.");
@@ -449,7 +462,7 @@ async fn collect_execution_results_and_stream_txs(
             // feature is added.
             Err(err) => {
                 info!(
-                    "Transaction {} failed with error: {}.",
+                    "Transaction failed to execute. Transaction hash: {} with error: {}.",
                     tx_hash,
                     err.log_compatible_to_string()
                 );
