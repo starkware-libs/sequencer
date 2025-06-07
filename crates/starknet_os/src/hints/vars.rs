@@ -364,6 +364,7 @@ define_string_enum! {
     #[derive(Copy, Clone)]
     pub enum CairoStruct {
         (BigInt3, "starkware.starknet.core.os.data_availability.bls_field.BigInt3"),
+        (BlockInfo, "starkware.starknet.common.new_syscalls.BlockInfo"),
         (BuiltinParamsPtr, "starkware.starknet.core.os.builtins.BuiltinParams*"),
         (BuiltinPointersPtr, "starkware.starknet.core.os.builtins.BuiltinPointers*"),
         (CallContractResponse, "starkware.starknet.common.new_syscalls.CallContractResponse"),
@@ -404,6 +405,7 @@ define_string_enum! {
             EntryPointReturnValuesPtr,
             "starkware.starknet.core.os.execution.execute_entry_point.EntryPointReturnValues*"
         ),
+        (ExecutionInfo, "starkware.starknet.common.new_syscalls.ExecutionInfo"),
         (
             ExecutionContextPtr,
             "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext*"
@@ -422,6 +424,7 @@ define_string_enum! {
         (StorageReadRequest, "starkware.starknet.common.new_syscalls.StorageReadRequest"),
         (StorageWritePtr, "starkware.starknet.common.syscalls.StorageWrite*"),
         (StorageWriteRequest, "starkware.starknet.common.new_syscalls.StorageWriteRequest"),
+        (TxInfo, "starkware.starknet.common.new_syscalls.TxInfo"),
         (TxInfoPtr, "starkware.starknet.common.new_syscalls.TxInfo*"),
     }
 }
