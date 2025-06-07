@@ -126,7 +126,6 @@ fn test_concurrent_transaction_executor() {
     Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
 }
 
-
 #[rstest]
 fn test_concurrent_transaction_executor_stream_txs() {
     let TestData {
