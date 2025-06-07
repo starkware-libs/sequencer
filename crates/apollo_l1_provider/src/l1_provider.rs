@@ -329,10 +329,12 @@ impl L1ProviderBuilder {
                 );
             })
             .or(self.startup_height)
+            // TODO(Gilad): remove expect message below once we support LogStateUpdate in Anvil.
             .expect(
-                "Starting height must set either dynamically from the scraper's last known \
-                 LogStateUpdate, set as the batcher height when in dummy mode, or overridden \
-                 explicitly through the config",
+                "Starting height for l1 provider not given. If using Anvil then set manually via \
+                 `provider_startup_height_override` in the config. If not using Anvil, then the \
+                 scraper likely had issues communicating with L1 (probably infura/alchemy are \
+                 down)",
             );
 
         let catchup_height = self
