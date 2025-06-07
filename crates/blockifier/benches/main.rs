@@ -37,7 +37,7 @@ pub fn transfers_benchmark(c: &mut Criterion) {
     // and performs transfers.
     c.bench_function("transfers", |benchmark| {
         benchmark.iter(|| {
-            transfers_generator.execute_transfers(None);
+            transfers_generator.execute_block_of_transfers(None);
         })
     });
 }
