@@ -6,6 +6,7 @@ use crate::deployment::{
     DeploymentConfigOverride,
     DeploymentType,
     InstanceConfigOverride,
+    PragmaDomain,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, IngressParams};
@@ -27,6 +28,7 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         "0x1001",
         "https://integration-sepolia.starknet.io/",
         "0x1002",
+        PragmaDomain::Dev,
     )
 }
 

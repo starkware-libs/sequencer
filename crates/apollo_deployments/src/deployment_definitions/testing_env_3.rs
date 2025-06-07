@@ -7,6 +7,7 @@ use crate::deployment::{
     Deployment,
     DeploymentConfigOverride,
     DeploymentType,
+    PragmaDomain,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
@@ -32,6 +33,7 @@ fn testing_env_3_deployment_config_override() -> DeploymentConfigOverride {
         "0x7c07a3eec8ff611328722c3fc3e5d2e4ef2f60740c0bf86c756606036b74c16",
         "https://fgw-sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io",
         "0x54a93d918d62b2fb62b25e77d9cb693bd277ab7e6fa236e53af263f1adb40e4",
+        PragmaDomain::Dev,
     )
 }
 
