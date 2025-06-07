@@ -24,7 +24,7 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::bootstrapper::CommitBlockBacklog;
 use crate::l1_provider::L1Provider;
-use crate::transaction_manager::{TransactionManager, TransactionPayload};
+use crate::transaction_manager::{TransactionManager, TransactionPayload, TransactionRecord};
 use crate::ProviderState;
 
 pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
@@ -164,10 +164,19 @@ impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
         let txs: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
         let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
+        let committed: IndexMap<_, _> = mem::take(&mut content.committed).unwrap_or_default();
+
         let uncommitted = txs.into();
         let rejected = rejected.into();
-        let committed = content.committed.unwrap_or_default();
-        TransactionManager::create_for_testing(uncommitted, rejected, committed)
+
+        let mut committed_records = IndexMap::with_capacity(committed.len());
+        for (tx_hash, payload) in committed {
+            let mut record = TransactionRecord::from(payload);
+            record.mark_committed();
+            assert_eq!(committed_records.insert(tx_hash, record), None);
+        }
+
+        TransactionManager::create_for_testing(uncommitted, rejected, committed_records)
     }
 }
 
