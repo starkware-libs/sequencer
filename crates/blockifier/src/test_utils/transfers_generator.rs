@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use blockifier_test_utils::cairo_versions::CairoVersion;
@@ -16,19 +17,23 @@ use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt, invoke_tx_args};
 
+use crate::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use crate::blockifier::config::{ConcurrencyConfig, TransactionExecutorConfig};
 use crate::blockifier::transaction_executor::{
     BlockExecutionSummary,
     TransactionExecutor,
+    TransactionExecutorError,
     DEFAULT_STACK_SIZE,
 };
+use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::{BlockContext, ChainInfo};
-use crate::test_utils::dict_state_reader::DictStateReader;
+use crate::state::cached_state::StateMaps;
 use crate::test_utils::initial_test_state::test_state;
 use crate::test_utils::{RunnableCairo1, BALANCE};
 use crate::transaction::account_transaction::AccountTransaction;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
+
 const N_ACCOUNTS: u16 = 10000;
 const N_TXS: usize = 1000;
 const RANDOMIZATION_SEED: u64 = 0;
@@ -70,10 +75,11 @@ pub enum RecipientGeneratorType {
 }
 
 pub struct TransfersGenerator {
+    account_contract: FeatureContract,
     account_addresses: Vec<ContractAddress>,
+    block_context: BlockContext,
     chain_info: ChainInfo,
     resource_bounds: ValidResourceBounds,
-    executor: TransactionExecutor<DictStateReader>,
     nonce_manager: NonceManager,
     sender_index: usize,
     random_recipient_generator: Option<StdRng>,
@@ -99,13 +105,7 @@ impl TransfersGenerator {
             &block_context.block_info.gas_prices.strk_gas_prices,
         );
         let chain_info = block_context.chain_info().clone();
-        let state =
-            test_state(&chain_info, config.balance, &[(account_contract, config.n_accounts)]);
-        let executor_config = TransactionExecutorConfig {
-            concurrency_config: config.concurrency_config.clone(),
-            stack_size: config.stack_size,
-        };
-        let executor = TransactionExecutor::new(state, block_context, executor_config);
+
         let account_addresses = (0..config.n_accounts)
             .map(|instance_id| account_contract.get_instance_address(instance_id))
             .collect::<Vec<_>>();
@@ -132,10 +132,11 @@ impl TransfersGenerator {
         };
 
         Self {
+            account_contract,
             account_addresses,
+            block_context,
             chain_info,
             resource_bounds,
-            executor,
             nonce_manager,
             sender_index: 0,
             random_recipient_generator,
@@ -145,10 +146,9 @@ impl TransfersGenerator {
         }
     }
 
-    /// Finalizes the transaction executor and returns the ongoing transaction execution infos
-    /// and the block execution summary.
-    pub fn finalize(mut self) -> (Vec<TransactionExecutionInfo>, BlockExecutionSummary) {
-        (self.collected_execution_infos, self.executor.finalize().unwrap())
+    /// Returns the collected execution infos.
+    pub fn finalize(self) -> Vec<TransactionExecutionInfo> {
+        self.collected_execution_infos
     }
 
     pub fn get_next_recipient(&mut self) -> ContractAddress {
@@ -169,9 +169,59 @@ impl TransfersGenerator {
         }
     }
 
+    #[allow(clippy::type_complexity)]
+    fn _run_txs(
+        &self,
+        txs: Vec<Transaction>,
+        execution_deadline: Option<Instant>,
+    ) -> (
+        Vec<Result<(TransactionExecutionInfo, StateMaps), TransactionExecutorError>>,
+        BlockExecutionSummary,
+    ) {
+        let state = test_state(
+            &self.chain_info,
+            self.config.balance,
+            &[(self.account_contract, self.config.n_accounts)],
+        );
+        let executor_config = TransactionExecutorConfig {
+            concurrency_config: self.config.concurrency_config.clone(),
+            stack_size: self.config.stack_size,
+        };
+
+        if executor_config.concurrency_config.enabled {
+            let worker_pool =
+                Arc::new(WorkerPool::start(&executor_config.get_worker_pool_config()));
+
+            let mut executor = ConcurrentTransactionExecutor::new_for_testing(
+                state,
+                self.block_context.clone(),
+                worker_pool.clone(),
+                execution_deadline,
+            );
+
+            let results = executor.add_txs_and_wait(&txs);
+            let block_summary = executor.close_block().unwrap();
+
+            drop(executor);
+            Arc::try_unwrap(worker_pool)
+                .expect("More than one instance of worker pool exists")
+                .join();
+
+            (results, block_summary)
+        } else {
+            let mut executor =
+                TransactionExecutor::new(state, self.block_context.clone(), executor_config);
+            let results = executor.execute_txs(&txs, execution_deadline);
+            (results, executor.finalize().unwrap())
+        }
+    }
+
     /// Generates and executes transfer transactions.
     /// Returns the number of transactions executed.
-    pub fn execute_transfers(&mut self, timeout: Option<Duration>) -> usize {
+    pub fn execute_transfers(
+        &mut self,
+        timeout: Option<Duration>,
+    ) -> (usize, BlockExecutionSummary) {
         let mut txs: Vec<Transaction> = Vec::with_capacity(self.config.n_txs);
         for _ in 0..self.config.n_txs {
             let sender_address = self.account_addresses[self.sender_index];
@@ -183,7 +233,7 @@ impl TransfersGenerator {
             txs.push(Transaction::Account(account_tx));
         }
         let execution_deadline = timeout.map(|timeout| Instant::now() + timeout);
-        let results = self.executor.execute_txs(&txs, execution_deadline);
+        let (results, block_summary) = self._run_txs(txs, execution_deadline);
         let n_results = results.len();
         for result in results {
             let execution_info = result.unwrap().0;
@@ -191,7 +241,8 @@ impl TransfersGenerator {
             self.collected_execution_infos.push(execution_info);
         }
 
-        n_results
+        (n_results, block_summary)
+
         // TODO(Avi, 01/06/2024): Run the same transactions concurrently on a new state and compare
         // the state diffs.
     }
