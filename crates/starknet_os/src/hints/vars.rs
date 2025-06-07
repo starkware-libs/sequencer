@@ -84,7 +84,6 @@ define_string_enum! {
         (BytecodeSegmentStructures),
         (Case),
         (CompiledClass),
-        (CompiledClassFacts),
         (CompiledClassHash),
         (ContractAddressForRevert),
         (Descend),
@@ -100,6 +99,8 @@ define_string_enum! {
         (RightChild),
         (SyscallHandlerType),
         (UseKzgDa),
+        (Y),
+        (YSquareInt),
     }
 }
 
@@ -177,6 +178,7 @@ define_string_enum! {
         (InitialRoot),
         (IsLeaf),
         (IsNUpdatesSmall),
+        (IsOnCurve),
         (IsSegmentUsed),
         (IsSierraGasMode),
         (IsUsedLeaf),
@@ -185,6 +187,7 @@ define_string_enum! {
         (Length),
         (Low),
         (MaxGas),
+        (N),
         (NBlobs),
         (NBlocks),
         (NBuiltins),
@@ -229,6 +232,7 @@ define_string_enum! {
         (Selector),
         (SenderAddress),
         (Sha256Ptr, "sha256_ptr"),
+        (Sha256PtrEnd, "sha256_ptr_end"),
         (Siblings),
         (SignatureLen),
         (SignatureStart),
@@ -311,6 +315,8 @@ define_string_enum! {
         ),
         (MerkleHeight, "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT"),
         (NUpdatesSmallPackingBound, "starkware.starknet.core.os.state.N_UPDATES_SMALL_PACKING_BOUND"),
+        (ShaBatchSize, "starkware.cairo.common.cairo_sha256.BATCH_SIZE"),
+        (Sha256InputChunkSize, "starkware.cairo.common.cairo_sha256.SHA256_INPUT_CHUNK_SIZE_FELTS"),
         (StoredBlockHashBuffer, "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"),
         (Validated, "starkware.starknet.core.os.constants.VALIDATED"),
     }
@@ -371,6 +377,7 @@ define_string_enum! {
             "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact"
         ),
         (DeployResponse, "starkware.starknet.common.new_syscalls.DeployResponse"),
+        (DeprecatedCallContractResponse, "starkware.starknet.common.syscalls.CallContractResponse"),
         (
             DeprecatedCompiledClass,
             "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\

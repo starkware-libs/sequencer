@@ -8,7 +8,7 @@ use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderResult, PriceInfo};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockTimestamp, GasPrice};
+use starknet_api::block::BlockTimestamp;
 use tracing::{info, warn};
 use validator::Validate;
 
@@ -153,27 +153,19 @@ impl L1GasPriceProvider {
         let actual_number_of_blocks = last_index - first_index;
 
         // Go over all elements between `first_index` and `last_index` (non-inclusive).
-        let (gas_price, data_gas_price) = self
+        let price_info_summed: PriceInfo = self
             .price_samples_by_block
             .iter()
             .skip(first_index)
             .take(actual_number_of_blocks)
-            .fold((GasPrice(0), GasPrice(0)), |(sum_base, sum_blob), data| {
-                (
-                    data.price_info.base_fee_per_gas.saturating_add(sum_base),
-                    data.price_info.blob_fee.saturating_add(sum_blob),
-                )
-            });
+            .map(|data| &data.price_info)
+            .sum();
         let actual_number_of_blocks =
             u128::try_from(actual_number_of_blocks).expect("Cannot convert to u128");
-        Ok(PriceInfo {
-            base_fee_per_gas: gas_price
-                .checked_div(actual_number_of_blocks)
-                .expect("Actual number of blocks cannot be zero"),
-            blob_fee: data_gas_price
-                .checked_div(actual_number_of_blocks)
-                .expect("Actual number of blocks cannot be zero"),
-        })
+        let price_info_out = price_info_summed
+            .checked_div(actual_number_of_blocks)
+            .expect("Actual number of blocks should be non-zero");
+        Ok(price_info_out)
     }
 }
 

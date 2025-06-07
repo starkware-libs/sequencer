@@ -11,8 +11,6 @@ pub(crate) struct StoragePtr(pub(crate) Relocatable);
 pub(crate) struct StateEntryPtr(pub(crate) Relocatable);
 
 /// An equivalent to the `StateUpdatePointers` class in Python.
-// TODO(Nimrod): Remove all `#[allow(dead_code)]` attributes after the code is fully implemented.
-#[allow(dead_code)]
 pub(crate) struct StateUpdatePointers {
     state_entries_ptr: Relocatable,
     classes_ptr: Relocatable,
@@ -21,7 +19,6 @@ pub(crate) struct StateUpdatePointers {
 }
 
 impl StateUpdatePointers {
-    #[allow(dead_code)]
     pub fn new(vm: &mut VirtualMachine) -> Self {
         Self {
             state_entries_ptr: vm.add_memory_segment(),
@@ -30,7 +27,6 @@ impl StateUpdatePointers {
         }
     }
 
-    #[allow(dead_code)]
     pub fn get_contract_state_entry_and_storage_ptr(
         &mut self,
         contract_address: ContractAddress,
@@ -42,7 +38,6 @@ impl StateUpdatePointers {
         ))
     }
 
-    #[allow(dead_code)]
     pub fn set_contract_state_entry_and_storage_ptr(
         &mut self,
         contract_address: ContractAddress,
@@ -53,22 +48,18 @@ impl StateUpdatePointers {
             .insert(contract_address, (state_entry_ptr, storage_ptr));
     }
 
-    #[allow(dead_code)]
     pub fn get_classes_ptr(&self) -> Relocatable {
         self.classes_ptr
     }
 
-    #[allow(dead_code)]
     pub fn set_classes_ptr(&mut self, ptr: Relocatable) {
         self.classes_ptr = ptr;
     }
 
-    #[allow(dead_code)]
     pub fn get_state_entries_ptr(&self) -> Relocatable {
         self.state_entries_ptr
     }
 
-    #[allow(dead_code)]
     pub fn set_state_entries_ptr(&mut self, ptr: Relocatable) {
         self.state_entries_ptr = ptr;
     }

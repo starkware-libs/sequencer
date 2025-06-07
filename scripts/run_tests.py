@@ -4,15 +4,8 @@ import argparse
 from enum import Enum
 import subprocess
 from typing import List, Set, Optional
-from tests_utils import (
-    get_workspace_tree,
-    get_local_changes,
-    get_modified_packages,
-    get_package_dependencies,
-)
+from tests_utils import get_tested_packages
 
-# Set of files which - if changed - should trigger tests for all packages.
-ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"}
 
 # Set of crates which - if changed - should trigger the integration tests.
 INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"apollo_integration_tests"}
@@ -51,10 +44,14 @@ class BaseCommand(Enum):
             return [["cargo", "test"] + package_args]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return [["cargo", "clippy"] + clippy_args + ["--all-targets", "--all-features"]]
+            return [
+                ["cargo", "clippy"] + clippy_args + ["--all-targets", "--all-features"]
+            ]
         elif self == BaseCommand.DOC:
             doc_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return [["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args]
+            return [
+                ["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args
+            ]
         elif self == BaseCommand.INTEGRATION:
             # Do nothing if integration tests should not be triggered; on nightly, run the tests.
             if INTEGRATION_TEST_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
@@ -70,11 +67,16 @@ class BaseCommand(Enum):
             print(f"Composing sequencer integration test commands.")
 
             def build_cmds(with_feature: bool) -> List[List[str]]:
-                feature_flag = ["--features", "cairo_native"] if (with_feature and is_nightly) else []
+                feature_flag = (
+                    ["--features", "cairo_native"]
+                    if (with_feature and is_nightly)
+                    else []
+                )
                 # Commands to build the node and all the test binaries.
                 build_cmds = [
                     ["cargo", "build", "--bin", binary_name] + feature_flag
-                    for binary_name in [SEQUENCER_BINARY_NAME] + integration_test_names_to_run
+                    for binary_name in [SEQUENCER_BINARY_NAME]
+                    + integration_test_names_to_run
                 ]
                 return build_cmds
 
@@ -90,17 +92,13 @@ class BaseCommand(Enum):
             if CAIRO_NATIVE_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
                 return cmds_no_feat
 
-            print(f"Composing sequencer integration test commands with cairo_native feature.")
+            print(
+                "Composing sequencer integration test commands with cairo_native feature."
+            )
             cmds_with_feat = build_cmds(with_feature=True) + run_cmds
             return cmds_no_feat + cmds_with_feat
 
         raise NotImplementedError(f"Command {self} not implemented.")
-
-
-def packages_to_test_due_to_global_changes(files: List[str]) -> Set[str]:
-    if len(set(files).intersection(ALL_TEST_TRIGGERS)) > 0:
-        return set(get_workspace_tree().keys())
-    return set()
 
 
 def test_crates(crates: Set[str], base_command: BaseCommand, is_nightly: bool):
@@ -131,40 +129,27 @@ def run_test(
     modified, no tests are run. If changes_only is False, tests all packages.
     If commit_id is provided, compares against that commit; otherwise, compares against HEAD.
     """
-    if not changes_only:
-        assert not include_dependencies, "include_dependencies can only be set with changes_only."
-    tested_packages = set()
-    if changes_only:
-        local_changes = get_local_changes(".", commit_id=commit_id)
-        modified_packages = get_modified_packages(local_changes)
-
-        if include_dependencies:
-            for p in modified_packages:
-                deps = get_package_dependencies(p)
-                tested_packages.update(deps)
-            print(
-                f"Running tests for {tested_packages} (due to modifications in "
-                f"{modified_packages})."
-            )
-        else:
-            print(f"Running tests for modified crates {modified_packages}.")
-            tested_packages = modified_packages
-
-        # Add global-triggered packages.
-        extra_packages = packages_to_test_due_to_global_changes(files=local_changes)
-        print(f"Running tests for global-triggered packages {extra_packages}")
-        tested_packages.update(extra_packages)
-        if len(tested_packages) == 0:
-            print("No changes detected.")
-            return
-
-    test_crates(crates=tested_packages, base_command=base_command, is_nightly=is_nightly)
+    tested_packages = get_tested_packages(
+        changes_only=changes_only,
+        commit_id=commit_id,
+        include_dependencies=include_dependencies,
+    )
+    if changes_only and len(tested_packages) == 0:
+        print("No changes detected.")
+        return
+    test_crates(
+        crates=tested_packages, base_command=base_command, is_nightly=is_nightly
+    )
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Presubmit script.")
-    parser.add_argument("--changes_only", action="store_true", help="Only test modified crates.")
-    parser.add_argument("--commit_id", type=str, help="GIT commit ID to compare against.")
+    parser.add_argument(
+        "--changes_only", action="store_true", help="Only test modified crates."
+    )
+    parser.add_argument(
+        "--commit_id", type=str, help="GIT commit ID to compare against."
+    )
     parser.add_argument(
         "--command",
         required=True,

@@ -1,7 +1,6 @@
 {
   "type": "object",
   "properties": {
-    "chain_id": { "type": "string" },
     "application_config_subdir": { "type": "string" },
     "services": {
       "type": "array",
@@ -113,5 +112,5 @@
       }
     }
   },
-  "required": ["chain_id", "services", "application_config_subdir"]
+  "required": ["services", "application_config_subdir"]
 }

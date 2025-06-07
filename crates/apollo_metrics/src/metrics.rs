@@ -341,6 +341,8 @@ pub struct MetricHistogram {
     scope: MetricScope,
     name: &'static str,
     name_with_filter: &'static str,
+    name_sum_with_filter: &'static str,
+    name_count_with_filter: &'static str,
     description: &'static str,
 }
 
@@ -362,9 +364,18 @@ impl MetricHistogram {
         scope: MetricScope,
         name: &'static str,
         name_with_filter: &'static str,
+        name_sum_with_filter: &'static str,
+        name_count_with_filter: &'static str,
         description: &'static str,
     ) -> Self {
-        Self { scope, name, name_with_filter, description }
+        Self {
+            scope,
+            name,
+            name_with_filter,
+            name_sum_with_filter,
+            name_count_with_filter,
+            description,
+        }
     }
 
     pub const fn get_name(&self) -> &'static str {
@@ -373,6 +384,14 @@ impl MetricHistogram {
 
     pub const fn get_name_with_filter(&self) -> &'static str {
         self.name_with_filter
+    }
+
+    pub const fn get_name_sum_with_filter(&self) -> &'static str {
+        self.name_sum_with_filter
+    }
+
+    pub const fn get_name_count_with_filter(&self) -> &'static str {
+        self.name_count_with_filter
     }
 
     pub const fn get_scope(&self) -> MetricScope {

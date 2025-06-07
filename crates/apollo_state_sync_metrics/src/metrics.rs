@@ -1,5 +1,4 @@
 use apollo_metrics::define_metrics;
-use apollo_metrics::metrics::{MetricCounter, MetricGauge};
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
 use apollo_storage::compiled_class::CasmStorageReader;

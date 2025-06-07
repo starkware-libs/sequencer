@@ -1,4 +1,3 @@
-use apollo_metrics::metrics::{LabeledMetricCounter, MetricCounter, MetricGauge, MetricHistogram};
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};

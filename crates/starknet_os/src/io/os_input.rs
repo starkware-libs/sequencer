@@ -15,8 +15,7 @@ use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-// TODO(Nimrod): Remove the `Clone` derive when possible.
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CommitmentInfo {
     pub(crate) previous_root: HashOutput,
     pub(crate) updated_root: HashOutput,

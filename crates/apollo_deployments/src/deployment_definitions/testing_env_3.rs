@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use starknet_api::core::ChainId;
-
 use crate::deployment::{
     create_hybrid_instance_config_override,
     format_node_id,
@@ -13,6 +11,7 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
+const TESTING_ENV_3_NODE_IDS: [usize; 4] = [0, 1, 2, 3];
 const TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io";
 const TESTING_ENV_3_INGRESS_DOMAIN: &str = "sw-dev.io";
@@ -21,12 +20,9 @@ const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "sequencer-test-3-node-{}";
 
 pub(crate) fn testing_env_3_hybrid_deployments() -> Vec<Deployment> {
-    vec![
-        testing_env_3_hybrid_deployment_node(0, DeploymentType::Operational),
-        testing_env_3_hybrid_deployment_node(1, DeploymentType::Operational),
-        testing_env_3_hybrid_deployment_node(2, DeploymentType::Operational),
-        testing_env_3_hybrid_deployment_node(3, DeploymentType::Operational),
-    ]
+    TESTING_ENV_3_NODE_IDS
+        .map(|i| testing_env_3_hybrid_deployment_node(i, DeploymentType::Operational))
+        .to_vec()
 }
 
 fn testing_env_3_deployment_config_override() -> DeploymentConfigOverride {
@@ -41,7 +37,6 @@ fn testing_env_3_deployment_config_override() -> DeploymentConfigOverride {
 
 fn testing_env_3_hybrid_deployment_node(id: usize, deployment_type: DeploymentType) -> Deployment {
     Deployment::new(
-        ChainId::IntegrationSepolia,
         DeploymentName::HybridNode,
         Environment::TestingEnvThree,
         &format_node_id(INSTANCE_NAME_FORMAT, id),

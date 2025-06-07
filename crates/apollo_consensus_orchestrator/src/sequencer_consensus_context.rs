@@ -6,7 +6,7 @@
 mod sequencer_consensus_context_test;
 
 use std::cmp::max;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -149,7 +149,7 @@ impl Clock for DefaultClock {}
 
 type HeightToIdToContent = BTreeMap<
     BlockNumber,
-    HashMap<
+    BTreeMap<
         ProposalCommitment,
         (ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
     >,

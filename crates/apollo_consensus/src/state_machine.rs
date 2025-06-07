@@ -360,7 +360,7 @@ impl StateMachine {
         self.round = round;
         self.step = Step::Propose;
         let mut output = if !self.is_observer && self.id == leader_fn(self.round) {
-            info!("Starting round {round} as Proposer");
+            info!("START_ROUND_PROPOSER: Starting round {round} as Proposer");
             // Leader.
             match self.valid_value_round {
                 Some((proposal_id, valid_round)) => VecDeque::from([StateMachineEvent::Proposal(
@@ -375,7 +375,7 @@ impl StateMachine {
                 }
             }
         } else {
-            info!("Starting round {round} as Validator");
+            info!("START_ROUND_VALIDATOR: Starting round {round} as Validator");
             VecDeque::from([StateMachineEvent::TimeoutPropose(self.round)])
         };
         output.append(&mut self.current_round_upons());

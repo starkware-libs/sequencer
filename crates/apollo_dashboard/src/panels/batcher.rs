@@ -27,14 +27,14 @@ pub(crate) const PANEL_BATCHED_TRANSACTIONS: Panel =
     Panel::from_counter(BATCHED_TRANSACTIONS, PanelType::Stat);
 
 pub(crate) const PANEL_BATCHER_LOCAL_MSGS_RECEIVED: Panel =
-    Panel::from_counter(BATCHER_LOCAL_MSGS_RECEIVED, PanelType::Stat);
+    Panel::from_counter(BATCHER_LOCAL_MSGS_RECEIVED, PanelType::Graph);
 pub(crate) const PANEL_BATCHER_LOCAL_MSGS_PROCESSED: Panel =
-    Panel::from_counter(BATCHER_LOCAL_MSGS_PROCESSED, PanelType::Stat);
+    Panel::from_counter(BATCHER_LOCAL_MSGS_PROCESSED, PanelType::Graph);
 pub(crate) const PANEL_BATCHER_REMOTE_MSGS_RECEIVED: Panel =
-    Panel::from_counter(BATCHER_REMOTE_MSGS_RECEIVED, PanelType::Stat);
+    Panel::from_counter(BATCHER_REMOTE_MSGS_RECEIVED, PanelType::Graph);
 pub(crate) const PANEL_BATCHER_REMOTE_VALID_MSGS_RECEIVED: Panel =
-    Panel::from_counter(BATCHER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Stat);
+    Panel::from_counter(BATCHER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
 pub(crate) const PANEL_BATCHER_REMOTE_MSGS_PROCESSED: Panel =
-    Panel::from_counter(BATCHER_REMOTE_MSGS_PROCESSED, PanelType::Stat);
+    Panel::from_counter(BATCHER_REMOTE_MSGS_PROCESSED, PanelType::Graph);
 pub(crate) const PANEL_BATCHER_LOCAL_QUEUE_DEPTH: Panel =
-    Panel::from_gauge(BATCHER_LOCAL_QUEUE_DEPTH, PanelType::Stat);
+    Panel::from_gauge(BATCHER_LOCAL_QUEUE_DEPTH, PanelType::Graph);

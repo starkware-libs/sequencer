@@ -1,5 +1,6 @@
 pub mod errors;
 
+use std::iter::Sum;
 use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
@@ -33,6 +34,26 @@ pub struct GasPriceData {
 pub struct PriceInfo {
     pub base_fee_per_gas: GasPrice,
     pub blob_fee: GasPrice,
+}
+
+impl PriceInfo {
+    pub fn checked_div(&self, divisor: u128) -> Option<PriceInfo> {
+        let base_fee_per_gas = self.base_fee_per_gas.checked_div(divisor)?;
+        let blob_fee = self.blob_fee.checked_div(divisor)?;
+        Some(PriceInfo { base_fee_per_gas, blob_fee })
+    }
+}
+
+impl<'a> Sum<&'a Self> for PriceInfo {
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = &'a Self>,
+    {
+        iter.fold(Self { base_fee_per_gas: GasPrice(0), blob_fee: GasPrice(0) }, |a, b| Self {
+            base_fee_per_gas: a.base_fee_per_gas.saturating_add(b.base_fee_per_gas),
+            blob_fee: a.blob_fee.saturating_add(b.blob_fee),
+        })
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
