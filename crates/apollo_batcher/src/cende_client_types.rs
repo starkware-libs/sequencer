@@ -136,3 +136,19 @@ impl From<(TransactionHash, usize, &TransactionExecutionInfo)>
         Self::default()
     }
 }
+
+// Conversion logic from blockifier types to StarknetClient types.
+impl From<(TransactionHash, usize, &TransactionExecutionInfo)>
+    for StarknetClientTransactionReceipt
+{
+    fn from(
+        (_tx_hash, _tx_index, _tx_execution_info): (
+            TransactionHash,
+            usize,
+            &TransactionExecutionInfo,
+        ),
+    ) -> Self {
+        // TODO(Arni): implement the conversion logic.
+        Self::default()
+    }
+}
