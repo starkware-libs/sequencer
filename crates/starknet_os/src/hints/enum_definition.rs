@@ -768,7 +768,7 @@ else:
         LoadDeprecatedClassInner,
         load_deprecated_class_inner,
         indoc! {r#"
-    from starkware.starknet.core.os.contract_class.deprecated_class_hash import (
+    from starkware.starknet.core.os.contract_class.deprecated_class_hash_cairo_utils import (
         get_deprecated_contract_class_struct,
     )
 
