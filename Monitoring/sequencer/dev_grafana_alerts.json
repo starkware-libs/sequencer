@@ -296,6 +296,60 @@
       "for": "1m",
       "intervalSec": 20,
       "severity": "p5"
+    },
+    {
+      "name": "state_sync_lag",
+      "title": "State sync lag",
+      "ruleGroup": "state_sync",
+      "expr": "min_over_time((apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})[3m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              5.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "3m",
+      "intervalSec": 20,
+      "severity": "p2"
+    },
+    {
+      "name": "state_sync_stuck",
+      "title": "State sync stuck",
+      "ruleGroup": "state_sync",
+      "expr": "rate(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0001
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "3m",
+      "intervalSec": 60,
+      "severity": "p2"
     }
   ]
 }
