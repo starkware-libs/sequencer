@@ -402,6 +402,13 @@
         "type": "graph",
         "expr": "apollo_consensus_proposals_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
+      },
+      {
+        "title": "consensus_conflicting_votes",
+        "description": "The number of times consensus has received conflicting votes",
+        "type": "graph",
+        "expr": "consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
       }
     ],
     "StateSyncP2p": [
