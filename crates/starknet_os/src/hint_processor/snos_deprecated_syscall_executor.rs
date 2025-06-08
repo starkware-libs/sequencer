@@ -38,6 +38,7 @@ use blockifier::execution::deprecated_syscalls::{
     StorageWriteResponse,
 };
 use blockifier::execution::entry_point::CallEntryPoint;
+use blockifier::execution::execution_utils::ReadOnlySegment;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
@@ -336,10 +337,32 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     #[allow(clippy::result_large_err)]
     fn get_tx_signature(
         _request: GetTxSignatureRequest,
-        _vm: &mut VirtualMachine,
-        _syscall_handler: &mut Self,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
     ) -> Result<GetTxSignatureResponse, Self::Error> {
-        todo!()
+        let tx_info_start_ptr = Self::_get_tx_info_ptr(vm, syscall_handler)?;
+        let tx_signature_start_ptr = get_address_of_nested_fields_from_base_address(
+            tx_info_start_ptr,
+            CairoStruct::DeprecatedTxInfo,
+            vm,
+            &["signature"],
+            syscall_handler.os_program,
+        )?;
+        let tx_signature_len = *vm.get_integer(get_address_of_nested_fields_from_base_address(
+            tx_info_start_ptr,
+            CairoStruct::DeprecatedTxInfo,
+            vm,
+            &["signature_len"],
+            syscall_handler.os_program,
+        )?)?;
+        Ok(GetTxSignatureResponse {
+            segment: ReadOnlySegment {
+                start_ptr: tx_signature_start_ptr,
+                length: tx_signature_len
+                    .try_into()
+                    .expect("Tx signature length should fit in usize."),
+            },
+        })
     }
 
     #[allow(clippy::result_large_err)]
