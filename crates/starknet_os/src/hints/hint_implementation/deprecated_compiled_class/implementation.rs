@@ -88,7 +88,6 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
 
     let dep_class = exec_scopes.get_ref::<ContractClass>(Scope::CompiledClass.into())?;
 
-    // TODO(Rotem): see if we can avoid cloning here.
     let hints: HashMap<String, Vec<HintParams>> =
         serde_json::from_value(dep_class.program.hints.clone()).map_err(|e| {
             OsHintError::SerdeJsonDeserialize { error: e, value: dep_class.program.hints.clone() }
