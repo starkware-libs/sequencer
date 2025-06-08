@@ -12125,6 +12125,7 @@ dependencies = [
  "ark-secp256r1 0.4.0",
  "assert_matches",
  "blockifier",
+ "blockifier_test_utils",
  "c-kzg",
  "cairo-lang-casm",
  "cairo-lang-runner",
