@@ -109,17 +109,16 @@ impl TransactionManager {
     // committed txs storage, to account for commit-before-add tx scenario.
     pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
         let tx_hash = tx.tx_hash;
-        if let Some(entry) = self.records.get_mut(&tx_hash) {
-            entry.tx.set(tx);
+        if self.records.contains_key(&tx_hash) {
+            self.with_record(tx_hash, move |record| record.tx.set(tx));
             return false;
         }
 
+        self.create_record_if_not_exist(tx_hash);
+
         self.records.insert(
             tx_hash,
-            TransactionRecord {
-                staged_epoch: self.current_staging_epoch.decrement(),
-                ..TransactionRecord::from(tx)
-            },
+            TransactionRecord::new(tx.into(), self.current_staging_epoch.decrement()),
         );
 
         let is_new_entry = self.proposable_index.insert(tx_hash);
@@ -162,9 +161,9 @@ impl TransactionManager {
         snapshot
     }
 
-    fn with_record<F, R>(&mut self, hash: TransactionHash, mut f: F) -> Option<R>
+    fn with_record<F, R>(&mut self, hash: TransactionHash, f: F) -> Option<R>
     where
-        F: FnMut(&mut TransactionRecord) -> R,
+        F: FnOnce(&mut TransactionRecord) -> R,
     {
         let record = self.records.get_mut(&hash)?;
         let result = f(record);
