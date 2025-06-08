@@ -26,7 +26,12 @@ use crate::component_server::{
     ConcurrentLocalComponentServer,
     RemoteComponentServer,
 };
-use crate::tests::{AVAILABLE_PORTS, TEST_LOCAL_SERVER_METRICS, TEST_REMOTE_SERVER_METRICS};
+use crate::tests::{
+    AVAILABLE_PORTS,
+    TEST_LOCAL_SERVER_METRICS,
+    TEST_REMOTE_CLIENT_METRICS,
+    TEST_REMOTE_SERVER_METRICS,
+};
 
 type TestResult = ClientResult<()>;
 
@@ -151,7 +156,12 @@ async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
     task::spawn(async move {
         let _ = concurrent_remote_server.start().await;
     });
-    RemoteConcurrentComponentClient::new(config, &socket.ip().to_string(), socket.port())
+    RemoteConcurrentComponentClient::new(
+        config,
+        &socket.ip().to_string(),
+        socket.port(),
+        TEST_REMOTE_CLIENT_METRICS,
+    )
 }
 
 async fn test_server(
