@@ -37,6 +37,7 @@ pub fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     STATE_SYNC_COMPILED_CLASS_MARKER.register();
     STATE_SYNC_PROCESSED_TRANSACTIONS.register();
     STATE_SYNC_REVERTED_TRANSACTIONS.register();
+    CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.register();
     update_marker_metrics(txn);
     reconstruct_processed_transactions_metric(txn);
 }
