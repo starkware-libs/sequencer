@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::core::ClassHash;
 
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
+use crate::state::state_api::StateReader;
 use crate::transaction::errors::NumericConversionError;
 
 #[cfg(test)]
@@ -104,4 +106,9 @@ where
             })
             .or_insert_with(|| value.clone());
     }
+}
+
+// TODO(Meshi): Delete this function.
+pub fn should_migrate(_state_reader: &impl StateReader, _class_hash: ClassHash) -> bool {
+    false
 }
