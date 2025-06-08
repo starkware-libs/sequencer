@@ -50,6 +50,7 @@ use crate::tests::{
     ValueB,
     AVAILABLE_PORTS,
     TEST_LOCAL_SERVER_METRICS,
+    TEST_REMOTE_CLIENT_METRICS,
     TEST_REMOTE_SERVER_METRICS,
 };
 
@@ -145,17 +146,30 @@ where
     task::yield_now().await;
 
     let config = RemoteClientConfig::default();
-    ComponentAClient::new(config, &socket.ip().to_string(), socket.port())
+    ComponentAClient::new(
+        config,
+        &socket.ip().to_string(),
+        socket.port(),
+        TEST_REMOTE_CLIENT_METRICS,
+    )
 }
 
 async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: SocketAddr) {
     let a_config = RemoteClientConfig::default();
     let b_config = RemoteClientConfig::default();
 
-    let a_remote_client =
-        ComponentAClient::new(a_config, &a_socket.ip().to_string(), a_socket.port());
-    let b_remote_client =
-        ComponentBClient::new(b_config, &b_socket.ip().to_string(), b_socket.port());
+    let a_remote_client = ComponentAClient::new(
+        a_config,
+        &a_socket.ip().to_string(),
+        a_socket.port(),
+        TEST_REMOTE_CLIENT_METRICS,
+    );
+    let b_remote_client = ComponentBClient::new(
+        b_config,
+        &b_socket.ip().to_string(),
+        b_socket.port(),
+        TEST_REMOTE_CLIENT_METRICS,
+    );
 
     let component_a = ComponentA::new(Box::new(b_remote_client));
     let component_b = ComponentB::new(setup_value, Box::new(a_remote_client.clone()));
@@ -218,10 +232,18 @@ async fn proper_setup() {
     let a_client_config = RemoteClientConfig::default();
     let b_client_config = RemoteClientConfig::default();
 
-    let a_remote_client =
-        ComponentAClient::new(a_client_config, &a_socket.ip().to_string(), a_socket.port());
-    let b_remote_client =
-        ComponentBClient::new(b_client_config, &b_socket.ip().to_string(), b_socket.port());
+    let a_remote_client = ComponentAClient::new(
+        a_client_config,
+        &a_socket.ip().to_string(),
+        a_socket.port(),
+        TEST_REMOTE_CLIENT_METRICS,
+    );
+    let b_remote_client = ComponentBClient::new(
+        b_client_config,
+        &b_socket.ip().to_string(),
+        b_socket.port(),
+        TEST_REMOTE_CLIENT_METRICS,
+    );
 
     test_a_b_functionality(a_remote_client, b_remote_client, setup_value).await;
 }
@@ -265,7 +287,12 @@ async fn faulty_client_setup() {
 async fn unconnected_server() {
     let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let client_config = RemoteClientConfig::default();
-    let client = ComponentAClient::new(client_config, &socket.ip().to_string(), socket.port());
+    let client = ComponentAClient::new(
+        client_config,
+        &socket.ip().to_string(),
+        socket.port(),
+        TEST_REMOTE_CLIENT_METRICS,
+    );
     let expected_error_contained_keywords = ["Connection refused"];
     verify_error(client, &expected_error_contained_keywords).await;
 }
@@ -340,8 +367,12 @@ async fn retry_request() {
         idle_timeout: IDLE_TIMEOUT,
         ..Default::default()
     };
-    let a_client_retry =
-        ComponentAClient::new(retry_config, &socket.ip().to_string(), socket.port());
+    let a_client_retry = ComponentAClient::new(
+        retry_config,
+        &socket.ip().to_string(),
+        socket.port(),
+        TEST_REMOTE_CLIENT_METRICS,
+    );
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
     // The current server state is 'false', hence the first and only attempt returns an error.
@@ -351,8 +382,12 @@ async fn retry_request() {
         idle_timeout: IDLE_TIMEOUT,
         ..Default::default()
     };
-    let a_client_no_retry =
-        ComponentAClient::new(no_retry_config, &socket.ip().to_string(), socket.port());
+    let a_client_no_retry = ComponentAClient::new(
+        no_retry_config,
+        &socket.ip().to_string(),
+        socket.port(),
+        TEST_REMOTE_CLIENT_METRICS,
+    );
     let expected_error_contained_keywords = [StatusCode::IM_A_TEAPOT.as_str()];
     verify_error(a_client_no_retry.clone(), &expected_error_contained_keywords).await;
 }
