@@ -5,6 +5,7 @@ use std::collections::HashMap;
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
 use blockifier::transaction::objects::TransactionExecutionInfo;
+use cairo_vm::types::builtin_name::BuiltinName;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::execution_resources::GasVector;
@@ -141,6 +142,7 @@ impl
         let revert_error =
             tx_execution_info.revert_error.as_ref().map(|revert_error| revert_error.to_string());
 
+        let execution_resources = get_execution_resources(tx_execution_info);
         Self {
             transaction_index: TransactionOffsetInBlock(tx_index),
             transaction_hash: tx_hash,
@@ -149,6 +151,7 @@ impl
             l2_to_l1_messages,
             events,
             revert_error,
+            execution_resources,
             ..Default::default()
         }
     }
@@ -192,4 +195,46 @@ fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> 
     }
 
     accumulated_events
+}
+
+fn convert_builtin_name_to_builtin(builtin_name: &BuiltinName) -> Builtin {
+    match builtin_name {
+        BuiltinName::range_check => Builtin::RangeCheck,
+        BuiltinName::pedersen => Builtin::Pedersen,
+        BuiltinName::poseidon => Builtin::Poseidon,
+        BuiltinName::ec_op => Builtin::EcOp,
+        BuiltinName::ecdsa => Builtin::Ecdsa,
+        BuiltinName::bitwise => Builtin::Bitwise,
+        BuiltinName::keccak => Builtin::Keccak,
+        BuiltinName::output => Builtin::Output,
+        BuiltinName::segment_arena => Builtin::SegmentArena,
+        BuiltinName::add_mod => Builtin::AddMod,
+        BuiltinName::mul_mod => Builtin::MulMod,
+        BuiltinName::range_check96 => Builtin::RangeCheck96,
+    }
+}
+
+fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> ExecutionResources {
+    let receipt = &execution_info.receipt;
+    let resources = &receipt.resources.computation.vm_resources;
+
+    let builtin_instance_counter = resources
+        .builtin_instance_counter
+        .iter()
+        .map(|(builtin_name, &count)| {
+            (
+                convert_builtin_name_to_builtin(builtin_name),
+                u64::try_from(count).expect("Failed to convert usize to u64"),
+            )
+        })
+        .collect();
+
+    ExecutionResources {
+        n_steps: u64::try_from(resources.n_steps).expect("Failed to convert usize to u64"),
+        builtin_instance_counter,
+        n_memory_holes: u64::try_from(resources.n_memory_holes)
+            .expect("Failed to convert usize to u64"),
+        data_availability: Some(receipt.da_gas),
+        total_gas_consumed: Some(receipt.gas),
+    }
 }
