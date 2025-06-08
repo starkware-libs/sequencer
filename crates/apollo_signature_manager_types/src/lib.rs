@@ -59,6 +59,10 @@ pub enum SignatureManagerError {
     #[error("Internal client error: {0}")]
     Client(String),
     #[error(transparent)]
+    KeyStore(#[from] KeyStoreError),
+    #[error("Failed to sign: {0}")]
+    Sign(String),
+    #[error(transparent)]
     SignatureConversion(#[from] SignatureConversionError),
     #[error("Failed to verify: {0}")]
     Verify(String),
