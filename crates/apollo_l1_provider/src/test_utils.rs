@@ -195,7 +195,7 @@ impl From<TransactionManagerContent> for TransactionManager {
             .filter_map(|(&tx_hash, record)| record.is_proposable().then_some(tx_hash))
             .collect();
         let current_epoch = StagingEpoch::new();
-        TransactionManager::create_for_testing(records, proposable_index, current_epoch)
+        TransactionManager::create_for_testing(records.into(), proposable_index, current_epoch)
     }
 }
 
