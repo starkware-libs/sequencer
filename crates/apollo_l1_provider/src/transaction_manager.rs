@@ -66,7 +66,7 @@ impl TransactionManager {
             if !record.is_validatable() {
                 match record.state {
                     TransactionState::Committed => {
-                        ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2)
+                        InvalidValidationStatus::AlreadyIncludedOnL2.into()
                     }
                     // This will soon also replaced with other states, like `Canceled`, which is
                     // also not-validatable.
@@ -75,12 +75,11 @@ impl TransactionManager {
             } else if record.try_mark_staged(current_staging_epoch_cloned) {
                 ValidationStatus::Validated
             } else {
-                ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedInProposedBlock)
+                InvalidValidationStatus::AlreadyIncludedInProposedBlock.into()
             }
         });
 
-        validation_status
-            .unwrap_or(ValidationStatus::Invalid(InvalidValidationStatus::ConsumedOnL1OrUnknown))
+        validation_status.unwrap_or(InvalidValidationStatus::ConsumedOnL1OrUnknown.into())
     }
 
     pub fn commit_txs(
