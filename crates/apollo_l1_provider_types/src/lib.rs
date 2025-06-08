@@ -36,6 +36,12 @@ pub enum ValidationStatus {
     Validated,
 }
 
+impl From<InvalidValidationStatus> for ValidationStatus {
+    fn from(status: InvalidValidationStatus) -> Self {
+        Self::Invalid(status)
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum InvalidValidationStatus {
     AlreadyIncludedInProposedBlock,
