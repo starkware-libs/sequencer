@@ -6,13 +6,8 @@ use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet_api::crypto::utils::{
-    Message,
-    PrivateKey,
-    PublicKey,
-    RawSignature,
-    SignatureConversionError,
-};
+use starknet_api::block::BlockHash;
+use starknet_api::crypto::utils::{PrivateKey, RawSignature, SignatureConversionError};
 use strum_macros::AsRefStr;
 use thiserror::Error;
 
@@ -51,14 +46,12 @@ impl From<Vec<u8>> for PeerId {
 /// threads.
 #[async_trait]
 pub trait SignatureManagerClient: Send + Sync {
-    async fn sign(&self, message: Message) -> SignatureManagerClientResult<RawSignature>;
+    async fn identify(&self, peer_id: PeerId) -> SignatureManagerClientResult<RawSignature>;
 
-    async fn verify(
+    async fn sign_precommit_vote(
         &self,
-        signature: RawSignature,
-        message: Message,
-        public_key: PublicKey,
-    ) -> SignatureManagerClientResult<bool>;
+        block_hash: BlockHash,
+    ) -> SignatureManagerClientResult<RawSignature>;
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
@@ -81,15 +74,15 @@ pub enum SignatureManagerClientError {
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum SignatureManagerRequest {
-    Sign(Message),
-    Verify(RawSignature, Message, PublicKey),
+    Identify(PeerId),
+    SignPrecommitVote(BlockHash),
 }
 impl_debug_for_infra_requests_and_responses!(SignatureManagerRequest);
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum SignatureManagerResponse {
-    Sign(SignatureManagerResult<RawSignature>),
-    Verify(SignatureManagerResult<bool>),
+    Identify(SignatureManagerResult<RawSignature>),
+    SignPrecommitVote(SignatureManagerResult<RawSignature>),
 }
 impl_debug_for_infra_requests_and_responses!(SignatureManagerResponse);
 
@@ -99,27 +92,25 @@ where
     ComponentClientType:
         Send + Sync + ComponentClient<SignatureManagerRequest, SignatureManagerResponse>,
 {
-    async fn sign(&self, message: Message) -> SignatureManagerClientResult<RawSignature> {
-        let request = SignatureManagerRequest::Sign(message);
+    async fn identify(&self, peer_id: PeerId) -> SignatureManagerClientResult<RawSignature> {
+        let request = SignatureManagerRequest::Identify(peer_id);
         handle_all_response_variants!(
             SignatureManagerResponse,
-            Sign,
+            Identify,
             SignatureManagerClientError,
             SignatureManagerError,
             Direct
         )
     }
 
-    async fn verify(
+    async fn sign_precommit_vote(
         &self,
-        signature: RawSignature,
-        message: Message,
-        public_key: PublicKey,
-    ) -> SignatureManagerClientResult<bool> {
-        let request = SignatureManagerRequest::Verify(signature, message, public_key);
+        block_hash: BlockHash,
+    ) -> SignatureManagerClientResult<RawSignature> {
+        let request = SignatureManagerRequest::SignPrecommitVote(block_hash);
         handle_all_response_variants!(
             SignatureManagerResponse,
-            Verify,
+            SignPrecommitVote,
             SignatureManagerClientError,
             SignatureManagerError,
             Direct
