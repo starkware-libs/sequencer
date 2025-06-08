@@ -17,6 +17,7 @@ use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
+use crate::metrics::RemoteClientMetrics;
 use crate::serde_utils::SerdeWrapper;
 
 const DEFAULT_RETRIES: usize = 50;
@@ -141,6 +142,7 @@ where
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
     config: RemoteClientConfig,
+    metrics: RemoteClientMetrics,
     // [`RemoteComponentClient<Request,Response>`] should be [`Send + Sync`] while [`Request`] and
     // [`Response`] are only [`Send`]. [`Phantom<T>`] is [`Send + Sync`] only if [`T`] is, despite
     // this bound making no sense as the phantom data field is unused. As such, we wrap it as
@@ -156,7 +158,12 @@ where
     Request: Serialize + DeserializeOwned + Debug,
     Response: Serialize + DeserializeOwned + Debug,
 {
-    pub fn new(config: RemoteClientConfig, url: &str, port: u16) -> Self {
+    pub fn new(
+        config: RemoteClientConfig,
+        url: &str,
+        port: u16,
+        metrics: RemoteClientMetrics,
+    ) -> Self {
         let uri = format!("http://{}:{}/", url, port).parse().unwrap();
         let client = Client::builder()
             .http2_only(true)
@@ -164,7 +171,7 @@ where
             .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
             .build_http();
         debug!("RemoteComponentClient created with URI: {:?}", uri);
-        Self { uri, client, config, _req: PhantomData, _res: PhantomData }
+        Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
     }
 
     fn construct_http_request(&self, serialized_request: Vec<u8>) -> HyperRequest<Body> {
@@ -264,6 +271,7 @@ where
             uri: self.uri.clone(),
             client: self.client.clone(),
             config: self.config.clone(),
+            metrics: self.metrics.clone(),
             _req: PhantomData,
             _res: PhantomData,
         }

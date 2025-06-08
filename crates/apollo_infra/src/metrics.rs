@@ -60,10 +60,21 @@ define_metrics!(
         MetricGauge { MEMPOOL_P2P_LOCAL_QUEUE_DEPTH, "mempool_p2p_propagator_local_queue_depth", "The depth of the mempool p2p's local message queue" },
         MetricGauge { SIERRA_COMPILER_LOCAL_QUEUE_DEPTH, "sierra_compiler_local_queue_depth", "The depth of the sierra compiler's local message queue" },
         MetricGauge { STATE_SYNC_LOCAL_QUEUE_DEPTH, "state_sync_local_queue_depth", "The depth of the state sync's local message queue" },
+        // Remote client metrics
+        MetricHistogram { BATCHER_REMOTE_CLIENT_CONNECTION_ATTEMPTS, "batcher_remote_client_connection_attempts", "Required number of remote connection attempts made by a batcher remote client"},
+        MetricHistogram { CLASS_MANAGER_REMOTE_CLIENT_CONNECTION_ATTEMPTS, "class_manager_remote_client_connection_attempts", "Required number of remote connection attempts made by a class manager remote client"},
+        MetricHistogram { GATEWAY_REMOTE_CLIENT_CONNECTION_ATTEMPTS, "gateway_remote_client_connection_attempts", "Required number of remote connection attempts made by a gateway remote client"},
+        MetricHistogram { L1_PROVIDER_REMOTE_CLIENT_CONNECTION_ATTEMPTS, "l1_provider_remote_client_connection_attempts", "Required number of remote connection attempts made by a L1 provider remote client"},
+        MetricHistogram { L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_CONNECTION_ATTEMPTS, "l1_gas_price_provider_remote_client_connection_attempts", "Required number of remote connection attempts made by a L1 gas price provider remote client"},
+        MetricHistogram { MEMPOOL_REMOTE_CLIENT_CONNECTION_ATTEMPTS, "mempool_remote_client_connection_attempts", "Required number of remote connection attempts made by a mempool remote client"},
+        MetricHistogram { MEMPOOL_P2P_REMOTE_CLIENT_CONNECTION_ATTEMPTS, "mempool_p2p_propagator_remote_client_connection_attempts", "Required number of remote connection attempts made by a mempool p2p remote client"},
+        MetricHistogram { SIERRA_COMPILER_REMOTE_CLIENT_CONNECTION_ATTEMPTS, "sierra_compiler_remote_client_connection_attempts", "Required number of remote connection attempts made by a state sync remote client"},
+        MetricHistogram { STATE_SYNC_REMOTE_CLIENT_CONNECTION_ATTEMPTS, "state_sync_remote_client_connection_attempts", "Required number of remote connection attempts made by a state sync remote client"},
     },
 );
 
 /// Metrics of a remote client.
+#[derive(Clone)]
 pub struct RemoteClientMetrics {
     /// Histogram to track the number of attempts made to connect to a remote server.
     attempts: &'static MetricHistogram,
