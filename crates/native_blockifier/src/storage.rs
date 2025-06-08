@@ -106,7 +106,7 @@ impl Storage for PapyrusStorage {
             .reader()
             .begin_ro_txn()?
             .get_block_header(block_number)?
-            .map(|block_header| Vec::from(block_header.block_hash.0.to_bytes_be().as_slice()));
+            .map(|block_header| Vec::from(block_header.block_hash.to_bytes_be().as_slice()));
         Ok(block_hash)
     }
 
