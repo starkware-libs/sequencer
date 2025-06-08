@@ -152,6 +152,7 @@ impl
             events,
             revert_error,
             execution_resources,
+            actual_fee: tx_execution_info.receipt.fee,
             ..Default::default()
         }
     }
