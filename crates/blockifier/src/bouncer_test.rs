@@ -107,6 +107,7 @@ fn test_block_weights_has_room_n_txs(
         contract_address!(0_u128),
     ])),
     bouncer_config: BouncerConfig::empty(),
+    class_hash_to_migration_gas_cost: HashMap::default(),
     accumulated_weights: BouncerWeights {
         l1_gas: 10,
         message_segment_length: 10,
@@ -119,6 +120,7 @@ fn test_block_weights_has_room_n_txs(
         class_hash_to_casm_hash_computation_gas: HashMap::from([
         (class_hash!(0_u128), GasAmount(5))]),
         sierra_gas_without_casm_hash_computation: GasAmount(5),
+        class_hashes_for_migration: HashSet::default(),
     }
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
@@ -146,6 +148,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     let casm_hash_computation_data = CasmHashComputationData {
         class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_gas_to_update,
         sierra_gas_without_casm_hash_computation: GasAmount(6),
+        class_hashes_for_migration: HashSet::default(),
     };
 
     let tx_weights = TxWeights {

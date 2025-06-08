@@ -385,6 +385,7 @@ fn central_casm_hash_computation_data() -> CentralCasmHashComputationData {
             GasAmount(1),
         )]),
         sierra_gas_without_casm_hash_computation: GasAmount(3),
+        class_hashes_for_migration: HashSet::default(),
     }
 }
 

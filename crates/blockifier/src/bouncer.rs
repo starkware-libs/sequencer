@@ -20,7 +20,7 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
-use crate::utils::{u64_from_usize, usize_from_u64};
+use crate::utils::{should_migrate, u64_from_usize, usize_from_u64};
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
@@ -210,6 +210,7 @@ impl std::fmt::Display for BouncerWeights {
 pub struct CasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
     pub sierra_gas_without_casm_hash_computation: GasAmount,
+    pub class_hashes_for_migration: HashSet<ClassHash>,
 }
 
 impl CasmHashComputationData {
@@ -247,6 +248,7 @@ pub struct Bouncer {
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub state_changes_keys: StateChangesKeys,
     pub casm_hash_computation_data: CasmHashComputationData,
+    pub class_hash_to_migration_gas_cost: HashMap<ClassHash, GasAmount>,
 
     pub bouncer_config: BouncerConfig,
     accumulated_weights: BouncerWeights,
@@ -260,6 +262,7 @@ impl Bouncer {
     pub fn empty() -> Self {
         Bouncer {
             visited_storage_entries: HashSet::default(),
+            class_hash_to_migration_gas_cost: HashMap::default(),
             state_changes_keys: StateChangesKeys::default(),
             bouncer_config: BouncerConfig::empty(),
             accumulated_weights: BouncerWeights::empty(),
@@ -293,7 +296,7 @@ impl Bouncer {
         // rather than the cumulative state attributes.
         let marginal_state_changes_keys =
             tx_state_changes_keys.difference(&self.state_changes_keys);
-        let marginal_executed_class_hashes = tx_execution_summary
+        let marginal_executed_class_hashes: HashSet<ClassHash> = tx_execution_summary
             .executed_class_hashes
             .difference(&self.get_executed_class_hashes())
             .cloned()
@@ -466,7 +469,13 @@ pub fn get_tx_weights<S: StateReader>(
             })
             .collect(),
         sierra_gas_without_casm_hash_computation,
+        class_hashes_for_migration: executed_class_hashes
+            .iter()
+            .filter(|&&class_hash| should_migrate(state_reader, class_hash))
+            .cloned()
+            .collect(),
     };
+
     let bouncer_weights = BouncerWeights {
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
