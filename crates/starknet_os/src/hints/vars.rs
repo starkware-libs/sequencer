@@ -314,7 +314,7 @@ define_string_enum! {
             "starkware.starknet.core.os.state.aliases.MAX_NON_COMPRESSED_CONTRACT_ADDRESS"
         ),
         (MerkleHeight, "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT"),
-        (NUpdatesSmallPackingBound, "starkware.starknet.core.os.state.N_UPDATES_SMALL_PACKING_BOUND"),
+        (NUpdatesSmallPackingBound, "starkware.starknet.core.os.state.output.N_UPDATES_SMALL_PACKING_BOUND"),
         (ShaBatchSize, "starkware.cairo.common.cairo_sha256.BATCH_SIZE"),
         (Sha256InputChunkSize, "starkware.cairo.common.cairo_sha256.SHA256_INPUT_CHUNK_SIZE_FELTS"),
         (StoredBlockHashBuffer, "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"),
