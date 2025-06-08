@@ -271,6 +271,33 @@
       "severity": "p4"
     },
     {
+      "name": "consensus_conflicting_votes_rate",
+      "title": "Consensus conflicting votes rate",
+      "ruleGroup": "consensus",
+      "expr": "rate(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.006944444444444444
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20,
+      "severity": "p4"
+    },
+    {
       "name": "gateway_add_tx_rate_drop",
       "title": "Gateway add_tx rate drop",
       "ruleGroup": "gateway",
