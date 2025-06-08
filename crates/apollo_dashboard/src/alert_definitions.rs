@@ -183,6 +183,21 @@ const CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE: Alert = Alert {
     severity: AlertSeverity::WorkingHours,
 };
 
+const CONSENSUS_ROUND_ABOVE_ZERO_ALERT: Alert = Alert {
+    name: "consensus_round_above_zero",
+    title: "Consensus round above zero",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[1m])", CONSENSUS_ROUND.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+
 const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
     name: "gateway_add_tx_rate_drop",
     title: "Gateway add_tx rate drop",
@@ -359,6 +374,7 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY_TOO_HIGH,
     CENDE_WRITE_BLOB_FAILURE_ALERT,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE,
+    CONSENSUS_ROUND_ABOVE_ZERO_ALERT,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
