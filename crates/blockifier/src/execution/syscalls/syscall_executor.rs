@@ -5,7 +5,12 @@ use sha2::digest::generic_array::GenericArray;
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost, VersionedConstants};
+use crate::blockifier_versioned_constants::{
+    GasCosts,
+    GasCostsError,
+    SyscallGasCost,
+    VersionedConstants,
+};
 use crate::execution::execution_utils::felt_from_ptr;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
 use crate::execution::syscalls::secp::{
@@ -64,8 +69,7 @@ pub trait SyscallExecutor {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr()).map_err(SyscallExecutorBaseError::from)?)
     }
 
-    // TODO(Aner): replace function with inline after implementing fn get_gas_costs.
-    fn get_keccak_round_cost_base_syscall_cost(&self) -> u64;
+    fn gas_costs(&self) -> &GasCosts;
 
     fn get_sha256_segment_end_ptr(&self, vm: &mut VirtualMachine) -> Relocatable;
 
@@ -174,7 +178,7 @@ pub trait SyscallExecutor {
             .collect::<Result<Vec<u64>, _>>()?;
 
         let (state, n_rounds) = base_keccak(
-            syscall_handler.get_keccak_round_cost_base_syscall_cost(),
+            syscall_handler.gas_costs().syscalls.keccak_round.base_syscall_cost(),
             data_u64,
             remaining_gas,
         )?;

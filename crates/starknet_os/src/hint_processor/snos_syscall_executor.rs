@@ -1,5 +1,5 @@
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
-use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::blockifier_versioned_constants::{GasCosts, VersionedConstants};
 use blockifier::execution::execution_utils::ReadOnlySegment;
 use blockifier::execution::syscalls::hint_processor::{ENTRYPOINT_FAILED_ERROR, INVALID_ARGUMENT};
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
@@ -110,8 +110,8 @@ impl TryExtractRevert for SnosSyscallError {
 impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     type Error = SnosSyscallError;
 
-    fn get_keccak_round_cost_base_syscall_cost(&self) -> u64 {
-        todo!()
+    fn gas_costs(&self) -> &GasCosts {
+        &self.versioned_constants().os_constants.gas_costs
     }
 
     fn get_sha256_segment_end_ptr(&self, _vm: &mut VirtualMachine) -> Relocatable {
