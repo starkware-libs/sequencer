@@ -26,6 +26,7 @@ use crate::config::TimeoutsConfig;
 use crate::metrics::{
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_BUILD_PROPOSAL_TOTAL,
+    CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_VALIDATED,
     CONSENSUS_PROPOSALS_VALID_INIT,
@@ -399,6 +400,7 @@ impl SingleHeightConsensus {
                 let old = entry.get();
                 if old.block_hash != vote.block_hash {
                     warn!("Conflicting votes: old={:?}, new={:?}", old, vote);
+                    CONSENSUS_CONFLICTING_VOTES.increment(1);
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 } else {
                     // Replay, ignore.
