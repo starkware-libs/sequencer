@@ -117,7 +117,7 @@ impl TransactionManager {
         self.records.insert(
             tx_hash,
             TransactionRecord {
-                staged_epoch: self.current_staging_epoch - 1,
+                staged_epoch: self.current_staging_epoch.decrement(),
                 ..TransactionRecord::from(tx)
             },
         );
@@ -174,7 +174,7 @@ impl TransactionManager {
 
     fn create_record_if_not_exist(&mut self, hash: TransactionHash) {
         self.records.entry(hash).or_insert_with(|| TransactionRecord {
-            staged_epoch: self.current_staging_epoch - 1,
+            staged_epoch: self.current_staging_epoch.decrement(),
             ..TransactionRecord::default()
         });
     }
@@ -186,7 +186,7 @@ impl TransactionManager {
     }
 
     fn rollback_staging(&mut self) {
-        self.current_staging_epoch.increment();
+        self.current_staging_epoch = self.current_staging_epoch.increment();
     }
 
     fn maintain_index(&mut self, hash: TransactionHash) {
@@ -381,8 +381,12 @@ impl StagingEpoch {
         Self(1)
     }
 
-    pub fn increment(&mut self) {
-        self.0 = self.0.checked_add(1).expect("Staging epoch overflow, unlikely.");
+    pub fn increment(&mut self) -> Self {
+        Self(self.0 + 1)
+    }
+
+    pub fn decrement(&mut self) -> Self {
+        Self(self.0 - 1)
     }
 }
 
