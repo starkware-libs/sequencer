@@ -3,9 +3,11 @@ pub mod bootstrapper;
 use apollo_config::converters::deserialize_float_seconds_to_duration;
 pub mod communication;
 pub mod l1_provider;
-pub mod l1_scraper;
 pub mod metrics;
-pub mod transaction_manager;
+
+pub(crate) mod l1_scraper;
+pub(crate) mod transaction_manager;
+pub(crate) mod transaction_record;
 
 #[cfg(any(test, feature = "testing"))]
 pub mod test_utils;

@@ -24,12 +24,8 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::bootstrapper::CommitBlockBacklog;
 use crate::l1_provider::L1Provider;
-use crate::transaction_manager::{
-    StagingEpoch,
-    TransactionManager,
-    TransactionPayload,
-    TransactionRecord,
-};
+use crate::transaction_manager::{StagingEpoch, TransactionManager};
+use crate::transaction_record::{TransactionPayload, TransactionRecord};
 use crate::ProviderState;
 
 pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
