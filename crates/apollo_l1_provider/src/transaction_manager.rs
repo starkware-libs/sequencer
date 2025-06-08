@@ -5,11 +5,17 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::soft_delete_index_map::SoftDeleteIndexMap;
 
+// TODO(Gilad): migrate uncommitted and rejected storages from the soft delete indexmap into the
+// single indexmap that currently holds the committed transactions as records. See the docstring of
+// transaction record for how that will work. This change will be implemented in the next few
+// commits.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TransactionManager {
     uncommitted: SoftDeleteIndexMap,
     rejected: SoftDeleteIndexMap,
-    committed: IndexMap<TransactionHash, TransactionPayload>,
+
+    // TODO(Gilad): will soon swallow uncommitted and rejected pools and renamed into `records`.
+    committed_records: IndexMap<TransactionHash, TransactionRecord>,
 }
 
 impl TransactionManager {
@@ -93,7 +99,12 @@ impl TransactionManager {
 
         // Add all committed tx hashes to the committed buffer, regardless of if they're known or
         // not, in case we haven't scraped them yet and another node did.
-        self.committed.extend(committed)
+        for (tx_hash, payload) in committed {
+            self.committed_records
+                .entry(tx_hash)
+                .or_insert_with(|| payload.into())
+                .mark_committed();
+        }
     }
 
     /// Adds a transaction to the transaction manager, return true if the transaction was
@@ -102,8 +113,8 @@ impl TransactionManager {
     // Note: if only the committed hash was known, the transaction will "fill in the blank" in the
     // committed txs storage, to account for commit-before-add tx scenario.
     pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
-        if let Some(entry) = self.committed.get_mut(&tx.tx_hash) {
-            entry.set(tx);
+        if let Some(entry) = self.committed_records.get_mut(&tx.tx_hash) {
+            entry.tx.set(tx);
             return false;
         }
 
@@ -115,7 +126,7 @@ impl TransactionManager {
     }
 
     pub fn is_committed(&self, tx_hash: TransactionHash) -> bool {
-        self.committed.contains_key(&tx_hash)
+        self.committed_records.contains_key(&tx_hash)
     }
 
     pub(crate) fn snapshot(&self) -> TransactionManagerSnapshot {
@@ -124,7 +135,7 @@ impl TransactionManager {
             uncommitted_staged: self.uncommitted.staged_txs.iter().copied().collect(),
             rejected: self.rejected.txs.keys().copied().collect(),
             rejected_staged: self.rejected.staged_txs.iter().copied().collect(),
-            committed: self.committed.keys().copied().collect(),
+            committed: self.committed_records.keys().copied().collect(),
         }
     }
 
@@ -137,9 +148,9 @@ impl TransactionManager {
     pub fn create_for_testing(
         uncommitted: SoftDeleteIndexMap,
         rejected: SoftDeleteIndexMap,
-        committed: IndexMap<TransactionHash, TransactionPayload>,
+        committed: IndexMap<TransactionHash, TransactionRecord>,
     ) -> Self {
-        Self { uncommitted, rejected, committed }
+        Self { uncommitted, rejected, committed_records: committed }
     }
 }
 
@@ -168,4 +179,49 @@ pub(crate) struct TransactionManagerSnapshot {
     pub rejected: Vec<TransactionHash>,
     pub rejected_staged: Vec<TransactionHash>,
     pub committed: Vec<TransactionHash>,
+}
+
+/// An entity that wraps a committed L1 handler transaction and all information and decisions made
+/// on it ("Domain Entity").
+///
+/// Future versions will accumulate all lifecycle metadata (timestamps, staging, validation,
+/// cancellation, etc.) and will include API for querying the tx about its current state based on
+/// all of said metadata.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TransactionRecord {
+    pub tx: TransactionPayload,
+
+    /// State: represents the transaction's state in its lifecycle.
+    state: TransactionState,
+    /// Metadata fields: use for validity/sanity checks in state transitions, to catch bugs that
+    /// can't be captured by state alone.
+    /// In other words, the state is the state machine state, and the metadata fields are used to
+    /// calculate whether a given state transition is valid.
+    committed: bool,
+}
+
+impl TransactionRecord {
+    pub fn mark_committed(&mut self) {
+        self.state = TransactionState::Committed;
+        self.committed = true;
+    }
+}
+
+impl From<L1HandlerTransaction> for TransactionRecord {
+    fn from(tx: L1HandlerTransaction) -> Self {
+        TransactionPayload::from(tx).into()
+    }
+}
+
+impl From<TransactionPayload> for TransactionRecord {
+    fn from(tx: TransactionPayload) -> Self {
+        Self { tx, ..Self::default() }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+pub enum TransactionState {
+    Committed,
+    #[default]
+    Pending, // Currently unused, only useful for Default, will be used soon though.
 }
