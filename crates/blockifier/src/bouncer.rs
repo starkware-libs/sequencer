@@ -20,7 +20,7 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
-use crate::utils::{add_maps, u64_from_usize, usize_from_u64};
+use crate::utils::{add_maps, should_migrate, u64_from_usize, usize_from_u64};
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
@@ -236,6 +236,7 @@ impl std::fmt::Display for BouncerWeights {
 pub struct CasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
     pub gas_without_casm_hash_computation: GasAmount,
+    pub class_hashes_for_migration: HashSet<ClassHash>,
 }
 
 impl CasmHashComputationData {
@@ -256,6 +257,7 @@ impl CasmHashComputationData {
     pub fn from_resources<F>(
         class_hash_to_resources: &HashMap<ClassHash, ExecutionResources>,
         gas_without_casm_hash_computation: GasAmount,
+        class_hashes_for_migration: HashSet<ClassHash>,
         resources_to_gas_fn: F,
     ) -> Self
     where
@@ -270,6 +272,7 @@ impl CasmHashComputationData {
                 })
                 .collect(),
             gas_without_casm_hash_computation,
+            class_hashes_for_migration,
         }
     }
 
@@ -741,16 +744,21 @@ pub fn get_tx_weights<S: StateReader>(
     // Sierra gas computation.
     let vm_resources_sierra_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
-    let sierra_gas_without_casm_hash_computation =
-        sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
+    let (class_hashes_for_migration, migration_gas) =
+        get_migration_resources(state_reader, executed_class_hashes);
+    let sierra_gas_without_casm_hash_computation = sierra_gas.checked_add_panic_on_overflow(
+        vm_resources_sierra_gas.checked_add_panic_on_overflow(migration_gas),
+    );
     let casm_hash_computation_data_sierra_gas = CasmHashComputationData::from_resources(
         &class_hash_to_casm_hash_computation_resources,
         sierra_gas_without_casm_hash_computation,
+        class_hashes_for_migration.clone(),
         |resources| vm_resources_to_sierra_gas(resources, versioned_constants),
     );
     let total_sierra_gas = casm_hash_computation_data_sierra_gas.total_gas();
 
     // Proving gas computation.
+
     let mut builtin_counters_without_casm_hash_computation =
         patrticia_update_resources.prover_builtins();
     add_maps(&mut builtin_counters_without_casm_hash_computation, tx_builtin_counters);
@@ -774,7 +782,9 @@ pub fn get_tx_weights<S: StateReader>(
     let casm_hash_computation_data_proving_gas = CasmHashComputationData::from_resources(
         &class_hash_to_casm_hash_computation_resources,
         proving_gas_without_casm_hash_computation,
+        class_hashes_for_migration,
         |resources| vm_resources_to_proving_gas(resources, builtin_weights, versioned_constants),
+
     );
     let total_proving_gas = casm_hash_computation_data_proving_gas.total_gas();
 
@@ -849,4 +859,21 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     .bouncer_weights;
 
     bouncer_config.within_max_capacity_or_err(tx_weights)
+}
+
+fn get_migration_resources<S: StateReader>(
+    state_reader: &S,
+    executed_class_hashes: &HashSet<ClassHash>,
+) -> (HashSet<ClassHash>, GasAmount) {
+    executed_class_hashes
+        .iter()
+        .filter(|&class_hash_ref| should_migrate(state_reader, *class_hash_ref))
+        .map(|class_hash| {
+            let class = state_reader.get_compiled_class(*class_hash).expect("Failed to get class");
+            (*class_hash, class.estimate_compiled_class_hash_migration_resources())
+        })
+        .fold((HashSet::new(), GasAmount::ZERO), |(mut hashes, gas), (hash, new_gas)| {
+            hashes.insert(hash);
+            (hashes, gas.checked_add_panic_on_overflow(new_gas))
+        })
 }

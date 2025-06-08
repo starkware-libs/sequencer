@@ -407,6 +407,8 @@ fn central_casm_hash_computation_data() -> CentralCasmHashComputationData {
             GasAmount(1),
         )]),
         gas_without_casm_hash_computation: GasAmount(3),
+        // TODO(Meshi): Change to relevant test case when the migration is implemented.
+        class_hashes_for_migration: HashSet::default(),
     }
 }
 
