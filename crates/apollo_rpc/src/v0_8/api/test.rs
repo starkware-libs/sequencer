@@ -3637,7 +3637,7 @@ async fn validate_block(header: &BlockHeader, server_address: SocketAddr, schema
     let res = send_request(
         server_address,
         "starknet_getBlockWithTxHashes",
-        format!(r#"{{"block_hash": "0x{}"}}"#, hex::encode(header.block_hash.0.to_bytes_be()))
+        format!(r#"{{"block_hash": "0x{}"}}"#, hex::encode(header.block_hash.to_bytes_be()))
             .as_str(),
         VERSION.name,
     )

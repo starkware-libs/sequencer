@@ -261,6 +261,7 @@ pub enum BlockStatus {
     PartialOrd,
     Ord,
     derive_more::Display,
+    derive_more::Deref,
 )]
 pub struct BlockHash(pub StarkHash);
 
