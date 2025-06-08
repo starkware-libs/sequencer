@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
@@ -24,6 +24,6 @@ impl SerializeConfig for HttpServerConfig {
 
 impl Default for HttpServerConfig {
     fn default() -> Self {
-        Self { ip: "0.0.0.0".parse().unwrap(), port: 8080 }
+        Self { ip: IpAddr::from(Ipv4Addr::UNSPECIFIED), port: 8080 }
     }
 }
