@@ -250,6 +250,12 @@ impl From<L1HandlerTransaction> for TransactionPayload {
     }
 }
 
+impl From<TransactionHash> for TransactionPayload {
+    fn from(hash: TransactionHash) -> Self {
+        TransactionPayload::HashOnly(hash)
+    }
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct TransactionManagerSnapshot {
     pub uncommitted: Vec<TransactionHash>,
@@ -266,7 +272,7 @@ pub struct TransactionRecord {
     pub tx: TransactionPayload,
 
     /// State: represents the transaction's state in its lifecycle.
-    state: TransactionState,
+    pub state: TransactionState,
 
     /// Metadata fields: use for validity/sanity checks in state transitions, to catch bugs that
     /// can't be captured by state alone.
@@ -365,12 +371,6 @@ impl From<TransactionPayload> for TransactionRecord {
         // Note: this initialized the staged epoch to 0, which is guaranteed to be unstaged since
         // the global epoch is >= 1.
         Self { tx, ..Self::default() }
-    }
-}
-
-impl From<TransactionHash> for TransactionPayload {
-    fn from(hash: TransactionHash) -> Self {
-        TransactionPayload::HashOnly(hash)
     }
 }
 
