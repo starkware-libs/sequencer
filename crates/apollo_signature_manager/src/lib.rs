@@ -1,4 +1,9 @@
-use apollo_signature_manager_types::{KeyStore, SignatureManagerError, SignatureManagerResult};
+use apollo_signature_manager_types::{
+    KeyStore,
+    PeerId,
+    SignatureManagerError,
+    SignatureManagerResult,
+};
 use blake2s::blake2s_to_felt;
 use starknet_api::crypto::utils::{Message, PublicKey, RawSignature};
 use starknet_core::crypto::ecdsa_verify;
@@ -6,9 +11,6 @@ use starknet_core::types::Felt;
 
 // Message domain separators.
 pub(crate) const INIT_PEER_ID: &[u8] = b"INIT_PEER_ID";
-
-#[derive(Clone, Debug, Default, derive_more::Deref, Eq, PartialEq, Hash)]
-pub struct PeerID(pub Vec<u8>);
 
 #[derive(Debug, Default, derive_more::Deref, Eq, PartialEq, Hash)]
 struct MessageDigest(pub Felt);
@@ -39,7 +41,7 @@ impl<KS: KeyStore> SignatureManager<KS> {
 
 // Utils.
 
-fn build_peer_identity_message_digest(peer_id: PeerID) -> MessageDigest {
+fn build_peer_identity_message_digest(peer_id: PeerId) -> MessageDigest {
     let mut message = Vec::with_capacity(INIT_PEER_ID.len() + peer_id.len());
     message.extend_from_slice(INIT_PEER_ID);
     message.extend_from_slice(&peer_id);
@@ -53,7 +55,7 @@ fn build_peer_identity_message_digest(peer_id: PeerID) -> MessageDigest {
 /// communication).
 /// It is also much faster than signing, so that clients can invoke a simple library call.
 pub fn verify_identity(
-    peer_id: PeerID,
+    peer_id: PeerId,
     signature: RawSignature,
     public_key: PublicKey,
 ) -> SignatureManagerResult<bool> {
@@ -86,7 +88,7 @@ mod tests {
         false
     )]
     fn test_verify_identity(#[case] signature: Signature, #[case] expected: bool) {
-        let peer_id = PeerID(b"alice".to_vec());
+        let peer_id = PeerId(b"alice".to_vec());
         let public_key =
             PublicKey(felt!("0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"));
         assert_eq!(verify_identity(peer_id, signature.into(), public_key), Ok(expected));
