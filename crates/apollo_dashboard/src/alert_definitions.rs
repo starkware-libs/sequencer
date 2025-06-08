@@ -6,6 +6,10 @@ use apollo_mempool::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
+use apollo_state_sync_metrics::metrics::{
+    CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
+    STATE_SYNC_CLASS_MANAGER_MARKER,
+};
 use const_format::formatcp;
 
 use crate::alerts::{
@@ -154,6 +158,40 @@ const CONSENSUS_ROUND_HIGH_AVG: Alert = Alert {
     severity: AlertSeverity::Regular,
 };
 
+const STATE_SYNC_LAG: Alert = Alert {
+    name: "state_sync_lag",
+    title: "State sync lag",
+    alert_group: AlertGroup::StateSync,
+    expr: formatcp!(
+        "min_over_time(({} - {})[3m])",
+        CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
+        STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()
+    ), // Alert when the central sync is ahead of the class manager by more than 5 blocks
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "3m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Regular,
+};
+
+const STATE_SYNC_STUCK: Alert = Alert {
+    name: "state_sync_stuck",
+    title: "State sync stuck",
+    alert_group: AlertGroup::StateSync,
+    expr: formatcp!("rate({}[1m])", STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()), /* Alert is triggered when the class manager marker is not updated for 1m */
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "3m",
+    evaluation_interval_sec: 60,
+    severity: AlertSeverity::Regular,
+};
+
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BLOCK_NUMBER_STUCK,
     GATEWAY_ADD_TX_RATE_DROP,
@@ -163,4 +201,6 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     HTTP_SERVER_IDLE,
     MEMPOOL_POOL_SIZE_INCREASE,
     CONSENSUS_ROUND_HIGH_AVG,
+    STATE_SYNC_LAG,
+    STATE_SYNC_STUCK,
 ]);
