@@ -337,6 +337,7 @@ impl LabeledMetricGauge {
     }
 }
 
+#[derive(Clone)]
 pub struct MetricHistogram {
     scope: MetricScope,
     name: &'static str,
