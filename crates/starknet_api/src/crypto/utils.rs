@@ -147,6 +147,12 @@ impl From<starknet_crypto::Signature> for RawSignature {
     }
 }
 
+impl From<starknet_crypto::ExtendedSignature> for RawSignature {
+    fn from(signature: starknet_crypto::ExtendedSignature) -> Self {
+        Self(vec![signature.r, signature.s])
+    }
+}
+
 #[derive(Clone, Debug, Error, Serialize, Deserialize, Eq, PartialEq)]
 pub enum SignatureConversionError {
     #[error("expected a 2-element signature, but got length {0}")]
