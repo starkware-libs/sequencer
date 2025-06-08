@@ -61,26 +61,26 @@ impl TransactionManager {
     }
 
     pub fn validate_tx(&mut self, tx_hash: TransactionHash) -> ValidationStatus {
-        let Some(record) = self.records.get_mut(&tx_hash) else {
-            return ValidationStatus::Invalid(InvalidValidationStatus::ConsumedOnL1OrUnknown);
-        };
-
-        if !record.is_validatable() {
-            match record.state {
-                TransactionState::Committed => {
-                    return ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2);
+        let current_staging_epoch_cloned = self.current_staging_epoch;
+        let validation_status = self.with_record(tx_hash, |record| {
+            if !record.is_validatable() {
+                match record.state {
+                    TransactionState::Committed => {
+                        ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2)
+                    }
+                    // This will soon also replaced with other states, like `Canceled`, which is
+                    // also not-validatable.
+                    _ => unreachable!(),
                 }
-                // This will soon also replaced with other states, like `Canceled`, which is also
-                // not-validatable.
-                _ => unreachable!(),
+            } else if record.try_mark_staged(current_staging_epoch_cloned) {
+                ValidationStatus::Validated
+            } else {
+                ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedInProposedBlock)
             }
-        }
+        });
 
-        if record.try_mark_staged(self.current_staging_epoch) {
-            ValidationStatus::Validated
-        } else {
-            ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedInProposedBlock)
-        }
+        validation_status
+            .unwrap_or(ValidationStatus::Invalid(InvalidValidationStatus::ConsumedOnL1OrUnknown))
     }
 
     pub fn commit_txs(
