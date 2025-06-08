@@ -9,6 +9,7 @@ license.workspace = true
 apollo_infra.workspace = true
 apollo_proc_macros.workspace = true
 async-trait.workspace = true
+derive_more.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 strum_macros.workspace = true

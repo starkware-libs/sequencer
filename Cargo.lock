@@ -1915,6 +1915,7 @@ dependencies = [
  "apollo_infra",
  "apollo_proc_macros",
  "async-trait",
+ "derive_more 0.99.18",
  "serde",
  "starknet_api",
  "strum_macros 0.25.3",
