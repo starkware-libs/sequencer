@@ -5,7 +5,8 @@ use apollo_signature_manager_types::{
     SignatureManagerResult,
 };
 use blake2s::blake2s_to_felt;
-use starknet_api::crypto::utils::{Message, PublicKey, RawSignature};
+use starknet_api::block::BlockHash;
+use starknet_api::crypto::utils::{PublicKey, RawSignature};
 use starknet_core::crypto::ecdsa_verify;
 use starknet_core::types::Felt;
 
@@ -25,17 +26,15 @@ impl<KS: KeyStore> SignatureManager<KS> {
         Self { keystore }
     }
 
-    pub async fn sign(&self, _message: Message) -> SignatureManagerResult<RawSignature> {
-        todo!("SignatureManager::sign is not yet implemented");
+    pub async fn identify(&self, _peer_id: PeerId) -> SignatureManagerResult<RawSignature> {
+        todo!("SignatureManager::identify is not implemented yet");
     }
 
-    pub async fn verify(
+    pub async fn sign_precommit_vote(
         &self,
-        _signature: RawSignature,
-        _message: Message,
-        _public_key: PublicKey,
-    ) -> SignatureManagerResult<bool> {
-        todo!("SignatureManager::verify is not yet implemented");
+        _block_hash: BlockHash,
+    ) -> SignatureManagerResult<RawSignature> {
+        todo!("SignatureManager::sign_precommit_vote is not implemented yet");
     }
 }
 
