@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
+    TransactionConverterError,
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
@@ -25,7 +26,7 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::context::ChainInfo;
-use starknet_api::executable_transaction::{AccountTransaction, ValidateCompiledClassHashError};
+use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -170,10 +171,18 @@ impl ProcessTxBlockingTask {
         let internal_tx = self
             .runtime
             .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
-            .map_err(|e| {
-                warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                // TODO(yair): Fix this. Need to map the errors better.
-                StarknetError::internal(&e.to_string())
+            .map_err(|e| match e {
+                TransactionConverterError::ValidateCompiledClassHashError(err) => {
+                    convert_compiled_class_hash_error(err)
+                }
+                other => {
+                    warn!(
+                        "Failed to convert RPC transaction to internal RPC transaction: {}",
+                        other
+                    );
+                    // TODO(yair): Fix this. Need to map the errors better.
+                    StarknetError::internal(&other.to_string())
+                }
             })?;
 
         let executable_tx = self
@@ -190,13 +199,6 @@ impl ProcessTxBlockingTask {
                 // TODO(yair): Fix this.
                 StarknetError::internal(&e.to_string())
             })?;
-
-        // Perform post compilation validations.
-        if let AccountTransaction::Declare(executable_declare_tx) = &executable_tx {
-            executable_declare_tx
-                .validate_compiled_class_hash()
-                .map_err(convert_compiled_class_hash_error)?;
-        }
 
         let mut validator = self
             .stateful_tx_validator

@@ -9,6 +9,7 @@ use starknet_api::core::{ChainId, ClassHash};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     Transaction as ExecutableTransaction,
+    ValidateCompiledClassHashError,
 };
 use starknet_api::rpc_transaction::{
     InternalRpcDeclareTransactionV3,
@@ -36,6 +37,8 @@ pub enum TransactionConverterError {
     ClassNotFound { class_hash: ClassHash },
     #[error(transparent)]
     StarknetApiError(#[from] StarknetApiError),
+    #[error(transparent)]
+    ValidateCompiledClassHashError(#[from] ValidateCompiledClassHashError),
 }
 
 pub type TransactionConverterResult<T> = Result<T, TransactionConverterError>;
@@ -172,8 +175,18 @@ impl TransactionConverterTrait for TransactionConverter {
         let tx_without_hash = match tx {
             RpcTransaction::Invoke(tx) => InternalRpcTransactionWithoutTxHash::Invoke(tx),
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
-                let ClassHashes { class_hash, .. } =
+                let ClassHashes { class_hash, executable_class_hash } =
                     self.class_manager_client.add_class(tx.contract_class).await?;
+                if tx.compiled_class_hash != executable_class_hash {
+                    // The CompiledClassHash in the transaction is not the same as the one computed
+                    // in the class manager.
+                    return Err(TransactionConverterError::ValidateCompiledClassHashError(
+                        ValidateCompiledClassHashError::CompiledClassHashMismatch {
+                            computed_class_hash: executable_class_hash,
+                            supplied_class_hash: tx.compiled_class_hash,
+                        },
+                    ));
+                }
                 InternalRpcTransactionWithoutTxHash::Declare(InternalRpcDeclareTransactionV3 {
                     sender_address: tx.sender_address,
                     compiled_class_hash: tx.compiled_class_hash,
