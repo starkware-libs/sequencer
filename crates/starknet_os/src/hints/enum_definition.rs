@@ -1344,7 +1344,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         ids.index = n_elms
         ids.exists = 0"#}
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         GetBlocksNumber,
         get_n_blocks,
@@ -1686,7 +1685,6 @@ memory[ap] = 1 if case != 'both' else 0"#
     ),
     (OsLoggerExitSyscall, os_logger_exit_syscall, "exit_syscall()"),
     (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
-    // TODO(Meshi): Fix hint implantation.
     (
         StarknetOsInput,
         starknet_os_input,
@@ -1705,7 +1703,6 @@ memory[ap] = 1 if case != 'both' else 0"#
         state_update_pointers = StateUpdatePointers(segments=segments)"#
         }
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         InitializeStateChanges,
         initialize_state_changes,
@@ -1718,7 +1715,6 @@ initial_dict = {
 }"#
         }
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         InitializeClassHashes,
         initialize_class_hashes,
