@@ -5,7 +5,9 @@ pub mod communication;
 pub mod l1_provider;
 pub mod l1_scraper;
 pub mod metrics;
-pub mod transaction_manager;
+
+pub(crate) mod transaction_manager;
+pub(crate) mod transaction_record;
 
 #[cfg(any(test, feature = "testing"))]
 pub mod test_utils;
