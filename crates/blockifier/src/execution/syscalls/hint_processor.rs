@@ -290,10 +290,6 @@ impl<'a> SyscallHintProcessor<'a> {
         self.execution_mode() == ExecutionMode::Validate
     }
 
-    pub fn gas_costs(&self) -> &GasCosts {
-        self.base.context.gas_costs()
-    }
-
     #[allow(clippy::result_large_err)]
     pub fn get_or_allocate_execution_info_segment(
         &mut self,
@@ -466,8 +462,8 @@ impl<'a> SyscallHintProcessor<'a> {
 impl SyscallExecutor for SyscallHintProcessor<'_> {
     type Error = SyscallExecutionError;
 
-    fn get_keccak_round_cost_base_syscall_cost(&self) -> u64 {
-        self.gas_costs().syscalls.keccak_round.base_syscall_cost()
+    fn gas_costs(&self) -> &GasCosts {
+        self.base.context.gas_costs()
     }
 
     fn get_sha256_segment_end_ptr(&self, vm: &mut VirtualMachine) -> Relocatable {
