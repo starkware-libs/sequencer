@@ -20,7 +20,11 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
-use crate::utils::{u64_from_usize, usize_from_u64};
+use crate::utils::{
+    should_migrate,
+    u64_from_usize,
+    usize_from_u64,
+};
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
@@ -210,6 +214,7 @@ impl std::fmt::Display for BouncerWeights {
 pub struct CasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
     pub sierra_gas_without_casm_hash_computation: GasAmount,
+    pub class_hashes_for_migration: HashSet<ClassHash>,
 }
 
 impl CasmHashComputationData {
@@ -428,6 +433,8 @@ pub fn get_tx_weights<S: StateReader>(
     let sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_gas);
 
+    let (class_hashes_for_migration, migration_gas) =
+        get_migration_resources(state_reader, executed_class_hashes);
     let class_hash_to_casm_hash_computation_resources =
         map_class_hash_to_casm_hash_computation_resources(state_reader, executed_class_hashes)?;
     let class_hash_to_casm_hash_computation_gas: HashMap<_, _> =
@@ -438,9 +445,14 @@ pub fn get_tx_weights<S: StateReader>(
                 (class_hash, gas)
             })
             .collect();
+
     let total_casm_hash_computation_gas = class_hash_to_casm_hash_computation_gas
         .values()
+<<<<<<< HEAD
         .fold(GasAmount::ZERO, |acc, gas| acc.checked_add_panic_on_overflow(*gas));
+=======
+        .fold(migration_gas, |acc, gas| safe_add_gas_panic_on_overflow(acc, *gas));
+>>>>>>> 82d3a691d (chore(blockifier): add class hash to migrate to the bouncer)
 
     let total_sierra_gas = sierra_gas_without_casm_hash_computation
         .checked_add_panic_on_overflow(total_casm_hash_computation_gas);
@@ -448,7 +460,9 @@ pub fn get_tx_weights<S: StateReader>(
     let casm_hash_computation_data = CasmHashComputationData {
         class_hash_to_casm_hash_computation_gas,
         sierra_gas_without_casm_hash_computation,
+        class_hashes_for_migration,
     };
+
     let bouncer_weights = BouncerWeights {
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
@@ -515,4 +529,21 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     .bouncer_weights;
 
     bouncer_config.within_max_capacity_or_err(tx_weights)
+}
+
+fn get_migration_resources<S: StateReader>(
+    state_reader: &S,
+    executed_class_hashes: &HashSet<ClassHash>,
+) -> (HashSet<ClassHash>, GasAmount) {
+    executed_class_hashes
+        .iter()
+        .filter(|&class_hash_ref| should_migrate(state_reader, *class_hash_ref))
+        .map(|class_hash| {
+            let class = state_reader.get_compiled_class(*class_hash).expect("Failed to get class");
+            (*class_hash, class.estimate_compiled_class_hash_migration_resources())
+        })
+        .fold((HashSet::new(), GasAmount::ZERO), |(mut hashes, gas), (hash, new_gas)| {
+            hashes.insert(hash);
+            (hashes, safe_add_gas_panic_on_overflow(gas, new_gas))
+        })
 }

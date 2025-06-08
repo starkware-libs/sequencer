@@ -1,6 +1,10 @@
 use std::collections::HashMap;
+
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::core::ClassHash;
+
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
+use crate::state::state_api::StateReader;
 use crate::transaction::errors::NumericConversionError;
 
 #[cfg(test)]
@@ -83,4 +87,9 @@ pub fn get_gas_cost_from_vm_resources(
     n_steps * base_costs.step_gas_cost
         + n_memory_holes * base_costs.memory_hole_gas_cost
         + total_builtin_gas_cost
+}
+
+// TODO(Meshi): Delete this function.
+pub fn should_migrate(_state_reader: &impl StateReader, _class_hash: ClassHash) -> bool {
+    false
 }
