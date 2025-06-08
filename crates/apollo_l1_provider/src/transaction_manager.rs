@@ -173,10 +173,14 @@ impl TransactionManager {
     }
 
     fn create_record_if_not_exist(&mut self, hash: TransactionHash) {
-        self.records.entry(hash).or_insert_with(|| TransactionRecord {
-            staged_epoch: self.current_staging_epoch.decrement(),
-            ..TransactionRecord::default()
-        });
+        if self.records.contains_key(&hash) {
+            return;
+        }
+
+        self.records.insert(
+            hash,
+            TransactionRecord::new(hash.into(), self.current_staging_epoch.decrement()),
+        );
     }
 
     fn is_staged(&self, tx_hash: TransactionHash) -> bool {
@@ -277,6 +281,10 @@ pub struct TransactionRecord {
 }
 
 impl TransactionRecord {
+    pub fn new(payload: TransactionPayload, staged_epoch: StagingEpoch) -> Self {
+        Self { staged_epoch, ..Self::from(payload) }
+    }
+
     pub fn get_unchecked(&self) -> &L1HandlerTransaction {
         match &self.tx {
             TransactionPayload::Full(tx) => tx,
@@ -359,6 +367,12 @@ impl From<TransactionPayload> for TransactionRecord {
         // Note: this initialized the staged epoch to 0, which is guaranteed to be unstaged since
         // the global epoch is >= 1.
         Self { tx, ..Self::default() }
+    }
+}
+
+impl From<TransactionHash> for TransactionPayload {
+    fn from(hash: TransactionHash) -> Self {
+        TransactionPayload::HashOnly(hash)
     }
 }
 
