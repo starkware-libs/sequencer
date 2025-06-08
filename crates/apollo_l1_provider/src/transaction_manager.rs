@@ -9,7 +9,7 @@ use starknet_api::transaction::TransactionHash;
 pub struct TransactionManager {
     /// Storage of all l1 handler transactions --- keeps transactions until they can be safely
     /// removed, like when they are consumed on L1, or fully cancelled on L1.
-    pub records: IndexMap<TransactionHash, TransactionRecord>,
+    pub records: Records,
     /// Invariant: contains all hashes of transactions that are proposable, and only them.
     /// Structure: [staged_tx1, staged_tx2, ..., staged_txN, unstaged_tx1, unstaged_tx2, ...]
     proposable_index: IndexSet<TransactionHash>,
@@ -137,7 +137,7 @@ impl TransactionManager {
     pub(crate) fn snapshot(&self) -> TransactionManagerSnapshot {
         let mut snapshot = TransactionManagerSnapshot::default();
 
-        for (&tx_hash, record) in &self.records {
+        for (&tx_hash, record) in self.records.iter() {
             match record.state {
                 TransactionState::Rejected => {
                     snapshot.rejected.push(tx_hash);
@@ -164,7 +164,7 @@ impl TransactionManager {
     where
         F: FnOnce(&mut TransactionRecord) -> R,
     {
-        let record = self.records.get_mut(&hash)?;
+        let record = self.records.with_record(hash)?;
         let result = f(record);
         self.maintain_index(hash);
         Some(result)
@@ -203,7 +203,7 @@ impl TransactionManager {
 
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing(
-        records: IndexMap<TransactionHash, TransactionRecord>,
+        records: Records,
         proposable_index: IndexSet<TransactionHash>,
         current_epoch: StagingEpoch,
     ) -> Self {
@@ -421,5 +421,32 @@ impl Sub<u128> for StagingEpoch {
 
     fn sub(self, rhs: u128) -> Self::Output {
         Self(self.0 - rhs)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Records(IndexMap<TransactionHash, TransactionRecord>);
+
+impl Records {
+    pub fn with_record(&mut self, hash: TransactionHash) -> Option<&mut TransactionRecord> {
+        self.0.get_mut(&hash)
+    }
+
+    pub fn insert(&mut self, hash: TransactionHash, record: TransactionRecord) {
+        self.0.insert(hash, record);
+    }
+}
+
+impl Deref for Records {
+    type Target = IndexMap<TransactionHash, TransactionRecord>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<IndexMap<TransactionHash, TransactionRecord>> for Records {
+    fn from(map: IndexMap<TransactionHash, TransactionRecord>) -> Self {
+        Self(map)
     }
 }
