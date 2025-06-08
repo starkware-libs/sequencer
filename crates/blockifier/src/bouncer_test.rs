@@ -127,6 +127,8 @@ fn test_block_weights_has_room_n_txs(
         gas_without_casm_hash_computation: GasAmount(5),
     },
     casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
+    // TODO(Meshi): Change to relevant test case when the migration is implemented.
+    class_hashes_for_migration: HashSet::default(),
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     // TODO(Aviv): Use expect! to avoid magic numbers.
@@ -157,6 +159,8 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         gas_without_casm_hash_computation: GasAmount(6),
     };
     let casm_hash_computation_data_proving_gas = CasmHashComputationData::empty();
+    // TODO(Meshi): Change to relevant test case when the migration is implemented.
+    let class_hashes_for_migration = HashSet::default();
 
     let tx_weights = TxWeights {
         bouncer_weights: weights_to_update,
@@ -168,7 +172,12 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         StateChangesKeys::create_for_testing(HashSet::from([contract_address!(1_u128)]));
 
     let mut updated_bouncer = initial_bouncer.clone();
-    updated_bouncer.update(tx_weights, &execution_summary_to_update, &state_changes_keys_to_update);
+    updated_bouncer.update(
+        tx_weights,
+        &execution_summary_to_update,
+        &state_changes_keys_to_update,
+        &class_hashes_for_migration,
+    );
 
     let mut expected_bouncer = initial_bouncer;
     expected_bouncer
