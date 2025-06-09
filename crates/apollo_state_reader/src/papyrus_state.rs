@@ -104,16 +104,7 @@ impl PapyrusReader {
     /// Returns a V1 contract with Sierra if V1 contract is found, or a V0 contract without Sierra
     /// if a V1 contract is not found, or an `Error` otherwise.
     fn get_compiled_class_from_db(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
-        let state_number = StateNumber(self.latest_block);
-        let class_declaration_block_number = self
-            .reader()?
-            .get_state_reader()
-            .and_then(|sr| sr.get_class_definition_block_number(&class_hash))
-            .map_err(|err| StateError::StateReadError(err.to_string()))?;
-        let class_is_declared: bool = matches!(class_declaration_block_number,
-                        Some(block_number) if block_number <= state_number.0);
-
-        if class_is_declared {
+        if self.is_declared(class_hash)? {
             // Cairo 1.
             let (casm_compiled_class, sierra) = self.read_casm_and_sierra(class_hash)?;
             let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
@@ -212,8 +203,6 @@ impl StateReader for PapyrusReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
-        // Assumption: the global cache is cleared upon reverted blocks.
-
         self.get_compiled_class_from_db(class_hash).map(|class| class.to_runnable())
     }
 
@@ -225,5 +214,17 @@ impl StateReader for PapyrusReader {
 impl FetchCompiliedClasses for PapyrusReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
         self.get_compiled_class_from_db(class_hash)
+    }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        let state_number = StateNumber(self.latest_block);
+        let class_declaration_block_number = self
+            .reader()?
+            .get_state_reader()
+            .and_then(|sr| sr.get_class_definition_block_number(&class_hash))
+            .map_err(|err| StateError::StateReadError(err.to_string()))?;
+        Ok(
+            matches!(class_declaration_block_number, Some(block_number) if block_number <= state_number.0),
+        )
     }
 }
