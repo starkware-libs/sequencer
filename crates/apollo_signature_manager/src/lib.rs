@@ -121,46 +121,6 @@ mod tests {
         ),
     };
 
-    #[rstest]
-    #[case::valid_signature(ALICE_IDENTITY_SIGNATURE, true)]
-    #[case::invalid_signature(
-        Signature { r: felt!("0x1"), s: felt!("0x2") },
-        false
-    )]
-    fn test_verify_identity(#[case] signature: Signature, #[case] expected: bool) {
-        let identity = NodeIdentity::new();
-
-        assert_eq!(
-            verify_identity(identity.peer_id(), signature.into(), identity.public_key()),
-            Ok(expected)
-        );
-    }
-
-    #[rstest]
-    #[case::valid_signature(
-        Signature {
-            r: felt!("0xcd59947811bac7c33d3dae3d50b1de243710b05f285455ada6823e23871a2b"),
-            s: felt!("0x33817fd47c5253c4979999afe0dd6b275498d9c7b96dd7705b84c2113228f11"),
-        },
-        true
-    )]
-    #[case::invalid_signature(
-        Signature { r: felt!("0x1"), s: felt!("0x2") },
-        false
-    )]
-    fn test_verify_precommit_vote_signature(#[case] signature: Signature, #[case] expected: bool) {
-        let identity = NodeIdentity::new();
-
-        assert_eq!(
-            verify_precommit_vote_signature(
-                identity.peer_id(),
-                signature.into(),
-                identity.public_key()
-            ),
-            Ok(expected)
-        );
-    }
-
     /// Represents the identity of a node in the network.
     /// Couples its `libp2p` and Stark credentials.
     #[derive(Clone, Debug)]
@@ -200,6 +160,46 @@ mod tests {
         async fn get_key(&self) -> KeyStoreResult<PrivateKey> {
             Ok(self.private_key)
         }
+    }
+
+    #[rstest]
+    #[case::valid_signature(ALICE_IDENTITY_SIGNATURE, true)]
+    #[case::invalid_signature(
+        Signature { r: felt!("0x1"), s: felt!("0x2") },
+        false
+    )]
+    fn test_verify_identity(#[case] signature: Signature, #[case] expected: bool) {
+        let identity = NodeIdentity::new();
+
+        assert_eq!(
+            verify_identity(identity.peer_id(), signature.into(), identity.public_key()),
+            Ok(expected)
+        );
+    }
+
+    #[rstest]
+    #[case::valid_signature(
+        Signature {
+            r: felt!("0xcd59947811bac7c33d3dae3d50b1de243710b05f285455ada6823e23871a2b"),
+            s: felt!("0x33817fd47c5253c4979999afe0dd6b275498d9c7b96dd7705b84c2113228f11"),
+        },
+        true
+    )]
+    #[case::invalid_signature(
+        Signature { r: felt!("0x1"), s: felt!("0x2") },
+        false
+    )]
+    fn test_verify_precommit_vote_signature(#[case] signature: Signature, #[case] expected: bool) {
+        let identity = NodeIdentity::new();
+
+        assert_eq!(
+            verify_precommit_vote_signature(
+                identity.peer_id(),
+                signature.into(),
+                identity.public_key()
+            ),
+            Ok(expected)
+        );
     }
 
     #[tokio::test]
