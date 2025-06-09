@@ -23,8 +23,8 @@ use starknet_api::block::{
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use tracing::{info, warn};
 
+use crate::build_proposal::BuildProposalError;
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
-use crate::sequencer_consensus_context::BuildProposalError;
 use crate::validate_proposal::ValidateProposalError;
 
 pub(crate) struct GasPriceParams {
