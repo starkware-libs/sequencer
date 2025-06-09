@@ -1,5 +1,5 @@
 use apollo_metrics::define_metrics;
-use apollo_metrics::metrics::{MetricCounter, MetricGauge};
+use apollo_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram};
 
 define_metrics!(
     Infra => {
@@ -62,6 +62,26 @@ define_metrics!(
         MetricGauge { STATE_SYNC_LOCAL_QUEUE_DEPTH, "state_sync_local_queue_depth", "The depth of the state sync's local message queue" },
     },
 );
+
+/// Metrics of a remote client.
+pub struct RemoteClientMetrics {
+    /// Histogram to track the number of attempts made to connect to a remote server.
+    attempts: &'static MetricHistogram,
+}
+
+impl RemoteClientMetrics {
+    pub const fn new(attempts: &'static MetricHistogram) -> Self {
+        Self { attempts }
+    }
+
+    pub fn register(&self) {
+        self.attempts.register();
+    }
+
+    pub fn record_attempt(&self, value: usize) {
+        self.attempts.record_lossy(value);
+    }
+}
 
 /// A struct to contain all metrics for a local server.
 pub struct LocalServerMetrics {

@@ -411,6 +411,10 @@ impl MetricHistogram {
         histogram!(self.name).record(value.into_f64());
     }
 
+    pub fn record_lossy<T: LossyIntoF64>(&self, value: T) {
+        histogram!(self.name).record(value.into_f64());
+    }
+
     pub fn record_many<T: IntoF64>(&self, value: T, count: usize) {
         histogram!(self.name).record_many(value.into_f64(), count);
     }
