@@ -816,6 +816,7 @@ dependencies = [
  "async-trait",
  "blockifier",
  "cairo-lang-starknet-classes",
+ "cairo-vm",
  "chrono",
  "futures",
  "indexmap 2.9.0",
