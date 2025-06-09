@@ -29,8 +29,8 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::sequencer_consensus_context::{
+    BuildProposalResult,
     BuiltProposals,
-    ProposalResult,
     SequencerConsensusContextDeps,
 };
 use crate::utils::{
@@ -108,7 +108,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
 
 pub(crate) async fn initiate_build(
     args: &ProposalBuildArguments,
-) -> ProposalResult<ConsensusBlockInfo> {
+) -> BuildProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.deps.clock.now_as_timestamp();
