@@ -24,7 +24,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use tracing::{info, warn};
 
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
-use crate::sequencer_consensus_context::{BuildProposalError, ProposalResult};
+use crate::sequencer_consensus_context::{BuildProposalError, BuildProposalResult};
 
 pub(crate) struct GasPriceParams {
     pub min_l1_gas_price_wei: GasPrice,
@@ -148,7 +148,7 @@ pub(crate) fn convert_to_sn_api_block_info(
 pub(crate) async fn retrospective_block_hash(
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: &ConsensusBlockInfo,
-) -> ProposalResult<Option<BlockHashAndNumber>> {
+) -> BuildProposalResult<Option<BlockHashAndNumber>> {
     let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
     let retrospective_block_hash = match retrospective_block_number {
         Some(block_number) => {
