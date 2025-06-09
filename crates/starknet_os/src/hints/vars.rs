@@ -89,7 +89,6 @@ define_string_enum! {
         (Descend),
         (DescentMap),
         (DictManager),
-        (DictTracker),
         (InitialDict),
         (IsDeprecated),
         (LeftChild),
