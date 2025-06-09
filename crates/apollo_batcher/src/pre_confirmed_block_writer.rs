@@ -31,9 +31,9 @@ pub type PreConfirmedTxReceiver = tokio::sync::mpsc::Receiver<Vec<TransactionHas
 pub type PreConfirmedTxSender = tokio::sync::mpsc::Sender<Vec<TransactionHash>>;
 
 pub type ExecutedTxReceiver =
-    tokio::sync::mpsc::Receiver<Vec<(TransactionHash, StarknetClientTransactionReceipt)>>;
+    tokio::sync::mpsc::Receiver<(TransactionHash, StarknetClientTransactionReceipt)>;
 pub type ExecutedTxSender =
-    tokio::sync::mpsc::Sender<Vec<(TransactionHash, StarknetClientTransactionReceipt)>>;
+    tokio::sync::mpsc::Sender<(TransactionHash, StarknetClientTransactionReceipt)>;
 
 /// Coordinates the flow of pre-confirmed transaction data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
@@ -81,15 +81,16 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
             tokio::select! {
                 msg = { self.executed_tx_receiver.recv() } => {
                     match msg {
-                        Some(txs) => self.cende_client
+                        Some((tx_hash, tx_receipt)) => self.cende_client
                             .write_executed_txs(CendeExecutedTxs {
                                 block_number: self.pre_confirmed_block_writer_input.block_number,
                                 round: self.pre_confirmed_block_writer_input.round,
-                                executed_txs: txs.into_iter().map(|(tx_hash, tx_receipt)| (tx_hash, PreConfirmedTransactionData {
+                                executed_txs: [(tx_hash, PreConfirmedTransactionData {
                                     block_number: self.pre_confirmed_block_writer_input.block_number,
-                                    round: self.pre_confirmed_block_writer_input.round,
-                                    transaction_receipt: Some(tx_receipt),
-                                })).collect(),
+                                        round: self.pre_confirmed_block_writer_input.round,
+                                        transaction_receipt: Some(tx_receipt),
+                                    }),
+                                ].into(),
                             })
                             .await?,
                         None => {
