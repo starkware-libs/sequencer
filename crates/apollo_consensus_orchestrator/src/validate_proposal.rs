@@ -32,11 +32,7 @@ use crate::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::{
-    BuiltProposals,
-    ProposalResult,
-    SequencerConsensusContextDeps,
-};
+use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
@@ -109,7 +105,6 @@ pub(crate) enum ValidateProposalError {
     ProposalFinMismatch,
 }
 
-#[allow(dead_code)]
 pub(crate) type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 
 pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
@@ -347,7 +342,7 @@ async fn initiate_validation(
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
     clock: &dyn Clock,
-) -> ProposalResult<()> {
+) -> ValidateProposalResult<()> {
     let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
         .expect("Can't convert timeout to chrono::Duration");
 
