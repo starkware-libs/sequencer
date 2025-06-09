@@ -128,11 +128,12 @@ mod tests {
         false
     )]
     fn test_verify_identity(#[case] signature: Signature, #[case] expected: bool) {
-        let peer_id = PeerId(b"alice".to_vec());
-        let public_key =
-            PublicKey(felt!("0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"));
+        let identity = NodeIdentity::new();
 
-        assert_eq!(verify_identity(peer_id, signature.into(), public_key), Ok(expected));
+        assert_eq!(
+            verify_identity(identity.peer_id(), signature.into(), identity.public_key()),
+            Ok(expected)
+        );
     }
 
     #[rstest]
@@ -148,25 +149,31 @@ mod tests {
         false
     )]
     fn test_verify_precommit_vote_signature(#[case] signature: Signature, #[case] expected: bool) {
-        let block_hash = BlockHash(felt!("0x1234"));
-        let public_key =
-            PublicKey(felt!("0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"));
+        let identity = NodeIdentity::new();
 
         assert_eq!(
-            verify_precommit_vote_signature(block_hash, signature.into(), public_key),
+            verify_precommit_vote_signature(
+                identity.peer_id(),
+                signature.into(),
+                identity.public_key()
+            ),
             Ok(expected)
         );
     }
 
-    /// Simple in-memory KeyStore implementation for testing
-    #[derive(Clone, Copy, Debug)]
-    struct TestKeyStore {
+    /// Represents the identity of a node in the network.
+    /// Couples its `libp2p` and Stark credentials.
+    #[derive(Clone, Debug)]
+    struct NodeIdentity {
+        peer_id: PeerId,
         private_key: PrivateKey,
         public_key: PublicKey,
     }
 
-    impl TestKeyStore {
+    impl NodeIdentity {
         fn new() -> Self {
+            let peer_id = PeerId(b"alice".to_vec());
+
             // Created using `cairo-lang`.
             let private_key = PrivateKey(felt!(
                 "0x608bf2cdb1ad4138e72d2f82b8c5db9fa182d1883868ae582ed373429b7a133"
@@ -175,16 +182,21 @@ mod tests {
                 "0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"
             ));
 
-            Self { private_key, public_key }
+            Self { peer_id, private_key, public_key }
         }
 
-        fn get_public_key(&self) -> PublicKey {
+        pub fn peer_id(&self) -> PeerId {
+            self.peer_id.clone()
+        }
+
+        pub fn public_key(&self) -> PublicKey {
             self.public_key
         }
     }
 
+    /// Simple in-memory KeyStore implementation for testing
     #[async_trait]
-    impl KeyStore for TestKeyStore {
+    impl KeyStore for NodeIdentity {
         async fn get_key(&self) -> KeyStoreResult<PrivateKey> {
             Ok(self.private_key)
         }
@@ -192,16 +204,17 @@ mod tests {
 
     #[tokio::test]
     async fn test_identify() {
-        let key_store = TestKeyStore::new();
+        let identity = NodeIdentity::new();
+        let key_store = identity.clone();
         let signature_manager = SignatureManager::new(key_store);
-
-        let peer_id = PeerId(b"alice".to_vec());
-        let signature = signature_manager.identify(peer_id.clone()).await;
+        let signature = signature_manager.identify(identity.peer_id()).await;
 
         assert_eq!(signature, Ok(ALICE_IDENTITY_SIGNATURE.into()));
 
         // Test alignment with verification function.
-        let public_key = key_store.get_public_key();
-        assert_eq!(verify_identity(peer_id, signature.unwrap(), public_key), Ok(true));
+        assert_eq!(
+            verify_identity(identity.peer_id(), signature.unwrap(), identity.public_key()),
+            Ok(true)
+        );
     }
 }
