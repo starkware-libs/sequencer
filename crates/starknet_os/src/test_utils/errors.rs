@@ -7,7 +7,9 @@ use cairo_vm::types::errors::program_errors::ProgramError;
 use cairo_vm::vm::errors::cairo_run_errors::CairoRunError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
+use strum::Display;
 
+use crate::hints::error::OsHintError;
 use crate::test_utils::cairo_runner::{EndpointArg, ImplicitArg};
 
 #[derive(Debug, thiserror::Error)]
@@ -78,4 +80,10 @@ pub enum LoadReturnValueError {
 pub struct BuiltinMismatchError {
     pub cairo_runner_builtins: Vec<BuiltinName>,
     pub actual_builtins: HashSet<BuiltinName>,
+}
+
+#[derive(Debug, thiserror::Error, Display)]
+pub enum OsSpecificTestError {
+    Cairo0EntryPointRunner(#[from] Cairo0EntryPointRunnerError),
+    OsHintError(#[from] OsHintError),
 }

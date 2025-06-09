@@ -1,10 +1,11 @@
 use blake2s::encode_felts_to_u32s;
+use starknet_os::test_utils::errors::OsSpecificTestError;
 use starknet_types_core::felt::Felt;
 
 use crate::os_cli::commands::{validate_input, Input};
 use crate::os_cli::tests::aliases::aliases_test;
 use crate::os_cli::tests::bls_field::test_bls_field;
-use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult, OsSpecificTestError};
+use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult};
 use crate::shared_utils::types::{PythonTestError, PythonTestRunner};
 
 // Enum representing different Python tests.
