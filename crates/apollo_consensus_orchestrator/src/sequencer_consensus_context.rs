@@ -290,7 +290,14 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         let handle = tokio::spawn(
             async move {
-                build_proposal(args).await;
+                match build_proposal(args).await {
+                    Ok(()) => {
+                        info!(?proposal_id, "Proposal built successfully.");
+                    }
+                    Err(e) => {
+                        error!("Failed to build proposal. Error: {e:?}");
+                    }
+                }
             }
             .instrument(
                 error_span!("consensus_build_proposal", %proposal_id, round=proposal_init.round),
