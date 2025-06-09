@@ -164,6 +164,10 @@ impl TransactionPool {
             .ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
 
+    pub fn _get_lowest_nonce(&self, address: ContractAddress) -> Option<Nonce> {
+        self.account_txs_sorted_by_nonce(address).next().map(|tx_ref| tx_ref.nonce)
+    }
+
     fn remove_from_main_mapping(&mut self, removed_txs: &Vec<TransactionReference>) {
         for TransactionReference { tx_hash, .. } in removed_txs {
             let tx = self.txs.remove(tx_hash).unwrap_or_else(|| {
