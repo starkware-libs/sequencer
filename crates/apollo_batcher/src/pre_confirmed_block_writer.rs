@@ -9,7 +9,7 @@ use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tracing::info;
 
-use crate::cende_client_types::StarknetClientTransactionReceipt;
+use crate::cende_client_types::{CendeBlockMetdata, StarknetClientTransactionReceipt};
 use crate::pre_confirmed_cende_client::{
     CendeExecutedTxs,
     CendePreConfirmedTxs,
@@ -45,8 +45,7 @@ pub trait PreConfirmedBlockWriterTrait: Send {
 }
 
 pub struct PreConfirmedBlockWriter {
-    block_number: BlockNumber,
-    proposal_round: Round,
+    pre_confirmed_block_writer_input: PreConfirmedBlockWriterInput,
     pre_confirmed_tx_receiver: PreConfirmedTxReceiver,
     executed_tx_receiver: ExecutedTxReceiver,
     cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
@@ -54,15 +53,13 @@ pub struct PreConfirmedBlockWriter {
 
 impl PreConfirmedBlockWriter {
     pub fn new(
-        block_number: BlockNumber,
-        proposal_round: Round,
+        pre_confirmed_block_writer_input: PreConfirmedBlockWriterInput,
         pre_confirmed_tx_receiver: PreConfirmedTxReceiver,
         executed_tx_receiver: ExecutedTxReceiver,
         cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
     ) -> Self {
         Self {
-            block_number,
-            proposal_round,
+            pre_confirmed_block_writer_input,
             pre_confirmed_tx_receiver,
             executed_tx_receiver,
             cende_client,
@@ -75,8 +72,8 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
     async fn run(&mut self) -> BlockWriterResult<()> {
         self.cende_client
             .send_start_new_round(CendeStartNewRound {
-                block_number: self.block_number,
-                round: self.proposal_round,
+                block_number: self.pre_confirmed_block_writer_input.block_number,
+                round: self.pre_confirmed_block_writer_input.round,
             })
             .await?;
         loop {
@@ -86,11 +83,11 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
                     match msg {
                         Some(txs) => self.cende_client
                             .write_executed_txs(CendeExecutedTxs {
-                                block_number: self.block_number,
-                                round: self.proposal_round,
+                                block_number: self.pre_confirmed_block_writer_input.block_number,
+                                round: self.pre_confirmed_block_writer_input.round,
                                 executed_txs: txs.into_iter().map(|(tx_hash, tx_receipt)| (tx_hash, PreConfirmedTransactionData {
-                                    block_number: self.block_number,
-                                    round: self.proposal_round,
+                                    block_number: self.pre_confirmed_block_writer_input.block_number,
+                                    round: self.pre_confirmed_block_writer_input.round,
                                     transaction_receipt: Some(tx_receipt),
                                 })).collect(),
                             })
@@ -105,11 +102,11 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
                     match msg {
                         Some(txs) => self.cende_client
                             .write_pre_confirmed_txs(CendePreConfirmedTxs {
-                                block_number: self.block_number,
-                                round: self.proposal_round,
+                                block_number: self.pre_confirmed_block_writer_input.block_number,
+                                round: self.pre_confirmed_block_writer_input.round,
                                 pre_confirmed_txs: txs.into_iter().map(|tx_hash| (tx_hash, PreConfirmedTransactionData {
-                                    block_number: self.block_number,
-                                    round: self.proposal_round,
+                                    block_number: self.pre_confirmed_block_writer_input.block_number,
+                                    round: self.pre_confirmed_block_writer_input.round,
                                     transaction_receipt: None,
                                 })).collect(),
                             })
@@ -155,13 +152,26 @@ impl PreConfirmedBlockWriterFactoryTrait for PreConfirmedBlockWriterFactory {
 
         let cende_client = self.cende_client.clone();
 
-        let pre_confirmed_block_writer = Box::new(PreConfirmedBlockWriter::new(
+        // TODO(noamsp): add the block metadata to the input.
+        let pre_confirmed_block_writer_input = PreConfirmedBlockWriterInput {
             block_number,
-            proposal_round,
+            round: proposal_round,
+            ..Default::default()
+        };
+
+        let pre_confirmed_block_writer = Box::new(PreConfirmedBlockWriter::new(
+            pre_confirmed_block_writer_input,
             pre_confirmed_tx_receiver,
             executed_tx_receiver,
             cende_client,
         ));
         (pre_confirmed_block_writer, pre_confirmed_tx_sender, executed_tx_sender)
     }
+}
+
+#[derive(Default)]
+pub struct PreConfirmedBlockWriterInput {
+    pub block_number: BlockNumber,
+    pub round: Round,
+    pub block_metadata: CendeBlockMetdata,
 }

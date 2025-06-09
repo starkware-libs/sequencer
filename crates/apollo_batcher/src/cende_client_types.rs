@@ -172,6 +172,21 @@ pub struct CendeBlockMetdata {
     pub sequencer_address: ContractAddress,
 }
 
+impl Default for CendeBlockMetdata {
+    fn default() -> Self {
+        Self {
+            parent_block_hash: BlockHash::default(),
+            status: BlockStatus::Pending,
+            starknet_version: StarknetVersion::default(),
+            l1_da_mode: L1DataAvailabilityMode::default(),
+            l1_gas_price: GasPricePerToken::default(),
+            l1_data_gas_price: GasPricePerToken::default(),
+            l2_gas_price: GasPricePerToken::default(),
+            timestamp: BlockTimestamp::default(),
+            sequencer_address: ContractAddress::default(),
+        }
+    }
+}
 #[derive(Serialize)]
 pub struct CendePreConfirmedBlock {
     #[serde(flatten)]
