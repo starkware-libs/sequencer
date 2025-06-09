@@ -95,7 +95,12 @@ impl ThinTransactionExecutionInfo {
         let vm_resources = &receipt.resources.computation.vm_resources;
         let mut resources = HashMap::from([(
             abi_constants::N_STEPS_RESOURCE.to_string(),
-            vm_resources.total_n_steps() + receipt.resources.computation.n_reverted_steps,
+            // TODO(AvivG): Compute memory_holes gas accurately while maintaining backward
+            // compatibility. Memory holes are slightly cheaper than actual steps, but
+            // we count them as such for simplicity.
+            vm_resources.total_n_steps()
+                + vm_resources.n_memory_holes
+                + receipt.resources.computation.n_reverted_steps,
         )]);
         resources.extend(
             vm_resources

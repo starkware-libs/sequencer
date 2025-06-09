@@ -337,8 +337,7 @@ fn vm_resources_to_sierra_gas(
 ) -> GasAmount {
     let builtins_gas_cost =
         builtins_to_sierra_gas(&resources.prover_builtins(), versioned_constants);
-    let n_steps_gas_cost =
-        n_steps_to_gas(resources.total_n_steps() - resources.n_memory_holes, versioned_constants);
+    let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
     let n_memory_holes_gas_cost =
         memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
 
