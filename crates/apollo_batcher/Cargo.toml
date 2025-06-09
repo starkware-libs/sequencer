@@ -27,6 +27,7 @@ apollo_state_sync_types.workspace = true
 apollo_storage.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
+cairo-vm.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
