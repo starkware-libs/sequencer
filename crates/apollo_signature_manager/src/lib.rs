@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use apollo_signature_manager_types::{
     KeyStore,
     PeerId,
@@ -14,8 +16,16 @@ use starknet_core::types::Felt;
 pub(crate) const INIT_PEER_ID: &[u8] = b"INIT_PEER_ID";
 pub(crate) const PRECOMMIT_VOTE: &[u8] = b"PRECOMMIT_VOTE";
 
-#[derive(Debug, Default, derive_more::Deref, Eq, PartialEq, Hash)]
+#[derive(Debug, Default, Eq, PartialEq, Hash)]
 struct MessageDigest(pub Felt);
+
+impl Deref for MessageDigest {
+    type Target = Felt;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// Provides signing and signature verification functionality.
 pub struct SignatureManager<KS: KeyStore> {
