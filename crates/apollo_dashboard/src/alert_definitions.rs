@@ -1,4 +1,8 @@
-use apollo_consensus::metrics::{CONSENSUS_BLOCK_NUMBER, CONSENSUS_ROUND};
+use apollo_consensus::metrics::{
+    CONSENSUS_BLOCK_NUMBER,
+    CONSENSUS_BUILD_PROPOSAL_FAILED,
+    CONSENSUS_ROUND,
+};
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_mempool::metrics::{
@@ -36,6 +40,21 @@ const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
     pending_duration: "1s",
     evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
+};
+
+const CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT: Alert = Alert {
+    name: "consensus_build_proposal_failed",
+    title: "Consensus build proposal failed",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[1m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "10s",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::DayOnly,
 };
 
 const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
@@ -172,6 +191,7 @@ const NATIVE_COMPILATION_ERROR_INCREASE: Alert = Alert {
 
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BLOCK_NUMBER_STUCK,
+    CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
