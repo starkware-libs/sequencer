@@ -21,6 +21,18 @@ impl VotesThreshold {
         Self { numerator, denominator }
     }
 
+    pub fn from_quorum_type(quorum_type: QuorumType) -> Self {
+        match quorum_type {
+            QuorumType::Byzantine => Self::from_two_thirds(),
+            QuorumType::Honest => Self::from_one_half(),
+        }
+    }
+
+    pub fn from_skip_round() -> Self {
+        // Represents a 1/3 threshold, used for skip round
+        Self::from_one_third()
+    }
+
     pub fn from_two_thirds() -> Self {
         // Represents a 2/3 threshold
         Self::new(2, 3)
@@ -42,4 +54,9 @@ impl VotesThreshold {
         }
         amount * self.denominator > total * self.numerator
     }
+}
+
+pub enum QuorumType {
+    Byzantine,
+    Honest,
 }
