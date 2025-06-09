@@ -26,9 +26,9 @@ pub type PreConfirmedTxReceiver = tokio::sync::mpsc::Receiver<Vec<TransactionHas
 pub type PreConfirmedTxSender = tokio::sync::mpsc::Sender<Vec<TransactionHash>>;
 
 pub type ExecutedTxReceiver =
-    tokio::sync::mpsc::Receiver<Vec<(TransactionHash, StarknetClientTransactionReceipt)>>;
+    tokio::sync::mpsc::Receiver<(TransactionHash, StarknetClientTransactionReceipt)>;
 pub type ExecutedTxSender =
-    tokio::sync::mpsc::Sender<Vec<(TransactionHash, StarknetClientTransactionReceipt)>>;
+    tokio::sync::mpsc::Sender<(TransactionHash, StarknetClientTransactionReceipt)>;
 
 /// Coordinates the flow of pre-confirmed block data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
