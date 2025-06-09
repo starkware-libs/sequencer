@@ -6,6 +6,7 @@ use apollo_signature_manager_types::{
 };
 use blake2s::blake2s_to_felt;
 use starknet_api::block::BlockHash;
+use starknet_api::core::Nonce;
 use starknet_api::crypto::utils::{PublicKey, RawSignature};
 use starknet_core::crypto::{ecdsa_sign, ecdsa_verify};
 use starknet_core::types::Felt;
@@ -27,8 +28,12 @@ impl<KS: KeyStore> SignatureManager<KS> {
         Self { keystore }
     }
 
-    pub async fn identify(&self, peer_id: PeerId) -> SignatureManagerResult<RawSignature> {
-        let message_digest = build_peer_identity_message_digest(peer_id);
+    pub async fn identify(
+        &self,
+        peer_id: PeerId,
+        nonce: Nonce,
+    ) -> SignatureManagerResult<RawSignature> {
+        let message_digest = build_peer_identity_message_digest(peer_id, nonce);
         self.sign(message_digest).await
     }
 
@@ -50,10 +55,12 @@ impl<KS: KeyStore> SignatureManager<KS> {
 
 // Utils.
 
-fn build_peer_identity_message_digest(peer_id: PeerId) -> MessageDigest {
-    let mut message = Vec::with_capacity(INIT_PEER_ID.len() + peer_id.len());
+fn build_peer_identity_message_digest(peer_id: PeerId, nonce: Nonce) -> MessageDigest {
+    let nonce = nonce.to_bytes_be();
+    let mut message = Vec::with_capacity(INIT_PEER_ID.len() + peer_id.len() + nonce.len());
     message.extend_from_slice(INIT_PEER_ID);
     message.extend_from_slice(&peer_id);
+    message.extend_from_slice(&nonce);
 
     MessageDigest(blake2s_to_felt(&message))
 }
@@ -83,10 +90,11 @@ fn verify_signature(
 /// It is also much faster than signing, so that clients can invoke a simple library call.
 pub fn verify_identity(
     peer_id: PeerId,
+    nonce: Nonce,
     signature: RawSignature,
     public_key: PublicKey,
 ) -> SignatureManagerResult<bool> {
-    let message_digest = build_peer_identity_message_digest(peer_id);
+    let message_digest = build_peer_identity_message_digest(peer_id, nonce);
     verify_signature(message_digest, signature, public_key)
 }
 
@@ -106,7 +114,7 @@ mod tests {
     use pretty_assertions::assert_eq;
     use rstest::rstest;
     use starknet_api::crypto::utils::PrivateKey;
-    use starknet_api::felt;
+    use starknet_api::{felt, nonce};
     use starknet_core::crypto::Signature;
     use starknet_core::types::Felt;
 
@@ -114,10 +122,10 @@ mod tests {
 
     const ALICE_IDENTITY_SIGNATURE: Signature = Signature {
         r: Felt::from_hex_unchecked(
-            "0x606f47b45330e70c562306d037079eaeb0e07050dfb731be743556e796152e3",
+            "0x7687c83bdfa7474518c585f1b58a028b939764f1d2721e63bf821c4c8987299",
         ),
         s: Felt::from_hex_unchecked(
-            "0x2644bef4418c2a3fcfd4d6b48e66f9c10b88884ffec6608d5d4b312024d6aa5",
+            "0x7e05746545ed1fe24fec988341d2452a4bbcebec26d73f9ee9bdc9426a372a5",
         ),
     };
 
@@ -129,10 +137,11 @@ mod tests {
     )]
     fn test_verify_identity(#[case] signature: Signature, #[case] expected: bool) {
         let peer_id = PeerId(b"alice".to_vec());
+        let nonce = nonce!(0x1234);
         let public_key =
             PublicKey(felt!("0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"));
 
-        assert_eq!(verify_identity(peer_id, signature.into(), public_key), Ok(expected));
+        assert_eq!(verify_identity(peer_id, nonce, signature.into(), public_key), Ok(expected));
     }
 
     #[rstest]
@@ -196,12 +205,13 @@ mod tests {
         let signature_manager = SignatureManager::new(key_store);
 
         let peer_id = PeerId(b"alice".to_vec());
-        let signature = signature_manager.identify(peer_id.clone()).await;
+        let nonce = nonce!(0x1234);
+        let signature = signature_manager.identify(peer_id.clone(), nonce).await;
 
         assert_eq!(signature, Ok(ALICE_IDENTITY_SIGNATURE.into()));
 
         // Test alignment with verification function.
         let public_key = key_store.get_public_key();
-        assert_eq!(verify_identity(peer_id, signature.unwrap(), public_key), Ok(true));
+        assert_eq!(verify_identity(peer_id, nonce, signature.unwrap(), public_key), Ok(true));
     }
 }
