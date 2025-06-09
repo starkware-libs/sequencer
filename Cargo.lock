@@ -1902,7 +1902,6 @@ dependencies = [
  "apollo_signature_manager_types",
  "async-trait",
  "blake2s",
- "derive_more 0.99.18",
  "pretty_assertions",
  "rstest",
  "starknet-core",
