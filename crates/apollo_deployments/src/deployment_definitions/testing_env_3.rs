@@ -7,6 +7,7 @@ use crate::deployment::{
     Deployment,
     DeploymentConfigOverride,
     DeploymentType,
+    P2PCommunicationType,
     PragmaDomain,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
@@ -21,9 +22,21 @@ const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "sequencer-test-3-node-{}";
 
 pub(crate) fn testing_env_3_hybrid_deployments() -> Vec<Deployment> {
-    TESTING_ENV_3_NODE_IDS
-        .map(|i| testing_env_3_hybrid_deployment_node(i, DeploymentType::Operational))
-        .to_vec()
+    let mut nodes = TESTING_ENV_3_NODE_IDS
+        .map(|i| {
+            testing_env_3_hybrid_deployment_node(
+                i,
+                DeploymentType::Operational,
+                P2PCommunicationType::Internal,
+            )
+        })
+        .to_vec();
+    nodes.push(testing_env_3_hybrid_deployment_node(
+        4,
+        DeploymentType::Operational,
+        P2PCommunicationType::External,
+    ));
+    nodes
 }
 
 fn testing_env_3_deployment_config_override() -> DeploymentConfigOverride {
@@ -37,7 +50,11 @@ fn testing_env_3_deployment_config_override() -> DeploymentConfigOverride {
     )
 }
 
-fn testing_env_3_hybrid_deployment_node(id: usize, deployment_type: DeploymentType) -> Deployment {
+fn testing_env_3_hybrid_deployment_node(
+    id: usize,
+    deployment_type: DeploymentType,
+    p2p_communication_type: P2PCommunicationType,
+) -> Deployment {
     Deployment::new(
         DeploymentName::HybridNode,
         Environment::TestingEnvThree,
@@ -46,7 +63,13 @@ fn testing_env_3_hybrid_deployment_node(id: usize, deployment_type: DeploymentTy
         PathBuf::from(BASE_APP_CONFIG_PATH),
         ConfigOverride::new(
             testing_env_3_deployment_config_override(),
-            create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE, deployment_type),
+            create_hybrid_instance_config_override(
+                id,
+                FIRST_NODE_NAMESPACE,
+                deployment_type,
+                p2p_communication_type,
+                TESTING_ENV_3_INGRESS_DOMAIN,
+            ),
         ),
         IngressParams::new(
             TESTING_ENV_3_INGRESS_DOMAIN.to_string(),

@@ -373,10 +373,39 @@ impl DeploymentTypeConfigOverride {
     }
 }
 
+pub(crate) enum P2PCommunicationType {
+    Internal,
+    External,
+}
+
+impl P2PCommunicationType {
+    fn get_p2p_address(
+        &self,
+        service_name: &str,
+        namespace: &str,
+        domain: &str,
+        port: u16,
+        first_node_address: &str,
+    ) -> String {
+        match self {
+            P2PCommunicationType::Internal => format!(
+                "/dns/{}.{}.svc.cluster.local/tcp/{}/p2p/{}",
+                service_name, namespace, port, first_node_address
+            ),
+            P2PCommunicationType::External => format!(
+                "/dns/{}.{}.{}/tcp/{}/p2p/{}",
+                service_name, namespace, domain, port, first_node_address
+            ),
+        }
+    }
+}
+
 pub(crate) fn create_hybrid_instance_config_override(
     id: usize,
     namespace: &'static str,
     deployment_type: DeploymentType,
+    p2p_communication_type: P2PCommunicationType,
+    domain: &str,
 ) -> InstanceConfigOverride {
     assert!(id < MAX_NODE_ID, "Node id {} exceeds the number of nodes {}", id, MAX_NODE_ID);
 
@@ -408,15 +437,21 @@ pub(crate) fn create_hybrid_instance_config_override(
         )
     } else {
         InstanceConfigOverride::new(
-            format!(
-                "/dns/{}.{}.svc.cluster.local/tcp/{}/p2p/{}",
-                CORE_SERVICE_NAME, namespace, CORE_SERVICE_PORT, FIRST_NODE_ADDRESS
+            p2p_communication_type.get_p2p_address(
+                CORE_SERVICE_NAME,
+                namespace,
+                domain,
+                CORE_SERVICE_PORT,
+                FIRST_NODE_ADDRESS,
             ),
             false,
             get_secret_key(id),
-            format!(
-                "/dns/{}.{}.svc.cluster.local/tcp/{}/p2p/{}",
-                MEMPOOL_SERVICE_NAME, namespace, MEMPOOL_SERVICE_PORT, FIRST_NODE_ADDRESS
+            p2p_communication_type.get_p2p_address(
+                MEMPOOL_SERVICE_NAME,
+                namespace,
+                domain,
+                MEMPOOL_SERVICE_PORT,
+                FIRST_NODE_ADDRESS,
             ),
             false,
             get_secret_key(id),

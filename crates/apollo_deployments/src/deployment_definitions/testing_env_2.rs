@@ -7,6 +7,7 @@ use crate::deployment::{
     Deployment,
     DeploymentConfigOverride,
     DeploymentType,
+    P2PCommunicationType,
     PragmaDomain,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
@@ -22,7 +23,13 @@ const SECRET_NAME_FORMAT: &str = "sequencer-test-sepolia-{}";
 
 pub(crate) fn testing_env_2_hybrid_deployments() -> Vec<Deployment> {
     TESTING_ENV_2_NODE_IDS
-        .map(|i| testing_env_2_hybrid_deployment_node(i, DeploymentType::Operational))
+        .map(|i| {
+            testing_env_2_hybrid_deployment_node(
+                i,
+                DeploymentType::Operational,
+                P2PCommunicationType::Internal,
+            )
+        })
         .to_vec()
 }
 
@@ -39,7 +46,11 @@ fn testing_env_2_deployment_config_override() -> DeploymentConfigOverride {
     )
 }
 
-fn testing_env_2_hybrid_deployment_node(id: usize, deployment_type: DeploymentType) -> Deployment {
+fn testing_env_2_hybrid_deployment_node(
+    id: usize,
+    deployment_type: DeploymentType,
+    p2p_communication_type: P2PCommunicationType,
+) -> Deployment {
     Deployment::new(
         DeploymentName::HybridNode,
         Environment::TestingEnvTwo,
@@ -48,7 +59,13 @@ fn testing_env_2_hybrid_deployment_node(id: usize, deployment_type: DeploymentTy
         PathBuf::from(BASE_APP_CONFIG_PATH),
         ConfigOverride::new(
             testing_env_2_deployment_config_override(),
-            create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE, deployment_type),
+            create_hybrid_instance_config_override(
+                id,
+                FIRST_NODE_NAMESPACE,
+                deployment_type,
+                p2p_communication_type,
+                TESTING_ENV_2_INGRESS_DOMAIN,
+            ),
         ),
         IngressParams::new(
             TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
