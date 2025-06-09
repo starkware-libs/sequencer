@@ -310,11 +310,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<StorageReadResponse, Self::Error> {
-        let value = *syscall_handler
-            .get_mut_call_info_tracker()?
-            .execute_code_read_iterator
-            .next()
-            .expect("Iterator can not be consumed.");
+        let value = *syscall_handler.get_mut_call_info_tracker()?.next_execute_code_read()?;
         Ok(StorageReadResponse { value })
     }
 
