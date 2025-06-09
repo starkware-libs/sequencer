@@ -103,16 +103,27 @@ pub struct L1ProviderConfig {
     pub bootstrap_catch_up_height_override: Option<BlockNumber>,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub startup_sync_sleep_retry_interval_seconds: Duration,
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub new_l1_handler_cooldown_seconds: Duration,
 }
 
 impl SerializeConfig for L1ProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "startup_sync_sleep_retry_interval_seconds",
-            &self.startup_sync_sleep_retry_interval_seconds.as_secs_f64(),
-            "Interval in seconds between each retry of syncing with L2 during startup.",
-            ParamPrivacyInput::Public,
-        )]);
+        let mut dump = BTreeMap::from([
+            ser_param(
+                "startup_sync_sleep_retry_interval_seconds",
+                &self.startup_sync_sleep_retry_interval_seconds.as_secs_f64(),
+                "Interval in seconds between each retry of syncing with L2 during startup.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "new_l1_handler_cooldown_seconds",
+                &self.new_l1_handler_cooldown_seconds.as_secs_f64(),
+                "How long to wait before allowing new L1 handler transactions to be proposed \
+                 (validation is available immediately).",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
 
         dump.extend(ser_optional_param(
             &self.provider_startup_height_override,

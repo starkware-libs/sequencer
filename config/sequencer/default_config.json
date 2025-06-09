@@ -1279,6 +1279,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "l1_provider_config.new_l1_handler_cooldown_seconds": {
+    "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately).",
+    "privacy": "Public",
+    "value": 0.0
+  },
   "l1_provider_config.provider_startup_height_override": {
     "description": "Override height at which the provider should start",
     "privacy": "Public",

@@ -1,4 +1,5 @@
 use std::ops::{Deref, Sub};
+use std::time::Duration;
 
 use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
 use indexmap::IndexSet;
@@ -12,6 +13,7 @@ pub struct TransactionManager {
     /// Storage of all l1 handler transactions --- keeps transactions until they can be safely
     /// removed, like when they are consumed on L1, or fully cancelled on L1.
     pub records: Records,
+    pub config: TransactionManagerConfig,
     /// Invariant: contains all hashes of transactions that are proposable, and only them.
     /// Structure: [staged_tx1, staged_tx2, ..., staged_txN, unstaged_tx1, unstaged_tx2, ...]
     proposable_index: IndexSet<TransactionHash>,
@@ -26,10 +28,11 @@ pub struct TransactionManager {
 }
 
 impl TransactionManager {
-    pub fn new() -> Self {
+    pub fn new(new_l1_handler_tx_cooldown_secs: Duration) -> Self {
         Self {
-            records: Records::default(),
-            proposable_index: IndexSet::default(),
+            config: TransactionManagerConfig { new_l1_handler_tx_cooldown_secs },
+            records: Default::default(),
+            proposable_index: Default::default(),
             current_staging_epoch: StagingEpoch::new(),
         }
     }
@@ -186,7 +189,15 @@ impl TransactionManager {
         proposable_index: IndexSet<TransactionHash>,
         current_epoch: StagingEpoch,
     ) -> Self {
-        Self { records, proposable_index, current_staging_epoch: current_epoch }
+        Self {
+            records,
+            proposable_index,
+            current_staging_epoch: current_epoch,
+            config: TransactionManagerConfig {
+                // If we start testing this in-crate, pass the config as an arg.
+                new_l1_handler_tx_cooldown_secs: Duration::from_secs(0),
+            },
+        }
     }
 }
 
@@ -194,7 +205,7 @@ impl Default for TransactionManager {
     // Note that new will init the epoch at 1, not 0, this is because a 0 epoch in the transaction
     // manager will make new transactions automatically staged by default in the first block.
     fn default() -> Self {
-        Self::new()
+        Self::new(Duration::from_secs(0))
     }
 }
 #[derive(Debug, Default)]
@@ -246,4 +257,11 @@ impl Sub<u128> for StagingEpoch {
     fn sub(self, rhs: u128) -> Self::Output {
         Self(self.0 - rhs)
     }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TransactionManagerConfig {
+    // How long to wait before allowing new L1 handler transactions to be proposed (validation is
+    // available immediately).
+    pub new_l1_handler_tx_cooldown_secs: Duration,
 }
