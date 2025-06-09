@@ -7,6 +7,7 @@ use crate::deployment::{
     Deployment,
     DeploymentConfigOverride,
     DeploymentType,
+    P2PCommunicationType,
     PragmaDomain,
 };
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
@@ -21,7 +22,13 @@ const SECRET_NAME_FORMAT: &str = "apollo-stresstest-dev-{}";
 
 pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
     STRESS_TEST_NODE_IDS
-        .map(|i| stress_test_hybrid_deployment_node(i, DeploymentType::Bootstrap))
+        .map(|i| {
+            stress_test_hybrid_deployment_node(
+                i,
+                DeploymentType::Bootstrap,
+                P2PCommunicationType::Internal,
+            )
+        })
         .to_vec()
 }
 
@@ -36,7 +43,11 @@ fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
     )
 }
 
-fn stress_test_hybrid_deployment_node(id: usize, deployment_type: DeploymentType) -> Deployment {
+fn stress_test_hybrid_deployment_node(
+    id: usize,
+    deployment_type: DeploymentType,
+    p2p_communication_type: P2PCommunicationType,
+) -> Deployment {
     Deployment::new(
         DeploymentName::HybridNode,
         Environment::StressTest,
@@ -45,7 +56,13 @@ fn stress_test_hybrid_deployment_node(id: usize, deployment_type: DeploymentType
         PathBuf::from(BASE_APP_CONFIG_PATH),
         ConfigOverride::new(
             stress_test_deployment_config_override(),
-            create_hybrid_instance_config_override(id, FIRST_NODE_NAMESPACE, deployment_type),
+            create_hybrid_instance_config_override(
+                id,
+                FIRST_NODE_NAMESPACE,
+                deployment_type,
+                p2p_communication_type,
+                STRESS_TEST_INGRESS_DOMAIN,
+            ),
         ),
         IngressParams::new(
             STRESS_TEST_INGRESS_DOMAIN.to_string(),
