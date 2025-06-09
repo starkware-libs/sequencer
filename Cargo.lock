@@ -827,6 +827,7 @@ dependencies = [
  "reqwest 0.11.27",
  "rstest",
  "serde",
+ "serde_json",
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
