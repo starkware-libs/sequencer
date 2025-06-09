@@ -129,8 +129,7 @@ mod tests {
     )]
     fn test_verify_identity(#[case] signature: Signature, #[case] expected: bool) {
         let peer_id = PeerId(b"alice".to_vec());
-        let public_key =
-            PublicKey(felt!("0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"));
+        let public_key = TestKeyStore::new().public_key;
 
         assert_eq!(verify_identity(peer_id, signature.into(), public_key), Ok(expected));
     }
@@ -149,8 +148,7 @@ mod tests {
     )]
     fn test_verify_precommit_vote_signature(#[case] signature: Signature, #[case] expected: bool) {
         let block_hash = BlockHash(felt!("0x1234"));
-        let public_key =
-            PublicKey(felt!("0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"));
+        let public_key = TestKeyStore::new().public_key;
 
         assert_eq!(
             verify_precommit_vote_signature(block_hash, signature.into(), public_key),
@@ -162,7 +160,7 @@ mod tests {
     #[derive(Clone, Copy, Debug)]
     struct TestKeyStore {
         private_key: PrivateKey,
-        public_key: PublicKey,
+        pub public_key: PublicKey,
     }
 
     impl TestKeyStore {
@@ -176,10 +174,6 @@ mod tests {
             ));
 
             Self { private_key, public_key }
-        }
-
-        fn get_public_key(&self) -> PublicKey {
-            self.public_key
         }
     }
 
@@ -201,7 +195,6 @@ mod tests {
         assert_eq!(signature, Ok(ALICE_IDENTITY_SIGNATURE.into()));
 
         // Test alignment with verification function.
-        let public_key = key_store.get_public_key();
-        assert_eq!(verify_identity(peer_id, signature.unwrap(), public_key), Ok(true));
+        assert_eq!(verify_identity(peer_id, signature.unwrap(), key_store.public_key), Ok(true));
     }
 }
