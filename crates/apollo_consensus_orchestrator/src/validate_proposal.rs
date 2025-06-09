@@ -8,12 +8,13 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContentInput,
     ValidateBlockInput,
 };
-use apollo_batcher_types::communication::BatcherClient;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::ProposalCommitment;
-use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
+use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
+use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient, PriceInfo};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
-use apollo_state_sync_types::communication::StateSyncClient;
+use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_time::time::{sleep_until, Clock, DateTime};
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
@@ -72,6 +73,44 @@ enum HandledProposalPart {
     Finished(ProposalCommitment, ProposalFin),
     Failed(String),
 }
+
+// TODO(alonl): remove this allow once validate_proposal returns a Result
+#[allow(dead_code)]
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum ValidateProposalError {
+    #[error("Batcher error: {0}")]
+    Batcher(#[from] BatcherClientError),
+    #[error("State sync client error: {0}")]
+    StateSyncClientError(#[from] StateSyncClientError),
+    #[error("State sync is not ready: {0}")]
+    StateSyncNotReady(String),
+    #[error("EthToStrkOracle error: {0}")]
+    EthToStrkOracle(#[from] EthToStrkOracleClientError),
+    #[error("L1GasPriceProvider error: {0}")]
+    L1GasPriceProvider(#[from] L1GasPriceClientError),
+    #[error("Cannot calculate deadline. Timeout: {timeout:?}, now: {now:?}")]
+    CannotCalculateDeadline { timeout: Duration, now: DateTime },
+    #[error("Validation timed out")]
+    ValidationTimeout,
+    #[error("Proposal interrupted")]
+    ProposalInterrupted,
+    #[error("Invalid BlockInfo")]
+    InvalidBlockInfo,
+    #[error("Invalid L1 gas price proposed. Proposed: {0:?}, Queried: {1:?}, Margin: {2}")]
+    InvalidL1GasPriceProposed(PriceInfo, PriceInfo, u128),
+    #[error("Empty proposal received")]
+    EmptyProposal,
+    // TODO(alonl): clean this up
+    #[error("Got an invalid proposal part. expected {0} or {1}, got {2}")]
+    InvalidProposalPart(String, String, String),
+    #[error("Proposal part failed validation: {0}")]
+    ProposalPartFailed(String),
+    #[error("proposal_id built from content received does not match fin")]
+    ProposalFinMismatch,
+}
+
+#[allow(dead_code)]
+pub(crate) type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 
 pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
