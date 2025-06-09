@@ -168,7 +168,7 @@ impl TransactionPool {
             .ok_or(MempoolError::TransactionNotFound { tx_hash })
     }
 
-    pub fn _get_lowest_nonce(&self, address: ContractAddress) -> Option<Nonce> {
+    pub fn get_lowest_nonce(&self, address: ContractAddress) -> Option<Nonce> {
         self.account_txs_sorted_by_nonce(address).next().map(|tx_ref| tx_ref.nonce)
     }
 
