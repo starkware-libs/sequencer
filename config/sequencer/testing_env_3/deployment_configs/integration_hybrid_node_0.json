@@ -10,7 +10,18 @@
         "instance_config_override.json",
         "core.json"
       ],
-      "ingress": null,
+      "ingress": {
+        "domain":"sw-dev.io",
+        "alternative_names": [],
+        "internal": true,
+        "rules": [
+          {
+            "path": "/",
+            "port": 53080,
+            "backend": null
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": 1000,
@@ -110,7 +121,18 @@
         "instance_config_override.json",
         "mempool.json"
       ],
-      "ingress": null,
+      "ingress": {
+        "domain":"sw-dev.io",
+        "alternative_names": [],
+        "internal": true,
+        "rules": [
+          {
+            "path": "/",
+            "port": 53200,
+            "backend": null
+          }
+        ]
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": null,
