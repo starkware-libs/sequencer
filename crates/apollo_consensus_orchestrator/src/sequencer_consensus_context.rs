@@ -7,7 +7,6 @@ mod sequencer_consensus_context_test;
 
 use std::cmp::max;
 use std::collections::BTreeMap;
-use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -48,13 +47,12 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_time::time_keeper::{Sleeper, TimeKeeper};
 use async_trait::async_trait;
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
-#[cfg(any(feature = "testing", test))]
-use mockall::automock;
 use num_rational::Ratio;
 use starknet_api::block::{
     BlockHash,
@@ -125,65 +123,6 @@ enum BuildProposalError {
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
-}
-
-// TODO(guy.f): Times are probably used in other crates which would benefit from this. Move this to
-// a common mod that can be used across crates.
-#[cfg_attr(any(test, feature = "testing"), automock)]
-pub trait Clock: Send + Sync {
-    /// Human readable representation of unix time (uses duration from epoch under the hood).
-    // Note: chrono is used here since it wraps unix time and allows it to be printed in datetime
-    // format, since it is otherwise not human readable.
-    fn now(&self) -> chrono::DateTime<chrono::Utc> {
-        chrono::Utc::now()
-    }
-
-    /// Seconds from epoch.
-    fn unix_now(&self) -> u64 {
-        self.now().timestamp().try_into().expect("We shouldn't have dates before the unix epoch")
-    }
-}
-
-/// Contains sleep logic, in order to decouple from std/tokio constraints.
-// Consider adding a wrapper around tokio sleep, to decouple from global tokio sleep.
-#[async_trait]
-pub trait Sleeper: Send + Sync {
-    async fn sleep_until(&self, deadline: chrono::DateTime<chrono::Utc>);
-}
-
-#[derive(Clone, Default)]
-pub struct DefaultClock();
-
-impl Clock for DefaultClock {}
-
-#[derive(Clone)]
-pub struct TimeKeeper {
-    clock: Arc<dyn Clock>,
-}
-
-#[async_trait]
-impl Sleeper for TimeKeeper {
-    // From Tokio maintainer: https://github.com/tokio-rs/tokio/issues/3918#issuecomment-896192957
-    async fn sleep_until(&self, deadline: chrono::DateTime<chrono::Utc>) {
-        // Duration until deadline or `Duration::ZERO` if deadline has passed.
-        let duration =
-            deadline.signed_duration_since(self.clock.now()).to_std().unwrap_or_default();
-        // Note: this is a NOP on `Duration::ZERO`.
-        tokio::time::sleep(duration).await;
-    }
-}
-
-impl Deref for TimeKeeper {
-    type Target = dyn Clock;
-    fn deref(&self) -> &Self::Target {
-        self.clock.as_ref()
-    }
-}
-
-impl Default for TimeKeeper {
-    fn default() -> Self {
-        Self { clock: Arc::new(DefaultClock::default()) }
-    }
 }
 
 type HeightToIdToContent = BTreeMap<
