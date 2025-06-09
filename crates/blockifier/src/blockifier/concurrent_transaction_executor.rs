@@ -26,6 +26,7 @@ pub struct ConcurrentTransactionExecutor<S: StateReader> {
     worker_executor: Arc<WorkerExecutor<CachedState<S>>>,
     worker_pool: Arc<WorkerPool<CachedState<S>>>,
     /// The number of transactions that have been outputted by the executor.
+    /// See [Self::get_processed_txs].
     n_output_txs: usize,
 }
 
@@ -60,6 +61,22 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         Ok(Self { worker_executor, worker_pool: worker_pool.clone(), n_output_txs: 0 })
     }
 
+    /// Starts executing the given transactions.
+    pub fn add_txs(&mut self, txs: &[Transaction]) {
+        self.worker_executor.add_txs(txs);
+    }
+
+    /// Returns the new execution outputs of the transactions that were processed so far, starting
+    /// from the last call to `get_processed_txs`.
+    pub fn get_processed_txs(
+        &mut self,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        let res = self.worker_executor.extract_execution_outputs(self.n_output_txs);
+        self.worker_pool.check_panic();
+        self.n_output_txs += res.len();
+        res
+    }
+
     /// Adds the given transactions to the block and waits for them to be executed.
     ///
     /// Returns the execution results. Note that the execution results may be incomplete
@@ -77,11 +94,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             self.n_output_txs
         );
         self.worker_executor.scheduler.wait_for_completion(to_tx);
-        self.worker_pool.check_panic();
-        let res = self.worker_executor.extract_execution_outputs(from_tx, to_tx);
-
-        self.n_output_txs += res.len();
-        res
+        self.get_processed_txs()
     }
 
     /// Finalizes the block creation and returns [BlockExecutionSummary].
@@ -101,6 +114,12 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             &mut state_after_block,
             &self.worker_executor.block_context,
         )
+    }
+
+    /// Returns `true` if the scheduler was halted. This happens when the block is full or the
+    /// deadline is reached.
+    pub fn is_done(&self) -> bool {
+        self.worker_executor.scheduler.done()
     }
 
     /// Halts the scheduler, to allow the worker threads to continue to the next block.
