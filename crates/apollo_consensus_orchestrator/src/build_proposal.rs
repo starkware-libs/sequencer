@@ -7,9 +7,10 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     ProposeBlockInput,
 };
-use apollo_batcher_types::communication::BatcherClient;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::{ProposalCommitment, Round};
+use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
     ProposalFin,
@@ -17,6 +18,7 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
+use apollo_state_sync_types::communication::StateSyncClientError;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt};
 use starknet_api::block::{BlockHash, GasPrice};
@@ -28,17 +30,37 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, info, trace, warn};
 
-use crate::sequencer_consensus_context::{
-    BuildProposalResult,
-    BuiltProposals,
-    SequencerConsensusContextDeps,
-};
+use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
     retrospective_block_hash,
     GasPriceParams,
 };
+
+pub(crate) type BuildProposalResult<T> = Result<T, BuildProposalError>;
+
+// TODO(alonl): remove this allow once build_proposal returns a Result
+#[allow(dead_code)]
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum BuildProposalError {
+    #[error("Batcher error: {0}")]
+    Batcher(#[from] BatcherClientError),
+    #[error("State sync client error: {0}")]
+    StateSyncClientError(#[from] StateSyncClientError),
+    #[error("State sync is not ready: {0}")]
+    StateSyncNotReady(String),
+    #[error("EthToStrkOracle error: {0}")]
+    EthToStrkOracle(#[from] EthToStrkOracleClientError),
+    #[error("L1GasPriceProvider error: {0}")]
+    L1GasPriceProvider(#[from] L1GasPriceClientError),
+    #[error("Proposal interrupted")]
+    Interrupted,
+    #[error("Couldn't send proposal receiver to StreamHandler: {0}")]
+    SendError(#[from] mpsc::SendError),
+    #[error("Writing blob to Aerospike failed {0}")]
+    CendeWriteError(String),
+}
 
 pub(crate) struct ProposalBuildArguments {
     pub deps: SequencerConsensusContextDeps,
