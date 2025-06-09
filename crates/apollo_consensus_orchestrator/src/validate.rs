@@ -8,12 +8,13 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContentInput,
     ValidateBlockInput,
 };
-use apollo_batcher_types::communication::BatcherClient;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::ProposalCommitment;
+use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
-use apollo_state_sync_types::communication::StateSyncClient;
+use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
 use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
@@ -72,6 +73,41 @@ enum HandledProposalPart {
     Finished(ProposalCommitment, ProposalFin),
     Failed(String),
 }
+
+// TODO(alonl): remove this allow once build_proposal returns a Result
+#[allow(dead_code)]
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum ValidateProposalError {
+    #[error("Batcher error: {0}")]
+    Batcher(#[from] BatcherClientError),
+    #[error("State sync client error: {0}")]
+    StateSyncClientError(#[from] StateSyncClientError),
+    #[error("State sync is not ready: {0}")]
+    StateSyncNotReady(String),
+    #[error("EthToStrkOracle error: {0}")]
+    EthToStrkOracle(#[from] EthToStrkOracleClientError),
+    #[error("L1GasPriceProvider error: {0}")]
+    L1GasPriceProvider(#[from] L1GasPriceClientError),
+    #[error("Validation timed out")]
+    ValidationTimeout,
+    #[error("Proposal interrupted")]
+    ProposalInterrupted,
+    #[error("Invalid BlockInfo: {0}")]
+    InvalidBlockInfo(String),
+    #[error("Empty proposal received")]
+    EmptyProposal,
+    // TODO(alonl): clean this up
+    #[error("Got an invalid proposal part. expected {0} or {1}, got {2}")]
+    InvalidProposalPart(String, String, String),
+    // TODO(alonl): consider elaborating more on the error.
+    #[error("Failed to get proposal content from network: {0}")]
+    NoProposalContent(String),
+    #[error("Proposal part failed validation: {0}")]
+    ProposalPartFailed(String),
+}
+
+#[allow(dead_code)]
+pub(crate) type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 
 pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
