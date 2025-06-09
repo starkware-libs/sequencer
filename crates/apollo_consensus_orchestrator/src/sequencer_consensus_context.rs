@@ -48,8 +48,6 @@ use apollo_protobuf::consensus::{
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
-// TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
-use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::{mpsc, oneshot};
 use futures::{FutureExt, SinkExt, StreamExt};
 #[cfg(any(feature = "testing", test))]
@@ -57,15 +55,11 @@ use mockall::automock;
 use num_rational::Ratio;
 use starknet_api::block::{
     BlockHash,
-    BlockHashAndNumber,
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
     GasPrice,
     GasPricePerToken,
-    GasPriceVector,
-    GasPrices,
-    NonzeroGasPrice,
     WEI_PER_ETH,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -90,7 +84,12 @@ use crate::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::{get_oracle_rate_and_prices, GasPriceParams};
+use crate::utils::{
+    convert_to_sn_api_block_info,
+    get_oracle_rate_and_prices,
+    retrospective_block_hash,
+    GasPriceParams,
+};
 
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
@@ -103,7 +102,7 @@ struct BlockInfoValidation {
 }
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
-type ProposalResult<T> = Result<T, BuildProposalError>;
+pub(crate) type ProposalResult<T> = Result<T, BuildProposalError>;
 
 enum HandledProposalPart {
     Continue,
@@ -113,7 +112,7 @@ enum HandledProposalPart {
 }
 
 #[derive(Debug, thiserror::Error)]
-enum BuildProposalError {
+pub(crate) enum BuildProposalError {
     #[error("Batcher error: {0}")]
     Batcher(#[from] BatcherClientError),
     #[error("State sync client error: {0}")]
@@ -1323,70 +1322,4 @@ async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: Propos
         .send_proposal_content(input)
         .await
         .unwrap_or_else(|e| panic!("Failed to send Abort to batcher: {proposal_id:?}. {e:?}"));
-}
-
-fn convert_to_sn_api_block_info(block_info: &ConsensusBlockInfo) -> starknet_api::block::BlockInfo {
-    let l1_gas_price_fri =
-        NonzeroGasPrice::new(block_info.l1_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate))
-            .unwrap();
-    let l1_data_gas_price_fri = NonzeroGasPrice::new(
-        block_info.l1_data_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate),
-    )
-    .unwrap();
-    let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri).unwrap();
-    let l2_gas_price_wei =
-        NonzeroGasPrice::new(block_info.l2_gas_price_fri.fri_to_wei(block_info.eth_to_fri_rate))
-            .unwrap();
-    let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei).unwrap();
-    let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei).unwrap();
-
-    starknet_api::block::BlockInfo {
-        block_number: block_info.height,
-        block_timestamp: BlockTimestamp(block_info.timestamp),
-        sequencer_address: block_info.builder,
-        gas_prices: GasPrices {
-            strk_gas_prices: GasPriceVector {
-                l1_gas_price: l1_gas_price_fri,
-                l1_data_gas_price: l1_data_gas_price_fri,
-                l2_gas_price: l2_gas_price_fri,
-            },
-            eth_gas_prices: GasPriceVector {
-                l1_gas_price: l1_gas_price_wei,
-                l1_data_gas_price: l1_data_gas_price_wei,
-                l2_gas_price: l2_gas_price_wei,
-            },
-        },
-        use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
-    }
-}
-
-async fn retrospective_block_hash(
-    state_sync_client: Arc<dyn StateSyncClient>,
-    block_info: &ConsensusBlockInfo,
-) -> ProposalResult<Option<BlockHashAndNumber>> {
-    let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
-    let retrospective_block_hash = match retrospective_block_number {
-        Some(block_number) => {
-            let block_number = BlockNumber(block_number);
-            let block = state_sync_client
-                // Getting the next block hash because the Sync block only contains parent hash.
-                .get_block(block_number.unchecked_next())
-                .await?
-                .ok_or(BuildProposalError::StateSyncNotReady(format!(
-                "Failed to get retrospective block number {block_number}"
-            )))?;
-            Some(BlockHashAndNumber {
-                number: block_number,
-                hash: block.block_header_without_hash.parent_hash,
-            })
-        }
-        None => {
-            info!(
-                "Retrospective block number is less than {STORED_BLOCK_HASH_BUFFER}, setting None \
-                 as expected."
-            );
-            None
-        }
-    };
-    Ok(retrospective_block_hash)
 }
