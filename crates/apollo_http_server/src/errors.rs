@@ -6,6 +6,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
 };
 use apollo_gateway_types::errors::GatewayError;
 use axum::response::{IntoResponse, Response};
+use html_escape::encode_text;
 use hyper::StatusCode;
 use starknet_api::compression_utils::CompressionError;
 use thiserror::Error;
@@ -88,6 +89,13 @@ fn gw_client_err_into_response(err: GatewayClientError) -> Response {
     (response_code, response_body).into_response()
 }
 
-fn serialize_error<T: serde::Serialize>(body: &T) -> Response {
-    serde_json::to_vec(body).expect("Expecting a serializable error.").into_response()
+fn serialize_error(error: &StarknetError) -> Response {
+    let sanitized_error = StarknetError {
+        code: error.code.clone(),
+        message: encode_text(&error.message).into_owned(),
+    };
+
+    serde_json::to_vec(&sanitized_error)
+        .expect("Expecting a serializable StarknetError.")
+        .into_response()
 }
