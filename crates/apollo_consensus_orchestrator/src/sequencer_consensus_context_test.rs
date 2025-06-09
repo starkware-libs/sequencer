@@ -755,7 +755,7 @@ async fn decision_reached_sends_correct_values() {
 
     const BLOCK_TIME_STAMP_SECONDS: u64 = 123456;
     let mut clock = MockClock::new();
-    clock.expect_now_as_timestamp().return_const(BLOCK_TIME_STAMP_SECONDS);
+    clock.expect_unix_now().return_const(BLOCK_TIME_STAMP_SECONDS);
     clock
         .expect_now()
         .return_const(Utc.timestamp_opt(BLOCK_TIME_STAMP_SECONDS.try_into().unwrap(), 0).unwrap());
