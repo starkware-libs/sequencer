@@ -112,6 +112,47 @@ mod tests {
 
     use super::*;
 
+    /// Represents the identity of a node in the network.
+    /// Couples its `libp2p` and Stark credentials.
+    #[derive(Clone, Debug)]
+    struct NodeIdentity {
+        peer_id: PeerId,
+        private_key: PrivateKey,
+        public_key: PublicKey,
+    }
+
+    impl NodeIdentity {
+        fn new() -> Self {
+            let peer_id = PeerId(b"alice".to_vec());
+
+            // Created using `cairo-lang`.
+            let private_key = PrivateKey(felt!(
+                "0x608bf2cdb1ad4138e72d2f82b8c5db9fa182d1883868ae582ed373429b7a133"
+            ));
+            let public_key = PublicKey(felt!(
+                "0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"
+            ));
+
+            Self { peer_id, private_key, public_key }
+        }
+
+        pub fn peer_id(&self) -> PeerId {
+            self.peer_id.clone()
+        }
+
+        pub fn public_key(&self) -> PublicKey {
+            self.public_key
+        }
+    }
+
+    /// Simple in-memory KeyStore implementation for testing
+    #[async_trait]
+    impl KeyStore for NodeIdentity {
+        async fn get_key(&self) -> KeyStoreResult<PrivateKey> {
+            Ok(self.private_key)
+        }
+    }
+
     const ALICE_IDENTITY_SIGNATURE: Signature = Signature {
         r: Felt::from_hex_unchecked(
             "0x606f47b45330e70c562306d037079eaeb0e07050dfb731be743556e796152e3",
@@ -156,47 +197,6 @@ mod tests {
             verify_precommit_vote_signature(block_hash, signature.into(), identity.public_key()),
             Ok(expected)
         );
-    }
-
-    /// Represents the identity of a node in the network.
-    /// Couples its `libp2p` and Stark credentials.
-    #[derive(Clone, Debug)]
-    struct NodeIdentity {
-        peer_id: PeerId,
-        private_key: PrivateKey,
-        public_key: PublicKey,
-    }
-
-    impl NodeIdentity {
-        fn new() -> Self {
-            let peer_id = PeerId(b"alice".to_vec());
-
-            // Created using `cairo-lang`.
-            let private_key = PrivateKey(felt!(
-                "0x608bf2cdb1ad4138e72d2f82b8c5db9fa182d1883868ae582ed373429b7a133"
-            ));
-            let public_key = PublicKey(felt!(
-                "0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"
-            ));
-
-            Self { peer_id, private_key, public_key }
-        }
-
-        pub fn peer_id(&self) -> PeerId {
-            self.peer_id.clone()
-        }
-
-        pub fn public_key(&self) -> PublicKey {
-            self.public_key
-        }
-    }
-
-    /// Simple in-memory KeyStore implementation for testing
-    #[async_trait]
-    impl KeyStore for NodeIdentity {
-        async fn get_key(&self) -> KeyStoreResult<PrivateKey> {
-            Ok(self.private_key)
-        }
     }
 
     #[tokio::test]
