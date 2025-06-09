@@ -464,6 +464,30 @@ impl AccountTransactionGenerator {
         rpc_invoke_tx(invoke_args)
     }
 
+    fn generate_direct_call_invoke_tx(
+        &mut self,
+        tip: u64,
+        fn_name: &str,
+        fn_args: &[Felt],
+    ) -> RpcTransaction {
+        assert!(
+            self.is_deployed(),
+            "Cannot invoke on behalf of an undeployed account: the first transaction of every \
+             account must be a deploy account transaction."
+        );
+        let nonce = self.next_nonce();
+
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: create_calldata(self.test_contract_address(), fn_name, fn_args),
+        );
+
+        rpc_invoke_tx(invoke_args)
+    }
+
     pub fn generate_all_library_call_invoke_txs(&mut self, tip: u64) -> Vec<RpcTransaction> {
         // Define the arguments for the library calls.
         let test_storage_read_write_args = vec![
@@ -482,6 +506,49 @@ impl AccountTransactionGenerator {
         ]
         .iter()
         .map(|(fn_name, fn_args)| self.generate_invoke_tx_library_call(tip, fn_name, fn_args))
+        .collect()
+    }
+
+    pub fn generate_all_direct_call_invoke_txs(&mut self, tip: u64) -> Vec<RpcTransaction> {
+        let test_args = vec![felt!(3_u8), felt!(4_u8), felt!(5_u8)]; // Calldata has no meaning.
+        let test_deploy_args = vec![
+            self.test_contract.get_class_hash().0,
+            felt!(7_u64),
+            felt!(0_u64), // len of construct calldata, no construct calldata.
+            felt!(0_u64), // deploy_from_zero flag is down.
+        ];
+        let test_send_message_to_l1_args = vec![
+            felt!(0_u64),    // target address
+            felt!(2_u8),     // payload length
+            felt!(4365_u64), // payload 1
+            felt!(23_u64),   // payload 2
+        ];
+        let test_emit_events_args = vec![
+            felt!(2_u64),    // number of arguments
+            felt!(1_u64),    // key length
+            felt!(2991_u64), // key
+            felt!(2_u64),    // value length
+            felt!(42_u64),   // value 1
+            felt!(153_u64),  // value 2
+        ];
+        let test_keccak_args = vec![];
+        let test_new_point_secp256k1_args = vec![];
+        let test_secp256k1_args = vec![];
+        let test_secp256r1_args = vec![];
+
+        // Generate the invoke transactions for each direct call.
+        [
+            ("test", test_args),
+            ("test_deploy", test_deploy_args),
+            ("test_send_message_to_l1", test_send_message_to_l1_args),
+            ("test_emit_events", test_emit_events_args),
+            ("test_keccak", test_keccak_args),
+            ("test_secp256k1_point_from_x", test_new_point_secp256k1_args),
+            ("test_secp256k1", test_secp256k1_args),
+            ("test_secp256r1", test_secp256r1_args),
+        ]
+        .iter()
+        .map(|(fn_name, fn_args)| self.generate_direct_call_invoke_tx(tip, fn_name, fn_args))
         .collect()
     }
 
