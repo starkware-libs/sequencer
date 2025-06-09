@@ -74,8 +74,10 @@ use crate::utils::{convert_to_sn_api_block_info, GasPriceParams};
 use crate::validate::{validate_proposal, BlockInfoValidation, ProposalValidateArguments};
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
-pub(crate) type ProposalResult<T> = Result<T, BuildProposalError>;
+pub(crate) type BuildProposalResult<T> = Result<T, BuildProposalError>;
 
+// TODO(alonl): remove this allow once build_proposal returns a Result
+#[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum BuildProposalError {
     #[error("Batcher error: {0}")]
@@ -88,6 +90,12 @@ pub(crate) enum BuildProposalError {
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
+    #[error("Proposal interrupted")]
+    Interrupted,
+    #[error("Couldn't send proposal receiver to StreamHandler: {0}")]
+    SendError(#[from] mpsc::SendError),
+    #[error("Writing blob to Aerospike failed {0}")]
+    CendeWriteError(String),
 }
 
 // TODO(guy.f): Times are probably used in other crates which would benefit from this. Move this to

@@ -31,9 +31,9 @@ use crate::metrics::{
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
+    BuildProposalResult,
     BuiltProposals,
     Clock,
-    ProposalResult,
     SequencerConsensusContextDeps,
 };
 use crate::utils::{
@@ -304,7 +304,7 @@ async fn initiate_validation(
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
     clock: &dyn Clock,
-) -> ProposalResult<()> {
+) -> BuildProposalResult<()> {
     let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
         .expect("Can't convert timeout to chrono::Duration");
 
