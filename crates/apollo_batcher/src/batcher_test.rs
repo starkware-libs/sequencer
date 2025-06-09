@@ -136,7 +136,8 @@ impl Default for MockDependencies {
             .expect_commit_block()
             .with(eq(CommitBlockArgs::default()))
             .returning(|_| Ok(()));
-        let block_builder_factory = MockBlockBuilderFactoryTrait::new();
+        let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+        block_builder_factory.expect_clear_block_builder_cache().return_const(());
         let mut pre_confirmed_block_writer_factory = MockPreConfirmedBlockWriterFactoryTrait::new();
         pre_confirmed_block_writer_factory.expect_create().returning(|_, _| {
             let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
@@ -196,6 +197,7 @@ fn mock_create_builder_for_validate_block(
     block_builder_factory: &mut MockBlockBuilderFactoryTrait,
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
+    block_builder_factory.expect_clear_block_builder_cache().return_const(());
     block_builder_factory.expect_create_block_builder().times(1).return_once(
         |_, _, tx_provider, _, _, _, _| {
             let block_builder = FakeValidateBlockBuilder {
@@ -212,6 +214,7 @@ fn mock_create_builder_for_propose_block(
     output_txs: Vec<InternalConsensusTransaction>,
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
+    block_builder_factory.expect_clear_block_builder_cache().return_const(());
     block_builder_factory.expect_create_block_builder().times(1).return_once(
         move |_, _, _, output_content_sender, _, _, _| {
             let block_builder = FakeProposeBlockBuilder {

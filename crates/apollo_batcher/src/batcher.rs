@@ -787,6 +787,7 @@ impl Batcher {
             self.abort_active_height().await;
         }
 
+        self.block_builder_factory.clear_block_builder_cache();
         self.storage_writer.revert_block(height);
         STORAGE_HEIGHT.decrement(1);
         REVERTED_BLOCKS.increment(1);
