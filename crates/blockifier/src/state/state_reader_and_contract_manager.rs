@@ -4,6 +4,7 @@ use starknet_types_core::felt::Felt;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::metrics::{CLASS_CACHE_HITS, CLASS_CACHE_MISSES};
 use crate::state::contract_class_manager::ContractClassManager;
+use crate::state::errors::StateError;
 use crate::state::global_cache::CompiledClasses;
 use crate::state::state_api::{StateReader, StateResult};
 
@@ -13,6 +14,8 @@ pub mod state_reader_and_contract_manager_test;
 
 pub trait FetchCompiliedClasses: StateReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses>;
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool>;
 }
 
 pub struct StateReaderAndContractManager<S: FetchCompiliedClasses> {
@@ -25,10 +28,19 @@ impl<S: FetchCompiliedClasses> StateReaderAndContractManager<S> {
         &self,
         class_hash: ClassHash,
     ) -> StateResult<RunnableCompiledClass> {
-        // Assumption: the global cache is cleared upon reverted blocks.
         if let Some(runnable_class) = self.contract_class_manager.get_runnable(&class_hash) {
             CLASS_CACHE_HITS.increment(1);
-            self.update_native_metrics(&runnable_class);
+            match &runnable_class {
+                RunnableCompiledClass::V0(_) => (),
+                _ => {
+                    // Verify the class is declared before returning it from cache, since the
+                    // declare transaction may have been rejected or not
+                    // accepted.
+                    if !self.state_reader.is_declared(class_hash)? {
+                        return Err(StateError::UndeclaredClassHash(class_hash));
+                    }
+                }
+            }
             return Ok(runnable_class);
         }
         CLASS_CACHE_MISSES.increment(1);
