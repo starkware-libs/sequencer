@@ -7,6 +7,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
+use crate::eviction_tracker::EvictionTracker;
 use crate::mempool::TransactionReference;
 use crate::transaction_pool::TransactionPool;
 use crate::utils::Clock;
@@ -15,23 +16,47 @@ use crate::utils::Clock;
 /// the Mempool reaches capacity.
 pub struct TransactionPoolController {
     tx_pool: TransactionPool,
+    pub eviction_tracker: EvictionTracker,
 }
 
 impl TransactionPoolController {
     pub fn new(clock: Arc<dyn Clock>) -> Self {
-        TransactionPoolController { tx_pool: TransactionPool::new(clock) }
+        TransactionPoolController {
+            tx_pool: TransactionPool::new(clock),
+            eviction_tracker: EvictionTracker::new(),
+        }
     }
 
-    pub fn insert(&mut self, tx: InternalRpcTransaction) -> MempoolResult<()> {
-        self.tx_pool.insert(tx)
+    pub fn insert(
+        &mut self,
+        tx: InternalRpcTransaction,
+        account_nonce: Nonce,
+    ) -> MempoolResult<()> {
+        let address = tx.contract_address();
+        self.tx_pool.insert(tx)?;
+        self.eviction_tracker.update(address, self.has_nonce_gap(address, account_nonce));
+        Ok(())
     }
 
     pub fn remove(&mut self, tx_hash: TransactionHash) -> MempoolResult<InternalRpcTransaction> {
-        self.tx_pool.remove(tx_hash)
+        let tx = self.tx_pool.remove(tx_hash)?;
+        let address = tx.contract_address();
+        let removed_nonce = tx.nonce();
+
+        let has_gap = self.has_nonce_gap(address, removed_nonce);
+        self.eviction_tracker.update(address, has_gap);
+
+        Ok(tx)
     }
 
-    pub fn remove_up_to_nonce(&mut self, address: ContractAddress, nonce: Nonce) -> usize {
-        self.tx_pool.remove_up_to_nonce(address, nonce)
+    pub fn remove_up_to_account_nonce(
+        &mut self,
+        address: ContractAddress,
+        account_nonce: Nonce,
+    ) -> usize {
+        let n_removed_txs = self.tx_pool.remove_up_to_nonce(address, account_nonce);
+        self.eviction_tracker.update(address, self.has_nonce_gap(address, account_nonce));
+        n_removed_txs
     }
 
     pub fn get_by_tx_hash(
@@ -88,10 +113,28 @@ impl TransactionPoolController {
         duration: Duration,
         exclude_txs: &HashMap<ContractAddress, Nonce>,
     ) -> Vec<TransactionReference> {
-        self.tx_pool.remove_txs_older_than(duration, exclude_txs)
+        let removed_txs = self.tx_pool.remove_txs_older_than(duration, exclude_txs);
+        let mut address_to_lowest_nonce: HashMap<ContractAddress, Nonce> = HashMap::new();
+        for tx in &removed_txs {
+            address_to_lowest_nonce
+                .entry(tx.address)
+                .and_modify(|lowest_nonce| {
+                    if tx.nonce < *lowest_nonce {
+                        *lowest_nonce = tx.nonce;
+                    }
+                })
+                .or_insert(tx.nonce);
+        }
+
+        for (address, lowest_removed_nonce) in address_to_lowest_nonce {
+            let has_gap = self.has_nonce_gap(address, lowest_removed_nonce);
+            self.eviction_tracker.update(address, has_gap);
+        }
+
+        removed_txs
     }
 
-    fn _has_nonce_gap(&self, address: ContractAddress, reference_nonce: Nonce) -> bool {
+    fn has_nonce_gap(&self, address: ContractAddress, reference_nonce: Nonce) -> bool {
         let lowest_remaining_nonce = self.tx_pool._get_lowest_nonce(address);
         // If there are transactions with higher nonces than the reference nonce,
         // then there's a gap at the reference nonce.
@@ -108,6 +151,6 @@ impl TransactionPoolController {
 
     #[cfg(test)]
     pub fn with_tx_pool(tx_pool: TransactionPool) -> Self {
-        Self { tx_pool }
+        Self { tx_pool, eviction_tracker: EvictionTracker::new() }
     }
 }

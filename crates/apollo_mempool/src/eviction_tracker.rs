@@ -12,11 +12,11 @@ pub struct EvictionTracker {
 }
 
 impl EvictionTracker {
-    pub fn _new() -> Self {
+    pub fn new() -> Self {
         EvictionTracker { accounts_with_gap: HashSet::new() }
     }
 
-    pub fn _update(&mut self, address: ContractAddress, has_nonce_gap: bool) {
+    pub fn update(&mut self, address: ContractAddress, has_nonce_gap: bool) {
         if has_nonce_gap {
             self.accounts_with_gap.insert(address);
         } else {
@@ -25,7 +25,7 @@ impl EvictionTracker {
     }
 
     #[cfg(test)]
-    pub fn _contains(&self, address: &ContractAddress) -> bool {
+    pub fn contains(&self, address: &ContractAddress) -> bool {
         self.accounts_with_gap.contains(address)
     }
 }
