@@ -1082,6 +1082,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_reverts",
  "apollo_state_sync_types",
+ "apollo_time",
  "async-trait",
  "futures",
  "mockall",
@@ -1111,6 +1112,7 @@ dependencies = [
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_test_utils",
+ "apollo_time",
  "async-trait",
  "blockifier",
  "cairo-lang-casm",
@@ -2106,6 +2108,12 @@ dependencies = [
 [[package]]
 name = "apollo_time"
 version = "0.15.0-rc.2"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "mockall",
+ "tokio",
+]
 
 [[package]]
 name = "aquamarine"

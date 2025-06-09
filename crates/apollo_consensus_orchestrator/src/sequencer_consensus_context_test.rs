@@ -52,6 +52,7 @@ use apollo_protobuf::consensus::{
     Vote,
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_time::time_keeper::MockClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
 use futures::channel::oneshot::Canceled;
@@ -82,7 +83,7 @@ use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::{MockClock, SequencerConsensusContext, TimeKeeper};
+use crate::sequencer_consensus_context::{SequencerConsensusContext, TimeKeeper};
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
 const CHANNEL_SIZE: usize = 5000;

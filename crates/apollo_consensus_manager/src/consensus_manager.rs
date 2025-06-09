@@ -15,7 +15,6 @@ use apollo_consensus_orchestrator::cende::CendeAmbassador;
 use apollo_consensus_orchestrator::sequencer_consensus_context::{
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
-    TimeKeeper,
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
@@ -27,6 +26,7 @@ use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
+use apollo_time::time_keeper::TimeKeeper;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
