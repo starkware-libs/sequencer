@@ -16,7 +16,6 @@ deserialize = [
 testing = ["blockifier/testing", "starknet_patricia/testing"]
 
 [dependencies]
-apollo_infra_utils.workspace = true
 apollo_starknet_os_program.workspace = true
 ark-bls12-381.workspace = true
 ark-ff.workspace = true
