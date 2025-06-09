@@ -1900,12 +1900,14 @@ name = "apollo_signature_manager"
 version = "0.0.0"
 dependencies = [
  "apollo_signature_manager_types",
+ "async-trait",
  "blake2s",
  "derive_more 0.99.18",
  "pretty_assertions",
  "rstest",
  "starknet-core",
  "starknet_api",
+ "tokio",
 ]
 
 [[package]]
