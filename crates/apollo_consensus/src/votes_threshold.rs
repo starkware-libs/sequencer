@@ -15,10 +15,25 @@ pub struct VotesThreshold {
 }
 
 impl VotesThreshold {
-    pub fn new(numerator: u64, denominator: u64) -> Self {
+    fn new(numerator: u64, denominator: u64) -> Self {
         assert!(denominator > 0, "Denominator must be greater than zero");
         assert!(denominator >= numerator, "Denominator must be greater than or equal to numerator");
         Self { numerator, denominator }
+    }
+
+    pub fn from_two_thirds() -> Self {
+        // Represents a 2/3 threshold
+        Self::new(2, 3)
+    }
+
+    pub fn from_one_third() -> Self {
+        // Represents a 1/3 threshold
+        Self::new(1, 3)
+    }
+
+    pub fn from_one_half() -> Self {
+        // Represents a 1/2 threshold
+        Self::new(1, 2)
     }
 
     pub fn is_met(&self, amount: u64, total: u64) -> bool {
