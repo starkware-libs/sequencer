@@ -108,4 +108,8 @@ impl FetchCompiliedClasses for DictStateReader {
             }
         }
     }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        Ok(self.class_hash_to_class.contains_key(&class_hash))
+    }
 }
