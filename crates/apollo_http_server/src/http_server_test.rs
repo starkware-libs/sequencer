@@ -277,3 +277,38 @@ async fn test_unsupported_tx_version(
     let starknet_error = serde_json::from_str::<StarknetError>(&serialized_err).unwrap();
     assert_eq!(starknet_error, expected_err);
 }
+
+#[tokio::test]
+async fn error_message_encode_input() {
+    // Set the tx version to be a problematic text.
+    let mut tx_json =
+        TransactionSerialization(serde_json::to_value(deprecated_gateway_invoke_tx()).unwrap());
+    let as_object = tx_json.0.as_object_mut().unwrap();
+    let tx_payload: &'static str = "<script>alert(1)</script>";
+    as_object.insert("version".to_string(), Value::String(tx_payload.to_string())).unwrap();
+
+    let mock_gateway_client = MockGatewayClient::new();
+    let http_client = add_tx_http_client(mock_gateway_client, 14).await;
+
+    let serialized_err = http_client.assert_add_tx_error(tx_json, StatusCode::BAD_REQUEST).await;
+    let starknet_error: StarknetError =
+        serde_json::from_str(&serialized_err).expect("Expected valid StarknetError JSON");
+
+    assert_eq!(
+        starknet_error.code,
+        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest)
+    );
+
+    // Make sure the original payload is NOT included directly
+    assert!(
+        !starknet_error.message.contains("<script>"),
+        "Message should not contain unescaped script tag"
+    );
+
+    // Make sure it is escaped
+    assert!(
+        starknet_error.message.contains("?script?alert?1???script?\""),
+        "Escaped message not found. This is the returned error message: {}",
+        starknet_error.message
+    );
+}

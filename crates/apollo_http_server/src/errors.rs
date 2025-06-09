@@ -7,6 +7,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
 use apollo_gateway_types::errors::GatewayError;
 use axum::response::{IntoResponse, Response};
 use hyper::StatusCode;
+use regex::Regex;
 use starknet_api::compression_utils::CompressionError;
 use thiserror::Error;
 use tracing::{debug, error};
@@ -88,6 +89,14 @@ fn gw_client_err_into_response(err: GatewayClientError) -> Response {
     (response_code, response_body).into_response()
 }
 
-fn serialize_error<T: serde::Serialize>(body: &T) -> Response {
-    serde_json::to_vec(body).expect("Expecting a serializable error.").into_response()
+fn serialize_error(error: &StarknetError) -> Response {
+    let re = Regex::new(r"[^a-zA-Z0-9 ]").unwrap();
+    let sanitized_error = StarknetError {
+        code: error.code.clone(),
+        message: format!("\"{}\"", re.replace_all(&error.message, "?")),
+    };
+
+    serde_json::to_vec(&sanitized_error)
+        .expect("Expecting a serializable StarknetError.")
+        .into_response()
 }
