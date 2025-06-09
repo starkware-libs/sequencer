@@ -77,12 +77,12 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_types_core::felt::Felt;
 
-use super::{DefaultClock, SequencerConsensusContextDeps};
+use super::SequencerConsensusContextDeps;
 use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::{Clock, MockClock, SequencerConsensusContext};
+use crate::sequencer_consensus_context::{MockClock, SequencerConsensusContext, TimeKeeper};
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
 const CHANNEL_SIZE: usize = 5000;
@@ -118,7 +118,7 @@ struct TestDeps {
     pub cende_ambassador: MockCendeContext,
     pub eth_to_strk_oracle_client: MockEthToStrkOracleClientTrait,
     pub l1_gas_price_provider: MockL1GasPriceProviderClient,
-    pub clock: Arc<dyn Clock>,
+    pub time: TimeKeeper,
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
 }
@@ -132,7 +132,7 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             cende_ambassador: Arc::new(deps.cende_ambassador),
             eth_to_strk_oracle_client: Arc::new(deps.eth_to_strk_oracle_client),
             l1_gas_price_provider: Arc::new(deps.l1_gas_price_provider),
-            clock: deps.clock,
+            time: deps.time,
             outbound_proposal_sender: deps.outbound_proposal_sender,
             vote_broadcast_client: deps.vote_broadcast_client,
         }
@@ -276,7 +276,7 @@ fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) {
     let cende_ambassador = MockCendeContext::new();
     let eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
     let l1_gas_price_provider = MockL1GasPriceProviderClient::new();
-    let clock = Arc::new(DefaultClock::default());
+    let time = TimeKeeper::default();
 
     let test_deps = TestDeps {
         transaction_converter,
@@ -285,7 +285,7 @@ fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) {
         cende_ambassador,
         eth_to_strk_oracle_client,
         l1_gas_price_provider,
-        clock,
+        time,
         outbound_proposal_sender,
         vote_broadcast_client: votes_topic_client,
     };
@@ -759,7 +759,7 @@ async fn decision_reached_sends_correct_values() {
     clock
         .expect_now()
         .return_const(Utc.timestamp_opt(BLOCK_TIME_STAMP_SECONDS.try_into().unwrap(), 0).unwrap());
-    deps.clock = Arc::new(clock);
+    deps.time = TimeKeeper { clock: Arc::new(clock) };
 
     // 2. Decision reached setup starts.
     deps.batcher

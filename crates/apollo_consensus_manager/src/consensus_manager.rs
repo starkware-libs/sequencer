@@ -13,9 +13,9 @@ use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::types::ConsensusError;
 use apollo_consensus_orchestrator::cende::CendeAmbassador;
 use apollo_consensus_orchestrator::sequencer_consensus_context::{
-    DefaultClock,
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
+    TimeKeeper,
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
@@ -161,7 +161,7 @@ impl ConsensusManager {
                     self.config.eth_to_strk_oracle_config.clone(),
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
-                clock: Arc::new(DefaultClock::default()),
+                time: TimeKeeper::default(),
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
             },
