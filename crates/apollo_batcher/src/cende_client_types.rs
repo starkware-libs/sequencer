@@ -5,6 +5,7 @@ use std::collections::HashMap;
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
 use blockifier::transaction::objects::TransactionExecutionInfo;
+use cairo_vm::types::builtin_name::BuiltinName;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     BlockHash,
@@ -79,6 +80,25 @@ pub enum Builtin {
     MulMod,
     #[serde(rename = "range_check96_builtin")]
     RangeCheck96,
+}
+
+impl From<BuiltinName> for Builtin {
+    fn from(builtin_name: BuiltinName) -> Self {
+        match builtin_name {
+            BuiltinName::range_check => Builtin::RangeCheck,
+            BuiltinName::pedersen => Builtin::Pedersen,
+            BuiltinName::poseidon => Builtin::Poseidon,
+            BuiltinName::ec_op => Builtin::EcOp,
+            BuiltinName::ecdsa => Builtin::Ecdsa,
+            BuiltinName::bitwise => Builtin::Bitwise,
+            BuiltinName::keccak => Builtin::Keccak,
+            BuiltinName::output => Builtin::Output,
+            BuiltinName::segment_arena => Builtin::SegmentArena,
+            BuiltinName::add_mod => Builtin::AddMod,
+            BuiltinName::mul_mod => Builtin::MulMod,
+            BuiltinName::range_check96 => Builtin::RangeCheck96,
+        }
+    }
 }
 
 /// The execution resources used by a transaction.
