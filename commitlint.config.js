@@ -94,6 +94,7 @@ const Configuration = {
             'starknet_os',
             'starknet_patricia',
             'starknet_patricia_storage',
+            'time',
             'workspace_tests',
         ]],
         'header-max-length': [2, 'always', 100],

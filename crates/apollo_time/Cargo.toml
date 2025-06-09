@@ -1,0 +1,14 @@
+[package]
+name = "apollo_time"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+
+[dependencies]
+
+[dev-dependencies]
+
+[lints]
+workspace = true
