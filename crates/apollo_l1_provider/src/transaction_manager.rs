@@ -110,26 +110,10 @@ impl TransactionManager {
     // committed txs storage, to account for commit-before-add tx scenario.
     pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
         let tx_hash = tx.tx_hash;
-        if self.records.contains_key(&tx_hash) {
-            self.with_record(tx_hash, move |record| record.tx.set(tx));
-            return false;
-        }
+        let is_new_record = self.create_record_if_not_exist(tx_hash);
+        self.with_record(tx_hash, move |record| record.tx.set(tx));
 
-        self.create_record_if_not_exist(tx_hash);
-
-        self.records.insert(
-            tx_hash,
-            TransactionRecord::new(tx.into(), self.current_staging_epoch.decrement()),
-        );
-
-        let is_new_entry = self.proposable_index.insert(tx_hash);
-        assert!(
-            is_new_entry,
-            "Inconsistent state: new transaction with hash {tx_hash} wasn't in storage but was \
-             indexed."
-        );
-
-        true
+        is_new_record
     }
 
     pub fn is_committed(&self, tx_hash: TransactionHash) -> bool {
@@ -172,15 +156,11 @@ impl TransactionManager {
         Some(result)
     }
 
-    fn create_record_if_not_exist(&mut self, hash: TransactionHash) {
-        if self.records.contains_key(&hash) {
-            return;
-        }
-
+    fn create_record_if_not_exist(&mut self, hash: TransactionHash) -> bool {
         self.records.insert(
             hash,
             TransactionRecord::new(hash.into(), self.current_staging_epoch.decrement()),
-        );
+        )
     }
 
     fn is_staged(&self, tx_hash: TransactionHash) -> bool {
