@@ -59,6 +59,7 @@ class Simulator(Chart):
                             k8s.Container(
                                 name=self.node.id,
                                 image="us-central1-docker.pkg.dev/starkware-dev/sequencer/simulator:0.0.1",
+                                # TODO(Tsabary/Idan): this file does not exist.
                                 args=["--config_file", "/config/sequencer/presets/config"],
                                 env=[
                                     k8s.EnvVar(name="RUST_LOG", value="debug"),

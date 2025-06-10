@@ -1,5 +1,5 @@
 {
-  "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/hybrid/integration_hybrid_node_3/",
+  "application_config_subdir": "crates/apollo_deployments/resources/testing_env_3/app_configs/hybrid/integration_hybrid_node_3/",
   "services": [
     {
       "name": "Core",
@@ -26,7 +26,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-3"
+        "gcsm_key": "sequencer-test-3-node-3"
       },
       "anti_affinity": true
     },
@@ -40,9 +40,9 @@
         "http_server.json"
       ],
       "ingress": {
-        "domain": "starknet.io",
+        "domain": "sw-dev.io",
         "alternative_names": [
-          "integration-sepolia.starknet.io"
+          "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io"
         ],
         "internal": false,
         "rules": [
@@ -68,7 +68,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-3"
+        "gcsm_key": "sequencer-test-3-node-3"
       },
       "anti_affinity": false
     },
@@ -97,7 +97,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-3"
+        "gcsm_key": "sequencer-test-3-node-3"
       },
       "anti_affinity": false
     },
@@ -126,7 +126,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-3"
+        "gcsm_key": "sequencer-test-3-node-3"
       },
       "anti_affinity": false
     },
@@ -155,7 +155,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-3"
+        "gcsm_key": "sequencer-test-3-node-3"
       },
       "anti_affinity": false
     }

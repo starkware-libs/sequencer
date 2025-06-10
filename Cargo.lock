@@ -1181,6 +1181,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_node",
  "apollo_protobuf",
+ "const_format",
  "indexmap 2.9.0",
  "serde",
  "serde_json",

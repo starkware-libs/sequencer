@@ -1,5 +1,5 @@
 {
-  "application_config_subdir": "config/sequencer/testing_env_3/app_configs/hybrid/integration_hybrid_node_2/",
+  "application_config_subdir": "crates/apollo_deployments/resources/testing_env_2/app_configs/hybrid/integration_hybrid_node_2/",
   "services": [
     {
       "name": "Core",
@@ -26,7 +26,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-2"
+        "gcsm_key": "sequencer-test-sepolia-2"
       },
       "anti_affinity": true
     },
@@ -42,7 +42,7 @@
       "ingress": {
         "domain": "sw-dev.io",
         "alternative_names": [
-          "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io"
+          "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io"
         ],
         "internal": false,
         "rules": [
@@ -68,7 +68,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-2"
+        "gcsm_key": "sequencer-test-sepolia-2"
       },
       "anti_affinity": false
     },
@@ -97,7 +97,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-2"
+        "gcsm_key": "sequencer-test-sepolia-2"
       },
       "anti_affinity": false
     },
@@ -126,7 +126,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-2"
+        "gcsm_key": "sequencer-test-sepolia-2"
       },
       "anti_affinity": false
     },
@@ -155,7 +155,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-2"
+        "gcsm_key": "sequencer-test-sepolia-2"
       },
       "anti_affinity": false
     }
