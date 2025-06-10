@@ -147,7 +147,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     pointers
 });
 
-// Parameters that should 1) not be pointers, and 2) have a name matching a pointer target param.
+// Parameters that should 1) not be pointers, and 2) have a name matching a pointer target param
 pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
     LazyLock::new(HashSet::<ParamPath>::new);
 
