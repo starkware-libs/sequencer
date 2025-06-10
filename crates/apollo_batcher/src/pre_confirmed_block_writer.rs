@@ -5,7 +5,8 @@ use async_trait::async_trait;
 #[cfg(test)]
 use mockall::automock;
 use starknet_api::block::BlockNumber;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::state::ThinStateDiff;
 use thiserror::Error;
 
 use crate::cende_client_types::{CendeBlockMetadata, StarknetClientTransactionReceipt};
@@ -22,13 +23,19 @@ pub enum BlockWriterError {
 
 pub type BlockWriterResult<T> = Result<T, BlockWriterError>;
 
-pub type PreConfirmedTxReceiver = tokio::sync::mpsc::Receiver<Vec<TransactionHash>>;
-pub type PreConfirmedTxSender = tokio::sync::mpsc::Sender<Vec<TransactionHash>>;
+pub type PreConfirmedTxReceiver = tokio::sync::mpsc::Receiver<Vec<InternalConsensusTransaction>>;
+pub type PreConfirmedTxSender = tokio::sync::mpsc::Sender<Vec<InternalConsensusTransaction>>;
 
-pub type ExecutedTxReceiver =
-    tokio::sync::mpsc::Receiver<(TransactionHash, StarknetClientTransactionReceipt)>;
-pub type ExecutedTxSender =
-    tokio::sync::mpsc::Sender<(TransactionHash, StarknetClientTransactionReceipt)>;
+pub type ExecutedTxReceiver = tokio::sync::mpsc::Receiver<(
+    InternalConsensusTransaction,
+    StarknetClientTransactionReceipt,
+    ThinStateDiff,
+)>;
+pub type ExecutedTxSender = tokio::sync::mpsc::Sender<(
+    InternalConsensusTransaction,
+    StarknetClientTransactionReceipt,
+    ThinStateDiff,
+)>;
 
 /// Coordinates the flow of pre-confirmed block data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a

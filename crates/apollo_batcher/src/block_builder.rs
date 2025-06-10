@@ -340,15 +340,15 @@ impl BlockBuilder {
             return;
         };
 
-        let tx_hashes: Vec<TransactionHash> = next_tx_chunk.iter().map(|tx| tx.tx_hash()).collect();
-        let num_txs = tx_hashes.len();
+        let txs = next_tx_chunk.to_vec();
+        let num_txs = txs.len();
 
         info!(
             "Attempting to send a pre confirmed transaction chunk with {num_txs} transactions to \
              the PreConfirmedBlockWriter.",
         );
 
-        match pre_confirmed_tx_sender.try_send(tx_hashes) {
+        match pre_confirmed_tx_sender.try_send(txs) {
             Ok(_) => {
                 info!(
                     "Successfully sent a pre confirmed transaction chunk with {num_txs} \
@@ -430,7 +430,7 @@ async fn collect_execution_results_and_stream_txs(
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
 
                 if let Some(output_content_sender) = output_content_sender {
-                    output_content_sender.send(input_tx)?;
+                    output_content_sender.send(input_tx.clone())?;
                 }
 
                 // Skip sending executed transaction hashes and receipts during validation flow.
@@ -442,10 +442,13 @@ async fn collect_execution_results_and_stream_txs(
                         &execution_data.execution_infos[&tx_hash],
                     ));
 
+                    // TODO(noamsp): Use the real state diff.
+                    let tx_state_diff = ThinStateDiff::default();
+
                     // We continue with block building even if sending transaction hashes and
                     // receipts to The PreConfirmedBlockWriter fails because it
                     // is not critical for the block building process.
-                    let _ = executed_tx_sender.try_send((tx_hash, tx_receipt));
+                    let _ = executed_tx_sender.try_send((input_tx, tx_receipt, tx_state_diff));
                 }
             }
             // TODO(yael 18/9/2024): add timeout error handling here once this
