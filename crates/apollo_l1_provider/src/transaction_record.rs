@@ -2,6 +2,7 @@ use std::ops::Deref;
 
 use indexmap::map::Entry;
 use indexmap::IndexMap;
+use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -35,7 +36,7 @@ impl TransactionRecord {
 
     pub fn get_unchecked(&self) -> &L1HandlerTransaction {
         match &self.tx {
-            TransactionPayload::Full(tx) => tx,
+            TransactionPayload::Full { tx, .. } => tx,
             TransactionPayload::HashOnly(tx_hash) => {
                 panic!("Attempted to access transaction payload that is only a hash {tx_hash}.");
             }
@@ -101,12 +102,6 @@ impl TransactionRecord {
     }
 }
 
-impl From<L1HandlerTransaction> for TransactionRecord {
-    fn from(tx: L1HandlerTransaction) -> Self {
-        TransactionPayload::from(tx).into()
-    }
-}
-
 impl From<TransactionPayload> for TransactionRecord {
     fn from(tx: TransactionPayload) -> Self {
         // Note: this initialized the staged epoch to 0, which is guaranteed to be unstaged since
@@ -118,18 +113,18 @@ impl From<TransactionPayload> for TransactionRecord {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TransactionPayload {
     HashOnly(TransactionHash),
-    Full(L1HandlerTransaction),
+    Full { tx: L1HandlerTransaction, created_at_block: BlockTimestamp },
 }
 
 impl TransactionPayload {
-    pub fn set(&mut self, tx: L1HandlerTransaction) {
-        *self = tx.into();
+    pub fn set(&mut self, tx: L1HandlerTransaction, created_at_block: BlockTimestamp) {
+        *self = TransactionPayload::Full { tx, created_at_block };
     }
 
     pub fn tx_hash(&self) -> TransactionHash {
         match self {
             TransactionPayload::HashOnly(hash) => *hash,
-            TransactionPayload::Full(tx) => tx.tx_hash,
+            TransactionPayload::Full { tx, .. } => tx.tx_hash,
         }
     }
 }
@@ -137,12 +132,6 @@ impl TransactionPayload {
 impl Default for TransactionPayload {
     fn default() -> Self {
         TransactionPayload::HashOnly(TransactionHash::default())
-    }
-}
-
-impl From<L1HandlerTransaction> for TransactionPayload {
-    fn from(tx: L1HandlerTransaction) -> Self {
-        TransactionPayload::Full(tx)
     }
 }
 
