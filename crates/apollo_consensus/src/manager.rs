@@ -69,6 +69,7 @@ pub async fn run_consensus<ContextT>(
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
     sync_retry_interval: Duration,
+    no_byzantine_validators: bool,
     mut vote_receiver: BroadcastVoteChannel,
     mut proposals_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
 ) -> Result<(), ConsensusError>
@@ -89,7 +90,6 @@ where
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT).set(current_height.0 as f64);
-
         let must_observer = current_height < start_active_height;
         match manager
             .run_height(
@@ -97,6 +97,7 @@ where
                 current_height,
                 must_observer,
                 sync_retry_interval,
+                no_byzantine_validators,
                 &mut vote_receiver,
                 &mut proposals_receiver,
             )
@@ -172,6 +173,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Inputs - see [`run_consensus`].
     /// - `must_observer`: Whether the node must observe or if it is allowed to be active (assuming
     ///   it is in the validator set).
+    #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all, fields(height=%height.0), level = "error")]
     pub(crate) async fn run_height(
         &mut self,
@@ -179,6 +181,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         height: BlockNumber,
         must_observer: bool,
         sync_retry_interval: Duration,
+        no_byzantine_validators: bool,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
@@ -188,6 +191,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 height,
                 must_observer,
                 sync_retry_interval,
+                no_byzantine_validators,
                 broadcast_channels,
                 proposals_receiver,
             )
@@ -220,12 +224,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         Ok(res)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn run_height_inner(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         must_observer: bool,
         sync_retry_interval: Duration,
+        no_byzantine_validators: bool,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
@@ -247,6 +253,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             is_observer,
             self.validator_id,
             validators,
+            no_byzantine_validators,
             self.timeouts.clone(),
         );
         let mut shc_events = FuturesUnordered::new();
