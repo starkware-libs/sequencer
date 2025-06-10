@@ -77,11 +77,13 @@ macro_rules! bootstrapper {
     }};
 }
 
+/// Use to easily construct l1 handler messages for tests that don't care about the timestamp.
 fn l1_handler_event(tx_hash: TransactionHash) -> Event {
-    Event::L1HandlerTransaction(executable_l1_handler_tx(L1HandlerTxArgs {
-        tx_hash,
-        ..Default::default()
-    }))
+    let default_timestamp = 0.into();
+    Event::L1HandlerTransaction {
+        l1_handler_tx: executable_l1_handler_tx(L1HandlerTxArgs { tx_hash, ..Default::default() }),
+        timestamp: default_timestamp,
+    }
 }
 
 #[test]
