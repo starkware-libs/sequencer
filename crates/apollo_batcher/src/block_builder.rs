@@ -425,11 +425,12 @@ async fn collect_execution_results_and_stream_txs(
 
         match result {
             Ok(tx_execution_info) => {
-                if let Some(ref revert_error) = tx_execution_info.revert_error {
+                if let Some(ref _revert_error) = tx_execution_info.revert_error {
                     warn!(
-                        "Transaction {} is reverted while accepted. Revert Error: {:?}",
+                        "Transaction {} is reverted during execution while still accepted. Revert \
+                         Error: {:?}",
                         input_tx.tx_hash(),
-                        revert_error,
+                        _revert_error,
                     );
                 }
                 *l2_gas_used = l2_gas_used
