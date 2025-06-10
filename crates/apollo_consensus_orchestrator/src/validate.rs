@@ -111,7 +111,7 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
         return;
     };
 
-    let Some((block_info, fin_sender)) = await_second_proposal_part(
+    let Ok((block_info, fin_sender)) = await_second_proposal_part(
         &args.cancel_token,
         deadline,
         &mut args.content_receiver,
@@ -292,20 +292,20 @@ async fn await_second_proposal_part(
     deadline: tokio::time::Instant,
     content_receiver: &mut mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
-) -> Option<(ConsensusBlockInfo, oneshot::Sender<ProposalCommitment>)> {
+) -> ValidateProposalResult<(ConsensusBlockInfo, oneshot::Sender<ProposalCommitment>)> {
     tokio::select! {
         _ = cancel_token.cancelled() => {
             warn!("Proposal interrupted");
-            None
+            Err(ValidateProposalError::ProposalInterrupted)
         }
         _ = tokio::time::sleep_until(deadline) => {
             warn!("Validation timed out.");
-            None
+            Err(ValidateProposalError::ValidationTimeout)
         }
         proposal_part = content_receiver.next() => {
             match proposal_part {
                 Some(ProposalPart::BlockInfo(block_info)) => {
-                    Some((block_info, fin_sender))
+                    Ok((block_info, fin_sender))
                 }
                 Some(ProposalPart::Fin(ProposalFin { proposal_commitment })) => {
                     warn!("Received an empty proposal.");
@@ -316,11 +316,15 @@ async fn await_second_proposal_part(
                         // Consensus may exit early (e.g. sync).
                         warn!("Failed to send proposal content ids");
                     }
-                    None
+                    Err(ValidateProposalError::EmptyProposal)
                 }
                 x => {
                     warn!("Invalid second proposal part: {x:?}");
-                    None
+                    Err(ValidateProposalError::InvalidProposalPart(
+                        "BlockInfo".to_string(),
+                        "Fin".to_string(),
+                        format!("{x:?}"),
+                    ))
                 }
             }
         }
