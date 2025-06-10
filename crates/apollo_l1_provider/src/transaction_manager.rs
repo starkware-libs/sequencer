@@ -3,6 +3,7 @@ use std::time::Duration;
 
 use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
 use indexmap::IndexSet;
+use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -60,6 +61,7 @@ impl TransactionManager {
                 "Inconsistent storage state: indexed l1 handler {tx_hash} is not in storage or \
                  wasn't marked as staged."
             );
+
             txs.push(self.records[&tx_hash].get_unchecked().clone());
         }
         txs
@@ -111,10 +113,12 @@ impl TransactionManager {
     /// committed, it will not be added, and false will be returned.
     // Note: if only the committed hash was known, the transaction will "fill in the blank" in the
     // committed txs storage, to account for commit-before-add tx scenario.
-    pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
+    pub fn add_tx(&mut self, tx: L1HandlerTransaction, block_timestamp: BlockTimestamp) -> bool {
         let tx_hash = tx.tx_hash;
         let is_new_record = self.create_record_if_not_exist(tx_hash);
-        self.with_record(tx_hash, move |record| record.tx.set(tx));
+        self.with_record(tx_hash, move |record| {
+            record.tx.set(tx, block_timestamp);
+        });
 
         is_new_record
     }
