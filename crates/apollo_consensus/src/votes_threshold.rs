@@ -32,8 +32,19 @@ impl VotesThreshold {
         if no_byzantine_validators { HONEST_QUORUM } else { BYZANTINE_QUORUM }
     }
 
+    pub fn from_skip_round() -> Self {
+        // Represents a 1/3 threshold, used for skip round
+        ROUND_SKIP_THRESHOLD
+    }
+
     pub fn is_met(&self, amount: u64, total: u64) -> bool {
         amount.checked_mul(self.denominator).expect("Numeric overflow")
             > total.checked_mul(self.numerator).expect("Numeric overflow")
+    }
+
+    // TODO(guyn): Remove this method in favor of using is_met directly.
+    pub fn amount_required(&self, total: u64) -> u64 {
+        // The +1 ensures that the required amount is strictly greater than the threshold
+        total * self.numerator / self.denominator + 1
     }
 }
