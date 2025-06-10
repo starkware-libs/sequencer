@@ -360,7 +360,7 @@ impl L1ProviderBuilder {
 
         L1Provider {
             current_height: l1_provider_startup_height,
-            tx_manager: TransactionManager::default(),
+            tx_manager: TransactionManager::new(self.config.new_l1_handler_cooldown_seconds),
             state: ProviderState::Bootstrap(bootstrapper),
         }
     }
