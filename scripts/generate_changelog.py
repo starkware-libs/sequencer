@@ -5,7 +5,7 @@ from utils import run_command
 
 # Usage:
 # scripts/generate_changelog.py --start <FROM_TAG> --end <TO_TAG> --project <PROJECT_NAME>
-GIT_CLIFF_VERSION = "2.7.0"
+GIT_CLIFF_VERSION = "2.9.0"
 PROJECT_TO_PATHS = {"blockifier": ["crates/blockifier/"], "all": []}
 
 
@@ -26,7 +26,8 @@ def build_command(project_name: str, start_tag: str, end_tag: str) -> str:
     include_paths = " ".join((f"--include-path {path}" for path in paths))
     return (
         f"git-cliff {start_tag}..{end_tag} -o changelog_{start_tag}_{end_tag}.md "
-        f'--ignore-tags ".*-dev.[0-9]+" --tag {end_tag} {include_paths}'
+        f'--ignore-tags ".*-dev.[0-9]+" --tag {end_tag} '
+        f'--config scripts/git-cliff.toml {include_paths}'
     )
 
 
