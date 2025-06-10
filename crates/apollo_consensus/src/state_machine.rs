@@ -89,8 +89,12 @@ pub struct StateMachine {
 
 impl StateMachine {
     /// total_weight - the total voting weight of all validators for this height.
-    pub fn new(id: ValidatorId, total_weight: u64, is_observer: bool) -> Self {
-        let no_byzantine_validators = false;
+    pub fn new(
+        id: ValidatorId,
+        total_weight: u64,
+        is_observer: bool,
+        no_byzantine_validators: bool,
+    ) -> Self {
         Self {
             id,
             round: 0,

@@ -416,3 +416,49 @@ fn observer_node_reaches_decision() {
     );
     assert!(wrapper.next_event().is_none());
 }
+
+#[test_case(true; "byzantine")]
+#[test_case(false; "honest")]
+fn number_of_required_votes(is_byzantine: bool) {
+    let id = *VALIDATOR_ID;
+    if is_byzantine {}
+    let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, false);
+
+    wrapper.start();
+    if is_proposer {
+        assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
+        wrapper.send_get_proposal(PROPOSAL_ID, ROUND);
+        assert_eq!(
+            wrapper.next_event().unwrap(),
+            StateMachineEvent::Proposal(PROPOSAL_ID, ROUND, None)
+        );
+    } else {
+        // Waiting for the proposal.
+        assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
+        assert!(wrapper.next_event().is_none());
+        wrapper.send_proposal(PROPOSAL_ID, ROUND);
+    }
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
+    assert!(wrapper.next_event().is_none());
+
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    assert!(wrapper.next_event().is_none());
+
+    wrapper.send_prevote(PROPOSAL_ID, ROUND);
+    // The Node got a Prevote quorum.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrevote(ROUND));
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Precommit(PROPOSAL_ID, ROUND));
+    assert!(wrapper.next_event().is_none());
+
+    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    assert!(wrapper.next_event().is_none());
+
+    wrapper.send_precommit(PROPOSAL_ID, ROUND);
+    // The Node got a Precommit quorum.
+    assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPrecommit(ROUND));
+    assert_eq!(
+        wrapper.next_event().unwrap(),
+        StateMachineEvent::Decision(PROPOSAL_ID.unwrap(), ROUND)
+    );
+    assert!(wrapper.next_event().is_none());
+}
