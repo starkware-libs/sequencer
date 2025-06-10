@@ -406,6 +406,33 @@
       "severity": "p5"
     },
     {
+      "name": "l1_gas_price_scraper_reorg_detected",
+      "title": "L1 gas price scraper reorg detected",
+      "ruleGroup": "l1_gas_price",
+      "expr": "rate(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20,
+      "severity": "p5"
+    },
+    {
       "name": "l1_message_scraper_baselayer_error_count",
       "title": "L1 message scraper baselayer error count",
       "ruleGroup": "l1_messages",
