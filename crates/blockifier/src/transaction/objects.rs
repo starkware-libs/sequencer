@@ -201,6 +201,8 @@ pub struct TransactionExecutionInfo {
 }
 
 impl TransactionExecutionInfo {
+    // TODO(Arni): Add a flag to non_optional_call_infos to indicate the transaction
+    // type. Change the iteration order for `deploy_account` transactions.
     pub fn non_optional_call_infos(&self) -> impl Iterator<Item = &CallInfo> {
         self.validate_call_info
             .iter()
