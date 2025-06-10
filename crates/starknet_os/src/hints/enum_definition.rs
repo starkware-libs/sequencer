@@ -233,12 +233,17 @@ use crate::{define_hint_enum, define_hint_extension_enum};
 #[path = "enum_definition_test.rs"]
 pub mod test;
 
+#[cfg(any(test, feature = "testing"))]
+pub(crate) const TEST_HINT_PREFIX: &str = "# TEST HINT";
+
 macro_rules! all_hints_enum {
     ($($inner_enum:ident),+) => {
         #[cfg_attr(any(test, feature = "testing"),derive(Serialize, strum_macros::EnumIter))]
         #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
         pub enum AllHints {
-            $($inner_enum($inner_enum)),+
+            $($inner_enum($inner_enum),)+
+            #[cfg(any(test, feature = "testing"))]
+            TestHint
         }
 
         #[cfg(any(test, feature = "testing"))]
@@ -250,6 +255,9 @@ macro_rules! all_hints_enum {
                             $inner_enum::iter().map(Self::from).collect::<Vec<Self>>()
                         }
                     )+
+                    #[cfg(any(test, feature = "testing"))]
+                    // Ignore the test hint in the iterator.
+                    Self::TestHint => vec![],
                 })
             }
         }
@@ -257,6 +265,12 @@ macro_rules! all_hints_enum {
         impl HintEnum for AllHints {
             #[allow(clippy::result_large_err)]
             fn from_str(hint_str: &str) -> Result<Self, OsHintError> {
+                #[cfg(any(test, feature = "testing"))]
+                {
+                    if hint_str.to_string().trim().starts_with(TEST_HINT_PREFIX) {
+                        return Ok(Self::TestHint);
+                    }
+                }
                 $(
                     if let Ok(hint) = $inner_enum::from_str(hint_str) {
                         return Ok(hint.into())
@@ -268,6 +282,10 @@ macro_rules! all_hints_enum {
             fn to_str(&self) -> &'static str {
                 match self {
                     $(Self::$inner_enum(hint) => hint.to_str(),)+
+                    #[cfg(any(test, feature = "testing"))]
+                    Self::TestHint => {
+                        panic!("Cannot convert TestHint to string; actual string unknown.")
+                    }
                 }
             }
         }
