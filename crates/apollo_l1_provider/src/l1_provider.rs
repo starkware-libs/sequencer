@@ -13,6 +13,7 @@ use apollo_l1_provider_types::{
     ValidationStatus,
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
+use apollo_time::time::{Clock, DefaultClock};
 use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
@@ -29,7 +30,7 @@ pub mod l1_provider_tests;
 
 // TODO(Gilad): optimistic proposer support, will add later to keep things simple, but the design
 // here is compatible with it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct L1Provider {
     pub config: L1ProviderConfig,
     /// Represents the L2 block height being built.
@@ -38,6 +39,7 @@ pub struct L1Provider {
     // TODO(Gilad): consider transitioning to a generic phantom state once the infra is stabilized
     // and we see how well it handles consuming the L1Provider when moving between states.
     pub state: ProviderState,
+    pub clock: Arc<dyn Clock>,
 }
 
 impl L1Provider {
@@ -78,7 +80,7 @@ impl L1Provider {
 
         match self.state {
             ProviderState::Propose => {
-                let txs = self.tx_manager.get_txs(n_txs);
+                let txs = self.tx_manager.get_txs(n_txs, self.clock.unix_now());
                 info!(
                     "Returned {} out of {} transactions, ready for sequencing.",
                     txs.len(),
@@ -279,6 +281,14 @@ impl L1Provider {
     }
 }
 
+impl PartialEq for L1Provider {
+    fn eq(&self, other: &Self) -> bool {
+        self.current_height == other.current_height
+            && self.tx_manager == other.tx_manager
+            && self.state == other.state
+    }
+}
+
 impl ComponentStarter for L1Provider {}
 
 pub struct L1ProviderBuilder {
@@ -365,6 +375,7 @@ impl L1ProviderBuilder {
             tx_manager: TransactionManager::new(self.config.new_l1_handler_cooldown_seconds),
             state: ProviderState::Bootstrap(bootstrapper),
             config: self.config,
+            clock: Arc::new(DefaultClock),
         }
     }
 }

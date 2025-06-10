@@ -1,8 +1,10 @@
+use std::fmt::Debug;
+
 pub type DateTime = chrono::DateTime<chrono::Utc>;
 
 // TODO(Gilad): add fake clock with fixed time + advance(), instead of mockall, easier to use.
 #[cfg_attr(any(test, feature = "testing"), mockall::automock)]
-pub trait Clock: Send + Sync {
+pub trait Clock: Send + Sync + Debug {
     /// Human readable representation of unix time (uses duration from epoch under the hood).
     // Note: chrono is used here since it wraps unix time and allows it to be printed in datetime
     // format, since it is otherwise not human readable.
@@ -28,7 +30,7 @@ pub async fn sleep_until(deadline: DateTime, clock: &dyn Clock) {
     tokio::time::sleep(duration_to_sleep).await;
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct DefaultClock;
 
 impl Clock for DefaultClock {}
