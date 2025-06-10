@@ -14,11 +14,22 @@ pub struct VotesThreshold {
     denominator: u64,
 }
 
+// Standard Tendermint consensus threshold.
+pub const BYZANTINE_QUORUM: VotesThreshold = VotesThreshold::new(2, 3);
+pub const ROUND_SKIP_THRESHOLD: VotesThreshold = VotesThreshold::new(1, 3);
+
+// Assumes no malicious validators.
+pub const HONEST_QUORUM: VotesThreshold = VotesThreshold::new(1, 2);
+
 impl VotesThreshold {
-    pub fn new(numerator: u64, denominator: u64) -> Self {
+    const fn new(numerator: u64, denominator: u64) -> Self {
         assert!(denominator > 0, "Denominator must be greater than zero");
         assert!(denominator >= numerator, "Denominator must be greater than or equal to numerator");
         Self { numerator, denominator }
+    }
+
+    pub fn from_quorum_type(no_byzantine_validators: bool) -> Self {
+        if no_byzantine_validators { HONEST_QUORUM } else { BYZANTINE_QUORUM }
     }
 
     pub fn is_met(&self, amount: u64, total: u64) -> bool {
