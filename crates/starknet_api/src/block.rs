@@ -2,6 +2,7 @@
 #[path = "block_test.rs"]
 mod block_test;
 
+use std::fmt::Display;
 use std::ops::Deref;
 
 use itertools::Itertools;
@@ -564,6 +565,12 @@ impl Deref for BlockTimestamp {
 impl From<u64> for BlockTimestamp {
     fn from(value: u64) -> Self {
         Self(value)
+    }
+}
+
+impl Display for BlockTimestamp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

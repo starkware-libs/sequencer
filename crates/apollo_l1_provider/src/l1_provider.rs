@@ -226,7 +226,7 @@ impl L1Provider {
 
         for event in events {
             match event {
-                Event::L1HandlerTransaction(l1_handler_tx) => {
+                Event::L1HandlerTransaction { l1_handler_tx, timestamp: _todo } => {
                     let tx_hash = l1_handler_tx.tx_hash;
                     let successfully_inserted = self.tx_manager.add_tx(l1_handler_tx);
                     if !successfully_inserted {

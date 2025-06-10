@@ -13,7 +13,7 @@ use indexmap::IndexSet;
 use mockall::automock;
 use papyrus_base_layer::{EventData, L1Event};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::{
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
@@ -227,7 +227,7 @@ where
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Event {
-    L1HandlerTransaction(L1HandlerTransaction),
+    L1HandlerTransaction { l1_handler_tx: L1HandlerTransaction, timestamp: BlockTimestamp },
     TransactionCanceled(EventData),
     TransactionCancellationStarted(TransactionHash),
     TransactionConsumed(EventData),
@@ -236,9 +236,9 @@ pub enum Event {
 impl Event {
     pub fn from_l1_event(chain_id: &ChainId, l1_event: L1Event) -> Result<Self, StarknetApiError> {
         Ok(match l1_event {
-            L1Event::LogMessageToL2 { tx, fee, .. } => {
+            L1Event::LogMessageToL2 { tx, fee, timestamp, .. } => {
                 let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)?;
-                Self::L1HandlerTransaction(tx)
+                Self::L1HandlerTransaction { l1_handler_tx: tx, timestamp }
             }
             L1Event::MessageToL2CancellationStarted { cancelled_tx } => {
                 let tx_hash =
@@ -255,8 +255,12 @@ impl Event {
 impl Display for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Event::L1HandlerTransaction(tx) => {
-                write!(f, "L1HandlerTransaction(tx_hash={})", tx.tx_hash)
+            Event::L1HandlerTransaction { l1_handler_tx: tx, timestamp } => {
+                write!(
+                    f,
+                    "L1HandlerTransaction(tx_hash={}, block_timestamp={})",
+                    tx.tx_hash, timestamp
+                )
             }
             Event::TransactionCanceled(data) => write!(f, "TransactionCanceled({})", data),
             Event::TransactionCancellationStarted(data) => {
