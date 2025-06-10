@@ -27,7 +27,7 @@ use crate::bootstrapper::CommitBlockBacklog;
 use crate::l1_provider::L1Provider;
 use crate::transaction_manager::{ProposableCompositeKey, StagingEpoch, TransactionManager};
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
-use crate::ProviderState;
+use crate::{L1ProviderConfig, ProviderState};
 
 pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
     let tx_hash = TransactionHash(StarkHash::from(tx_hash));
@@ -38,6 +38,7 @@ pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
 pub struct L1ProviderContent {
+    config: L1ProviderConfig,
     tx_manager_content: Option<TransactionManagerContent>,
     state: Option<ProviderState>,
     current_height: Option<BlockNumber>,
@@ -68,12 +69,14 @@ impl From<L1ProviderContent> for L1Provider {
             // is functionally equivalent to Pending for testing purposes.
             state: content.state.unwrap_or(ProviderState::Pending),
             current_height: content.current_height.unwrap_or_default(),
+            config: content.config,
         }
     }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct L1ProviderContentBuilder {
+    config: L1ProviderConfig,
     tx_manager_content_builder: TransactionManagerContentBuilder,
     state: Option<ProviderState>,
     current_height: Option<BlockNumber>,
@@ -82,6 +85,11 @@ pub struct L1ProviderContentBuilder {
 impl L1ProviderContentBuilder {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    pub fn with_config(mut self, config: L1ProviderConfig) -> Self {
+        self.config = config;
+        self
     }
 
     pub fn with_state(mut self, state: ProviderState) -> Self {
@@ -142,6 +150,7 @@ impl L1ProviderContentBuilder {
 
     pub fn build(self) -> L1ProviderContent {
         L1ProviderContent {
+            config: self.config,
             tx_manager_content: self.tx_manager_content_builder.build(),
             state: self.state,
             current_height: self.current_height,

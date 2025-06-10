@@ -31,6 +31,7 @@ pub mod l1_provider_tests;
 // here is compatible with it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L1Provider {
+    pub config: L1ProviderConfig,
     /// Represents the L2 block height being built.
     pub current_height: BlockNumber,
     pub tx_manager: TransactionManager,
@@ -363,6 +364,7 @@ impl L1ProviderBuilder {
             current_height: l1_provider_startup_height,
             tx_manager: TransactionManager::new(self.config.new_l1_handler_cooldown_seconds),
             state: ProviderState::Bootstrap(bootstrapper),
+            config: self.config,
         }
     }
 }
