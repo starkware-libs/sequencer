@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use indexmap::map::Entry;
 use indexmap::IndexMap;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -167,8 +168,14 @@ impl Records {
         self.0.get_mut(&hash)
     }
 
-    pub fn insert(&mut self, hash: TransactionHash, record: TransactionRecord) {
-        self.0.insert(hash, record);
+    pub fn insert(&mut self, hash: TransactionHash, record: TransactionRecord) -> bool {
+        match self.0.entry(hash) {
+            Entry::Occupied(_) => false,
+            Entry::Vacant(entry) => {
+                entry.insert(record);
+                true
+            }
+        }
     }
 }
 
