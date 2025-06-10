@@ -240,7 +240,10 @@ impl Event {
                 let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)?;
                 Self::L1HandlerTransaction { l1_handler_tx: tx, timestamp }
             }
-            L1Event::MessageToL2CancellationStarted { cancelled_tx } => {
+            L1Event::MessageToL2CancellationStarted {
+                cancelled_tx,
+                cancellation_request_timestamp: _not_used_yet,
+            } => {
                 let tx_hash =
                     cancelled_tx.calculate_transaction_hash(chain_id, &cancelled_tx.version)?;
 

@@ -108,6 +108,9 @@ pub enum L1Event {
     },
     MessageToL2CancellationStarted {
         cancelled_tx: L1HandlerTransaction,
+        // To clarify, this is the timestamp of the cancellation request, not the timestamp of the
+        // cancellation itself, nor is it the timestamp of the transaction that was cancelled.
+        cancellation_request_timestamp: BlockTimestamp,
     },
     MessageToL2Canceled(EventData),
 }
