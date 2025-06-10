@@ -20,12 +20,15 @@ async fn main() {
     const N_DISTRIBUTED_SEQUENCERS: usize = 0;
 
     const CENTRAL_SYNC_NODE: usize = 1;
+    /// The number of sender accounts to use in the test.
+    const SENDER_ACCOUNTS: usize = 2;
 
     let mut integration_test_manager = IntegrationTestManager::new(
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
         None,
         TestIdentifier::SyncFlowIntegrationTest,
+        SENDER_ACCOUNTS,
     )
     .await;
 

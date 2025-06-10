@@ -2,7 +2,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use tracing::info;
@@ -41,7 +41,6 @@ impl SequencerSimulator {
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         test_scenario: &impl TestScenario,
-        sender_account: AccountId,
     ) {
         info!("Sending transactions");
         let send_rpc_tx_fn = &mut |tx| self.assert_add_tx_success(tx);
@@ -49,14 +48,9 @@ impl SequencerSimulator {
         // setting up L1.
         let send_l1_handler_tx_fn =
             &mut |_l1_to_l2_message_args| async { TransactionHash::default() };
-        let tx_hashes = send_consensus_txs(
-            tx_generator,
-            sender_account,
-            test_scenario,
-            send_rpc_tx_fn,
-            send_l1_handler_tx_fn,
-        )
-        .await;
+        let tx_hashes =
+            send_consensus_txs(tx_generator, test_scenario, send_rpc_tx_fn, send_l1_handler_tx_fn)
+                .await;
         assert_eq!(tx_hashes.len(), test_scenario.n_txs());
     }
 
@@ -73,10 +67,10 @@ impl SequencerSimulator {
         &self,
         sequencer_idx: usize,
         tx_generator: &mut MultiAccountTransactionGenerator,
-        sender_account: AccountId,
     ) {
-        let account = tx_generator.account_with_id(sender_account);
-        let expected_n_batched_txs = nonce_to_usize(account.get_nonce());
+        // For round-robin, sum all nonces across accounts
+        let expected_n_batched_txs: usize =
+            tx_generator.accounts().iter().map(|account| nonce_to_usize(account.get_nonce())).sum();
         info!(
             "Verifying that sequencer {} got {} batched txs.",
             sequencer_idx, expected_n_batched_txs

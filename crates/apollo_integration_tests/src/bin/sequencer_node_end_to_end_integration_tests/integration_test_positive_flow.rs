@@ -14,6 +14,8 @@ async fn main() {
     const N_CONSOLIDATED_SEQUENCERS: usize = 3;
     /// The number of distributed remote sequencers that participate in the test.
     const N_DISTRIBUTED_SEQUENCERS: usize = 2;
+    /// The number of sender accounts to use in the test.
+    const SENDER_ACCOUNTS: usize = 2;
 
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
@@ -21,6 +23,7 @@ async fn main() {
         N_DISTRIBUTED_SEQUENCERS,
         None,
         TestIdentifier::PositiveFlowIntegrationTest,
+        SENDER_ACCOUNTS,
     )
     .await;
 

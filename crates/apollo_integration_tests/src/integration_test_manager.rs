@@ -26,7 +26,6 @@ use futures::future::join_all;
 use futures::TryFutureExt;
 use mempool_test_utils::starknet_api_test_utils::{
     contract_class,
-    AccountId,
     MultiAccountTransactionGenerator,
 };
 use papyrus_base_layer::ethereum_base_layer_contract::StarknetL1Contract;
@@ -79,7 +78,6 @@ use crate::utils::{
     TestScenario,
 };
 
-pub const DEFAULT_SENDER_ACCOUNT: AccountId = 0;
 const BLOCK_MAX_CAPACITY_N_STEPS: GasAmount = GasAmount(30000000);
 pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(4);
 pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
@@ -256,8 +254,9 @@ impl IntegrationTestManager {
         num_of_distributed_nodes: usize,
         custom_paths: Option<CustomPaths>,
         test_unique_id: TestIdentifier,
+        num_of_sender_accounts: usize,
     ) -> Self {
-        let tx_generator = create_integration_test_tx_generator();
+        let tx_generator = create_integration_test_tx_generator(num_of_sender_accounts);
 
         let (sequencers_setup, node_indices) = get_sequencer_setup_configs(
             &tx_generator,
@@ -462,8 +461,7 @@ impl IntegrationTestManager {
 
     pub async fn send_deploy_and_invoke_txs_and_verify(&mut self) {
         self.test_and_verify(
-            DeployAndInvokeTxs,
-            DEFAULT_SENDER_ACCOUNT,
+            DeployAndInvokeTxs { num_of_accounts: self.tx_generator.accounts().len() },
             BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE,
         )
         .await;
@@ -480,12 +478,7 @@ impl IntegrationTestManager {
             "Sending {} invoke + {} l1handler txs and waiting for block {}.",
             n_invoke_txs, n_l1_handler_txs, wait_for_block
         );
-        self.test_and_verify(
-            ConsensusTxs { n_invoke_txs, n_l1_handler_txs },
-            DEFAULT_SENDER_ACCOUNT,
-            wait_for_block,
-        )
-        .await;
+        self.test_and_verify(ConsensusTxs { n_invoke_txs, n_l1_handler_txs }, wait_for_block).await;
         self.rpc_verify_last_block(wait_for_block).await;
     }
 
@@ -514,7 +507,7 @@ impl IntegrationTestManager {
     #[instrument(skip(self))]
     pub async fn send_declare_txs_and_verify(&mut self) {
         info!("Sending a declare tx and waiting for block {}.", BLOCK_TO_WAIT_FOR_DECLARE);
-        self.test_and_verify(DeclareTx, DEFAULT_SENDER_ACCOUNT, BLOCK_TO_WAIT_FOR_DECLARE).await;
+        self.test_and_verify(DeclareTx, BLOCK_TO_WAIT_FOR_DECLARE).await;
         self.rpc_verify_class_declared(BLOCK_TO_WAIT_FOR_DECLARE).await;
     }
 
@@ -543,13 +536,12 @@ impl IntegrationTestManager {
     async fn test_and_verify(
         &mut self,
         test_scenario: impl TestScenario,
-        sender_account: AccountId,
         wait_for_block: BlockNumber,
     ) {
-        self.verify_txs_accepted_on_all_running_nodes(sender_account).await;
-        self.run_integration_test_simulator(&test_scenario, sender_account).await;
+        self.verify_txs_accepted_on_all_running_nodes().await;
+        self.run_integration_test_simulator(&test_scenario).await;
         self.await_block_on_all_running_nodes(wait_for_block).await;
-        self.verify_txs_accepted_on_all_running_nodes(sender_account).await;
+        self.verify_txs_accepted_on_all_running_nodes().await;
     }
 
     async fn await_alive(&self, interval: u64, max_attempts: usize) {
@@ -633,11 +625,7 @@ impl IntegrationTestManager {
         }
     }
 
-    async fn run_integration_test_simulator(
-        &mut self,
-        test_scenario: &impl TestScenario,
-        sender_account: AccountId,
-    ) {
+    async fn run_integration_test_simulator(&mut self, test_scenario: &impl TestScenario) {
         info!("Running integration test simulator.");
         let chain_id = self.chain_id();
         let send_l1_handler_tx_fn = &mut |l1_handler_tx| {
@@ -654,7 +642,6 @@ impl IntegrationTestManager {
 
         send_consensus_txs(
             &mut self.tx_generator,
-            sender_account,
             test_scenario,
             send_rpc_tx_fn,
             send_l1_handler_tx_fn,
@@ -708,11 +695,15 @@ impl IntegrationTestManager {
         .await;
     }
 
-    async fn verify_txs_accepted_on_all_running_nodes(&self, sender_account: AccountId) {
+    async fn verify_txs_accepted_on_all_running_nodes(&self) {
         // We use state syncs processed txs metric via its monitoring client to verify that the
         // transactions were accepted.
-        let account = self.tx_generator.account_with_id(sender_account);
-        let expected_n_accepted_account_txs = nonce_to_usize(account.get_nonce());
+        let expected_n_accepted_account_txs: usize = self
+            .tx_generator
+            .accounts()
+            .iter()
+            .map(|account| nonce_to_usize(account.get_nonce()))
+            .sum();
         let expected_n_l1_handler_txs = self.tx_generator.n_l1_txs();
         let expected_n_accepted_txs = expected_n_accepted_account_txs + expected_n_l1_handler_txs;
 

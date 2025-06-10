@@ -16,3 +16,4 @@ papyrus_base_layer = { workspace = true, features = ["testing"] }
 serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
+tracing.workspace = true

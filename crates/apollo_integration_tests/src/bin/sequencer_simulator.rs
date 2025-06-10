@@ -7,8 +7,7 @@ use apollo_integration_tests::utils::{
     create_integration_test_tx_generator,
     ConsensusTxs,
     DeployAndInvokeTxs,
-    ACCOUNT_ID_0,
-    N_TXS_IN_FIRST_BLOCK,
+    N_TXS_WHEN_DEPLOYING_ACCOUNT,
 };
 use clap::Parser;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
@@ -75,10 +74,14 @@ async fn run_simulation(
                     // TODO(Arni): Add non-zero value.
                     n_l1_handler_txs: 0,
                 },
-                ACCOUNT_ID_0,
             )
             .await;
-        sequencer_simulator.await_txs_accepted(0, i * N_TXS + N_TXS_IN_FIRST_BLOCK).await;
+        sequencer_simulator
+            .await_txs_accepted(
+                0,
+                i * N_TXS + N_TXS_WHEN_DEPLOYING_ACCOUNT * tx_generator.accounts().len(),
+            )
+            .await;
 
         if !run_forever {
             break;
@@ -117,7 +120,7 @@ async fn main() -> anyhow::Result<()> {
 
     let args = Args::parse();
 
-    let mut tx_generator = create_integration_test_tx_generator();
+    let mut tx_generator = create_integration_test_tx_generator(1);
 
     let (http_port, monitoring_port) = get_ports(&args);
 
@@ -125,15 +128,17 @@ async fn main() -> anyhow::Result<()> {
         SequencerSimulator::new(args.http_url, http_port, args.monitoring_url, monitoring_port);
 
     info!("Sending deploy and invoke txs");
-    sequencer_simulator.send_txs(&mut tx_generator, &DeployAndInvokeTxs, ACCOUNT_ID_0).await;
+    sequencer_simulator
+        .send_txs(&mut tx_generator, &DeployAndInvokeTxs { num_of_accounts: 1 })
+        .await;
 
     // Wait for the deploy and invoke transaction to be accepted in a separate block.
-    sequencer_simulator.await_txs_accepted(0, N_TXS_IN_FIRST_BLOCK).await;
+    sequencer_simulator.await_txs_accepted(0, N_TXS_WHEN_DEPLOYING_ACCOUNT).await;
 
     run_simulation(&sequencer_simulator, &mut tx_generator, args.run_forever).await;
 
     // TODO(Nadin): pass node index as an argument.
-    sequencer_simulator.verify_txs_accepted(0, &mut tx_generator, ACCOUNT_ID_0).await;
+    sequencer_simulator.verify_txs_accepted(0, &mut tx_generator).await;
 
     info!("Simulation completed successfully");
 

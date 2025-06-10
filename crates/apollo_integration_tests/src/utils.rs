@@ -77,7 +77,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // Transactions per second sent to the gateway. This rate makes each block contain ~15 transactions
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
-pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
+pub const N_TXS_WHEN_DEPLOYING_ACCOUNT: usize = 2;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
@@ -88,7 +88,6 @@ pub trait TestScenario {
     fn create_txs(
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
-        account_id: AccountId,
     ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>);
 
     fn n_txs(&self) -> usize;
@@ -103,10 +102,15 @@ impl TestScenario for ConsensusTxs {
     fn create_txs(
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
-        account_id: AccountId,
     ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
         (
-            create_invoke_txs(tx_generator, account_id, self.n_invoke_txs),
+            (0..self.n_invoke_txs)
+                .map(|_| {
+                    let tx = tx_generator.current_account_mut().generate_invoke_with_tip(1);
+                    tx_generator.advance_account();
+                    tx
+                })
+                .collect(),
             create_l1_to_l2_messages_args(tx_generator, self.n_l1_handler_txs),
         )
     }
@@ -122,9 +126,9 @@ impl TestScenario for DeclareTx {
     fn create_txs(
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
-        account_id: AccountId,
     ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
-        let declare_tx = tx_generator.account_with_id_mut(account_id).generate_declare();
+        let declare_tx = tx_generator.current_account_mut().generate_declare();
+        tx_generator.advance_account();
         (vec![declare_tx], vec![])
     }
 
@@ -133,27 +137,32 @@ impl TestScenario for DeclareTx {
     }
 }
 
-pub struct DeployAndInvokeTxs;
+pub struct DeployAndInvokeTxs {
+    pub num_of_accounts: usize,
+}
 
 impl TestScenario for DeployAndInvokeTxs {
     fn create_txs(
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
-        account_id: AccountId,
     ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
-        let txs = create_deploy_account_tx_and_invoke_tx(tx_generator, account_id);
+        let mut txs = vec![];
+        for account_id in 0..self.num_of_accounts {
+            txs.extend(create_deploy_account_tx_and_invoke_tx(tx_generator, account_id));
+            tx_generator.advance_account();
+        }
         assert_eq!(
             txs.len(),
-            N_TXS_IN_FIRST_BLOCK,
+            self.n_txs(),
             "First block should contain exactly {} transactions, but {} transactions were created",
-            N_TXS_IN_FIRST_BLOCK,
+            self.n_txs(),
             txs.len(),
         );
         (txs, vec![])
     }
 
     fn n_txs(&self) -> usize {
-        N_TXS_IN_FIRST_BLOCK
+        N_TXS_WHEN_DEPLOYING_ACCOUNT * self.num_of_accounts
     }
 }
 
@@ -374,13 +383,16 @@ pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<Mem
 }
 
 /// Creates a multi-account transaction generator for the integration test.
-pub fn create_integration_test_tx_generator() -> MultiAccountTransactionGenerator {
+pub fn create_integration_test_tx_generator(
+    num_of_sender_accounts: usize,
+) -> MultiAccountTransactionGenerator {
     let mut tx_generator: MultiAccountTransactionGenerator =
         MultiAccountTransactionGenerator::new();
-
-    let account =
-        FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    tx_generator.register_undeployed_account(account, ContractAddressSalt(Felt::ZERO));
+    for felt in 0..num_of_sender_accounts {
+        let account =
+            FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
+        tx_generator.register_undeployed_account(account, ContractAddressSalt(Felt::from(felt)));
+    }
     tx_generator
 }
 
@@ -491,7 +503,6 @@ where
 /// Returns a list of the transaction hashes, in the order they are expected to be in the mempool.
 pub async fn send_consensus_txs<'a, 'b, FutA, FutB>(
     tx_generator: &mut MultiAccountTransactionGenerator,
-    account_id: AccountId,
     test_scenario: &impl TestScenario,
     send_rpc_tx_fn: &'a mut dyn Fn(RpcTransaction) -> FutA,
     send_l1_handler_tx_fn: &'b mut dyn Fn(L1ToL2MessageArgs) -> FutB,
@@ -503,7 +514,7 @@ where
     let n_txs = test_scenario.n_txs();
     info!("Sending {n_txs} txs.");
 
-    let (rpc_txs, l1_txs) = test_scenario.create_txs(tx_generator, account_id);
+    let (rpc_txs, l1_txs) = test_scenario.create_txs(tx_generator);
     let mut tx_hashes = Vec::new();
     let mut l1_handler_tx_hashes = Vec::new();
     for l1_tx in l1_txs {
