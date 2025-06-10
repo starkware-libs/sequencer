@@ -2,6 +2,8 @@
 #[path = "block_test.rs"]
 mod block_test;
 
+use std::ops::Deref;
+
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use size_of::SizeOf;
@@ -548,6 +550,20 @@ impl BlockTimestamp {
     }
     pub fn saturating_sub_seconds(self, rhs: u64) -> Self {
         Self(self.0.saturating_sub(rhs))
+    }
+}
+
+impl Deref for BlockTimestamp {
+    type Target = u64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<u64> for BlockTimestamp {
+    fn from(value: u64) -> Self {
+        Self(value)
     }
 }
 

@@ -243,7 +243,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             number: block.header.number,
             hash: block.header.hash.0,
             parent_hash: block.header.parent_hash.0,
-            timestamp: block.header.timestamp,
+            timestamp: block.header.timestamp.into(),
             base_fee_per_gas: base_fee.into(),
             blob_fee,
         }))

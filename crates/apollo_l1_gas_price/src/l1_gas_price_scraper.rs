@@ -14,7 +14,7 @@ use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderClient, PriceInf
 use async_trait::async_trait;
 use papyrus_base_layer::{BaseLayerContract, L1BlockHeader, L1BlockNumber};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockTimestamp, GasPrice};
+use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use thiserror::Error;
 use tracing::{error, info, warn};
@@ -162,7 +162,7 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                     return Ok(block_number);
                 }
             };
-            let timestamp = BlockTimestamp(header.timestamp);
+            let timestamp = header.timestamp;
             let price_info = PriceInfo {
                 base_fee_per_gas: GasPrice(header.base_fee_per_gas),
                 blob_fee: GasPrice(header.blob_fee),
