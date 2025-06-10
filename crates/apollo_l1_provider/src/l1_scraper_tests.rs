@@ -22,9 +22,9 @@ use papyrus_base_layer::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
 };
-use papyrus_base_layer::{L1BlockReference, MockBaseLayerContract};
+use papyrus_base_layer::{BaseLayerContract, L1BlockReference, MockBaseLayerContract};
 use rstest::{fixture, rstest};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::contract_address;
 use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
@@ -124,8 +124,18 @@ async fn txs_happy_flow() {
     );
 
     // Send the transactions.
+    let mut block_timestamps: Vec<BlockTimestamp> = Vec::with_capacity(2);
     for msg in &[message_to_l2_0, message_to_l2_1] {
-        msg.send().await.unwrap().get_receipt().await.unwrap();
+        let receipt = msg.send().await.unwrap().get_receipt().await.unwrap();
+        block_timestamps.push(
+            scraper
+                .base_layer
+                .get_block_header(receipt.block_number.unwrap())
+                .await
+                .unwrap()
+                .unwrap()
+                .timestamp,
+        );
     }
 
     const EXPECTED_VERSION: TransactionVersion = TransactionVersion(StarkHash::ZERO);
@@ -147,7 +157,8 @@ async fn txs_happy_flow() {
         tx: expected_internal_l1_tx,
         paid_fee_on_l1: Fee(0),
     };
-    let first_expected_log = Event::L1HandlerTransaction(tx.clone());
+    let first_expected_log =
+        Event::L1HandlerTransaction { l1_handler_tx: tx.clone(), timestamp: block_timestamps[0] };
 
     let expected_internal_l1_tx_2 = L1HandlerTransaction {
         nonce: Nonce(StarkHash::ONE),
@@ -156,13 +167,16 @@ async fn txs_happy_flow() {
         ),
         ..tx.tx
     };
-    let second_expected_log = Event::L1HandlerTransaction(ExecutableL1HandlerTransaction {
-        tx_hash: expected_internal_l1_tx_2
-            .calculate_transaction_hash(&scraper.config.chain_id, &EXPECTED_VERSION)
-            .unwrap(),
-        tx: expected_internal_l1_tx_2,
-        ..tx
-    });
+    let second_expected_log = Event::L1HandlerTransaction {
+        l1_handler_tx: ExecutableL1HandlerTransaction {
+            tx_hash: expected_internal_l1_tx_2
+                .calculate_transaction_hash(&scraper.config.chain_id, &EXPECTED_VERSION)
+                .unwrap(),
+            tx: expected_internal_l1_tx_2,
+            ..tx
+        },
+        timestamp: block_timestamps[1],
+    };
 
     // Assert.
     scraper.send_events_to_l1_provider().await.unwrap();

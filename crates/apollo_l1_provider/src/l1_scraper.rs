@@ -142,9 +142,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         // Used for debug.
         let l2_hashes = events.iter().filter_map(|event| match event {
-            Event::L1HandlerTransaction(l1_handler_transaction) => {
-                Some(l1_handler_transaction.tx_hash)
-            }
+            Event::L1HandlerTransaction { l1_handler_tx, .. } => Some(l1_handler_tx.tx_hash),
             _ => None,
         });
 
