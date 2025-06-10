@@ -28,7 +28,7 @@ pub async fn sleep_until(deadline: DateTime, clock: &dyn Clock) {
     tokio::time::sleep(duration_to_sleep).await;
 }
 
-#[derive(Clone, Default)]
-pub struct DefaultClock();
+#[derive(Clone, Copy, Default)]
+pub struct DefaultClock;
 
 impl Clock for DefaultClock {}
