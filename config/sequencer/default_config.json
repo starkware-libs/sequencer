@@ -1284,6 +1284,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "l1_provider_config.l1_handler_cancellation_timelock_seconds": {
+    "description": "How long to allow a transaction requested for cancellation to be validated against (proposals are banned upon receiving a cancellation request).",
+    "privacy": "Public",
+    "value": 0.0
+  },
   "l1_provider_config.new_l1_handler_cooldown_seconds": {
     "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately).",
     "privacy": "Public",
