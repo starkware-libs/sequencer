@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
 use crate::transaction::errors::NumericConversionError;
