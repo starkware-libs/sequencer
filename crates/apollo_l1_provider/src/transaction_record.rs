@@ -91,7 +91,7 @@ impl TransactionRecord {
     /// in all states in its lifecycle, except after it had already been added to block, or (to be
     /// implemented) a short time after it's cancellation was requested on L1.
     /// In particular, this includes states like: a rejected transaction, a new timelocked
-    /// transaction (to be implemented), a transaction whose cancellation was requested on L1 too
+    /// transaction, a transaction whose cancellation was requested on L1 too
     /// recently (there will be a timelock for this).
     pub fn is_validatable(&self) -> bool {
         !self.is_committed()

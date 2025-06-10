@@ -45,13 +45,16 @@ impl TransactionManager {
         self.rollback_staging();
     }
 
-    pub fn get_txs(&mut self, n_txs: usize) -> Vec<L1HandlerTransaction> {
+    pub fn get_txs(&mut self, n_txs: usize, now: u64) -> Vec<L1HandlerTransaction> {
+        let cutoff = now.saturating_sub(self.config.new_l1_handler_tx_cooldown_secs.as_secs());
+        let past_cooldown_txs = self.proposable_index.range(
+            ..ProposableCompositeKey {
+                block_timestamp: cutoff.into(),
+                tx_hash: Default::default(),
+            },
+        );
         // Linear scan, but we expect this to be a small number of transactions (< 10 roughly).
-        // Note: this scan will be even smaller once we add cooldown for txs (very soon!), which CAN
-        // efficiently skip the timelocked txs.
-        let unstaged_tx_hashes: Vec<_> = self
-            .proposable_index
-            .iter()
+        let unstaged_tx_hashes: Vec<_> = past_cooldown_txs
             .skip_while(|key| self.is_staged(key.tx_hash))
             .map(|key| key.tx_hash)
             .take(n_txs)
@@ -205,16 +208,9 @@ impl TransactionManager {
         records: Records,
         proposable_index: BTreeSet<ProposableCompositeKey>,
         current_epoch: StagingEpoch,
+        config: TransactionManagerConfig,
     ) -> Self {
-        Self {
-            records,
-            proposable_index,
-            current_staging_epoch: current_epoch,
-            config: TransactionManagerConfig {
-                // If we start testing this in-crate, pass the config as an arg.
-                new_l1_handler_tx_cooldown_secs: Duration::from_secs(0),
-            },
-        }
+        Self { records, proposable_index, current_staging_epoch: current_epoch, config }
     }
 }
 
