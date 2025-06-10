@@ -239,6 +239,7 @@ pub trait PreConfirmedBlockWriterFactoryTrait: Send + Sync {
         &self,
         block_number: BlockNumber,
         proposal_round: Round,
+        block_metadata: CendeBlockMetadata,
     ) -> (Box<dyn PreConfirmedBlockWriterTrait>, PreConfirmedTxSender, ExecutedTxSender);
 }
 
@@ -251,7 +252,8 @@ impl PreConfirmedBlockWriterFactoryTrait for PreConfirmedBlockWriterFactory {
     fn create(
         &self,
         block_number: BlockNumber,
-        proposal_round: Round,
+        round: Round,
+        block_metadata: CendeBlockMetadata,
     ) -> (Box<dyn PreConfirmedBlockWriterTrait>, PreConfirmedTxSender, ExecutedTxSender) {
         // Initialize channels for communication between the pre confirmed block writer and the
         // block builder.
@@ -262,12 +264,8 @@ impl PreConfirmedBlockWriterFactoryTrait for PreConfirmedBlockWriterFactory {
 
         let cende_client = self.cende_client.clone();
 
-        // TODO(noamsp): add the block metadata to the input.
-        let pre_confirmed_block_writer_input = PreConfirmedBlockWriterInput {
-            block_number,
-            round: proposal_round,
-            block_metadata: CendeBlockMetadata::empty_pending(),
-        };
+        let pre_confirmed_block_writer_input =
+            PreConfirmedBlockWriterInput { block_number, round, block_metadata };
 
         let pre_confirmed_block_writer = Box::new(PreConfirmedBlockWriter::new(
             pre_confirmed_block_writer_input,
