@@ -11,12 +11,14 @@ use apollo_l1_provider_types::InvalidValidationStatus::{
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
+    TransactionExecutionOutput,
     TransactionExecutorError,
     TransactionExecutorResult,
 };
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::fee::receipt::TransactionReceipt;
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -143,14 +145,14 @@ impl ExpectationHelper {
     ) {
         self.expect_add_txs_to_block_with_results(
             input_txs,
-            (0..n_results).map(|_| Ok(execution_info())).collect(),
+            (0..n_results).map(|_| Ok((execution_info(), StateMaps::default()))).collect(),
         );
     }
 
     fn expect_add_txs_to_block_with_results(
         &mut self,
         input_txs: &[InternalConsensusTransaction],
-        results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+        results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
     ) {
         let input_txs_cloned = input_txs.to_vec();
         self.mock_transaction_executor
@@ -258,7 +260,7 @@ fn mock_transaction_executor_with_delay(
         .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
         .return_once(move |_| {
             std::thread::sleep(std::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS));
-            (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect()
+            (0..TX_CHUNK_SIZE).map(move |_| Ok((execution_info(), StateMaps::default()))).collect()
         });
     mock_transaction_executor
 }
@@ -328,7 +330,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
                             StateError::OutOfRangeContractAddress,
                         ))
                     } else {
-                        Ok(execution_info())
+                        Ok((execution_info(), StateMaps::default()))
                     }
                 })
                 .collect(),
@@ -779,7 +781,7 @@ async fn failed_l1_handler_transaction_consumed() {
         &l1_handler_txs,
         vec![
             Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress)),
-            Ok(execution_info()),
+            Ok((execution_info(), StateMaps::default())),
         ],
     );
 

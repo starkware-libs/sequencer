@@ -19,6 +19,7 @@ use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransacti
 use blockifier::blockifier::config::WorkerPoolConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
+    TransactionExecutionOutput,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
 };
@@ -263,7 +264,7 @@ impl BlockBuilder {
     ) -> BlockBuilderResult<
         Option<(
             Vec<InternalConsensusTransaction>,
-            Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+            Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
         )>,
     > {
         let next_txs = match self.tx_provider.get_txs(self.tx_chunk_size).await {
@@ -318,7 +319,7 @@ impl BlockBuilder {
     async fn handle_executed_txs(
         &mut self,
         next_tx_chunk: Vec<InternalConsensusTransaction>,
-        results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+        results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
     ) -> BlockBuilderResult<bool> {
         trace!("Transaction execution results: {:?}", results);
         collect_execution_results_and_stream_txs(
@@ -386,7 +387,7 @@ async fn convert_to_executable_blockifier_tx(
 /// Returns true if the block is full and should be closed, false otherwise.
 async fn collect_execution_results_and_stream_txs(
     tx_chunk: Vec<InternalConsensusTransaction>,
-    results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+    results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
     l2_gas_used: &mut GasAmount,
     execution_data: &mut BlockTransactionExecutionData,
     output_content_sender: &Option<
@@ -421,7 +422,7 @@ async fn collect_execution_results_and_stream_txs(
         }
 
         match result {
-            Ok(tx_execution_info) => {
+            Ok((tx_execution_info, state_maps)) => {
                 *l2_gas_used = l2_gas_used
                     .checked_add(tx_execution_info.receipt.gas.l2_gas)
                     .expect("Total L2 gas overflow.");
@@ -442,8 +443,7 @@ async fn collect_execution_results_and_stream_txs(
                         &execution_data.execution_infos[&tx_hash],
                     ));
 
-                    // TODO(noamsp): Use the real state diff.
-                    let tx_state_diff = ThinStateDiff::default();
+                    let tx_state_diff = ThinStateDiff::from(state_maps);
 
                     // We continue with block building even if sending transaction hashes and
                     // receipts to The PreConfirmedBlockWriter fails because it
