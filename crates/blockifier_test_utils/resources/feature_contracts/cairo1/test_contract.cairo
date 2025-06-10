@@ -45,6 +45,13 @@ mod TestContract {
     }
 
     #[external(v0)]
+    fn test(ref self: ContractState, ref arg: felt252, arg1: felt252, arg2: felt252) -> felt252 {
+        let x = self.my_storage_var.read();
+        self.my_storage_var.write(x + 1);
+        x + 1
+    }
+
+    #[external(v0)]
     fn test_storage_read_write(
         self: @ContractState, address: StorageAddress, value: felt252
     ) -> felt252 {
