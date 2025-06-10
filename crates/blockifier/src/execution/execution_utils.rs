@@ -18,6 +18,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
@@ -44,6 +45,7 @@ use crate::execution::syscalls::hint_processor::{ENTRYPOINT_NOT_FOUND_ERROR, OUT
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
+use crate::utils::u64_from_usize;
 
 pub type Args = Vec<CairoArg>;
 
@@ -360,4 +362,86 @@ pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
     }
+}
+
+mod blake_cost {
+    // U-32 counts
+    pub const N_U32S_MESSAGE: usize = 16;
+    pub const N_U32S_BIG_FELT: usize = 8;
+    pub const N_U32S_SMALL_FELT: usize = 2;
+
+    // Steps counts
+    pub const STEPS_BIG_FELT: usize = 45;
+    pub const STEPS_SMALL_FELT: usize = 15;
+
+    // One-time segment setup cost (full vs partial)
+    pub const BASE_STEPS_FULL_MSG: usize = 217;
+    pub const BASE_STEPS_PARTIAL_MSG: usize = 195;
+    pub const STEPS_PER_2_U32_REMINDER: usize = 3;
+
+    // TODO(AvivG): This is a placeholder, add the actual gas cost for the BLAKE opcode
+    pub const BLAKE_OPCODE_GAS: usize = 0;
+}
+
+/// Estimates the number of VM steps needed to hash the given felts with Blake in Starknet OS.
+/// Each small felt unpacks into 2 u32s, and each big felt into 8 u32s.
+/// Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
+fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
+    let total_u32s =
+        n_big_felts * blake_cost::N_U32S_BIG_FELT + n_small_felts * blake_cost::N_U32S_SMALL_FELT;
+    let rem_u32s = total_u32s % blake_cost::N_U32S_MESSAGE;
+
+    let base_steps = if rem_u32s == 0 {
+        blake_cost::BASE_STEPS_FULL_MSG
+    } else {
+        // This computation is based on manual calculations of running blake2s with different
+        // inputs.
+        blake_cost::BASE_STEPS_PARTIAL_MSG + blake_cost::STEPS_PER_2_U32_REMINDER * (rem_u32s / 2)
+    };
+
+    n_big_felts * blake_cost::STEPS_BIG_FELT
+        + n_small_felts * blake_cost::STEPS_SMALL_FELT
+        + base_steps
+}
+
+/// Returns the number of BLAKE opcodes needed to hash the given felts.
+/// Each BLAKE opcode processes 16 u32s (partial messages are padded).
+fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
+    // Count the total number of u32s to be hashed.
+    let total_u32s =
+        n_big_felts * blake_cost::N_U32S_BIG_FELT + n_small_felts * blake_cost::N_U32S_SMALL_FELT;
+
+    let full_msgs = total_u32s / blake_cost::N_U32S_MESSAGE;
+    let has_partial = total_u32s % blake_cost::N_U32S_MESSAGE != 0;
+
+    if has_partial { full_msgs + 1 } else { full_msgs }
+}
+
+/// Estimates the VM resources for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
+/// Assumes small felts unpack into 2 u32s and big felts into 8 u32s, matching the logic of the OS
+/// function being estimated.
+pub fn cost_of_encode_felt252_data_and_calc_blake_hash<F>(
+    n_big_felts: usize,
+    n_small_felts: usize,
+    resources_to_gas_fn: F,
+) -> GasAmount
+where
+    F: Fn(&ExecutionResources) -> GasAmount,
+{
+    let n_steps = compute_blake_hash_steps(n_big_felts, n_small_felts);
+    let n_felts = n_big_felts + n_small_felts;
+    // One `range_check` per input felt to validate its size.
+    let builtins = HashMap::from([(BuiltinName::range_check, n_felts)]);
+    let resources =
+        ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter: builtins };
+    let gas = resources_to_gas_fn(&resources);
+
+    let blake_op_count = count_blake_opcode(n_big_felts, n_small_felts);
+    let blake_op_gas = blake_op_count
+        .checked_mul(blake_cost::BLAKE_OPCODE_GAS)
+        .map(u64_from_usize)
+        .map(GasAmount)
+        .expect("Overflow computing Blake opcode gas.");
+
+    gas.checked_add_panic_on_overflow(blake_op_gas)
 }
