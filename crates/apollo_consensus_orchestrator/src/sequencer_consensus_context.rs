@@ -47,7 +47,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
-use apollo_time::time_keeper::{sleep_until, Clock, DateTime};
+use apollo_time::time::{sleep_until, Clock, DateTime};
 use async_trait::async_trait;
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;

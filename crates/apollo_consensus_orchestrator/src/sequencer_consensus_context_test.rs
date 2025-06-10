@@ -52,7 +52,7 @@ use apollo_protobuf::consensus::{
     Vote,
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
-use apollo_time::time_keeper::{Clock, DefaultClock, MockClock};
+use apollo_time::time::{Clock, DefaultClock, MockClock};
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
 use futures::channel::oneshot::Canceled;
