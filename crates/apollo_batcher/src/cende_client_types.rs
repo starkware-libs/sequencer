@@ -180,6 +180,7 @@ impl
             l2_to_l1_messages,
             events,
             execution_resources,
+            actual_fee: tx_execution_info.receipt.fee,
             revert_error,
             ..Default::default()
         }
