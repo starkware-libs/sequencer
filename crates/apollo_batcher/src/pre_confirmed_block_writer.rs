@@ -7,16 +7,11 @@ use mockall::automock;
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
-use tracing::info;
 
 use crate::cende_client_types::{CendeBlockMetadata, StarknetClientTransactionReceipt};
 use crate::pre_confirmed_cende_client::{
-    CendeExecutedTxs,
-    CendePreConfirmedTxs,
-    CendeStartNewRound,
     PreConfirmedCendeClientError,
     PreConfirmedCendeClientTrait,
-    PreConfirmedTransactionData,
 };
 
 #[derive(Debug, Error)]
@@ -35,7 +30,7 @@ pub type ExecutedTxReceiver =
 pub type ExecutedTxSender =
     tokio::sync::mpsc::Sender<Vec<(TransactionHash, StarknetClientTransactionReceipt)>>;
 
-/// Coordinates the flow of pre-confirmed transaction data during block proposal.
+/// Coordinates the flow of pre-confirmed block data during block proposal.
 /// Listens for transaction updates from the block builder via dedicated channels and utilizes a
 /// Cende client to communicate the updates to the Cende recorder.
 #[async_trait]
@@ -45,10 +40,10 @@ pub trait PreConfirmedBlockWriterTrait: Send {
 }
 
 pub struct PreConfirmedBlockWriter {
-    pre_confirmed_block_writer_input: PreConfirmedBlockWriterInput,
-    pre_confirmed_tx_receiver: PreConfirmedTxReceiver,
-    executed_tx_receiver: ExecutedTxReceiver,
-    cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
+    _pre_confirmed_block_writer_input: PreConfirmedBlockWriterInput,
+    _pre_confirmed_tx_receiver: PreConfirmedTxReceiver,
+    _executed_tx_receiver: ExecutedTxReceiver,
+    _cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
 }
 
 impl PreConfirmedBlockWriter {
@@ -59,10 +54,10 @@ impl PreConfirmedBlockWriter {
         cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
     ) -> Self {
         Self {
-            pre_confirmed_block_writer_input,
-            pre_confirmed_tx_receiver,
-            executed_tx_receiver,
-            cende_client,
+            _pre_confirmed_block_writer_input: pre_confirmed_block_writer_input,
+            _pre_confirmed_tx_receiver: pre_confirmed_tx_receiver,
+            _executed_tx_receiver: executed_tx_receiver,
+            _cende_client: cende_client,
         }
     }
 }
@@ -70,55 +65,7 @@ impl PreConfirmedBlockWriter {
 #[async_trait]
 impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
     async fn run(&mut self) -> BlockWriterResult<()> {
-        self.cende_client
-            .send_start_new_round(CendeStartNewRound {
-                block_number: self.pre_confirmed_block_writer_input.block_number,
-                round: self.pre_confirmed_block_writer_input.round,
-            })
-            .await?;
-        loop {
-            // TODO(noamsp): Manage the sending process independently so it doesn't block the loop.
-            tokio::select! {
-                msg = { self.executed_tx_receiver.recv() } => {
-                    match msg {
-                        Some(txs) => self.cende_client
-                            .write_executed_txs(CendeExecutedTxs {
-                                block_number: self.pre_confirmed_block_writer_input.block_number,
-                                round: self.pre_confirmed_block_writer_input.round,
-                                executed_txs: txs.into_iter().map(|(tx_hash, tx_receipt)| (tx_hash, PreConfirmedTransactionData {
-                                    block_number: self.pre_confirmed_block_writer_input.block_number,
-                                    round: self.pre_confirmed_block_writer_input.round,
-                                    transaction_receipt: Some(tx_receipt),
-                                })).collect(),
-                            })
-                            .await?,
-                        None => {
-                            info!("Executed tx channel closed");
-                            break;
-                        }
-                    }
-                }
-                msg = { self.pre_confirmed_tx_receiver.recv() } => {
-                    match msg {
-                        Some(txs) => self.cende_client
-                            .write_pre_confirmed_txs(CendePreConfirmedTxs {
-                                block_number: self.pre_confirmed_block_writer_input.block_number,
-                                round: self.pre_confirmed_block_writer_input.round,
-                                pre_confirmed_txs: txs.into_iter().map(|tx_hash| (tx_hash, PreConfirmedTransactionData {
-                                    block_number: self.pre_confirmed_block_writer_input.block_number,
-                                    round: self.pre_confirmed_block_writer_input.round,
-                                    transaction_receipt: None,
-                                })).collect(),
-                            })
-                            .await?,
-                        None => {
-                            info!("Pre confirmed tx channel closed");
-                            break;
-                        }
-                    }
-                }
-            }
-        }
+        // TODO(noamsp): implement this.
         Ok(())
     }
 }
