@@ -44,7 +44,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
-use apollo_time::time_keeper::{sleep_until, Clock, DateTime};
+use apollo_time::time::{sleep_until, Clock, DateTime};
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::{SinkExt, StreamExt};
