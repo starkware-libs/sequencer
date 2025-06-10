@@ -27,6 +27,8 @@ pub struct ConsensusManagerConfig {
     pub proposals_topic: String,
     pub broadcast_buffer_size: usize,
     pub immediate_active_height: BlockNumber,
+    // Assumes all validators are honest. If true, uses 1/2 votes to get quorum. Use with caution!
+    pub assume_no_malicious_validators: bool,
 }
 
 impl SerializeConfig for ConsensusManagerConfig {
@@ -54,6 +56,13 @@ impl SerializeConfig for ConsensusManagerConfig {
                 "immediate_active_height",
                 &self.immediate_active_height,
                 "The height at which the node may actively participate in consensus.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "assume_no_malicious_validators",
+                &self.assume_no_malicious_validators,
+                "Assumes all validators are honest. If true, uses 1/2 votes to get quorum. Use \
+                 with caution!",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -88,6 +97,7 @@ impl Default for ConsensusManagerConfig {
             proposals_topic: "consensus_proposals".to_string(),
             broadcast_buffer_size: 10000,
             immediate_active_height: BlockNumber::default(),
+            assume_no_malicious_validators: false,
         }
     }
 }
