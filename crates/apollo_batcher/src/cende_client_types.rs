@@ -99,6 +99,7 @@ pub enum TransactionExecutionStatus {
     Reverted,
 }
 
+// TODO(Arni): Consider deleting derive default for this type. Same for members of this struct.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct StarknetClientTransactionReceipt {
@@ -122,17 +123,25 @@ pub struct StarknetClientTransactionReceipt {
 }
 
 // Conversion logic from blockifier types to StarknetClient types.
-impl From<(TransactionHash, usize, &TransactionExecutionInfo)>
-    for StarknetClientTransactionReceipt
+impl
+    From<(
+        TransactionHash,
+        // TODO(Arni): change the type of this parameter to TransactionOffsetInBlock
+        usize,
+        &TransactionExecutionInfo,
+    )> for StarknetClientTransactionReceipt
 {
     fn from(
-        (_tx_hash, _tx_index, _tx_execution_info): (
+        (tx_hash, tx_index, _tx_execution_info): (
             TransactionHash,
             usize,
             &TransactionExecutionInfo,
         ),
     ) -> Self {
-        // TODO(Arni): implement the conversion logic.
-        Self::default()
+        Self {
+            transaction_index: TransactionOffsetInBlock(tx_index),
+            transaction_hash: tx_hash,
+            ..Default::default()
+        }
     }
 }
