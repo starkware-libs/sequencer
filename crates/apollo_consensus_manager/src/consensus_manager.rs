@@ -161,7 +161,7 @@ impl ConsensusManager {
                     self.config.eth_to_strk_oracle_config.clone(),
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
-                clock: Arc::new(DefaultClock()),
+                clock: Arc::new(DefaultClock),
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
             },
