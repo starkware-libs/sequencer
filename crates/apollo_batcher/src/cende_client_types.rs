@@ -105,7 +105,7 @@ pub enum TransactionExecutionStatus {
 pub struct StarknetClientTransactionReceipt {
     pub transaction_index: TransactionOffsetInBlock,
     pub transaction_hash: TransactionHash,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub l1_to_l2_consumed_message: Option<L1ToL2Message>,
     pub l2_to_l1_messages: Vec<L2ToL1Message>,
     pub events: Vec<Event>,
