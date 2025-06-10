@@ -157,7 +157,7 @@ impl
     ) -> Self {
         let l2_to_l1_messages = get_l2_to_l1_messages(tx_execution_info);
         let events = get_events_from_execution_info(tx_execution_info);
-
+        let execution_resources = get_execution_resources(tx_execution_info);
         // TODO(Arni): I assume this is not the correct way to fill this field.
         let revert_error =
             tx_execution_info.revert_error.as_ref().map(|revert_error| revert_error.to_string());
@@ -169,6 +169,7 @@ impl
             l1_to_l2_consumed_message: None,
             l2_to_l1_messages,
             events,
+            execution_resources,
             revert_error,
             ..Default::default()
         }
@@ -223,4 +224,27 @@ fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> 
             content: event.clone(),
         })
         .collect()
+}
+
+fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> ExecutionResources {
+    let receipt = &execution_info.receipt;
+    let resources = &receipt.resources.computation.vm_resources;
+    let builtin_instance_counter = resources
+        .builtin_instance_counter
+        .iter()
+        .map(|(&builtin_name, &count)| {
+            (builtin_name.into(), count.try_into().expect("Failed to convert usize to u64"))
+        })
+        .collect();
+
+    ExecutionResources {
+        n_steps: resources.n_steps.try_into().expect("Failed to convert usize to u64"),
+        builtin_instance_counter,
+        n_memory_holes: resources
+            .n_memory_holes
+            .try_into()
+            .expect("Failed to convert usize to u64"),
+        data_availability: Some(receipt.da_gas),
+        total_gas_consumed: Some(receipt.gas),
+    }
 }
