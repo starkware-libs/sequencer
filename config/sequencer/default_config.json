@@ -814,6 +814,11 @@
     "privacy": "Public",
     "value": "localhost"
   },
+  "consensus_manager_config.assume_no_malicious_validators": {
+    "description": "Assumes all validators are honest. If true, uses 1/2 votes to get quorum. Use with caution!",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.broadcast_buffer_size": {
     "description": "The buffer size for the broadcast channel.",
     "privacy": "Public",

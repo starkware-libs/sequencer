@@ -85,6 +85,7 @@
   "consensus_manager_config.eth_to_strk_oracle_config.max_cache_size": 100,
   "consensus_manager_config.eth_to_strk_oracle_config.query_timeout_sec": 3,
   "consensus_manager_config.immediate_active_height": 1,
+  "consensus_manager_config.assume_no_malicious_validators": false,
   "consensus_manager_config.network_config.advertised_multiaddr": "",
   "consensus_manager_config.network_config.advertised_multiaddr.#is_none": true,
   "consensus_manager_config.network_config.broadcasted_message_metadata_buffer_size": 100000,
