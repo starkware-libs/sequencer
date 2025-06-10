@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 use std::mem;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use apollo_l1_provider_types::{
     Event,
@@ -10,6 +10,7 @@ use apollo_l1_provider_types::{
     SessionState,
     ValidationStatus,
 };
+use apollo_time::time::{Clock, DefaultClock};
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
@@ -25,7 +26,7 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::bootstrapper::CommitBlockBacklog;
 use crate::l1_provider::L1Provider;
-use crate::transaction_manager::{StagingEpoch, TransactionManager};
+use crate::transaction_manager::{StagingEpoch, TransactionManager, TransactionManagerConfig};
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
 use crate::{L1ProviderConfig, ProviderState};
 
@@ -38,10 +39,11 @@ pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
 pub struct L1ProviderContent {
-    config: L1ProviderConfig,
+    config: Option<L1ProviderConfig>,
     tx_manager_content: Option<TransactionManagerContent>,
     state: Option<ProviderState>,
     current_height: Option<BlockNumber>,
+    clock: Option<Arc<dyn Clock>>,
 }
 
 impl L1ProviderContent {
@@ -64,22 +66,24 @@ impl L1ProviderContent {
 impl From<L1ProviderContent> for L1Provider {
     fn from(content: L1ProviderContent) -> L1Provider {
         L1Provider {
+            config: content.config.unwrap_or_default(),
             tx_manager: content.tx_manager_content.map(Into::into).unwrap_or_default(),
             // Defaulting to Pending state, since a provider with a "default" Bootstrapper
             // is functionally equivalent to Pending for testing purposes.
             state: content.state.unwrap_or(ProviderState::Pending),
             current_height: content.current_height.unwrap_or_default(),
-            config: content.config,
+            clock: content.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
         }
     }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct L1ProviderContentBuilder {
-    config: L1ProviderConfig,
+    config: Option<L1ProviderConfig>,
     tx_manager_content_builder: TransactionManagerContentBuilder,
     state: Option<ProviderState>,
     current_height: Option<BlockNumber>,
+    clock: Option<Arc<dyn Clock>>,
 }
 
 impl L1ProviderContentBuilder {
@@ -88,12 +92,17 @@ impl L1ProviderContentBuilder {
     }
 
     pub fn with_config(mut self, config: L1ProviderConfig) -> Self {
-        self.config = config;
+        self.config = Some(config);
         self
     }
 
     pub fn with_state(mut self, state: ProviderState) -> Self {
         self.state = Some(state);
+        self
+    }
+
+    pub fn with_clock(mut self, clock: Arc<dyn Clock>) -> Self {
+        self.clock = Some(clock);
         self
     }
 
@@ -148,12 +157,20 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn build(self) -> L1ProviderContent {
+    pub fn build(mut self) -> L1ProviderContent {
+        if let Some(config) = self.config {
+            self.tx_manager_content_builder =
+                self.tx_manager_content_builder.with_config(TransactionManagerConfig {
+                    new_l1_handler_tx_cooldown_secs: config.new_l1_handler_cooldown_seconds,
+                });
+        };
+
         L1ProviderContent {
             config: self.config,
             tx_manager_content: self.tx_manager_content_builder.build(),
             state: self.state,
             current_height: self.current_height,
+            clock: self.clock,
         }
     }
 
@@ -169,6 +186,7 @@ struct TransactionManagerContent {
     pub uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     pub rejected: Option<Vec<L1HandlerTransaction>>,
     pub committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    pub config: Option<TransactionManagerConfig>,
 }
 
 impl TransactionManagerContent {
@@ -231,7 +249,12 @@ impl From<TransactionManagerContent> for TransactionManager {
         }
 
         let current_epoch = StagingEpoch::new();
-        TransactionManager::create_for_testing(records.into(), proposable_index, current_epoch)
+        TransactionManager::create_for_testing(
+            records.into(),
+            proposable_index,
+            current_epoch,
+            content.config.unwrap_or_default(),
+        )
     }
 }
 
@@ -240,6 +263,7 @@ struct TransactionManagerContentBuilder {
     uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     rejected: Option<Vec<L1HandlerTransaction>>,
     committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    config: Option<TransactionManagerConfig>,
 }
 
 impl TransactionManagerContentBuilder {
@@ -297,6 +321,11 @@ impl TransactionManagerContentBuilder {
         self
     }
 
+    fn with_config(mut self, config: TransactionManagerConfig) -> Self {
+        self.config = Some(config);
+        self
+    }
+
     fn build(self) -> Option<TransactionManagerContent> {
         if self.is_default() {
             return None;
@@ -306,6 +335,7 @@ impl TransactionManagerContentBuilder {
             uncommitted: self.uncommitted,
             committed: self.committed,
             rejected: self.rejected,
+            config: self.config,
         })
     }
 

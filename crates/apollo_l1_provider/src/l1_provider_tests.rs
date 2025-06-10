@@ -10,6 +10,7 @@ use apollo_l1_provider_types::SessionState::{
 };
 use apollo_l1_provider_types::{Event, InvalidValidationStatus, ValidationStatus};
 use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_time::time::MockClock;
 use assert_matches::assert_matches;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
@@ -22,7 +23,7 @@ use starknet_api::tx_hash;
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
 use crate::test_utils::{l1_handler, FakeL1ProviderClient, L1ProviderContentBuilder};
-use crate::ProviderState;
+use crate::{L1ProviderConfig, ProviderState};
 
 fn commit_block_no_rejected(
     l1_provider: &mut L1Provider,
@@ -581,4 +582,165 @@ fn get_txs_same_timestamp_returns_in_arrival_order() {
         expected,
         "Transactions with the same timestamp must be returned in order of arrival"
     );
+}
+
+#[test]
+fn get_txs_identical_timestamps() {
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let tx_3 = l1_handler(3);
+    let timestamp_1 = 1;
+    // Transaction 2 has the same timestamp as 1.
+    let timestamp_2 = timestamp_1;
+    let timestamp_3 = 2;
+
+    let l1_provider = L1ProviderContentBuilder::new()
+        .with_timed_txs([
+            (tx_1.clone(), timestamp_1),
+            (tx_2.clone(), timestamp_2),
+            (tx_3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose);
+
+    // Can get only one tx out of the two with the same timestamp.
+    assert_eq!(
+        l1_provider.clone().build_into_l1_provider().get_txs(1, BlockNumber(0)).unwrap(),
+        [tx_1.clone()]
+    );
+
+    assert_eq!(
+        l1_provider.build_into_l1_provider().get_txs(3, BlockNumber(0)).unwrap(),
+        [tx_1, tx_2, tx_3]
+    );
+}
+
+#[test]
+fn get_txs_timestamp_cutoff_all_eligible() {
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let tx_3 = l1_handler(3);
+    let timestamp_1 = 10;
+    let timestamp_2 = 20;
+    let timestamp_3 = 30;
+    let now = 1000_u64;
+    let cooldown = 1; // cutoff = now - cooldown = 1000 - 1 = 999
+    // All txs have timestamp >= cutoff (10,20,30 < 999), so all are eligible.
+
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+
+    let config = L1ProviderConfig {
+        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
+        ..Default::default()
+    };
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_timed_txs([
+            (tx_1.clone(), timestamp_1),
+            (tx_2.clone(), timestamp_2),
+            (tx_3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    let result = l1_provider.get_txs(10, BlockNumber(0)).unwrap();
+    assert_eq!(result, vec![tx_1.clone(), tx_2.clone(), tx_3.clone()]);
+}
+
+#[test]
+fn get_txs_timestamp_cutoff_some_eligible() {
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let tx_3 = l1_handler(3);
+    let timestamp_1 = 10;
+    let timestamp_2 = 20;
+    let timestamp_3 = 30;
+    let now = 35u64;
+    let cooldown = 20; // cutoff = now - cooldown = 35 - 20 = 15.
+    // Only tx_1 (timestamp_1=10) is eligible (10 < 15).
+
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+
+    let config = L1ProviderConfig {
+        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
+        ..Default::default()
+    };
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_timed_txs([
+            (tx_1.clone(), timestamp_1),
+            (tx_2.clone(), timestamp_2),
+            (tx_3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    let result = l1_provider.get_txs(10, BlockNumber(0)).unwrap();
+    assert_eq!(result, vec![tx_1.clone()]);
+}
+
+#[test]
+fn get_txs_timestamp_cutoff_none_eligible() {
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let timestamp_1 = 10;
+    let timestamp_2 = 20;
+    let now = 30u64;
+    let cooldown = 21; // cutoff = now - cooldown = 30 - 21 = 9.
+    // No txs have timestamp < cutoff (10,20 >= 9).
+
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+
+    let config = L1ProviderConfig {
+        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
+        ..Default::default()
+    };
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_timed_txs([(tx_1.clone(), timestamp_1), (tx_2.clone(), timestamp_2)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    let result = l1_provider.get_txs(10, BlockNumber(0)).unwrap();
+    assert_eq!(result, Vec::<_>::new());
+}
+
+#[test]
+fn get_txs_timestamp_cutoff_edge_case_at_cutoff() {
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let tx_3 = l1_handler(3);
+    let timestamp_1 = 10;
+    let timestamp_2 = 11;
+    let timestamp_3 = 9;
+    let now = 30u64;
+    let cooldown = 20; // cutoff = now - cooldown = 30 - 20 = 10
+    // Only tx_3 is eligible (timestamp_3 = 9 < 10).
+
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+
+    let config = L1ProviderConfig {
+        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
+        ..Default::default()
+    };
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_timed_txs([
+            (tx_1.clone(), timestamp_1),
+            (tx_2.clone(), timestamp_2),
+            (tx_3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    let result = l1_provider.get_txs(10, BlockNumber(0)).unwrap();
+    // Only tx_3 is eligible (timestamp_3=5 < 10)
+    assert_eq!(result, vec![tx_3.clone()]);
 }
