@@ -8,7 +8,7 @@ mod votes_threshold_test;
 /// For example, a threshold of 2/3 means that more than 2/3 of the total votes must be in favor.
 /// Note that if the number of votes is exactly equal to the denominator, the threshold is not met.
 /// If the total number of votes is zero, the threshold is not met.
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct VotesThreshold {
     numerator: u64,
     denominator: u64,
