@@ -46,14 +46,17 @@ impl TransactionManager {
         self.rollback_staging();
     }
 
-    pub fn get_txs(&mut self, n_txs: usize) -> Vec<L1HandlerTransaction> {
+    pub fn get_txs(&mut self, n_txs: usize, now: u64) -> Vec<L1HandlerTransaction> {
+        // Oldest        Now.sub(timelock)     Newest       Now
+        //  |<---  passed  --->|                 |           |
+        //  |<--- cooldown --->|                 |           |
+        // t-------------------------------------------------->
+        let cutoff = now.saturating_sub(self.config.new_l1_handler_tx_cooldown_secs.as_secs());
+        let past_cooldown_txs = self.proposable_index.range(..BlockTimestamp(cutoff));
+
         // Linear scan, but we expect this to be a small number of transactions (< 10 roughly).
-        // Note: this scan will be even smaller once we add cooldown for txs (very soon!), which CAN
-        // efficiently skip the timelocked txs.
-        let unstaged_tx_hashes: Vec<_> = self
-            .proposable_index
-            .values()
-            .flat_map(|vec| vec.iter())
+        let unstaged_tx_hashes: Vec<_> = past_cooldown_txs
+            .flat_map(|(_timestamp, tx_hashes)| tx_hashes.iter())
             .skip_while(|&&tx_hash| self.is_staged(tx_hash))
             .take(n_txs)
             .copied()
@@ -225,16 +228,9 @@ impl TransactionManager {
         records: Records,
         proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>>,
         current_epoch: StagingEpoch,
+        config: TransactionManagerConfig,
     ) -> Self {
-        Self {
-            records,
-            proposable_index,
-            current_staging_epoch: current_epoch,
-            config: TransactionManagerConfig {
-                // If we start testing this in-crate, pass the config as an arg.
-                new_l1_handler_tx_cooldown_secs: Duration::from_secs(0),
-            },
-        }
+        Self { records, proposable_index, current_staging_epoch: current_epoch, config }
     }
 }
 
