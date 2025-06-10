@@ -138,7 +138,7 @@ impl Default for MockDependencies {
             .returning(|_| Ok(()));
         let block_builder_factory = MockBlockBuilderFactoryTrait::new();
         let mut pre_confirmed_block_writer_factory = MockPreConfirmedBlockWriterFactoryTrait::new();
-        pre_confirmed_block_writer_factory.expect_create().returning(|_, _| {
+        pre_confirmed_block_writer_factory.expect_create().returning(|_, _, _| {
             let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
             let (non_working_executed_tx_sender, _) = tokio::sync::mpsc::channel(1);
             let mut mock_writer = Box::new(MockPreConfirmedBlockWriterTrait::new());
