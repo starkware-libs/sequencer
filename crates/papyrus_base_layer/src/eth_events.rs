@@ -40,6 +40,7 @@ pub fn parse_event(log: Log, block_timestamp: BlockTimestamp) -> EthereumBaseLay
         Starknet::StarknetEvents::MessageToL2CancellationStarted(event) => {
             Ok(L1Event::MessageToL2CancellationStarted {
                 cancelled_tx: EventData::try_from(event)?.into(),
+                cancellation_request_timestamp: block_timestamp,
             })
         }
         _ => Err(EthereumBaseLayerError::UnhandledL1Event(log)),
