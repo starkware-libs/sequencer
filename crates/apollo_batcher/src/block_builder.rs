@@ -42,7 +42,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use thiserror::Error;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
@@ -431,14 +431,16 @@ async fn collect_execution_results_and_stream_txs(
 
                 // We put dummy index for now because we need to infer the index from execution
                 // infos.
-                let mut starknet_client_tx_receipt =
-                    StarknetClientTransactionReceipt::from((tx_hash, 0, &tx_execution_info));
+                let mut starknet_client_tx_receipt = StarknetClientTransactionReceipt::from((
+                    tx_hash,
+                    TransactionOffsetInBlock(0),
+                    &tx_execution_info,
+                ));
 
                 let (tx_index, _) =
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
 
-                starknet_client_tx_receipt.transaction_index =
-                    starknet_api::transaction::TransactionOffsetInBlock(tx_index);
+                starknet_client_tx_receipt.transaction_index = TransactionOffsetInBlock(tx_index);
                 executed_txs.push((tx_hash, starknet_client_tx_receipt));
 
                 if let Some(output_content_sender) = output_content_sender {
