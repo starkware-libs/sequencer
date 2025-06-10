@@ -227,9 +227,15 @@ where
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Event {
-    L1HandlerTransaction { l1_handler_tx: L1HandlerTransaction, timestamp: BlockTimestamp },
+    L1HandlerTransaction {
+        l1_handler_tx: L1HandlerTransaction,
+        timestamp: BlockTimestamp,
+    },
     TransactionCanceled(EventData),
-    TransactionCancellationStarted(TransactionHash),
+    TransactionCancellationStarted {
+        tx_hash: TransactionHash,
+        cancellation_request_timestamp: BlockTimestamp,
+    },
     TransactionConsumed(EventData),
 }
 
@@ -242,12 +248,12 @@ impl Event {
             }
             L1Event::MessageToL2CancellationStarted {
                 cancelled_tx,
-                cancellation_request_timestamp: _not_used_yet,
+                cancellation_request_timestamp,
             } => {
                 let tx_hash =
                     cancelled_tx.calculate_transaction_hash(chain_id, &cancelled_tx.version)?;
 
-                Self::TransactionCancellationStarted(tx_hash)
+                Self::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp }
             }
             L1Event::MessageToL2Canceled(event_data) => Self::TransactionCanceled(event_data),
             L1Event::ConsumedMessageToL2(event_data) => Self::TransactionConsumed(event_data),
@@ -266,8 +272,13 @@ impl Display for Event {
                 )
             }
             Event::TransactionCanceled(data) => write!(f, "TransactionCanceled({})", data),
-            Event::TransactionCancellationStarted(data) => {
-                write!(f, "TransactionCancellationStarted({})", data)
+            Event::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp } => {
+                write!(
+                    f,
+                    "TransactionCancellationStarted(tx_hash={}, \
+                     cancellation_request_block_timestamp={})",
+                    tx_hash, cancellation_request_timestamp
+                )
             }
             Event::TransactionConsumed(data) => write!(f, "TransactionConsumed({})", data),
         }
