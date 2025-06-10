@@ -23,8 +23,8 @@ mod testing;
 mod testing_env_2;
 mod testing_env_3;
 
-pub(crate) const BASE_APP_CONFIG_PATH: &str = "config/sequencer/base_app_config.json";
-pub(crate) const CONFIG_BASE_DIR: &str = "config/sequencer/";
+pub(crate) const BASE_APP_CONFIG_PATH: &str = "crates/apollo_deployments/resources/base_app_config.json";
+pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
 const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 type DeploymentFn = fn() -> Vec<Deployment>;
