@@ -5,6 +5,9 @@
 #[allow(missing_docs)]
 pub mod sequencer_consensus_context;
 
+#[allow(missing_docs)]
+pub mod build_proposal;
+
 /// Centralized and decentralized communication types and functionality.
 #[allow(missing_docs)]
 pub mod cende;
