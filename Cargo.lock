@@ -9372,6 +9372,7 @@ dependencies = [
  "colored 3.0.0",
  "ethers",
  "ethers-core",
+ "futures",
  "mockall",
  "pretty_assertions",
  "serde",
