@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
 use crate::transaction::errors::NumericConversionError;
@@ -104,4 +105,10 @@ where
             })
             .or_insert_with(|| value.clone());
     }
+}
+
+pub fn add_gas(gas: &mut GasAmount, added_gas: GasAmount) {
+    *gas = gas.checked_add(added_gas).unwrap_or_else(|| {
+        panic!("add gas amount: overflow when adding {:?} to {:?}", added_gas, gas)
+    });
 }
