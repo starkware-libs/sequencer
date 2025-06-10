@@ -157,6 +157,12 @@ impl
         let l2_to_l1_messages = get_l2_to_l1_messages(tx_execution_info);
         let events = get_events_from_execution_info(tx_execution_info);
         let execution_resources = get_execution_resources(tx_execution_info);
+        let execution_status = if tx_execution_info.is_reverted() {
+            TransactionExecutionStatus::Reverted
+        } else {
+            TransactionExecutionStatus::Succeeded
+        };
+
         // TODO(Arni): I assume this is not the correct way to fill this field.
         let revert_error =
             tx_execution_info.revert_error.as_ref().map(|revert_error| revert_error.to_string());
@@ -170,8 +176,8 @@ impl
             events,
             execution_resources,
             actual_fee: tx_execution_info.receipt.fee,
+            execution_status,
             revert_error,
-            ..Default::default()
         }
     }
 }
