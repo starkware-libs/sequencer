@@ -348,8 +348,12 @@ impl BlockBuilder {
             .expect("Only a single task should use the executor.")
             .get_new_results();
 
-        info!("Finished execution of {} transactions.", results.len());
         trace!("Transaction execution results: {:?}", results);
+        if results.is_empty() {
+            return Ok(());
+        }
+
+        info!("Finished execution of {} transactions.", results.len());
 
         let old_n_executed_txs = self.n_executed_txs;
         self.n_executed_txs += results.len();
