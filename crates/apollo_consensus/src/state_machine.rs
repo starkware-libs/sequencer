@@ -21,6 +21,7 @@ use crate::metrics::{
     LABEL_NAME_TIMEOUT_REASON,
 };
 use crate::types::{ProposalCommitment, Round, ValidatorId};
+use crate::votes_threshold::{QuorumType, VotesThreshold};
 
 /// Events which the state machine sends/receives.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -66,8 +67,9 @@ pub struct StateMachine {
     id: ValidatorId,
     round: Round,
     step: Step,
-    quorum: u32,
-    round_skip_threshold: u32,
+    quorum: VotesThreshold,
+    round_skip_threshold: VotesThreshold,
+    total_weight: u64,
     is_observer: bool,
     // {round: (proposal_id, valid_round)}
     proposals: HashMap<Round, (Option<ProposalCommitment>, Option<Round>)>,
@@ -87,13 +89,14 @@ pub struct StateMachine {
 
 impl StateMachine {
     /// total_weight - the total voting weight of all validators for this height.
-    pub fn new(id: ValidatorId, total_weight: u32, is_observer: bool) -> Self {
+    pub fn new(id: ValidatorId, total_weight: u64, is_observer: bool) -> Self {
         Self {
             id,
             round: 0,
             step: Step::Propose,
-            quorum: (2 * total_weight / 3) + 1,
-            round_skip_threshold: total_weight / 3 + 1,
+            quorum: VotesThreshold::from_quorum_type(QuorumType::Byzantine), // 2/3 votes.
+            round_skip_threshold: VotesThreshold::from_skip_round(),         // 1/3 votes.
+            total_weight,
             is_observer,
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
@@ -112,8 +115,8 @@ impl StateMachine {
         self.round
     }
 
-    pub fn quorum_size(&self) -> u32 {
-        self.quorum
+    pub fn quorum_size(&self) -> u64 {
+        self.quorum.amount_required(self.total_weight)
     }
 
     /// Starts the state machine, effectively calling `StartRound(0)` from the paper. This is
@@ -460,7 +463,13 @@ impl StateMachine {
         if valid_round >= &self.round {
             return VecDeque::new();
         }
-        if !value_has_enough_votes(&self.prevotes, *valid_round, proposal_id, self.quorum) {
+        if !value_has_enough_votes(
+            &self.prevotes,
+            *valid_round,
+            proposal_id,
+            &self.quorum,
+            self.total_weight,
+        ) {
             return VecDeque::new();
         }
         let mut output = if proposal_id.is_some_and(|v| {
@@ -481,7 +490,7 @@ impl StateMachine {
         if self.step != Step::Prevote {
             return VecDeque::new();
         }
-        if !round_has_enough_votes(&self.prevotes, self.round, self.quorum) {
+        if !round_has_enough_votes(&self.prevotes, self.round, &self.quorum, self.total_weight) {
             return VecDeque::new();
         }
         // Getting mixed prevote quorum for the first time.
@@ -499,7 +508,13 @@ impl StateMachine {
         let Some((Some(proposal_id), _)) = self.proposals.get(&self.round) else {
             return VecDeque::new();
         };
-        if !value_has_enough_votes(&self.prevotes, self.round, &Some(*proposal_id), self.quorum) {
+        if !value_has_enough_votes(
+            &self.prevotes,
+            self.round,
+            &Some(*proposal_id),
+            &self.quorum,
+            self.total_weight,
+        ) {
             return VecDeque::new();
         }
         // Getting prevote quorum for the first time.
@@ -526,7 +541,13 @@ impl StateMachine {
         if self.step != Step::Prevote {
             return VecDeque::new();
         }
-        if !value_has_enough_votes(&self.prevotes, self.round, &None, self.quorum) {
+        if !value_has_enough_votes(
+            &self.prevotes,
+            self.round,
+            &None,
+            &self.quorum,
+            self.total_weight,
+        ) {
             return VecDeque::new();
         }
         let mut output = VecDeque::from([StateMachineEvent::Precommit(None, self.round)]);
@@ -536,7 +557,7 @@ impl StateMachine {
 
     // LOC 47 in the paper.
     fn maybe_initiate_timeout_precommit(&mut self) -> VecDeque<StateMachineEvent> {
-        if !round_has_enough_votes(&self.precommits, self.round, self.quorum) {
+        if !round_has_enough_votes(&self.precommits, self.round, &self.quorum, self.total_weight) {
             return VecDeque::new();
         }
         // Getting mixed precommit quorum for the first time.
@@ -551,7 +572,13 @@ impl StateMachine {
         let Some((Some(proposal_id), _)) = self.proposals.get(&round) else {
             return VecDeque::new();
         };
-        if !value_has_enough_votes(&self.precommits, round, &Some(*proposal_id), self.quorum) {
+        if !value_has_enough_votes(
+            &self.precommits,
+            round,
+            &Some(*proposal_id),
+            &self.quorum,
+            self.total_weight,
+        ) {
             return VecDeque::new();
         }
 
@@ -567,9 +594,17 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        if round_has_enough_votes(&self.prevotes, round, self.round_skip_threshold)
-            || round_has_enough_votes(&self.precommits, round, self.round_skip_threshold)
-        {
+        if round_has_enough_votes(
+            &self.prevotes,
+            round,
+            &self.round_skip_threshold,
+            self.total_weight,
+        ) || round_has_enough_votes(
+            &self.precommits,
+            round,
+            &self.round_skip_threshold,
+            self.total_weight,
+        ) {
             self.advance_to_round(round, leader_fn)
         } else {
             VecDeque::new()
@@ -580,16 +615,18 @@ impl StateMachine {
 fn round_has_enough_votes(
     votes: &HashMap<u32, HashMap<Option<ProposalCommitment>, u32>>,
     round: u32,
-    threshold: u32,
+    threshold: &VotesThreshold,
+    total: u64,
 ) -> bool {
-    votes.get(&round).map_or(0, |v| v.values().sum()) >= threshold
+    threshold.is_met(votes.get(&round).map_or(0, |v| v.values().sum()).into(), total)
 }
 
 fn value_has_enough_votes(
     votes: &HashMap<u32, HashMap<Option<ProposalCommitment>, u32>>,
     round: u32,
     value: &Option<ProposalCommitment>,
-    threshold: u32,
+    threshold: &VotesThreshold,
+    total: u64,
 ) -> bool {
-    votes.get(&round).map_or(0, |v| *v.get(value).unwrap_or(&0)) >= threshold
+    threshold.is_met(votes.get(&round).map_or(0, |v| *v.get(value).unwrap_or(&0)).into(), total)
 }

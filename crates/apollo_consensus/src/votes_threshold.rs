@@ -54,6 +54,14 @@ impl VotesThreshold {
         }
         amount * self.denominator > total * self.numerator
     }
+
+    pub fn amount_required(&self, total: u64) -> u64 {
+        if total == 0 {
+            return 0; // Avoid division by zero
+        }
+        // The +1 ensures that the required amount is strictly greater than the threshold
+        total * self.numerator / self.denominator + 1
+    }
 }
 
 pub enum QuorumType {

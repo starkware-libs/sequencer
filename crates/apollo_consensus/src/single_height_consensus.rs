@@ -184,7 +184,7 @@ impl SingleHeightConsensus {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
             u32::try_from(validators.len()).expect("Should have way less than u32::MAX validators");
-        let state_machine = StateMachine::new(id, n_validators, is_observer);
+        let state_machine = StateMachine::new(id, n_validators.into(), is_observer);
         Self {
             height,
             validators,
