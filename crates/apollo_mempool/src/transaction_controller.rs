@@ -91,6 +91,16 @@ impl TransactionPoolController {
         self.tx_pool.remove_txs_older_than(duration, exclude_txs)
     }
 
+    fn _has_nonce_gap(&self, address: ContractAddress, reference_nonce: Nonce) -> bool {
+        let lowest_remaining_nonce = self.tx_pool._get_lowest_nonce(address);
+        // If there are transactions with higher nonces than the reference nonce,
+        // then there's a gap at the reference nonce.
+        match lowest_remaining_nonce {
+            Some(lowest_remaining_nonce) => lowest_remaining_nonce > reference_nonce,
+            None => false,
+        }
+    }
+
     #[cfg(test)]
     pub fn tx_pool(&self) -> HashMap<TransactionHash, InternalRpcTransaction> {
         self.tx_pool.tx_pool()

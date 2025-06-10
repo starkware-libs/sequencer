@@ -1,0 +1,33 @@
+use std::sync::Arc;
+
+use pretty_assertions::assert_eq;
+use rstest::rstest;
+use starknet_api::{contract_address, nonce, tx_hash};
+
+use crate::test_utils::FakeClock;
+use crate::transaction_pool::TransactionPool;
+use crate::tx;
+
+#[rstest]
+fn test_get_lowest_nonce_tx() {
+    let mut pool = TransactionPool::new(Arc::new(FakeClock::default()));
+
+    let tx_address_0_nonce_1 = tx!(tx_hash: 1, address: "0x0", tx_nonce: 1);
+    let tx_address_0_nonce_3 = tx!(tx_hash: 2, address: "0x0", tx_nonce: 3);
+    let tx_address_1_nonce_0 = tx!(tx_hash: 3, address: "0x1", tx_nonce: 0);
+
+    pool.insert(tx_address_0_nonce_3.clone()).unwrap();
+    pool.insert(tx_address_0_nonce_1.clone()).unwrap();
+    pool.insert(tx_address_1_nonce_0.clone()).unwrap();
+
+    let lowest_address_0 = pool._get_lowest_nonce(contract_address!("0x0")).unwrap();
+    assert_eq!(lowest_address_0, nonce!(1));
+    let lowest_address_1 = pool._get_lowest_nonce(contract_address!("0x1")).unwrap();
+    assert_eq!(lowest_address_1, nonce!(0));
+    let lowest_none = pool._get_lowest_nonce(contract_address!("0x2"));
+    assert!(lowest_none.is_none());
+
+    pool.remove(tx_hash!(1)).unwrap();
+    let lowest_address_0_after_removal = pool._get_lowest_nonce(contract_address!("0x0")).unwrap();
+    assert_eq!(lowest_address_0_after_removal, nonce!(3));
+}
