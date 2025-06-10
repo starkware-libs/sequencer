@@ -27,8 +27,10 @@ pub struct TransactionRecord {
 }
 
 impl TransactionRecord {
-    pub fn new(payload: TransactionPayload, staged_epoch: StagingEpoch) -> Self {
-        Self { staged_epoch, ..Self::from(payload) }
+    /// Create a new transaction record from a transaction payload, epoch is 0 by default, allowing
+    /// the transaction to always be stageable, since the transaction manager's epoch starts at one.
+    pub fn new(payload: TransactionPayload) -> Self {
+        Self::from(payload)
     }
 
     pub fn get_unchecked(&self) -> &L1HandlerTransaction {

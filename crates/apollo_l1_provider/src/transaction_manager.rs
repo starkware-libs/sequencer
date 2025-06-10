@@ -157,10 +157,7 @@ impl TransactionManager {
     }
 
     fn create_record_if_not_exist(&mut self, hash: TransactionHash) -> bool {
-        self.records.insert(
-            hash,
-            TransactionRecord::new(hash.into(), self.current_staging_epoch.decrement()),
-        )
+        self.records.insert(hash, TransactionRecord::new(hash.into()))
     }
 
     fn is_staged(&self, tx_hash: TransactionHash) -> bool {
