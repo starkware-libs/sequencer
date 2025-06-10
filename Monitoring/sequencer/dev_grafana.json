@@ -898,21 +898,21 @@
       },
       {
         "title": "sierra_compiler_remote_msgs_received",
-        "description": "Counter of messages received by state sync remote server",
+        "description": "Counter of messages received by sierra compiler remote server",
         "type": "graph",
         "expr": "sierra_compiler_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
       },
       {
         "title": "sierra_compiler_remote_valid_msgs_received",
-        "description": "Counter of valid messages received by state sync remote server",
+        "description": "Counter of valid messages received by sierra compiler remote server",
         "type": "graph",
         "expr": "sierra_compiler_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
       },
       {
         "title": "sierra_compiler_remote_msgs_processed",
-        "description": "Counter of messages processed by state sync remote server",
+        "description": "Counter of messages processed by sierra compiler remote server",
         "type": "graph",
         "expr": "sierra_compiler_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}

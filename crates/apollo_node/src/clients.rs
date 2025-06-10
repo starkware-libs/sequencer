@@ -29,6 +29,18 @@ use apollo_gateway_types::communication::{
     SharedGatewayClient,
 };
 use apollo_infra::component_client::{Client, LocalComponentClient};
+use apollo_infra::metrics::{
+    RemoteClientMetrics,
+    BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
+    L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
+    MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
+    SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
+};
 use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
 use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
 use apollo_l1_provider::communication::{LocalL1ProviderClient, RemoteL1ProviderClient};
@@ -251,7 +263,8 @@ macro_rules! create_client {
         $channel_expr:expr,
         $remote_client_config:expr,
         $url:expr,
-        $port:expr
+        $port:expr,
+        $metrics:expr
     ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
@@ -260,8 +273,12 @@ macro_rules! create_client {
                 Client::new(local_client, None)
             }
             ReactiveComponentExecutionMode::Remote => {
-                let remote_client =
-                    Some(<$remote_client_type>::new($remote_client_config.clone(), $url, $port));
+                let remote_client = Some(<$remote_client_type>::new(
+                    $remote_client_config.clone(),
+                    $url,
+                    $port,
+                    $metrics,
+                ));
                 Client::new(None, remote_client)
             }
             ReactiveComponentExecutionMode::Disabled => Client::new(None, None),
@@ -274,6 +291,7 @@ pub fn create_node_clients(
     channels: &mut SequencerNodeCommunication,
 ) -> SequencerNodeClients {
     info!("Creating node clients.");
+    let batcher_remote_metrics = RemoteClientMetrics::new(&BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS);
     let batcher_client = create_client!(
         &config.components.batcher.execution_mode,
         LocalBatcherClient,
@@ -281,9 +299,12 @@ pub fn create_node_clients(
         channels.take_batcher_tx(),
         &config.components.batcher.remote_client_config,
         &config.components.batcher.url,
-        config.components.batcher.port
+        config.components.batcher.port,
+        batcher_remote_metrics
     );
 
+    let class_manager_remote_metrics =
+        RemoteClientMetrics::new(&CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS);
     let class_manager_client = create_client!(
         &config.components.class_manager.execution_mode,
         LocalClassManagerClient,
@@ -291,9 +312,11 @@ pub fn create_node_clients(
         channels.take_class_manager_tx(),
         &config.components.class_manager.remote_client_config,
         &config.components.class_manager.url,
-        config.components.class_manager.port
+        config.components.class_manager.port,
+        class_manager_remote_metrics
     );
 
+    let gateway_remote_metrics = RemoteClientMetrics::new(&GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS);
     let gateway_client = create_client!(
         &config.components.gateway.execution_mode,
         LocalGatewayClient,
@@ -301,9 +324,12 @@ pub fn create_node_clients(
         channels.take_gateway_tx(),
         &config.components.gateway.remote_client_config,
         &config.components.gateway.url,
-        config.components.gateway.port
+        config.components.gateway.port,
+        gateway_remote_metrics
     );
 
+    let l1_provider_remote_metrics =
+        RemoteClientMetrics::new(&L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS);
     let l1_provider_client = create_client!(
         &config.components.l1_provider.execution_mode,
         LocalL1ProviderClient,
@@ -311,9 +337,12 @@ pub fn create_node_clients(
         channels.take_l1_provider_tx(),
         &config.components.l1_provider.remote_client_config,
         &config.components.l1_provider.url,
-        config.components.l1_provider.port
+        config.components.l1_provider.port,
+        l1_provider_remote_metrics
     );
 
+    let l1_gas_price_provider_remote_metrics =
+        RemoteClientMetrics::new(&L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS);
     let l1_gas_price_client = create_client!(
         &config.components.l1_gas_price_provider.execution_mode,
         LocalL1GasPriceClient,
@@ -321,9 +350,11 @@ pub fn create_node_clients(
         channels.take_l1_gas_price_tx(),
         &config.components.l1_gas_price_provider.remote_client_config,
         &config.components.l1_gas_price_provider.url,
-        config.components.l1_gas_price_provider.port
+        config.components.l1_gas_price_provider.port,
+        l1_gas_price_provider_remote_metrics
     );
 
+    let mempool_remote_metrics = RemoteClientMetrics::new(&MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS);
     let mempool_client = create_client!(
         &config.components.mempool.execution_mode,
         LocalMempoolClient,
@@ -331,9 +362,12 @@ pub fn create_node_clients(
         channels.take_mempool_tx(),
         &config.components.mempool.remote_client_config,
         &config.components.mempool.url,
-        config.components.mempool.port
+        config.components.mempool.port,
+        mempool_remote_metrics
     );
 
+    let mempool_p2p_remote_metrics =
+        RemoteClientMetrics::new(&MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS);
     let mempool_p2p_propagator_client = create_client!(
         &config.components.mempool_p2p.execution_mode,
         LocalMempoolP2pPropagatorClient,
@@ -341,9 +375,12 @@ pub fn create_node_clients(
         channels.take_mempool_p2p_propagator_tx(),
         &config.components.mempool_p2p.remote_client_config,
         &config.components.mempool_p2p.url,
-        config.components.mempool_p2p.port
+        config.components.mempool_p2p.port,
+        mempool_p2p_remote_metrics
     );
 
+    let sierra_compiler_remote_metrics =
+        RemoteClientMetrics::new(&SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS);
     let sierra_compiler_client = create_client!(
         &config.components.sierra_compiler.execution_mode,
         LocalSierraCompilerClient,
@@ -351,9 +388,12 @@ pub fn create_node_clients(
         channels.take_sierra_compiler_tx(),
         &config.components.sierra_compiler.remote_client_config,
         &config.components.sierra_compiler.url,
-        config.components.sierra_compiler.port
+        config.components.sierra_compiler.port,
+        sierra_compiler_remote_metrics
     );
 
+    let state_sync_remote_metrics =
+        RemoteClientMetrics::new(&STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS);
     let state_sync_client = create_client!(
         &config.components.state_sync.execution_mode,
         LocalStateSyncClient,
@@ -361,7 +401,8 @@ pub fn create_node_clients(
         channels.take_state_sync_tx(),
         &config.components.state_sync.remote_client_config,
         &config.components.state_sync.url,
-        config.components.state_sync.port
+        config.components.state_sync.port,
+        state_sync_remote_metrics
     );
 
     SequencerNodeClients {
