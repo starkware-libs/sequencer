@@ -6,3 +6,5 @@ pub mod snos_deprecated_syscall_executor;
 pub mod snos_hint_processor;
 pub mod snos_syscall_executor;
 pub mod state_update_pointers;
+#[cfg(feature = "test_hint")]
+pub mod test_hint;

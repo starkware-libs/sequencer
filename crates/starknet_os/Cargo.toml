@@ -13,6 +13,7 @@ deserialize = [
   "starknet-types-core/serde",
   "starknet_patricia/deserialize",
 ]
+test_hint = []
 testing = ["blockifier/testing", "starknet_patricia/testing"]
 
 [dependencies]
