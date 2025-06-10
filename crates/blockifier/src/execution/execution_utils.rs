@@ -363,3 +363,24 @@ pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
         builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
     }
 }
+
+/// Estimates the VM resources required for running `encode_felt252_data_and_calc_blake_hash` in
+/// the Starknet OS.
+///
+/// This estimator currently assumes every felt252 unpacks into 8-u32 (not accounting for 2-u32
+/// optimization for small-felts).
+pub fn encode_felt252_data_and_calc_blake_hash_cost(data_length: usize) -> ExecutionResources {
+    // Every 2 (large) felts complete a 16-u32s message that is passed to the blake hash.
+    const STEPS_PER_TWO_FELTS: usize = 90;
+    // Extra odd felt (8-u32s) is padded with zeros to complete a 16-u32s message.
+    const STEPS_FOR_ODD_FELT: usize = 55;
+
+    let full_pairs = data_length / 2;
+    let has_odd = data_length % 2;
+
+    ExecutionResources {
+        n_steps: full_pairs * STEPS_PER_TWO_FELTS + has_odd * STEPS_FOR_ODD_FELT,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::from([(BuiltinName::range_check, data_length)]),
+    }
+}
