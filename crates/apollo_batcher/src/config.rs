@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
 use crate::block_builder::BlockBuilderConfig;
+use crate::pre_confirmed_block_writer::PreConfirmedBlockWriterConfig;
 use crate::pre_confirmed_cende_client::PreConfirmedCendeConfig;
 
 /// The batcher related configuration.
@@ -17,7 +18,7 @@ pub struct BatcherConfig {
     pub outstream_content_buffer_size: usize,
     pub input_stream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
-    pub pre_confirmed_block_writer_channel_capacity: usize,
+    pub pre_confirmed_block_writer_config: PreConfirmedBlockWriterConfig,
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
     pub pre_confirmed_cende_config: PreConfirmedCendeConfig,
@@ -46,18 +47,15 @@ impl SerializeConfig for BatcherConfig {
                 "The maximum number of L1 handler transactions to include in a block proposal.",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "pre_confirmed_block_writer_channel_capacity",
-                &self.pre_confirmed_block_writer_channel_capacity,
-                "Capacity of the channels for communication between the pre confirmed block \
-                 writer and the block builder.",
-                ParamPrivacyInput::Public,
-            ),
         ]);
         dump.append(&mut prepend_sub_config_name(self.storage.dump(), "storage"));
         dump.append(&mut prepend_sub_config_name(
             self.block_builder_config.dump(),
             "block_builder_config",
+        ));
+        dump.append(&mut prepend_sub_config_name(
+            self.pre_confirmed_block_writer_config.dump(),
+            "pre_confirmed_block_writer_config",
         ));
         dump.append(&mut prepend_sub_config_name(
             self.contract_class_manager_config.dump(),
@@ -87,7 +85,7 @@ impl Default for BatcherConfig {
             outstream_content_buffer_size: 100,
             input_stream_content_buffer_size: 400,
             block_builder_config: BlockBuilderConfig::default(),
-            pre_confirmed_block_writer_channel_capacity: 1000,
+            pre_confirmed_block_writer_config: PreConfirmedBlockWriterConfig::default(),
             contract_class_manager_config: ContractClassManagerConfig::default(),
             max_l1_handler_txs_per_block_proposal: 3,
             pre_confirmed_cende_config: PreConfirmedCendeConfig::default(),
