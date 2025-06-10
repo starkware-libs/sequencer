@@ -104,6 +104,8 @@ pub struct L1ProviderConfig {
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub startup_sync_sleep_retry_interval_seconds: Duration,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub l1_handler_cancellation_timelock_seconds: Duration,
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub new_l1_handler_cooldown_seconds: Duration,
 }
 
@@ -114,6 +116,13 @@ impl SerializeConfig for L1ProviderConfig {
                 "startup_sync_sleep_retry_interval_seconds",
                 &self.startup_sync_sleep_retry_interval_seconds.as_secs_f64(),
                 "Interval in seconds between each retry of syncing with L2 during startup.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "l1_handler_cancellation_timelock_seconds",
+                &self.l1_handler_cancellation_timelock_seconds.as_secs_f64(),
+                "How long to allow a transaction requested for cancellation to be validated \
+                 against (proposals are banned upon receiving a cancellation request).",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
