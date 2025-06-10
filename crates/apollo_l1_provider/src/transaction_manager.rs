@@ -1,13 +1,13 @@
+use std::collections::BTreeSet;
 use std::ops::{Deref, Sub};
 use std::time::Duration;
 
 use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
-use indexmap::IndexSet;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
-use crate::transaction_record::{Records, TransactionRecord, TransactionState};
+use crate::transaction_record::{Records, TransactionPayload, TransactionRecord, TransactionState};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TransactionManager {
@@ -17,7 +17,10 @@ pub struct TransactionManager {
     pub config: TransactionManagerConfig,
     /// Invariant: contains all hashes of transactions that are proposable, and only them.
     /// Structure: [staged_tx1, staged_tx2, ..., staged_txN, unstaged_tx1, unstaged_tx2, ...]
-    proposable_index: IndexSet<TransactionHash>,
+    /// Ordered lexicographically by block timestamp, then tx hash, allowing an efficient
+    /// sort-by-time with duplicates (using btreemap with vec<tx_hash> is worse on both
+    /// performance and simplicity).
+    proposable_index: BTreeSet<ProposableCompositeKey>,
     /// Generation counter used to prevent double usage of an l1 handler transaction in a single
     /// block.
     /// Calling `get_txs` or `validate_tx` tags the touched transactions with the current block
@@ -43,11 +46,16 @@ impl TransactionManager {
     }
 
     pub fn get_txs(&mut self, n_txs: usize) -> Vec<L1HandlerTransaction> {
-        let first_unstaged_index =
-            self.proposable_index.partition_point(|&tx_hash| self.is_staged(tx_hash));
-
-        let unstaged_tx_hashes: Vec<_> =
-            self.proposable_index[first_unstaged_index..].iter().copied().take(n_txs).collect();
+        // Linear scan, but we expect this to be a small number of transactions (< 10 roughly).
+        // Note: this scan will be even smaller once we add cooldown for txs (very soon!), which CAN
+        // efficiently skip the timelocked txs.
+        let unstaged_tx_hashes: Vec<_> = self
+            .proposable_index
+            .iter()
+            .skip_while(|key| self.is_staged(key.tx_hash))
+            .map(|key| key.tx_hash)
+            .take(n_txs)
+            .collect();
 
         let mut txs = Vec::with_capacity(n_txs);
         let current_staging_epoch = self.current_staging_epoch; // borrow-checker constraint.
@@ -179,10 +187,15 @@ impl TransactionManager {
 
     fn maintain_index(&mut self, hash: TransactionHash) {
         if let Some(record) = self.records.get(&hash) {
+            let TransactionPayload::Full { created_at_block, .. } = &record.tx else {
+                return;
+            };
+
+            let key = ProposableCompositeKey { block_timestamp: *created_at_block, tx_hash: hash };
             if record.is_proposable() {
-                self.proposable_index.insert(hash);
+                self.proposable_index.insert(key);
             } else {
-                self.proposable_index.shift_remove(&hash);
+                self.proposable_index.remove(&key);
             }
         }
     }
@@ -190,7 +203,7 @@ impl TransactionManager {
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing(
         records: Records,
-        proposable_index: IndexSet<TransactionHash>,
+        proposable_index: BTreeSet<ProposableCompositeKey>,
         current_epoch: StagingEpoch,
     ) -> Self {
         Self {
@@ -268,4 +281,16 @@ pub struct TransactionManagerConfig {
     // How long to wait before allowing new L1 handler transactions to be proposed (validation is
     // available immediately).
     pub new_l1_handler_tx_cooldown_secs: Duration,
+}
+
+/// Used as a composite key in a set. Note that the ordering of fields significant due to the
+/// induced lexicographic ordering from derived `PartialOrd`.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ProposableCompositeKey {
+    /// `PartialOrd` uses this is the primary key for ordering since it appears first in the
+    /// struct.
+    pub block_timestamp: BlockTimestamp,
+    /// `PartialOrd` uses this is the secondary key for sorting since it appears second in the
+    /// struct.
+    pub tx_hash: TransactionHash,
 }

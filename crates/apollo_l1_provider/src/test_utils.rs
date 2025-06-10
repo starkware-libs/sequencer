@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::mem;
 use std::sync::Mutex;
 
@@ -24,7 +25,7 @@ use starknet_api::transaction::TransactionHash;
 
 use crate::bootstrapper::CommitBlockBacklog;
 use crate::l1_provider::L1Provider;
-use crate::transaction_manager::{StagingEpoch, TransactionManager};
+use crate::transaction_manager::{ProposableCompositeKey, StagingEpoch, TransactionManager};
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
 use crate::ProviderState;
 
@@ -194,10 +195,13 @@ impl From<TransactionManagerContent> for TransactionManager {
 
         let mut records = IndexMap::with_capacity(pending.len() + rejected.len() + committed.len());
 
-        for pending_tx in pending {
-            let tx_hash = pending_tx.tx.tx_hash;
-            let record = TransactionRecord::from(pending_tx);
+        let mut proposable_index = BTreeSet::new();
+        for timed_tx in pending {
+            let tx_hash = timed_tx.tx.tx_hash;
+            let block_timestamp = timed_tx.timestamp;
+            let record = TransactionRecord::from(timed_tx);
             assert_eq!(records.insert(tx_hash, record), None);
+            assert!(proposable_index.insert(ProposableCompositeKey { block_timestamp, tx_hash }));
         }
 
         for rejected_tx in rejected {
@@ -216,10 +220,6 @@ impl From<TransactionManagerContent> for TransactionManager {
             assert_eq!(records.insert(tx_hash, record), None);
         }
 
-        let proposable_index = records
-            .iter()
-            .filter_map(|(&tx_hash, record)| record.is_proposable().then_some(tx_hash))
-            .collect();
         let current_epoch = StagingEpoch::new();
         TransactionManager::create_for_testing(records.into(), proposable_index, current_epoch)
     }
