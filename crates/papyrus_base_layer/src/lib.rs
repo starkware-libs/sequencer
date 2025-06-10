@@ -100,8 +100,15 @@ pub struct L1BlockHeader {
 pub enum L1Event {
     ConsumedMessageToL2(EventData),
     // TODO(Arni): Consider adding the l1_tx_hash to all variants of L1 Event.
-    LogMessageToL2 { tx: L1HandlerTransaction, fee: Fee, l1_tx_hash: Option<FixedBytes<32>> },
-    MessageToL2CancellationStarted { cancelled_tx: L1HandlerTransaction },
+    LogMessageToL2 {
+        tx: L1HandlerTransaction,
+        fee: Fee,
+        l1_tx_hash: Option<FixedBytes<32>>,
+        timestamp: BlockTimestamp,
+    },
+    MessageToL2CancellationStarted {
+        cancelled_tx: L1HandlerTransaction,
+    },
     MessageToL2Canceled(EventData),
 }
 
