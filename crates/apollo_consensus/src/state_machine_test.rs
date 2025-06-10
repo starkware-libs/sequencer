@@ -25,7 +25,7 @@ struct TestWrapper<LeaderFn: Fn(Round) -> ValidatorId> {
 }
 
 impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
-    pub fn new(id: ValidatorId, total_weight: u32, leader_fn: LeaderFn, is_observer: bool) -> Self {
+    pub fn new(id: ValidatorId, total_weight: u64, leader_fn: LeaderFn, is_observer: bool) -> Self {
         Self {
             state_machine: StateMachine::new(id, total_weight, is_observer),
             leader_fn,
@@ -283,7 +283,7 @@ fn prevote_when_receiving_proposal_in_current_round() {
 
 #[test_case(true ; "send_proposal")]
 #[test_case(false ; "send_timeout_propose")]
-fn mixed_quorum(send_prposal: bool) {
+fn mixed_quorum(send_proposal: bool) {
     let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false);
 
     wrapper.start();
@@ -291,7 +291,7 @@ fn mixed_quorum(send_prposal: bool) {
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
     assert!(wrapper.events.is_empty());
 
-    if send_prposal {
+    if send_proposal {
         wrapper.send_proposal(PROPOSAL_ID, ROUND);
         assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::Prevote(PROPOSAL_ID, ROUND));
     } else {
