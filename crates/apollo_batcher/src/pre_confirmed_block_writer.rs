@@ -1,13 +1,17 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::Round;
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::state::ThinStateDiff;
@@ -62,6 +66,7 @@ pub struct PreConfirmedBlockWriter {
     pre_confirmed_tx_receiver: PreConfirmedTxReceiver,
     executed_tx_receiver: ExecutedTxReceiver,
     cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
+    write_block_interval_millis: u64,
 }
 
 impl PreConfirmedBlockWriter {
@@ -70,12 +75,14 @@ impl PreConfirmedBlockWriter {
         pre_confirmed_tx_receiver: PreConfirmedTxReceiver,
         executed_tx_receiver: ExecutedTxReceiver,
         cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
+        write_block_interval_millis: u64,
     ) -> Self {
         Self {
             pre_confirmed_block_writer_input,
             pre_confirmed_tx_receiver,
             executed_tx_receiver,
             cende_client,
+            write_block_interval_millis,
         }
     }
 
@@ -122,8 +129,8 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
         > = IndexMap::new();
 
         let mut pending_tasks = FuturesUnordered::new();
-        // TODO(noamsp): make this configurable.
-        let mut write_executed_txs_timer = tokio::time::interval(Duration::from_millis(50));
+        let mut write_executed_txs_timer =
+            tokio::time::interval(Duration::from_millis(self.write_block_interval_millis));
 
         // We initially mark that we have pending changes so that the client will write to the
         // Cende recorder that a new proposal round has started.
@@ -194,6 +201,38 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
     }
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, Debug, Copy)]
+pub struct PreConfirmedBlockWriterConfig {
+    pub channel_buffer_capacity: usize,
+    pub write_block_interval_millis: u64,
+}
+
+impl Default for PreConfirmedBlockWriterConfig {
+    fn default() -> Self {
+        Self { channel_buffer_capacity: 1000, write_block_interval_millis: 50 }
+    }
+}
+
+impl SerializeConfig for PreConfirmedBlockWriterConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from_iter([
+            ser_param(
+                "channel_buffer_capacity",
+                &self.channel_buffer_capacity,
+                "The capacity of the channel buffer for receiving pre-confirmed transactions.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "write_block_interval_millis",
+                &self.write_block_interval_millis,
+                "Time interval (ms) between writing pre-confirmed blocks. Writes occur only when \
+                 block data changes.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
+}
+
 #[cfg_attr(test, automock)]
 pub trait PreConfirmedBlockWriterFactoryTrait: Send + Sync {
     fn create(
@@ -204,7 +243,7 @@ pub trait PreConfirmedBlockWriterFactoryTrait: Send + Sync {
 }
 
 pub struct PreConfirmedBlockWriterFactory {
-    pub channel_capacity: usize,
+    pub config: PreConfirmedBlockWriterConfig,
     pub cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
 }
 
@@ -217,9 +256,9 @@ impl PreConfirmedBlockWriterFactoryTrait for PreConfirmedBlockWriterFactory {
         // Initialize channels for communication between the pre confirmed block writer and the
         // block builder.
         let (executed_tx_sender, executed_tx_receiver) =
-            tokio::sync::mpsc::channel(self.channel_capacity);
+            tokio::sync::mpsc::channel(self.config.channel_buffer_capacity);
         let (pre_confirmed_tx_sender, pre_confirmed_tx_receiver) =
-            tokio::sync::mpsc::channel(self.channel_capacity);
+            tokio::sync::mpsc::channel(self.config.channel_buffer_capacity);
 
         let cende_client = self.cende_client.clone();
 
@@ -235,6 +274,7 @@ impl PreConfirmedBlockWriterFactoryTrait for PreConfirmedBlockWriterFactory {
             pre_confirmed_tx_receiver,
             executed_tx_receiver,
             cende_client,
+            self.config.write_block_interval_millis,
         ));
         (pre_confirmed_block_writer, pre_confirmed_tx_sender, executed_tx_sender)
     }
