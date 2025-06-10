@@ -363,3 +363,46 @@ pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
         builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
     }
 }
+
+mod blake_cost {
+    // U-32 counts
+    pub const N_U32S_MESSAGE: usize = 16;
+    pub const N_U32S_BIG_FELT: usize = 8;
+    pub const N_U32S_SMALL_FELT: usize = 2;
+
+    // Steps counts
+    pub const STEPS_BIG_FELT: usize = 45;
+    pub const STEPS_SMALL_FELT: usize = 15;
+
+    // One-time segment setup cost (full vs partial)
+    pub const BASE_STEPS_FULL_MSG: usize = 217;
+    pub const BASE_STEPS_PARTIAL_MSG: usize = 195;
+    pub const STEPS_PER_2_U32_REMINDER: usize = 3;
+}
+
+fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
+    let total_u32s =
+        n_big_felts * blake_cost::N_U32S_BIG_FELT + n_small_felts * blake_cost::N_U32S_SMALL_FELT;
+    let rem_u32s = total_u32s % blake_cost::N_U32S_MESSAGE;
+    let base = if rem_u32s == 0 {
+        blake_cost::BASE_STEPS_FULL_MSG
+    } else {
+        blake_cost::BASE_STEPS_PARTIAL_MSG + blake_cost::STEPS_PER_2_U32_REMINDER * (rem_u32s / 2)
+    };
+
+    n_big_felts * blake_cost::STEPS_BIG_FELT + n_small_felts * blake_cost::STEPS_SMALL_FELT + base
+}
+
+/// Estimates the VM resources for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
+/// Accounts for small felts unpack to 2-u32s and big felts to 8-u32s.
+pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
+    n_big_felts: usize,
+    n_small_felts: usize,
+) -> ExecutionResources {
+    let n_steps = compute_blake_hash_steps(n_big_felts, n_small_felts);
+    let n_felts = n_big_felts + n_small_felts;
+    // The OS uses one `range_check` per input felt to validate each element’s size constraints.
+    let builtins = HashMap::from([(BuiltinName::range_check, n_felts)]);
+
+    ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter: builtins }
+}
