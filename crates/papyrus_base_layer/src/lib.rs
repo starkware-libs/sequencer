@@ -8,7 +8,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockHashAndNumber;
+use starknet_api::block::{BlockHashAndNumber, BlockTimestamp};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
@@ -90,7 +90,7 @@ pub struct L1BlockHeader {
     pub number: L1BlockNumber,
     pub hash: L1BlockHash,
     pub parent_hash: L1BlockHash,
-    pub timestamp: u64,
+    pub timestamp: BlockTimestamp,
     pub base_fee_per_gas: u128,
     pub blob_fee: u128,
 }
