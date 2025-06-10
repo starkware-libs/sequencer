@@ -26,7 +26,6 @@ use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
-use apollo_time::time_keeper::TimeKeeper;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
@@ -161,7 +160,7 @@ impl ConsensusManager {
                     self.config.eth_to_strk_oracle_config.clone(),
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
-                time: TimeKeeper::default(),
+                clock: Arc::new(DefaultClock),
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
             },

@@ -47,7 +47,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
-use apollo_time::time_keeper::{DateTime, Sleeper, TimeKeeper};
+use apollo_time::time_keeper::{sleep_until, Clock, DateTime};
 use async_trait::async_trait;
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
@@ -215,7 +215,7 @@ pub struct SequencerConsensusContextDeps {
     pub eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     /// Use DefaultClock if you don't want to inject timestamps.
-    pub time: TimeKeeper,
+    pub clock: Arc<dyn Clock>,
     // Used to initiate new outbound proposal streams.
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.
@@ -623,7 +623,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let timestamp = sync_block.block_header_without_hash.timestamp;
         let last_block_timestamp =
             self.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
-        let now: u64 = self.deps.time.unix_now();
+        let now: u64 = self.deps.clock.unix_now();
         if !(block_number == height
             && timestamp.0 >= last_block_timestamp
             && timestamp.0 <= now + self.config.block_timestamp_window_seconds)
@@ -838,7 +838,7 @@ async fn build_proposal(mut args: ProposalBuildArguments) {
 async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
-    let timestamp = args.deps.time.unix_now();
+    let timestamp = args.deps.clock.unix_now();
     let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
         args.deps.eth_to_strk_oracle_client.clone(),
         args.deps.l1_gas_price_provider.clone(),
@@ -863,7 +863,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         retrospective_block_hash(args.deps.state_sync_client.clone(), &block_info).await?;
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
-        deadline: args.deps.time.now() + batcher_timeout,
+        deadline: args.deps.clock.now() + batcher_timeout,
         retrospective_block_hash,
         block_info: convert_to_sn_api_block_info(&block_info),
         proposal_round: args.proposal_round,
@@ -973,7 +973,7 @@ async fn get_proposal_content(
 
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
-    let now = args.deps.time.now();
+    let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
     else {
@@ -986,7 +986,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         deadline,
         &mut args.content_receiver,
         args.fin_sender,
-        &args.deps.time,
+        args.deps.clock.as_ref(),
     )
     .await
     else {
@@ -996,7 +996,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.block_info_validation.clone(),
         block_info.clone(),
         args.deps.eth_to_strk_oracle_client,
-        &args.deps.time,
+        args.deps.clock.as_ref(),
         args.deps.l1_gas_price_provider,
         &args.gas_price_params,
     )
@@ -1010,7 +1010,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         block_info.clone(),
         args.proposal_id,
         args.timeout + args.batcher_timeout_margin,
-        &args.deps.time,
+        args.deps.clock.as_ref(),
     )
     .await
     {
@@ -1025,7 +1025,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                 return;
             }
-            _ = args.deps.time.sleep_until(deadline) => {
+            _ = sleep_until(deadline, args.deps.clock.as_ref()) => {
                 warn!("Validation timed out.");
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                 return;
@@ -1089,11 +1089,11 @@ async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
     block_info_proposed: ConsensusBlockInfo,
     eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    time: &TimeKeeper,
+    clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: &GasPriceParams,
 ) -> bool {
-    let now: u64 = time.unix_now();
+    let now: u64 = clock.unix_now();
     let last_block_timestamp =
         block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
     if !(block_info_proposed.height == block_info_validation.height
@@ -1163,14 +1163,14 @@ async fn await_second_proposal_part(
     deadline: DateTime,
     content_receiver: &mut mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
-    time: &TimeKeeper,
+    clock: &dyn Clock,
 ) -> Option<(ConsensusBlockInfo, oneshot::Sender<ProposalCommitment>)> {
     tokio::select! {
         _ = cancel_token.cancelled() => {
             warn!("Proposal interrupted");
             None
         }
-        _ = time.sleep_until(deadline) => {
+        _ = sleep_until(deadline, clock) => {
             warn!("Validation timed out.");
             None
         }
@@ -1205,7 +1205,7 @@ async fn initiate_validation(
     block_info: ConsensusBlockInfo,
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
-    time: &TimeKeeper,
+    clock: &dyn Clock,
 ) -> ProposalResult<()> {
     let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
         .expect("Can't convert timeout to chrono::Duration");
