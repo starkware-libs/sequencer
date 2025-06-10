@@ -12,7 +12,7 @@ use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, St
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
@@ -188,7 +188,7 @@ where
     }
 
     fn construct_http_request(&self, serialized_request: Vec<u8>) -> HyperRequest<Body> {
-        debug!("Constructing remote request");
+        trace!("Constructing remote request");
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
             .body(Body::from(serialized_request))
@@ -196,7 +196,7 @@ where
     }
 
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
-        debug!("Sending HTTP request");
+        trace!("Sending HTTP request");
         let http_response = self.client.request(http_request).await.map_err(|err| {
             error!("HTTP request failed with error: {:?}", err);
             ClientError::CommunicationFailure(err.to_string())
@@ -205,7 +205,7 @@ where
         match http_response.status() {
             StatusCode::OK => {
                 let response_body = get_response_body(http_response).await;
-                debug!("Successfully deserialized response");
+                trace!("Successfully deserialized response");
                 response_body
             }
             status_code => {
@@ -240,13 +240,13 @@ where
         // Construct the request, and send it up to 'max_retries + 1' times. Return if received a
         // successful response, or the last response if all attempts failed.
         let max_attempts = self.config.retries + 1;
-        debug!("Starting retry loop: max_attempts = {:?}", max_attempts);
+        trace!("Starting retry loop: max_attempts = {:?}", max_attempts);
         for attempt in 0..max_attempts {
-            debug!("Attempt {} of {:?}", attempt + 1, max_attempts);
+            trace!("Attempt {} of {:?}", attempt + 1, max_attempts);
             let http_request = self.construct_http_request(serialized_request.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
-                debug!("Request successful on attempt {}/{}", attempt + 1, max_attempts);
+                trace!("Request successful on attempt {}/{}", attempt + 1, max_attempts);
                 return res;
             }
             error!("Request failed on attempt {}/{}: {:?}", attempt + 1, max_attempts, res);
