@@ -1,8 +1,3 @@
-use std::ops::Deref;
-use std::sync::Arc;
-
-use async_trait::async_trait;
-
 pub type DateTime = chrono::DateTime<chrono::Utc>;
 
 // TODO(Gilad): add fake clock with fixed time + advance(), instead of mockall, easier to use.
@@ -21,43 +16,19 @@ pub trait Clock: Send + Sync {
     }
 }
 
-/// Contains sleep logic, in order to decouple from std/tokio constraints.
-// Consider adding a wrapper around tokio sleep, to decouple from global tokio sleep.
-#[async_trait]
-pub trait Sleeper: Send + Sync {
-    async fn sleep_until(&self, deadline: DateTime);
+/// Free function to sleep until a given deadline using a provided clock.
+pub async fn sleep_until(deadline: DateTime, clock: &dyn Clock) {
+    // Calculate how much time is left until the deadline.
+    // If the deadline has already passed, this will be a negative duration.
+    let time_delta = deadline - clock.now(); // can represent negative duration.
+    // Convert to `std::time::Duration`, clamping any negative value to zero.
+    // A zero-duration sleep is effectively a no-op.
+    let duration_to_sleep = time_delta.to_std().unwrap_or_default(); // nonzero duration.
+    // Sleep for the computed duration (or return immediately if zero).
+    tokio::time::sleep(duration_to_sleep).await;
 }
 
 #[derive(Clone, Default)]
 pub struct DefaultClock();
 
 impl Clock for DefaultClock {}
-
-#[derive(Clone)]
-pub struct TimeKeeper {
-    pub clock: Arc<dyn Clock>,
-}
-
-#[async_trait]
-impl Sleeper for TimeKeeper {
-    // From Tokio maintainer: https://github.com/tokio-rs/tokio/issues/3918#issuecomment-896192957.
-    async fn sleep_until(&self, deadline: DateTime) {
-        let time_delta = deadline - self.clock.now(); // can represent negative duration.
-        let duration_to_sleep = time_delta.to_std().unwrap_or_default(); // nonzero duration.
-        // Note: this is a NOP on `Duration::ZERO`.
-        tokio::time::sleep(duration_to_sleep).await;
-    }
-}
-
-impl Deref for TimeKeeper {
-    type Target = dyn Clock;
-    fn deref(&self) -> &Self::Target {
-        self.clock.as_ref()
-    }
-}
-
-impl Default for TimeKeeper {
-    fn default() -> Self {
-        Self { clock: Arc::new(DefaultClock::default()) }
-    }
-}
