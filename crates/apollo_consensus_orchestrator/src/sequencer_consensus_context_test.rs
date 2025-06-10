@@ -277,7 +277,7 @@ fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) {
     let cende_ambassador = MockCendeContext::new();
     let eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
     let l1_gas_price_provider = MockL1GasPriceProviderClient::new();
-    let clock = Arc::new(DefaultClock::default());
+    let clock = Arc::new(DefaultClock);
 
     let test_deps = TestDeps {
         transaction_converter,
