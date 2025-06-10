@@ -11,6 +11,7 @@ use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
 };
 
 use crate::dashboard::{Panel, PanelType};
@@ -34,5 +35,7 @@ pub(crate) const PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY: Panel =
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, PanelType::Stat);
 pub(crate) const PANEL_L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT: Panel =
     Panel::from_counter(L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::Stat);
+pub(crate) const PANEL_L1_GAS_PRICE_SCRAPER_REORG_DETECTED: Panel =
+    Panel::from_counter(L1_GAS_PRICE_SCRAPER_REORG_DETECTED, PanelType::Stat);
 pub(crate) const PANEL_ETH_TO_STRK_ERROR_COUNT: Panel =
     Panel::from_counter(ETH_TO_STRK_ERROR_COUNT, PanelType::Stat);
