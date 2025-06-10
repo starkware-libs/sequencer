@@ -1,13 +1,14 @@
+use std::collections::btree_map::Entry;
+use std::collections::BTreeMap;
 use std::ops::{Deref, Sub};
 use std::time::Duration;
 
 use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
-use indexmap::IndexSet;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
-use crate::transaction_record::{Records, TransactionRecord, TransactionState};
+use crate::transaction_record::{Records, TransactionPayload, TransactionRecord, TransactionState};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TransactionManager {
@@ -15,9 +16,12 @@ pub struct TransactionManager {
     /// removed, like when they are consumed on L1, or fully cancelled on L1.
     pub records: Records,
     pub config: TransactionManagerConfig,
+    /// Ordered lexicographically by block timestamp, then order-of-arrival for
+    /// identical timestamps, also at any point the staged transactions are a prefix of the
+    /// structure under this order.
     /// Invariant: contains all hashes of transactions that are proposable, and only them.
-    /// Structure: [staged_tx1, staged_tx2, ..., staged_txN, unstaged_tx1, unstaged_tx2, ...]
-    proposable_index: IndexSet<TransactionHash>,
+    /// Invarariant 2: Once removed from this index, a transaction will never be proposed again.
+    proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>>,
     /// Generation counter used to prevent double usage of an l1 handler transaction in a single
     /// block.
     /// Calling `get_txs` or `validate_tx` tags the touched transactions with the current block
@@ -43,18 +47,23 @@ impl TransactionManager {
     }
 
     pub fn get_txs(&mut self, n_txs: usize) -> Vec<L1HandlerTransaction> {
-        let first_unstaged_index =
-            self.proposable_index.partition_point(|&tx_hash| self.is_staged(tx_hash));
-
-        let unstaged_tx_hashes: Vec<_> =
-            self.proposable_index[first_unstaged_index..].iter().copied().take(n_txs).collect();
+        // Linear scan, but we expect this to be a small number of transactions (< 10 roughly).
+        // Note: this scan will be even smaller once we add cooldown for txs (very soon!), which CAN
+        // efficiently skip the timelocked txs.
+        let unstaged_tx_hashes: Vec<_> = self
+            .proposable_index
+            .values()
+            .flat_map(|vec| vec.iter())
+            .skip_while(|&&tx_hash| self.is_staged(tx_hash))
+            .take(n_txs)
+            .copied()
+            .collect();
 
         let mut txs = Vec::with_capacity(n_txs);
         let current_staging_epoch = self.current_staging_epoch; // borrow-checker constraint.
         for tx_hash in unstaged_tx_hashes {
             let newly_staged =
                 self.with_record(tx_hash, |record| record.try_mark_staged(current_staging_epoch));
-            // Sanity check.
             assert_eq!(
                 newly_staged,
                 Some(true),
@@ -179,10 +188,34 @@ impl TransactionManager {
 
     fn maintain_index(&mut self, hash: TransactionHash) {
         if let Some(record) = self.records.get(&hash) {
+            let TransactionPayload::Full { created_at_block_timestamp: created_at, .. } = record.tx
+            else {
+                // We haven't scraped this tx yet, so it isn't indexed.
+                return;
+            };
+
+            let tx_hash = hash;
             if record.is_proposable() {
-                self.proposable_index.insert(hash);
+                // Assumption: txs will only be added to the index once, on arrival, so this
+                // preserves arrival order.
+                let tx_hashes = self.proposable_index.entry(created_at).or_default();
+                if !tx_hashes.contains(&tx_hash) {
+                    tx_hashes.push(tx_hash);
+                }
             } else {
-                self.proposable_index.shift_remove(&hash);
+                // Remove from the vec for this timestamp, and drop the entry if it becomes empty.
+                match self.proposable_index.entry(created_at) {
+                    Entry::Occupied(mut entry) => {
+                        let tx_hashes = entry.get_mut();
+                        if let Some(index_in_vec) = tx_hashes.iter().position(|&h| h == tx_hash) {
+                            tx_hashes.remove(index_in_vec);
+                            if tx_hashes.is_empty() {
+                                entry.remove();
+                            }
+                        }
+                    }
+                    Entry::Vacant(_) => {}
+                }
             }
         }
     }
@@ -190,7 +223,7 @@ impl TransactionManager {
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing(
         records: Records,
-        proposable_index: IndexSet<TransactionHash>,
+        proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>>,
         current_epoch: StagingEpoch,
     ) -> Self {
         Self {

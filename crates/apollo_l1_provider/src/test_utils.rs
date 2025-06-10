@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::mem;
 use std::sync::Mutex;
 
@@ -194,10 +195,13 @@ impl From<TransactionManagerContent> for TransactionManager {
 
         let mut records = IndexMap::with_capacity(pending.len() + rejected.len() + committed.len());
 
-        for pending_tx in pending {
-            let tx_hash = pending_tx.tx.tx_hash;
-            let record = TransactionRecord::from(pending_tx);
+        let mut proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>> = BTreeMap::new();
+        for timed_tx in pending {
+            let tx_hash = timed_tx.tx.tx_hash;
+            let block_timestamp = timed_tx.timestamp;
+            let record = TransactionRecord::from(timed_tx);
             assert_eq!(records.insert(tx_hash, record), None);
+            proposable_index.entry(block_timestamp).or_default().push(tx_hash);
         }
 
         for rejected_tx in rejected {
@@ -217,10 +221,6 @@ impl From<TransactionManagerContent> for TransactionManager {
             assert_eq!(records.insert(tx_hash, record), None);
         }
 
-        let proposable_index = records
-            .iter()
-            .filter_map(|(&tx_hash, record)| record.is_proposable().then_some(tx_hash))
-            .collect();
         let current_epoch = StagingEpoch::new();
         TransactionManager::create_for_testing(records.into(), proposable_index, current_epoch)
     }

@@ -538,3 +538,47 @@ fn add_tx_identical_timestamp_both_stored() {
         .build();
     expected.assert_eq(&l1_provider);
 }
+
+#[test]
+fn get_txs_same_timestamp_returns_in_arrival_order() {
+    // Setup.
+    let tx1 = l1_handler(100);
+    let tx2 = l1_handler(200);
+    let tx3 = l1_handler(300);
+    let timestamp_1_2 = 1_u64;
+    let timestamp_3 = 2_u64;
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_timed_txs([
+            (tx1.clone(), timestamp_1_2),
+            (tx2.clone(), timestamp_1_2),
+            (tx3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // Test.
+    let expected = [tx1.clone(), tx2.clone(), tx3.clone()];
+    assert_eq!(
+        l1_provider.get_txs(10, l1_provider.current_height).unwrap(),
+        expected,
+        "Transactions with the same timestamp must be returned in order of arrival"
+    );
+
+    // Now with a different order for the equal-timestamped ones.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_timed_txs([
+            (tx2.clone(), timestamp_1_2),
+            (tx1.clone(), timestamp_1_2),
+            (tx3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // Test.
+    let expected = vec![tx2, tx1, tx3];
+    assert_eq!(
+        l1_provider.get_txs(10, l1_provider.current_height).unwrap(),
+        expected,
+        "Transactions with the same timestamp must be returned in order of arrival"
+    );
+}
