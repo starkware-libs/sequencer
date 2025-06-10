@@ -227,7 +227,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
         hint_processor.os_program,
     )?;
 
-    // TODO(Rotem): Verify that it's OK to ignore the scope variable
+    // We don't support hash verification skipping and the scope variable
     // `__patricia_skip_validation_runner`.
 
     insert_value_into_ap(vm, Felt::from(case != DecodeNodeCase::Both))?;
@@ -281,8 +281,8 @@ pub(crate) fn build_descent_map<S: StateReader>(
     // translate too well in Rust. We just make sure that `descent_map`, and `preimage` are in
     // the scope.
 
-    // TODO(Rotem): If and when hash verification skipping is supported, take
-    // `__patricia_skip_validation_runner` into account.
+    // We don't support hash verification skipping and the scope variable
+    // `__patricia_skip_validation_runner`.
 
     Ok(())
 }
@@ -416,7 +416,7 @@ pub(crate) fn enter_scope_descend_edge<S: StateReader>(
 pub(crate) fn load_edge<S: StateReader>(
     HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
-    // TODO(Nimrod): Verify that it's ok to ignore the scope variable
+    // We don't support hash verification skipping and the scope variable
     // `__patricia_skip_validation_runner`.
     let node = HashOutput(get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?);
     let preimage_mapping: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
@@ -488,8 +488,8 @@ pub(crate) fn load_bottom<S: StateReader>(
         hint_processor.os_program,
     )?;
 
-    // TODO(Rotem): If and when hash verification skipping is supported, take
-    // `__patricia_skip_validation_runner` into account.
+    // We don't support hash verification skipping and the scope variable
+    // `__patricia_skip_validation_runner`.
 
     Ok(())
 }

@@ -24,7 +24,62 @@
         }
       ],
       "for": "1s",
-      "intervalSec": 10
+      "intervalSec": 10,
+      "severity": "p2"
+    },
+    {
+      "name": "consensus_build_proposal_failed",
+      "title": "Consensus build proposal failed",
+      "ruleGroup": "consensus",
+      "expr": "rate(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "10s",
+      "intervalSec": 20,
+      "severity": "p3"
+    },
+    {
+      "name": "consensus_validate_proposal_failed",
+      "title": "Consensus validate proposal failed",
+      "ruleGroup": "consensus",
+      "expr": "rate(consensus_proposals_invalid{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.001388888888888889
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20,
+      "severity": "p3"
     },
     {
       "name": "gateway_add_tx_rate_drop",
@@ -50,7 +105,8 @@
         }
       ],
       "for": "1m",
-      "intervalSec": 20
+      "intervalSec": 20,
+      "severity": "p2"
     },
     {
       "name": "gateway_add_tx_latency_increase",
@@ -76,7 +132,8 @@
         }
       ],
       "for": "1m",
-      "intervalSec": 20
+      "intervalSec": 20,
+      "severity": "p2"
     },
     {
       "name": "mempool_add_tx_rate_drop",
@@ -102,7 +159,8 @@
         }
       ],
       "for": "1m",
-      "intervalSec": 20
+      "intervalSec": 20,
+      "severity": "p2"
     },
     {
       "name": "mempool_get_txs_size_drop",
@@ -128,7 +186,8 @@
         }
       ],
       "for": "1m",
-      "intervalSec": 20
+      "intervalSec": 20,
+      "severity": "p2"
     },
     {
       "name": "http_server_idle",
@@ -154,7 +213,8 @@
         }
       ],
       "for": "5m",
-      "intervalSec": 60
+      "intervalSec": 60,
+      "severity": "p2"
     },
     {
       "name": "mempool_pool_size_increase",
@@ -180,7 +240,8 @@
         }
       ],
       "for": "1m",
-      "intervalSec": 20
+      "intervalSec": 20,
+      "severity": "p2"
     },
     {
       "name": "consensus_round_high_avg",
@@ -206,7 +267,35 @@
         }
       ],
       "for": "1m",
-      "intervalSec": 20
+      "intervalSec": 20,
+      "severity": "p2"
+    },
+    {
+      "name": "native_compilation_error",
+      "title": "Native compilation alert",
+      "ruleGroup": "batcher",
+      "expr": "increase(native_compilation_error[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20,
+      "severity": "p5"
     }
   ]
 }

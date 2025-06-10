@@ -35,7 +35,11 @@ pub(crate) async fn get_oracle_rate_and_prices(
     );
 
     if price_info.is_err() {
+        warn!("Failed to get l1 gas price from provider: {:?}", price_info);
         CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.increment(1);
+    }
+    if eth_to_strk_rate.is_err() {
+        warn!("Failed to get eth to strk rate from oracle: {:?}", eth_to_strk_rate);
     }
 
     match (eth_to_strk_rate, price_info) {
@@ -44,12 +48,8 @@ pub(crate) async fn get_oracle_rate_and_prices(
             apply_fee_transformations(&mut price_info, gas_price_params);
             return (eth_to_strk_rate, price_info);
         }
-        err => {
-            warn!(
-                "Failed to get oracle prices from l1 gas price provider or eth to strk oracle. \
-                 Using values from previous block info. {:?}",
-                err
-            );
+        _ => {
+            warn!("Using values from previous block info.")
         }
     }
 

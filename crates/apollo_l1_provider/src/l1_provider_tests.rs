@@ -489,3 +489,14 @@ fn add_new_transaction_not_added_if_rejected() {
     l1_provider.add_events(vec![l1_handler_event(rejected_tx_id)]).unwrap();
     expected_l1_provider.assert_eq(&l1_provider);
 }
+
+#[test]
+#[should_panic(expected = "committed twice")]
+fn commit_block_twice_panics() {
+    // Setup.
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_committed([l1_handler(1)]).build_into_l1_provider();
+
+    // Test.
+    l1_provider.commit_block([tx_hash!(1)].into(), [].into(), BlockNumber(0)).unwrap();
+}

@@ -1971,6 +1971,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]
@@ -12142,7 +12143,7 @@ dependencies = [
 name = "starknet_os"
 version = "0.0.0"
 dependencies = [
- "apollo_infra_utils",
+ "apollo_starknet_os_program",
  "ark-bls12-381",
  "ark-ff 0.4.2",
  "ark-poly 0.4.2",
@@ -12150,6 +12151,7 @@ dependencies = [
  "ark-secp256r1 0.4.0",
  "assert_matches",
  "blockifier",
+ "blockifier_test_utils",
  "c-kzg",
  "cairo-lang-casm",
  "cairo-lang-runner",
@@ -12168,6 +12170,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "sha2",
  "sha3",
  "shared_execution_objects",
  "starknet-types-core",

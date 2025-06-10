@@ -1,4 +1,5 @@
-use apollo_metrics::metrics::{LabeledMetricCounter, MetricHistogram};
+#[cfg(test)]
+use apollo_metrics::metrics::LabeledMetricCounter;
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};

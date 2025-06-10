@@ -9,6 +9,8 @@ use crate::program_hash::ProgramHashes;
 #[cfg(test)]
 mod constants_test;
 pub mod program_hash;
+#[cfg(feature = "test_programs")]
+pub mod test_programs;
 
 #[cfg(feature = "dump_source_files")]
 pub static CAIRO_FILES_MAP: LazyLock<HashMap<String, String>> = LazyLock::new(|| {

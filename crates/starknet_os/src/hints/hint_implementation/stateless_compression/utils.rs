@@ -257,8 +257,7 @@ impl Buckets {
         }
     }
 
-    /// Returns the bucket index and the inverse bucket index.
-    fn bucket_index(&self, bucket_element: &BucketElement) -> (usize, usize) {
+    fn get_inverse_bucket_index(&self, bucket_element: &BucketElement) -> usize {
         let bucket_index = match bucket_element {
             BucketElement::BucketElement15(_) => 0,
             BucketElement::BucketElement31(_) => 1,
@@ -267,7 +266,7 @@ impl Buckets {
             BucketElement::BucketElement125(_) => 4,
             BucketElement::BucketElement252(_) => 5,
         };
-        (bucket_index, N_UNIQUE_BUCKETS - 1 - bucket_index)
+        N_UNIQUE_BUCKETS - 1 - bucket_index
     }
 
     /// Returns the index of the element in the respective bucket.
@@ -367,11 +366,11 @@ impl CompressionSet {
 
         for value in values {
             let bucket_element = BucketElement::from(*value);
-            let (bucket_index, inverse_bucket_index) =
-                obj.unique_value_buckets.bucket_index(&bucket_element);
+            let inverse_bucket_index =
+                obj.unique_value_buckets.get_inverse_bucket_index(&bucket_element);
             if let Some(element_index) = obj.unique_value_buckets.get_element_index(&bucket_element)
             {
-                obj.repeating_value_bucket.push((bucket_index, *element_index));
+                obj.repeating_value_bucket.push((inverse_bucket_index, *element_index));
                 obj.bucket_index_per_elm.push(repeating_values_bucket_index);
             } else {
                 obj.unique_value_buckets.add(bucket_element.clone());

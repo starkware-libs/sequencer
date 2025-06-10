@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-#[cfg(feature = "testing")]
-use std::collections::HashSet;
+use std::collections::btree_map::IntoIter;
+use std::collections::{BTreeMap, HashSet};
 
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
@@ -74,7 +73,6 @@ impl<'a, S: StateReader> ExecutionHelpersManager<'a, S> {
             .expect("Current execution helper index is out of bounds."))
     }
 
-    #[allow(dead_code)]
     /// Increments the current helper index.
     pub fn increment_current_helper_index(&mut self) {
         self.current_index = match self.current_index {
@@ -100,7 +98,8 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
-    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
+    pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, ContractClass>,
+    pub(crate) deprecated_class_hashes: HashSet<ClassHash>,
     pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     pub(crate) deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
@@ -159,7 +158,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             deprecated_syscall_hint_processor,
             da_segment: None,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
-            deprecated_compiled_classes,
+            deprecated_class_hashes: deprecated_compiled_classes.keys().copied().collect(),
+            deprecated_compiled_classes_iter: deprecated_compiled_classes.into_iter(),
             compiled_classes,
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
@@ -202,26 +202,15 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         self.execution_helpers_manager.n_helpers()
     }
 
-    pub fn get_next_call_execution(&mut self) -> &CallExecution {
-        // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
-        // error type.
-        let call_tracker = self
+    pub fn get_next_call_execution(&mut self) -> Result<&CallExecution, ExecutionHelperError> {
+        Ok(&self
             .execution_helpers_manager
-            .get_mut_current_execution_helper()
-            .expect("No current execution helper")
+            .get_mut_current_execution_helper()?
             .tx_execution_iter
-            .get_mut_tx_execution_info_ref()
-            .expect("No current tx execution info")
-            .call_info_tracker
-            .as_mut()
-            .expect("No call info tracker found");
-
-        &call_tracker
-            .inner_calls_iterator
-            .next()
-            .ok_or(ExecutionHelperError::MissingCallInfo)
-            .expect("Missing call info")
-            .execution
+            .get_mut_tx_execution_info_ref()?
+            .get_mut_call_info_tracker()?
+            .next_inner_call()?
+            .execution)
     }
 }
 
@@ -333,7 +322,7 @@ impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
 pub struct SyscallHintProcessor {
     // Sha256 segments.
-    sha256_segment: Option<Relocatable>,
+    pub(crate) sha256_segment_end_ptr: Option<Relocatable>,
     syscall_ptr: Option<Relocatable>,
     pub(crate) syscall_usage: SyscallUsageMap,
 
@@ -347,16 +336,12 @@ pub struct SyscallHintProcessor {
 impl SyscallHintProcessor {
     pub fn new() -> Self {
         Self {
-            sha256_segment: None,
+            sha256_segment_end_ptr: None,
             syscall_ptr: None,
             secp256k1_hint_processor: SecpHintProcessor::default(),
             secp256r1_hint_processor: SecpHintProcessor::default(),
             syscall_usage: SyscallUsageMap::new(),
         }
-    }
-
-    pub fn set_sha256_segment(&mut self, sha256_segment: Relocatable) {
-        self.sha256_segment = Some(sha256_segment);
     }
 
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {

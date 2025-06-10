@@ -1,5 +1,4 @@
 use apollo_metrics::define_metrics;
-use apollo_metrics::metrics::MetricHistogram;
 
 define_metrics!(
     CompileToCasm => {

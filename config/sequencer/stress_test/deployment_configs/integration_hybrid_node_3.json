@@ -1,5 +1,4 @@
 {
-  "chain_id": "SN_INTEGRATION_SEPOLIA",
   "application_config_subdir": "config/sequencer/stress_test/app_configs/hybrid/integration_hybrid_node_3/",
   "services": [
     {

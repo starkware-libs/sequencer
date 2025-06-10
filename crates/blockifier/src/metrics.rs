@@ -1,5 +1,4 @@
 use apollo_metrics::define_metrics;
-use apollo_metrics::metrics::MetricCounter;
 
 define_metrics!(
     Blockifier => {
@@ -9,7 +8,11 @@ define_metrics!(
             NATIVE_CLASS_RETURNED,
             "native_class_returned",
             "Counter of the number of times that the state reader returned Native class",
-            init=0}
+            init=0},
+        MetricCounter { NATIVE_COMPILATION_ERROR,
+            "native_compilation_error",
+            "Counter of Native compilation failures in the blockifier",
+            init=0 },
     }
 );
 

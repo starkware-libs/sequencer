@@ -55,7 +55,7 @@ use crate::hints::hint_implementation::deprecated_compiled_class::implementation
     load_deprecated_class_inner,
 };
 use crate::hints::hint_implementation::execute_syscalls::is_block_number_in_block_hash_buffer;
-use crate::hints::hint_implementation::execute_transactions::{
+use crate::hints::hint_implementation::execute_transactions::implementation::{
     fill_holes_in_rc96_segment,
     log_remaining_txs,
     os_input_transactions,
@@ -768,7 +768,7 @@ else:
         LoadDeprecatedClassInner,
         load_deprecated_class_inner,
         indoc! {r#"
-    from starkware.starknet.core.os.contract_class.deprecated_class_hash import (
+    from starkware.starknet.core.os.contract_class.deprecated_class_hash_cairo_utils import (
         get_deprecated_contract_class_struct,
     )
 
@@ -1081,6 +1081,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         indoc! {r#"
     if execution_helper.debug_mode:
         # Validate the predicted gas cost.
+        # TODO(Yoni, 1/1/2025): remove this check once Cairo 0 is not supported.
         actual = ids.remaining_gas - ids.entry_point_return_values.gas_builtin
         predicted = execution_helper.call_info.gas_consumed
         if execution_helper.call_info.tracked_resource.is_sierra_gas():
@@ -1344,7 +1345,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         ids.index = n_elms
         ids.exists = 0"#}
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         GetBlocksNumber,
         get_n_blocks,
@@ -1408,6 +1408,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         onchain_data_start = ids.da_start
         onchain_data_size = ids.output_ptr - onchain_data_start
 
+        # TODO(Yoni,20/07/2023): Take from input.
         max_page_size = 3800
         n_pages = div_ceil(onchain_data_size, max_page_size)
         for i in range(n_pages):
@@ -1686,7 +1687,6 @@ memory[ap] = 1 if case != 'both' else 0"#
     ),
     (OsLoggerExitSyscall, os_logger_exit_syscall, "exit_syscall()"),
     (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
-    // TODO(Meshi): Fix hint implantation.
     (
         StarknetOsInput,
         starknet_os_input,
@@ -1705,7 +1705,6 @@ memory[ap] = 1 if case != 'both' else 0"#
         state_update_pointers = StateUpdatePointers(segments=segments)"#
         }
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         InitializeStateChanges,
         initialize_state_changes,
@@ -1718,7 +1717,6 @@ initial_dict = {
 }"#
         }
     ),
-    // TODO(Meshi): Fix hint implantation.
     (
         InitializeClassHashes,
         initialize_class_hashes,

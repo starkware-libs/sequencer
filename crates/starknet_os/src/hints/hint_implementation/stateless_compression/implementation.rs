@@ -34,9 +34,6 @@ pub(crate) fn get_prev_offset<S: StateReader>(
     let dict_manager = exec_scopes.get_dict_manager()?;
 
     let dict_ptr = get_ptr_from_var_name(Ids::DictPtr.into(), vm, ids_data, ap_tracking)?;
-    let dict_tracker = dict_manager.borrow().get_tracker(dict_ptr)?.get_dictionary_copy();
-    exec_scopes.insert_box(Scope::DictTracker.into(), Box::new(dict_tracker));
-
     let bucket_index =
         get_maybe_relocatable_from_var_name(Ids::BucketIndex.into(), vm, ids_data, ap_tracking)?;
     let prev_offset =

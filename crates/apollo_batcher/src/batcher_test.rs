@@ -68,7 +68,10 @@ use crate::metrics::{
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
-use crate::pre_confirmed_block_writer::MockPreConfirmedBlockWriterFactoryTrait;
+use crate::pre_confirmed_block_writer::{
+    MockPreConfirmedBlockWriterFactoryTrait,
+    MockPreConfirmedBlockWriterTrait,
+};
 use crate::test_utils::{
     test_txs,
     verify_indexed_execution_infos,
@@ -134,7 +137,14 @@ impl Default for MockDependencies {
             .with(eq(CommitBlockArgs::default()))
             .returning(|_| Ok(()));
         let block_builder_factory = MockBlockBuilderFactoryTrait::new();
-        let pre_confirmed_block_writer_factory = MockPreConfirmedBlockWriterFactoryTrait::new();
+        let mut pre_confirmed_block_writer_factory = MockPreConfirmedBlockWriterFactoryTrait::new();
+        pre_confirmed_block_writer_factory.expect_create().returning(|_, _| {
+            let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
+            let (non_working_executed_tx_sender, _) = tokio::sync::mpsc::channel(1);
+            let mut mock_writer = Box::new(MockPreConfirmedBlockWriterTrait::new());
+            mock_writer.expect_run().return_once(|| Box::pin(async move { Ok(()) }));
+            (mock_writer, non_working_pre_confirmed_tx_sender, non_working_executed_tx_sender)
+        });
 
         Self {
             storage_reader,
@@ -187,7 +197,7 @@ fn mock_create_builder_for_validate_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, tx_provider, _, _| {
+        |_, _, tx_provider, _, _, _, _| {
             let block_builder = FakeValidateBlockBuilder {
                 tx_provider,
                 build_block_result: Some(build_block_result),
@@ -203,7 +213,7 @@ fn mock_create_builder_for_propose_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        move |_, _, _, output_content_sender, _| {
+        move |_, _, _, output_content_sender, _, _, _| {
             let block_builder = FakeProposeBlockBuilder {
                 output_content_sender: output_content_sender.unwrap(),
                 output_txs,

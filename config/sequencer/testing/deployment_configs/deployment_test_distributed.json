@@ -1,5 +1,4 @@
 {
-  "chain_id": "SN_INTEGRATION_SEPOLIA",
   "application_config_subdir": "config/sequencer/testing/app_configs/distributed/deployment_test_distributed/",
   "services": [
     {
