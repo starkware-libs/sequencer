@@ -809,6 +809,7 @@ dependencies = [
  "apollo_mempool_types",
  "apollo_metrics",
  "apollo_reverts",
+ "apollo_starknet_client",
  "apollo_state_reader",
  "apollo_state_sync_types",
  "apollo_storage",
