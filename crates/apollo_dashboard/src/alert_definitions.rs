@@ -1,3 +1,4 @@
+use apollo_batcher::metrics::BATCHED_TRANSACTIONS;
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
@@ -244,6 +245,21 @@ const STATE_SYNC_STUCK: Alert = Alert {
     severity: AlertSeverity::Regular,
 };
 
+const BATCHED_TRANSACTIONS_STUCK: Alert = Alert {
+    name: "batched_transactions_stuck",
+    title: "Batched transactions stuck",
+    alert_group: AlertGroup::Batcher,
+    expr: formatcp!("changes({}[5m])", BATCHED_TRANSACTIONS.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 1.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1s",
+    evaluation_interval_sec: 10,
+    severity: AlertSeverity::Regular,
+};
+
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BLOCK_NUMBER_STUCK,
     CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
@@ -258,4 +274,5 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     NATIVE_COMPILATION_ERROR_INCREASE,
     STATE_SYNC_LAG,
     STATE_SYNC_STUCK,
+    BATCHED_TRANSACTIONS_STUCK,
 ]);
