@@ -9,9 +9,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::hint_implementation::patricia::utils::create_preimage_mapping;
 use crate::hints::types::HintArgs;
-use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
+use crate::hints::vars::{CairoStruct, Const, Ids};
 use crate::io::os_input::CommitmentInfo;
 
 #[derive(Copy, Clone)]
@@ -46,9 +45,9 @@ fn verify_tree_height_eq_merkle_height(tree_height: Felt, merkle_height: Felt) -
 #[allow(clippy::result_large_err)]
 fn set_preimage_for_commitments<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let CommitmentInfo { previous_root, updated_root, commitment_facts, tree_height } =
+    let CommitmentInfo { previous_root, updated_root, tree_height, .. } =
         hint_processor.get_commitment_info()?;
     insert_value_from_var_name(
         Ids::InitialRoot.into(),
@@ -59,7 +58,8 @@ fn set_preimage_for_commitments<S: StateReader>(
     )?;
     insert_value_from_var_name(Ids::FinalRoot.into(), updated_root.0, vm, ids_data, ap_tracking)?;
 
-    exec_scopes.insert_value(Scope::Preimage.into(), create_preimage_mapping(commitment_facts)?);
+    // No need to insert the preimage map into the scope, as we extract it directly
+    // from the execution helper.
 
     let merkle_height = Const::MerkleHeight.fetch(constants)?;
     let tree_height = Felt::from(*tree_height);
@@ -98,7 +98,7 @@ pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { vm, constants, ids_data, ap_tracking, exec_scopes }: HintArgs<'_>,
+    HintArgs { vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let contract_address: ContractAddress =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
@@ -124,10 +124,8 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
     let merkle_height = Const::MerkleHeight.fetch(constants)?;
     verify_tree_height_eq_merkle_height(tree_height, *merkle_height)?;
 
-    exec_scopes.insert_value(
-        Scope::Preimage.into(),
-        create_preimage_mapping(&commitment_info.commitment_facts)?,
-    );
+    // No need to insert the preimage map into the scope, as we extract it directly
+    // from the execution helper.
     Ok(())
 }
 
