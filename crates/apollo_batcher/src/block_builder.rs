@@ -280,7 +280,7 @@ impl BlockBuilder {
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
         let block_summary =
-            tokio::task::spawn_blocking(move || lock_executor(&executor).close_block())
+            tokio::task::spawn_blocking(move || lock_executor(&executor).close_block(None))
                 .await
                 .expect("Failed to spawn blocking executor task.")?;
 
