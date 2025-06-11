@@ -43,6 +43,7 @@ if [ "$MONITORING_ENABLED" == true ]; then
     --dev-dashboards-file "${monitoring_dir}"/../../Monitoring/sequencer/dev_grafana.json \
     --dev-alerts-file "${monitoring_dir}"/../../Monitoring/sequencer/dev_grafana_alerts.json \
     --out-dir /tmp/grafana_builder
+    --env dev
 fi
 
 if [ "$FOLLOW_LOGS" == true ]; then

@@ -115,7 +115,7 @@ def arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--env",
         type=str,
-        options=["dev", "integration", "testnet", "mainnet"],
+        choices=["dev", "integration", "testnet", "mainnet"],
         required=True,
     )
 
