@@ -19,7 +19,7 @@ const CHAIN_ID: ChainId = ChainId::Mainnet;
 fn transactions_data() -> Vec<TransactionTestData> {
     // The details were taken from Starknet Mainnet. You can find the transactions by hash in:
     // https://alpha-mainnet.starknet.io/feeder_gateway/get_transaction?transactionHash=<transaction_hash>
-    serde_json::from_value(read_json_file("transaction_hash.json")).unwrap()
+    read_json_file("transaction_hash.json")
 }
 
 fn verify_transaction_conversion(tx: &Transaction, expected_executable_tx: ExecutableTransaction) {

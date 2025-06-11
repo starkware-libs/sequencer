@@ -22,14 +22,12 @@ use crate::state_reader::utils::ReexecutionStateMaps;
 
 #[fixture]
 fn block_header() -> BlockHeader {
-    serde_json::from_value(read_json_file("raw_rpc_json_objects/block_header.json"))
-        .expect("Failed to deserialize block header")
+    read_json_file("raw_rpc_json_objects/block_header.json")
 }
 
 #[fixture]
 fn deprecated_contract_class() -> ContractClass {
-    serde_json::from_value(read_json_file("raw_rpc_json_objects/deprecated_contract_class.json"))
-        .expect("Failed to deserialize deprecated contact class")
+    read_json_file("raw_rpc_json_objects/deprecated_contract_class.json")
 }
 
 /// Test that deserialize block header from JSON file works(in the fixture).
@@ -60,17 +58,17 @@ fn test_compile_deprecated_contract_class(deprecated_contract_class: ContractCla
 
 #[test]
 fn deserialize_invoke_txs() {
-    let invoke_tx_v1 = deserialize_transaction_json_to_starknet_api_tx(
-        read_json_file("raw_rpc_json_objects/transactions.json")["invoke_v1"].clone(),
-    )
-    .expect("Failed to deserialize invoke v1 tx");
+    let raw_transactions =
+        read_json_file::<_, serde_json::Value>("raw_rpc_json_objects/transactions.json");
+    let invoke_tx_v1 =
+        deserialize_transaction_json_to_starknet_api_tx(raw_transactions["invoke_v1"].clone())
+            .expect("Failed to deserialize invoke v1 tx");
 
     assert_matches!(invoke_tx_v1, Transaction::Invoke(InvokeTransaction::V1(..)));
 
-    let invoke_tx_v3 = deserialize_transaction_json_to_starknet_api_tx(
-        read_json_file("raw_rpc_json_objects/transactions.json")["invoke_v3"].clone(),
-    )
-    .expect("Failed to deserialize invoke v3 tx");
+    let invoke_tx_v3 =
+        deserialize_transaction_json_to_starknet_api_tx(raw_transactions["invoke_v3"].clone())
+            .expect("Failed to deserialize invoke v3 tx");
 
     assert_matches!(invoke_tx_v3, Transaction::Invoke(InvokeTransaction::V3(..)));
 }
@@ -80,7 +78,9 @@ fn deserialize_deploy_account_txs(
     #[values("deploy_account_v1", "deploy_account_v3")] deploy_account_version: &str,
 ) {
     let deploy_account = deserialize_transaction_json_to_starknet_api_tx(
-        read_json_file("raw_rpc_json_objects/transactions.json")[deploy_account_version].clone(),
+        read_json_file::<_, serde_json::Value>("raw_rpc_json_objects/transactions.json")
+            [deploy_account_version]
+            .clone(),
     )
     .unwrap_or_else(|_| panic!("Failed to deserialize {deploy_account_version} tx"));
 
@@ -106,7 +106,9 @@ fn deserialize_declare_txs(
     #[values("declare_v1", "declare_v2", "declare_v3")] declare_version: &str,
 ) {
     let declare_tx = deserialize_transaction_json_to_starknet_api_tx(
-        read_json_file("raw_rpc_json_objects/transactions.json")[declare_version].clone(),
+        read_json_file::<_, serde_json::Value>("raw_rpc_json_objects/transactions.json")
+            [declare_version]
+            .clone(),
     )
     .unwrap_or_else(|_| panic!("Failed to deserialize {declare_version} tx"));
 
@@ -127,7 +129,9 @@ fn deserialize_declare_txs(
 #[test]
 fn deserialize_l1_handler_tx() {
     let l1_handler_tx = deserialize_transaction_json_to_starknet_api_tx(
-        read_json_file("raw_rpc_json_objects/transactions.json")["l1_handler"].clone(),
+        read_json_file::<_, serde_json::Value>("raw_rpc_json_objects/transactions.json")
+            ["l1_handler"]
+            .clone(),
     )
     .expect("Failed to deserialize l1 handler tx");
 

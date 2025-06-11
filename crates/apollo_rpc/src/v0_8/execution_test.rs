@@ -72,7 +72,6 @@ use starknet_api::core::{
     SequencerContractAddress,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::deprecated_contract_class::ContractClass as SN_API_DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{StorageKey, ThinStateDiff as StarknetApiStateDiff};
 use starknet_api::test_utils::{path_in_resources, read_json_file};
@@ -1553,25 +1552,19 @@ async fn write_block_0_as_pending(
     pending_data: Arc<RwLock<PendingData>>,
     pending_classes: Arc<RwLock<PendingClasses>>,
 ) {
-    let class1 = serde_json::from_value::<SN_API_DeprecatedContractClass>(read_json_file(
-        "deprecated_class.json",
-    ))
-    .unwrap();
+    let class1 = read_json_file("deprecated_class.json");
     let class_hash1 = class_hash!("0x1");
 
     let class2 = starknet_api::state::SierraContractClass::default();
-    let casm = serde_json::from_value::<CasmContractClass>(read_json_file("casm.json")).unwrap();
+    let casm = read_json_file("casm.json");
     let class_hash2 = class_hash!("0x2");
     let compiled_class_hash = CompiledClassHash(StarkHash::default());
 
-    let account_class = serde_json::from_value(read_json_file("account_class.json")).unwrap();
+    let account_class = read_json_file("account_class.json");
     let account_balance_key =
         get_storage_var_address("ERC20_balances", &[*ACCOUNT_ADDRESS.0.key()]);
 
-    let fee_contract_class = serde_json::from_value::<SN_API_DeprecatedContractClass>(
-        read_json_file("erc20_fee_contract_class.json"),
-    )
-    .unwrap();
+    let fee_contract_class = read_json_file("erc20_fee_contract_class.json");
     let minter_var_address = get_storage_var_address("permitted_minter", &[]);
 
     let mut pending_classes_ref = pending_classes.write().await;
@@ -1645,25 +1638,19 @@ async fn write_block_0_as_pending(
 }
 
 fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWriter {
-    let class1 = serde_json::from_value::<SN_API_DeprecatedContractClass>(read_json_file(
-        "deprecated_class.json",
-    ))
-    .unwrap();
+    let class1 = read_json_file("deprecated_class.json");
     let class_hash1 = class_hash!("0x1");
 
     let class2 = starknet_api::state::SierraContractClass::default();
-    let casm = serde_json::from_value::<CasmContractClass>(read_json_file("casm.json")).unwrap();
+    let casm: CasmContractClass = read_json_file("casm.json");
     let class_hash2 = class_hash!("0x2");
     let compiled_class_hash = CompiledClassHash(StarkHash::default());
 
-    let account_class = serde_json::from_value(read_json_file("account_class.json")).unwrap();
+    let account_class = read_json_file("account_class.json");
     let account_balance_key =
         get_storage_var_address("ERC20_balances", &[*ACCOUNT_ADDRESS.0.key()]);
 
-    let fee_contract_class = serde_json::from_value::<SN_API_DeprecatedContractClass>(
-        read_json_file("erc20_fee_contract_class.json"),
-    )
-    .unwrap();
+    let fee_contract_class = read_json_file("erc20_fee_contract_class.json");
     let minter_var_address = get_storage_var_address("permitted_minter", &[]);
 
     let different_gas_price = GasPricePerToken {

@@ -1051,7 +1051,7 @@ fn starknet_preconfiremd_block() -> CendePreConfirmedBlock {
     CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH
 )]
 fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_json_path: &str) {
-    let python_json = read_json_file(python_json_path);
+    let python_json: serde_json::Value = read_json_file(python_json_path);
     let rust_json = serde_json::to_value(rust_obj).unwrap();
 
     assert_json_eq(&rust_json, &python_json, "Json Comparison failed".to_string());
