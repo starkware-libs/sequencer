@@ -96,6 +96,7 @@ pub enum AlertGroup {
     Consensus,
     Gateway,
     HttpServer,
+    L1Messages,
     Mempool,
     StateSync,
 }
