@@ -188,7 +188,7 @@ pub async fn send_request(
 }
 
 pub fn validate_load_and_dump<T: Serialize + for<'a> Deserialize<'a>>(path_in_resource_dir: &str) {
-    let json_value = read_json_file(path_in_resource_dir);
+    let json_value: serde_json::Value = read_json_file(path_in_resource_dir);
     let load_result = serde_json::from_value::<T>(json_value.clone());
     assert!(load_result.is_ok(), "error: {:?}", load_result.err());
     let dump_result = serde_json::to_value(load_result.unwrap());

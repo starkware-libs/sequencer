@@ -80,9 +80,7 @@ async fn gateway_output_json_conversion(
     assert_eq!(status_code, StatusCode::OK, "{response_bytes:?}");
     let gateway_response: GatewayOutput = serde_json::from_slice(response_bytes).unwrap();
 
-    let expected_gateway_response =
-        serde_json::from_value(read_json_file(expected_serialized_response_path))
-            .expect("Failed to deserialize json to GatewayOutput");
+    let expected_gateway_response = read_json_file(expected_serialized_response_path);
     assert_eq!(gateway_response, expected_gateway_response);
 }
 
