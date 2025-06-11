@@ -85,6 +85,7 @@ pub struct RawVersionedConstants {
     pub os_resources: RawOsResources,
 }
 
+<<<<<<< HEAD:crates/blockifier/src/blockifier_versioned_constants.rs
 #[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(deny_unknown_fields)]
@@ -165,6 +166,28 @@ pub struct RawOsConstants {
 #[serde(deny_unknown_fields)]
 pub struct RawStepGasCost {
     pub step_gas_cost: GasAmount,
+||||||| e417a9e7d:crates/blockifier/src/versioned_constants.rs
+define_versioned_constants! {
+    (V0_13_0, "../resources/versioned_constants_0_13_0.json"),
+    (V0_13_1, "../resources/versioned_constants_0_13_1.json"),
+    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json"),
+    (V0_13_2, "../resources/versioned_constants_0_13_2.json"),
+    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
+    (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
+    (V0_13_4, "../resources/versioned_constants_0_13_4.json"),
+    (V0_13_5, "../resources/versioned_constants_0_13_5.json"),
+=======
+define_versioned_constants! {
+    (V0_13_0, "../resources/versioned_constants_0_13_0.json"),
+    (V0_13_1, "../resources/versioned_constants_0_13_1.json"),
+    (V0_13_1_1, "../resources/versioned_constants_0_13_1_1.json"),
+    (V0_13_2, "../resources/versioned_constants_0_13_2.json"),
+    (V0_13_2_1, "../resources/versioned_constants_0_13_2_1.json"),
+    (V0_13_3, "../resources/versioned_constants_0_13_3.json"),
+    (V0_13_4, "../resources/versioned_constants_0_13_4.json"),
+    (V0_13_5, "../resources/versioned_constants_0_13_5.json"),
+    (V0_13_6, "../resources/versioned_constants_0_13_6.json"),
+>>>>>>> origin/main-v0.13.6:crates/blockifier/src/versioned_constants.rs
 }
 
 pub type ResourceCost = Ratio<u64>;

@@ -417,7 +417,12 @@ auto_storage_serde! {
         V0_13_3 = 18,
         V0_13_4 = 19,
         V0_13_5 = 20,
+<<<<<<< HEAD:crates/apollo_storage/src/serialization/serializers.rs
         V0_14_0 = 21,
+||||||| e417a9e7d:crates/papyrus_storage/src/serialization/serializers.rs
+=======
+        V0_13_6 = 21,
+>>>>>>> origin/main-v0.13.6:crates/papyrus_storage/src/serialization/serializers.rs
     }
     pub struct StateDiffCommitment(pub PoseidonHash);
     pub struct Tip(pub u64);

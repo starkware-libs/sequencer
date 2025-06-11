@@ -34,7 +34,13 @@
             "price_in_fri": "0xd"
         },
         "sequencer_address": "0x7",
+<<<<<<< HEAD:crates/apollo_consensus_orchestrator/resources/central_state_diff.json
         "starknet_version": "0.14.0",
+||||||| e417a9e7d:crates/sequencing/papyrus_consensus_orchestrator/resources/central_state_diff.json
+        "starknet_version": "0.13.5",
+=======
+        "starknet_version": "0.13.6",
+>>>>>>> origin/main-v0.13.6:crates/sequencing/papyrus_consensus_orchestrator/resources/central_state_diff.json
         "use_kzg_da": true
     }
 }
