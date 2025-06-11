@@ -128,7 +128,7 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
     else {
         return;
     };
-    if !is_block_info_valid(
+    if is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
         args.deps.eth_to_strk_oracle_client,
@@ -137,6 +137,7 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
         &args.gas_price_params,
     )
     .await
+    .is_err()
     {
         return;
     }
@@ -228,7 +229,7 @@ async fn is_block_info_valid(
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: &GasPriceParams,
-) -> bool {
+) -> ValidateProposalResult<()> {
     let now: u64 = clock.unix_now();
     let last_block_timestamp =
         block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
@@ -240,7 +241,7 @@ async fn is_block_info_valid(
         && block_info_proposed.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
     {
         warn!("Invalid BlockInfo. local_timestamp={now}");
-        return false;
+        return Err(ValidateProposalError::InvalidBlockInfo);
     }
     let (eth_to_fri_rate, l1_gas_prices) = get_oracle_rate_and_prices(
         eth_to_strk_oracle_client,
@@ -275,7 +276,14 @@ async fn is_block_info_valid(
             %l1_gas_price_margin_percent,
             "Invalid L1 gas price proposed.",
         );
-        return false;
+        return Err(ValidateProposalError::InvalidL1GasPriceProposed(
+            PriceInfo {
+                base_fee_per_gas: l1_gas_price_fri_proposed,
+                blob_fee: l1_data_gas_price_fri_proposed,
+            },
+            PriceInfo { base_fee_per_gas: l1_gas_price_fri, blob_fee: l1_data_gas_price_fri },
+            l1_gas_price_margin_percent,
+        ));
     }
     if l1_gas_price_fri_proposed != l1_gas_price_fri {
         CONSENSUS_L1_GAS_MISMATCH.increment(1);
@@ -283,7 +291,7 @@ async fn is_block_info_valid(
     if l1_data_gas_price_fri_proposed != l1_data_gas_price_fri {
         CONSENSUS_L1_DATA_GAS_MISMATCH.increment(1);
     }
-    true
+    Ok(())
 }
 
 fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> bool {
