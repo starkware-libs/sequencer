@@ -4039,21 +4039,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-<<<<<<< HEAD
 version = "0.5.0-rc.5"
-||||||| e417a9e7d
-version = "0.3.4"
-=======
-version = "0.3.6"
->>>>>>> origin/main-v0.13.6
 source = "registry+https://github.com/rust-lang/crates.io-index"
-<<<<<<< HEAD
 checksum = "6629dd8614a0745e588d71542d570f0c74bf74a704382c806822fbc43708d4d9"
-||||||| e417a9e7d
-checksum = "86f01f2d137aa49e0f23166a2452d10296b3d79d3e1315f6adfbf450a9b73586"
-=======
-checksum = "b2e75e7838046dca4c01c2f88e3934ae0d6848ccbe8e91ec1841ed70344905c1"
->>>>>>> origin/main-v0.13.6
 dependencies = [
  "anyhow",
  "aquamarine",

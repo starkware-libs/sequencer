@@ -336,13 +336,5 @@
             "actual_fee": "0xdc24bd9e78"
         }
     ],
-<<<<<<< HEAD:crates/apollo_starknet_client/resources/reader/block_post_0_13_4.json
-    "starknet_version": "0.13.5"
-}
-||||||| e417a9e7d:crates/starknet_client/resources/reader/block_post_0_13_4.json
-    "starknet_version": "0.13.5"
-}
-=======
     "starknet_version": "0.13.6"
 }
->>>>>>> origin/main-v0.13.6:crates/starknet_client/resources/reader/block_post_0_13_4.json

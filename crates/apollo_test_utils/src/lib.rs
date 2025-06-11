@@ -497,12 +497,8 @@ auto_impl_get_test_instance! {
         V0_13_3 = 18,
         V0_13_4 = 19,
         V0_13_5 = 20,
-<<<<<<< HEAD:crates/apollo_test_utils/src/lib.rs
-        V0_14_0 = 21,
-||||||| e417a9e7d:crates/papyrus_test_utils/src/lib.rs
-=======
         V0_13_6 = 21,
->>>>>>> origin/main-v0.13.6:crates/papyrus_test_utils/src/lib.rs
+        V0_14_0 = 22,
     }
 
     pub struct Calldata(pub Arc<Vec<Felt>>);
