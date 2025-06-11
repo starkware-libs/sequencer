@@ -327,9 +327,9 @@ impl Mempool {
         self.remove_expired_txs();
         self.add_ready_declares();
 
-        if self.exceeds_capacity(&args.tx) {
-            // TODO(Dafna): we should be evicting transactions based on some policy here, instead of
-            // just returning an error.
+        if self.exceeds_capacity(&args.tx)
+            && !self.tx_pool_controller.try_make_space(args.tx.total_bytes())
+        {
             return Err(MempoolError::MempoolFull);
         }
 
