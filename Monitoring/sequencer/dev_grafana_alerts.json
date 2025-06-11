@@ -377,6 +377,33 @@
       "for": "1s",
       "intervalSec": 10,
       "severity": "p2"
+    },
+    {
+      "name": "last_batched_block_stuck",
+      "title": "Last batched block stuck",
+      "ruleGroup": "batcher",
+      "expr": "changes(batcher_last_batched_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1s",
+      "intervalSec": 10,
+      "severity": "p2"
     }
   ]
 }
