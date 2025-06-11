@@ -22,6 +22,7 @@ apollo_l1_provider_types.workspace = true
 apollo_mempool_types.workspace = true
 apollo_metrics.workspace = true
 apollo_reverts.workspace = true
+apollo_starknet_client.workspace = true
 apollo_state_reader.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_storage.workspace = true
