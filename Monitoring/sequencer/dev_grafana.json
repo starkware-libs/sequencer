@@ -35,6 +35,13 @@
         "type": "stat",
         "expr": "batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
+      },
+      {
+        "title": "Last batched block",
+        "description": "The last block number that was batched",
+        "type": "stat",
+        "expr": "batcher_last_batched_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
       }
     ],
     "Consensus": [
