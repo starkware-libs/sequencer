@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
@@ -154,15 +155,19 @@ pub struct BlockBuilder {
     executor: Arc<Mutex<dyn TransactionExecutorTrait>>,
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
-    // The senders are utilized only during block proposal and not during block validation.
+    /// The senders are utilized only during block proposal and not during block validation.
     pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
     executed_tx_sender: Option<ExecutedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
+    /// The number of transactions whose execution is completed.
+    n_executed_txs: usize,
+    /// The transactions whose execution started.
+    block_txs: Vec<InternalConsensusTransaction>,
     execution_data: BlockTransactionExecutionData,
     l2_gas_used: GasAmount,
 
-    // Parameters to configure the block builder behavior.
+    /// Parameters to configure the block builder behavior.
     tx_chunk_size: usize,
     tx_polling_interval_millis: u64,
     execution_params: BlockBuilderExecutionParams,
@@ -193,6 +198,8 @@ impl BlockBuilder {
             executed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
+            n_executed_txs: 0,
+            block_txs: Vec::new(),
             execution_data: BlockTransactionExecutionData::default(),
             l2_gas_used: GasAmount::ZERO,
             tx_chunk_size,
@@ -215,9 +222,8 @@ impl BlockBuilderTrait for BlockBuilder {
 
 impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        let mut block_is_full = false;
-        // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
-        while !block_is_full {
+        let mut finished_adding_txs = false;
+        while !(finished_adding_txs && self.n_txs_in_progress() == 0) {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
                 if self.execution_params.fail_on_err {
@@ -230,21 +236,51 @@ impl BlockBuilder {
                 return Err(BlockBuilderError::Aborted);
             }
 
-            let Some((tx_chunk, results)) = self.execute_txs().await? else {
+            self.handle_executed_txs().await?;
+
+            let is_done = self.executor
+                .try_lock() // Acquire the lock in a sync manner.
+                .expect("Only a single task should use the executor.")
+                .is_done();
+            if is_done {
+                info!("Block is full.");
+                if self.execution_params.fail_on_err {
+                    return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
+                } else {
+                    FULL_BLOCKS.increment(1);
+                }
                 break;
-            };
-            if tx_chunk.is_empty() {
-                continue;
             }
 
-            block_is_full = self.handle_executed_txs(tx_chunk, results).await?;
+            if finished_adding_txs {
+                // Avoid busy wait while waiting for the executor to finish executing the
+                // transactions.
+                self.sleep().await;
+            } else {
+                finished_adding_txs = self.add_txs_to_executor().await?;
+            }
         }
+
+        info!(
+            "Finished building block with {} out of {} transactions.",
+            self.n_executed_txs,
+            self.block_txs.len()
+        );
+
+        let executor = self.executor.clone();
+        let block_summary = tokio::task::spawn_blocking(move || {
+            executor.try_lock() // Acquire the lock in a sync manner.
+                .expect("Only a single task should use the executor.").close_block()
+        })
+        .await
+        .expect("Failed to spawn blocking executor task.")?;
+
         let BlockExecutionSummary {
             state_diff,
             compressed_state_diff,
             bouncer_weights,
             casm_hash_computation_data,
-        } = self.executor.lock().await.close_block()?;
+        } = block_summary;
         Ok(BlockExecutionArtifacts {
             execution_data: std::mem::take(&mut self.execution_data),
             commitment_state_diff: state_diff,
@@ -255,18 +291,25 @@ impl BlockBuilder {
         })
     }
 
+    /// Returns the number of transactions that are currently being executed by the executor.
+    fn n_txs_in_progress(&self) -> usize {
+        self.block_txs.len() - self.n_executed_txs
+    }
+
     /// Adds new transactions (if there are any) from `tx_provider` to the executor.
     ///
-    /// Returns `None` if the transaction input is exhausted, and the transactions otherwise.
-    async fn execute_txs(
-        &mut self,
-    ) -> BlockBuilderResult<
-        Option<(
-            Vec<InternalConsensusTransaction>,
-            Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
-        )>,
-    > {
-        let next_txs = match self.tx_provider.get_txs(self.tx_chunk_size).await {
+    /// Returns `true` if the transaction input is exhausted, `false` otherwise.
+    async fn add_txs_to_executor(&mut self) -> BlockBuilderResult<bool> {
+        // Restrict the number of transactions to fetch such that the number of transactions in
+        // progress is at most `tx_chunk_size`.
+        let n_txs_to_fetch = self.tx_chunk_size - min(self.n_txs_in_progress(), self.tx_chunk_size);
+
+        if n_txs_to_fetch == 0 {
+            self.sleep().await;
+            return Ok(false);
+        }
+
+        let next_txs = match self.tx_provider.get_txs(n_txs_to_fetch).await {
             Err(e @ TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
                 if self.execution_params.fail_on_err =>
             {
@@ -282,47 +325,53 @@ impl BlockBuilder {
         };
         let next_tx_chunk = match next_txs {
             NextTxs::Txs(txs) => txs,
-            NextTxs::End => return Ok(None),
+            NextTxs::End => return Ok(true),
         };
-        debug!("Got {} transactions from the transaction provider.", next_tx_chunk.len());
+        let n_txs = next_tx_chunk.len();
+        debug!("Got {} transactions from the transaction provider.", n_txs);
         if next_tx_chunk.is_empty() {
             self.sleep().await;
-            return Ok(Some((next_tx_chunk, vec![])));
+            return Ok(false);
         }
 
-        self.send_pre_confirmed_txs(&next_tx_chunk).await;
+        self.block_txs.extend(next_tx_chunk.iter().cloned());
 
-        let tx_convert_futures = next_tx_chunk.iter().map(|tx| async {
-            convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()).await
+        let tx_convert_futures = next_tx_chunk.into_iter().map(|tx| async {
+            convert_to_executable_blockifier_tx(&self.transaction_converter, tx).await
         });
         let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
 
-        // Execute the transactions on a separate thread pool to avoid blocking the executor
-        // while waiting on `block_on` calls.
-        debug!("Starting execution of a chunk with {} transactions.", executor_input_chunk.len());
-        let executor = self.executor.clone();
-        let results = tokio::task::spawn_blocking(move || {
-            executor
-                .try_lock() // Acquire the lock in a sync manner.
-                .expect("Only a single task should use the executor.")
-                .add_txs_to_block(executor_input_chunk.as_slice())
-        })
-        .await
-        .expect("Failed to spawn blocking executor task.");
-        debug!("Finished execution of transactions chunk.");
+        // Start the execution of the transactions on the worker pool.
+        info!("Starting execution of {} transactions.", n_txs);
+        self.executor
+            .try_lock() // Acquire the lock in a sync manner.
+            .expect("Only a single task should use the executor.")
+            .add_txs_to_block(executor_input_chunk.as_slice());
 
-        Ok(Some((next_tx_chunk, results)))
+        Ok(false)
     }
 
-    /// Handles the transactions that were processed so far by the executor.
-    async fn handle_executed_txs(
-        &mut self,
-        next_tx_chunk: Vec<InternalConsensusTransaction>,
-        results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
-    ) -> BlockBuilderResult<bool> {
+    /// Handles the transactions that were executed so far by the executor.
+    async fn handle_executed_txs(&mut self) -> BlockBuilderResult<()> {
+        let results = self.executor
+            .try_lock() // Acquire the lock in a sync manner.
+            .expect("Only a single task should use the executor.")
+            .get_new_results();
+
+        if results.is_empty() {
+            return Ok(());
+        }
+
+        info!("Finished execution of {} transactions.", results.len());
         trace!("Transaction execution results: {:?}", results);
+
+        let old_n_executed_txs = self.n_executed_txs;
+        self.n_executed_txs += results.len();
+
+        self.send_pre_confirmed_txs(old_n_executed_txs, self.n_executed_txs).await;
+
         collect_execution_results_and_stream_txs(
-            next_tx_chunk,
+            &self.block_txs[old_n_executed_txs..self.n_executed_txs],
             results,
             &mut self.l2_gas_used,
             &mut self.execution_data,
@@ -333,14 +382,15 @@ impl BlockBuilder {
         .await
     }
 
-    async fn send_pre_confirmed_txs(&mut self, next_tx_chunk: &[InternalConsensusTransaction]) {
+    async fn send_pre_confirmed_txs(&mut self, from_tx: usize, to_tx: usize) {
         // Skip sending pre-confirmed transactions during validation flow.
         // In validate flow pre_confirmed_tx_sender is None.
         let Some(pre_confirmed_tx_sender) = &self.pre_confirmed_tx_sender else {
             return;
         };
 
-        let tx_hashes: Vec<TransactionHash> = next_tx_chunk.iter().map(|tx| tx.tx_hash()).collect();
+        let tx_hashes: Vec<TransactionHash> =
+            self.block_txs[from_tx..to_tx].iter().map(|tx| tx.tx_hash()).collect();
         let num_txs = tx_hashes.len();
 
         info!(
@@ -383,9 +433,8 @@ async fn convert_to_executable_blockifier_tx(
     Ok(BlockifierTransaction::new_for_sequencing(executable_tx))
 }
 
-/// Returns true if the block is full and should be closed, false otherwise.
 async fn collect_execution_results_and_stream_txs(
-    tx_chunk: Vec<InternalConsensusTransaction>,
+    tx_chunk: &[InternalConsensusTransaction],
     results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
     l2_gas_used: &mut GasAmount,
     execution_data: &mut BlockTransactionExecutionData,
@@ -394,28 +443,16 @@ async fn collect_execution_results_and_stream_txs(
     >,
     fail_on_err: bool,
     executed_tx_sender: &Option<ExecutedTxSender>,
-) -> BlockBuilderResult<bool> {
+) -> BlockBuilderResult<()> {
     assert!(
-        results.len() <= tx_chunk.len(),
-        "The number of results should be less than or equal to the number of transactions."
+        results.len() == tx_chunk.len(),
+        "The number of results match the number of transactions."
     );
-    let mut block_is_full = false;
-    // If the block is full, we won't get an error from the executor. We will just get only the
-    // results of the transactions that were executed before the block was full.
-    if results.len() < tx_chunk.len() {
-        info!("Block is full.");
-        if fail_on_err {
-            return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
-        } else {
-            FULL_BLOCKS.increment(1);
-            block_is_full = true;
-        }
-    }
 
     // Collect executed transactions hashes and their receipts
     let mut executed_txs = Vec::new();
 
-    for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
+    for (input_tx, result) in tx_chunk.iter().zip(results.into_iter()) {
         let tx_hash = input_tx.tx_hash();
 
         // Insert the tx_hash into the appropriate collection if it's an L1_Handler transaction.
@@ -442,7 +479,7 @@ async fn collect_execution_results_and_stream_txs(
                 executed_txs.push((tx_hash, starknet_client_tx_receipt));
 
                 if let Some(output_content_sender) = output_content_sender {
-                    output_content_sender.send(input_tx)?;
+                    output_content_sender.send(input_tx.clone())?;
                 }
             }
             // TODO(yael 18/9/2024): add timeout error handling here once this
@@ -493,7 +530,7 @@ async fn collect_execution_results_and_stream_txs(
         }
     }
 
-    Ok(block_is_full)
+    Ok(())
 }
 
 pub struct BlockMetadata {
@@ -590,7 +627,6 @@ impl BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
-        deadline: tokio::time::Instant,
     ) -> BlockBuilderResult<
         ConcurrentTransactionExecutor<StateReaderAndContractManager<PapyrusReader>>,
     > {
@@ -619,7 +655,7 @@ impl BlockBuilderFactory {
             block_context,
             block_metadata.retrospective_block_hash,
             self.worker_pool.clone(),
-            Some(deadline.into()),
+            None,
         )?;
 
         Ok(executor)
@@ -639,11 +675,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         executed_tx_sender: Option<ExecutedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
-        let executor = self.preprocess_and_create_transaction_executor(
-            block_metadata,
-            runtime,
-            execution_params.deadline,
-        )?;
+        let executor = self.preprocess_and_create_transaction_executor(block_metadata, runtime)?;
         let (abort_signal_sender, abort_signal_receiver) = tokio::sync::oneshot::channel();
         let transaction_converter = TransactionConverter::new(
             self.class_manager_client.clone(),
