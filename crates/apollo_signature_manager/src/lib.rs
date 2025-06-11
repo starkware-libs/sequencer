@@ -128,7 +128,7 @@ mod tests {
         false
     )]
     fn test_verify_identity(#[case] signature: Signature, #[case] expected: bool) {
-        let peer_id = PeerId(b"alice".to_vec());
+        let PeerIdentity { peer_id } = PeerIdentity::new();
         let public_key = TestKeyStore::new().public_key;
 
         assert_eq!(verify_identity(peer_id, signature.into(), public_key), Ok(expected));
@@ -154,6 +154,18 @@ mod tests {
             verify_precommit_vote_signature(block_hash, signature.into(), public_key),
             Ok(expected)
         );
+    }
+
+    // TODO(Elin): add identification nonce.
+    #[derive(Clone, Debug)]
+    struct PeerIdentity {
+        pub peer_id: PeerId,
+    }
+
+    impl PeerIdentity {
+        pub fn new() -> Self {
+            Self { peer_id: PeerId(b"alice".to_vec()) }
+        }
     }
 
     /// Simple in-memory KeyStore implementation for testing
@@ -189,7 +201,7 @@ mod tests {
         let key_store = TestKeyStore::new();
         let signature_manager = SignatureManager::new(key_store);
 
-        let peer_id = PeerId(b"alice".to_vec());
+        let peer_id = PeerIdentity::new().peer_id;
         let signature = signature_manager.identify(peer_id.clone()).await;
 
         assert_eq!(signature, Ok(ALICE_IDENTITY_SIGNATURE.into()));
