@@ -12,7 +12,7 @@ use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, St
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-use tracing::{debug, error, trace};
+use tracing::{debug, trace, warn};
 use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
@@ -198,7 +198,7 @@ where
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
         trace!("Sending HTTP request");
         let http_response = self.client.request(http_request).await.map_err(|err| {
-            error!("HTTP request failed with error: {:?}", err);
+            warn!("HTTP request failed with error: {:?}", err);
             ClientError::CommunicationFailure(err.to_string())
         })?;
 
@@ -209,7 +209,7 @@ where
                 response_body
             }
             status_code => {
-                error!(
+                warn!(
                     "Unexpected response status: {:?}. Unable to deserialize response.",
                     status_code
                 );
@@ -247,13 +247,14 @@ where
             let res = self.try_send(http_request).await;
             if res.is_ok() {
                 trace!("Request successful on attempt {}/{}", attempt, max_attempts);
+                self.metrics.record_attempt(attempt);
                 return res;
             }
-            error!("Request failed on attempt {}/{}: {:?}", attempt, max_attempts, res);
+            warn!("Request failed on attempt {}/{}: {:?}", attempt, max_attempts, res);
             if attempt == max_attempts {
+                self.metrics.record_attempt(attempt);
                 return res;
             }
-            error!("sleeping for {:?}", self.config.retry_interval);
             tokio::time::sleep(Duration::from_secs(self.config.retry_interval)).await;
         }
         unreachable!("Guaranteed to return a response before reaching this point.");
