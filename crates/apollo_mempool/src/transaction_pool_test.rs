@@ -20,14 +20,14 @@ fn test_get_lowest_nonce_tx() {
     pool.insert(tx_address_0_nonce_1.clone()).unwrap();
     pool.insert(tx_address_1_nonce_0.clone()).unwrap();
 
-    let lowest_address_0 = pool._get_lowest_nonce(contract_address!("0x0")).unwrap();
+    let lowest_address_0 = pool.get_lowest_nonce(contract_address!("0x0")).unwrap();
     assert_eq!(lowest_address_0, nonce!(1));
-    let lowest_address_1 = pool._get_lowest_nonce(contract_address!("0x1")).unwrap();
+    let lowest_address_1 = pool.get_lowest_nonce(contract_address!("0x1")).unwrap();
     assert_eq!(lowest_address_1, nonce!(0));
-    let lowest_none = pool._get_lowest_nonce(contract_address!("0x2"));
+    let lowest_none = pool.get_lowest_nonce(contract_address!("0x2"));
     assert!(lowest_none.is_none());
 
     pool.remove(tx_hash!(1)).unwrap();
-    let lowest_address_0_after_removal = pool._get_lowest_nonce(contract_address!("0x0")).unwrap();
+    let lowest_address_0_after_removal = pool.get_lowest_nonce(contract_address!("0x0")).unwrap();
     assert_eq!(lowest_address_0_after_removal, nonce!(3));
 }
