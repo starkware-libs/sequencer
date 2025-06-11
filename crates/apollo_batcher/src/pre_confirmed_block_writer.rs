@@ -5,6 +5,7 @@ use std::time::Duration;
 use apollo_batcher_types::batcher_types::Round;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_starknet_client::reader::StateDiff;
 use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
@@ -15,7 +16,6 @@ use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tracing::info;
@@ -46,12 +46,12 @@ pub type PreConfirmedTxSender = tokio::sync::mpsc::Sender<Vec<InternalConsensusT
 pub type ExecutedTxReceiver = tokio::sync::mpsc::Receiver<(
     InternalConsensusTransaction,
     StarknetClientTransactionReceipt,
-    ThinStateDiff,
+    StateDiff,
 )>;
 pub type ExecutedTxSender = tokio::sync::mpsc::Sender<(
     InternalConsensusTransaction,
     StarknetClientTransactionReceipt,
-    ThinStateDiff,
+    StateDiff,
 )>;
 
 /// Coordinates the flow of pre-confirmed block data during block proposal.
@@ -95,7 +95,7 @@ impl PreConfirmedBlockWriter {
             (
                 CendePreConfirmedTransaction,
                 Option<StarknetClientTransactionReceipt>,
-                Option<ThinStateDiff>,
+                Option<StateDiff>,
             ),
         >,
         write_iteration: u64,
@@ -134,7 +134,7 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
             (
                 CendePreConfirmedTransaction,
                 Option<StarknetClientTransactionReceipt>,
-                Option<ThinStateDiff>,
+                Option<StateDiff>,
             ),
         > = IndexMap::new();
 
