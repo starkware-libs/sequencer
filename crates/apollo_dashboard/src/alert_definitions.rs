@@ -14,7 +14,10 @@ use apollo_consensus_orchestrator::metrics::{
 };
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
-use apollo_l1_gas_price::metrics::L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT;
+use apollo_l1_gas_price::metrics::{
+    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
+    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+};
 use apollo_l1_provider::metrics::L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT;
 use apollo_mempool::metrics::{
     MEMPOOL_GET_TXS_SIZE,
@@ -303,6 +306,24 @@ const L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT: Alert = Alert {
     severity: AlertSeverity::Informational,
 };
 
+const L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY_ALERT: Alert = Alert {
+    name: "l1_gas_price_provider_insufficient_history",
+    title: "L1 gas price provider insufficient history",
+    alert_group: AlertGroup::L1GasPrice,
+    expr: formatcp!(
+        "rate({}[1m])",
+        L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY.get_name_with_filter()
+    ),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Informational,
+};
+
 const L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT: Alert = Alert {
     name: "l1_message_scraper_baselayer_error_count",
     title: "L1 message scraper baselayer error count",
@@ -432,6 +453,7 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
+    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY_ALERT,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
     MEMPOOL_ADD_TX_RATE_DROP,
     MEMPOOL_GET_TXS_SIZE_DROP,
