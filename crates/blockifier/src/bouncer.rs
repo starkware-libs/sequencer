@@ -305,16 +305,30 @@ impl Bouncer {
     }
 }
 
-fn n_steps_to_sierra_gas(n_steps: usize, versioned_constants: &VersionedConstants) -> GasAmount {
-    let n_steps_u64 = u64_from_usize(n_steps);
-    let gas_per_step = versioned_constants.os_constants.gas_costs.base.step_gas_cost;
-    let n_steps_gas_cost = n_steps_u64.checked_mul(gas_per_step).unwrap_or_else(|| {
+/// Converts 'amount' of resource units into Sierra gas, given a per-unit rate.
+fn vm_resource_to_gas_amount(amount: usize, gas_per_unit: u64, name: &str) -> GasAmount {
+    let amount_u64 = u64_from_usize(amount);
+    let gas = amount_u64.checked_mul(gas_per_unit).unwrap_or_else(|| {
         panic!(
-            "Multiplication overflow while converting steps to gas. steps: {}, gas per step: {}.",
-            n_steps, gas_per_step
+            "Multiplication overflow converting {name} to gas. units: {}, gas per unit: {}.",
+            amount_u64, gas_per_unit
         )
     });
-    GasAmount(n_steps_gas_cost)
+
+    GasAmount(gas)
+}
+
+fn n_steps_to_gas(n_steps: usize, versioned_constants: &VersionedConstants) -> GasAmount {
+    let gas_per_step = versioned_constants.os_constants.gas_costs.base.step_gas_cost;
+    vm_resource_to_gas_amount(n_steps, gas_per_step, "steps")
+}
+
+fn memory_holes_to_gas(
+    n_memory_holes: usize,
+    versioned_constants: &VersionedConstants,
+) -> GasAmount {
+    let gas_per_memory_hole = versioned_constants.os_constants.gas_costs.base.memory_hole_gas_cost;
+    vm_resource_to_gas_amount(n_memory_holes, gas_per_memory_hole, "memory_holes")
 }
 
 fn vm_resources_to_sierra_gas(
@@ -323,14 +337,21 @@ fn vm_resources_to_sierra_gas(
 ) -> GasAmount {
     let builtins_gas_cost =
         builtins_to_sierra_gas(&resources.prover_builtins(), versioned_constants);
-    let n_steps_gas_cost = n_steps_to_sierra_gas(resources.total_n_steps(), versioned_constants);
-    n_steps_gas_cost.checked_add(builtins_gas_cost).unwrap_or_else(|| {
-        panic!(
-            "Addition overflow while converting vm resources to gas. steps gas: {}, builtins gas: \
-             {}.",
-            n_steps_gas_cost, builtins_gas_cost
-        )
-    })
+    let n_steps_gas_cost =
+        n_steps_to_gas(resources.total_n_steps() - resources.n_memory_holes, versioned_constants);
+    let n_memory_holes_gas_cost =
+        memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
+
+    n_steps_gas_cost
+        .checked_add(n_memory_holes_gas_cost)
+        .and_then(|sum| sum.checked_add(builtins_gas_cost))
+        .unwrap_or_else(|| {
+            panic!(
+                "Addition overflow while converting vm resources to gas. steps gas: {}, memory \
+                 holes gas: {}, builtins gas: {}.",
+                n_steps_gas_cost, builtins_gas_cost, n_memory_holes_gas_cost
+            )
+        })
 }
 
 pub fn builtins_to_sierra_gas(
