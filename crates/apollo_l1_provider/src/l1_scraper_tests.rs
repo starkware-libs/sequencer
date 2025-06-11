@@ -122,6 +122,13 @@ async fn txs_happy_flow() {
         l2_entry_point.parse().unwrap(),
         vec![U256::from(3_u8), U256::from(4_u8)],
     );
+    let nonce_of_message_to_l2_0 = U256::from(0_u8);
+    let request_cancel_message_0 = scraper.base_layer.contract.startL1ToL2MessageCancellation(
+        l2_contract_address.parse().unwrap(),
+        l2_entry_point.parse().unwrap(),
+        vec![U256::from(1_u8), U256::from(2_u8)],
+        nonce_of_message_to_l2_0,
+    );
 
     // Send the transactions.
     let mut block_timestamps: Vec<BlockTimestamp> = Vec::with_capacity(2);
@@ -138,6 +145,16 @@ async fn txs_happy_flow() {
         );
     }
 
+    let cancel_receipt =
+        request_cancel_message_0.send().await.unwrap().get_receipt().await.unwrap();
+    let cancel_timestamp = scraper
+        .base_layer
+        .get_block_header(cancel_receipt.block_number.unwrap())
+        .await
+        .unwrap()
+        .unwrap()
+        .timestamp;
+
     const EXPECTED_VERSION: TransactionVersion = TransactionVersion(StarkHash::ZERO);
     let default_anvil_l1_account_address: StarkHash =
         StarkHash::from_bytes_be_slice(anvil.addresses()[0].as_slice());
@@ -150,6 +167,9 @@ async fn txs_happy_flow() {
             vec![default_anvil_l1_account_address, StarkHash::ONE, StarkHash::from(2)].into(),
         ),
     };
+    let tx_hash_first_tx = expected_internal_l1_tx
+        .calculate_transaction_hash(&scraper.config.chain_id, &EXPECTED_VERSION)
+        .unwrap();
     let tx = ExecutableL1HandlerTransaction {
         tx_hash: expected_internal_l1_tx
             .calculate_transaction_hash(&scraper.config.chain_id, &EXPECTED_VERSION)
@@ -178,9 +198,18 @@ async fn txs_happy_flow() {
         timestamp: block_timestamps[1],
     };
 
+    let expected_cancel_message = Event::TransactionCancellationStarted {
+        tx_hash: tx_hash_first_tx,
+        cancellation_request_timestamp: cancel_timestamp,
+    };
+
     // Assert.
     scraper.send_events_to_l1_provider().await.unwrap();
-    fake_client.assert_add_events_received_with(&[first_expected_log, second_expected_log]);
+    fake_client.assert_add_events_received_with(&[
+        first_expected_log,
+        second_expected_log,
+        expected_cancel_message,
+    ]);
 
     // Previous events had been scraped, should no longer appear.
     scraper.send_events_to_l1_provider().await.unwrap();
