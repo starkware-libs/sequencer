@@ -502,3 +502,14 @@ fn commit_block_twice_panics() {
     // Test.
     l1_provider.commit_block([tx_hash!(1)].into(), [].into(), BlockNumber(0)).unwrap();
 }
+
+fn validate_tx_unknown_returns_invalid_consumed_or_unknown() {
+    use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
+    let tx_1 = l1_handler(1);
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_state(ProviderState::Validate)
+        .build_into_l1_provider();
+    // tx_1 was never added
+    let status = l1_provider.validate(tx_1.tx_hash, l1_provider.current_height).unwrap();
+    assert_eq!(status, InvalidValidationStatus::ConsumedOnL1OrUnknown.into());
+}
