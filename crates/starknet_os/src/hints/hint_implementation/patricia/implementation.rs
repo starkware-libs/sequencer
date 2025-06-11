@@ -5,7 +5,6 @@ use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
-    get_relocatable_from_var_name,
     insert_value_from_var_name,
     insert_value_into_ap,
 };
@@ -476,8 +475,7 @@ pub(crate) fn load_bottom<S: StateReader>(
         preimage_map.get(&bottom_hash).ok_or(OsHintError::MissingPreimage(bottom_hash))?;
     let binary_data = preimage.get_binary()?;
 
-    let hash_ptr_address =
-        get_relocatable_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
+    let hash_ptr_address = get_ptr_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
     let nested_fields_and_values =
         [("x", binary_data.left_hash.0.into()), ("y", binary_data.right_hash.0.into())];
     insert_values_to_fields(
