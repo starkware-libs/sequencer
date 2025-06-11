@@ -46,6 +46,7 @@ impl From<InvalidValidationStatus> for ValidationStatus {
 pub enum InvalidValidationStatus {
     AlreadyIncludedInProposedBlock,
     AlreadyIncludedOnL2,
+    CancelledOnL2,
     ConsumedOnL1OrUnknown,
 }
 
