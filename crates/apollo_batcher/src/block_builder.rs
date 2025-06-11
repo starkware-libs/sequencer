@@ -20,6 +20,7 @@ use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransacti
 use blockifier::blockifier::config::WorkerPoolConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
+    TransactionExecutionOutput,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
 };
@@ -434,7 +435,7 @@ async fn convert_to_executable_blockifier_tx(
 
 async fn collect_execution_results_and_stream_txs(
     tx_chunk: &[InternalConsensusTransaction],
-    results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+    results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
     l2_gas_used: &mut GasAmount,
     execution_data: &mut BlockTransactionExecutionData,
     output_content_sender: &Option<
@@ -457,7 +458,7 @@ async fn collect_execution_results_and_stream_txs(
         }
 
         match result {
-            Ok(tx_execution_info) => {
+            Ok((tx_execution_info, state_maps)) => {
                 *l2_gas_used = l2_gas_used
                     .checked_add(tx_execution_info.receipt.gas.l2_gas)
                     .expect("Total L2 gas overflow.");
@@ -478,13 +479,13 @@ async fn collect_execution_results_and_stream_txs(
                         &execution_data.execution_infos[&tx_hash],
                     ));
 
-                    // TODO(noamsp): Use the real state diff.
-                    let tx_state_diff = ThinStateDiff::default();
+                    let tx_state_diff = ThinStateDiff::from(state_maps);
 
                     // We continue with block building even if sending transaction hashes and
                     // receipts to The PreConfirmedBlockWriter fails because it
                     // is not critical for the block building process.
-                    let _ = executed_tx_sender.try_send((input_tx, tx_receipt, tx_state_diff));
+                    let _ =
+                        executed_tx_sender.try_send((input_tx.clone(), tx_receipt, tx_state_diff));
                 }
             }
             // TODO(yael 18/9/2024): add timeout error handling here once this

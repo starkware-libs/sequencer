@@ -1,10 +1,10 @@
 use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
+    TransactionExecutionOutput,
     TransactionExecutorResult,
 };
 use blockifier::state::state_api::StateReader;
-use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 #[cfg(test)]
 use mockall::automock;
@@ -16,7 +16,7 @@ pub trait TransactionExecutorTrait: Send {
 
     /// Returns the new execution results of the transactions that were executed so far, starting
     /// from the last call to `get_new_results`.
-    fn get_new_results(&mut self) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>>;
+    fn get_new_results(&mut self) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>>;
 
     /// Returns true if the block is full or the deadline is reached.
     fn is_done(&self) -> bool;
@@ -43,11 +43,8 @@ impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait
         self.add_txs(txs);
     }
 
-    fn get_new_results(&mut self) -> Vec<TransactionExecutorResult<TransactionExecutionInfo>> {
+    fn get_new_results(&mut self) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         ConcurrentTransactionExecutor::get_new_results(self)
-            .into_iter()
-            .map(|res| res.map(|(tx_execution_info, _state_diff)| tx_execution_info))
-            .collect()
     }
 
     fn is_done(&self) -> bool {
