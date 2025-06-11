@@ -1104,7 +1104,7 @@ async fn mempool_not_ready() {
 fn validate_batcher_config_failure() {
     let config = BatcherConfig {
         input_stream_content_buffer_size: 99,
-        block_builder_config: BlockBuilderConfig { tx_chunk_size: 100, ..Default::default() },
+        block_builder_config: BlockBuilderConfig { n_concurrent_txs: 100, ..Default::default() },
         ..Default::default()
     };
 
@@ -1112,7 +1112,7 @@ fn validate_batcher_config_failure() {
     assert!(
         error
             .to_string()
-            .contains("input_stream_content_buffer_size must be at least tx_chunk_size")
+            .contains("input_stream_content_buffer_size must be at least n_concurrent_txs")
     );
 }
 

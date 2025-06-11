@@ -97,10 +97,10 @@ impl Default for BatcherConfig {
 
 fn validate_batcher_config(batcher_config: &BatcherConfig) -> Result<(), ValidationError> {
     if batcher_config.input_stream_content_buffer_size
-        < batcher_config.block_builder_config.tx_chunk_size
+        < batcher_config.block_builder_config.n_concurrent_txs
     {
         return Err(ValidationError::new(
-            "input_stream_content_buffer_size must be at least tx_chunk_size",
+            "input_stream_content_buffer_size must be at least n_concurrent_txs",
         ));
     }
     Ok(())

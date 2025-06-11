@@ -74,7 +74,7 @@
     "privacy": "Public",
     "value": 62914560
   },
-  "batcher_config.block_builder_config.tx_chunk_size": {
+  "batcher_config.block_builder_config.n_concurrent_txs": {
     "description": "Number of transactions in each request from the tx_provider.",
     "privacy": "Public",
     "value": 100

@@ -53,7 +53,7 @@ use crate::transaction_provider::{MockTransactionProvider, NextTxs, TransactionP
 const BLOCK_GENERATION_DEADLINE_SECS: u64 = 1;
 const BLOCK_GENERATION_LONG_DEADLINE_SECS: u64 = 5;
 const TX_CHANNEL_SIZE: usize = 50;
-const TX_CHUNK_SIZE: usize = 3;
+const N_CONCURRENT_TXS: usize = 3;
 const TX_POLLING_INTERVAL: u64 = 100;
 
 struct TestExpectations {
@@ -200,8 +200,8 @@ fn one_chunk_mock_executor(
 
 fn two_chunks_test_expectations() -> TestExpectations {
     let input_txs = test_txs(0..6);
-    let first_chunk = input_txs[..TX_CHUNK_SIZE].to_vec();
-    let second_chunk = input_txs[TX_CHUNK_SIZE..].to_vec();
+    let first_chunk = input_txs[..N_CONCURRENT_TXS].to_vec();
+    let second_chunk = input_txs[N_CONCURRENT_TXS..].to_vec();
     let block_size = input_txs.len();
 
     let mut helper = ExpectationHelper::new();
@@ -306,10 +306,10 @@ fn mock_partial_transaction_execution(
 fn test_expectations_partial_transaction_execution() -> TestExpectations {
     let n_completed_txs = 1;
     let input_txs = test_txs(0..6);
-    let first_chunk = input_txs[0..TX_CHUNK_SIZE].to_vec();
+    let first_chunk = input_txs[0..N_CONCURRENT_TXS].to_vec();
     // After the execution of the first transaction, one more transaction is fetched from the
     // provider.
-    let second_chunk = input_txs[TX_CHUNK_SIZE..TX_CHUNK_SIZE + n_completed_txs].to_vec();
+    let second_chunk = input_txs[N_CONCURRENT_TXS..N_CONCURRENT_TXS + n_completed_txs].to_vec();
     let mut mock_transaction_executor =
         mock_partial_transaction_execution(&first_chunk, &second_chunk, n_completed_txs);
 
@@ -447,7 +447,6 @@ fn set_close_block_expectations(
 }
 
 /// Create a mock tx provider that will return the input chunks for number of chunks queries.
-/// This function assumes constant chunk size of TX_CHUNK_SIZE.
 fn mock_tx_provider_limited_calls(
     input_chunks: Vec<Vec<InternalConsensusTransaction>>,
 ) -> MockTransactionProvider {
@@ -473,7 +472,7 @@ fn mock_tx_provider_stream_done(
         .expect_get_txs()
         .times(1)
         .in_sequence(&mut seq)
-        .with(eq(TX_CHUNK_SIZE))
+        .with(eq(N_CONCURRENT_TXS))
         .return_once(move |_n_txs| Ok(NextTxs::Txs(input_chunk)));
     mock_tx_provider
         .expect_get_txs()
@@ -484,7 +483,6 @@ fn mock_tx_provider_stream_done(
 }
 
 /// Create a mock tx provider client that will return the input chunks and then empty chunks.
-/// This function assumes constant chunk size of TX_CHUNK_SIZE.
 fn mock_tx_provider_limitless_calls(
     input_chunks: Vec<Vec<InternalConsensusTransaction>>,
 ) -> MockTransactionProvider {
@@ -498,7 +496,7 @@ fn mock_tx_provider_limitless_calls(
 fn add_limitless_empty_calls(mock_tx_provider: &mut MockTransactionProvider) {
     mock_tx_provider
         .expect_get_txs()
-        .with(eq(TX_CHUNK_SIZE))
+        .with(eq(N_CONCURRENT_TXS))
         .returning(|_n_txs| Ok(NextTxs::Txs(Vec::new())));
 }
 
@@ -507,7 +505,7 @@ fn mock_tx_provider_with_error(error: TransactionProviderError) -> MockTransacti
     mock_tx_provider
         .expect_get_txs()
         .times(1)
-        .with(eq(TX_CHUNK_SIZE))
+        .with(eq(N_CONCURRENT_TXS))
         .return_once(move |_n_txs| Err(error));
     mock_tx_provider
 }
@@ -563,7 +561,7 @@ async fn run_build_block(
         None,
         abort_receiver,
         transaction_converter,
-        TX_CHUNK_SIZE,
+        N_CONCURRENT_TXS,
         TX_POLLING_INTERVAL,
         BlockBuilderExecutionParams { deadline, fail_on_err },
     );
