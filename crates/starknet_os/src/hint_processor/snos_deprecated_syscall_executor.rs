@@ -38,14 +38,23 @@ use blockifier::execution::deprecated_syscalls::{
     StorageWriteResponse,
 };
 use blockifier::execution::entry_point::CallEntryPoint;
+use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::transaction::TransactionVersion;
 
 use crate::hint_processor::execution_helper::{CallInfoTracker, ExecutionHelperError};
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-use crate::vm_utils::write_to_temp_segment;
+use crate::hints::vars::CairoStruct;
+use crate::vm_utils::{
+    get_address_of_nested_fields_from_base_address,
+    get_field_offset,
+    get_size_of_cairo_struct,
+    write_to_temp_segment,
+    VmUtilsError,
+};
 
 #[derive(Debug, thiserror::Error)]
 pub enum DeprecatedSnosSyscallError {
@@ -55,6 +64,8 @@ pub enum DeprecatedSnosSyscallError {
     Memory(#[from] MemoryError),
     #[error(transparent)]
     SyscallExecutorBase(#[from] DeprecatedSyscallExecutorBaseError),
+    #[error(transparent)]
+    VmUtils(#[from] VmUtilsError),
 }
 
 #[derive(Debug)]
@@ -101,6 +112,68 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     #[allow(clippy::result_large_err)]
     fn get_call_entry_point(&mut self) -> Result<&CallEntryPoint, DeprecatedSnosSyscallError> {
         Ok(&self.get_mut_call_info_tracker()?.call_info.call)
+    }
+
+    #[allow(clippy::result_large_err)]
+    fn _get_tx_info_ptr(
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
+    ) -> Result<Relocatable, DeprecatedSnosSyscallError> {
+        let call_info_tracker = syscall_handler
+            .get_current_execution_helper()?
+            .tx_execution_iter
+            .get_tx_execution_info_ref()?
+            .get_call_info_tracker()?;
+        let original_tx_info_start_ptr = call_info_tracker.deprecated_tx_info_ptr;
+        let class_hash =
+            call_info_tracker.call_info.call.class_hash.expect("No class hash was set.");
+        let tx_version = *vm.get_integer(get_address_of_nested_fields_from_base_address(
+            original_tx_info_start_ptr,
+            CairoStruct::TxInfo,
+            vm,
+            &["version"],
+            syscall_handler.os_program,
+        )?)?;
+        let os_constants = &syscall_handler.versioned_constants().os_constants;
+        // Check if we should return version = 1.
+        let tip = match syscall_handler
+            .get_current_execution_helper()?
+            .tx_tracker
+            .tx_ref
+            .expect("Transaction must be set at this point.")
+        {
+            starknet_api::executable_transaction::Transaction::Account(account_transaction) => {
+                account_transaction.tip()
+            }
+            starknet_api::executable_transaction::Transaction::L1Handler(_) => {
+                unimplemented!("L1 handler transactions do not have a tip field in the OS.")
+            }
+        };
+        let should_replace_to_v1 = tx_version == TransactionVersion::THREE.0
+            && os_constants.v1_bound_accounts_cairo0.contains(&class_hash)
+            && tip <= os_constants.v1_bound_accounts_max_tip;
+
+        if should_replace_to_v1 {
+            // Deal with version bound accounts.
+            let replaced_tx_info = vm.add_memory_segment();
+            let tx_info_size = get_size_of_cairo_struct(
+                CairoStruct::DeprecatedTxInfo,
+                syscall_handler.os_program,
+            )?;
+            let mut flattened_tx_info =
+                vm.get_continuous_range(original_tx_info_start_ptr, tx_info_size)?;
+            let version_offset = get_field_offset(
+                CairoStruct::DeprecatedTxInfo,
+                "version",
+                syscall_handler.os_program,
+            )?;
+            // Replace the version field with 1.
+            flattened_tx_info[version_offset] = TransactionVersion::ONE.0.into();
+            vm.load_data(replaced_tx_info, &flattened_tx_info)?;
+            Ok(replaced_tx_info)
+        } else {
+            Ok(original_tx_info_start_ptr)
+        }
     }
 }
 
@@ -253,10 +326,11 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     #[allow(clippy::result_large_err)]
     fn get_tx_info(
         _request: GetTxInfoRequest,
-        _vm: &mut VirtualMachine,
-        _syscall_handler: &mut Self,
+        vm: &mut VirtualMachine,
+        syscall_handler: &mut Self,
     ) -> Result<GetTxInfoResponse, Self::Error> {
-        todo!()
+        let tx_info_start_ptr = Self::_get_tx_info_ptr(vm, syscall_handler)?;
+        Ok(GetTxInfoResponse { tx_info_start_ptr })
     }
 
     #[allow(clippy::result_large_err)]

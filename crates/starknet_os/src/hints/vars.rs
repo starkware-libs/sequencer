@@ -398,6 +398,7 @@ define_string_enum! {
             "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
             DeprecatedContractEntryPoint"
         ),
+        (DeprecatedTxInfo, "starkware.starknet.common.syscalls.TxInfo"),
         (DictAccess, "starkware.cairo.common.dict_access.DictAccess"),
         (DictAccessPtr, "starkware.cairo.common.dict_access.DictAccess*"),
         (
