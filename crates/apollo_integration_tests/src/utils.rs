@@ -78,7 +78,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
-
+use tower_http::trace::TraceLayer;
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
     fn(&mut MultiAccountTransactionGenerator) -> Vec<L1ToL2MessageArgs>;
@@ -302,16 +302,18 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
 // Creates a local recorder server that always returns a success status.
 pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let router = Router::new().route(
-            RECORDER_WRITE_BLOB_PATH,
-            post(move || {
-                async {
-                    debug!("Received a request to write a blob.");
-                    StatusCode::OK.to_string()
-                }
-                .instrument(tracing::debug_span!("success recorder write_blob"))
-            }),
-        );
+        let router = Router::new()
+            .route(
+                RECORDER_WRITE_BLOB_PATH,
+                post(move || {
+                    async {
+                        debug!("Received a request to write a blob.");
+                        StatusCode::OK.to_string()
+                    }
+                    .instrument(tracing::debug_span!("success recorder write_blob"))
+                }),
+            )
+            .layer(TraceLayer::new_for_http());
         axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
     })
 }
