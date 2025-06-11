@@ -74,7 +74,7 @@ pub struct InternalRpcDeployAccountTransaction {
 }
 
 impl InternalRpcDeployAccountTransaction {
-    fn version(&self) -> TransactionVersion {
+    pub fn version(&self) -> TransactionVersion {
         self.tx.version()
     }
 }
@@ -331,7 +331,7 @@ pub enum RpcInvokeTransaction {
 }
 
 impl RpcInvokeTransaction {
-    fn version(&self) -> TransactionVersion {
+    pub fn version(&self) -> TransactionVersion {
         match self {
             RpcInvokeTransaction::V3(_) => TransactionVersion::THREE,
         }
@@ -414,7 +414,7 @@ pub struct InternalRpcDeclareTransactionV3 {
 }
 
 impl InternalRpcDeclareTransactionV3 {
-    fn version(&self) -> TransactionVersion {
+    pub fn version(&self) -> TransactionVersion {
         TransactionVersion::THREE
     }
 }
