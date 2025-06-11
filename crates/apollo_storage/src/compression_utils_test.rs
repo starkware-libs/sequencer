@@ -14,8 +14,7 @@ fn bytes_compression() {
 
 #[test]
 fn object_compression() {
-    let program_json = read_json_file("program.json");
-    let program = serde_json::from_value::<Program>(program_json).unwrap();
+    let program: Program = read_json_file("program.json");
     let compressed = serialize_and_compress(&program).unwrap();
     let mut buf = Vec::new();
     compressed.serialize_into(&mut buf).unwrap();

@@ -115,10 +115,7 @@ fn hint_modified() {
 // the assertion of a file can lead to the hint that caused it.
 #[test]
 fn hints_regression() {
-    let casm = serde_json::from_value::<CasmContractClass>(read_json_file(
-        "erc20_compiled_contract_class.json",
-    ))
-    .unwrap();
+    let casm: CasmContractClass = read_json_file("erc20_compiled_contract_class.json");
     for hint in casm.hints.iter() {
         let mut encoded_hint: Vec<u8> = Vec::new();
         hint.serialize_into(&mut encoded_hint)
@@ -156,8 +153,7 @@ fn casm_serialization_regression() {
 
     for (json_file_name, bin_file_name) in CASM_SERIALIZATION_REGRESSION_FILES {
         let json_path = format!("casm/{}", json_file_name);
-        let json_casm =
-            serde_json::from_value::<CasmContractClass>(read_json_file(&json_path)).unwrap();
+        let json_casm: CasmContractClass = read_json_file(&json_path);
         let mut serialized: Vec<u8> = Vec::new();
         json_casm
             .serialize_into(&mut serialized)
@@ -196,8 +192,7 @@ fn casm_deserialization_regression() {
             CasmContractClass::deserialize_from(&mut regression_casm_bytes.as_slice())
                 .expect("Failed to deserialize casm file: {casm_file}.");
         let json_path = format!("casm/{}", json_file_name);
-        let json_casm = serde_json::from_value::<CasmContractClass>(read_json_file(&json_path))
-            .expect("Failed to deserialize casm file: {casm_file}");
+        let json_casm: CasmContractClass = read_json_file(&json_path);
         assert_eq!(
             regression_casm, json_casm,
             "Deserializing the hardcoded serialization gave a different
@@ -209,9 +204,7 @@ result.\n{FIX_SUGGESTION}"
 fn fix_casm_regression_files() {
     for (json_file_name, bin_file_name) in CASM_SERIALIZATION_REGRESSION_FILES {
         let json_path = format!("casm/{}", json_file_name);
-        let json_casm: CasmContractClass =
-            serde_json::from_value::<CasmContractClass>(read_json_file(&json_path))
-                .expect("Failed to deserialize casm file: {casm_file}");
+        let json_casm: CasmContractClass = read_json_file(&json_path);
         let mut serialized: Vec<u8> = Vec::new();
         json_casm.serialize_into(&mut serialized).unwrap();
         let casm_bytes = serialized.into_boxed_slice();

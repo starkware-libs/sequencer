@@ -58,10 +58,13 @@ pub fn path_in_resources<P: AsRef<Path>>(file_path: P) -> PathBuf {
 }
 
 /// Reads from the directory containing the manifest at run time, same as current working directory.
-pub fn read_json_file<P: AsRef<Path>>(path_in_resource_dir: P) -> serde_json::Value {
+pub fn read_json_file<P: AsRef<Path>, T>(path_in_resource_dir: P) -> T
+where
+    T: for<'a> serde::de::Deserialize<'a>,
+{
     let path = path_in_resources(path_in_resource_dir);
-    let json_str = read_to_string(path.to_str().unwrap())
-        .unwrap_or_else(|_| panic!("Failed to read file at path: {}", path.display()));
+    let json_str =
+        read_to_string(&path).unwrap_or_else(|_| panic!("Failed to read file at path: {path:?}"));
     serde_json::from_str(&json_str).unwrap()
 }
 
