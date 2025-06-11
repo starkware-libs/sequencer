@@ -78,7 +78,7 @@ lazy_static! {
 const DUMMY_SIERRA_SIZE: SierraSize = 1;
 
 fn get_test_instance<T: DeserializeOwned>(path_in_resource_dir: &str) -> T {
-    serde_json::from_value(read_json_file(path_in_resource_dir)).unwrap()
+    read_json_file(path_in_resource_dir)
 }
 
 // A deprecated class for testing, taken from get_deprecated_contract_class of Blockifier.

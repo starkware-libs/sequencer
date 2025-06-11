@@ -16,6 +16,7 @@ pub enum CompressionError {
     Decode(#[from] base64::DecodeError),
 }
 
+// TODO(Arni): Consider replacing value's type to generic `serde::de::Deserialize<'a>`.
 /// Compress the value using gzip with the default compression level and encode it in base64.
 pub fn compress_and_encode(value: serde_json::Value) -> Result<String, std::io::Error> {
     let mut compressor = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
