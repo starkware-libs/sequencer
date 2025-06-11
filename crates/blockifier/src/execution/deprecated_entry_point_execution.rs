@@ -271,6 +271,7 @@ pub fn finalize_execution(
         resources: vm_resources,
         storage_read_values: syscall_handler.read_values,
         accessed_storage_keys: syscall_handler.accessed_keys,
+        builtin_counters: vm_resources_without_inner_calls.builtin_instance_counter,
         ..Default::default()
     })
 }

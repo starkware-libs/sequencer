@@ -1,7 +1,8 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::iter::Sum;
 use std::ops::{Add, AddAssign};
 
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
@@ -211,6 +212,9 @@ pub struct CallInfo {
     pub accessed_storage_keys: HashSet<StorageKey>,
     pub read_class_hash_values: Vec<ClassHash>,
     pub accessed_contract_addresses: HashSet<ContractAddress>,
+    // Tracks how many times each builtin was called during execution (excluding inner calls).
+    // Used by the bouncer to decide when to close a block.
+    pub builtin_counters: HashMap<BuiltinName, usize>,
 }
 
 impl CallInfo {

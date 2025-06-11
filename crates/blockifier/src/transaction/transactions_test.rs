@@ -216,22 +216,20 @@ fn expected_validate_call_info(
         CairoVersion::Cairo0 => Retdata::default(),
         CairoVersion::Cairo1(_) => retdata!(*constants::VALIDATE_RETDATA),
     };
-    // Extra range check in regular (invoke) validate call, due to passing the calldata as an array.
+    // Extra range checks in regular (invoke) validate call, due to calldata passed as array.
+    let n_range_checks = match cairo_version {
+        CairoVersion::Cairo0 => {
+            usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
+        }
+        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
+            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
+        }
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Cairo1(RunnableCairo1::Native) => 0,
+    };
     let vm_resources = match tracked_resource {
         TrackedResource::SierraGas => ExecutionResources::default(),
         TrackedResource::CairoSteps => {
-            let n_range_checks = match cairo_version {
-                CairoVersion::Cairo0 => {
-                    usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
-                }
-                CairoVersion::Cairo1(_) => {
-                    if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME {
-                        7
-                    } else {
-                        2
-                    }
-                }
-            };
             let n_steps = match (entry_point_selector_name, cairo_version) {
                 (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 13_usize,
                 (
@@ -290,6 +288,10 @@ fn expected_validate_call_info(
         resources: vm_resources,
         execution: CallExecution { retdata, gas_consumed, ..Default::default() },
         tracked_resource,
+        builtin_counters: HashMap::from([(BuiltinName::range_check, n_range_checks)])
+            .into_iter()
+            .filter(|builtin| builtin.1 > 0)
+            .collect(),
         ..Default::default()
     })
 }
@@ -365,6 +367,10 @@ fn expected_fee_transfer_call_info(
             sender_balance_key_high,
             sequencer_balance_key_low,
             sequencer_balance_key_high,
+        ]),
+        builtin_counters: HashMap::from([
+            (BuiltinName::range_check, 31),
+            (BuiltinName::pedersen, 4),
         ]),
         ..Default::default()
     })
@@ -591,6 +597,14 @@ fn test_invoke_tx(
             )
         }
     };
+    let builtin_counters = match account_cairo_version {
+        CairoVersion::Cairo0 => HashMap::from([(BuiltinName::range_check, 16)]),
+        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
+            HashMap::from([(BuiltinName::range_check, 23)])
+        }
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Cairo1(RunnableCairo1::Native) => HashMap::default(),
+    };
     let expected_execute_call_info = Some(CallInfo {
         call: expected_execute_call,
         execution: CallExecution {
@@ -601,6 +615,7 @@ fn test_invoke_tx(
         resources: expected_arguments.resources,
         inner_calls: expected_inner_calls,
         tracked_resource,
+        builtin_counters,
         ..Default::default()
     });
 
@@ -2453,6 +2468,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         tracked_resource: test_contract
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 6)]),
         ..Default::default()
     };
 

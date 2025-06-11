@@ -1,5 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+use cairo_vm::types::builtin_name::BuiltinName;
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::{calldata, felt, storage_key};
@@ -163,6 +164,9 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         tracked_resource,
         storage_read_values: vec![felt!(value + 1)],
         accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
+        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
+            .then(|| HashMap::from([(BuiltinName::range_check, 7)]))
+            .unwrap_or_default(),
         ..Default::default()
     };
 
@@ -175,6 +179,9 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         },
         inner_calls: vec![nested_storage_call_info],
         tracked_resource,
+        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
+            .then(|| HashMap::from([(BuiltinName::range_check, 23)]))
+            .unwrap_or_default(),
         ..Default::default()
     };
 
@@ -188,6 +195,9 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         storage_read_values: vec![felt!(value)],
         accessed_storage_keys: HashSet::from([storage_key!(key)]),
         tracked_resource,
+        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
+            .then(|| HashMap::from([(BuiltinName::range_check, 7)]))
+            .unwrap_or_default(),
         ..Default::default()
     };
 
@@ -201,6 +211,9 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         },
         inner_calls: vec![library_call_info, storage_call_info],
         tracked_resource,
+        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
+            .then(|| HashMap::from([(BuiltinName::range_check, 35)]))
+            .unwrap_or_default(),
         ..Default::default()
     };
 
