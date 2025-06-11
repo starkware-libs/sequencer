@@ -47,7 +47,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tokio::sync::{Mutex, MutexGuard};
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::StarknetClientTransactionReceipt;
@@ -396,7 +396,7 @@ impl BlockBuilder {
         let txs = self.block_txs[from_tx..to_tx].to_vec();
         let num_txs = txs.len();
 
-        info!(
+        trace!(
             "Attempting to send a pre confirmed transaction chunk with {num_txs} transactions to \
              the PreConfirmedBlockWriter.",
         );
@@ -486,16 +486,21 @@ async fn collect_execution_results_and_stream_txs(
                     let tx_receipt = StarknetClientTransactionReceipt::from((
                         tx_hash,
                         tx_index,
+                        // TODO(noamsp): Consider using tx_execution_info and moving the line that
+                        // consumes it below this (if it doesn't change functionality).
                         &execution_data.execution_infos[&tx_hash],
                     ));
 
                     let tx_state_diff = ThinStateDiff::from(state_maps);
 
-                    // We continue with block building even if sending transaction hashes and
-                    // receipts to The PreConfirmedBlockWriter fails because it
-                    // is not critical for the block building process.
-                    let _ =
+                    let result =
                         executed_tx_sender.try_send((input_tx.clone(), tx_receipt, tx_state_diff));
+                    if result.is_err() {
+                        // We continue with block building even if sending data to The
+                        // PreConfirmedBlockWriter fails because it is not critical
+                        // for the block building process.
+                        warn!("Sending data to preconfirmed block writer failed.");
+                    }
                 }
             }
             Err(err) => {

@@ -8,6 +8,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
+use indexmap::map::Entry;
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
@@ -15,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tracing::info;
 
@@ -89,8 +91,12 @@ impl PreConfirmedBlockWriter {
     fn create_pre_confirmed_block(
         &self,
         transactions_map: &IndexMap<
-            CendePreConfirmedTransaction,
-            (Option<StarknetClientTransactionReceipt>, Option<ThinStateDiff>),
+            TransactionHash,
+            (
+                CendePreConfirmedTransaction,
+                Option<StarknetClientTransactionReceipt>,
+                Option<ThinStateDiff>,
+            ),
         >,
         write_iteration: u64,
     ) -> CendeWritePreConfirmedBlock {
@@ -98,7 +104,7 @@ impl PreConfirmedBlockWriter {
         let mut transaction_receipts = Vec::with_capacity(transactions_map.len());
         let mut transaction_state_diffs = Vec::with_capacity(transactions_map.len());
 
-        for (tx, (tx_receipt, tx_state_diff)) in transactions_map {
+        for (tx, tx_receipt, tx_state_diff) in transactions_map.values() {
             transactions.push(tx.clone());
             transaction_receipts.push(tx_receipt.clone());
             transaction_state_diffs.push(tx_state_diff.clone());
@@ -124,8 +130,12 @@ impl PreConfirmedBlockWriter {
 impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
     async fn run(&mut self) -> BlockWriterResult<()> {
         let mut transactions_map: IndexMap<
-            CendePreConfirmedTransaction,
-            (Option<StarknetClientTransactionReceipt>, Option<ThinStateDiff>),
+            TransactionHash,
+            (
+                CendePreConfirmedTransaction,
+                Option<StarknetClientTransactionReceipt>,
+                Option<ThinStateDiff>,
+            ),
         > = IndexMap::new();
 
         let mut pending_tasks = FuturesUnordered::new();
@@ -142,6 +152,7 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
                 _ = write_executed_txs_timer.tick() => {
                     // Only send if there are pending changes to avoid unnecessary calls
                     if pending_changes {
+                        // TODO(noamsp): Extract to a function.
                         let pre_confirmed_block = self.create_pre_confirmed_block(
                             &transactions_map,
                             write_iteration,
@@ -156,7 +167,9 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
                 msg = self.executed_tx_receiver.recv() => {
                     match msg {
                         Some((tx, tx_receipt, tx_state_diff)) => {
-                            transactions_map.insert(tx.into(), (Some(tx_receipt), Some(tx_state_diff)));
+                            let tx = CendePreConfirmedTransaction::from(tx);
+                            let tx_hash = tx.transaction.transaction_hash();
+                            transactions_map.insert(tx_hash, (tx, Some(tx_receipt), Some(tx_state_diff)));
                             pending_changes = true;
                         }
                         None => {
@@ -170,10 +183,13 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
                         Some(txs) => {
                             // Skip transactions that were already executed, to avoid an unnecessary write.
                             for tx in txs {
-                                let tx = tx.into();
-                                if !transactions_map.contains_key(&tx) {
-                                    transactions_map.insert(tx, (None, None));
-                                    pending_changes = true;
+                                let tx = CendePreConfirmedTransaction::from(tx);
+                                match transactions_map.entry(tx.transaction.transaction_hash()) {
+                                    Entry::Vacant(entry) => {
+                                        entry.insert((tx, None, None));
+                                        pending_changes = true;
+                                    }
+                                    Entry::Occupied(_) => {}
                                 }
                             }
                         }
