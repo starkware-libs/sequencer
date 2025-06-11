@@ -1,5 +1,5 @@
 {
-  "application_config_subdir": "config/sequencer/stress_test/app_configs/hybrid/integration_hybrid_node_3/",
+  "application_config_subdir": "crates/apollo_deployments/resources/stress_test/app_configs/hybrid/integration_hybrid_node_3/",
   "services": [
     {
       "name": "Core",

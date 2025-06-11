@@ -1,5 +1,5 @@
 {
-  "application_config_subdir": "config/sequencer/sepolia_integration/app_configs/hybrid/integration_hybrid_node_0/",
+  "application_config_subdir": "crates/apollo_deployments/resources/testing/app_configs/hybrid/deployment_test_hybrid/",
   "services": [
     {
       "name": "Core",
@@ -13,22 +13,20 @@
       "ingress": null,
       "autoscale": false,
       "replicas": 1,
-      "storage": 1000,
-      "toleration": "apollo-core-service",
+      "storage": null,
+      "toleration": null,
       "resources": {
         "requests": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 1,
+          "memory": 2
         },
         "limits": {
-          "cpu": 7,
-          "memory": 14
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-0"
-      },
-      "anti_affinity": true
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "HttpServer",
@@ -40,11 +38,9 @@
         "http_server.json"
       ],
       "ingress": {
-        "domain": "starknet.io",
-        "alternative_names": [
-          "integration-sepolia.starknet.io"
-        ],
-        "internal": false,
+        "domain": "sw-dev.io",
+        "alternative_names": [],
+        "internal": true,
         "rules": [
           {
             "path": "/gateway",
@@ -56,7 +52,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
@@ -67,9 +63,7 @@
           "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-0"
-      },
+      "external_secret": null,
       "anti_affinity": false
     },
     {
@@ -83,22 +77,20 @@
       ],
       "ingress": null,
       "autoscale": true,
-      "replicas": 2,
+      "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-0"
-      },
+      "external_secret": null,
       "anti_affinity": false
     },
     {
@@ -114,20 +106,18 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-core-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-0"
-      },
+      "external_secret": null,
       "anti_affinity": false
     },
     {
@@ -141,22 +131,20 @@
       ],
       "ingress": null,
       "autoscale": true,
-      "replicas": 2,
+      "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-0"
-      },
+      "external_secret": null,
       "anti_affinity": false
     }
   ]
