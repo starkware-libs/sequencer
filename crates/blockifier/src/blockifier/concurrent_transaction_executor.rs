@@ -101,14 +101,27 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
     ///
     /// Every block must be closed with either `close_block` or `abort_block`.
     #[allow(clippy::result_large_err)]
-    pub fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
+    pub fn close_block(
+        &mut self,
+        n_txs_in_block: Option<usize>,
+    ) -> TransactionExecutorResult<BlockExecutionSummary> {
         log::info!("Worker executor: Closing block.");
         let worker_executor = &self.worker_executor;
         worker_executor.scheduler.halt();
 
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
-        let mut state_after_block =
-            worker_executor.commit_chunk_and_recover_block_state(n_committed_txs);
+        let n_txs = if let Some(n_txs_in_block) = n_txs_in_block {
+            assert!(
+                n_txs_in_block <= n_committed_txs,
+                "Close block requested with {n_txs_in_block} transactions, but only \
+                 {n_committed_txs} transactions were committed."
+            );
+            n_txs_in_block
+        } else {
+            n_committed_txs
+        };
+
+        let mut state_after_block = worker_executor.commit_chunk_and_recover_block_state(n_txs);
         finalize_block(
             &worker_executor.bouncer,
             &mut state_after_block,
