@@ -106,6 +106,7 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
         S,
     >,
 ) -> OsHintResult {
+    hint_processor.commitment_type = CommitmentType::State;
     let contract_address: ContractAddress =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
             .try_into()?;
