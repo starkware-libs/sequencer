@@ -2,9 +2,11 @@
 //! StarknetClient.
 use std::collections::HashMap;
 
+use blockifier::execution::call_info::OrderedEvent;
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
 use blockifier::transaction::objects::TransactionExecutionInfo;
+use cairo_vm::types::builtin_name::BuiltinName;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     BlockHash,
@@ -78,6 +80,25 @@ pub enum Builtin {
     RangeCheck96,
 }
 
+impl From<BuiltinName> for Builtin {
+    fn from(builtin_name: BuiltinName) -> Self {
+        match builtin_name {
+            BuiltinName::range_check => Builtin::RangeCheck,
+            BuiltinName::pedersen => Builtin::Pedersen,
+            BuiltinName::poseidon => Builtin::Poseidon,
+            BuiltinName::ec_op => Builtin::EcOp,
+            BuiltinName::ecdsa => Builtin::Ecdsa,
+            BuiltinName::bitwise => Builtin::Bitwise,
+            BuiltinName::keccak => Builtin::Keccak,
+            BuiltinName::output => Builtin::Output,
+            BuiltinName::segment_arena => Builtin::SegmentArena,
+            BuiltinName::add_mod => Builtin::AddMod,
+            BuiltinName::mul_mod => Builtin::MulMod,
+            BuiltinName::range_check96 => Builtin::RangeCheck96,
+        }
+    }
+}
+
 /// The execution resources used by a transaction.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -115,7 +136,7 @@ pub enum TransactionExecutionStatus {
 pub struct StarknetClientTransactionReceipt {
     pub transaction_index: TransactionOffsetInBlock,
     pub transaction_hash: TransactionHash,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub l1_to_l2_consumed_message: Option<L1ToL2Message>,
     pub l2_to_l1_messages: Vec<L2ToL1Message>,
     pub events: Vec<Event>,
@@ -145,6 +166,13 @@ impl
         (tx_hash, tx_index, tx_execution_info): (TransactionHash, usize, &TransactionExecutionInfo),
     ) -> Self {
         let l2_to_l1_messages = get_l2_to_l1_messages(tx_execution_info);
+        let events = get_events_from_execution_info(tx_execution_info);
+        let execution_resources = get_execution_resources(tx_execution_info);
+        let execution_status = if tx_execution_info.is_reverted() {
+            TransactionExecutionStatus::Reverted
+        } else {
+            TransactionExecutionStatus::Succeeded
+        };
 
         // TODO(Arni): I assume this is not the correct way to fill this field.
         let revert_error =
@@ -156,8 +184,11 @@ impl
             // TODO(Arni): Fill this up. This is relevant only for L1 handler transactions.
             l1_to_l2_consumed_message: None,
             l2_to_l1_messages,
+            events,
+            execution_resources,
+            actual_fee: tx_execution_info.receipt.fee,
+            execution_status,
             revert_error,
-            ..Default::default()
         }
     }
 }
@@ -180,6 +211,59 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
     }
 
     l2_to_l1_messages
+}
+
+fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
+    let call_info = if let Some(ref call_info) = execution_info.execute_call_info {
+        call_info
+    } else {
+        return vec![];
+    };
+
+    // Collect all the events from the call infos, along with their order.
+    let mut accumulated_sortable_events = vec![];
+    for call_info in call_info.iter() {
+        let sortable_events = call_info
+            .execution
+            .events
+            .iter()
+            .map(|orderable_event| (call_info.call.caller_address, orderable_event));
+        accumulated_sortable_events.extend(sortable_events);
+    }
+    // Sort the events by their order.
+    accumulated_sortable_events.sort_by_key(|(_, OrderedEvent { order, .. })| *order);
+
+    // Convert the sorted events into the StarknetClient Event type.
+    accumulated_sortable_events
+        .iter()
+        .map(|(from_address, OrderedEvent { event, .. })| Event {
+            from_address: *from_address,
+            content: event.clone(),
+        })
+        .collect()
+}
+
+fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> ExecutionResources {
+    let receipt = &execution_info.receipt;
+    let resources = &receipt.resources.computation.vm_resources;
+    let builtin_instance_counter = resources
+        .builtin_instance_counter
+        .iter()
+        .map(|(&builtin_name, &count)| {
+            (builtin_name.into(), count.try_into().expect("Failed to convert usize to u64"))
+        })
+        .collect();
+
+    ExecutionResources {
+        n_steps: resources.n_steps.try_into().expect("Failed to convert usize to u64"),
+        builtin_instance_counter,
+        n_memory_holes: resources
+            .n_memory_holes
+            .try_into()
+            .expect("Failed to convert usize to u64"),
+        data_availability: Some(receipt.da_gas),
+        total_gas_consumed: Some(receipt.gas),
+    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq, Hash)]
