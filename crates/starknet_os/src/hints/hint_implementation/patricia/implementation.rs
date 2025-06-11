@@ -25,6 +25,7 @@ use starknet_types_core::felt::Felt;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::{
     build_update_tree,
+    create_preimage_mapping,
     patricia_guess_descents,
     DecodeNodeCase,
     DescentMap,
@@ -33,7 +34,6 @@ use crate::hints::hint_implementation::patricia::utils::{
     LayerIndex,
     Path,
     Preimage,
-    PreimageMap,
     UpdateTree,
 };
 use crate::hints::types::HintArgs;
@@ -169,7 +169,7 @@ pub(crate) fn split_descend<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let height = get_integer_from_var_name(Ids::Height.into(), vm, ids_data, ap_tracking)?;
 
@@ -178,8 +178,10 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
     } else {
         let node =
             HashOutput(get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?);
-        let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
-        let preimage_value = preimage_map.get(&node).ok_or(OsHintError::MissingPreimage(node))?;
+        let commitment_facts = &hint_processor.get_commitment_info()?.commitment_facts;
+        let preimage_value = Preimage::try_from(
+            commitment_facts.get(&node).ok_or(OsHintError::MissingPreimage(node))?,
+        )?;
         Felt::from(preimage_value.length() == 2)
     };
 
@@ -207,11 +209,13 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
     let ids_node =
         HashOutput(get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?);
 
-    let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
+    let commitment_facts = &hint_processor.get_commitment_info()?.commitment_facts;
 
     // This hint is called only when the Node is Binary.
-    let binary_data =
-        preimage_map.get(&ids_node).ok_or(OsHintError::MissingPreimage(ids_node))?.get_binary()?;
+    let preimage = Preimage::try_from(
+        commitment_facts.get(&ids_node).ok_or(OsHintError::MissingPreimage(ids_node))?,
+    )?;
+    let binary_data = preimage.get_binary()?;
 
     let current_hash_address =
         get_ptr_from_var_name(Ids::CurrentHash.into(), vm, ids_data, ap_tracking)?;
@@ -265,12 +269,13 @@ pub(crate) fn build_descent_map<S: StateReader>(
     let height = SubTreeHeight(Ids::Height.fetch_as(vm, ids_data, ap_tracking)?);
     let node = build_update_tree(height, modifications)?;
 
-    let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
+    let commitment_facts = &hint_processor.get_commitment_info()?.commitment_facts;
+    let preimage_map = create_preimage_mapping(commitment_facts)?;
     let prev_root =
         HashOutput(get_integer_from_var_name(Ids::PrevRoot.into(), vm, ids_data, ap_tracking)?);
     let new_root =
         HashOutput(get_integer_from_var_name(Ids::NewRoot.into(), vm, ids_data, ap_tracking)?);
-    let descent_map = patricia_guess_descents(height, &node, preimage_map, prev_root, new_root)?;
+    let descent_map = patricia_guess_descents(height, &node, &preimage_map, prev_root, new_root)?;
 
     exec_scopes.insert_value(Scope::Node.into(), node);
     exec_scopes.insert_value(Scope::DescentMap.into(), descent_map);
@@ -288,13 +293,11 @@ pub(crate) fn build_descent_map<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes) -> OsHintResult {
-    // TODO(Rotem): `preimage_map` and `descent_map` are computed once and remain constant.
-    // Consider adding them as fields to the `SnosHintProcessor` struct.
-    let preimage_map: PreimageMap = exec_scopes.get(Scope::Preimage.into())?;
+    // No need to insert the preimage map into the scope, as we extract it directly
+    // from the execution helper.
     let descent_map: DescentMap = exec_scopes.get(Scope::DescentMap.into())?;
     let new_scope = HashMap::from([
         (Scope::Node.into(), any_box!(node)),
-        (Scope::Preimage.into(), any_box!(preimage_map)),
         (Scope::DescentMap.into(), any_box!(descent_map)),
     ]);
     exec_scopes.enter_scope(new_scope);
@@ -413,13 +416,14 @@ pub(crate) fn enter_scope_descend_edge<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_edge<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     // We don't support hash verification skipping and the scope variable
     // `__patricia_skip_validation_runner`.
     let node = HashOutput(get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?);
-    let preimage_mapping: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
-    let preimage = preimage_mapping.get(&node).ok_or(OsHintError::MissingPreimage(node))?;
+    let commitment_facts = &hint_processor.get_commitment_info()?.commitment_facts;
+    let preimage =
+        Preimage::try_from(commitment_facts.get(&node).ok_or(OsHintError::MissingPreimage(node))?)?;
     let Preimage::Edge(EdgeData { bottom_hash, path_to_bottom }) = preimage else {
         // We expect an edge node.
         return Err(OsHintError::AssertionFailed {
@@ -455,7 +459,7 @@ pub(crate) fn load_edge<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_bottom<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let bottom_hash = HashOutput(
         vm.get_integer(get_address_of_nested_fields(
@@ -469,10 +473,10 @@ pub(crate) fn load_bottom<S: StateReader>(
         )?)?
         .into_owned(),
     );
-    let preimage_map: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
-
-    let preimage =
-        preimage_map.get(&bottom_hash).ok_or(OsHintError::MissingPreimage(bottom_hash))?;
+    let commitment_facts = &hint_processor.get_commitment_info()?.commitment_facts;
+    let preimage = Preimage::try_from(
+        commitment_facts.get(&bottom_hash).ok_or(OsHintError::MissingPreimage(bottom_hash))?,
+    )?;
     let binary_data = preimage.get_binary()?;
 
     let hash_ptr_address = get_ptr_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
