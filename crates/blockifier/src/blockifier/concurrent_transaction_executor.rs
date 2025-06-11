@@ -26,7 +26,7 @@ pub struct ConcurrentTransactionExecutor<S: StateReader> {
     worker_executor: Arc<WorkerExecutor<CachedState<S>>>,
     worker_pool: Arc<WorkerPool<CachedState<S>>>,
     /// The number of transactions that have been outputted by the executor.
-    /// See [Self::get_processed_txs].
+    /// See [Self::get_new_results].
     n_output_txs: usize,
 }
 
@@ -67,8 +67,8 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
     }
 
     /// Returns the new execution outputs of the transactions that were processed so far, starting
-    /// from the last call to `get_processed_txs`.
-    pub fn get_processed_txs(
+    /// from the last call to `get_new_results`.
+    pub fn get_new_results(
         &mut self,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let res = self.worker_executor.extract_execution_outputs(self.n_output_txs);
@@ -94,7 +94,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             self.n_output_txs
         );
         self.worker_executor.scheduler.wait_for_completion(to_tx);
-        self.get_processed_txs()
+        self.get_new_results()
     }
 
     /// Finalizes the block creation and returns [BlockExecutionSummary].
