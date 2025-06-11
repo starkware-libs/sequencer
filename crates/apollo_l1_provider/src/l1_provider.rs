@@ -135,6 +135,68 @@ impl L1Provider {
         Ok(())
     }
 
+    #[instrument(skip_all, err)]
+    pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
+        info!("Adding {} l1 events", events.len());
+        trace!("Adding events: {events:?}");
+
+        for event in events {
+            match event {
+                Event::L1HandlerTransaction { l1_handler_tx, timestamp } => {
+                    let tx_hash = l1_handler_tx.tx_hash;
+                    let successfully_inserted = self.tx_manager.add_tx(l1_handler_tx, timestamp);
+                    if !successfully_inserted {
+                        debug!(
+                            "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
+                             known or committed."
+                        );
+                    }
+                }
+                _ => return Err(L1ProviderError::unsupported_l1_event(event)),
+            }
+        }
+        Ok(())
+    }
+
+    pub fn get_l1_provider_snapshot(&self) -> L1ProviderResult<L1ProviderSnapshot> {
+        let txs_snapshot = self.tx_manager.snapshot();
+        Ok(L1ProviderSnapshot {
+            uncommitted_transactions: txs_snapshot.uncommitted,
+            uncommitted_staged_transactions: txs_snapshot.uncommitted_staged,
+            rejected_transactions: txs_snapshot.rejected,
+            rejected_staged_transactions: txs_snapshot.rejected_staged,
+            committed_transactions: txs_snapshot.committed,
+            l1_provider_state: self.state.as_str().to_string(),
+            current_height: self.current_height,
+        })
+    }
+
+    fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
+        if height != self.current_height {
+            return Err(L1ProviderError::UnexpectedHeight {
+                expected_height: self.current_height,
+                got: height,
+            });
+        }
+        Ok(())
+    }
+
+    fn apply_commit_block(
+        &mut self,
+        consumed_txs: IndexSet<TransactionHash>,
+        rejected_txs: IndexSet<TransactionHash>,
+    ) {
+        let (rejected_and_consumed, committed_txs): (Vec<_>, Vec<_>) =
+            consumed_txs.iter().copied().partition(|tx| rejected_txs.contains(tx));
+        self.tx_manager.commit_txs(&committed_txs, &rejected_and_consumed);
+
+        self.current_height = self.current_height.unchecked_next();
+    }
+
     /// Try to apply commit_block backlog, and if all caught up, drop bootstrapping state.
     fn bootstrap(
         &mut self,
@@ -213,68 +275,6 @@ impl L1Provider {
         }
 
         Ok(())
-    }
-
-    #[instrument(skip_all, err)]
-    pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
-        if self.state.uninitialized() {
-            return Err(L1ProviderError::Uninitialized);
-        }
-
-        info!("Adding {} l1 events", events.len());
-        trace!("Adding events: {events:?}");
-
-        for event in events {
-            match event {
-                Event::L1HandlerTransaction { l1_handler_tx, timestamp } => {
-                    let tx_hash = l1_handler_tx.tx_hash;
-                    let successfully_inserted = self.tx_manager.add_tx(l1_handler_tx, timestamp);
-                    if !successfully_inserted {
-                        debug!(
-                            "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
-                             known or committed."
-                        );
-                    }
-                }
-                _ => return Err(L1ProviderError::unsupported_l1_event(event)),
-            }
-        }
-        Ok(())
-    }
-
-    fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
-        if height != self.current_height {
-            return Err(L1ProviderError::UnexpectedHeight {
-                expected_height: self.current_height,
-                got: height,
-            });
-        }
-        Ok(())
-    }
-
-    fn apply_commit_block(
-        &mut self,
-        consumed_txs: IndexSet<TransactionHash>,
-        rejected_txs: IndexSet<TransactionHash>,
-    ) {
-        let (rejected_and_consumed, committed_txs): (Vec<_>, Vec<_>) =
-            consumed_txs.iter().copied().partition(|tx| rejected_txs.contains(tx));
-        self.tx_manager.commit_txs(&committed_txs, &rejected_and_consumed);
-
-        self.current_height = self.current_height.unchecked_next();
-    }
-
-    pub fn get_l1_provider_snapshot(&self) -> L1ProviderResult<L1ProviderSnapshot> {
-        let txs_snapshot = self.tx_manager.snapshot();
-        Ok(L1ProviderSnapshot {
-            uncommitted_transactions: txs_snapshot.uncommitted,
-            uncommitted_staged_transactions: txs_snapshot.uncommitted_staged,
-            rejected_transactions: txs_snapshot.rejected,
-            rejected_staged_transactions: txs_snapshot.rejected_staged,
-            committed_transactions: txs_snapshot.committed,
-            l1_provider_state: self.state.as_str().to_string(),
-            current_height: self.current_height,
-        })
     }
 }
 
