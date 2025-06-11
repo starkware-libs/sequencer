@@ -199,6 +199,7 @@ impl From<InternalConsensusTransaction> for CendePreConfirmedTransaction {
 
 #[derive(Serialize, Clone)]
 pub struct CendeBlockMetadata {
+    // TODO(noamsp): Delete this field.
     pub parent_block_hash: Option<BlockHash>,
     pub status: BlockStatus,
     pub starknet_version: StarknetVersion,
