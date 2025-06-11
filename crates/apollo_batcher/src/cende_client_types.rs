@@ -2,6 +2,7 @@
 //! StarknetClient.
 use std::collections::HashMap;
 
+use apollo_starknet_client::reader::objects::transaction::{L1HandlerTransaction, Transaction};
 use blockifier::execution::call_info::OrderedEvent;
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
@@ -266,15 +267,18 @@ fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> Executi
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq, Hash)]
+#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
 pub struct CendePreConfirmedTransaction {
-    pub transaction_hash: TransactionHash,
-    // TODO(noamsp): add the relevant fields.
+    #[serde(flatten)]
+    pub transaction: Transaction,
 }
 
 impl From<InternalConsensusTransaction> for CendePreConfirmedTransaction {
-    fn from(transaction: InternalConsensusTransaction) -> Self {
-        Self { transaction_hash: transaction.tx_hash() }
+    fn from(_transaction: InternalConsensusTransaction) -> Self {
+        CendePreConfirmedTransaction {
+            // TODO(Arni): this is a placeholder. Implement the conversion logic.
+            transaction: Transaction::L1Handler(L1HandlerTransaction::default()),
+        }
     }
 }
 
