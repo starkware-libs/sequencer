@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use starknet_api::contract_class::ClassInfo;
 use starknet_api::core::{calculate_contract_address, ContractAddress, Nonce};
@@ -142,6 +143,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
         block_context: &BlockContext,
         _concurrency_mode: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
+        let pre_execution_instant = Instant::now();
+
         let tx_context = Arc::new(block_context.to_tx_context(self));
         let limit_steps_by_resources = false;
         // The Sierra gas limit for L1 handler transaction is set to max_execute_sierra_gas.
@@ -184,6 +187,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                 gas: total_gas,
             },
             revert_error: None,
+            time: Some(pre_execution_instant.elapsed()),
         })
     }
 }

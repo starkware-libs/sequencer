@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Instant;
 
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPriceVector;
@@ -796,6 +797,8 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         block_context: &BlockContext,
         concurrency_mode: bool,
     ) -> TransactionExecutionResult<TransactionExecutionInfo> {
+        let pre_execution_instant = Instant::now();
+
         let tx_context = Arc::new(block_context.to_tx_context(self));
         self.verify_tx_version(tx_context.tx_info.version())?;
 
@@ -836,6 +839,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
                 gas: total_gas,
             },
             revert_error,
+            time: Some(pre_execution_instant.elapsed()),
         };
         Ok(tx_execution_info)
     }
