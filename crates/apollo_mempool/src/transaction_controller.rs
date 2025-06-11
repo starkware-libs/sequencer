@@ -3,6 +3,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use apollo_mempool_types::mempool_types::{AccountState, MempoolResult};
+use rand::prelude::IteratorRandom;
+use rand::thread_rng;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
@@ -149,6 +151,35 @@ impl TransactionPoolController {
         } else {
             self.eviction_tracker.remove(&address);
         }
+    }
+
+    pub fn get_evictable_account(&self) -> Option<ContractAddress> {
+        self.eviction_tracker.iter().choose(&mut thread_rng()).copied()
+    }
+
+    // Attempts to make space in the pool for a new transaction by evicting existing transactions.
+    // Returns true if enough space was freed, false otherwise.
+    pub fn try_make_space(&mut self, required_space: u64) -> bool {
+        let mut total_space_freed = 0;
+        while total_space_freed < required_space && !self.eviction_tracker.is_empty() {
+            let Some(address) = self.get_evictable_account() else {
+                return false;
+            };
+
+            let txs: Vec<_> = self.account_txs_sorted_by_nonce(address).copied().collect();
+            for tx_ref in txs.iter().rev() {
+                if let Ok(tx) = self.tx_pool.remove(tx_ref.tx_hash) {
+                    total_space_freed += tx.total_bytes();
+                    if total_space_freed >= required_space {
+                        return true;
+                    }
+                }
+            }
+
+            self.eviction_tracker.remove(&address);
+        }
+
+        total_space_freed >= required_space
     }
 
     #[cfg(test)]
