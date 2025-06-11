@@ -94,7 +94,6 @@ define_string_enum! {
         (LeftChild),
         (NSelectedBuiltins),
         (Node),
-        (Preimage),
         (RightChild),
         (SyscallHandlerType),
         (UseKzgDa),
