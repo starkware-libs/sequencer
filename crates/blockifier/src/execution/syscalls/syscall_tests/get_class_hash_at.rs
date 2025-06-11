@@ -43,6 +43,7 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
         CallExecution {
             retdata: retdata!(),
             gas_consumed: REQUIRED_GAS_GET_CLASS_HASH_AT_TEST + redeposit_gas,
+            cairo_native: runnable_version.is_cairo_native(),
             failed: false,
             ..CallExecution::default()
         }
