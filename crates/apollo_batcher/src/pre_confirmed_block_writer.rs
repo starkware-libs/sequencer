@@ -8,6 +8,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
+use indexmap::map::Entry;
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
@@ -142,6 +143,7 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
                 _ = write_executed_txs_timer.tick() => {
                     // Only send if there are pending changes to avoid unnecessary calls
                     if pending_changes {
+                        // TODO(noamsp): Extract to a function.
                         let pre_confirmed_block = self.create_pre_confirmed_block(
                             &transactions_map,
                             write_iteration,
@@ -171,9 +173,12 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
                             // Skip transactions that were already executed, to avoid an unnecessary write.
                             for tx in txs {
                                 let tx = tx.into();
-                                if !transactions_map.contains_key(&tx) {
-                                    transactions_map.insert(tx, (None, None));
-                                    pending_changes = true;
+                                match transactions_map.entry(tx) {
+                                    Entry::Vacant(entry) => {
+                                        entry.insert((None, None));
+                                        pending_changes = true;
+                                    }
+                                    Entry::Occupied(_) => {}
                                 }
                             }
                         }

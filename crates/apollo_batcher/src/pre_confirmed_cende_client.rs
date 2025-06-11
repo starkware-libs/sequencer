@@ -8,7 +8,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use thiserror::Error;
-use tracing::{error, info, warn};
+use tracing::{debug, error, trace, warn};
 use url::Url;
 
 use crate::cende_client_types::CendePreConfirmedBlock;
@@ -105,7 +105,7 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
         let request_builder =
             self.client.post(self.write_pre_confirmed_block_url.clone()).json(&pre_confirmed_block);
 
-        info!(
+        trace!(
             "Sending write_pre_confirmed_block request to Cende recorder. block_number: \
              {block_number}, round: {round}, write_iteration: {write_iteration}",
         );
@@ -114,7 +114,7 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
 
         let response_status = response.status();
         if response_status.is_success() {
-            info!(
+            debug!(
                 "write_pre_confirmed_block request succeeded. block_number: {block_number}, \
                  round: {round}, write_iteration: {write_iteration}, status: {response_status}",
             );
