@@ -346,14 +346,22 @@ impl BlockBuilder {
 
         self.block_txs.extend(next_tx_chunk.iter().cloned());
 
-        let tx_convert_futures = next_tx_chunk.into_iter().map(|tx| async {
-            convert_to_executable_blockifier_tx(&self.transaction_converter, tx).await
+        let tx_convert_futures = next_tx_chunk.iter().map(|tx| async {
+            convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()).await
         });
         let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
 
         // Start the execution of the transactions on the worker pool.
         info!("Starting execution of {} transactions.", n_txs);
         lock_executor(&self.executor).add_txs_to_block(executor_input_chunk.as_slice());
+
+        if let Some(output_content_sender) = &self.output_content_sender {
+            // Send the transactions to the validators.
+            // Only reached in proposal flow.
+            for tx in next_tx_chunk.into_iter() {
+                output_content_sender.send(tx)?;
+            }
+        }
 
         Ok(AddTxsToExecutorResult::NewTxs)
     }
@@ -378,7 +386,6 @@ impl BlockBuilder {
             results,
             &mut self.l2_gas_used,
             &mut self.execution_data,
-            &self.output_content_sender,
             self.execution_params.fail_on_err,
             &self.executed_tx_sender,
         )
@@ -447,9 +454,6 @@ async fn collect_execution_results_and_stream_txs(
     results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
     l2_gas_used: &mut GasAmount,
     execution_data: &mut BlockTransactionExecutionData,
-    output_content_sender: &Option<
-        tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
-    >,
     fail_on_err: bool,
     executed_tx_sender: &Option<ExecutedTxSender>,
 ) -> BlockBuilderResult<()> {
@@ -486,11 +490,6 @@ async fn collect_execution_results_and_stream_txs(
                 starknet_client_tx_receipt.transaction_index =
                     starknet_api::transaction::TransactionOffsetInBlock(tx_index);
                 executed_txs.push((tx_hash, starknet_client_tx_receipt));
-
-                if let Some(output_content_sender) = output_content_sender {
-                    // Only reached in proposal flow.
-                    output_content_sender.send(input_tx.clone())?;
-                }
             }
             Err(err) => {
                 info!(
