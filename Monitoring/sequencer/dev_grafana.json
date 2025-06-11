@@ -608,6 +608,13 @@
         "type": "graph",
         "expr": "batcher_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
+      },
+      {
+        "title": "batcher_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a batcher remote client",
+        "type": "graph",
+        "expr": "batcher_remote_client_send_attempts{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
       }
     ],
     "Gateway Infra": [
@@ -651,6 +658,13 @@
         "description": "Counter of messages processed by gateway remote server",
         "type": "graph",
         "expr": "gateway_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "gateway_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a gateway remote client",
+        "type": "graph",
+        "expr": "gateway_remote_client_send_attempts{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
       }
     ],
@@ -696,6 +710,13 @@
         "type": "graph",
         "expr": "class_manager_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a class manager remote client",
+        "type": "graph",
+        "expr": "class_manager_remote_client_send_attempts{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
       }
     ],
     "L1 Provider Infra": [
@@ -739,6 +760,13 @@
         "description": "Counter of messages processed by L1 provider remote server",
         "type": "graph",
         "expr": "l1_provider_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a L1 provider remote client",
+        "type": "graph",
+        "expr": "l1_provider_remote_client_send_attempts{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
       }
     ],
@@ -784,6 +812,13 @@
         "type": "graph",
         "expr": "l1_gas_price_provider_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a L1 gas price provider remote client",
+        "type": "graph",
+        "expr": "l1_gas_price_provider_remote_client_send_attempts{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
       }
     ],
     "Mempool Infra": [
@@ -827,6 +862,13 @@
         "description": "Counter of messages processed by mempool remote server",
         "type": "graph",
         "expr": "mempool_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a mempool remote client",
+        "type": "graph",
+        "expr": "mempool_remote_client_send_attempts{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
       }
     ],
@@ -872,6 +914,13 @@
         "type": "graph",
         "expr": "mempool_p2p_propagator_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
+      },
+      {
+        "title": "mempool_p2p_propagator_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a mempool p2p remote client",
+        "type": "graph",
+        "expr": "mempool_p2p_propagator_remote_client_send_attempts{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
       }
     ],
     "SierraCompilerInfra": [
@@ -915,6 +964,13 @@
         "description": "Counter of messages processed by sierra compiler remote server",
         "type": "graph",
         "expr": "sierra_compiler_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a sierra compiler remote client",
+        "type": "graph",
+        "expr": "sierra_compiler_remote_client_send_attempts{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
       }
     ],
@@ -968,6 +1024,13 @@
         "description": "Counter of messages processed by state sync remote server",
         "type": "graph",
         "expr": "state_sync_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a state sync remote client",
+        "type": "graph",
+        "expr": "state_sync_remote_client_send_attempts{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
       }
     ]
