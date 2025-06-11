@@ -14,7 +14,7 @@ use assert_matches::assert_matches;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
@@ -83,6 +83,13 @@ fn l1_handler_event(tx_hash: TransactionHash) -> Event {
     Event::L1HandlerTransaction {
         l1_handler_tx: executable_l1_handler_tx(L1HandlerTxArgs { tx_hash, ..Default::default() }),
         timestamp: default_timestamp,
+    }
+}
+
+fn timed_l1_handler_event(tx_hash: TransactionHash, timestamp: BlockTimestamp) -> Event {
+    Event::L1HandlerTransaction {
+        l1_handler_tx: executable_l1_handler_tx(L1HandlerTxArgs { tx_hash, ..Default::default() }),
+        timestamp,
     }
 }
 
@@ -166,9 +173,10 @@ fn process_events_happy_flow() {
 #[test]
 fn process_events_committed_txs() {
     // Setup.
+    let timestamp = 1;
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_txs([l1_handler(1)])
-        .with_committed(vec![l1_handler(2)])
+        .with_timed_txs([(l1_handler(1), timestamp)])
+        .with_timed_committed([(l1_handler(2), timestamp)])
         .with_state(ProviderState::Pending)
         .build_into_l1_provider();
 
@@ -176,11 +184,11 @@ fn process_events_committed_txs() {
 
     // Test.
     // Uncommitted transaction, should fail silently.
-    l1_provider.add_events(vec![l1_handler_event(tx_hash!(1))]).unwrap();
+    l1_provider.add_events(vec![timed_l1_handler_event(tx_hash!(1), timestamp.into())]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 
     // Committed transaction, should fail silently.
-    l1_provider.add_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
+    l1_provider.add_events(vec![timed_l1_handler_event(tx_hash!(2), timestamp.into())]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 }
 
@@ -501,4 +509,32 @@ fn commit_block_twice_panics() {
 
     // Test.
     l1_provider.commit_block([tx_hash!(1)].into(), [].into(), BlockNumber(0)).unwrap();
+}
+
+#[test]
+fn add_tx_identical_timestamp_both_stored() {
+    // Setup.
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let tx_3 = l1_handler(3);
+    let timestamp_1 = 6;
+    let timestamp_2 = timestamp_1;
+    let timestamp_3 = 7;
+
+    // Test.
+
+    let mut l1_provider = L1ProviderContentBuilder::new().build_into_l1_provider();
+    l1_provider
+        .add_events(vec![
+            timed_l1_handler_event(tx_1.clone().tx_hash, timestamp_1.into()),
+            timed_l1_handler_event(tx_2.clone().tx_hash, timestamp_2.into()),
+            timed_l1_handler_event(tx_3.clone().tx_hash, timestamp_3.into()),
+        ])
+        .unwrap();
+
+    // Should contain txs even if they have identical timestamp.
+    let expected = L1ProviderContentBuilder::new()
+        .with_timed_txs([(tx_1, timestamp_1), (tx_2, timestamp_2), (tx_3, timestamp_3)])
+        .build();
+    expected.assert_eq(&l1_provider);
 }

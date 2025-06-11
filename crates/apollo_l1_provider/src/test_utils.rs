@@ -13,7 +13,7 @@ use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::executable_transaction::{
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
     L1HandlerTransaction,
@@ -71,7 +71,7 @@ impl From<L1ProviderContent> for L1Provider {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct L1ProviderContentBuilder {
     tx_manager_content_builder: TransactionManagerContentBuilder,
     state: Option<ProviderState>,
@@ -93,6 +93,15 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    pub fn with_timed_txs(
+        mut self,
+        txs: impl IntoIterator<Item = (L1HandlerTransaction, u64)>,
+    ) -> Self {
+        let timed_txs = txs.into_iter().map(Into::into);
+        self.tx_manager_content_builder = self.tx_manager_content_builder.with_timed_txs(timed_txs);
+        self
+    }
+
     pub fn with_rejected(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
         self.tx_manager_content_builder = self.tx_manager_content_builder.with_rejected(txs);
         self
@@ -108,6 +117,16 @@ impl L1ProviderContentBuilder {
         committed: impl IntoIterator<Item = L1HandlerTransaction>,
     ) -> Self {
         self.tx_manager_content_builder = self.tx_manager_content_builder.with_committed(committed);
+        self
+    }
+
+    pub fn with_timed_committed(
+        mut self,
+        committed: impl IntoIterator<Item = (L1HandlerTransaction, u64)>,
+    ) -> Self {
+        let committed = committed.into_iter().map(Into::into);
+        self.tx_manager_content_builder =
+            self.tx_manager_content_builder.with_timed_committed(committed);
         self
     }
 
@@ -137,7 +156,7 @@ impl L1ProviderContentBuilder {
 // Enables customized (and potentially inconsistent) creation for unit testing.
 #[derive(Debug, Default)]
 struct TransactionManagerContent {
-    pub uncommitted: Option<Vec<L1HandlerTransaction>>,
+    pub uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     pub rejected: Option<Vec<L1HandlerTransaction>>,
     pub committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
 }
@@ -148,7 +167,13 @@ impl TransactionManagerContent {
         let snapshot = tx_manager.snapshot();
 
         if let Some(uncommitted) = &self.uncommitted {
-            assert_eq!(uncommitted.iter().map(|tx| tx.tx_hash).collect_vec(), snapshot.uncommitted);
+            assert_eq!(
+                uncommitted
+                    .iter()
+                    .map(|TimedL1HandlerTransaction { tx, .. }| tx.tx_hash)
+                    .collect_vec(),
+                snapshot.uncommitted
+            );
         }
 
         if let Some(expected_committed) = &self.committed {
@@ -170,12 +195,18 @@ impl From<TransactionManagerContent> for TransactionManager {
         let mut records = IndexMap::with_capacity(pending.len() + rejected.len() + committed.len());
 
         for pending_tx in pending {
-            assert_eq!(records.insert(pending_tx.tx_hash, pending_tx.into()), None);
+            let tx_hash = pending_tx.tx.tx_hash;
+            let record = TransactionRecord::from(pending_tx);
+            assert_eq!(records.insert(tx_hash, record), None);
         }
 
         for rejected_tx in rejected {
             let tx_hash = rejected_tx.tx_hash;
-            let mut record = TransactionRecord::from(rejected_tx);
+            let mut record = TransactionRecord::new(TransactionPayload::Full {
+                tx: rejected_tx,
+                created_at_block_timestamp: 0.into(), /* timestamps are irrelevant for txs once
+                                                       * rejected. */
+            });
             record.mark_rejected();
             assert_eq!(records.insert(tx_hash, record), None);
         }
@@ -195,15 +226,21 @@ impl From<TransactionManagerContent> for TransactionManager {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct TransactionManagerContentBuilder {
-    uncommitted: Option<Vec<L1HandlerTransaction>>,
+    uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     rejected: Option<Vec<L1HandlerTransaction>>,
     committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
 }
 
 impl TransactionManagerContentBuilder {
     fn with_txs(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
+        let dummy_timestamp = 0;
+        self.uncommitted = Some(txs.into_iter().map(|tx| (tx, dummy_timestamp).into()).collect());
+        self
+    }
+
+    fn with_timed_txs(mut self, txs: impl IntoIterator<Item = TimedL1HandlerTransaction>) -> Self {
         self.uncommitted = Some(txs.into_iter().collect());
         self
     }
@@ -214,9 +251,28 @@ impl TransactionManagerContentBuilder {
     }
 
     fn with_committed(mut self, committed: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
-        self.committed
-            .get_or_insert_default()
-            .extend(committed.into_iter().map(|tx| (tx.tx_hash, tx.into())));
+        self.committed.get_or_insert_default().extend(
+            committed
+                .into_iter()
+                // created at block is irrelevant for committed txs.
+                .map(|tx| (tx.tx_hash, TransactionPayload::Full { tx, created_at_block_timestamp: 0.into() })),
+        );
+        self
+    }
+
+    fn with_timed_committed(
+        mut self,
+        committed: impl IntoIterator<Item = TimedL1HandlerTransaction>,
+    ) -> Self {
+        self.committed.get_or_insert_default().extend(committed.into_iter().map(|timed_tx| {
+            (
+                timed_tx.tx.tx_hash,
+                TransactionPayload::Full {
+                    tx: timed_tx.tx,
+                    created_at_block_timestamp: timed_tx.timestamp,
+                },
+            )
+        }));
         self
     }
 
@@ -327,5 +383,26 @@ impl L1ProviderClient for FakeL1ProviderClient {
 
     async fn get_l1_provider_snapshot(&self) -> L1ProviderClientResult<L1ProviderSnapshot> {
         todo!()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct TimedL1HandlerTransaction {
+    pub tx: L1HandlerTransaction,
+    pub timestamp: BlockTimestamp,
+}
+
+impl From<(L1HandlerTransaction, u64)> for TimedL1HandlerTransaction {
+    fn from((tx, timestamp): (L1HandlerTransaction, u64)) -> Self {
+        Self { timestamp: timestamp.into(), tx }
+    }
+}
+
+impl From<TimedL1HandlerTransaction> for TransactionRecord {
+    fn from(timed_tx: TimedL1HandlerTransaction) -> Self {
+        TransactionRecord::new(TransactionPayload::Full {
+            tx: timed_tx.tx,
+            created_at_block_timestamp: timed_tx.timestamp,
+        })
     }
 }
