@@ -350,6 +350,33 @@
       "for": "3m",
       "intervalSec": 60,
       "severity": "p2"
+    },
+    {
+      "name": "batched_transactions_stuck",
+      "title": "Batched transactions stuck",
+      "ruleGroup": "batcher",
+      "expr": "changes(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1s",
+      "intervalSec": 10,
+      "severity": "p2"
     }
   ]
 }
