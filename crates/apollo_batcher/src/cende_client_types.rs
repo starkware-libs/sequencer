@@ -16,8 +16,6 @@ use blockifier::transaction::objects::TransactionExecutionInfo;
 use cairo_vm::types::builtin_name::BuiltinName;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
-    BlockHash,
-    BlockHashAndNumber,
     BlockInfo,
     BlockStatus,
     BlockTimestamp,
@@ -415,8 +413,6 @@ impl From<L1HandlerTransaction> for CendePreConfirmedTransaction {
 
 #[derive(Serialize, Clone)]
 pub struct CendeBlockMetadata {
-    // TODO(noamsp): Delete this field.
-    pub parent_block_hash: Option<BlockHash>,
     pub status: BlockStatus,
     pub starknet_version: StarknetVersion,
     pub l1_da_mode: L1DataAvailabilityMode,
@@ -428,12 +424,7 @@ pub struct CendeBlockMetadata {
 }
 
 impl CendeBlockMetadata {
-    pub fn new(
-        block_info: BlockInfo,
-        retrospective_block_hash: Option<BlockHashAndNumber>,
-    ) -> Self {
-        let parent_block_hash = retrospective_block_hash.map(|hash| hash.hash);
-
+    pub fn new(block_info: BlockInfo) -> Self {
         let l1_da_mode = match block_info.use_kzg_da {
             true => L1DataAvailabilityMode::Blob,
             false => L1DataAvailabilityMode::Calldata,
@@ -448,7 +439,6 @@ impl CendeBlockMetadata {
         let starknet_version = StarknetVersion::default();
 
         Self {
-            parent_block_hash,
             status,
             starknet_version,
             l1_da_mode,
