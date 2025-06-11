@@ -8,7 +8,13 @@ use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
-use crate::transaction_record::{Records, TransactionPayload, TransactionRecord, TransactionState};
+use crate::transaction_record::{
+    Records,
+    TransactionPayload,
+    TransactionRecord,
+    TransactionRecordPolicy,
+    TransactionState,
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TransactionManager {
@@ -33,9 +39,15 @@ pub struct TransactionManager {
 }
 
 impl TransactionManager {
-    pub fn new(new_l1_handler_tx_cooldown_secs: Duration) -> Self {
+    pub fn new(
+        new_l1_handler_tx_cooldown_secs: Duration,
+        l1_handler_cancellation_timelock_seconds: Duration,
+    ) -> Self {
         Self {
-            config: TransactionManagerConfig { new_l1_handler_tx_cooldown_secs },
+            config: TransactionManagerConfig {
+                new_l1_handler_tx_cooldown_secs,
+                l1_handler_cancellation_timelock_seconds,
+            },
             records: Default::default(),
             proposable_index: Default::default(),
             current_staging_epoch: StagingEpoch::new(),
@@ -79,16 +91,25 @@ impl TransactionManager {
         txs
     }
 
-    pub fn validate_tx(&mut self, tx_hash: TransactionHash) -> ValidationStatus {
+    pub fn validate_tx(&mut self, tx_hash: TransactionHash, unix_now: u64) -> ValidationStatus {
         let current_staging_epoch_cloned = self.current_staging_epoch;
+
+        let policy = TransactionRecordPolicy {
+            cancellation_timelock: self.config.l1_handler_cancellation_timelock_seconds,
+        };
+
         let validation_status = self.with_record(tx_hash, |record| {
+            // If the current time affects the state, update state now.
+            record.update_time_based_state(unix_now, policy);
+
             if !record.is_validatable() {
                 match record.state {
                     TransactionState::Committed => {
                         InvalidValidationStatus::AlreadyIncludedOnL2.into()
                     }
-                    // This will soon also replaced with other states, like `Canceled`, which is
-                    // also not-validatable.
+                    TransactionState::CancelledOnL2 => {
+                        InvalidValidationStatus::CancelledOnL2.into()
+                    }
                     _ => unreachable!(),
                 }
             } else if record.try_mark_staged(current_staging_epoch_cloned) {
@@ -176,6 +197,9 @@ impl TransactionManager {
                 TransactionState::CancellationStartedOnL2 => {
                     snapshot.cancellation_started_on_l2.push(tx_hash);
                 }
+                TransactionState::CancelledOnL2 => {
+                    snapshot.cancelled_on_l2.push(tx_hash);
+                }
             }
         }
 
@@ -255,7 +279,7 @@ impl Default for TransactionManager {
     // Note that new will init the epoch at 1, not 0, this is because a 0 epoch in the transaction
     // manager will make new transactions automatically staged by default in the first block.
     fn default() -> Self {
-        Self::new(Duration::from_secs(0))
+        Self::new(Duration::from_secs(0), Duration::from_secs(0))
     }
 }
 #[derive(Debug, Default)]
@@ -266,6 +290,9 @@ pub(crate) struct TransactionManagerSnapshot {
     pub rejected_staged: Vec<TransactionHash>,
     pub committed: Vec<TransactionHash>,
     pub cancellation_started_on_l2: Vec<TransactionHash>,
+    // NOTE: transition from cancellation-started into cancelled state is done LAZILY only when
+    // validation requests are processed against a record.
+    pub cancelled_on_l2: Vec<TransactionHash>,
 }
 
 // Invariant: Monotone-increasing.
@@ -315,4 +342,7 @@ pub struct TransactionManagerConfig {
     // How long to wait before allowing new L1 handler transactions to be proposed (validation is
     // available immediately).
     pub new_l1_handler_tx_cooldown_secs: Duration,
+    /// How long to allow a transaction requested for cancellation to be validated against
+    /// (proposals are banned upon receiving a cancellation request).
+    pub l1_handler_cancellation_timelock_seconds: Duration,
 }
