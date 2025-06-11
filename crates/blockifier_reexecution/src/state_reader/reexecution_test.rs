@@ -9,6 +9,10 @@ use crate::state_reader::utils::{get_block_numbers_for_reexecution, reexecute_bl
 #[case::v_0_13_1_1(649367)]
 #[case::v_0_13_2(685878)]
 #[case::v_0_13_2_1(700000)]
+#[case::v_0_13_3(1000000)]
+#[case::v_0_13_4(1257000)]
+// TODO(Aner): Reenable this test once the blockifier reexecution is fixed.
+// #[case::v_0_13_5(1400000)]
 #[case::invoke_with_replace_class_syscall(780008)]
 #[case::invoke_with_deploy_syscall(870136)]
 #[case::example_deploy_account_v1(837408)]
