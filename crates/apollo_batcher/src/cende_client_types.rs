@@ -3,6 +3,9 @@
 use std::collections::HashMap;
 
 use apollo_starknet_client::reader::objects::transaction::{
+    IntermediateDeclareTransaction,
+    IntermediateDeployAccountTransaction,
+    IntermediateInvokeTransaction,
     L1HandlerTransaction as ClientL1HandlerTransaction,
     Transaction,
 };
@@ -25,8 +28,14 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
+use starknet_api::rpc_transaction::{
+    InternalRpcDeployAccountTransaction,
+    InternalRpcTransaction,
+    RpcDeployAccountTransaction,
+    RpcInvokeTransaction,
+};
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::transaction::{
     Event,
     L1ToL2Payload,
@@ -280,14 +289,106 @@ pub struct CendePreConfirmedTransaction {
 impl From<InternalConsensusTransaction> for CendePreConfirmedTransaction {
     fn from(transaction: InternalConsensusTransaction) -> Self {
         match transaction {
-            InternalConsensusTransaction::RpcTransaction(_internal_rpc_transaction) => {
-                // TODO(Arni): This is a placeholder. Implement the conversion from RPC transaction.
-                CendePreConfirmedTransaction {
-                    transaction: Transaction::L1Handler(ClientL1HandlerTransaction::default()),
-                }
+            InternalConsensusTransaction::RpcTransaction(internal_rpc_transaction) => {
+                internal_rpc_transaction.into()
             }
             InternalConsensusTransaction::L1Handler(l1_handler_transaction) => {
                 l1_handler_transaction.into()
+            }
+        }
+    }
+}
+
+impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
+    fn from(internal_rpc_transaction: InternalRpcTransaction) -> Self {
+        let tx_hash = internal_rpc_transaction.tx_hash;
+        match internal_rpc_transaction.tx {
+            starknet_api::rpc_transaction::InternalRpcTransactionWithoutTxHash::Declare(
+                declare_transaction,
+            ) => {
+                let version = declare_transaction.version();
+                CendePreConfirmedTransaction {
+                    transaction: Transaction::Declare(IntermediateDeclareTransaction {
+                        resource_bounds: Some(ValidResourceBounds::AllResources(
+                            declare_transaction.resource_bounds,
+                        )),
+                        tip: Some(declare_transaction.tip),
+                        signature: declare_transaction.signature,
+                        nonce: declare_transaction.nonce,
+                        class_hash: declare_transaction.class_hash,
+                        compiled_class_hash: Some(declare_transaction.compiled_class_hash),
+                        sender_address: declare_transaction.sender_address,
+                        nonce_data_availability_mode: Some(
+                            declare_transaction.nonce_data_availability_mode.into(),
+                        ),
+                        fee_data_availability_mode: Some(
+                            declare_transaction.fee_data_availability_mode.into(),
+                        ),
+                        paymaster_data: Some(declare_transaction.paymaster_data),
+                        account_deployment_data: Some(declare_transaction.account_deployment_data),
+                        version,
+                        transaction_hash: tx_hash,
+                        // Irrelevant for V3 declare transactions.
+                        max_fee: None,
+                    }),
+                }
+            }
+            starknet_api::rpc_transaction::InternalRpcTransactionWithoutTxHash::DeployAccount(
+                deploy_account_transaction,
+            ) => {
+                let version = deploy_account_transaction.version();
+                let InternalRpcDeployAccountTransaction {
+                    tx: RpcDeployAccountTransaction::V3(tx),
+                    contract_address,
+                } = deploy_account_transaction;
+                CendePreConfirmedTransaction {
+                    transaction: Transaction::DeployAccount(IntermediateDeployAccountTransaction {
+                        resource_bounds: Some(ValidResourceBounds::AllResources(
+                            tx.resource_bounds,
+                        )),
+                        tip: Some(tx.tip),
+                        signature: tx.signature,
+                        nonce: tx.nonce,
+                        class_hash: tx.class_hash,
+                        contract_address_salt: tx.contract_address_salt,
+                        constructor_calldata: tx.constructor_calldata,
+                        nonce_data_availability_mode: Some(tx.nonce_data_availability_mode.into()),
+                        fee_data_availability_mode: Some(tx.fee_data_availability_mode.into()),
+                        paymaster_data: Some(tx.paymaster_data),
+                        sender_address: contract_address,
+                        transaction_hash: tx_hash,
+                        version,
+                        // Irrelevant for V3 deploy account transactions.
+                        max_fee: None,
+                    }),
+                }
+            }
+            starknet_api::rpc_transaction::InternalRpcTransactionWithoutTxHash::Invoke(
+                invoke_transaction,
+            ) => {
+                let version = invoke_transaction.version();
+                let RpcInvokeTransaction::V3(tx) = invoke_transaction;
+                CendePreConfirmedTransaction {
+                    transaction: Transaction::Invoke(IntermediateInvokeTransaction {
+                        resource_bounds: Some(ValidResourceBounds::AllResources(
+                            tx.resource_bounds,
+                        )),
+                        tip: Some(tx.tip),
+                        calldata: tx.calldata,
+                        sender_address: tx.sender_address,
+                        nonce: Some(tx.nonce),
+                        signature: tx.signature,
+                        nonce_data_availability_mode: Some(tx.nonce_data_availability_mode.into()),
+                        fee_data_availability_mode: Some(tx.fee_data_availability_mode.into()),
+                        paymaster_data: Some(tx.paymaster_data),
+                        account_deployment_data: Some(tx.account_deployment_data),
+                        version,
+                        transaction_hash: tx_hash,
+                        // Irrelevant for V3 invoke transactions.
+                        entry_point_selector: None,
+                        max_fee: None,
+                    }),
+                }
             }
         }
     }
