@@ -241,16 +241,16 @@ where
         // successful response, or the last response if all attempts failed.
         let max_attempts = self.config.retries + 1;
         trace!("Starting retry loop: max_attempts = {:?}", max_attempts);
-        for attempt in 0..max_attempts {
-            trace!("Attempt {} of {:?}", attempt + 1, max_attempts);
+        for attempt in 1..max_attempts + 1 {
+            trace!("Attempt {} of {:?}", attempt, max_attempts);
             let http_request = self.construct_http_request(serialized_request.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
-                trace!("Request successful on attempt {}/{}", attempt + 1, max_attempts);
+                trace!("Request successful on attempt {}/{}", attempt, max_attempts);
                 return res;
             }
-            error!("Request failed on attempt {}/{}: {:?}", attempt + 1, max_attempts, res);
-            if attempt == max_attempts - 1 {
+            error!("Request failed on attempt {}/{}: {:?}", attempt, max_attempts, res);
+            if attempt == max_attempts {
                 return res;
             }
             error!("sleeping for {:?}", self.config.retry_interval);
