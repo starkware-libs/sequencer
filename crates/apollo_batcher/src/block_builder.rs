@@ -46,7 +46,7 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::StarknetClientTransactionReceipt;
@@ -147,6 +147,7 @@ pub trait BlockBuilderTrait: Send {
 
 pub struct BlockBuilderExecutionParams {
     pub deadline: tokio::time::Instant,
+    // Only true in validation flow.
     pub fail_on_err: bool,
 }
 
@@ -253,6 +254,7 @@ impl BlockBuilder {
             }
 
             if finished_adding_txs {
+                // Only reached in validation flow.
                 // Avoid busy wait while waiting for the executor to finish executing the
                 // transactions.
                 self.sleep().await;
@@ -325,6 +327,7 @@ impl BlockBuilder {
         };
         let next_tx_chunk = match next_txs {
             NextTxs::Txs(txs) => txs,
+            // Only reached in validation flow.
             NextTxs::End => return Ok(true),
         };
         let n_txs = next_tx_chunk.len();
@@ -363,7 +366,6 @@ impl BlockBuilder {
         }
 
         info!("Finished execution of {} transactions.", results.len());
-        trace!("Transaction execution results: {:?}", results);
 
         let old_n_executed_txs = self.n_executed_txs;
         self.n_executed_txs += results.len();
@@ -479,11 +481,10 @@ async fn collect_execution_results_and_stream_txs(
                 executed_txs.push((tx_hash, starknet_client_tx_receipt));
 
                 if let Some(output_content_sender) = output_content_sender {
+                    // Only reached in proposal flow.
                     output_content_sender.send(input_tx.clone())?;
                 }
             }
-            // TODO(yael 18/9/2024): add timeout error handling here once this
-            // feature is added.
             Err(err) => {
                 info!(
                     "Transaction {} failed with error: {}.",
