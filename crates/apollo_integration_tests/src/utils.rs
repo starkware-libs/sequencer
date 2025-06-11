@@ -555,7 +555,7 @@ pub fn create_batcher_config(
                 },
             },
             execute_config: WorkerPoolConfig::create_for_testing(),
-            tx_chunk_size: 3,
+            n_concurrent_txs: 3,
             ..Default::default()
         },
         #[cfg(feature = "cairo_native")]
