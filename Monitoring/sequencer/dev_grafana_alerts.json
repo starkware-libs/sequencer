@@ -354,6 +354,33 @@
     {
       "name": "l1_message_scraper_baselayer_error_count",
       "title": "L1 message scraper baselayer error count",
+      "ruleGroup": "l1_gas_price",
+      "expr": "rate(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.001388888888888889
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20,
+      "severity": "p5"
+    },
+    {
+      "name": "l1_message_scraper_baselayer_error_count",
+      "title": "L1 message scraper baselayer error count",
       "ruleGroup": "l1_messages",
       "expr": "rate(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
