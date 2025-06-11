@@ -86,13 +86,15 @@ pub(crate) struct ProposalBuildArguments {
 }
 
 // Handles building a new proposal without blocking consensus:
-pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
+pub(crate) async fn build_proposal(
+    mut args: ProposalBuildArguments,
+) -> BuildProposalResult<ProposalCommitment> {
     let block_info = initiate_build(&args).await;
     let block_info = match block_info {
         Ok(info) => info,
         Err(e) => {
             error!("Failed to initiate proposal build. {e:?}");
-            return;
+            return Err(e);
         }
     };
     args.proposal_sender
@@ -104,7 +106,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         .await
         .expect("Failed to send block info");
 
-    let Ok((proposal_commitment, content)) = get_proposal_content(
+    let (proposal_commitment, content) = get_proposal_content(
         args.proposal_id,
         args.deps.batcher.as_ref(),
         args.proposal_sender,
@@ -112,10 +114,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         args.deps.transaction_converter,
         args.cancel_token,
     )
-    .await
-    else {
-        return;
-    };
+    .await?;
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
@@ -131,6 +130,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content id");
     }
+    Ok(proposal_commitment)
 }
 
 pub(crate) async fn initiate_build(
