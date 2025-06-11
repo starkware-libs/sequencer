@@ -291,7 +291,7 @@ fn block_full_test_expectations() -> TestExpectations {
         mock_transaction_executor,
         mock_tx_provider,
         expected_block_artifacts,
-        expected_txs_output: vec![input_txs[0].clone()],
+        expected_txs_output: input_txs,
         expected_full_blocks_metric: 1,
     }
 }
@@ -321,11 +321,11 @@ fn mock_partial_transaction_execution(
 
 fn test_expectations_partial_transaction_execution() -> TestExpectations {
     let n_completed_txs = 1;
-    let input_txs = test_txs(0..6);
+    let input_txs = test_txs(0..N_CONCURRENT_TXS + n_completed_txs);
     let first_chunk = input_txs[0..N_CONCURRENT_TXS].to_vec();
     // After the execution of the first transaction, one more transaction is fetched from the
     // provider.
-    let second_chunk = input_txs[N_CONCURRENT_TXS..N_CONCURRENT_TXS + n_completed_txs].to_vec();
+    let second_chunk = input_txs[N_CONCURRENT_TXS..].to_vec();
     let mut mock_transaction_executor =
         mock_partial_transaction_execution(&first_chunk, &second_chunk, n_completed_txs);
 
@@ -338,7 +338,7 @@ fn test_expectations_partial_transaction_execution() -> TestExpectations {
         mock_transaction_executor,
         mock_tx_provider,
         expected_block_artifacts,
-        expected_txs_output: input_txs[..n_completed_txs].to_vec(),
+        expected_txs_output: input_txs,
         expected_full_blocks_metric: 0,
     }
 }
@@ -405,7 +405,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         mock_transaction_executor: helper.mock_transaction_executor,
         mock_tx_provider,
         expected_block_artifacts,
-        expected_txs_output,
+        expected_txs_output: input_txs,
         expected_full_blocks_metric: 0,
     }
 }
