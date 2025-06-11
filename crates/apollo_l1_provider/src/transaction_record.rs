@@ -23,6 +23,7 @@ pub struct TransactionRecord {
     /// calculate whether a given state transition is valid.
     committed: bool,
     rejected: bool,
+    cancellation_requested_at: Option<BlockTimestamp>,
     /// A record is staged iff its epoch equals the record owner's (tx manager) epoch counter.
     staged_epoch: StagingEpoch,
 }
@@ -65,6 +66,18 @@ impl TransactionRecord {
         );
         self.state = TransactionState::Rejected;
         self.rejected = true;
+    }
+
+    pub fn mark_cancellation_request(
+        &mut self,
+        timestamp: BlockTimestamp,
+    ) -> Option<BlockTimestamp> {
+        // Once committed on L2, cancellation requests are only recorded for debugging purposes, but
+        // not processed.
+        if !self.is_committed() {
+            self.state = TransactionState::CancellationStartedOnL2;
+        }
+        Some(*self.cancellation_requested_at.get_or_insert(timestamp))
     }
 
     /// Try to stage an l1 handler transaction, which means that we allow to include it in the
@@ -143,6 +156,7 @@ impl From<TransactionHash> for TransactionPayload {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum TransactionState {
+    CancellationStartedOnL2,
     Committed,
     #[default]
     Pending,
