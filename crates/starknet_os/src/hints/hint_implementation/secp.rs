@@ -43,14 +43,17 @@ pub(crate) fn read_ec_point_from_address<S: StateReader>(
     let ec_point_address = get_address_of_nested_fields(
         ids_data,
         Ids::Response,
-        CairoStruct::SecpNewResponse,
+        CairoStruct::SecpNewResponsePtr,
         vm,
         ap_tracking,
         &["ec_point"],
         hint_processor.os_program,
     )?;
-    let result =
-        if not_on_curve == Felt::ZERO { ec_point_address } else { vm.add_memory_segment() };
+    let result = if not_on_curve == Felt::ZERO {
+        vm.get_relocatable(ec_point_address)?
+    } else {
+        vm.add_memory_segment()
+    };
     insert_value_into_ap(vm, result)?;
     Ok(())
 }
