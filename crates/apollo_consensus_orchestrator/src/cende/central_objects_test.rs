@@ -4,12 +4,20 @@ use std::vec;
 
 use apollo_batcher::cende_client_types::{
     Builtin,
+    CendeBlockMetadata,
+    CendePreConfirmedBlock,
+    CendePreConfirmedTransaction,
     ExecutionResources as CendeClientExecutionResources,
     StarknetClientTransactionReceipt,
     TransactionExecutionStatus,
 };
 use apollo_class_manager_types::MockClassManagerClient;
 use apollo_infra_utils::test_utils::assert_json_eq;
+use apollo_starknet_client::reader::objects::transaction::{
+    IntermediateInvokeTransaction,
+    ReservedDataAvailabilityMode,
+    Transaction,
+};
 use blockifier::execution::call_info::{
     CallExecution,
     CallInfo,
@@ -58,8 +66,10 @@ use starknet_api::block::{
     BlockHash,
     BlockInfo,
     BlockNumber,
+    BlockStatus,
     BlockTimestamp,
     GasPrice,
+    GasPricePerToken,
     GasPriceVector,
     GasPrices,
     NonzeroGasPrice,
@@ -68,7 +78,7 @@ use starknet_api::block::{
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, EthAddress};
-use starknet_api::data_availability::DataAvailabilityMode;
+use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::rpc_transaction::{
@@ -100,6 +110,7 @@ use starknet_api::transaction::fields::{
     ResourceBounds,
     Tip,
     TransactionSignature,
+    ValidResourceBounds,
 };
 use starknet_api::transaction::{
     Event,
@@ -150,7 +161,9 @@ pub const CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH: &str =
 pub const CENTRAL_BLOB_JSON_PATH: &str = "central_blob.json";
 pub const CENTRAL_CASM_HASH_COMPUTATION_DATA_JSON_PATH: &str =
     "central_casm_hash_computation_data.json";
+// TODO(Arni): Remove this test case, it is covered by CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH.
 pub const CENTRAL_TRANSACTION_RECEIPT_JSON_PATH: &str = "central_transaction_receipt.json";
+pub const CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH: &str = "central_preconfirmed_block.json";
 
 fn resource_bounds() -> AllResourceBounds {
     AllResourceBounds {
@@ -646,17 +659,17 @@ fn central_blob() -> AerospikeBlob {
         .unwrap()
 }
 
-fn starknet_client_transaction_receipt() -> StarknetClientTransactionReceipt {
-    fn event_from_serialized_fields(from_address: &str, keys: Vec<&str>, data: Vec<&str>) -> Event {
-        Event {
-            from_address: contract_address!(from_address),
-            content: EventContent {
-                keys: keys.into_iter().map(|s| EventKey(felt!(s))).collect(),
-                data: EventData(data.into_iter().map(|s| felt!(s)).collect::<Vec<_>>()),
-            },
-        }
+fn event_from_serialized_fields(from_address: &str, keys: Vec<&str>, data: Vec<&str>) -> Event {
+    Event {
+        from_address: contract_address!(from_address),
+        content: EventContent {
+            keys: keys.into_iter().map(|s| EventKey(felt!(s))).collect(),
+            data: EventData(data.into_iter().map(|s| felt!(s)).collect::<Vec<_>>()),
+        },
     }
+}
 
+fn starknet_client_transaction_receipt_old_receipt() -> StarknetClientTransactionReceipt {
     StarknetClientTransactionReceipt {
         transaction_index: TransactionOffsetInBlock(0),
         transaction_hash: TransactionHash(felt!(
@@ -748,6 +761,185 @@ fn starknet_client_transaction_receipt() -> StarknetClientTransactionReceipt {
     }
 }
 
+fn starknet_preconfiremd_block() -> CendePreConfirmedBlock {
+    let metadata = CendeBlockMetadata {
+        parent_block_hash: BlockHash(Felt::ZERO), // Remove this from serialization.
+        status: BlockStatus::Pending,             // TODO: Fix to Preconfirmed status.
+        starknet_version: StarknetVersion::V0_14_0,
+        l1_da_mode: L1DataAvailabilityMode::Blob,
+        l1_gas_price: GasPricePerToken {
+            price_in_fri: GasPrice(0x59a78b10),
+            price_in_wei: GasPrice(0x1a146bb0e3c5),
+        },
+        l1_data_gas_price: GasPricePerToken {
+            price_in_fri: GasPrice(0x1),
+            price_in_wei: GasPrice(0xa0e),
+        },
+        l2_gas_price: GasPricePerToken {
+            price_in_fri: GasPrice(0x92e4),
+            price_in_wei: GasPrice(0x2abaa5cb),
+        },
+        timestamp: BlockTimestamp(1749388551),
+        sequencer_address: contract_address!(
+            "0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8"
+        ),
+    };
+
+    let transactions = vec![CendePreConfirmedTransaction {
+        transaction: Transaction::Invoke(IntermediateInvokeTransaction {
+            resource_bounds: Some(ValidResourceBounds::AllResources(AllResourceBounds {
+                l1_gas: ResourceBounds {
+                    max_amount: GasAmount(0x0),
+                    max_price_per_unit: GasPrice(0x271ea18955a7),
+                },
+                l2_gas: ResourceBounds {
+                    max_amount: GasAmount(0x5db4c0),
+                    max_price_per_unit: GasPrice(0x4017f8b0),
+                },
+                l1_data_gas: ResourceBounds {
+                    max_amount: GasAmount(0x9c0),
+                    max_price_per_unit: GasPrice(0xf15),
+                },
+            })),
+            tip: Some(Tip(0)),
+            calldata: Calldata(Arc::new(
+                [
+                    "0x1",
+                    "0x67e7555f9ff00f5c4e9b353ad1f400e2274964ea0942483fae97363fd5d7958",
+                    "0x243435488ed6761090a70745a2ef8b3e468b80802ab98aeb7a3099f101c2219",
+                    "0x2",
+                    "0x20000000000021d41",
+                    "0x0",
+                ]
+                .into_iter()
+                .map(|s| felt!(s))
+                .collect::<Vec<Felt>>(),
+            )),
+            sender_address: contract_address!(
+                "0x109f2f48abcfcaec8c12efdc8ac9836283a556e9497315c53795db96ef6ed11"
+            ),
+            nonce: Some(nonce!(0x5c00)),
+            signature: TransactionSignature(Arc::new(
+                [
+                    "0x50c93a5542911159e32cc32c3d7ff53ad974f287c298dcad1ce3510a93c90e7",
+                    "0x406632a826cb9559043166c08050cb8f9a3bcd1da31141faed7677d8d01423c",
+                ]
+                .into_iter()
+                .map(|s| felt!(s))
+                .collect::<Vec<Felt>>(),
+            )),
+            nonce_data_availability_mode: Some(ReservedDataAvailabilityMode::Reserved),
+            fee_data_availability_mode: Some(ReservedDataAvailabilityMode::Reserved),
+            paymaster_data: Some(PaymasterData(vec![])),
+            account_deployment_data: Some(AccountDeploymentData(vec![])),
+            transaction_hash: TransactionHash(felt!(
+                "0xa07cd0a966655216edb9bf3982e8c3ee6321c7fb7a218c5c25e30c462f3f39"
+            )),
+            version: TransactionVersion::THREE,
+            // Irrelevant for V3 InvokeTransaction.
+            entry_point_selector: None,
+            max_fee: None,
+        }),
+    }];
+
+    let transaction_receipts = vec![Some(StarknetClientTransactionReceipt {
+        transaction_index: TransactionOffsetInBlock(16),
+        transaction_hash: TransactionHash(felt!(
+            "0xa07cd0a966655216edb9bf3982e8c3ee6321c7fb7a218c5c25e30c462f3f39"
+        )),
+        l1_to_l2_consumed_message: None,
+        l2_to_l1_messages: vec![],
+        events: vec![
+            event_from_serialized_fields(
+                "0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8",
+                vec!["0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"],
+                vec![
+                    "0x67e7555f9ff00f5c4e9b353ad1f400e2274964ea0942483fae97363fd5d7958",
+                    "0x109f2f48abcfcaec8c12efdc8ac9836283a556e9497315c53795db96ef6ed11",
+                    "0x5f3dbd0",
+                    "0x0",
+                ],
+            ),
+            event_from_serialized_fields(
+                "0x67e7555f9ff00f5c4e9b353ad1f400e2274964ea0942483fae97363fd5d7958",
+                vec!["0x6f34037cb7ac4cb3f26daa25459d07e0b4e0bee0945d2ef381ebb4df7385ed"],
+                vec![
+                    "0x2",
+                    "0x20000000000021d41",
+                    "0x0",
+                    "0x109f2f48abcfcaec8c12efdc8ac9836283a556e9497315c53795db96ef6ed11",
+                    "0x0",
+                    "0x2",
+                    "0x28fb9b8a8a53500000",
+                    "0x0",
+                    "0x28fb9b8a8a53500000",
+                    "0x0",
+                    "0x1d5504006d44000",
+                    "0x0",
+                    "0x68458cea",
+                    "0x0",
+                    "0x0",
+                    "0x0",
+                    "0x0",
+                    "0x1",
+                ],
+            ),
+            event_from_serialized_fields(
+                "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+                vec!["0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"],
+                vec![
+                    "0x109f2f48abcfcaec8c12efdc8ac9836283a556e9497315c53795db96ef6ed11",
+                    "0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8",
+                    "0xa6d5102756880",
+                    "0x0",
+                ],
+            ),
+        ],
+        execution_resources: CendeClientExecutionResources {
+            n_steps: 38987,
+            builtin_instance_counter: [
+                (Builtin::EcOp, 3),
+                (Builtin::RangeCheck, 1824),
+                (Builtin::Pedersen, 42),
+                (Builtin::Poseidon, 27),
+            ]
+            .into_iter()
+            .collect(),
+            n_memory_holes: 0,
+            data_availability: Some(GasVector {
+                l1_gas: 0_u64.into(),
+                l1_data_gas: 1664_u64.into(),
+                l2_gas: 0_u64.into(),
+            }),
+            total_gas_consumed: Some(GasVector {
+                l1_gas: 0_u64.into(),
+                l1_data_gas: 1664_u64.into(),
+                l2_gas: 4094080_u64.into(),
+            }),
+        },
+        actual_fee: Fee(0xa6d5102756880),
+        execution_status: TransactionExecutionStatus::Succeeded,
+        revert_error: None,
+    })];
+    let transaction_state_diffs = vec![Some(ThinStateDiff {
+        storage_diffs: indexmap! {
+            0x1u64.into() => indexmap! {
+                0xc5c06_u64.into() => felt!("0x175268db82ce4da6eeff90d2cbe6e4516fa4d2fac6b9b2ee25979be220a4b2f"),
+            },
+            contract_address!("0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d") => indexmap! {
+                storage_key!("0x3c204dd68b8e800b4f42e438d9ed4ccbba9f8e436518758cd36553715c1d6ab") => felt!("0x1c285a1cb8b7a174010"),
+                storage_key!("0x5496768776e3db30053404f18067d81a6e06f5a2b0de326e21298fd9d569a9a") => felt!("0x1c8d6754f3cb5adc5414"),
+            },
+        },
+        nonces: indexmap! {
+            contract_address!("0x352057331d5ad77465315d30b98135ddb815b86aa485d659dfeef59a904f88d") => nonce!(0x24ef47),
+        },
+        ..Default::default()
+    })];
+
+    CendePreConfirmedBlock { metadata, transactions, transaction_receipts, transaction_state_diffs }
+}
+
 #[rstest]
 #[case::compressed_state_diff(central_compressed_state_diff(), CENTRAL_STATE_DIFF_JSON_PATH)]
 #[case::state_diff(central_state_diff(), CENTRAL_STATE_DIFF_JSON_PATH)]
@@ -780,8 +972,12 @@ fn starknet_client_transaction_receipt() -> StarknetClientTransactionReceipt {
 )]
 #[case::central_blob(central_blob(), CENTRAL_BLOB_JSON_PATH)]
 #[case::starknet_client_transaction_receipt(
-    starknet_client_transaction_receipt(),
+    starknet_client_transaction_receipt_old_receipt(),
     CENTRAL_TRANSACTION_RECEIPT_JSON_PATH
+)]
+#[case::starknet_preconfirmed_block(
+    starknet_preconfiremd_block(),
+    CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH
 )]
 fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_json_path: &str) {
     let python_json = read_json_file(python_json_path);
