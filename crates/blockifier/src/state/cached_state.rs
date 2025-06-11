@@ -4,7 +4,7 @@ use std::collections::{HashMap, HashSet};
 use indexmap::IndexMap;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
-use starknet_api::state::{StorageKey, ThinStateDiff};
+use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::context::TransactionContext;
@@ -366,18 +366,6 @@ impl StateMaps {
             class_hash_keys: self.class_hashes.keys().cloned().collect(),
             storage_keys: self.storage.keys().cloned().collect(),
             compiled_class_hash_keys: self.compiled_class_hashes.keys().cloned().collect(),
-        }
-    }
-}
-
-impl From<StateMaps> for ThinStateDiff {
-    fn from(maps: StateMaps) -> Self {
-        Self {
-            deployed_contracts: IndexMap::from_iter(maps.class_hashes),
-            storage_diffs: StorageDiff::from(StorageView(maps.storage)),
-            declared_classes: IndexMap::from_iter(maps.compiled_class_hashes),
-            deprecated_declared_classes: Vec::new(),
-            nonces: IndexMap::from_iter(maps.nonces),
         }
     }
 }

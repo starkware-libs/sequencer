@@ -2,6 +2,7 @@
 //! StarknetClient.
 use std::collections::HashMap;
 
+use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::{
     IntermediateDeclareTransaction,
     IntermediateDeployAccountTransaction,
@@ -9,11 +10,14 @@ use apollo_starknet_client::reader::objects::transaction::{
     L1HandlerTransaction as ClientL1HandlerTransaction,
     Transaction,
 };
+use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
 use blockifier::execution::call_info::OrderedEvent;
+use blockifier::state::cached_state::{StateMaps, StorageView};
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use cairo_vm::types::builtin_name::BuiltinName;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     BlockHash,
@@ -37,7 +41,6 @@ use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
     RpcInvokeTransaction,
 };
-use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::transaction::{
     Event,
@@ -486,5 +489,42 @@ pub struct CendePreConfirmedBlock {
     pub metadata: CendeBlockMetadata,
     pub transactions: Vec<CendePreConfirmedTransaction>,
     pub transaction_receipts: Vec<Option<StarknetClientTransactionReceipt>>,
-    pub transaction_state_diffs: Vec<Option<ThinStateDiff>>,
+    pub transaction_state_diffs: Vec<Option<StateDiff>>,
+}
+
+pub struct StarknetClientStateDiff(pub StateDiff);
+
+impl From<StateMaps> for StarknetClientStateDiff {
+    fn from(state_maps: StateMaps) -> Self {
+        StarknetClientStateDiff(StateDiff {
+            storage_diffs: IndexMap::from(StorageView(state_maps.storage))
+                .into_iter()
+                .map(|(address, entries)| {
+                    (
+                        address,
+                        entries
+                            .into_iter()
+                            .map(|(key, value)| StorageEntry { key, value })
+                            .collect(),
+                    )
+                })
+                .collect(),
+            deployed_contracts: state_maps
+                .class_hashes
+                .into_iter()
+                .map(|(address, class_hash)| DeployedContract { address, class_hash })
+                .collect(),
+            declared_classes: state_maps
+                .compiled_class_hashes
+                .into_iter()
+                .map(|(class_hash, compiled_class_hash)| DeclaredClassHashEntry {
+                    class_hash,
+                    compiled_class_hash,
+                })
+                .collect(),
+            old_declared_contracts: Default::default(),
+            nonces: state_maps.nonces.into_iter().collect(),
+            replaced_classes: Default::default(),
+        })
+    }
 }

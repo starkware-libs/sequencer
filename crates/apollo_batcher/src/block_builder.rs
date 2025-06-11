@@ -50,7 +50,7 @@ use tokio::sync::{Mutex, MutexGuard};
 use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
-use crate::cende_client_types::StarknetClientTransactionReceipt;
+use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
 use crate::metrics::FULL_BLOCKS;
 use crate::pre_confirmed_block_writer::{ExecutedTxSender, PreConfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
@@ -491,7 +491,7 @@ async fn collect_execution_results_and_stream_txs(
                         &execution_data.execution_infos[&tx_hash],
                     ));
 
-                    let tx_state_diff = ThinStateDiff::from(state_maps);
+                    let tx_state_diff = StarknetClientStateDiff::from(state_maps).0;
 
                     let result =
                         executed_tx_sender.try_send((input_tx.clone(), tx_receipt, tx_state_diff));
