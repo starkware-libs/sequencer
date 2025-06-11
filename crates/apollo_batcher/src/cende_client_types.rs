@@ -6,9 +6,19 @@ use std::collections::HashMap;
 // remove this module.
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use serde::{Deserialize, Serialize};
+use starknet_api::block::{
+    BlockHash,
+    BlockStatus,
+    BlockTimestamp,
+    GasPricePerToken,
+    StarknetVersion,
+};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress};
+use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
+use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
     Event,
@@ -170,4 +180,38 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
     }
 
     l2_to_l1_messages
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct CendePreConfirmedTransaction {
+    pub transaction_hash: TransactionHash,
+    // TODO(noamsp): add the relevant fields.
+}
+
+impl From<InternalConsensusTransaction> for CendePreConfirmedTransaction {
+    fn from(transaction: InternalConsensusTransaction) -> Self {
+        Self { transaction_hash: transaction.tx_hash() }
+    }
+}
+
+#[derive(Serialize, Clone)]
+pub struct CendeBlockMetadata {
+    pub parent_block_hash: BlockHash,
+    pub status: BlockStatus,
+    pub starknet_version: StarknetVersion,
+    pub l1_da_mode: L1DataAvailabilityMode,
+    pub l1_gas_price: GasPricePerToken,
+    pub l1_data_gas_price: GasPricePerToken,
+    pub l2_gas_price: GasPricePerToken,
+    pub timestamp: BlockTimestamp,
+    pub sequencer_address: ContractAddress,
+}
+
+#[derive(Serialize)]
+pub struct CendePreConfirmedBlock {
+    #[serde(flatten)]
+    pub metadata: CendeBlockMetadata,
+    pub transactions: Vec<CendePreConfirmedTransaction>,
+    pub transaction_receipts: Vec<Option<StarknetClientTransactionReceipt>>,
+    pub transaction_state_diffs: Vec<Option<ThinStateDiff>>,
 }
