@@ -303,11 +303,11 @@ impl Batcher {
         let (input_tx_sender, input_tx_receiver) =
             tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
 
-        let tx_provider = ValidateTransactionProvider {
-            tx_receiver: input_tx_receiver,
-            l1_provider_client: self.l1_provider_client.clone(),
-            height: validate_block_input.block_info.block_number,
-        };
+        let tx_provider = ValidateTransactionProvider::new(
+            input_tx_receiver,
+            self.l1_provider_client.clone(),
+            validate_block_input.block_info.block_number,
+        );
 
         let (block_builder, abort_signal_sender) = self
             .block_builder_factory
