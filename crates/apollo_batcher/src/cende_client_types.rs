@@ -2,7 +2,10 @@
 //! StarknetClient.
 use std::collections::HashMap;
 
-use apollo_starknet_client::reader::objects::transaction::{L1HandlerTransaction, Transaction};
+use apollo_starknet_client::reader::objects::transaction::{
+    L1HandlerTransaction as ClientL1HandlerTransaction,
+    Transaction,
+};
 use blockifier::execution::call_info::OrderedEvent;
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
@@ -19,6 +22,7 @@ use starknet_api::block::{
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
 use starknet_api::state::ThinStateDiff;
@@ -274,10 +278,33 @@ pub struct CendePreConfirmedTransaction {
 }
 
 impl From<InternalConsensusTransaction> for CendePreConfirmedTransaction {
-    fn from(_transaction: InternalConsensusTransaction) -> Self {
+    fn from(transaction: InternalConsensusTransaction) -> Self {
+        match transaction {
+            InternalConsensusTransaction::RpcTransaction(_internal_rpc_transaction) => {
+                // TODO(Arni): This is a placeholder. Implement the conversion from RPC transaction.
+                CendePreConfirmedTransaction {
+                    transaction: Transaction::L1Handler(ClientL1HandlerTransaction::default()),
+                }
+            }
+            InternalConsensusTransaction::L1Handler(l1_handler_transaction) => {
+                l1_handler_transaction.into()
+            }
+        }
+    }
+}
+
+impl From<L1HandlerTransaction> for CendePreConfirmedTransaction {
+    fn from(l1_handler_transaction: L1HandlerTransaction) -> Self {
+        let L1HandlerTransaction { tx, tx_hash, .. } = l1_handler_transaction;
         CendePreConfirmedTransaction {
-            // TODO(Arni): this is a placeholder. Implement the conversion logic.
-            transaction: Transaction::L1Handler(L1HandlerTransaction::default()),
+            transaction: Transaction::L1Handler(ClientL1HandlerTransaction {
+                transaction_hash: tx_hash,
+                version: tx.version,
+                nonce: tx.nonce,
+                contract_address: tx.contract_address,
+                entry_point_selector: tx.entry_point_selector,
+                calldata: tx.calldata,
+            }),
         }
     }
 }
