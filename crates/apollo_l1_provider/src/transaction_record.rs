@@ -1,4 +1,5 @@
 use std::ops::Deref;
+use std::time::Duration;
 
 use indexmap::map::Entry;
 use indexmap::IndexMap;
@@ -100,18 +101,39 @@ impl TransactionRecord {
         matches!(self.state, TransactionState::Committed)
     }
 
+    /// Answers whether the transaction was fully cancelled on L2 (cancellation request timelock
+    /// has expired).
+    pub fn is_cancelled(&self) -> bool {
+        matches!(self.state, TransactionState::CancelledOnL2)
+    }
+
     /// Answers whether any node can include this transaction in a block. This is generally possible
-    /// in all states in its lifecycle, except after it had already been added to block, or (to be
-    /// implemented) a short time after it's cancellation was requested on L1.
-    /// In particular, this includes states like: a rejected transaction, a new timelocked
-    /// transaction, a transaction whose cancellation was requested on L1 too
-    /// recently (there will be a timelock for this).
+    /// in all states in its lifecycle, except after it had already been added to block, or a short
+    /// time after it's cancellation was requested on L1. In particular, this includes states
+    /// like: a rejected transaction, a new timelocked transaction, a
+    /// transaction whose cancellation was requested on L1 too recently (there will be a
+    /// timelock for this).
     pub fn is_validatable(&self) -> bool {
-        !self.is_committed()
+        !self.is_committed() && !self.is_cancelled()
     }
 
     pub fn is_staged(&self, epoch: StagingEpoch) -> bool {
         self.staged_epoch == epoch
+    }
+
+    /// Update the state of the record based on the current time and policy.
+    /// This updates the state based on time-based state transitions, such as moving from
+    /// CancellationStartedOnL2 to CancelledOnL2 after the timelock expires.
+    pub fn update_time_based_state(&mut self, unix_now: u64, policy: TransactionRecordPolicy) {
+        if let Some(requested_at) = self.cancellation_requested_at {
+            let cancellation_timelock = &policy.cancellation_timelock.as_secs();
+            let is_cancellation_timelock_passed =
+                unix_now >= *requested_at.saturating_add(cancellation_timelock);
+
+            if is_cancellation_timelock_passed {
+                self.state = TransactionState::CancelledOnL2;
+            }
+        }
     }
 }
 
@@ -157,6 +179,7 @@ impl From<TransactionHash> for TransactionPayload {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum TransactionState {
     CancellationStartedOnL2,
+    CancelledOnL2,
     Committed,
     #[default]
     Pending,
@@ -196,4 +219,10 @@ impl From<IndexMap<TransactionHash, TransactionRecord>> for Records {
     fn from(map: IndexMap<TransactionHash, TransactionRecord>) -> Self {
         Self(map)
     }
+}
+
+/// Rules for time-based state transitions and other business rules.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct TransactionRecordPolicy {
+    pub cancellation_timelock: Duration,
 }
