@@ -231,6 +231,7 @@ impl BlockBuilderTrait for BlockBuilder {
 impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut finished_adding_txs = false;
+        let mut n_txs_in_block: Option<usize> = None;
         while !(finished_adding_txs && self.n_txs_in_progress() == 0) {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
@@ -238,6 +239,12 @@ impl BlockBuilder {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
                 break;
+            }
+            if n_txs_in_block.is_none() {
+                if let Some(res) = self.tx_provider.get_n_txs_in_block().await {
+                    info!("Received final number of transactions in block proposal: {res}.");
+                    n_txs_in_block = Some(res);
+                }
             }
             if self.abort_signal_receiver.try_recv().is_ok() {
                 info!("Received abort signal. Aborting block builder.");
@@ -280,10 +287,11 @@ impl BlockBuilder {
 
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
-        let block_summary =
-            tokio::task::spawn_blocking(move || lock_executor(&executor).close_block(None))
-                .await
-                .expect("Failed to spawn blocking executor task.")?;
+        let block_summary = tokio::task::spawn_blocking(move || {
+            lock_executor(&executor).close_block(n_txs_in_block)
+        })
+        .await
+        .expect("Failed to spawn blocking executor task.")?;
 
         let BlockExecutionSummary {
             state_diff,

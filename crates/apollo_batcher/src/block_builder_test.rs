@@ -456,12 +456,18 @@ fn mock_tx_provider_limited_calls(
     let mut seq = Sequence::new();
     for input_chunk in input_chunks {
         mock_tx_provider
+            .expect_get_n_txs_in_block()
+            .times(1)
+            .in_sequence(&mut seq)
+            .return_const(None);
+        mock_tx_provider
             .expect_get_txs()
             .times(1)
             .with(eq(input_chunk.len()))
             .in_sequence(&mut seq)
             .returning(move |_n_txs| Ok(NextTxs::Txs(input_chunk.clone())));
     }
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
     mock_tx_provider
 }
 
@@ -481,6 +487,7 @@ fn mock_tx_provider_stream_done(
         .times(1)
         .in_sequence(&mut seq)
         .return_once(|_n_txs| Ok(NextTxs::End));
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
     mock_tx_provider
 }
 
@@ -500,6 +507,7 @@ fn add_limitless_empty_calls(mock_tx_provider: &mut MockTransactionProvider) {
         .expect_get_txs()
         .with(eq(N_CONCURRENT_TXS))
         .returning(|_n_txs| Ok(NextTxs::Txs(Vec::new())));
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
 }
 
 fn mock_tx_provider_with_error(error: TransactionProviderError) -> MockTransactionProvider {
@@ -509,6 +517,7 @@ fn mock_tx_provider_with_error(error: TransactionProviderError) -> MockTransacti
         .times(1)
         .with(eq(N_CONCURRENT_TXS))
         .return_once(move |_n_txs| Err(error));
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
     mock_tx_provider
 }
 
@@ -755,6 +764,7 @@ async fn test_build_block_abort_immediately() {
     // Expect no transactions requested from the provider, and to be added to the block
     let mut mock_tx_provider = MockTransactionProvider::new();
     mock_tx_provider.expect_get_txs().times(0);
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
     mock_transaction_executor.expect_add_txs_to_block().times(0);
     mock_transaction_executor.expect_close_block().times(0);

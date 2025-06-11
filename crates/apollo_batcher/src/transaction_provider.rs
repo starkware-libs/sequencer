@@ -45,6 +45,10 @@ pub enum NextTxs {
 #[async_trait]
 pub trait TransactionProvider: Send {
     async fn get_txs(&mut self, n_txs: usize) -> TransactionProviderResult<NextTxs>;
+    /// In validate mode ([ValidateTransactionProvider]) returns the final number of transactions
+    /// in the block once it is known, or `None` if it is not known yet.
+    /// Returns `None` in propose mode ([ProposeTransactionProvider]).
+    async fn get_n_txs_in_block(&self) -> Option<usize>;
 }
 
 #[derive(Clone)]
@@ -137,6 +141,10 @@ impl TransactionProvider for ProposeTransactionProvider {
         txs.append(&mut mempool_txs);
         Ok(NextTxs::Txs(txs))
     }
+
+    async fn get_n_txs_in_block(&self) -> Option<usize> {
+        None
+    }
 }
 
 pub struct ValidateTransactionProvider {
@@ -169,5 +177,10 @@ impl TransactionProvider for ValidateTransactionProvider {
             }
         }
         Ok(NextTxs::Txs(buffer))
+    }
+
+    async fn get_n_txs_in_block(&self) -> Option<usize> {
+        // TODO(lior): Replace with a real implementation.
+        None
     }
 }
