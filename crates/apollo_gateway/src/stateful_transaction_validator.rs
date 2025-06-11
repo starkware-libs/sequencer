@@ -162,9 +162,13 @@ fn skip_stateful_validations(
             // to check if the account exists in the mempool since it means that either it has a
             // deploy_account transaction or transactions with future nonces that passed
             // validations.
-            return runtime
+            let start = std::time::Instant::now();
+            debug!("AVI: Checking if account {} exists in mempool", tx.sender_address());
+            let result = runtime
                 .block_on(mempool_client.account_tx_in_pool_or_recent_block(tx.sender_address()))
                 .map_err(mempool_client_err_to_deprecated_gw_err);
+            debug!("AVI: Checked if account exists in mempool in {:?}", start.elapsed());
+            return result;
         }
     }
 

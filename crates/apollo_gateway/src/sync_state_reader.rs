@@ -15,6 +15,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
+use tracing::debug;
 
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 
@@ -38,9 +39,12 @@ impl SyncStateReader {
 
 impl MempoolStateReader for SyncStateReader {
     fn get_block_info(&self) -> StateResult<BlockInfo> {
+        let start = std::time::Instant::now();
+        debug!("AVI: Getting block info for block number {}", self.block_number);
         let block = block_on(self.state_sync_client.get_block(self.block_number))
             .map_err(|e| StateError::StateReadError(e.to_string()))?
             .ok_or(StateError::StateReadError("Block not found".to_string()))?;
+        debug!("AVI: Got block info in {:?}", start.elapsed());
 
         let block_header = block.block_header_without_hash;
         let block_info = BlockInfo {
@@ -75,11 +79,14 @@ impl BlockifierStateReader for SyncStateReader {
         contract_address: ContractAddress,
         key: StorageKey,
     ) -> StateResult<Felt> {
+        let start = std::time::Instant::now();
+        debug!("AVI: Getting storage at contract address {contract_address:?} with key {key:?} at block number {}", self.block_number);
         let res = self.runtime.block_on(self.state_sync_client.get_storage_at(
             self.block_number,
             contract_address,
             key,
         ));
+        debug!("AVI: Got storage entry in {:?}", start.elapsed());
 
         match res {
             Ok(value) => Ok(value),
@@ -91,9 +98,12 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_nonce_at(&self, contract_address: ContractAddress) -> StateResult<Nonce> {
+        let start = std::time::Instant::now();
+        debug!("AVI: Getting nonce for contract address {contract_address:?} at block number {}", self.block_number);
         let res = self
             .runtime
             .block_on(self.state_sync_client.get_nonce_at(self.block_number, contract_address));
+        debug!("AVI: Got nonce in {:?}", start.elapsed());
 
         match res {
             Ok(value) => Ok(value),
@@ -105,15 +115,20 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass> {
+        let start = std::time::Instant::now();
+        debug!("AVI: Checking if class is declared for class hash {class_hash:?} at block number {}", self.block_number);
         let is_class_declared = self
             .runtime
             .block_on(self.state_sync_client.is_class_declared_at(self.block_number, class_hash))
             .map_err(|e| StateError::StateReadError(e.to_string()))?;
+        debug!("AVI: Checked if class is declared in {:?}", start.elapsed());
 
         if !is_class_declared {
             return Err(StateError::UndeclaredClassHash(class_hash));
         }
 
+        let start = std::time::Instant::now();
+        debug!("AVI: Getting compiled class for class hash {class_hash:?} at block number {}", self.block_number);
         let contract_class = self
             .runtime
             .block_on(self.class_manager_client.get_executable(class_hash))
@@ -122,6 +137,7 @@ impl BlockifierStateReader for SyncStateReader {
                 "Class with hash {class_hash:?} doesn't appear in class manager even though it \
                  was declared",
             );
+        debug!("AVI: Got compiled class in {:?}", start.elapsed());
 
         match contract_class {
             ContractClass::V1(casm_contract_class) => {
@@ -134,9 +150,12 @@ impl BlockifierStateReader for SyncStateReader {
     }
 
     fn get_class_hash_at(&self, contract_address: ContractAddress) -> StateResult<ClassHash> {
+        let start = std::time::Instant::now();
+        debug!("AVI: Getting class hash at contract address {contract_address:?} at block number {}", self.block_number);
         let res = self.runtime.block_on(
             self.state_sync_client.get_class_hash_at(self.block_number, contract_address),
         );
+        debug!("AVI: Got class hash in {:?}", start.elapsed());
 
         match res {
             Ok(value) => Ok(value),
@@ -162,10 +181,13 @@ impl StateReaderFactory for SyncStateReaderFactory {
     fn get_state_reader_from_latest_block(
         &self,
     ) -> StateSyncClientResult<Box<dyn MempoolStateReader>> {
+        let start = std::time::Instant::now();
+        debug!("AVI: Getting latest block number from state sync client");
         let latest_block_number = self
             .runtime
             .block_on(self.shared_state_sync_client.get_latest_block_number())?
             .ok_or(StateSyncClientError::StateSyncError(StateSyncError::EmptyState))?;
+        debug!("AVI: Got latest block number {} in {:?}", latest_block_number, start.elapsed());
 
         Ok(Box::new(SyncStateReader::from_number(
             self.shared_state_sync_client.clone(),
