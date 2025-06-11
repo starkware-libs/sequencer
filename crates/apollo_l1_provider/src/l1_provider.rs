@@ -239,6 +239,32 @@ impl L1Provider {
                         );
                     }
                 }
+                Event::TransactionCancellationStarted {
+                    tx_hash,
+                    cancellation_request_timestamp,
+                } => {
+                    if !self.tx_manager.exists(tx_hash) {
+                        warn!(
+                            "Dropping cancellation request for old L1 handler transaction \
+                             {tx_hash}: not in the provider and will never be scraped at this \
+                             point."
+                        );
+                        continue;
+                    }
+
+                    self.tx_manager
+                        .request_cancellation(tx_hash, cancellation_request_timestamp)
+                        .inspect(|previous_request_timestamp| {
+                            // Re-requesting a cancellation is meaningful for the L1 timelock, but
+                            // for the l2 timelock we only consider the first cancellation
+                            // relevant.
+                            info!(
+                                "Dropping duplicated cancellation request for {tx_hash} at \
+                                 {cancellation_request_timestamp}, previous request block \
+                                 timestamp still stands: {previous_request_timestamp}"
+                            );
+                        });
+                }
                 _ => return Err(L1ProviderError::unsupported_l1_event(event)),
             }
         }
