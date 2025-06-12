@@ -44,16 +44,42 @@ macro_rules! define_stateless_hint_enum {
 
         impl $enum_name {
             #[allow(clippy::result_large_err)]
-            pub fn execute_hint<S: StateReader>(
+            pub(crate) fn execute_hint<'program, CHP: CommonHintProcessor<'program>>(
                 &self,
-                _hint_processor: &mut SnosHintProcessor<'_, S>,
+                _hint_processor: &mut CHP,
                 hint_args: HintArgs<'_,>
             ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
-                        #[cfg(feature="testing")]
-                        _hint_processor.unused_hints.remove(&Self::$hint_name.into());
+                        #[cfg(any(test, feature = "testing"))]
+                        _hint_processor.get_unused_hints().remove(&Self::$hint_name.into());
                         $implementation(hint_args)
+                    })+
+
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! define_common_hint_enum {
+    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+
+        $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
+
+        impl $enum_name {
+            #[allow(clippy::result_large_err)]
+            pub(crate) fn execute_hint<'program, CHP: CommonHintProcessor<'program>>(
+                &self,
+                hint_processor: &mut CHP,
+                hint_args: HintArgs<'_>
+            ) -> OsHintResult {
+                match self {
+                    $(Self::$hint_name => {
+                        #[cfg(any(test, feature = "testing"))]
+                        hint_processor.get_unused_hints().remove(&Self::$hint_name.into());
+                        $implementation(hint_processor, hint_args)
                     })+
 
                 }
@@ -77,7 +103,7 @@ macro_rules! define_hint_enum {
             ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
-                        #[cfg(feature="testing")]
+                        #[cfg(any(test, feature = "testing"))]
                         hint_processor.unused_hints.remove(&Self::$hint_name.into());
                         $implementation::<S>(hint_processor, hint_args)
                     })+
@@ -106,7 +132,7 @@ macro_rules! define_hint_extension_enum {
             ) -> OsHintExtensionResult {
                 match self {
                     $(Self::$hint_name => {
-                        #[cfg(feature="testing")]
+                        #[cfg(any(test, feature = "testing"))]
                             hint_processor
                             .unused_hints
                             .remove(&Self::$hint_name.into());
