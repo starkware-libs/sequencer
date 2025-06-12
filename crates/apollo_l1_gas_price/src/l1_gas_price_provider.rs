@@ -134,7 +134,7 @@ impl L1GasPriceProvider {
         };
         // This index is for the last block in the mean (inclusive).
         let index_last_timestamp_rev = samples.iter().rev().position(|data| {
-            data.timestamp <= timestamp.saturating_sub_seconds(self.config.lag_margin_seconds)
+            data.timestamp <= timestamp.saturating_sub(&self.config.lag_margin_seconds)
         });
 
         // Could not find a block with the requested timestamp and lag.
