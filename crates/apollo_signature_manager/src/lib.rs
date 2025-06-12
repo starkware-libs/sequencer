@@ -116,6 +116,7 @@ mod tests {
     use starknet_api::felt;
     use starknet_core::crypto::Signature;
     use starknet_core::types::Felt;
+    use starknet_crypto::get_public_key;
 
     use super::*;
 
@@ -165,13 +166,18 @@ mod tests {
 
     /// Simple in-memory KeyStore implementation for testing
     #[derive(Clone, Copy, Debug)]
-    struct TestKeyStore {
+    struct LocalKeyStore {
         private_key: PrivateKey,
         pub public_key: PublicKey,
     }
 
-    impl TestKeyStore {
-        fn new() -> Self {
+    impl LocalKeyStore {
+        fn _new(private_key: PrivateKey) -> Self {
+            let public_key = PublicKey(get_public_key(&private_key.0));
+            Self { private_key, public_key }
+        }
+
+        fn new_for_testing() -> Self {
             // Created using `cairo-lang`.
             let private_key = PrivateKey(felt!(
                 "0x608bf2cdb1ad4138e72d2f82b8c5db9fa182d1883868ae582ed373429b7a133"
@@ -185,7 +191,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl KeyStore for TestKeyStore {
+    impl KeyStore for LocalKeyStore {
         async fn get_key(&self) -> KeyStoreResult<PrivateKey> {
             Ok(self.private_key)
         }
@@ -193,7 +199,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_identify() {
-        let key_store = TestKeyStore::new();
+        let key_store = LocalKeyStore::new_for_testing();
         let signature_manager = SignatureManager::new(key_store);
 
         let peer_id = PeerId(b"alice".to_vec());
