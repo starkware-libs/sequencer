@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -11,6 +11,8 @@ use apollo_mempool_types::mempool_types::{
     MempoolSnapshot,
     MempoolStateSnapshot,
 };
+use indexmap::IndexSet;
+use rand::{thread_rng, Rng};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionWithoutTxHash};
@@ -44,7 +46,7 @@ pub mod mempool_test;
 pub mod mempool_flow_tests;
 
 type AddressToNonce = HashMap<ContractAddress, Nonce>;
-type AccountsWithGap = HashSet<ContractAddress>;
+type AccountsWithGap = IndexSet<ContractAddress>;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(Clone))]
@@ -334,9 +336,7 @@ impl Mempool {
         let mut account_nonce_updates = self.remove_expired_txs();
         self.add_ready_declares();
 
-        if self.exceeds_capacity(&args.tx) {
-            // TODO(Dafna): we should be evicting transactions based on some policy here, instead of
-            // just returning an error.
+        if self.exceeds_capacity(&args.tx) && !self.try_make_space(args.tx.total_bytes()) {
             return Err(MempoolError::MempoolFull);
         }
 
@@ -689,7 +689,7 @@ impl Mempool {
             // Assumption: Future declares are not allowed — their nonce must match the account
             // nonce, so they fill a gap if one exists.
             if self.delayed_declares.contains(address, account_nonce) {
-                self.accounts_with_gap.remove(&address);
+                self.accounts_with_gap.swap_remove(&address);
                 continue;
             }
 
@@ -703,9 +703,45 @@ impl Mempool {
             if gap_exists {
                 self.accounts_with_gap.insert(address);
             } else {
-                self.accounts_with_gap.remove(&address);
+                self.accounts_with_gap.swap_remove(&address);
             }
         }
+    }
+
+    pub fn get_evictable_account(&self) -> Option<ContractAddress> {
+        let len = self.accounts_with_gap.len();
+        if len == 0 {
+            return None;
+        }
+        let random_index = thread_rng().gen_range(0..len);
+        self.accounts_with_gap.get_index(random_index).copied()
+    }
+
+    // Attempts to make space for a new transaction by evicting existing transactions.
+    // Returns true if enough space was freed, false otherwise.
+    pub fn try_make_space(&mut self, required_space: u64) -> bool {
+        let mut total_space_freed = 0;
+
+        while total_space_freed < required_space && !self.accounts_with_gap.is_empty() {
+            let Some(address) = self.get_evictable_account() else {
+                return false;
+            };
+
+            let txs: Vec<_> = self.tx_pool.account_txs_sorted_by_nonce(address).copied().collect();
+            for tx_ref in txs.iter().rev() {
+                if let Ok(tx) = self.tx_pool.remove(tx_ref.tx_hash) {
+                    total_space_freed += tx.total_bytes();
+                    if total_space_freed >= required_space {
+                        return true;
+                    }
+                }
+            }
+
+            // All transactions for this account are removed — delete it from candidates
+            self.accounts_with_gap.swap_remove(&address);
+        }
+
+        total_space_freed >= required_space
     }
 
     #[cfg(test)]

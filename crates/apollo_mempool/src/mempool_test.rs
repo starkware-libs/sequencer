@@ -21,8 +21,10 @@ use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
+use starknet_api::test_utils::invoke::internal_invoke_tx;
+use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, declare_tx_args, nonce, tx_hash};
+use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, tx_hash};
 
 use super::AddTransactionQueue;
 use crate::communication::MempoolCommunicationWrapper;
@@ -1585,4 +1587,60 @@ fn declare_tx_closes_a_gap() {
             .accounts_with_gap()
             .contains(&delayed_declare_tx_closes_a_gap.tx.contract_address())
     );
+}
+
+#[rstest]
+fn returns_error_when_no_evictable_accounts() {
+    let not_evictable_tx = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            capacity_in_bytes: not_evictable_tx.tx.total_bytes(),
+            ..Default::default()
+        },
+        Arc::new(FakeClock::default()),
+    );
+
+    add_tx(&mut mempool, &not_evictable_tx);
+    assert!(mempool.accounts_with_gap().is_empty());
+
+    let trigger_tx = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    add_tx_expect_error(&mut mempool, &trigger_tx, MempoolError::MempoolFull);
+}
+
+#[rstest]
+#[case::insufficient_eviction_space(20, false)]
+#[case::sufficient_eviction_space(8, true)]
+fn rejects_or_accepts_tx_based_on_freed_space(
+    #[case] signature_size: usize,
+    #[case] expect_success: bool,
+) {
+    let tx1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 1, account_nonce: 0);
+    let tx2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 2, account_nonce: 0);
+
+    let large_signature = vec![felt!("0x0"); signature_size];
+    let large_tx = AddTransactionArgs {
+        tx: internal_invoke_tx(invoke_tx_args!(
+            tx_hash: tx_hash!(3),
+            signature: TransactionSignature(large_signature.into())
+        )),
+        account_state: AccountState { address: contract_address!("0x0"), nonce: nonce!(0) },
+    };
+
+    let capacity = tx1.tx.total_bytes() + tx2.tx.total_bytes();
+    let mut mempool = Mempool::new(
+        MempoolConfig { capacity_in_bytes: capacity, ..Default::default() },
+        Arc::new(FakeClock::default()),
+    );
+
+    for tx in [&tx1, &tx2] {
+        add_tx(&mut mempool, tx);
+    }
+
+    if expect_success {
+        add_tx(&mut mempool, &large_tx);
+        assert!(mempool.tx_pool.get_by_tx_hash(large_tx.tx.tx_hash()).is_ok());
+    } else {
+        add_tx_expect_error(&mut mempool, &large_tx, MempoolError::MempoolFull);
+    }
 }
