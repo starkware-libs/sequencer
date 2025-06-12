@@ -157,6 +157,16 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    pub fn with_cancel_requested_txs(
+        mut self,
+        cancel_requested: impl IntoIterator<Item = (L1HandlerTransaction, u64)>,
+    ) -> Self {
+        let cancel_requested = cancel_requested.into_iter().map(Into::into);
+        self.tx_manager_content_builder =
+            self.tx_manager_content_builder.with_cancel_requested_txs(cancel_requested);
+        self
+    }
+
     pub fn build(mut self) -> L1ProviderContent {
         if let Some(config) = self.config {
             self.tx_manager_content_builder =
@@ -186,6 +196,7 @@ struct TransactionManagerContent {
     pub uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     pub rejected: Option<Vec<L1HandlerTransaction>>,
     pub committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    pub cancel_requested: Option<Vec<CancellationRequest>>,
     pub config: Option<TransactionManagerConfig>,
 }
 
@@ -211,6 +222,16 @@ impl TransactionManagerContent {
         if let Some(rejected) = &self.rejected {
             assert_eq!(rejected.iter().map(|tx| tx.tx_hash).collect_vec(), snapshot.rejected);
         }
+
+        if let Some(cancel_requested) = &self.cancel_requested {
+            assert_eq!(
+                cancel_requested
+                    .iter()
+                    .map(|CancellationRequest { tx, .. }| tx.tx_hash)
+                    .collect_vec(),
+                snapshot.cancellation_started_on_l2
+            );
+        }
     }
 }
 
@@ -219,8 +240,11 @@ impl From<TransactionManagerContent> for TransactionManager {
         let pending: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
         let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
         let committed: IndexMap<_, _> = mem::take(&mut content.committed).unwrap_or_default();
+        let cancel_requested: Vec<_> = mem::take(&mut content.cancel_requested).unwrap_or_default();
 
-        let mut records = IndexMap::with_capacity(pending.len() + rejected.len() + committed.len());
+        let mut records = IndexMap::with_capacity(
+            pending.len() + rejected.len() + committed.len() + cancel_requested.len(),
+        );
 
         let mut proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>> = BTreeMap::new();
         for timed_tx in pending {
@@ -248,6 +272,17 @@ impl From<TransactionManagerContent> for TransactionManager {
             assert_eq!(records.insert(tx_hash, record), None);
         }
 
+        for cancel_requested_tx in cancel_requested {
+            let tx_hash = cancel_requested_tx.tx.tx_hash;
+            let mut record = TransactionRecord::new(TransactionPayload::Full {
+                tx: cancel_requested_tx.tx,
+                // Transaction "created_at" irrelevant after cancellation request.
+                created_at_block_timestamp: 0.into(),
+            });
+            record.mark_cancellation_request(cancel_requested_tx.timestamp);
+            assert_eq!(records.insert(tx_hash, record), None);
+        }
+
         let current_epoch = StagingEpoch::new();
         TransactionManager::create_for_testing(
             records.into(),
@@ -264,6 +299,7 @@ struct TransactionManagerContentBuilder {
     rejected: Option<Vec<L1HandlerTransaction>>,
     committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
     config: Option<TransactionManagerConfig>,
+    cancel_requested: Option<Vec<CancellationRequest>>,
 }
 
 impl TransactionManagerContentBuilder {
@@ -321,6 +357,14 @@ impl TransactionManagerContentBuilder {
         self
     }
 
+    pub fn with_cancel_requested_txs(
+        mut self,
+        cancel_requested: impl IntoIterator<Item = CancellationRequest>,
+    ) -> Self {
+        self.cancel_requested = Some(cancel_requested.into_iter().collect());
+        self
+    }
+
     fn with_config(mut self, config: TransactionManagerConfig) -> Self {
         self.config = Some(config);
         self
@@ -335,12 +379,13 @@ impl TransactionManagerContentBuilder {
             uncommitted: self.uncommitted,
             committed: self.committed,
             rejected: self.rejected,
+            cancel_requested: self.cancel_requested,
             config: self.config,
         })
     }
 
     fn is_default(&self) -> bool {
-        self.uncommitted.is_none() && self.committed.is_none()
+        self.uncommitted.is_none() && self.committed.is_none() && self.cancel_requested.is_none()
     }
 }
 
@@ -443,5 +488,17 @@ impl From<TimedL1HandlerTransaction> for TransactionRecord {
             tx: timed_tx.tx,
             created_at_block_timestamp: timed_tx.timestamp,
         })
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct CancellationRequest {
+    pub tx: L1HandlerTransaction,
+    pub timestamp: BlockTimestamp,
+}
+
+impl From<(L1HandlerTransaction, u64)> for CancellationRequest {
+    fn from((tx, timestamp): (L1HandlerTransaction, u64)) -> Self {
+        Self { tx, timestamp: timestamp.into() }
     }
 }

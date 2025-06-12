@@ -135,8 +135,22 @@ impl TransactionManager {
         is_new_record
     }
 
+    pub fn request_cancellation(
+        &mut self,
+        tx_hash: TransactionHash,
+        block_timestamp: BlockTimestamp,
+    ) -> Option<BlockTimestamp> {
+        self.with_record(tx_hash, |r| r.mark_cancellation_request(block_timestamp)).expect(
+            "Should not be possible to request cancellation for non-existent transaction {tx_hash}",
+        )
+    }
+
     pub fn is_committed(&self, tx_hash: TransactionHash) -> bool {
         self.records.get(&tx_hash).is_some_and(|record| record.is_committed())
+    }
+
+    pub fn exists(&self, tx_hash: TransactionHash) -> bool {
+        self.records.contains_key(&tx_hash)
     }
 
     pub(crate) fn snapshot(&self) -> TransactionManagerSnapshot {
@@ -158,6 +172,9 @@ impl TransactionManager {
                     if self.is_staged(tx_hash) {
                         snapshot.uncommitted_staged.push(tx_hash);
                     }
+                }
+                TransactionState::CancellationStartedOnL2 => {
+                    snapshot.cancellation_started_on_l2.push(tx_hash);
                 }
             }
         }
@@ -248,6 +265,7 @@ pub(crate) struct TransactionManagerSnapshot {
     pub rejected: Vec<TransactionHash>,
     pub rejected_staged: Vec<TransactionHash>,
     pub committed: Vec<TransactionHash>,
+    pub cancellation_started_on_l2: Vec<TransactionHash>,
 }
 
 // Invariant: Monotone-increasing.
