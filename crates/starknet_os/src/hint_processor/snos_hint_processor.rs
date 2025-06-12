@@ -274,6 +274,10 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
                         stateless.execute_hint(self, hint_args)?;
                         Ok(HintExtension::default())
                     }
+                    AllHints::CommonHint(common_hint) => {
+                        common_hint.execute_hint(self, hint_args)?;
+                        Ok(HintExtension::default())
+                    }
                     AllHints::OsHint(os_hint) => {
                         os_hint.execute_hint(self, hint_args)?;
                         Ok(HintExtension::default())
