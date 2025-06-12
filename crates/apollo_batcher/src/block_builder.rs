@@ -299,8 +299,17 @@ impl BlockBuilder {
             bouncer_weights,
             casm_hash_computation_data,
         } = block_summary;
+        let mut execution_data = std::mem::take(&mut self.execution_data);
+        if let Some(n_txs_in_block) = n_txs_in_block {
+            // Remove the transactions that were executed, but eventually not included in the block.
+            // This can happen if the proposer sends some transactions but closes the block before
+            // including them, while the validator already executed those transactions.
+            let remove_tx_hashes: Vec<TransactionHash> =
+                self.block_txs[n_txs_in_block..].iter().map(|tx| tx.tx_hash()).collect();
+            execution_data.remove_last_txs(&remove_tx_hashes);
+        }
         Ok(BlockExecutionArtifacts {
-            execution_data: std::mem::take(&mut self.execution_data),
+            execution_data,
             commitment_state_diff: state_diff,
             compressed_state_diff,
             bouncer_weights,
@@ -715,4 +724,31 @@ pub struct BlockTransactionExecutionData {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub rejected_tx_hashes: IndexSet<TransactionHash>,
     pub consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
+}
+
+impl BlockTransactionExecutionData {
+    /// Removes the last txs with the given hashes from the execution data.
+    fn remove_last_txs(&mut self, tx_hashes: &[TransactionHash]) {
+        for tx_hash in tx_hashes.iter().rev() {
+            remove_last_map(&mut self.execution_infos, tx_hash);
+            remove_last_set(&mut self.rejected_tx_hashes, tx_hash);
+            remove_last_set(&mut self.consumed_l1_handler_tx_hashes, tx_hash);
+        }
+    }
+}
+
+/// Removes the tx_hash from the map, if it exists.
+/// Verifies that the removed transaction is the last one in the map.
+fn remove_last_map<V>(map: &mut IndexMap<TransactionHash, V>, tx_hash: &TransactionHash) {
+    if let Some((idx, _, _)) = map.swap_remove_full(tx_hash) {
+        assert_eq!(idx, map.len(), "The removed txs must be the last ones.");
+    }
+}
+
+/// Removes the tx_hash from the set, if it exists.
+/// Verifies that the removed transaction is the last one in the set.
+fn remove_last_set(set: &mut IndexSet<TransactionHash>, tx_hash: &TransactionHash) {
+    if let Some((idx, _)) = set.swap_remove_full(tx_hash) {
+        assert_eq!(idx, set.len(), "The removed txs must be the last ones.");
+    }
 }
