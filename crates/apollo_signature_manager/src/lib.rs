@@ -5,6 +5,7 @@ use std::ops::Deref;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_signature_manager_types::{
     KeyStore,
+    KeyStoreResult,
     PeerId,
     SignatureManagerError,
     SignatureManagerResult,
@@ -12,9 +13,10 @@ use apollo_signature_manager_types::{
 use async_trait::async_trait;
 use blake2s::blake2s_to_felt;
 use starknet_api::block::BlockHash;
-use starknet_api::crypto::utils::{PublicKey, RawSignature};
+use starknet_api::crypto::utils::{PrivateKey, PublicKey, RawSignature};
 use starknet_core::crypto::{ecdsa_sign, ecdsa_verify};
 use starknet_core::types::Felt;
+use starknet_crypto::get_public_key;
 
 // Message domain separators.
 pub(crate) const INIT_PEER_ID: &[u8] = b"INIT_PEER_ID";
@@ -28,6 +30,39 @@ impl Deref for MessageDigest {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+/// Simple in-memory KeyStore implementation for testing
+#[derive(Clone, Copy, Debug)]
+pub struct LocalKeyStore {
+    private_key: PrivateKey,
+    pub public_key: PublicKey,
+}
+
+impl LocalKeyStore {
+    fn _new(private_key: PrivateKey) -> Self {
+        let public_key = PublicKey(get_public_key(&private_key.0));
+        Self { private_key, public_key }
+    }
+
+    #[cfg(test)]
+    const fn new_for_testing() -> Self {
+        // Created using `cairo-lang`.
+        const PRIVATE_KEY: PrivateKey = PrivateKey(Felt::from_hex_unchecked(
+            "0x608bf2cdb1ad4138e72d2f82b8c5db9fa182d1883868ae582ed373429b7a133",
+        ));
+        const PUBLIC_KEY: PublicKey = PublicKey(Felt::from_hex_unchecked(
+            "0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a",
+        ));
+
+        Self { private_key: PRIVATE_KEY, public_key: PUBLIC_KEY }
+    }
+}
+
+#[async_trait]
+impl KeyStore for LocalKeyStore {
+    async fn get_key(&self) -> KeyStoreResult<PrivateKey> {
+        Ok(self.private_key)
     }
 }
 
@@ -119,15 +154,11 @@ pub fn verify_precommit_vote_signature(
 
 #[cfg(test)]
 mod tests {
-    use apollo_signature_manager_types::KeyStoreResult;
-    use async_trait::async_trait;
     use pretty_assertions::assert_eq;
     use rstest::rstest;
-    use starknet_api::crypto::utils::PrivateKey;
     use starknet_api::felt;
     use starknet_core::crypto::Signature;
     use starknet_core::types::Felt;
-    use starknet_crypto::get_public_key;
 
     use super::*;
 
@@ -178,40 +209,6 @@ mod tests {
         );
     }
 
-    /// Simple in-memory KeyStore implementation for testing
-    #[derive(Clone, Copy, Debug)]
-    struct LocalKeyStore {
-        private_key: PrivateKey,
-        pub public_key: PublicKey,
-    }
-
-    impl LocalKeyStore {
-        fn _new(private_key: PrivateKey) -> Self {
-            let public_key = PublicKey(get_public_key(&private_key.0));
-            Self { private_key, public_key }
-        }
-
-        #[cfg(test)]
-        const fn new_for_testing() -> Self {
-            // Created using `cairo-lang`.
-            const PRIVATE_KEY: PrivateKey = PrivateKey(Felt::from_hex_unchecked(
-                "0x608bf2cdb1ad4138e72d2f82b8c5db9fa182d1883868ae582ed373429b7a133",
-            ));
-            const PUBLIC_KEY: PublicKey = PublicKey(Felt::from_hex_unchecked(
-                "0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a",
-            ));
-
-            Self { private_key: PRIVATE_KEY, public_key: PUBLIC_KEY }
-        }
-    }
-
-    #[async_trait]
-    impl KeyStore for LocalKeyStore {
-        async fn get_key(&self) -> KeyStoreResult<PrivateKey> {
-            Ok(self.private_key)
-        }
-    }
-
     #[tokio::test]
     async fn test_identify() {
         let key_store = LocalKeyStore::new_for_testing();
@@ -228,7 +225,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_sign_precommit_vote() {
-        let key_store = TestKeyStore::new();
+        let key_store = LocalKeyStore::new_for_testing();
         let signature_manager = SignatureManager::new(key_store);
 
         let block_hash = BlockHash(felt!("0x1234"));
