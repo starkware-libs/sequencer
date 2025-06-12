@@ -37,8 +37,8 @@
         "extra_params": {}
       },
       {
-        "title": "Last batched block",
-        "description": "The last block number that was batched",
+        "title": "batcher_last_batched_block",
+        "description": "The last block received by batching",
         "type": "stat",
         "expr": "batcher_last_batched_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
