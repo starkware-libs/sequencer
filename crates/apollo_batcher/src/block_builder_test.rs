@@ -23,6 +23,7 @@ use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::{IndexMap, IndexSet};
+use itertools::chain;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use mockall::Sequence;
@@ -200,11 +201,14 @@ fn one_chunk_mock_executor(
     (helper.mock_transaction_executor, expected_block_artifacts)
 }
 
-fn two_chunks_test_expectations() -> TestExpectations {
+fn two_chunks_mock_executor() -> (
+    Vec<InternalConsensusTransaction>,
+    Vec<InternalConsensusTransaction>,
+    MockTransactionExecutorTrait,
+) {
     let input_txs = test_txs(0..6);
     let first_chunk = input_txs[..N_CONCURRENT_TXS].to_vec();
     let second_chunk = input_txs[N_CONCURRENT_TXS..].to_vec();
-    let block_size = input_txs.len();
 
     let mut helper = ExpectationHelper::new();
 
@@ -218,16 +222,24 @@ fn two_chunks_test_expectations() -> TestExpectations {
     helper.expect_is_done(false);
     helper.deadline_expectations();
 
-    let expected_block_artifacts =
-        set_close_block_expectations(&mut helper.mock_transaction_executor, block_size);
+    (first_chunk, second_chunk, helper.mock_transaction_executor)
+}
 
-    let mock_tx_provider = mock_tx_provider_limitless_calls(vec![first_chunk, second_chunk]);
+fn two_chunks_test_expectations() -> TestExpectations {
+    let (first_chunk, second_chunk, mut mock_transaction_executor) = two_chunks_mock_executor();
+    let block_size = first_chunk.len() + second_chunk.len();
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut mock_transaction_executor, block_size);
+
+    let mock_tx_provider =
+        mock_tx_provider_limitless_calls(vec![first_chunk.clone(), second_chunk.clone()]);
 
     TestExpectations {
-        mock_transaction_executor: helper.mock_transaction_executor,
+        mock_transaction_executor,
         mock_tx_provider,
         expected_block_artifacts,
-        expected_txs_output: input_txs,
+        expected_txs_output: chain!(first_chunk.iter(), second_chunk.iter()).cloned().collect(),
         expected_full_blocks_metric: 0,
     }
 }
@@ -452,6 +464,14 @@ fn set_close_block_expectations(
 fn mock_tx_provider_limited_calls(
     input_chunks: Vec<Vec<InternalConsensusTransaction>>,
 ) -> MockTransactionProvider {
+    mock_tx_provider_limited_calls_ex(input_chunks, None)
+}
+
+/// Create a mock tx provider that will return the input chunks for number of chunks queries.
+fn mock_tx_provider_limited_calls_ex(
+    input_chunks: Vec<Vec<InternalConsensusTransaction>>,
+    n_txs_in_block: Option<usize>,
+) -> MockTransactionProvider {
     let mut mock_tx_provider = MockTransactionProvider::new();
     let mut seq = Sequence::new();
     for input_chunk in input_chunks {
@@ -467,7 +487,7 @@ fn mock_tx_provider_limited_calls(
             .in_sequence(&mut seq)
             .returning(move |_n_txs| Ok(NextTxs::Txs(input_chunk.clone())));
     }
-    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(n_txs_in_block);
     mock_tx_provider
 }
 
@@ -628,6 +648,36 @@ async fn test_validate_block() {
     let (mock_transaction_executor, expected_block_artifacts) =
         one_chunk_mock_executor(&input_txs, input_txs.len());
     let mock_tx_provider = mock_tx_provider_stream_done(input_txs);
+
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+    let result_block_artifacts = run_build_block(
+        mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        true,
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(result_block_artifacts, expected_block_artifacts);
+}
+
+/// Tests the case where the final number of transactions in the block is smaller than the number
+/// of transactions that were executed.
+#[tokio::test]
+async fn test_validate_block_excluded_txs() {
+    let (first_chunk, second_chunk, mut mock_transaction_executor) = two_chunks_mock_executor();
+    let block_size = first_chunk.len() + second_chunk.len();
+
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut mock_transaction_executor, block_size - 1);
+
+    let mut mock_tx_provider =
+        mock_tx_provider_limited_calls_ex(vec![first_chunk, second_chunk], Some(block_size - 1));
+
+    mock_tx_provider.expect_get_txs().returning(move |_n_txs| Ok(NextTxs::Txs(vec![])));
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
     let result_block_artifacts = run_build_block(
