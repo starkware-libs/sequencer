@@ -28,6 +28,7 @@ use starknet_api::deprecated_contract_class::{
     EntryPointV0,
     Program as DeprecatedProgram,
 };
+use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
 use crate::abi::constants::{self};
@@ -94,6 +95,21 @@ impl RunnableCompiledClass {
             Self::V1(class) => class.estimate_casm_hash_computation_resources(),
             #[cfg(feature = "cairo_native")]
             Self::V1Native(class) => class.casm().estimate_casm_hash_computation_resources(),
+        }
+    }
+
+    /// Estimate the VM gas required to migrate a CompiledClassHash from Poseidon hashing to Blake.
+    pub fn estimate_compiled_class_hash_migration_resources(&self) -> GasAmount {
+        match self {
+            Self::V0(_) => panic!(
+                "v0 contracts do not have a Compiled Class Hash and therefore shouldn't be \
+                 counted for migration."
+            ),
+            Self::V1(class) => class.estimate_compiled_class_hash_migration_resources(),
+            #[cfg(feature = "cairo_native")]
+            Self::V1Native(class) => {
+                class.casm().estimate_compiled_class_hash_migration_resources()
+            }
         }
     }
 
@@ -273,6 +289,13 @@ impl CompiledClassV1 {
     /// dominant factor in it.
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
         estimate_casm_hash_computation_resources(&self.bytecode_segment_lengths)
+    }
+
+    /// Estimate the VM gas required to perform a CompiledClassHash migration,
+    /// including both the Blake2s and Poseidon hash computations.
+    fn estimate_compiled_class_hash_migration_resources(&self) -> GasAmount {
+        // TODO(AvivG): implement after blake hash estimation exists.
+        GasAmount::ZERO
     }
 
     // Returns the set of segments that were visited according to the given visited PCs.
