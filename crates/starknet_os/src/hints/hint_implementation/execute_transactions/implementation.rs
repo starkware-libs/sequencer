@@ -21,7 +21,7 @@ use crate::hints::hint_implementation::execute_transactions::utils::{
     SHA256_INPUT_CHUNK_SIZE_BOUND,
 };
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
-use crate::hints::types::{HintArgs, HintArgsNoHP};
+use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
 #[allow(clippy::result_large_err)]
@@ -36,7 +36,7 @@ pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn log_remaining_txs(
-    HintArgsNoHP { vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_txs = get_integer_from_var_name(Ids::NTxs.into(), vm, ids_data, ap_tracking)?;
     log::debug!("execute_transactions_inner: {n_txs} transactions remaining.");
@@ -45,7 +45,7 @@ pub(crate) fn log_remaining_txs(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn fill_holes_in_rc96_segment(
-    HintArgsNoHP { vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let rc96_ptr = get_ptr_from_var_name(Ids::RangeCheck96Ptr.into(), vm, ids_data, ap_tracking)?;
     let segment_size = rc96_ptr.offset;
@@ -96,7 +96,7 @@ pub(crate) fn set_component_hashes<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn sha2_finalize(
-    HintArgsNoHP { constants, ids_data, ap_tracking, vm, .. }: HintArgsNoHP<'_>,
+    HintArgs { constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let batch_size = &Const::ShaBatchSize.fetch(constants)?.to_bigint();
     let n = &get_integer_from_var_name(Ids::N.into(), vm, ids_data, ap_tracking)?.to_bigint();
@@ -124,7 +124,7 @@ pub(crate) fn sha2_finalize(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn segments_add_temp(HintArgsNoHP { vm, .. }: HintArgsNoHP<'_>) -> OsHintResult {
+pub(crate) fn segments_add_temp(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResult {
     let temp_segment = vm.add_temporary_segment();
     insert_nondet_hint_value(
         vm,
@@ -176,7 +176,7 @@ pub(crate) fn os_input_transactions<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn segments_add(HintArgsNoHP { vm, .. }: HintArgsNoHP<'_>) -> OsHintResult {
+pub(crate) fn segments_add(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResult {
     let segment = vm.add_memory_segment();
     Ok(insert_value_into_ap(vm, segment)?)
 }

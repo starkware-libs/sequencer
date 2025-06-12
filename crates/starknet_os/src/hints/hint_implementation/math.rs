@@ -5,13 +5,11 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintResult;
-use crate::hints::types::HintArgsNoHP;
+use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn log2_ceil(
-    HintArgsNoHP { vm, ap_tracking, ids_data, .. }: HintArgsNoHP<'_>,
-) -> OsHintResult {
+pub(crate) fn log2_ceil(HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>) -> OsHintResult {
     let value = get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?;
     assert!(value != Felt::ZERO, "log2_ceil is not defined for zero.");
     let bits = (value - Felt::ONE).bits();
