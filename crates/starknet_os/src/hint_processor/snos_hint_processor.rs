@@ -36,7 +36,7 @@ use crate::hint_processor::test_hint::test_hint;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
-use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
+use crate::hints::types::{HintArgs, HintEnum};
 use crate::io::os_input::{
     CachedStateInput,
     CommitmentInfo,
