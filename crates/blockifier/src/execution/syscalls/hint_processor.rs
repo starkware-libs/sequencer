@@ -466,8 +466,11 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.base.context.gas_costs()
     }
 
-    fn get_sha256_segment_end_ptr(&self, vm: &mut VirtualMachine) -> Relocatable {
-        self.sha256_segment_end_ptr.unwrap_or(vm.add_memory_segment())
+    fn get_sha256_segment_end_ptr(
+        &self,
+        vm: &mut VirtualMachine,
+    ) -> Result<Relocatable, Self::Error> {
+        Ok(self.sha256_segment_end_ptr.unwrap_or(vm.add_memory_segment()))
     }
 
     fn set_sha256_segment_end_ptr(&mut self, segment_end_ptr: Relocatable) {
