@@ -11,6 +11,8 @@ use apollo_mempool_types::mempool_types::{
     MempoolSnapshot,
     MempoolStateSnapshot,
 };
+use rand::prelude::IteratorRandom;
+use rand::thread_rng;
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionWithoutTxHash};
@@ -331,9 +333,7 @@ impl Mempool {
         let mut account_nonce_updates = self.remove_expired_txs();
         account_nonce_updates.extend(self.add_ready_declares());
 
-        if self.exceeds_capacity(&args.tx) {
-            // TODO(Dafna): we should be evicting transactions based on some policy here, instead of
-            // just returning an error.
+        if self.exceeds_capacity(&args.tx) && !self.try_make_space(args.tx.total_bytes()) {
             return Err(MempoolError::MempoolFull);
         }
 
@@ -692,6 +692,35 @@ impl Mempool {
                 self.accounts_with_gap.remove(&address);
             }
         }
+    }
+
+    pub fn get_evictable_account(&self) -> Option<ContractAddress> {
+        self.accounts_with_gap.iter().choose(&mut thread_rng()).copied()
+    }
+
+    // Attempts to make space for a new transaction by evicting existing transactions.
+    // Returns true if enough space was freed, false otherwise.
+    pub fn try_make_space(&mut self, required_space: u64) -> bool {
+        let mut total_space_freed = 0;
+        while total_space_freed < required_space && !self.accounts_with_gap.is_empty() {
+            let Some(address) = self.get_evictable_account() else {
+                return false;
+            };
+
+            let txs: Vec<_> = self.tx_pool.account_txs_sorted_by_nonce(address).copied().collect();
+            for tx_ref in txs.iter().rev() {
+                if let Ok(tx) = self.tx_pool.remove(tx_ref.tx_hash) {
+                    total_space_freed += tx.total_bytes();
+                    if total_space_freed >= required_space {
+                        return true;
+                    }
+                }
+            }
+
+            self.accounts_with_gap.remove(&address);
+        }
+
+        total_space_freed >= required_space
     }
 
     #[cfg(test)]
