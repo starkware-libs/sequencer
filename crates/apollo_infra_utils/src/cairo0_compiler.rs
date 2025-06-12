@@ -43,6 +43,15 @@ impl Cairo0Script {
             Self::StarknetCompileDeprecated => "starknet-compile-deprecated",
         }
     }
+
+    pub fn required_version(&self) -> CairoLangVersion<'static> {
+        match self {
+            Self::Compile => EXPECTED_CAIRO0_VERSION,
+            Self::Format => EXPECTED_CAIRO0_VERSION,
+            // TODO(Dori): Add a different (decoupled) constant for Cairo0 contract compilation.
+            Self::StarknetCompileDeprecated => EXPECTED_CAIRO0_VERSION,
+        }
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -79,6 +88,7 @@ pub fn cairo0_scripts_correct_version() -> Result<(), Cairo0ScriptVersionError> 
     for script_type in
         [Cairo0Script::Compile, Cairo0Script::Format, Cairo0Script::StarknetCompileDeprecated]
     {
+        let expected_version = script_type.required_version();
         let script = script_type.script_name();
         let version = match Command::new(script).arg("--version").output() {
             Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
@@ -88,9 +98,9 @@ pub fn cairo0_scripts_correct_version() -> Result<(), Cairo0ScriptVersionError> 
                 )));
             }
         };
-        if version.trim().replace("==", " ").split(" ").nth(1).ok_or(
-            Cairo0ScriptVersionError::CompilerNotFound("No script version found.".to_string()),
-        )? != EXPECTED_CAIRO0_VERSION.0
+        if CairoLangVersion(version.trim().replace("==", " ").split(" ").nth(1).ok_or(
+            Cairo0ScriptVersionError::CompilerNotFound(format!("No {script} version found.")),
+        )?) != expected_version
         {
             return Err(Cairo0ScriptVersionError::IncorrectVersion {
                 script: script.to_string(),
@@ -145,17 +155,17 @@ pub fn verify_cairo0_compiler_deps() {
         Ok(_) => {
             return;
         }
-        Err(Cairo0ScriptVersionError::CompilerNotFound(_)) => {
-            "no installed cairo-lang found".to_string()
+        Err(Cairo0ScriptVersionError::CompilerNotFound(error_str)) => {
+            format!("No installed cairo-lang found. Original error: {error_str}.")
         }
-        Err(Cairo0ScriptVersionError::IncorrectVersion { existing, .. }) => {
-            format!("installed version: {existing}")
+        Err(Cairo0ScriptVersionError::IncorrectVersion { existing, script, .. }) => {
+            format!("Installed {script} version: {existing}")
         }
     };
 
     panic!(
-        "cairo-lang version {EXPECTED_CAIRO0_VERSION:?} not found ({specific_error}). Please \
-         enter a venv and rerun the test:\n{}",
+        "At least one cairo-lang script not found or of incorrect version ({specific_error}). \
+         Please enter a venv and rerun the test:\n{}",
         *ENTER_VENV_INSTRUCTIONS
     );
 }
