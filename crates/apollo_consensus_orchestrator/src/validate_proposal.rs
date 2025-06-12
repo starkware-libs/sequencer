@@ -16,7 +16,7 @@ use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderCl
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_time::time::{sleep_until, Clock, DateTime};
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -58,7 +58,6 @@ pub(crate) struct ProposalValidateArguments {
     pub batcher_timeout_margin: Duration,
     pub valid_proposals: Arc<Mutex<BuiltProposals>>,
     pub content_receiver: mpsc::Receiver<ProposalPart>,
-    pub fin_sender: oneshot::Sender<ProposalCommitment>,
     pub gas_price_params: GasPriceParams,
     pub cancel_token: CancellationToken,
 }
@@ -93,7 +92,7 @@ pub(crate) enum ValidateProposalError {
     #[error("Invalid L1 gas price proposed. Proposed: {0:?}, Queried: {1:?}, Margin: {2}")]
     InvalidL1GasPriceProposed(PriceInfo, PriceInfo, u128),
     #[error("Empty proposal received")]
-    EmptyProposal,
+    EmptyProposal(ProposalCommitment),
     // TODO(alonl): clean this up
     #[error("Got an invalid proposal part. expected {0} or {1}, got {2}")]
     InvalidProposalPart(String, String, String),
@@ -117,11 +116,10 @@ pub(crate) async fn validate_proposal(
         return Err(ValidateProposalError::CannotCalculateDeadline { timeout: args.timeout, now });
     };
 
-    let (block_info, fin_sender) = await_second_proposal_part(
+    let block_info = await_second_proposal_part(
         &args.cancel_token,
         deadline,
         &mut args.content_receiver,
-        args.fin_sender,
         args.deps.clock.as_ref(),
     )
     .await?;
@@ -207,11 +205,6 @@ pub(crate) async fn validate_proposal(
     if built_block != received_fin.proposal_commitment {
         warn!("proposal_id built from content received does not match fin.");
         return Err(ValidateProposalError::ProposalFinMismatch);
-    }
-
-    if fin_sender.send(built_block).is_err() {
-        // Consensus may exit early (e.g. sync).
-        warn!("Failed to send proposal content ids");
     }
 
     Ok(built_block)
@@ -302,9 +295,8 @@ async fn await_second_proposal_part(
     cancel_token: &CancellationToken,
     deadline: DateTime,
     content_receiver: &mut mpsc::Receiver<ProposalPart>,
-    fin_sender: oneshot::Sender<ProposalCommitment>,
     clock: &dyn Clock,
-) -> ValidateProposalResult<(ConsensusBlockInfo, oneshot::Sender<ProposalCommitment>)> {
+) -> ValidateProposalResult<ConsensusBlockInfo> {
     tokio::select! {
         _ = cancel_token.cancelled() => {
             warn!("Proposal interrupted");
@@ -317,18 +309,11 @@ async fn await_second_proposal_part(
         proposal_part = content_receiver.next() => {
             match proposal_part {
                 Some(ProposalPart::BlockInfo(block_info)) => {
-                    Ok((block_info, fin_sender))
+                    Ok(block_info)
                 }
                 Some(ProposalPart::Fin(ProposalFin { proposal_commitment })) => {
                     warn!("Received an empty proposal.");
-                    if fin_sender
-                        .send(proposal_commitment)
-                        .is_err()
-                    {
-                        // Consensus may exit early (e.g. sync).
-                        warn!("Failed to send proposal content ids");
-                    }
-                    Err(ValidateProposalError::EmptyProposal)
+                    Err(ValidateProposalError::EmptyProposal(proposal_commitment))
                 }
                 x => {
                     warn!("Invalid second proposal part: {x:?}");
