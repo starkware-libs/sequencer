@@ -1,9 +1,8 @@
-use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 use num_bigint::BigUint;
 use starknet_types_core::felt::Felt;
 
-use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Const, Ids};
@@ -14,8 +13,8 @@ use crate::vm_utils::get_address_of_nested_fields;
 /// * The limbs of value are in the range [0, BASE * 3).
 /// * value is in the range [0, 2 ** 256).
 #[allow(clippy::result_large_err)]
-pub(crate) fn compute_ids_low<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+pub(crate) fn compute_ids_low<'program, CHP: CommonHintProcessor<'program>>(
+    hint_processor: &mut CHP,
     HintArgs { vm, ap_tracking, ids_data, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let d0 = vm
@@ -26,7 +25,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             vm,
             ap_tracking,
             &["d0"],
-            hint_processor.os_program,
+            hint_processor.get_program(),
         )?)?
         .into_owned();
     let d1 = vm
@@ -37,7 +36,7 @@ pub(crate) fn compute_ids_low<S: StateReader>(
             vm,
             ap_tracking,
             &["d1"],
-            hint_processor.os_program,
+            hint_processor.get_program(),
         )?)?
         .into_owned();
     let base = Const::Base.fetch(constants)?;
