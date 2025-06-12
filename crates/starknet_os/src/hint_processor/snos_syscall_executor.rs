@@ -212,7 +212,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         let block_number = request.block_number;
         let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
         let diff = execution_helper.os_block_input.block_info.block_number.0 - block_number.0;
-        assert!(diff < STORED_BLOCK_HASH_BUFFER, "Block number out of range {diff}.");
+        assert!(diff >= STORED_BLOCK_HASH_BUFFER, "Block number out of range {diff}.");
         let block_hash = execution_helper
             .tx_execution_iter
             .get_mut_tx_execution_info_ref()?
