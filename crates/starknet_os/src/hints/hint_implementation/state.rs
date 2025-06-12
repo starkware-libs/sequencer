@@ -7,6 +7,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use starknet_api::core::ContractAddress;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::create_preimage_mapping;
 use crate::hints::types::{HintArgs, HintArgsNoHP};
@@ -43,11 +44,8 @@ fn verify_tree_height_eq_merkle_height(tree_height: Felt, merkle_height: Felt) -
 
 #[allow(clippy::result_large_err)]
 fn set_preimage_for_commitments<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<
-        '_,
-        '_,
-        S,
-    >,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_>,
 ) -> OsHintResult {
     let CommitmentInfo { previous_root, updated_root, commitment_facts, tree_height } =
         hint_processor.get_commitment_info()?;
@@ -80,27 +78,26 @@ pub(crate) fn compute_commitments_on_finalized_state_with_aliases(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
-    hint_args: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    hint_args: HintArgs<'_>,
 ) -> OsHintResult {
-    hint_args.hint_processor.commitment_type = CommitmentType::State;
-    set_preimage_for_commitments(hint_args)
+    hint_processor.commitment_type = CommitmentType::State;
+    set_preimage_for_commitments(hint_processor, hint_args)
 }
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
-    hint_args: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    hint_args: HintArgs<'_>,
 ) -> OsHintResult {
-    hint_args.hint_processor.commitment_type = CommitmentType::Class;
-    set_preimage_for_commitments(hint_args)
+    hint_processor.commitment_type = CommitmentType::Class;
+    set_preimage_for_commitments(hint_processor, hint_args)
 }
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
-    HintArgs { vm, constants, ids_data, ap_tracking, exec_scopes, hint_processor }: HintArgs<
-        '_,
-        '_,
-        S,
-    >,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, constants, ids_data, ap_tracking, exec_scopes }: HintArgs<'_>,
 ) -> OsHintResult {
     hint_processor.commitment_type = CommitmentType::State;
     let contract_address: ContractAddress =
@@ -141,7 +138,8 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn guess_state_ptr<S: StateReader>(
-    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let state_changes_start =
         if let Some(state_update_pointers) = &hint_processor.state_update_pointers {
@@ -160,7 +158,8 @@ pub(crate) fn guess_state_ptr<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn update_state_ptr<S: StateReader>(
-    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
         let contract_state_changes_end = get_ptr_from_var_name(
@@ -176,7 +175,8 @@ pub(crate) fn update_state_ptr<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn guess_classes_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let class_changes_start =
         if let Some(state_update_pointers) = &hint_processor.state_update_pointers {
@@ -195,7 +195,8 @@ pub(crate) fn guess_classes_ptr<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn update_classes_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
         let classes_changes_end =

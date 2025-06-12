@@ -1,5 +1,6 @@
 use blockifier::state::state_api::StateReader;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 
@@ -19,7 +20,8 @@ use crate::hints::types::HintArgs;
 /// ```ignore
 /// pub(crate) fn test_hint<S: StateReader>(
 ///     hint_str: &str,
-///     HintArgs { .. }: HintArgs<'_, '_, S>,
+///     hint_processor: &mut SnosHintProcessor<'_, S>,
+///     HintArgs { .. }: HintArgs<'_>,
 /// ) -> OsHintResult {
 ///     let hint_case = hint_str.trim_start().strip_prefix(TEST_HINT_PREFIX).unwrap().trim_start();
 ///     match hint_case[0] {
@@ -32,7 +34,8 @@ use crate::hints::types::HintArgs;
 #[allow(clippy::result_large_err)]
 pub(crate) fn test_hint<S: StateReader>(
     _hint_str: &str,
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+    _hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
     Ok(())
 }

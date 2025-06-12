@@ -229,6 +229,7 @@ use crate::hints::hint_implementation::syscalls::{
 };
 use crate::hints::types::{HintArgs, HintArgsNoHP, HintEnum};
 use crate::{define_hint_enum, define_hint_extension_enum, define_stateless_hint_enum};
+
 #[cfg(test)]
 #[path = "enum_definition_test.rs"]
 pub mod test;
