@@ -179,12 +179,14 @@ impl SingleHeightConsensus {
         is_observer: bool,
         id: ValidatorId,
         validators: Vec<ValidatorId>,
+        no_byzantine_validators: bool,
         timeouts: TimeoutsConfig,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
             u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
-        let state_machine = StateMachine::new(id, n_validators, is_observer);
+        let state_machine =
+            StateMachine::new(id, n_validators, is_observer, no_byzantine_validators);
         Self {
             height,
             validators,

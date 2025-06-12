@@ -178,6 +178,7 @@ impl ConsensusManager {
             self.config.consensus_config.startup_delay,
             self.config.consensus_config.timeouts.clone(),
             self.config.consensus_config.sync_retry_interval,
+            self.config.assume_no_malicious_validators,
             votes_broadcast_channels.into(),
             inbound_internal_receiver,
         );
