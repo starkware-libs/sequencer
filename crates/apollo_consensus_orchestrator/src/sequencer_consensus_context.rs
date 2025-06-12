@@ -69,7 +69,12 @@ use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::utils::{convert_to_sn_api_block_info, GasPriceParams};
-use crate::validate_proposal::{validate_proposal, BlockInfoValidation, ProposalValidateArguments};
+use crate::validate_proposal::{
+    validate_proposal,
+    BlockInfoValidation,
+    ProposalValidateArguments,
+    ValidateProposalError,
+};
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
@@ -693,14 +698,23 @@ impl SequencerConsensusContext {
                     batcher_timeout_margin,
                     valid_proposals,
                     content_receiver,
-                    fin_sender,
                     gas_price_params,
                     cancel_token: cancel_token_clone,
                 })
                 .await
                 {
-                    Ok(_built_block) => {
+                    Ok(built_block) => {
                         info!("Proposal validated successfully.");
+                        if fin_sender.send(built_block).is_err() {
+                            // Consensus may exit early (e.g. sync).
+                            warn!("Failed to send proposal content id");
+                        }
+                    }
+                    Err(ValidateProposalError::EmptyProposal(proposal_commitment)) => {
+                        if fin_sender.send(proposal_commitment).is_err() {
+                            // Consensus may exit early (e.g. sync).
+                            warn!("Failed to send proposal content id");
+                        }
                     }
                     Err(e) => {
                         warn!("Proposal validation failed. Error: {e:?}");
