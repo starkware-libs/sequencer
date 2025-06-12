@@ -126,6 +126,7 @@ mod tests {
     use starknet_api::felt;
     use starknet_core::crypto::Signature;
     use starknet_core::types::Felt;
+    use starknet_crypto::get_public_key;
 
     use super::*;
 
@@ -146,7 +147,7 @@ mod tests {
     )]
     fn test_verify_identity(#[case] signature: Signature, #[case] expected: bool) {
         let peer_id = PeerId(b"alice".to_vec());
-        let public_key = TestKeyStore::new().public_key;
+        let public_key = LocalKeyStore::new_for_testing().public_key;
 
         assert_eq!(verify_identity(peer_id, signature.into(), public_key), Ok(expected));
     }
@@ -165,7 +166,7 @@ mod tests {
     )]
     fn test_verify_precommit_vote_signature(#[case] signature: Signature, #[case] expected: bool) {
         let block_hash = BlockHash(felt!("0x1234"));
-        let public_key = TestKeyStore::new().public_key;
+        let public_key = LocalKeyStore::new_for_testing().public_key;
 
         assert_eq!(
             verify_precommit_vote_signature(block_hash, signature.into(), public_key),
@@ -175,27 +176,33 @@ mod tests {
 
     /// Simple in-memory KeyStore implementation for testing
     #[derive(Clone, Copy, Debug)]
-    struct TestKeyStore {
+    struct LocalKeyStore {
         private_key: PrivateKey,
         pub public_key: PublicKey,
     }
 
-    impl TestKeyStore {
-        fn new() -> Self {
+    impl LocalKeyStore {
+        fn _new(private_key: PrivateKey) -> Self {
+            let public_key = PublicKey(get_public_key(&private_key.0));
+            Self { private_key, public_key }
+        }
+
+        #[cfg(test)]
+        const fn new_for_testing() -> Self {
             // Created using `cairo-lang`.
-            let private_key = PrivateKey(felt!(
-                "0x608bf2cdb1ad4138e72d2f82b8c5db9fa182d1883868ae582ed373429b7a133"
+            const PRIVATE_KEY: PrivateKey = PrivateKey(Felt::from_hex_unchecked(
+                "0x608bf2cdb1ad4138e72d2f82b8c5db9fa182d1883868ae582ed373429b7a133",
             ));
-            let public_key = PublicKey(felt!(
-                "0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a"
+            const PUBLIC_KEY: PublicKey = PublicKey(Felt::from_hex_unchecked(
+                "0x125d56b1fbba593f1dd215b7c55e384acd838cad549c4a2b9c6d32d264f4e2a",
             ));
 
-            Self { private_key, public_key }
+            Self { private_key: PRIVATE_KEY, public_key: PUBLIC_KEY }
         }
     }
 
     #[async_trait]
-    impl KeyStore for TestKeyStore {
+    impl KeyStore for LocalKeyStore {
         async fn get_key(&self) -> KeyStoreResult<PrivateKey> {
             Ok(self.private_key)
         }
@@ -203,9 +210,9 @@ mod tests {
 
     #[tokio::test]
     async fn test_identify() {
-        let key_store = TestKeyStore::new();
-
+        let key_store = LocalKeyStore::new_for_testing();
         let signature_manager = SignatureManager::new(key_store);
+
         let peer_id = PeerId(b"alice".to_vec());
         let signature = signature_manager.identify(peer_id.clone()).await;
 
