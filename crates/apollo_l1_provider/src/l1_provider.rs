@@ -109,7 +109,9 @@ impl L1Provider {
     ) -> L1ProviderResult<ValidationStatus> {
         self.validate_height(height)?;
         match self.state {
-            ProviderState::Validate => Ok(self.tx_manager.validate_tx(tx_hash)),
+            ProviderState::Validate => {
+                Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
+            }
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
             ProviderState::Pending | ProviderState::Bootstrap(_) => {
                 Err(L1ProviderError::OutOfSessionValidate)
@@ -398,7 +400,10 @@ impl L1ProviderBuilder {
 
         L1Provider {
             current_height: l1_provider_startup_height,
-            tx_manager: TransactionManager::new(self.config.new_l1_handler_cooldown_seconds),
+            tx_manager: TransactionManager::new(
+                self.config.new_l1_handler_cooldown_seconds,
+                self.config.l1_handler_cancellation_timelock_seconds,
+            ),
             state: ProviderState::Bootstrap(bootstrapper),
             config: self.config,
             clock: Arc::new(DefaultClock),
