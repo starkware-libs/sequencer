@@ -261,6 +261,10 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
             if let Ok(hint) = AllHints::from_str(hint_processor_data.code.as_str()) {
                 // OS hint, aggregator hint, Cairo0 syscall.
                 return match hint {
+                    AllHints::StatelessHint(stateless) => {
+                        stateless.execute_hint(hint_args)?;
+                        Ok(HintExtension::default())
+                    }
                     AllHints::OsHint(os_hint) => {
                         os_hint.execute_hint(hint_args)?;
                         Ok(HintExtension::default())

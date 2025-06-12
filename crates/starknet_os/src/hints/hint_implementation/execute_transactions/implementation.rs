@@ -12,7 +12,7 @@ use num_traits::ToPrimitive;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::enum_definition::{AllHints, OsHint};
+use crate::hints::enum_definition::{AllHints, OsHint, StatelessHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execute_transactions::utils::{
     calculate_padding,
@@ -125,7 +125,11 @@ pub(crate) fn segments_add_temp<S: StateReader>(
     HintArgs { vm, .. }: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     let temp_segment = vm.add_temporary_segment();
-    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::SegmentsAddTemp), temp_segment)
+    insert_nondet_hint_value(
+        vm,
+        AllHints::StatelessHint(StatelessHint::SegmentsAddTemp),
+        temp_segment,
+    )
 }
 
 #[allow(clippy::result_large_err)]
