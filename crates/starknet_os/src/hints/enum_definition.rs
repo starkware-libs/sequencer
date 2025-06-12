@@ -293,7 +293,14 @@ macro_rules! all_hints_enum {
     }
 }
 
-all_hints_enum!(StatelessHint, DeprecatedSyscallHint, OsHint, HintExtension, AggregatorHint);
+all_hints_enum!(
+    StatelessHint,
+    CommonHint,
+    DeprecatedSyscallHint,
+    OsHint,
+    HintExtension,
+    AggregatorHint
+);
 
 define_hint_enum!(
     DeprecatedSyscallHint,
@@ -873,6 +880,113 @@ ids.initial_carried_outputs = segments.gen_arg(
 )"#
     ),
 );
+
+define_hint_enum!(
+    CommonHint,
+    (
+        SetTreeStructure,
+        set_tree_structure,
+        indoc! {r#"from starkware.python.math_utils import div_ceil
+
+    if __serialize_data_availability_create_pages__:
+        onchain_data_start = ids.da_start
+        onchain_data_size = ids.output_ptr - onchain_data_start
+
+        # TODO(Yoni,20/07/2023): Take from input.
+        max_page_size = 3800
+        n_pages = div_ceil(onchain_data_size, max_page_size)
+        for i in range(n_pages):
+            start_offset = i * max_page_size
+            output_builtin.add_page(
+                page_id=1 + i,
+                page_start=onchain_data_start + start_offset,
+                page_size=min(onchain_data_size - start_offset, max_page_size),
+            )
+        # Set the tree structure to a root with two children:
+        # * A leaf which represents the main part
+        # * An inner node for the onchain data part (which contains n_pages children).
+        #
+        # This is encoded using the following sequence:
+        output_builtin.add_attribute('gps_fact_topology', [
+            # Push 1 + n_pages pages (all of the pages).
+            1 + n_pages,
+            # Create a parent node for the last n_pages.
+            n_pages,
+            # Don't push additional pages.
+            0,
+            # Take the first page (the main part) and the node that was created (onchain data)
+            # and use them to construct the root of the fact tree.
+            2,
+        ])"#}
+    ),
+    (
+        GuessContractAddrStoragePtr,
+        guess_contract_addr_storage_ptr,
+        r#"if state_update_pointers is None:
+    ids.squashed_prev_state = segments.add()
+    ids.squashed_storage_ptr = segments.add()
+else:
+    ids.squashed_prev_state, ids.squashed_storage_ptr = (
+        state_update_pointers.get_contract_state_entry_and_storage_ptr(
+            contract_address=ids.state_changes.key
+        )
+    )"#
+    ),
+    (
+        UpdateClassesPtr,
+        update_classes_ptr,
+        "if state_update_pointers is not None:
+    state_update_pointers.class_tree_ptr = ids.squashed_dict_end.address_"
+    ),
+    (
+        ComputeIdsLow,
+        compute_ids_low,
+        indoc! {r#"
+            ids.low = (ids.value.d0 + ids.value.d1 * ids.BASE) & ((1 << 128) - 1)"#
+        }
+    ),
+    (
+        StoreDaSegment,
+        store_da_segment,
+        indoc! {r#"import itertools
+
+    from starkware.python.utils import blockify
+
+    kzg_manager.store_da_segment(
+        da_segment=memory.get_range_as_ints(addr=ids.state_updates_start, size=ids.da_size)
+    )
+    kzg_commitments = [
+        kzg_manager.polynomial_coefficients_to_kzg_commitment_callback(chunk)
+        for chunk in blockify(kzg_manager.da_segment, chunk_size=ids.BLOB_LENGTH)
+    ]
+
+    ids.n_blobs = len(kzg_commitments)
+    ids.kzg_commitments = segments.add_temp_segment()
+    ids.evals = segments.add_temp_segment()
+
+    segments.write_arg(ids.kzg_commitments.address_, list(itertools.chain(*kzg_commitments)))"#}
+    ),
+    (
+        GuessClassesPtr,
+        guess_classes_ptr,
+        "if state_update_pointers is None:
+    ids.squashed_dict = segments.add()
+else:
+    ids.squashed_dict = state_update_pointers.class_tree_ptr"
+    ),
+    (
+        UpdateContractAddrToStoragePtr,
+        update_contract_addr_to_storage_ptr,
+        "if state_update_pointers is not None:
+    state_update_pointers.contract_address_to_state_entry_and_storage_ptr[
+        ids.state_changes.key
+    ] = (
+        ids.squashed_new_state.address_,
+        ids.squashed_storage_ptr_end.address_,
+    )"
+    ),
+);
+
 define_hint_enum!(
     OsHint,
     (
@@ -928,13 +1042,6 @@ define_hint_enum!(
         indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
     not os_hints_config.full_output
 ))"#}
-    ),
-    (
-        ComputeIdsLow,
-        compute_ids_low,
-        indoc! {r#"
-            ids.low = (ids.value.d0 + ids.value.d1 * ids.BASE) & ((1 << 128) - 1)"#
-        }
     ),
     (
         UpdateBuiltinPtrs,
@@ -1013,30 +1120,6 @@ define_hint_enum!(
         "aliases.write(key=ids.ALIAS_COUNTER_STORAGE_KEY, value=ids.next_available_alias)"
     ),
     (
-        GuessContractAddrStoragePtr,
-        guess_contract_addr_storage_ptr,
-        r#"if state_update_pointers is None:
-    ids.squashed_prev_state = segments.add()
-    ids.squashed_storage_ptr = segments.add()
-else:
-    ids.squashed_prev_state, ids.squashed_storage_ptr = (
-        state_update_pointers.get_contract_state_entry_and_storage_ptr(
-            contract_address=ids.state_changes.key
-        )
-    )"#
-    ),
-    (
-        UpdateContractAddrToStoragePtr,
-        update_contract_addr_to_storage_ptr,
-        "if state_update_pointers is not None:
-    state_update_pointers.contract_address_to_state_entry_and_storage_ptr[
-        ids.state_changes.key
-    ] = (
-        ids.squashed_new_state.address_,
-        ids.squashed_storage_ptr_end.address_,
-    )"
-    ),
-    (
         GuessAliasesContractStoragePtr,
         guess_aliases_contract_storage_ptr,
         r#"if state_update_pointers is None:
@@ -1077,20 +1160,6 @@ else:
     state_update_pointers.state_tree_ptr = (
         ids.final_squashed_contract_state_changes_end.address_
     )"
-    ),
-    (
-        GuessClassesPtr,
-        guess_classes_ptr,
-        "if state_update_pointers is None:
-    ids.squashed_dict = segments.add()
-else:
-    ids.squashed_dict = state_update_pointers.class_tree_ptr"
-    ),
-    (
-        UpdateClassesPtr,
-        update_classes_ptr,
-        "if state_update_pointers is not None:
-    state_update_pointers.class_tree_ptr = ids.squashed_dict_end.address_"
     ),
     (
         LoadDeprecatedClassFacts,
@@ -1487,27 +1556,6 @@ ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
         r#"memory[fp + 0] = to_felt_or_relocatable(len(os_input.block_inputs))"#
     ),
     (
-        StoreDaSegment,
-        store_da_segment,
-        indoc! {r#"import itertools
-
-    from starkware.python.utils import blockify
-
-    kzg_manager.store_da_segment(
-        da_segment=memory.get_range_as_ints(addr=ids.state_updates_start, size=ids.da_size)
-    )
-    kzg_commitments = [
-        kzg_manager.polynomial_coefficients_to_kzg_commitment_callback(chunk)
-        for chunk in blockify(kzg_manager.da_segment, chunk_size=ids.BLOB_LENGTH)
-    ]
-
-    ids.n_blobs = len(kzg_commitments)
-    ids.kzg_commitments = segments.add_temp_segment()
-    ids.evals = segments.add_temp_segment()
-
-    segments.write_arg(ids.kzg_commitments.address_, list(itertools.chain(*kzg_commitments)))"#}
-    ),
-    (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
         indoc! {r#"memory[fp + 20] = to_felt_or_relocatable(os_hints_config.full_output)"#}
@@ -1527,42 +1575,6 @@ ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
         SetApToNewBlockHash,
         set_ap_to_new_block_hash,
         "memory[ap] = to_felt_or_relocatable(block_input.new_block_hash)"
-    ),
-    (
-        SetTreeStructure,
-        set_tree_structure,
-        indoc! {r#"from starkware.python.math_utils import div_ceil
-
-    if __serialize_data_availability_create_pages__:
-        onchain_data_start = ids.da_start
-        onchain_data_size = ids.output_ptr - onchain_data_start
-
-        # TODO(Yoni,20/07/2023): Take from input.
-        max_page_size = 3800
-        n_pages = div_ceil(onchain_data_size, max_page_size)
-        for i in range(n_pages):
-            start_offset = i * max_page_size
-            output_builtin.add_page(
-                page_id=1 + i,
-                page_start=onchain_data_start + start_offset,
-                page_size=min(onchain_data_size - start_offset, max_page_size),
-            )
-        # Set the tree structure to a root with two children:
-        # * A leaf which represents the main part
-        # * An inner node for the onchain data part (which contains n_pages children).
-        #
-        # This is encoded using the following sequence:
-        output_builtin.add_attribute('gps_fact_topology', [
-            # Push 1 + n_pages pages (all of the pages).
-            1 + n_pages,
-            # Create a parent node for the last n_pages.
-            n_pages,
-            # Don't push additional pages.
-            0,
-            # Take the first page (the main part) and the node that was created (onchain data)
-            # and use them to construct the root of the fact tree.
-            2,
-        ])"#}
     ),
     (SetBit, set_bit, "ids.bit = (ids.edge.path >> ids.new_length) & 1"),
     (
