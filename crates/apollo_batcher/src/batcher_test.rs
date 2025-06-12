@@ -139,11 +139,11 @@ impl Default for MockDependencies {
         let block_builder_factory = MockBlockBuilderFactoryTrait::new();
         let mut pre_confirmed_block_writer_factory = MockPreConfirmedBlockWriterFactoryTrait::new();
         pre_confirmed_block_writer_factory.expect_create().returning(|_, _, _| {
-            let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
+            let (non_working_candidate_tx_sender, _) = tokio::sync::mpsc::channel(1);
             let (non_working_executed_tx_sender, _) = tokio::sync::mpsc::channel(1);
             let mut mock_writer = Box::new(MockPreConfirmedBlockWriterTrait::new());
             mock_writer.expect_run().return_once(|| Box::pin(async move { Ok(()) }));
-            (mock_writer, non_working_pre_confirmed_tx_sender, non_working_executed_tx_sender)
+            (mock_writer, non_working_candidate_tx_sender, non_working_executed_tx_sender)
         });
 
         Self {

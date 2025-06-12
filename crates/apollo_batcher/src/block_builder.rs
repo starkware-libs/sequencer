@@ -52,7 +52,7 @@ use tracing::{debug, error, info, trace, warn};
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
 use crate::metrics::FULL_BLOCKS;
-use crate::pre_confirmed_block_writer::{ExecutedTxSender, PreConfirmedTxSender};
+use crate::pre_confirmed_block_writer::{CandidateTxSender, ExecutedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 
@@ -164,7 +164,7 @@ pub struct BlockBuilder {
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
     /// The senders are utilized only during block proposal and not during block validation.
-    pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+    candidate_tx_sender: Option<CandidateTxSender>,
     executed_tx_sender: Option<ExecutedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
@@ -189,7 +189,7 @@ impl BlockBuilder {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
-        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+        candidate_tx_sender: Option<CandidateTxSender>,
         executed_tx_sender: Option<ExecutedTxSender>,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         transaction_converter: TransactionConverter,
@@ -202,7 +202,7 @@ impl BlockBuilder {
             executor,
             tx_provider,
             output_content_sender,
-            pre_confirmed_tx_sender,
+            candidate_tx_sender,
             executed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
@@ -372,7 +372,7 @@ impl BlockBuilder {
         let old_n_executed_txs = self.n_executed_txs;
         self.n_executed_txs += results.len();
 
-        self.send_pre_confirmed_txs(old_n_executed_txs, self.n_executed_txs).await;
+        self.send_candidate_txs(old_n_executed_txs, self.n_executed_txs).await;
 
         collect_execution_results_and_stream_txs(
             &self.block_txs[old_n_executed_txs..self.n_executed_txs],
@@ -386,10 +386,10 @@ impl BlockBuilder {
         .await
     }
 
-    async fn send_pre_confirmed_txs(&mut self, from_tx: usize, to_tx: usize) {
-        // Skip sending pre-confirmed transactions during validation flow.
-        // In validate flow pre_confirmed_tx_sender is None.
-        let Some(pre_confirmed_tx_sender) = &self.pre_confirmed_tx_sender else {
+    async fn send_candidate_txs(&mut self, from_tx: usize, to_tx: usize) {
+        // Skip sending candidate transactions during validation flow.
+        // In validate flow candidate_tx_sender is None.
+        let Some(candidate_tx_sender) = &self.candidate_tx_sender else {
             return;
         };
 
@@ -397,24 +397,24 @@ impl BlockBuilder {
         let num_txs = txs.len();
 
         trace!(
-            "Attempting to send a pre confirmed transaction chunk with {num_txs} transactions to \
-             the PreConfirmedBlockWriter.",
+            "Attempting to send a candidate transaction chunk with {num_txs} transactions to the \
+             PreConfirmedBlockWriter.",
         );
 
-        match pre_confirmed_tx_sender.try_send(txs) {
+        match candidate_tx_sender.try_send(txs) {
             Ok(_) => {
                 info!(
-                    "Successfully sent a pre confirmed transaction chunk with {num_txs} \
-                     transactions to the PreConfirmedBlockWriter.",
+                    "Successfully sent a candidate transaction chunk with {num_txs} transactions \
+                     to the PreConfirmedBlockWriter.",
                 );
             }
-            // We continue with block building even if sending pre-confirmed transactions to
+            // We continue with block building even if sending candidate transactions to
             // the PreConfirmedBlockWriter fails because it is not critical for the block
             // building process.
             Err(err) => {
                 error!(
-                    "Failed to send a pre confirmed transaction chunk with {num_txs} transactions \
-                     to the PreConfirmedBlockWriter: {:?}",
+                    "Failed to send a candidate transaction chunk with {num_txs} transactions to \
+                     the PreConfirmedBlockWriter: {:?}",
                     err
                 );
             }
@@ -545,7 +545,7 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
-        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+        candidate_tx_sender: Option<CandidateTxSender>,
         executed_tx_sender: Option<ExecutedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
@@ -660,7 +660,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
-        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+        candidate_tx_sender: Option<CandidateTxSender>,
         executed_tx_sender: Option<ExecutedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
@@ -674,7 +674,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             executor,
             tx_provider,
             output_content_sender,
-            pre_confirmed_tx_sender,
+            candidate_tx_sender,
             executed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
