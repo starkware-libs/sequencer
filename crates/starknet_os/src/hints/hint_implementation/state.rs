@@ -83,6 +83,7 @@ pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
     hint_args: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     hint_args.hint_processor.commitment_type = CommitmentType::State;
+    hint_args.hint_processor.contract_address = None;
     set_preimage_for_commitments(hint_args)
 }
 
@@ -91,6 +92,7 @@ pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
     hint_args: HintArgs<'_, '_, S>,
 ) -> OsHintResult {
     hint_args.hint_processor.commitment_type = CommitmentType::Class;
+    hint_args.hint_processor.contract_address = None;
     set_preimage_for_commitments(hint_args)
 }
 
@@ -106,6 +108,7 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
     let contract_address: ContractAddress =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
             .try_into()?;
+    hint_processor.contract_address = Some(contract_address);
     let commitment_info = hint_processor
         .execution_helpers_manager
         .get_current_execution_helper()?

@@ -24,7 +24,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::{HintError, HintError as VmHintError};
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
@@ -117,6 +117,9 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     da_segment: Option<Vec<Felt>>,
     // Indicates wether to create pages or not when serializing data-availability.
     pub(crate) serialize_data_availability_create_pages: bool,
+    // The contract address of the current contract being processed, if it's a contract.
+    // This is used to determine the preimage map in the patricia hints.
+    pub(crate) contract_address: Option<ContractAddress>,
     // For testing, track hint coverage.
     #[cfg(feature = "testing")]
     pub unused_hints: HashSet<AllHints>,
@@ -170,6 +173,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
             serialize_data_availability_create_pages: false,
+            contract_address: None,
             #[cfg(feature = "testing")]
             unused_hints: AllHints::all_iter().collect(),
         })
