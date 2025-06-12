@@ -170,15 +170,18 @@ impl ConsensusManager {
         let network_task =
             tokio::spawn(network_manager.run().instrument(info_span!("[Consensus network]")));
         let stream_handler_task = tokio::spawn(stream_handler.run());
+        let run_consensus_args = apollo_consensus::RunConsensusArguments {
+            start_active_height: active_height,
+            start_observe_height: observer_height,
+            validator_id: self.config.consensus_config.validator_id,
+            consensus_delay: self.config.consensus_config.startup_delay,
+            timeouts: self.config.consensus_config.timeouts.clone(),
+            sync_retry_interval: self.config.consensus_config.sync_retry_interval,
+            no_byzantine_validators: self.config.assume_no_malicious_validators,
+        };
         let consensus_fut = apollo_consensus::run_consensus(
+            run_consensus_args,
             context,
-            active_height,
-            observer_height,
-            self.config.consensus_config.validator_id,
-            self.config.consensus_config.startup_delay,
-            self.config.consensus_config.timeouts.clone(),
-            self.config.consensus_config.sync_retry_interval,
-            self.config.assume_no_malicious_validators,
             votes_broadcast_channels.into(),
             inbound_internal_receiver,
         );
