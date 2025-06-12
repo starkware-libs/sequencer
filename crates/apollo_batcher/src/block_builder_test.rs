@@ -401,7 +401,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         consumed_l1_handler_tx_hashes,
     );
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
-    helper.mock_transaction_executor.expect_close_block().times(1).return_once(move || {
+    helper.mock_transaction_executor.expect_close_block().times(1).return_once(move |_| {
         Ok(BlockExecutionSummary {
             state_diff: expected_block_artifacts_copy.commitment_state_diff,
             compressed_state_diff: None,
@@ -437,7 +437,7 @@ fn set_close_block_expectations(
 ) -> BlockExecutionArtifacts {
     let output_block_artifacts = block_builder_expected_output(block_size);
     let output_block_artifacts_copy = output_block_artifacts.clone();
-    mock_transaction_executor.expect_close_block().times(1).return_once(move || {
+    mock_transaction_executor.expect_close_block().times(1).return_once(move |_| {
         Ok(BlockExecutionSummary {
             state_diff: output_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
@@ -849,7 +849,7 @@ async fn failed_l1_handler_transaction_consumed() {
     ]);
     helper.expect_is_done(false);
 
-    helper.mock_transaction_executor.expect_close_block().times(1).return_once(|| {
+    helper.mock_transaction_executor.expect_close_block().times(1).return_once(|_| {
         Ok(BlockExecutionSummary {
             state_diff: Default::default(),
             compressed_state_diff: None,
@@ -898,7 +898,7 @@ async fn partial_chunk_execution_without_fail_on_error_flag() {
         block_execution_artifacts(expected_execution_infos, Default::default(), Default::default());
 
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
-    helper.mock_transaction_executor.expect_close_block().times(1).return_once(move || {
+    helper.mock_transaction_executor.expect_close_block().times(1).return_once(move |_| {
         Ok(BlockExecutionSummary {
             state_diff: expected_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,

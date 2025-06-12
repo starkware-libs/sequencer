@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use rstest::rstest;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::nonce;
 
 use crate::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
@@ -87,7 +87,16 @@ fn test_txs(
 }
 
 #[rstest]
-fn test_concurrent_transaction_executor() {
+#[case::zero_txs(Some(0), None)]
+#[case::one_tx(Some(1), Some(nonce!(1)))]
+#[case::two_txs(Some(2), Some(nonce!(1)))]
+#[case::three_txs(Some(3), Some(nonce!(2)))]
+#[case::four_txs(Some(4), Some(nonce!(3)))]
+#[case::no_tx_limit(None, Some(nonce!(3)))]
+fn test_concurrent_transaction_executor(
+    #[case] n_txs_in_block: Option<usize>,
+    #[case] expected_nonce: Option<Nonce>,
+) {
     let TestData {
         pool,
         mut tx_executor,
@@ -118,8 +127,11 @@ fn test_concurrent_transaction_executor() {
     assert!(results1[0].is_ok());
 
     // Close the block.
-    let block_summary = tx_executor.close_block().unwrap();
-    assert_eq!(block_summary.state_diff.address_to_nonce[&account_address], nonce!(3_u32));
+    let block_summary = tx_executor.close_block(n_txs_in_block).unwrap();
+    assert_eq!(
+        block_summary.state_diff.address_to_nonce.get(&account_address).cloned(),
+        expected_nonce
+    );
 
     // End test by calling pool.join().
     drop(tx_executor);
@@ -164,7 +176,7 @@ fn test_concurrent_transaction_executor_stream_txs() {
     assert!(results[3].is_ok());
 
     // Close the block.
-    let block_summary = tx_executor.close_block().unwrap();
+    let block_summary = tx_executor.close_block(None).unwrap();
     assert_eq!(block_summary.state_diff.address_to_nonce[&account_address], nonce!(3_u32));
 
     // End test by calling pool.join().
@@ -195,7 +207,7 @@ fn test_concurrent_transaction_executor_deadline() {
     // Expect no results since the deadline passed.
     assert_eq!(results0.len(), 0);
 
-    let block_summary = tx_executor.close_block().unwrap();
+    let block_summary = tx_executor.close_block(None).unwrap();
     assert!(block_summary.state_diff.address_to_nonce.get(&account_address).is_none());
 
     drop(tx_executor);
