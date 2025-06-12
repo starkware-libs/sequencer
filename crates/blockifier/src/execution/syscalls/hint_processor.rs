@@ -466,14 +466,6 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.base.context.gas_costs()
     }
 
-    fn get_sha256_segment_end_ptr(&self, vm: &mut VirtualMachine) -> Relocatable {
-        self.sha256_segment_end_ptr.unwrap_or(vm.add_memory_segment())
-    }
-
-    fn set_sha256_segment_end_ptr(&mut self, segment_end_ptr: Relocatable) {
-        self.sha256_segment_end_ptr = Some(segment_end_ptr);
-    }
-
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
         &mut self.secp256k1_hint_processor
     }
@@ -727,6 +719,17 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
 
     fn versioned_constants(&self) -> &VersionedConstants {
         self.base.context.versioned_constants()
+    }
+
+    fn write_sha256_state(
+        &mut self,
+        state: &[MaybeRelocatable],
+        vm: &mut VirtualMachine,
+    ) -> Result<Relocatable, Self::Error> {
+        let current_end = self.sha256_segment_end_ptr.unwrap_or(vm.add_memory_segment());
+        let new_end = vm.load_data(current_end, state)?;
+        self.sha256_segment_end_ptr = Some(new_end);
+        Ok(current_end)
     }
 }
 
