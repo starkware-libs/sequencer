@@ -32,4 +32,4 @@ tempfile.workspace = true
 workspace = true
 
 [features]
-testing = ["dep:apollo_infra_utils", "dep:colored"]
+testing = ["apollo_infra_utils/testing", "dep:colored"]
