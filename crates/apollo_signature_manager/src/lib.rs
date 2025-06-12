@@ -1,11 +1,13 @@
 pub mod communication;
 
+use apollo_infra::component_definitions::ComponentStarter;
 use apollo_signature_manager_types::{
     KeyStore,
     PeerId,
     SignatureManagerError,
     SignatureManagerResult,
 };
+use async_trait::async_trait;
 use blake2s::blake2s_to_felt;
 use starknet_api::block::BlockHash;
 use starknet_api::crypto::utils::{PublicKey, RawSignature};
@@ -49,6 +51,9 @@ impl<KS: KeyStore> SignatureManager<KS> {
         Ok(signature.into())
     }
 }
+
+#[async_trait]
+impl<KS: KeyStore> ComponentStarter for SignatureManager<KS> {}
 
 // Utils.
 
