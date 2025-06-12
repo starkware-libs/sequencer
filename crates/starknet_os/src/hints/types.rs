@@ -29,3 +29,12 @@ pub struct HintArgs<'a, 'program, S: StateReader> {
     pub ap_tracking: &'a ApTracking,
     pub constants: &'a HashMap<String, Felt>,
 }
+
+// TODO(tzahi): Replace HintArgs with this struct after a change in all hint function signatures.
+pub struct HintArgsNoHP<'a> {
+    pub vm: &'a mut VirtualMachine,
+    pub exec_scopes: &'a mut ExecutionScopes,
+    pub ids_data: &'a HashMap<String, HintReference>,
+    pub ap_tracking: &'a ApTracking,
+    pub constants: &'a HashMap<String, Felt>,
+}

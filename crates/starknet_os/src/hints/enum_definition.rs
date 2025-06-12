@@ -5,6 +5,7 @@ use serde::Serialize;
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::aggregator::{
     allocate_segments_for_messages,
@@ -226,9 +227,8 @@ use crate::hints::hint_implementation::syscalls::{
     storage_read,
     storage_write,
 };
-use crate::hints::types::{HintArgs, HintEnum};
-use crate::{define_hint_enum, define_hint_extension_enum};
-
+use crate::hints::types::{HintArgs, HintArgsNoHP, HintEnum};
+use crate::{define_hint_enum, define_hint_extension_enum, define_stateless_hint_enum};
 #[cfg(test)]
 #[path = "enum_definition_test.rs"]
 pub mod test;
@@ -292,7 +292,7 @@ macro_rules! all_hints_enum {
     }
 }
 
-all_hints_enum!(DeprecatedSyscallHint, OsHint, HintExtension, AggregatorHint);
+all_hints_enum!(StatelessHint, DeprecatedSyscallHint, OsHint, HintExtension, AggregatorHint);
 
 define_hint_enum!(
     DeprecatedSyscallHint,
@@ -384,61 +384,14 @@ define_hint_enum!(
     ),
 );
 
-define_hint_enum!(
-    OsHint,
+define_stateless_hint_enum!(
+    StatelessHint,
     (
         IsBlockNumberInBlockHashBuffer,
         is_block_number_in_block_hash_buffer,
         // CHANGED: whitespaces.
         r#"memory[ap] = to_felt_or_relocatable(ids.request_block_number > \
            ids.current_block_number - ids.STORED_BLOCK_HASH_BUFFER)"#
-    ),
-    (
-        LoadClass,
-        load_class,
-        indoc! {r#"
-    vm_exit_scope()
-
-    computed_hash = ids.hash
-    expected_hash = ids.compiled_class_fact.hash
-    assert computed_hash == expected_hash, (
-        "Computed compiled_class_hash is inconsistent with the hash in the os_input. "
-        f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")"#
-        }
-    ),
-    (
-        BytecodeSegmentStructure,
-        bytecode_segment_structure,
-        indoc! {r#"
-    vm_enter_scope({
-        "bytecode_segment_structure": bytecode_segment_structures[ids.compiled_class_fact.hash],
-        "is_segment_used_callback": is_segment_used_callback
-    })"#}
-    ),
-    (
-        BlockNumber,
-        block_number,
-        "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.block_number)"
-    ),
-    (
-        BlockTimestamp,
-        block_timestamp,
-        "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.block_timestamp)"
-    ),
-    (
-        ChainId,
-        chain_id,
-        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.chain_id)"
-    ),
-    (
-        FeeTokenAddress,
-        fee_token_address,
-        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.fee_token_address)"
-    ),
-    (
-        SequencerAddress,
-        sequencer_address,
-        "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.sequencer_address)"
     ),
     (
         GetBlockMapping,
@@ -456,20 +409,6 @@ define_hint_enum!(
         BytecodeLeaf,
     )
     ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0"#}
-    ),
-    (
-        WriteUseKzgDaToMemory,
-        write_use_kzg_da_to_memory,
-        indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
-    not os_hints_config.full_output
-))"#}
-    ),
-    (
-        ComputeIdsLow,
-        compute_ids_low,
-        indoc! {r#"
-            ids.low = (ids.value.d0 + ids.value.d1 * ids.BASE) & ((1 << 128) - 1)"#
-        }
     ),
     (
         SelectedBuiltins,
@@ -490,26 +429,6 @@ define_hint_enum!(
         }
     ),
     (
-        UpdateBuiltinPtrs,
-        update_builtin_ptrs,
-        indoc! {r#"
-    from starkware.starknet.core.os.os_utils import update_builtin_pointers
-
-    # Fill the values of all builtin pointers after the current transaction.
-    ids.return_builtin_ptrs = segments.gen_arg(
-        update_builtin_pointers(
-            memory=memory,
-            n_builtins=ids.n_builtins,
-            builtins_encoding_addr=ids.builtin_params.builtin_encodings.address_,
-            n_selected_builtins=ids.n_selected_builtins,
-            selected_builtins_encoding_addr=ids.selected_encodings,
-            orig_builtin_ptrs_addr=ids.builtin_ptrs.selectable.address_,
-            selected_builtin_ptrs_addr=ids.selected_ptrs,
-            ),
-        )"#
-        }
-    ),
-    (
         PrepareStateEntryForRevert,
         prepare_state_entry_for_revert,
         indoc! {r#"# Fetch a state_entry in this hint and validate it in the update that comes next.
@@ -517,16 +436,6 @@ define_hint_enum!(
 
         # Fetch the relevant storage.
         storage = execution_helper.storage_by_address[ids.contract_address]"#}
-    ),
-    (
-        ReadStorageKeyForRevert,
-        read_storage_key_for_revert,
-        "memory[ap] = to_felt_or_relocatable(storage.read(key=ids.storage_key))"
-    ),
-    (
-        WriteStorageKeyForRevert,
-        write_storage_key_for_revert,
-        "storage.write(key=ids.storage_key, value=ids.value)"
     ),
     (
         GenerateDummyOsOutputSegment,
@@ -583,27 +492,6 @@ define_hint_enum!(
         }
     ),
     (
-        ValidateCompiledClassFactsPostExecution,
-        validate_compiled_class_facts_post_execution,
-        indoc! {r#"
-    from starkware.starknet.core.os.contract_class.compiled_class_hash import (
-        BytecodeAccessOracle,
-    )
-
-    # Build the bytecode segment structures.
-    bytecode_segment_structures = {
-        compiled_hash: create_bytecode_segment_structure(
-            bytecode=compiled_class.bytecode,
-            bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
-        ) for compiled_hash, compiled_class in sorted(os_input.compiled_classes.items())
-    }
-    bytecode_segment_access_oracle = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)
-    vm_enter_scope({
-        "bytecode_segment_structures": bytecode_segment_structures,
-        "is_segment_used_callback": bytecode_segment_access_oracle.is_segment_used
-    })"#}
-    ),
-    (
         EnterScopeWithAliases,
         enter_scope_with_aliases,
         indoc! {r#"from starkware.starknet.definitions.constants import ALIAS_CONTRACT_ADDRESS
@@ -626,6 +514,477 @@ vm_enter_scope(dict(
         AssertKeyBigEnoughForAlias,
         assert_key_big_enough_for_alias,
         r#"assert ids.key >= ids.MIN_VALUE_FOR_ALIAS_ALLOC, f"Key {ids.key} is too small.""#
+    ),
+    (
+        ContractAddressLeMaxForCompression,
+        contract_address_le_max_for_compression,
+        "memory[ap] = to_felt_or_relocatable(ids.contract_address <= \
+         ids.MAX_NON_COMPRESSED_CONTRACT_ADDRESS)"
+    ),
+    (
+        ComputeCommitmentsOnFinalizedStateWithAliases,
+        compute_commitments_on_finalized_state_with_aliases,
+        "commitment_info_by_address=execution_helper.compute_storage_commitments()"
+    ),
+    (
+        DictionaryFromBucket,
+        dictionary_from_bucket,
+        indoc! {
+            r#"initial_dict = {bucket_index: 0 for bucket_index in range(ids.TOTAL_N_BUCKETS)}"#
+        }
+    ),
+    (
+        GetPrevOffset,
+        get_prev_offset,
+        indoc! {r#"dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
+            ids.prev_offset = dict_tracker.data[ids.bucket_index]"#
+        }
+    ),
+    (
+        CompressionHint,
+        compression_hint,
+        indoc! {r#"from starkware.starknet.core.os.data_availability.compression import compress
+    data = memory.get_range_as_ints(addr=ids.data_start, size=ids.data_end - ids.data_start)
+    segments.write_arg(ids.compressed_dst, compress(data))"#}
+    ),
+    (
+        SetDecompressedDst,
+        set_decompressed_dst,
+        indoc! {r#"memory[ids.decompressed_dst] = ids.packed_felt % ids.elm_bound"#
+        }
+    ),
+    (
+        SegmentsAddTemp,
+        segments_add_temp,
+        indoc! {r#"memory[fp + 7] = to_felt_or_relocatable(segments.add_temp_segment())"#
+        }
+    ),
+    (
+        SegmentsAdd,
+        segments_add,
+        indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add())"#
+        }
+    ),
+    (
+        LogRemainingTxs,
+        log_remaining_txs,
+        indoc! {r#"print(f"execute_transactions_inner: {ids.n_txs} transactions remaining.")"#}
+    ),
+    (
+        FillHolesInRc96Segment,
+        fill_holes_in_rc96_segment,
+        indoc! {r#"
+rc96_ptr = ids.range_check96_ptr
+segment_size = rc96_ptr.offset
+base = rc96_ptr - segment_size
+
+for i in range(segment_size):
+    memory.setdefault(base + i, 0)"#}
+    ),
+    (
+        Sha2Finalize,
+        sha2_finalize,
+        indoc! {r#"# Add dummy pairs of input and output.
+from starkware.cairo.common.cairo_sha256.sha256_utils import (
+    IV,
+    compute_message_schedule,
+    sha2_compress_function,
+)
+
+number_of_missing_blocks = (-ids.n) % ids.BATCH_SIZE
+assert 0 <= number_of_missing_blocks < 20
+_sha256_input_chunk_size_felts = ids.SHA256_INPUT_CHUNK_SIZE_FELTS
+assert 0 <= _sha256_input_chunk_size_felts < 100
+
+message = [0] * _sha256_input_chunk_size_felts
+w = compute_message_schedule(message)
+output = sha2_compress_function(IV, w)
+padding = (message + IV + output) * number_of_missing_blocks
+segments.write_arg(ids.sha256_ptr_end, padding)"#}
+    ),
+    (
+        EnterScopeDeprecatedSyscallHandler,
+        enter_scope_deprecated_syscall_handler,
+        "vm_enter_scope({'syscall_handler': deprecated_syscall_handler})"
+    ),
+    (
+        EnterScopeSyscallHandler,
+        enter_scope_syscall_handler,
+        "vm_enter_scope({'syscall_handler': syscall_handler})"
+    ),
+    (
+        GetContractAddressStateEntry,
+        get_contract_address_state_entry,
+        indoc! {r#"
+    # Fetch a state_entry in this hint and validate it in the update at the end
+    # of this function.
+    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
+        }
+    ),
+    (
+        GetBlockHashContractAddressStateEntryAndSetNewStateEntry,
+        get_block_hash_contract_address_state_entry_and_set_new_state_entry,
+        indoc! {r#"
+	# Fetch a state_entry in this hint. Validate it in the update that comes next.
+	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
+	    ids.BLOCK_HASH_CONTRACT_ADDRESS]"#
+        }
+    ),
+    (
+        GetContractAddressStateEntryAndSetNewStateEntry,
+        get_contract_address_state_entry,
+        indoc! {r#"
+    # Fetch a state_entry in this hint and validate it in the update that comes next.
+    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
+        }
+    ),
+    (
+        GetContractAddressStateEntryAndSetNewStateEntry2,
+        get_contract_address_state_entry,
+        indoc! {r#"
+	# Fetch a state_entry in this hint and validate it in the update that comes next.
+	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
+	    ids.contract_address
+	]"#
+        }
+    ),
+    (IsDeprecated, is_deprecated, "memory[ap] = to_felt_or_relocatable(is_deprecated)"),
+    (
+        EnterSyscallScopes,
+        enter_syscall_scopes,
+        indoc! {r#"vm_enter_scope({
+        '__deprecated_class_hashes': __deprecated_class_hashes,
+        'transactions': iter(block_input.transactions),
+        'component_hashes': block_input.declared_class_hash_to_component_hashes,
+        'execution_helper': execution_helper,
+        'deprecated_syscall_handler': deprecated_syscall_handler,
+        'syscall_handler': syscall_handler,
+         '__dict_manager': __dict_manager,
+    })"#
+        }
+    ),
+    (
+        IsRemainingGasLtInitialBudget,
+        is_remaining_gas_lt_initial_budget,
+        "memory[ap] = to_felt_or_relocatable(ids.remaining_gas < ids.ENTRY_POINT_INITIAL_BUDGET)"
+    ),
+    (
+        InitialGeRequiredGas,
+        initial_ge_required_gas,
+        "memory[ap] = to_felt_or_relocatable(ids.initial_gas >= ids.required_gas)"
+    ),
+    (EnterScopeNode, enter_scope_node, "vm_enter_scope(dict(node=node, **common_args))"),
+    (
+        EnterScopeNewNode,
+        enter_scope_new_node,
+        indoc! {r#"
+	ids.child_bit = 0 if case == 'left' else 1
+	new_node = left_child if case == 'left' else right_child
+	vm_enter_scope(dict(node=new_node, **common_args))"#
+        }
+    ),
+    (
+        EnterScopeNextNodeBit0,
+        enter_scope_next_node_bit_0,
+        indoc! {r#"
+	new_node = left_child if ids.bit == 0 else right_child
+	vm_enter_scope(dict(node=new_node, **common_args))"#
+        }
+    ),
+    (
+        EnterScopeNextNodeBit1,
+        enter_scope_next_node_bit_1,
+        indoc! {r#"
+	new_node = left_child if ids.bit == 1 else right_child
+	vm_enter_scope(dict(node=new_node, **common_args))"#
+        }
+    ),
+    (
+        EnterScopeLeftChild,
+        enter_scope_left_child,
+        "vm_enter_scope(dict(node=left_child, **common_args))"
+    ),
+    (
+        EnterScopeRightChild,
+        enter_scope_right_child,
+        "vm_enter_scope(dict(node=right_child, **common_args))"
+    ),
+    (
+        EnterScopeDescendEdge,
+        enter_scope_descend_edge,
+        indoc! {r#"
+	new_node = node
+	for i in range(ids.length - 1, -1, -1):
+	    new_node = new_node[(ids.word >> i) & 1]
+	vm_enter_scope(dict(node=new_node, **common_args))"#
+        }
+    ),
+    (
+        FetchResult,
+        fetch_result,
+        indoc! {r#"
+    # Fetch the result, up to 100 elements.
+    result = memory.get_range(ids.retdata, min(100, ids.retdata_size))
+
+    if result != [ids.VALIDATED]:
+        print("Invalid return value from __validate__:")
+        print(f"  Size: {ids.retdata_size}")
+        print(f"  Result (at most 100 elements): {result}")"#
+        }
+    ),
+    (
+        SearchSortedOptimistic,
+        search_sorted_optimistic,
+        indoc! {r#"array_ptr = ids.array_ptr
+    elm_size = ids.elm_size
+    assert isinstance(elm_size, int) and elm_size > 0, \
+        f'Invalid value for elm_size. Got: {elm_size}.'
+
+    n_elms = ids.n_elms
+    assert isinstance(n_elms, int) and n_elms >= 0, \
+        f'Invalid value for n_elms. Got: {n_elms}.'
+    if '__find_element_max_size' in globals():
+        assert n_elms <= __find_element_max_size, \
+            f'find_element() can only be used with n_elms<={__find_element_max_size}. ' \
+            f'Got: n_elms={n_elms}.'
+
+    for i in range(n_elms):
+        if memory[array_ptr + elm_size * i] >= ids.key:
+            ids.index = i
+            ids.exists = 1 if memory[array_ptr + elm_size * i] == ids.key else 0
+            break
+    else:
+        ids.index = n_elms
+        ids.exists = 0"#}
+    ),
+    (
+        Log2Ceil,
+        log2_ceil,
+        indoc! {r#"from starkware.python.math_utils import log2_ceil
+            ids.res = log2_ceil(ids.value)"#
+        }
+    ),
+    (
+        SetStateUpdatesStart,
+        set_state_updates_start,
+        indoc! {r#"# `use_kzg_da` is used in a hint in `process_data_availability`.
+    use_kzg_da = ids.use_kzg_da
+    if use_kzg_da or ids.compress_state_updates:
+        ids.state_updates_start = segments.add()
+    else:
+        # Assign a temporary segment, to be relocated into the output segment.
+        ids.state_updates_start = segments.add_temp_segment()"#}
+    ),
+    (
+        SetCompressedStart,
+        set_compressed_start,
+        indoc! {r#"if use_kzg_da:
+    ids.compressed_start = segments.add()
+else:
+    # Assign a temporary segment, to be relocated into the output segment.
+    ids.compressed_start = segments.add_temp_segment()"#}
+    ),
+    (
+        SetNUpdatesSmall,
+        set_n_updates_small,
+        indoc! {r#"ids.is_n_updates_small = ids.n_updates < ids.N_UPDATES_SMALL_PACKING_BOUND"#}
+    ),
+    (SetSiblings, set_siblings, "memory[ids.siblings], ids.word = descend"),
+    (IsCaseRight, is_case_right, "memory[ap] = int(case == 'right') ^ ids.bit"),
+    (
+        SetApToDescend,
+        set_ap_to_descend,
+        indoc! {r#"
+	descend = descent_map.get((ids.height, ids.path))
+	memory[ap] = 0 if descend is None else 1"#
+        }
+    ),
+    (AssertCaseIsRight, assert_case_is_right, "assert case == 'right'"),
+    (
+        WriteCaseNotLeftToAp,
+        write_case_not_left_to_ap,
+        indoc! {r#"
+            memory[ap] = int(case != 'left')"#
+        }
+    ),
+    (SplitDescend, split_descend, "ids.length, ids.word = descend"),
+    (
+        HeightIsZeroOrLenNodePreimageIsTwo,
+        height_is_zero_or_len_node_preimage_is_two,
+        "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0"
+    ),
+    (
+        RemainingGasGtMax,
+        remaining_gas_gt_max,
+        "memory[ap] = to_felt_or_relocatable(ids.remaining_gas > ids.max_gas)"
+    ),
+    (
+        DecodeNode,
+        decode_node,
+        indoc! {r#"
+	from starkware.python.merkle_tree import decode_node
+	left_child, right_child, case = decode_node(node)
+	memory[ap] = int(case != 'both')"#
+        }
+    ),
+    (
+        DecodeNode2,
+        decode_node,
+        indoc! {r#"
+from starkware.python.merkle_tree import decode_node
+left_child, right_child, case = decode_node(node)
+memory[ap] = 1 if case != 'both' else 0"#
+        }
+    ),
+    (
+        WriteSplitResult,
+        write_split_result,
+        indoc! {r#"
+    from starkware.starknet.core.os.data_availability.bls_utils import split
+
+    segments.write_arg(ids.res.address_, split(ids.value))"#
+        }
+    ),
+    (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
+    (
+        StarknetOsInput,
+        starknet_os_input,
+        indoc! {r#"from starkware.starknet.core.os.os_hints import OsHintsConfig
+        from starkware.starknet.core.os.os_input import StarknetOsInput
+
+        os_input = StarknetOsInput.load(data=program_input)
+        os_hints_config = OsHintsConfig.load(data=os_hints_config)
+        block_input_iterator = iter(os_input.block_inputs)"#
+        }
+    ),
+    (
+        LogRemainingBlocks,
+        log_remaining_blocks,
+        indoc! {r#"print(f"execute_blocks: {ids.n_blocks} blocks remaining.")"#}
+    ),
+    // Aggregator (stateless) Hints:
+    (
+        AllocateSegmentsForMessages,
+        allocate_segments_for_messages,
+        r#"# Allocate segments for the messages.
+ids.initial_carried_outputs = segments.gen_arg(
+    [segments.add_temp_segment(), segments.add_temp_segment()]
+)"#
+    ),
+);
+define_hint_enum!(
+    OsHint,
+    (
+        LoadClass,
+        load_class,
+        indoc! {r#"
+    vm_exit_scope()
+
+    computed_hash = ids.hash
+    expected_hash = ids.compiled_class_fact.hash
+    assert computed_hash == expected_hash, (
+        "Computed compiled_class_hash is inconsistent with the hash in the os_input. "
+        f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")"#
+        }
+    ),
+    (
+        BytecodeSegmentStructure,
+        bytecode_segment_structure,
+        indoc! {r#"
+    vm_enter_scope({
+        "bytecode_segment_structure": bytecode_segment_structures[ids.compiled_class_fact.hash],
+        "is_segment_used_callback": is_segment_used_callback
+    })"#}
+    ),
+    (
+        BlockNumber,
+        block_number,
+        "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.block_number)"
+    ),
+    (
+        BlockTimestamp,
+        block_timestamp,
+        "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.block_timestamp)"
+    ),
+    (
+        ChainId,
+        chain_id,
+        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.chain_id)"
+    ),
+    (
+        FeeTokenAddress,
+        fee_token_address,
+        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.fee_token_address)"
+    ),
+    (
+        SequencerAddress,
+        sequencer_address,
+        "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.sequencer_address)"
+    ),
+    (
+        WriteUseKzgDaToMemory,
+        write_use_kzg_da_to_memory,
+        indoc! {r#"memory[fp + 19] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
+    not os_hints_config.full_output
+))"#}
+    ),
+    (
+        ComputeIdsLow,
+        compute_ids_low,
+        indoc! {r#"
+            ids.low = (ids.value.d0 + ids.value.d1 * ids.BASE) & ((1 << 128) - 1)"#
+        }
+    ),
+    (
+        UpdateBuiltinPtrs,
+        update_builtin_ptrs,
+        indoc! {r#"
+    from starkware.starknet.core.os.os_utils import update_builtin_pointers
+
+    # Fill the values of all builtin pointers after the current transaction.
+    ids.return_builtin_ptrs = segments.gen_arg(
+        update_builtin_pointers(
+            memory=memory,
+            n_builtins=ids.n_builtins,
+            builtins_encoding_addr=ids.builtin_params.builtin_encodings.address_,
+            n_selected_builtins=ids.n_selected_builtins,
+            selected_builtins_encoding_addr=ids.selected_encodings,
+            orig_builtin_ptrs_addr=ids.builtin_ptrs.selectable.address_,
+            selected_builtin_ptrs_addr=ids.selected_ptrs,
+            ),
+        )"#
+        }
+    ),
+    (
+        ReadStorageKeyForRevert,
+        read_storage_key_for_revert,
+        "memory[ap] = to_felt_or_relocatable(storage.read(key=ids.storage_key))"
+    ),
+    (
+        WriteStorageKeyForRevert,
+        write_storage_key_for_revert,
+        "storage.write(key=ids.storage_key, value=ids.value)"
+    ),
+    (
+        ValidateCompiledClassFactsPostExecution,
+        validate_compiled_class_facts_post_execution,
+        indoc! {r#"
+    from starkware.starknet.core.os.contract_class.compiled_class_hash import (
+        BytecodeAccessOracle,
+    )
+
+    # Build the bytecode segment structures.
+    bytecode_segment_structures = {
+        compiled_hash: create_bytecode_segment_structure(
+            bytecode=compiled_class.bytecode,
+            bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
+        ) for compiled_hash, compiled_class in sorted(os_input.compiled_classes.items())
+    }
+    bytecode_segment_access_oracle = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)
+    vm_enter_scope({
+        "bytecode_segment_structures": bytecode_segment_structures,
+        "is_segment_used_callback": bytecode_segment_access_oracle.is_segment_used
+    })"#}
     ),
     (
         ReadAliasFromKey,
@@ -651,17 +1010,6 @@ vm_enter_scope(dict(
         UpdateAliasCounter,
         update_alias_counter,
         "aliases.write(key=ids.ALIAS_COUNTER_STORAGE_KEY, value=ids.next_available_alias)"
-    ),
-    (
-        ContractAddressLeMaxForCompression,
-        contract_address_le_max_for_compression,
-        "memory[ap] = to_felt_or_relocatable(ids.contract_address <= \
-         ids.MAX_NON_COMPRESSED_CONTRACT_ADDRESS)"
-    ),
-    (
-        ComputeCommitmentsOnFinalizedStateWithAliases,
-        compute_commitments_on_finalized_state_with_aliases,
-        "commitment_info_by_address=execution_helper.compute_storage_commitments()"
     ),
     (
         GuessContractAddrStoragePtr,
@@ -744,33 +1092,6 @@ else:
     state_update_pointers.class_tree_ptr = ids.squashed_dict_end.address_"
     ),
     (
-        DictionaryFromBucket,
-        dictionary_from_bucket,
-        indoc! {
-            r#"initial_dict = {bucket_index: 0 for bucket_index in range(ids.TOTAL_N_BUCKETS)}"#
-        }
-    ),
-    (
-        GetPrevOffset,
-        get_prev_offset,
-        indoc! {r#"dict_tracker = __dict_manager.get_tracker(ids.dict_ptr)
-            ids.prev_offset = dict_tracker.data[ids.bucket_index]"#
-        }
-    ),
-    (
-        CompressionHint,
-        compression_hint,
-        indoc! {r#"from starkware.starknet.core.os.data_availability.compression import compress
-    data = memory.get_range_as_ints(addr=ids.data_start, size=ids.data_end - ids.data_start)
-    segments.write_arg(ids.compressed_dst, compress(data))"#}
-    ),
-    (
-        SetDecompressedDst,
-        set_decompressed_dst,
-        indoc! {r#"memory[ids.decompressed_dst] = ids.packed_felt % ids.elm_bound"#
-        }
-    ),
-    (
         LoadDeprecatedClassFacts,
         load_deprecated_class_facts,
         indoc! {r##"
@@ -797,23 +1118,11 @@ else:
     ids.compiled_class = segments.gen_arg(cairo_contract)"#
         }
     ),
-    (
-        SegmentsAddTemp,
-        segments_add_temp,
-        indoc! {r#"memory[fp + 7] = to_felt_or_relocatable(segments.add_temp_segment())"#
-        }
-    ),
     (StartTx, start_tx, indoc! {r#"execution_helper.start_tx()"# }),
     (
         OsInputTransactions,
         os_input_transactions,
         indoc! {r#"memory[fp + 12] = to_felt_or_relocatable(len(block_input.transactions))"#
-        }
-    ),
-    (
-        SegmentsAdd,
-        segments_add,
-        indoc! {r#"memory[ap] = to_felt_or_relocatable(segments.add())"#
         }
     ),
     (
@@ -835,22 +1144,6 @@ else:
         indoc! {r#"syscall_handler.sha256_segment = ids.sha256_ptr"#}
     ),
     (
-        LogRemainingTxs,
-        log_remaining_txs,
-        indoc! {r#"print(f"execute_transactions_inner: {ids.n_txs} transactions remaining.")"#}
-    ),
-    (
-        FillHolesInRc96Segment,
-        fill_holes_in_rc96_segment,
-        indoc! {r#"
-rc96_ptr = ids.range_check96_ptr
-segment_size = rc96_ptr.offset
-base = rc96_ptr - segment_size
-
-for i in range(segment_size):
-    memory.setdefault(base + i, 0)"#}
-    ),
-    (
         SetComponentHashes,
         set_component_hashes,
         indoc! {r#"
@@ -860,27 +1153,6 @@ assert (
 ), "Wrong number of class component hashes."
 ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
         }
-    ),
-    (
-        Sha2Finalize,
-        sha2_finalize,
-        indoc! {r#"# Add dummy pairs of input and output.
-from starkware.cairo.common.cairo_sha256.sha256_utils import (
-    IV,
-    compute_message_schedule,
-    sha2_compress_function,
-)
-
-number_of_missing_blocks = (-ids.n) % ids.BATCH_SIZE
-assert 0 <= number_of_missing_blocks < 20
-_sha256_input_chunk_size_felts = ids.SHA256_INPUT_CHUNK_SIZE_FELTS
-assert 0 <= _sha256_input_chunk_size_felts < 100
-
-message = [0] * _sha256_input_chunk_size_felts
-w = compute_message_schedule(message)
-output = sha2_compress_function(IV, w)
-padding = (message + IV + output) * number_of_missing_blocks
-segments.write_arg(ids.sha256_ptr_end, padding)"#}
     ),
     (
         LoadNextTx,
@@ -943,25 +1215,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         }
     ),
     (
-        EnterScopeDeprecatedSyscallHandler,
-        enter_scope_deprecated_syscall_handler,
-        "vm_enter_scope({'syscall_handler': deprecated_syscall_handler})"
-    ),
-    (
-        EnterScopeSyscallHandler,
-        enter_scope_syscall_handler,
-        "vm_enter_scope({'syscall_handler': syscall_handler})"
-    ),
-    (
-        GetContractAddressStateEntry,
-        get_contract_address_state_entry,
-        indoc! {r#"
-    # Fetch a state_entry in this hint and validate it in the update at the end
-    # of this function.
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
-        }
-    ),
-    (
         SetStateEntryToAccountContractAddress,
         set_state_entry_to_account_contract_address,
         indoc! {r#"
@@ -972,51 +1225,9 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         }
     ),
     (
-        GetBlockHashContractAddressStateEntryAndSetNewStateEntry,
-        get_block_hash_contract_address_state_entry_and_set_new_state_entry,
-        indoc! {r#"
-	# Fetch a state_entry in this hint. Validate it in the update that comes next.
-	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-	    ids.BLOCK_HASH_CONTRACT_ADDRESS]"#
-        }
-    ),
-    (
-        GetContractAddressStateEntryAndSetNewStateEntry,
-        get_contract_address_state_entry,
-        indoc! {r#"
-    # Fetch a state_entry in this hint and validate it in the update that comes next.
-    ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[ids.contract_address]"#
-        }
-    ),
-    (
-        GetContractAddressStateEntryAndSetNewStateEntry2,
-        get_contract_address_state_entry,
-        indoc! {r#"
-	# Fetch a state_entry in this hint and validate it in the update that comes next.
-	ids.state_entry = __dict_manager.get_dict(ids.contract_state_changes)[
-	    ids.contract_address
-	]"#
-        }
-    ),
-    (
         CheckIsDeprecated,
         check_is_deprecated,
         "is_deprecated = 1 if ids.execution_context.class_hash in __deprecated_class_hashes else 0"
-    ),
-    (IsDeprecated, is_deprecated, "memory[ap] = to_felt_or_relocatable(is_deprecated)"),
-    (
-        EnterSyscallScopes,
-        enter_syscall_scopes,
-        indoc! {r#"vm_enter_scope({
-        '__deprecated_class_hashes': __deprecated_class_hashes,
-        'transactions': iter(block_input.transactions),
-        'component_hashes': block_input.declared_class_hash_to_component_hashes,
-        'execution_helper': execution_helper,
-        'deprecated_syscall_handler': deprecated_syscall_handler,
-        'syscall_handler': syscall_handler,
-         '__dict_manager': __dict_manager,
-    })"#
-        }
     ),
     (EndTx, end_tx, "execution_helper.end_tx()"),
     (
@@ -1120,11 +1331,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         }
     ),
     (
-        IsRemainingGasLtInitialBudget,
-        is_remaining_gas_lt_initial_budget,
-        "memory[ap] = to_felt_or_relocatable(ids.remaining_gas < ids.ENTRY_POINT_INITIAL_BUDGET)"
-    ),
-    (
         CheckSyscallResponse,
         check_syscall_response,
         indoc! {r#"
@@ -1185,62 +1391,11 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     )"#
         }
     ),
-    (
-        InitialGeRequiredGas,
-        initial_ge_required_gas,
-        "memory[ap] = to_felt_or_relocatable(ids.initial_gas >= ids.required_gas)"
-    ),
     (SetApToTxNonce, set_ap_to_tx_nonce, "memory[ap] = to_felt_or_relocatable(tx.nonce)"),
     (
         SetFpPlus4ToTxNonce,
         set_fp_plus_4_to_tx_nonce,
         "memory[fp + 4] = to_felt_or_relocatable(tx.nonce)"
-    ),
-    (EnterScopeNode, enter_scope_node, "vm_enter_scope(dict(node=node, **common_args))"),
-    (
-        EnterScopeNewNode,
-        enter_scope_new_node,
-        indoc! {r#"
-	ids.child_bit = 0 if case == 'left' else 1
-	new_node = left_child if case == 'left' else right_child
-	vm_enter_scope(dict(node=new_node, **common_args))"#
-        }
-    ),
-    (
-        EnterScopeNextNodeBit0,
-        enter_scope_next_node_bit_0,
-        indoc! {r#"
-	new_node = left_child if ids.bit == 0 else right_child
-	vm_enter_scope(dict(node=new_node, **common_args))"#
-        }
-    ),
-    (
-        EnterScopeNextNodeBit1,
-        enter_scope_next_node_bit_1,
-        indoc! {r#"
-	new_node = left_child if ids.bit == 1 else right_child
-	vm_enter_scope(dict(node=new_node, **common_args))"#
-        }
-    ),
-    (
-        EnterScopeLeftChild,
-        enter_scope_left_child,
-        "vm_enter_scope(dict(node=left_child, **common_args))"
-    ),
-    (
-        EnterScopeRightChild,
-        enter_scope_right_child,
-        "vm_enter_scope(dict(node=right_child, **common_args))"
-    ),
-    (
-        EnterScopeDescendEdge,
-        enter_scope_descend_edge,
-        indoc! {r#"
-	new_node = node
-	for i in range(ids.length - 1, -1, -1):
-	    new_node = new_node[(ids.word >> i) & 1]
-	vm_enter_scope(dict(node=new_node, **common_args))"#
-        }
     ),
     (
         WriteSyscallResultDeprecated,
@@ -1326,44 +1481,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
         ids.old_block_hash = old_block_hash"#}
     ),
     (
-        FetchResult,
-        fetch_result,
-        indoc! {r#"
-    # Fetch the result, up to 100 elements.
-    result = memory.get_range(ids.retdata, min(100, ids.retdata_size))
-
-    if result != [ids.VALIDATED]:
-        print("Invalid return value from __validate__:")
-        print(f"  Size: {ids.retdata_size}")
-        print(f"  Result (at most 100 elements): {result}")"#
-        }
-    ),
-    (
-        SearchSortedOptimistic,
-        search_sorted_optimistic,
-        indoc! {r#"array_ptr = ids.array_ptr
-    elm_size = ids.elm_size
-    assert isinstance(elm_size, int) and elm_size > 0, \
-        f'Invalid value for elm_size. Got: {elm_size}.'
-
-    n_elms = ids.n_elms
-    assert isinstance(n_elms, int) and n_elms >= 0, \
-        f'Invalid value for n_elms. Got: {n_elms}.'
-    if '__find_element_max_size' in globals():
-        assert n_elms <= __find_element_max_size, \
-            f'find_element() can only be used with n_elms<={__find_element_max_size}. ' \
-            f'Got: n_elms={n_elms}.'
-
-    for i in range(n_elms):
-        if memory[array_ptr + elm_size * i] >= ids.key:
-            ids.index = i
-            ids.exists = 1 if memory[array_ptr + elm_size * i] == ids.key else 0
-            break
-    else:
-        ids.index = n_elms
-        ids.exists = 0"#}
-    ),
-    (
         GetBlocksNumber,
         get_n_blocks,
         r#"memory[fp + 0] = to_felt_or_relocatable(len(os_input.block_inputs))"#
@@ -1388,13 +1505,6 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
     ids.evals = segments.add_temp_segment()
 
     segments.write_arg(ids.kzg_commitments.address_, list(itertools.chain(*kzg_commitments)))"#}
-    ),
-    (
-        Log2Ceil,
-        log2_ceil,
-        indoc! {r#"from starkware.python.math_utils import log2_ceil
-            ids.res = log2_ceil(ids.value)"#
-        }
     ),
     (
         WriteFullOutputToMemory,
@@ -1453,56 +1563,7 @@ segments.write_arg(ids.sha256_ptr_end, padding)"#}
             2,
         ])"#}
     ),
-    (
-        SetStateUpdatesStart,
-        set_state_updates_start,
-        indoc! {r#"# `use_kzg_da` is used in a hint in `process_data_availability`.
-    use_kzg_da = ids.use_kzg_da
-    if use_kzg_da or ids.compress_state_updates:
-        ids.state_updates_start = segments.add()
-    else:
-        # Assign a temporary segment, to be relocated into the output segment.
-        ids.state_updates_start = segments.add_temp_segment()"#}
-    ),
-    (
-        SetCompressedStart,
-        set_compressed_start,
-        indoc! {r#"if use_kzg_da:
-    ids.compressed_start = segments.add()
-else:
-    # Assign a temporary segment, to be relocated into the output segment.
-    ids.compressed_start = segments.add_temp_segment()"#}
-    ),
-    (
-        SetNUpdatesSmall,
-        set_n_updates_small,
-        indoc! {r#"ids.is_n_updates_small = ids.n_updates < ids.N_UPDATES_SMALL_PACKING_BOUND"#}
-    ),
-    (SetSiblings, set_siblings, "memory[ids.siblings], ids.word = descend"),
-    (IsCaseRight, is_case_right, "memory[ap] = int(case == 'right') ^ ids.bit"),
     (SetBit, set_bit, "ids.bit = (ids.edge.path >> ids.new_length) & 1"),
-    (
-        SetApToDescend,
-        set_ap_to_descend,
-        indoc! {r#"
-	descend = descent_map.get((ids.height, ids.path))
-	memory[ap] = 0 if descend is None else 1"#
-        }
-    ),
-    (AssertCaseIsRight, assert_case_is_right, "assert case == 'right'"),
-    (
-        WriteCaseNotLeftToAp,
-        write_case_not_left_to_ap,
-        indoc! {r#"
-            memory[ap] = int(case != 'left')"#
-        }
-    ),
-    (SplitDescend, split_descend, "ids.length, ids.word = descend"),
-    (
-        HeightIsZeroOrLenNodePreimageIsTwo,
-        height_is_zero_or_len_node_preimage_is_two,
-        "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0"
-    ),
     (
         PreparePreimageValidationNonDeterministicHashes,
         prepare_preimage_validation_non_deterministic_hashes,
@@ -1555,11 +1616,6 @@ else:
 	    __patricia_skip_validation_runner=__patricia_skip_validation_runner)
 	common_args['common_args'] = common_args"#
         }
-    ),
-    (
-        RemainingGasGtMax,
-        remaining_gas_gt_max,
-        "memory[ap] = to_felt_or_relocatable(ids.remaining_gas > ids.max_gas)"
     ),
     (
         DebugExpectedInitialGas,
@@ -1649,33 +1705,6 @@ assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
         }
     ),
     (
-        DecodeNode,
-        decode_node,
-        indoc! {r#"
-	from starkware.python.merkle_tree import decode_node
-	left_child, right_child, case = decode_node(node)
-	memory[ap] = int(case != 'both')"#
-        }
-    ),
-    (
-        DecodeNode2,
-        decode_node,
-        indoc! {r#"
-from starkware.python.merkle_tree import decode_node
-left_child, right_child, case = decode_node(node)
-memory[ap] = 1 if case != 'both' else 0"#
-        }
-    ),
-    (
-        WriteSplitResult,
-        write_split_result,
-        indoc! {r#"
-    from starkware.starknet.core.os.data_availability.bls_utils import split
-
-    segments.write_arg(ids.res.address_, split(ids.value))"#
-        }
-    ),
-    (
         SetSyscallPtr,
         set_syscall_ptr,
         indoc! {r#"
@@ -1704,18 +1733,6 @@ memory[ap] = 1 if case != 'both' else 0"#
         }
     ),
     (OsLoggerExitSyscall, os_logger_exit_syscall, "exit_syscall()"),
-    (IsOnCurve, is_on_curve, "ids.is_on_curve = (y * y) % SECP_P == y_square_int"),
-    (
-        StarknetOsInput,
-        starknet_os_input,
-        indoc! {r#"from starkware.starknet.core.os.os_hints import OsHintsConfig
-        from starkware.starknet.core.os.os_input import StarknetOsInput
-
-        os_input = StarknetOsInput.load(data=program_input)
-        os_hints_config = OsHintsConfig.load(data=os_hints_config)
-        block_input_iterator = iter(os_input.block_inputs)"#
-        }
-    ),
     (
         InitStateUpdatePointers,
         init_state_update_pointer,
@@ -1741,11 +1758,6 @@ initial_dict = {
         "initial_dict = block_input.class_hash_to_compiled_class_hash"
     ),
     (
-        LogRemainingBlocks,
-        log_remaining_blocks,
-        indoc! {r#"print(f"execute_blocks: {ids.n_blocks} blocks remaining.")"#}
-    ),
-    (
         CreateBlockAdditionalHints,
         create_block_additional_hints,
         indoc! {r#"from starkware.starknet.core.os.os_hints import get_execution_helper_and_syscall_handlers
@@ -1762,14 +1774,6 @@ block_input = next(block_input_iterator)
 
 define_hint_enum!(
     AggregatorHint,
-    (
-        AllocateSegmentsForMessages,
-        allocate_segments_for_messages,
-        r#"# Allocate segments for the messages.
-ids.initial_carried_outputs = segments.gen_arg(
-    [segments.add_temp_segment(), segments.add_temp_segment()]
-)"#
-    ),
     (
         DisableDaPageCreation,
         disable_da_page_creation,
