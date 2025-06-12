@@ -9,7 +9,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::types::HintArgs;
+use crate::hints::types::{HintArgs, HintArgsNoHP};
 use crate::hints::vars::{Const, Ids, Scope};
 
 const MAX_PAGE_SIZE: usize = 3800;
@@ -54,8 +54,8 @@ pub(crate) fn set_tree_structure<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_state_updates_start<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn set_state_updates_start(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let use_kzg_da_felt =
         get_integer_from_var_name(Ids::UseKzgDa.into(), vm, ids_data, ap_tracking)?;
@@ -104,8 +104,8 @@ pub(crate) fn set_state_updates_start<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_compressed_start<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn set_compressed_start(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let use_kzg_da_felt = exec_scopes.get::<Felt>(Scope::UseKzgDa.into())?;
 
@@ -138,8 +138,8 @@ pub(crate) fn set_compressed_start<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_n_updates_small<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn set_n_updates_small(
+    HintArgsNoHP { vm, ids_data, ap_tracking, constants, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let n_updates = get_integer_from_var_name(Ids::NUpdates.into(), vm, ids_data, ap_tracking)?;
     let n_updates_small_packing_bounds =

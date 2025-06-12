@@ -2,12 +2,12 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
 
 use crate::hints::error::OsHintResult;
-use crate::hints::types::HintArgs;
+use crate::hints::types::{HintArgs, HintArgsNoHP};
 use crate::hints::vars::Ids;
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn allocate_segments_for_messages<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn allocate_segments_for_messages(
+    HintArgsNoHP { vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let segment1 = vm.add_temporary_segment();
     let segment2 = vm.add_temporary_segment();
