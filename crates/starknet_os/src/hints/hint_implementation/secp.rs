@@ -10,13 +10,13 @@ use num_bigint::BigInt;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::OsHintResult;
-use crate::hints::types::HintArgs;
+use crate::hints::types::{HintArgs, HintArgsNoHP};
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn is_on_curve<S: StateReader>(
-    HintArgs { exec_scopes, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn is_on_curve(
+    HintArgsNoHP { exec_scopes, vm, ap_tracking, ids_data, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let secp_p = BigInt::from_bytes_be(num_bigint::Sign::Plus, &FqConfig::MODULUS.to_bytes_be());
     let y: BigInt = exec_scopes.get(Scope::Y.into())?;

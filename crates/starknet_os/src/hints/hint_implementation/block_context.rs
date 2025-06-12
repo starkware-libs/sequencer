@@ -7,7 +7,7 @@ use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::execution::utils::set_state_entry;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
-use crate::hints::types::HintArgs;
+use crate::hints::types::{HintArgs, HintArgsNoHP};
 use crate::hints::vars::Const;
 
 // Hint implementations.
@@ -57,8 +57,8 @@ pub(crate) fn sequencer_address<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn get_block_mapping<S: StateReader>(
-    HintArgs { ids_data, constants, vm, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn get_block_mapping(
+    HintArgsNoHP { ids_data, constants, vm, ap_tracking, exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
     set_state_entry(block_hash_contract_address, vm, exec_scopes, ids_data, ap_tracking)
