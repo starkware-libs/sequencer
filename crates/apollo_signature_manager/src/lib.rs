@@ -44,9 +44,10 @@ impl<KS: KeyStore> SignatureManager<KS> {
 
     pub async fn sign_precommit_vote(
         &self,
-        _block_hash: BlockHash,
+        block_hash: BlockHash,
     ) -> SignatureManagerResult<RawSignature> {
-        todo!("SignatureManager::sign_precommit_vote is not implemented yet");
+        let message_digest = build_precommit_vote_message_digest(block_hash);
+        self.sign(message_digest).await
     }
 
     async fn sign(&self, message_digest: MessageDigest) -> SignatureManagerResult<RawSignature> {
@@ -131,6 +132,15 @@ mod tests {
         ),
     };
 
+    const ALICE_PRECOMMIT_SIGNATURE: Signature = Signature {
+        r: Felt::from_hex_unchecked(
+            "0xcd59947811bac7c33d3dae3d50b1de243710b05f285455ada6823e23871a2b",
+        ),
+        s: Felt::from_hex_unchecked(
+            "0x33817fd47c5253c4979999afe0dd6b275498d9c7b96dd7705b84c2113228f11",
+        ),
+    };
+
     #[rstest]
     #[case::valid_signature(ALICE_IDENTITY_SIGNATURE, true)]
     #[case::invalid_signature(
@@ -145,13 +155,7 @@ mod tests {
     }
 
     #[rstest]
-    #[case::valid_signature(
-        Signature {
-            r: felt!("0xcd59947811bac7c33d3dae3d50b1de243710b05f285455ada6823e23871a2b"),
-            s: felt!("0x33817fd47c5253c4979999afe0dd6b275498d9c7b96dd7705b84c2113228f11"),
-        },
-        true
-    )]
+    #[case::valid_signature(ALICE_PRECOMMIT_SIGNATURE, true)]
     #[case::invalid_signature(
         Signature { r: felt!("0x1"), s: felt!("0x2") },
         false
@@ -206,5 +210,22 @@ mod tests {
 
         // Test alignment with verification function.
         assert_eq!(verify_identity(peer_id, signature.unwrap(), key_store.public_key), Ok(true));
+    }
+
+    #[tokio::test]
+    async fn test_sign_precommit_vote() {
+        let key_store = TestKeyStore::new();
+        let signature_manager = SignatureManager::new(key_store);
+
+        let block_hash = BlockHash(felt!("0x1234"));
+        let signature = signature_manager.sign_precommit_vote(block_hash).await;
+
+        assert_eq!(signature, Ok(ALICE_PRECOMMIT_SIGNATURE.into()));
+
+        // Test alignment with verification function.
+        assert_eq!(
+            verify_precommit_vote_signature(block_hash, signature.unwrap(), key_store.public_key),
+            Ok(true)
+        );
     }
 }
