@@ -14,7 +14,7 @@ use cairo_vm::types::program::Program;
 use starknet_api::deprecated_contract_class::ContractClass;
 use strum::IntoEnumIterator;
 
-use crate::hints::enum_definition::{AllHints, DeprecatedSyscallHint};
+use crate::hints::enum_definition::{AllHints, DeprecatedSyscallHint, TEST_HINT_PREFIX};
 use crate::hints::types::HintEnum;
 
 static VM_HINTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
@@ -108,6 +108,24 @@ fn test_all_hints_are_known() {
     assert!(
         unknown_hints.is_empty(),
         "The following hints are not known in 'starknet_os': {unknown_hints:#?}."
+    );
+}
+
+/// Tests that we do not keep any hint including the TEST_HINT_PREFIX as a prefix in the OS or
+/// aggregator code.
+#[test]
+fn test_the_debug_hint_isnt_merged() {
+    let os_hints = program_hints(&OS_PROGRAM);
+    let aggregator_hints = program_hints(&AGGREGATOR_PROGRAM);
+    let all_program_hints: HashSet<&String> = os_hints.union(&aggregator_hints).collect();
+
+    let debug_hints: HashSet<_> =
+        all_program_hints.iter().filter(|hint| hint.trim().starts_with(TEST_HINT_PREFIX)).collect();
+
+    assert!(
+        debug_hints.is_empty(),
+        "The following debug hints are present in the OS or Aggregator programs: \
+         {debug_hints:#?}. Please remove them from the code."
     );
 }
 

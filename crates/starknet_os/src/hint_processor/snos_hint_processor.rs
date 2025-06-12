@@ -31,6 +31,8 @@ use starknet_types_core::felt::Felt;
 use crate::errors::StarknetOsError;
 use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionHelper};
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
+#[cfg(any(test, feature = "testing"))]
+use crate::hint_processor::test_hint::test_hint;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
@@ -273,6 +275,11 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
                     }
                     AllHints::HintExtension(hint_extension) => {
                         Ok(hint_extension.execute_hint_extensive(hint_args)?)
+                    }
+                    #[cfg(any(test, feature = "testing"))]
+                    AllHints::TestHint => {
+                        test_hint(hint_processor_data.code.as_str(), hint_args)?;
+                        Ok(HintExtension::default())
                     }
                 };
             } else {
