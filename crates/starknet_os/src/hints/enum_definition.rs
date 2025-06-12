@@ -387,6 +387,19 @@ define_hint_enum!(
 define_hint_enum!(
     OsHint,
     (
+        SetStateUpdatePointersToNone,
+        set_state_update_pointers_to_none,
+        r#"state_update_pointers = None"#
+    ),
+    (
+        AllocateSegmentsForMessages,
+        allocate_segments_for_messages,
+        r#"# Allocate segments for the messages.
+ids.initial_carried_outputs = segments.gen_arg(
+    [segments.add_temp_segment(), segments.add_temp_segment()]
+)"#
+    ),
+    (
         IsBlockNumberInBlockHashBuffer,
         is_block_number_in_block_hash_buffer,
         // CHANGED: whitespaces.
@@ -1763,14 +1776,6 @@ block_input = next(block_input_iterator)
 define_hint_enum!(
     AggregatorHint,
     (
-        AllocateSegmentsForMessages,
-        allocate_segments_for_messages,
-        r#"# Allocate segments for the messages.
-ids.initial_carried_outputs = segments.gen_arg(
-    [segments.add_temp_segment(), segments.add_temp_segment()]
-)"#
-    ),
-    (
         DisableDaPageCreation,
         disable_da_page_creation,
         r#"# Note that `serialize_os_output` splits its output to memory pages
@@ -1831,11 +1836,6 @@ if da_path is not None:
         get_use_kzg_da_from_input,
         r#"memory[ap] = to_felt_or_relocatable(program_input["use_kzg_da"])"#
     ),
-    (
-        SetStateUpdatePointersToNone,
-        set_state_update_pointers_to_none,
-        r#"state_update_pointers = None"#
-    )
 );
 
 define_hint_extension_enum!(
