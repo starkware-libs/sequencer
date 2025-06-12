@@ -404,6 +404,19 @@ define_hint_enum!(
 define_stateless_hint_enum!(
     StatelessHint,
     (
+        SetStateUpdatePointersToNone,
+        set_state_update_pointers_to_none,
+        r#"state_update_pointers = None"#
+    ),
+    (
+        AllocateSegmentsForMessages,
+        allocate_segments_for_messages,
+        r#"# Allocate segments for the messages.
+ids.initial_carried_outputs = segments.gen_arg(
+    [segments.add_temp_segment(), segments.add_temp_segment()]
+)"#
+    ),
+    (
         IsBlockNumberInBlockHashBuffer,
         is_block_number_in_block_hash_buffer,
         // CHANGED: whitespaces.
