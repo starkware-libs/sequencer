@@ -1,5 +1,6 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
+    LAST_BATCHED_BLOCK,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
@@ -26,6 +27,12 @@ pub(crate) const PANEL_PROPOSAL_FAILED: Panel =
     Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat);
 pub(crate) const PANEL_BATCHED_TRANSACTIONS: Panel =
     Panel::from_counter(BATCHED_TRANSACTIONS, PanelType::Stat);
+pub(crate) const PANEL_LAST_BATCHED_BLOCK: Panel = Panel::new(
+    "Last batched block",
+    "The last block number that was batched",
+    LAST_BATCHED_BLOCK.get_name_with_filter(),
+    PanelType::Stat,
+);
 
 pub(crate) const PANEL_BATCHER_LOCAL_MSGS_RECEIVED: Panel =
     Panel::from_counter(BATCHER_LOCAL_MSGS_RECEIVED, PanelType::Graph);
