@@ -221,11 +221,21 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             .execution)
     }
 
+    /// Get the current commitment info according to the commitment type.
+    /// If the commitment type is `Contract`, returns the commitment info for the
+    /// contract address specified.
     pub fn get_commitment_info(&self) -> Result<&CommitmentInfo, ExecutionHelperError> {
         let os_input = self.get_current_execution_helper()?.os_block_input;
         Ok(match self.commitment_type {
             CommitmentType::Class => &os_input.contract_class_commitment_info,
             CommitmentType::State => &os_input.contract_state_commitment_info,
+            CommitmentType::Contract(contract_address) => self
+                .execution_helpers_manager
+                .get_current_execution_helper()?
+                .os_block_input
+                .address_to_storage_commitment_info
+                .get(&contract_address)
+                .ok_or(ExecutionHelperError::MissingCommitmentInfo(contract_address))?,
         })
     }
 }
