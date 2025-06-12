@@ -576,7 +576,7 @@ async fn run_build_block(
     mock_transaction_executor: MockTransactionExecutorTrait,
     tx_provider: MockTransactionProvider,
     output_sender: Option<UnboundedSender<InternalConsensusTransaction>>,
-    fail_on_err: bool,
+    is_validator: bool,
     abort_receiver: tokio::sync::oneshot::Receiver<()>,
     deadline_secs: u64,
 ) -> BlockBuilderResult<BlockExecutionArtifacts> {
@@ -595,7 +595,7 @@ async fn run_build_block(
         transaction_converter,
         N_CONCURRENT_TXS,
         TX_POLLING_INTERVAL,
-        BlockBuilderExecutionParams { deadline, fail_on_err },
+        BlockBuilderExecutionParams { deadline, is_validator },
     );
 
     block_builder.build_block().await
@@ -939,7 +939,7 @@ async fn failed_l1_handler_transaction_consumed() {
 }
 
 #[tokio::test]
-async fn partial_chunk_execution_without_fail_on_error_flag() {
+async fn partial_chunk_execution_proposer() {
     let input_txs = test_txs(0..3); // Assume 3 TXs were sent.
     let executed_txs = input_txs[..2].to_vec(); // Only 2 should be processed. Simulating a partial chunk execution.
 
@@ -972,12 +972,12 @@ async fn partial_chunk_execution_without_fail_on_error_flag() {
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
     // Block should be built with the executed transactions without any errors.
-    let fail_on_error = false;
+    let is_validator = false;
     let result_block_artifacts = run_build_block(
         helper.mock_transaction_executor,
         mock_tx_provider,
         None,
-        fail_on_error,
+        is_validator,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
     )
@@ -988,7 +988,7 @@ async fn partial_chunk_execution_without_fail_on_error_flag() {
 }
 
 #[tokio::test]
-async fn partial_chunk_execution_with_fail_on_error_flag() {
+async fn partial_chunk_execution_validator() {
     let input_txs = test_txs(0..3);
 
     let mut helper = ExpectationHelper::new();
@@ -1007,12 +1007,12 @@ async fn partial_chunk_execution_with_fail_on_error_flag() {
 
     // Block should return BlockFull error since a chunk is not completed, a time constrain on
     // block.
-    let fail_on_error = true;
+    let is_validator = true;
     let result_block_artifacts = run_build_block(
         helper.mock_transaction_executor,
         mock_tx_provider,
         None,
-        fail_on_error,
+        is_validator,
         abort_receiver,
         BLOCK_GENERATION_DEADLINE_SECS,
     )
