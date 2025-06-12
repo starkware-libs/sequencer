@@ -1,5 +1,4 @@
 use ark_bls12_381::Fr;
-use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
@@ -9,7 +8,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
-use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::kzg::utils::{
     polynomial_coefficients_to_kzg_commitment,
@@ -19,8 +18,8 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn store_da_segment<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+pub(crate) fn store_da_segment<'program, CHP: CommonHintProcessor<'program>>(
+    hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     log::debug!("Executing store_da_segment hint.");

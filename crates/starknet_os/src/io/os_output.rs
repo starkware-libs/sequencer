@@ -1,6 +1,3 @@
-#[cfg(feature = "testing")]
-use std::collections::HashSet;
-
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -12,15 +9,12 @@ use num_traits::ToPrimitive;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
-#[cfg(feature = "testing")]
-use crate::hints::enum_definition::AllHints;
 
 pub struct StarknetOsRunnerOutput {
     // TODO(Tzahi): Define a struct for the output.
     pub os_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
-    #[cfg(feature = "testing")]
-    pub unused_hints: HashSet<AllHints>,
+    pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
 }
 
 // Retrieve the output ptr data of a finalized run as a vec of felts.

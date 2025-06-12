@@ -7,6 +7,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use starknet_api::core::ContractAddress;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
@@ -167,12 +168,12 @@ pub(crate) fn update_state_ptr<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn guess_classes_ptr<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+pub(crate) fn guess_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
+    hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let class_changes_start =
-        if let Some(state_update_pointers) = &hint_processor.state_update_pointers {
+        if let Some(state_update_pointers) = &hint_processor.get_mut_state_update_pointers() {
             state_update_pointers.get_classes_ptr()
         } else {
             vm.add_memory_segment()
@@ -187,11 +188,11 @@ pub(crate) fn guess_classes_ptr<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn update_classes_ptr<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+pub(crate) fn update_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
+    hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
+    if let Some(state_update_pointers) = &mut hint_processor.get_mut_state_update_pointers() {
         let classes_changes_end =
             get_ptr_from_var_name(Ids::SquashedDictEnd.into(), vm, ids_data, ap_tracking)?;
         state_update_pointers.set_classes_ptr(classes_changes_end);

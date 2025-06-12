@@ -99,7 +99,7 @@ pub fn run_os<S: StateReader>(
     Ok(StarknetOsRunnerOutput {
         os_output,
         cairo_pie,
-        #[cfg(feature = "testing")]
+        #[cfg(any(test, feature = "testing"))]
         unused_hints: snos_hint_processor.unused_hints,
     })
 }
