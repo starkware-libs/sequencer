@@ -71,7 +71,10 @@ pub trait SyscallExecutor {
 
     fn gas_costs(&self) -> &GasCosts;
 
-    fn get_sha256_segment_end_ptr(&self, vm: &mut VirtualMachine) -> Relocatable;
+    fn get_sha256_segment_end_ptr(
+        &self,
+        vm: &mut VirtualMachine,
+    ) -> Result<Relocatable, Self::Error>;
 
     fn set_sha256_segment_end_ptr(&mut self, segment_end_ptr: Relocatable);
 
@@ -249,7 +252,7 @@ pub trait SyscallExecutor {
 
         sha2::compress256(&mut state_as_words, &[data_as_bytes]);
 
-        let segment = syscall_handler.get_sha256_segment_end_ptr(vm);
+        let segment = syscall_handler.get_sha256_segment_end_ptr(vm)?;
 
         let response = segment;
         let data: Vec<MaybeRelocatable> =
