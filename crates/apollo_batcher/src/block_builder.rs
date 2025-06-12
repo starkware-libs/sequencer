@@ -252,12 +252,10 @@ impl BlockBuilder {
 
             if lock_executor(&self.executor).is_done() {
                 info!("Block is full.");
-                if self.execution_params.is_validator {
-                    return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
-                } else {
+                if !self.execution_params.is_validator {
                     FULL_BLOCKS.increment(1);
+                    break;
                 }
-                break;
             }
 
             if finished_adding_txs {
@@ -405,7 +403,6 @@ impl BlockBuilder {
             results,
             &mut self.execution_data,
             &self.output_content_sender,
-            self.execution_params.is_validator,
             &self.pre_confirmed_tx_sender,
         )
         .await
@@ -474,7 +471,6 @@ async fn collect_execution_results_and_stream_txs(
     output_content_sender: &Option<
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
-    is_validator: bool,
     pre_confirmed_tx_sender: &Option<PreConfirmedTxSender>,
 ) -> BlockBuilderResult<()> {
     assert!(
@@ -532,11 +528,6 @@ async fn collect_execution_results_and_stream_txs(
                     tx_hash,
                     err.log_compatible_to_string()
                 );
-                if is_validator {
-                    return Err(BlockBuilderError::FailOnError(
-                        FailOnErrorCause::TransactionFailed(err),
-                    ));
-                }
                 execution_data.rejected_tx_hashes.insert(tx_hash);
             }
         }
