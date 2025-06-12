@@ -232,7 +232,7 @@ impl Batcher {
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
 
         let cende_block_metadata = CendeBlockMetadata::new(propose_block_input.block_info.clone());
-        let (pre_confirmed_block_writer, candidate_tx_sender, executed_tx_sender) =
+        let (pre_confirmed_block_writer, candidate_tx_sender, pre_confirmed_tx_sender) =
             self.pre_confirmed_block_writer_factory.create(
                 propose_block_input.block_info.block_number,
                 propose_block_input.proposal_round,
@@ -253,7 +253,7 @@ impl Batcher {
                 Box::new(tx_provider),
                 Some(output_tx_sender),
                 Some(candidate_tx_sender),
-                Some(executed_tx_sender),
+                Some(pre_confirmed_tx_sender),
                 tokio::runtime::Handle::current(),
             )
             .map_err(|err| {
