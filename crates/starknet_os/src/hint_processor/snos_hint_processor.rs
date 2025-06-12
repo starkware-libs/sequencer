@@ -35,7 +35,13 @@ use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
-use crate::io::os_input::{CachedStateInput, OsBlockInput, OsHintsConfig, OsInputError};
+use crate::io::os_input::{
+    CachedStateInput,
+    CommitmentInfo,
+    OsBlockInput,
+    OsHintsConfig,
+    OsInputError,
+};
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
@@ -211,6 +217,14 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             .get_mut_call_info_tracker()?
             .next_inner_call()?
             .execution)
+    }
+
+    pub fn get_commitment_info(&self) -> Result<&CommitmentInfo, ExecutionHelperError> {
+        let os_input = self.get_current_execution_helper()?.os_block_input;
+        Ok(match self.commitment_type {
+            CommitmentType::Class => &os_input.contract_class_commitment_info,
+            CommitmentType::State => &os_input.contract_state_commitment_info,
+        })
     }
 }
 

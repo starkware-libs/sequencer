@@ -49,12 +49,8 @@ fn set_preimage_for_commitments<S: StateReader>(
         S,
     >,
 ) -> OsHintResult {
-    let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let CommitmentInfo { previous_root, updated_root, commitment_facts, tree_height } =
-        match hint_processor.commitment_type {
-            CommitmentType::Class => &os_input.contract_class_commitment_info,
-            CommitmentType::State => &os_input.contract_state_commitment_info,
-        };
+        hint_processor.get_commitment_info()?;
     insert_value_from_var_name(
         Ids::InitialRoot.into(),
         previous_root.0,
