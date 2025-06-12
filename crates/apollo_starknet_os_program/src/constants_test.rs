@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use apollo_infra_utils::cairo0_compiler::{cairo0_format, verify_cairo0_compiler_deps};
+use apollo_infra_utils::cairo0_compiler::cairo0_format;
 use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use blockifier::blockifier_versioned_constants::{OsConstants, VersionedConstants};
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallSelector;
@@ -215,7 +215,6 @@ fn generate_constants_file() -> String {
 /// ```
 #[test]
 fn test_os_constants() {
-    verify_cairo0_compiler_deps();
     // Generate `constants.cairo` from the current OS constants.
     let generated = generate_constants_file();
     let fix = std::env::var("FIX_OS_CONSTANTS").is_ok();
