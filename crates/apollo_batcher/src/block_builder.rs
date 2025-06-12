@@ -52,7 +52,7 @@ use tracing::{debug, error, info, trace, warn};
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
 use crate::metrics::FULL_BLOCKS;
-use crate::pre_confirmed_block_writer::{CandidateTxSender, ExecutedTxSender};
+use crate::pre_confirmed_block_writer::{CandidateTxSender, PreConfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 
@@ -165,7 +165,7 @@ pub struct BlockBuilder {
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
     /// The senders are utilized only during block proposal and not during block validation.
     candidate_tx_sender: Option<CandidateTxSender>,
-    executed_tx_sender: Option<ExecutedTxSender>,
+    pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
     /// The number of transactions whose execution is completed.
@@ -190,7 +190,7 @@ impl BlockBuilder {
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
         candidate_tx_sender: Option<CandidateTxSender>,
-        executed_tx_sender: Option<ExecutedTxSender>,
+        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         transaction_converter: TransactionConverter,
         n_concurrent_txs: usize,
@@ -203,7 +203,7 @@ impl BlockBuilder {
             tx_provider,
             output_content_sender,
             candidate_tx_sender,
-            executed_tx_sender,
+            pre_confirmed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
             n_executed_txs: 0,
@@ -381,7 +381,7 @@ impl BlockBuilder {
             &mut self.execution_data,
             &self.output_content_sender,
             self.execution_params.fail_on_err,
-            &self.executed_tx_sender,
+            &self.pre_confirmed_tx_sender,
         )
         .await
     }
@@ -451,7 +451,7 @@ async fn collect_execution_results_and_stream_txs(
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
     fail_on_err: bool,
-    executed_tx_sender: &Option<ExecutedTxSender>,
+    pre_confirmed_tx_sender: &Option<PreConfirmedTxSender>,
 ) -> BlockBuilderResult<()> {
     assert!(
         results.len() == tx_chunk.len(),
@@ -480,9 +480,9 @@ async fn collect_execution_results_and_stream_txs(
                     output_content_sender.send(input_tx.clone())?;
                 }
 
-                // Skip sending executed transaction hashes and receipts during validation flow.
-                // In validate flow executed_tx_sender is None.
-                if let Some(executed_tx_sender) = executed_tx_sender {
+                // Skip sending the pre confirmed executed transactions, receipts and state diffs
+                // during validation flow. In validate flow pre_confirmed_tx_sender is None.
+                if let Some(pre_confirmed_tx_sender) = pre_confirmed_tx_sender {
                     let tx_receipt = StarknetClientTransactionReceipt::from((
                         tx_hash,
                         tx_index,
@@ -493,8 +493,11 @@ async fn collect_execution_results_and_stream_txs(
 
                     let tx_state_diff = StarknetClientStateDiff::from(state_maps).0;
 
-                    let result =
-                        executed_tx_sender.try_send((input_tx.clone(), tx_receipt, tx_state_diff));
+                    let result = pre_confirmed_tx_sender.try_send((
+                        input_tx.clone(),
+                        tx_receipt,
+                        tx_state_diff,
+                    ));
                     if result.is_err() {
                         // We continue with block building even if sending data to The
                         // PreConfirmedBlockWriter fails because it is not critical
@@ -546,7 +549,7 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
         candidate_tx_sender: Option<CandidateTxSender>,
-        executed_tx_sender: Option<ExecutedTxSender>,
+        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
 }
@@ -661,7 +664,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
         candidate_tx_sender: Option<CandidateTxSender>,
-        executed_tx_sender: Option<ExecutedTxSender>,
+        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
         let executor = self.preprocess_and_create_transaction_executor(block_metadata, runtime)?;
@@ -675,7 +678,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             tx_provider,
             output_content_sender,
             candidate_tx_sender,
-            executed_tx_sender,
+            pre_confirmed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
             self.block_builder_config.n_concurrent_txs,
