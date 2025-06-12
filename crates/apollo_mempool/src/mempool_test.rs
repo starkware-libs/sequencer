@@ -26,7 +26,14 @@ use starknet_api::{contract_address, declare_tx_args, nonce, tx_hash};
 
 use super::AddTransactionQueue;
 use crate::communication::MempoolCommunicationWrapper;
-use crate::mempool::{Mempool, MempoolConfig, MempoolContent, MempoolState, TransactionReference};
+use crate::mempool::{
+    AccountsWithGap,
+    Mempool,
+    MempoolConfig,
+    MempoolContent,
+    MempoolState,
+    TransactionReference,
+};
 use crate::metrics::register_metrics;
 use crate::test_utils::{
     add_tx,
@@ -136,6 +143,7 @@ impl MempoolTestContentBuilder {
                 self.content.pending_txs.unwrap_or_default(),
                 self.gas_price_threshold,
             ),
+            accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(self.config.committed_nonce_retention_block_count),
             clock: Arc::new(FakeClock::default()),
         }
@@ -1396,4 +1404,205 @@ async fn add_tx_tolerates_p2p_propagation_error(mempool: Mempool) {
         "Expected add_tx to succeed even if P2P propagation fails, but got error: {:?}",
         result
     );
+}
+
+// Accounts with gap tests.
+
+#[rstest]
+fn test_gap_tracking_in_various_scenarios(mut mempool: Mempool) {
+    // Account 0: Contiguous nonces (0,1)
+    let tx_address_0 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    let next_tx_address_0 =
+        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
+
+    // Account 1: Gap at nonce 0, will be filled by adding nonce 0
+    let gap_creating_tx_address_1 =
+        add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 1, account_nonce: 0);
+
+    // Account 2: Gap at nonce 0, will be filled by commit
+    let gap_creating_tx_address_2 =
+        add_tx_input!(tx_hash: 4, address: "0x2", tx_nonce: 1, account_nonce: 0);
+
+    // Account 3: Gap at nonce 0 after rejection
+    let tx_address_3 = add_tx_input!(tx_hash: 5, address: "0x3", tx_nonce: 0, account_nonce: 0);
+    let gap_creating_tx_address_3 =
+        add_tx_input!(tx_hash: 6, address: "0x3", tx_nonce: 1, account_nonce: 0);
+
+    // Account 4: Gap at nonce 1 after accepting nonce 0
+    let tx_address_4 = add_tx_input!(tx_hash: 7, address: "0x4", tx_nonce: 0, account_nonce: 0);
+    let gap_creating_tx_address_4 =
+        add_tx_input!(tx_hash: 8, address: "0x4", tx_nonce: 2, account_nonce: 0);
+
+    for input in [
+        &tx_address_0,
+        &next_tx_address_0,
+        &gap_creating_tx_address_1,
+        &gap_creating_tx_address_2,
+        &tx_address_3,
+        &gap_creating_tx_address_3,
+        &tx_address_4,
+        &gap_creating_tx_address_4,
+    ] {
+        add_tx(&mut mempool, input);
+    }
+
+    // Verify initial gap tracking
+    let tracker = mempool.accounts_with_gap();
+    assert!(!tracker.contains(&tx_address_0.tx.contract_address()));
+    assert!(tracker.contains(&gap_creating_tx_address_1.tx.contract_address()));
+    assert!(tracker.contains(&gap_creating_tx_address_2.tx.contract_address()));
+    assert!(!tracker.contains(&tx_address_3.tx.contract_address()));
+    assert!(!tracker.contains(&tx_address_4.tx.contract_address()));
+
+    // Fill gap for account 1
+    let tx_fills_gap_address_1 =
+        add_tx_input!(tx_hash: 9, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &tx_fills_gap_address_1);
+
+    let tracker = mempool.accounts_with_gap();
+    assert!(!tracker.contains(&gap_creating_tx_address_1.tx.contract_address()));
+
+    // Fill gap for account 2, create gap for account 3, leave gap for account 4
+    commit_block(&mut mempool, [("0x2", 1), ("0x4", 1)], [tx_address_3.tx.tx_hash()]);
+    let tracker = mempool.accounts_with_gap();
+    assert!(!tracker.contains(&gap_creating_tx_address_2.tx.contract_address()));
+    assert!(tracker.contains(&gap_creating_tx_address_3.tx.contract_address()));
+    assert!(tracker.contains(&gap_creating_tx_address_4.tx.contract_address()));
+}
+
+#[rstest]
+#[case::trigger_in_add_tx(true)]
+#[case::trigger_in_get_txs(false)]
+fn test_gap_tracking_after_ttl_expiration_in_order(#[case] trigger_in_add_tx: bool) {
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig { transaction_ttl: Duration::from_secs(60), ..Default::default() },
+        fake_clock.clone(),
+    );
+
+    // Add nonce 0 transaction.
+    let first_tx = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &first_tx);
+
+    // Add nonce 1 while nonce 0 is still valid.
+    fake_clock.advance(mempool.config.transaction_ttl / 2);
+    let second_tx = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    add_tx(&mut mempool, &second_tx);
+
+    // Verify no gaps initially.
+    let tracker = mempool.accounts_with_gap();
+    assert!(!tracker.contains(&first_tx.tx.contract_address()));
+
+    // Expire nonce 0.
+    fake_clock.advance(mempool.config.transaction_ttl / 2 + Duration::from_secs(5));
+
+    if trigger_in_add_tx {
+        // Trigger cleanup via add_tx
+        let trigger_tx = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 0, account_nonce: 0);
+        add_tx(&mut mempool, &trigger_tx);
+    } else {
+        // Trigger cleanup via get_txs
+        mempool.get_txs(1).unwrap();
+    }
+    let tracker = mempool.accounts_with_gap();
+    assert!(tracker.contains(&first_tx.tx.contract_address()));
+
+    // Add nonce 0 back and verify gap is closed.
+    add_tx(&mut mempool, &first_tx);
+    let tracker = mempool.accounts_with_gap();
+    assert!(!tracker.contains(&first_tx.tx.contract_address()));
+}
+
+#[rstest]
+#[case::trigger_in_add_tx(true)]
+#[case::trigger_in_get_txs(false)]
+fn test_gap_tracking_after_ttl_expiration_not_in_order(#[case] trigger_in_add_tx: bool) {
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig { transaction_ttl: Duration::from_secs(60), ..Default::default() },
+        fake_clock.clone(),
+    );
+
+    let expired_first_nonce_4 =
+        add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 4, account_nonce: 0);
+    add_tx(&mut mempool, &expired_first_nonce_4);
+    let expired_first_nonce_2 =
+        add_tx_input!(tx_hash: 10, address: "0x0", tx_nonce: 2, account_nonce: 0);
+    add_tx(&mut mempool, &expired_first_nonce_2);
+    let expired_first_nonce_3 =
+        add_tx_input!(tx_hash: 11, address: "0x0", tx_nonce: 3, account_nonce: 0);
+    add_tx(&mut mempool, &expired_first_nonce_3);
+
+    // Add nonce 1 while the rest are still valid.
+    fake_clock.advance(mempool.config.transaction_ttl / 2);
+    let not_expired_tx = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    add_tx(&mut mempool, &not_expired_tx);
+
+    let tracker = mempool.accounts_with_gap();
+    assert!(tracker.contains(&expired_first_nonce_2.tx.contract_address()));
+
+    // Expire txs 2,3,4 and not tx 1.
+    fake_clock.advance(mempool.config.transaction_ttl / 2 + Duration::from_secs(5));
+
+    if trigger_in_add_tx {
+        // Trigger cleanup via add_tx.
+        let trigger_tx = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 0, account_nonce: 0);
+        add_tx(&mut mempool, &trigger_tx);
+    } else {
+        // Trigger cleanup via get_txs.
+        mempool.get_txs(1).unwrap();
+    }
+
+    // Verify gap is still present.
+    let tracker = mempool.accounts_with_gap();
+    assert!(tracker.contains(&expired_first_nonce_2.tx.contract_address()));
+}
+
+#[rstest]
+#[case::trigger_in_add_tx(true)]
+#[case::trigger_in_get_txs(false)]
+fn test_gap_tracking_during_declare_delay(#[case] trigger_in_add_tx: bool) {
+    let fake_clock = Arc::new(FakeClock::default());
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            transaction_ttl: Duration::from_secs(1000),
+            declare_delay: Duration::from_secs(10),
+            ..Default::default()
+        },
+        fake_clock.clone(),
+    );
+
+    // Account 0: declare tx (nonce 0) and regular tx (nonce 1).
+    let declare_tx = declare_add_tx_input(declare_tx_args!(
+        tx_hash: tx_hash!(1),
+        sender_address: contract_address!("0x0"),
+        nonce: nonce!(0)
+    ));
+    let next_tx = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
+
+    for tx in [&declare_tx, &next_tx] {
+        add_tx(&mut mempool, tx);
+    }
+
+    // Account 1: delayed declare only (no following tx).
+    let declare_only = declare_add_tx_input(declare_tx_args!(
+        tx_hash: tx_hash!(100),
+        sender_address: contract_address!("0x1"),
+        nonce: nonce!(0)
+    ));
+    add_tx(&mut mempool, &declare_only);
+
+    // Advance clock to allow delayed declares to become active
+    fake_clock.advance(mempool.config.declare_delay + Duration::from_secs(5));
+
+    if trigger_in_add_tx {
+        let trigger = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 0, account_nonce: 0);
+        add_tx(&mut mempool, &trigger);
+    } else {
+        mempool.get_txs(1).unwrap();
+    }
+
+    // Still no gaps after declare txs become active.
+    assert!(!mempool.accounts_with_gap().contains(&declare_tx.tx.contract_address()));
+    assert!(!mempool.accounts_with_gap().contains(&declare_only.tx.contract_address()));
 }
