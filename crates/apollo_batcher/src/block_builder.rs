@@ -173,7 +173,6 @@ pub struct BlockBuilder {
     /// The transactions whose execution started.
     block_txs: Vec<InternalConsensusTransaction>,
     execution_data: BlockTransactionExecutionData,
-    l2_gas_used: GasAmount,
 
     /// Parameters to configure the block builder behavior.
     n_concurrent_txs: usize,
@@ -209,7 +208,6 @@ impl BlockBuilder {
             n_executed_txs: 0,
             block_txs: Vec::new(),
             execution_data: BlockTransactionExecutionData::default(),
-            l2_gas_used: GasAmount::ZERO,
             n_concurrent_txs,
             tx_polling_interval_millis,
             execution_params,
@@ -308,12 +306,13 @@ impl BlockBuilder {
                 self.block_txs[n_txs_in_block..].iter().map(|tx| tx.tx_hash()).collect();
             execution_data.remove_last_txs(&remove_tx_hashes);
         }
+        let l2_gas_used = execution_data.l2_gas_used();
         Ok(BlockExecutionArtifacts {
             execution_data,
             commitment_state_diff: state_diff,
             compressed_state_diff,
             bouncer_weights,
-            l2_gas_used: self.l2_gas_used,
+            l2_gas_used,
             casm_hash_computation_data,
         })
     }
@@ -405,7 +404,6 @@ impl BlockBuilder {
         collect_execution_results_and_stream_txs(
             &self.block_txs[old_n_executed_txs..self.n_executed_txs],
             results,
-            &mut self.l2_gas_used,
             &mut self.execution_data,
             &self.output_content_sender,
             self.execution_params.fail_on_err,
@@ -473,7 +471,6 @@ async fn convert_to_executable_blockifier_tx(
 async fn collect_execution_results_and_stream_txs(
     tx_chunk: &[InternalConsensusTransaction],
     results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
-    l2_gas_used: &mut GasAmount,
     execution_data: &mut BlockTransactionExecutionData,
     output_content_sender: &Option<
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
@@ -496,10 +493,6 @@ async fn collect_execution_results_and_stream_txs(
 
         match result {
             Ok((tx_execution_info, state_maps)) => {
-                *l2_gas_used = l2_gas_used
-                    .checked_add(tx_execution_info.receipt.gas.l2_gas)
-                    .expect("Total L2 gas overflow.");
-
                 let (tx_index, _) =
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
 
@@ -734,6 +727,16 @@ impl BlockTransactionExecutionData {
             remove_last_set(&mut self.rejected_tx_hashes, tx_hash);
             remove_last_set(&mut self.consumed_l1_handler_tx_hashes, tx_hash);
         }
+    }
+
+    fn l2_gas_used(&self) -> GasAmount {
+        let mut res = GasAmount::ZERO;
+        for execution_info in self.execution_infos.values() {
+            res =
+                res.checked_add(execution_info.receipt.gas.l2_gas).expect("Total L2 gas overflow.");
+        }
+
+        res
     }
 }
 

@@ -52,6 +52,7 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 chrono = { workspace = true }
+itertools.workspace = true
 mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
