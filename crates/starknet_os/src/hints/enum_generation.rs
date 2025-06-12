@@ -47,7 +47,7 @@ macro_rules! define_stateless_hint_enum {
             pub fn execute_hint<S: StateReader>(
                 &self,
                 _hint_processor: &mut SnosHintProcessor<'_, S>,
-                hint_args: HintArgsNoHP<'_,>
+                hint_args: HintArgs<'_,>
             ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
