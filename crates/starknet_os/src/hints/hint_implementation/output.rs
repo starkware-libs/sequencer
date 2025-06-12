@@ -1,6 +1,5 @@
 use std::cmp::min;
 
-use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
@@ -8,7 +7,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 use starknet_types_core::felt::Felt;
 
-use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
@@ -17,11 +16,11 @@ const MAX_PAGE_SIZE: usize = 3800;
 const OUTPUT_ATTRIBUTE_FACT_TOPOLOGY: &str = "gps_fact_topology";
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_tree_structure<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+pub(crate) fn set_tree_structure<'program, CHP: CommonHintProcessor<'program>>(
+    hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    if !hint_processor.serialize_data_availability_create_pages {
+    if !hint_processor.get_serialize_data_availability_create_pages() {
         return Ok(());
     }
     let onchain_data_start = get_ptr_from_var_name(Ids::DaStart.into(), vm, ids_data, ap_tracking)?;
