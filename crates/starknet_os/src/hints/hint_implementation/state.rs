@@ -17,13 +17,14 @@ use crate::io::os_input::CommitmentInfo;
 pub(crate) enum CommitmentType {
     Class,
     State,
+    Contract(ContractAddress),
 }
 
 impl CommitmentType {
     pub(crate) fn hash_builtin_struct(&self) -> CairoStruct {
         match self {
-            Self::State => CairoStruct::HashBuiltin,
             Self::Class => CairoStruct::SpongeHashBuiltin,
+            Self::State | Self::Contract(_) => CairoStruct::HashBuiltin,
         }
     }
 }
@@ -102,17 +103,11 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
         S,
     >,
 ) -> OsHintResult {
-    hint_processor.commitment_type = CommitmentType::State;
     let contract_address: ContractAddress =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
             .try_into()?;
-    let commitment_info = hint_processor
-        .execution_helpers_manager
-        .get_current_execution_helper()?
-        .os_block_input
-        .address_to_storage_commitment_info
-        .get(&contract_address)
-        .ok_or(OsHintError::MissingCommitmentInfo(contract_address))?;
+    hint_processor.commitment_type = CommitmentType::Contract(contract_address);
+    let commitment_info = hint_processor.get_commitment_info()?;
     insert_value_from_var_name(
         Ids::InitialContractStateRoot.into(),
         commitment_info.previous_root.0,

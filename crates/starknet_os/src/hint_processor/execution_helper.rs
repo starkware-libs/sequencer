@@ -355,6 +355,8 @@ pub enum ExecutionHelperError {
     EndOfIterator { item_type: String },
     #[error("No call info found.")]
     MissingCallInfo,
+    #[error("No commitment info for contract address: {0:?}.")]
+    MissingCommitmentInfo(ContractAddress),
     #[error("No transaction found.")]
     MissingTx,
     #[error("No transaction execution info found.")]
