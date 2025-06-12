@@ -1,0 +1,12 @@
+# Base requirements definition for sequencer python venv.
+# Actual requirements are installed from requirements.txt - to update it, run the following (note
+# that if the python version in the CI changes from python3.9, use the respective python version):
+# ```bash
+# python3.9 -m venv reqs_venv
+# . reqs_venv/bin/activate
+# pip install -r crates/blockifier_test_utils/resources/blockifier-test-utils-requirements-gen.txt
+# pip freeze > crates/blockifier_test_utils/resources/blockifier-test-utils-requirements.txt
+# deactivate
+# rm -r reqs_venv
+# ```
+cairo-lang==0.14.0a1
