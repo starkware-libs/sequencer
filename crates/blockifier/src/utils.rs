@@ -1,7 +1,11 @@
 use std::collections::HashMap;
+
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
+
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
+use crate::state::state_api::StateReader;
 use crate::transaction::errors::NumericConversionError;
 
 #[cfg(test)]
@@ -94,4 +98,9 @@ pub fn safe_add_gas_panic_on_overflow(gas: GasAmount, added_gas: GasAmount) -> G
             gas, added_gas
         )
     })
+}
+
+// TODO(Meshi): Delete this function.
+pub fn should_migrate(_state_reader: &impl StateReader, _class_hash: ClassHash) -> bool {
+    false
 }

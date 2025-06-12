@@ -1,6 +1,6 @@
 #![allow(non_local_definitions)]
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 use apollo_compile_to_native::config::SierraCompilationConfig;
@@ -56,6 +56,8 @@ pub struct PyCasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<PyFelt, u64>,
     #[pyo3(get)]
     pub sierra_gas_without_casm_hash_computation: u64,
+    #[pyo3(get)]
+    pub class_hashes_for_migration: HashSet<PyFelt>,
 }
 
 impl From<CasmHashComputationData> for PyCasmHashComputationData {
@@ -69,6 +71,11 @@ impl From<CasmHashComputationData> for PyCasmHashComputationData {
             sierra_gas_without_casm_hash_computation: data
                 .sierra_gas_without_casm_hash_computation
                 .0,
+            class_hashes_for_migration: data
+                .class_hashes_for_migration
+                .iter()
+                .map(|class_hash| (*class_hash).into())
+                .collect(),
         }
     }
 }
