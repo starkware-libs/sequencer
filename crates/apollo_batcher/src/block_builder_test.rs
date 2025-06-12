@@ -179,7 +179,7 @@ impl ExpectationHelper {
     /// deadline is reached.
     fn deadline_expectations(&mut self) {
         self.mock_transaction_executor.expect_get_new_results().returning(Vec::new);
-        self.mock_transaction_executor.expect_is_done().returning(|| false);
+        self.mock_transaction_executor.expect_is_done().return_const(false);
     }
 }
 
@@ -696,7 +696,6 @@ async fn test_validate_block_excluded_txs() {
 }
 
 #[rstest]
-#[case::block_full(test_txs(0..3), mock_transaction_executor_block_full(&input_txs), FailOnErrorCause::BlockFull)]
 #[case::deadline_reached(
     test_txs(0..3), mock_partial_transaction_execution(&input_txs, &[], 0),
     FailOnErrorCause::DeadlineReached
@@ -988,8 +987,11 @@ async fn partial_chunk_execution_proposer() {
     assert_eq!(result_block_artifacts, expected_block_artifacts_copy);
 }
 
+#[rstest]
+#[case::success(true)]
+#[case::fail(false)]
 #[tokio::test]
-async fn partial_chunk_execution_validator() {
+async fn partial_chunk_execution_validator(#[case] successful: bool) {
     let input_txs = test_txs(0..3);
 
     let mut helper = ExpectationHelper::new();
@@ -1000,14 +1002,29 @@ async fn partial_chunk_execution_validator() {
     helper.expect_successful_get_new_results(2);
     helper.expect_is_done(true);
 
-    helper.mock_transaction_executor.expect_close_block().times(0);
-    helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+    let expected_block_artifacts = if successful {
+        helper.mock_transaction_executor.expect_abort_block().times(0);
+        Some(set_close_block_expectations(&mut helper.mock_transaction_executor, 2))
+    } else {
+        // Validator continues the loop even after the scheduler is done.
+        helper.mock_transaction_executor.expect_get_new_results().times(1..).returning(Vec::new);
+        helper.mock_transaction_executor.expect_is_done().times(1..).return_const(true);
 
-    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs.clone()]);
+        helper.mock_transaction_executor.expect_close_block().times(0);
+        helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+        None
+    };
+
+    // Success: the proposer suggests n_txs_in_block=2, and since those were executed successfully,
+    // the validator succeeds.
+    // Fail: the proposer suggests n_txs_in_block=3, and the validator fails.
+    let n_txs_in_block = if successful { 2 } else { 3 };
+    let mut mock_tx_provider =
+        mock_tx_provider_limited_calls_ex(vec![input_txs.clone()], Some(n_txs_in_block));
+    mock_tx_provider.expect_get_txs().with(eq(2)).returning(|_n_txs| Ok(NextTxs::Txs(Vec::new())));
+
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
-    // Block should return BlockFull error since a chunk is not completed, a time constrain on
-    // block.
     let is_validator = true;
     let result_block_artifacts = run_build_block(
         helper.mock_transaction_executor,
@@ -1019,8 +1036,13 @@ async fn partial_chunk_execution_validator() {
     )
     .await;
 
-    assert!(matches!(
-        result_block_artifacts,
-        Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull))
-    ));
+    if successful {
+        assert_eq!(result_block_artifacts.unwrap(), expected_block_artifacts.unwrap());
+    } else {
+        // Deadline is reached since the validator never completes 3 transactions.
+        assert!(matches!(
+            result_block_artifacts,
+            Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached))
+        ));
+    }
 }
