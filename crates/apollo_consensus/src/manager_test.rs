@@ -19,6 +19,7 @@ use super::{run_consensus, MultiHeightManager, RunHeightRes};
 use crate::config::TimeoutsConfig;
 use crate::test_utils::{precommit, prevote, proposal_init, MockTestContext, TestProposalPart};
 use crate::types::ValidatorId;
+use crate::RunConsensusArguments;
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
@@ -105,14 +106,13 @@ async fn manager_multiple_heights_unordered() {
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
+    let mut manager =
+        MultiHeightManager::new(*VALIDATOR_ID, SYNC_RETRY_INTERVAL, false, TIMEOUTS.clone());
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
             &mut context,
             BlockNumber(1),
-            false,
-            SYNC_RETRY_INTERVAL,
             false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
@@ -127,8 +127,6 @@ async fn manager_multiple_heights_unordered() {
         .run_height(
             &mut context,
             BlockNumber(2),
-            false,
-            SYNC_RETRY_INTERVAL,
             false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
@@ -176,20 +174,22 @@ async fn run_consensus_sync() {
     let mut network_sender = mock_network.broadcasted_messages_sender;
     send(&mut network_sender, prevote(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
     send(&mut network_sender, precommit(Some(Felt::TWO), 2, 0, *PROPOSER_ID)).await;
-
+    let run_consensus_args = RunConsensusArguments {
+        start_active_height: BlockNumber(1),
+        start_observe_height: BlockNumber(1),
+        validator_id: *VALIDATOR_ID,
+        consensus_delay: Duration::ZERO,
+        timeouts: TIMEOUTS.clone(),
+        sync_retry_interval: SYNC_RETRY_INTERVAL,
+        no_byzantine_validators: false,
+    };
     // Start at height 1.
     tokio::spawn(async move {
         run_consensus(
             context,
-            BlockNumber(1),
-            BlockNumber(1),
-            *VALIDATOR_ID,
-            Duration::ZERO,
-            TIMEOUTS.clone(),
-            SYNC_RETRY_INTERVAL,
-            false,
             subscriber_channels.into(),
             proposal_receiver_receiver,
+            run_consensus_args,
         )
         .await
     });
@@ -238,14 +238,13 @@ async fn test_timeouts() {
         });
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
+    let mut manager =
+        MultiHeightManager::new(*VALIDATOR_ID, SYNC_RETRY_INTERVAL, false, TIMEOUTS.clone());
     let manager_handle = tokio::spawn(async move {
         let decision = manager
             .run_height(
                 &mut context,
                 BlockNumber(1),
-                false,
-                SYNC_RETRY_INTERVAL,
                 false,
                 &mut subscriber_channels.into(),
                 &mut proposal_receiver_receiver,
@@ -296,13 +295,12 @@ async fn timely_message_handling() {
     // Fill up the buffer.
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
 
-    let mut manager = MultiHeightManager::new(*VALIDATOR_ID, TIMEOUTS.clone());
+    let mut manager =
+        MultiHeightManager::new(*VALIDATOR_ID, SYNC_RETRY_INTERVAL, false, TIMEOUTS.clone());
     let res = manager
         .run_height(
             &mut context,
             BlockNumber(1),
-            false,
-            SYNC_RETRY_INTERVAL,
             false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
