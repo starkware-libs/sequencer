@@ -9,12 +9,12 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::types::{HintArgs, HintArgsNoHP};
+use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn remaining_gas_gt_max(
-    HintArgsNoHP { vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let remaining_gas =
         get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;

@@ -3,12 +3,12 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_f
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
-use crate::hints::types::{HintArgs, HintArgsNoHP};
+use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn allocate_segments_for_messages(
-    HintArgsNoHP { vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let segment1 = vm.add_temporary_segment();
     let segment2 = vm.add_temporary_segment();

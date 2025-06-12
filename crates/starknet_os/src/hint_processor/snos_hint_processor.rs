@@ -36,7 +36,7 @@ use crate::hint_processor::test_hint::test_hint;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
-use crate::hints::types::{HintArgs, HintArgsNoHP, HintEnum};
+use crate::hints::types::{HintArgs, HintEnum};
 use crate::io::os_input::{
     CachedStateInput,
     CommitmentInfo,
@@ -271,16 +271,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
                 // OS hint, aggregator hint, Cairo0 syscall.
                 return match hint {
                     AllHints::StatelessHint(stateless) => {
-                        stateless.execute_hint(
-                            self,
-                            HintArgsNoHP {
-                                vm,
-                                exec_scopes,
-                                ids_data: &hint_processor_data.ids_data,
-                                ap_tracking: &hint_processor_data.ap_tracking,
-                                constants,
-                            },
-                        )?;
+                        stateless.execute_hint(self, hint_args)?;
                         Ok(HintExtension::default())
                     }
                     AllHints::OsHint(os_hint) => {

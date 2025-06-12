@@ -13,7 +13,7 @@ use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
-use crate::hints::types::{HintArgs, HintArgsNoHP};
+use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::insert_values_to_fields;
 
@@ -105,7 +105,7 @@ pub(crate) fn set_ap_to_new_block_hash<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn starknet_os_input(HintArgsNoHP { .. }: HintArgsNoHP<'_>) -> OsHintResult {
+pub(crate) fn starknet_os_input(HintArgs { .. }: HintArgs<'_>) -> OsHintResult {
     // Nothing to do here; OS input already available on the hint processor.
     Ok(())
 }
@@ -130,7 +130,7 @@ pub(crate) fn get_n_blocks<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn log_remaining_blocks(
-    HintArgsNoHP { vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_blocks = get_integer_from_var_name(Ids::NBlocks.into(), vm, ids_data, ap_tracking)?;
     log::debug!("execute_blocks: {n_blocks} blocks remaining.");
