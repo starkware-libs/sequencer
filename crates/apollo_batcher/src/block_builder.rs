@@ -463,7 +463,10 @@ async fn collect_execution_results_and_stream_txs(
 
         // Insert the tx_hash into the appropriate collection if it's an L1_Handler transaction.
         if let InternalConsensusTransaction::L1Handler(_) = input_tx {
-            execution_data.consumed_l1_handler_tx_hashes.insert(tx_hash);
+            let is_new_entry = execution_data.consumed_l1_handler_tx_hashes.insert(tx_hash);
+            // Even though this doesn't get past the set insertion, this indicates a major, possibly
+            // reorg-producing bug, either in some batcher cache or the l1 provider.
+            assert!(is_new_entry, "Duplicate L1 handler transaction hash: {tx_hash}.");
         }
 
         match result {
@@ -472,8 +475,9 @@ async fn collect_execution_results_and_stream_txs(
                     .checked_add(tx_execution_info.receipt.gas.l2_gas)
                     .expect("Total L2 gas overflow.");
 
-                let (tx_index, _) =
+                let (tx_index, duplicate_tx_hash) =
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
+                assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
 
                 if let Some(output_content_sender) = output_content_sender {
                     // Only reached in proposal flow.
@@ -514,7 +518,8 @@ async fn collect_execution_results_and_stream_txs(
                         FailOnErrorCause::TransactionFailed(err),
                     ));
                 }
-                execution_data.rejected_tx_hashes.insert(tx_hash);
+                let is_new_entry = execution_data.rejected_tx_hashes.insert(tx_hash);
+                assert!(is_new_entry, "Duplicate rejected transaction hash: {tx_hash}.");
             }
         }
     }
