@@ -11,12 +11,14 @@ use apollo_l1_provider_types::InvalidValidationStatus::{
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
+    TransactionExecutionOutput,
     TransactionExecutorError,
     TransactionExecutorResult,
 };
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::fee::receipt::TransactionReceipt;
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -148,7 +150,7 @@ impl ExpectationHelper {
 
     fn expect_get_new_results_with_results(
         &mut self,
-        results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+        results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
     ) {
         self.mock_transaction_executor
             .expect_get_new_results()
@@ -159,7 +161,7 @@ impl ExpectationHelper {
 
     fn expect_successful_get_new_results(&mut self, n_txs: usize) {
         self.expect_get_new_results_with_results(
-            (0..n_txs).map(|_| Ok(execution_info())).collect(),
+            (0..n_txs).map(|_| Ok((execution_info(), StateMaps::default()))).collect(),
         );
     }
 
@@ -381,7 +383,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
                             StateError::OutOfRangeContractAddress,
                         ))
                     } else {
-                        Ok(execution_info())
+                        Ok((execution_info(), StateMaps::default()))
                     }
                 })
                 .collect(),
@@ -843,7 +845,7 @@ async fn failed_l1_handler_transaction_consumed() {
     helper.expect_add_txs_to_block(&l1_handler_txs);
     helper.expect_get_new_results_with_results(vec![
         Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress)),
-        Ok(execution_info()),
+        Ok((execution_info(), StateMaps::default())),
     ]);
     helper.expect_is_done(false);
 

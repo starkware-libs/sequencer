@@ -56,6 +56,7 @@ use crate::block_builder::{
     BlockExecutionArtifacts,
     BlockMetadata,
 };
+use crate::cende_client_types::CendeBlockMetadata;
 use crate::config::BatcherConfig;
 use crate::metrics::{
     register_metrics,
@@ -230,10 +231,15 @@ impl Batcher {
         // A channel to receive the transactions included in the proposed block.
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
 
+        let cende_block_metadata = CendeBlockMetadata::new(
+            propose_block_input.block_info.clone(),
+            propose_block_input.retrospective_block_hash,
+        );
         let (pre_confirmed_block_writer, pre_confirmed_tx_sender, executed_tx_sender) =
             self.pre_confirmed_block_writer_factory.create(
                 propose_block_input.block_info.block_number,
                 propose_block_input.proposal_round,
+                cende_block_metadata,
             );
 
         let (block_builder, abort_signal_sender) = self
@@ -807,7 +813,7 @@ pub fn create_batcher(
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
     let pre_confirmed_block_writer_factory = Box::new(PreConfirmedBlockWriterFactory {
-        channel_capacity: config.pre_confirmed_block_writer_channel_capacity,
+        config: config.pre_confirmed_block_writer_config,
         cende_client: pre_confirmed_cende_client,
     });
     let block_builder_factory = Box::new(BlockBuilderFactory {

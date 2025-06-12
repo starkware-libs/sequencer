@@ -17,9 +17,12 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     BlockHash,
+    BlockHashAndNumber,
+    BlockInfo,
     BlockStatus,
     BlockTimestamp,
     GasPricePerToken,
+    GasPrices,
     StarknetVersion,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -412,7 +415,8 @@ impl From<L1HandlerTransaction> for CendePreConfirmedTransaction {
 
 #[derive(Serialize, Clone)]
 pub struct CendeBlockMetadata {
-    pub parent_block_hash: BlockHash,
+    // TODO(noamsp): Delete this field.
+    pub parent_block_hash: Option<BlockHash>,
     pub status: BlockStatus,
     pub starknet_version: StarknetVersion,
     pub l1_da_mode: L1DataAvailabilityMode,
@@ -423,21 +427,57 @@ pub struct CendeBlockMetadata {
     pub sequencer_address: ContractAddress,
 }
 
-// TODO(noamsp): remove this method once we have the all the required info.
 impl CendeBlockMetadata {
-    pub fn empty_pending() -> Self {
+    pub fn new(
+        block_info: BlockInfo,
+        retrospective_block_hash: Option<BlockHashAndNumber>,
+    ) -> Self {
+        let parent_block_hash = retrospective_block_hash.map(|hash| hash.hash);
+
+        let l1_da_mode = match block_info.use_kzg_da {
+            true => L1DataAvailabilityMode::Blob,
+            false => L1DataAvailabilityMode::Calldata,
+        };
+
+        let (l1_gas_price, l1_data_gas_price, l2_gas_price) =
+            get_gas_prices(&block_info.gas_prices);
+
+        // TODO(noamsp): decide if this is the correct value.
+        let status = BlockStatus::Pending;
+        // TODO(noamsp): use correct version.
+        let starknet_version = StarknetVersion::default();
+
         Self {
-            parent_block_hash: BlockHash::default(),
-            status: BlockStatus::Pending,
-            starknet_version: StarknetVersion::default(),
-            l1_da_mode: L1DataAvailabilityMode::default(),
-            l1_gas_price: GasPricePerToken::default(),
-            l1_data_gas_price: GasPricePerToken::default(),
-            l2_gas_price: GasPricePerToken::default(),
-            timestamp: BlockTimestamp::default(),
-            sequencer_address: ContractAddress::default(),
+            parent_block_hash,
+            status,
+            starknet_version,
+            l1_da_mode,
+            l1_gas_price,
+            l1_data_gas_price,
+            l2_gas_price,
+            timestamp: block_info.block_timestamp,
+            sequencer_address: block_info.sequencer_address,
         }
     }
+}
+
+fn get_gas_prices(
+    gas_prices: &GasPrices,
+) -> (GasPricePerToken, GasPricePerToken, GasPricePerToken) {
+    (
+        GasPricePerToken {
+            price_in_fri: gas_prices.strk_gas_prices.l1_gas_price.into(),
+            price_in_wei: gas_prices.eth_gas_prices.l1_gas_price.into(),
+        },
+        GasPricePerToken {
+            price_in_fri: gas_prices.strk_gas_prices.l1_data_gas_price.into(),
+            price_in_wei: gas_prices.eth_gas_prices.l1_data_gas_price.into(),
+        },
+        GasPricePerToken {
+            price_in_fri: gas_prices.strk_gas_prices.l2_gas_price.into(),
+            price_in_wei: gas_prices.eth_gas_prices.l2_gas_price.into(),
+        },
+    )
 }
 
 #[derive(Serialize)]
