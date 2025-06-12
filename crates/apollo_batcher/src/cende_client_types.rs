@@ -17,7 +17,6 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     BlockInfo,
-    BlockStatus,
     BlockTimestamp,
     GasPricePerToken,
     GasPrices,
@@ -412,8 +411,14 @@ impl From<L1HandlerTransaction> for CendePreConfirmedTransaction {
 }
 
 #[derive(Serialize, Clone)]
+pub enum CendePreConfirmedBlockStatus {
+    #[serde(rename = "PRE_CONFIRMED")]
+    PreConfirmed,
+}
+
+#[derive(Serialize, Clone)]
 pub struct CendeBlockMetadata {
-    pub status: BlockStatus,
+    pub status: CendePreConfirmedBlockStatus,
     pub starknet_version: StarknetVersion,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub l1_gas_price: GasPricePerToken,
@@ -433,13 +438,11 @@ impl CendeBlockMetadata {
         let (l1_gas_price, l1_data_gas_price, l2_gas_price) =
             get_gas_prices(&block_info.gas_prices);
 
-        // TODO(noamsp): decide if this is the correct value.
-        let status = BlockStatus::Pending;
         // TODO(noamsp): use correct version.
         let starknet_version = StarknetVersion::default();
 
         Self {
-            status,
+            status: CendePreConfirmedBlockStatus::PreConfirmed,
             starknet_version,
             l1_da_mode,
             l1_gas_price,
