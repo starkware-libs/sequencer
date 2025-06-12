@@ -9,6 +9,7 @@ mod state_machine_test;
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
+use apollo_protobuf::consensus::Vote;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info, trace};
 
@@ -122,8 +123,12 @@ impl StateMachine {
         self.round
     }
 
-    pub fn quorum_size(&self) -> u64 {
-        self.quorum.amount_required(self.total_weight)
+    pub fn total_weight(&self) -> u64 {
+        self.total_weight
+    }
+
+    pub fn quorum(&self) -> &VotesThreshold {
+        &self.quorum
     }
 
     /// Starts the state machine, effectively calling `StartRound(0)` from the paper. This is
