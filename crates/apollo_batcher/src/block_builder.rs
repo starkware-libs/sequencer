@@ -250,13 +250,13 @@ impl BlockBuilder {
 
             self.handle_executed_txs().await?;
 
-            if lock_executor(&self.executor).is_done() {
+            // Check if the block is full. This is only relevant in propose mode.
+            // In validate mode, this is ignored and we simply wait for the proposer to send the
+            // final number of transactions in the block.
+            // TODO(lior): Check !self.execution_params.is_validator before calling `is_done()`.
+            if lock_executor(&self.executor).is_done() && !self.execution_params.is_validator {
                 info!("Block is full.");
-                if self.execution_params.is_validator {
-                    return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
-                } else {
-                    FULL_BLOCKS.increment(1);
-                }
+                FULL_BLOCKS.increment(1);
                 break;
             }
 
@@ -405,7 +405,6 @@ impl BlockBuilder {
             results,
             &mut self.execution_data,
             &self.output_content_sender,
-            self.execution_params.is_validator,
             &self.pre_confirmed_tx_sender,
         )
         .await
@@ -474,7 +473,6 @@ async fn collect_execution_results_and_stream_txs(
     output_content_sender: &Option<
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
-    is_validator: bool,
     pre_confirmed_tx_sender: &Option<PreConfirmedTxSender>,
 ) -> BlockBuilderResult<()> {
     assert!(
@@ -536,11 +534,6 @@ async fn collect_execution_results_and_stream_txs(
                     tx_hash,
                     err.log_compatible_to_string()
                 );
-                if is_validator {
-                    return Err(BlockBuilderError::FailOnError(
-                        FailOnErrorCause::TransactionFailed(err),
-                    ));
-                }
                 let is_new_entry = execution_data.rejected_tx_hashes.insert(tx_hash);
                 assert!(is_new_entry, "Duplicate rejected transaction hash: {tx_hash}.");
             }
