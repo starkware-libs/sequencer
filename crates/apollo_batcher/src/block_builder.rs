@@ -345,6 +345,8 @@ impl BlockBuilder {
             return Ok(AddTxsToExecutorResult::NoNewTxs);
         }
 
+        self.send_candidate_txs(&next_tx_chunk);
+
         self.block_txs.extend(next_tx_chunk.iter().cloned());
 
         let tx_convert_futures = next_tx_chunk.into_iter().map(|tx| async {
@@ -372,8 +374,6 @@ impl BlockBuilder {
         let old_n_executed_txs = self.n_executed_txs;
         self.n_executed_txs += results.len();
 
-        self.send_candidate_txs(old_n_executed_txs, self.n_executed_txs).await;
-
         collect_execution_results_and_stream_txs(
             &self.block_txs[old_n_executed_txs..self.n_executed_txs],
             results,
@@ -386,14 +386,14 @@ impl BlockBuilder {
         .await
     }
 
-    async fn send_candidate_txs(&mut self, from_tx: usize, to_tx: usize) {
+    fn send_candidate_txs(&mut self, next_tx_chunk: &[InternalConsensusTransaction]) {
         // Skip sending candidate transactions during validation flow.
         // In validate flow candidate_tx_sender is None.
         let Some(candidate_tx_sender) = &self.candidate_tx_sender else {
             return;
         };
 
-        let txs = self.block_txs[from_tx..to_tx].to_vec();
+        let txs = next_tx_chunk.to_vec();
         let num_txs = txs.len();
 
         trace!(
