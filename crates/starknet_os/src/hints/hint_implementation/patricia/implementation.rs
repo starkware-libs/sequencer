@@ -22,6 +22,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::{
     build_update_tree,
@@ -85,7 +86,8 @@ pub(crate) fn is_case_right(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_bit<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let edge_path_addr = get_address_of_nested_fields(
         ids_data,
@@ -190,7 +192,8 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
     let UpdateTree::InnerNode(inner_node) = node else {
@@ -236,7 +239,8 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn build_descent_map<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_updates: usize = Ids::NUpdates.fetch_as(vm, ids_data, ap_tracking)?;
 
@@ -411,7 +415,8 @@ pub(crate) fn enter_scope_descend_edge(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_edge<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     // We don't support hash verification skipping and the scope variable
     // `__patricia_skip_validation_runner`.
@@ -453,7 +458,8 @@ pub(crate) fn load_edge<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_bottom<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let bottom_hash = HashOutput(
         vm.get_integer(get_address_of_nested_fields(

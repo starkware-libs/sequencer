@@ -5,6 +5,7 @@ use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_ptr_from_var_name;
 use paste::paste;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
@@ -20,7 +21,7 @@ use crate::syscall_handler_utils::SyscallHandlerType;
 /// Expands to:
 ///
 /// pub(crate) fn get_block_number<S: StateReader>(
-/// HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+/// HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
 /// ) -> OsHintResult
 /// {
 ///     assert_eq!(
@@ -57,14 +58,14 @@ macro_rules! create_syscall_func {
         $(
             #[allow(clippy::result_large_err)]
             pub(crate) fn $name<S: StateReader>(
+                hint_processor: & mut SnosHintProcessor<'_, S>,
                 HintArgs {
-                    hint_processor,
                     vm,
                     ids_data,
                     ap_tracking,
                     exec_scopes,
                     ..
-                }: HintArgs<'_, '_, S>
+                }: HintArgs<'_>
             ) -> OsHintResult {
                 assert_eq!(
                     exec_scopes.get::<SyscallHandlerType>(Scope::SyscallHandlerType.into())?,
@@ -123,7 +124,8 @@ create_syscall_func!(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_syscall_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     assert!(
         !exec_scopes
