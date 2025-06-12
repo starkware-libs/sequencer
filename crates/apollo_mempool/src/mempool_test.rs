@@ -21,8 +21,11 @@ use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
+use starknet_api::test_utils::invoke::internal_invoke_tx;
+use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{contract_address, declare_tx_args, nonce, tx_hash};
+use starknet_api::{contract_address, declare_tx_args, felt, invoke_tx_args, nonce, tx_hash};
+use starknet_types_core::felt::Felt;
 
 use super::AddTransactionQueue;
 use crate::communication::MempoolCommunicationWrapper;
@@ -1599,4 +1602,62 @@ fn test_gap_tracking_during_declare_delay(#[case] trigger_in_add_tx: bool) {
     // Verify gap is closed
     let tracker = mempool.accounts_with_gap();
     assert!(!tracker.contains(&first_tx.tx.contract_address()));
+}
+
+#[rstest]
+fn test_eviction_rejected_when_accounts_with_gap_empty() {
+    let not_evictable_tx = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
+
+    let mut mempool = Mempool::new(
+        MempoolConfig {
+            capacity_in_bytes: not_evictable_tx.tx.total_bytes(),
+            ..Default::default()
+        },
+        Arc::new(FakeClock::default()),
+    );
+
+    add_tx(&mut mempool, &not_evictable_tx);
+    assert!(mempool.accounts_with_gap().is_empty());
+
+    let tx = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    add_tx_expect_error(&mut mempool, &tx, MempoolError::MempoolFull);
+}
+
+#[rstest]
+fn test_evicts_entire_account_before_next_to_fit_large_transaction() {
+    let tx1 = add_tx_input!(tx_hash: 1, address: "0x1", tx_nonce: 1, account_nonce: 0);
+    let tx2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 2, account_nonce: 0);
+    let tx3 = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 3, account_nonce: 0);
+    let tx4 = add_tx_input!(tx_hash: 4, address: "0x2", tx_nonce: 1, account_nonce: 0);
+
+    let big_signature: Vec<Felt> = (0..15).map(|_| felt!("0x0")).collect();
+    let large_tx_args = invoke_tx_args!(
+        tx_hash: tx_hash!(5),
+        signature: TransactionSignature(big_signature.into()),
+    );
+    let large_tx = AddTransactionArgs {
+        tx: internal_invoke_tx(large_tx_args),
+        account_state: AccountState { address: contract_address!("0x0"), nonce: nonce!(0) },
+    };
+
+    let mut mempool = Mempool::new(
+        MempoolConfig { capacity_in_bytes: tx1.tx.total_bytes() * 4, ..Default::default() },
+        Arc::new(FakeClock::default()),
+    );
+
+    for tx in [&tx1, &tx2, &tx3, &tx4, &large_tx] {
+        add_tx(&mut mempool, tx);
+    }
+
+    assert!(mempool.tx_pool.get_by_tx_hash(tx3.tx.tx_hash()).is_err());
+    assert!(mempool.tx_pool.get_by_tx_hash(tx2.tx.tx_hash()).is_err());
+
+    // Eviction depends on which account is chosen first — only one of tx1 or tx4 will remain.
+    // Eviction stops as soon as enough space is freed for the large transaction.
+    let tx1_evicted = mempool.tx_pool.get_by_tx_hash(tx1.tx.tx_hash()).is_err();
+    let tx4_evicted = mempool.tx_pool.get_by_tx_hash(tx4.tx.tx_hash()).is_err();
+    assert!(tx1_evicted ^ tx4_evicted);
+
+    assert!(mempool.tx_pool.get_by_tx_hash(large_tx.tx.tx_hash()).is_ok());
+    assert_eq!(mempool.tx_pool.len(), 2);
 }
