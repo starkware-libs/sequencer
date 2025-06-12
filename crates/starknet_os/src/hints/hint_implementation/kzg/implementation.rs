@@ -14,7 +14,7 @@ use crate::hints::hint_implementation::kzg::utils::{
     polynomial_coefficients_to_kzg_commitment,
     split_bigint3,
 };
-use crate::hints::types::HintArgs;
+use crate::hints::types::{HintArgs, HintArgsNoHP};
 use crate::hints::vars::{Const, Ids};
 
 #[allow(clippy::result_large_err)]
@@ -81,8 +81,8 @@ pub(crate) fn store_da_segment<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn write_split_result<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn write_split_result(
+    HintArgsNoHP { vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let value =
         get_integer_from_var_name(Ids::Value.into(), vm, ids_data, ap_tracking)?.to_bigint();
