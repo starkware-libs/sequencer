@@ -71,9 +71,11 @@ pub trait SyscallExecutor {
 
     fn gas_costs(&self) -> &GasCosts;
 
-    fn get_sha256_segment_end_ptr(&self, vm: &mut VirtualMachine) -> Relocatable;
-
-    fn set_sha256_segment_end_ptr(&mut self, segment_end_ptr: Relocatable);
+    fn write_sha256_state(
+        &mut self,
+        state: &[MaybeRelocatable],
+        vm: &mut VirtualMachine,
+    ) -> Result<Relocatable, Self::Error>;
 
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config>;
 
@@ -249,15 +251,9 @@ pub trait SyscallExecutor {
 
         sha2::compress256(&mut state_as_words, &[data_as_bytes]);
 
-        let segment = syscall_handler.get_sha256_segment_end_ptr(vm);
-
-        let response = segment;
         let data: Vec<MaybeRelocatable> =
             state_as_words.iter().map(|&arg| MaybeRelocatable::from(Felt::from(arg))).collect();
-
-        syscall_handler.set_sha256_segment_end_ptr(
-            vm.load_data(segment, &data).map_err(SyscallExecutorBaseError::from)?,
-        );
+        let response = syscall_handler.write_sha256_state(&data, vm)?;
 
         Ok(Sha256ProcessBlockResponse { state_ptr: response })
     }
