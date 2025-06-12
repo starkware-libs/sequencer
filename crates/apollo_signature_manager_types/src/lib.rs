@@ -19,7 +19,7 @@ pub type SharedSignatureManagerClient = Arc<dyn SignatureManagerClient>;
 
 /// A read-only keystore that contains exactly one key.
 #[async_trait]
-pub trait KeyStore {
+pub trait KeyStore: Send + Sync {
     /// Retrieve a reference to the contained private key.
     async fn get_key(&self) -> KeyStoreResult<PrivateKey>;
 }
