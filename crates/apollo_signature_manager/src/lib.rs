@@ -1,3 +1,5 @@
+pub mod communication;
+
 use std::ops::Deref;
 
 use apollo_signature_manager_types::{
@@ -201,8 +203,8 @@ mod tests {
     #[tokio::test]
     async fn test_identify() {
         let key_store = TestKeyStore::new();
-        let signature_manager = SignatureManager::new(key_store);
 
+        let signature_manager = SignatureManager::new(key_store);
         let peer_id = PeerId(b"alice".to_vec());
         let signature = signature_manager.identify(peer_id.clone()).await;
 

@@ -6,7 +6,9 @@ repository.workspace = true
 license.workspace = true
 
 [dependencies]
+apollo_infra.workspace = true
 apollo_signature_manager_types.workspace = true
+async-trait.workspace = true
 blake2s.workspace = true
 starknet-core.workspace = true
 starknet_api.workspace = true
