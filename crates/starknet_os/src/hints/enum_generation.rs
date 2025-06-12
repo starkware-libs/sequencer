@@ -71,13 +71,15 @@ macro_rules! define_hint_enum {
         impl $enum_name {
             #[allow(clippy::result_large_err)]
             pub fn execute_hint<S: StateReader>(
-                &self, hint_args: HintArgs<'_, '_, S>
+                &self,
+                hint_processor: &mut SnosHintProcessor<'_, S>,
+                hint_args: HintArgs<'_>
             ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
                         #[cfg(feature="testing")]
-                        hint_args.hint_processor.unused_hints.remove(&Self::$hint_name.into());
-                        $implementation::<S>(hint_args)
+                        hint_processor.unused_hints.remove(&Self::$hint_name.into());
+                        $implementation::<S>(hint_processor, hint_args)
                     })+
 
                 }
@@ -99,16 +101,16 @@ macro_rules! define_hint_extension_enum {
             #[allow(clippy::result_large_err)]
             pub fn execute_hint_extensive<S: StateReader>(
                 &self,
-                hint_extension_args: HintArgs<'_, '_, S>,
+                hint_processor: &mut SnosHintProcessor<'_, S>,
+                hint_extension_args: HintArgs<'_>,
             ) -> OsHintExtensionResult {
                 match self {
                     $(Self::$hint_name => {
                         #[cfg(feature="testing")]
-                        hint_extension_args
-                            .hint_processor
+                            hint_processor
                             .unused_hints
                             .remove(&Self::$hint_name.into());
-                        $implementation::<S>(hint_extension_args)
+                        $implementation::<S>(hint_processor, hint_extension_args)
                     })+
                 }
             }

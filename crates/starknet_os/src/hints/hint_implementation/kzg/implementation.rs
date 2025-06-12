@@ -9,6 +9,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::kzg::utils::{
     polynomial_coefficients_to_kzg_commitment,
@@ -19,7 +20,8 @@ use crate::hints::vars::{Const, Ids};
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn store_da_segment<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     log::debug!("Executing store_da_segment hint.");
     let state_updates_start =

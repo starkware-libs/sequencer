@@ -13,6 +13,7 @@ use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::ContractClass;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
@@ -20,7 +21,8 @@ use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     insert_value_from_var_name(
         Ids::NCompiledClassFacts.into(),
@@ -35,11 +37,8 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_deprecated_class_inner<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<
-        '_,
-        '_,
-        S,
-    >,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_>,
 ) -> OsHintResult {
     let (class_hash, deprecated_class) =
         hint_processor.deprecated_compiled_classes_iter.next().ok_or_else(|| {
@@ -63,7 +62,8 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_deprecated_class<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintExtensionResult {
     let computed_hash_addr = get_address_of_nested_fields(
         ids_data,
