@@ -21,7 +21,7 @@ use crate::hints::hint_implementation::compiled_class::utils::{
     BytecodeSegmentNode,
     CompiledClassFact,
 };
-use crate::hints::types::HintArgs;
+use crate::hints::types::{HintArgs, HintArgsNoHP};
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
     get_address_of_nested_fields,
@@ -31,8 +31,8 @@ use crate::vm_utils::{
 };
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn assign_bytecode_segments<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn assign_bytecode_segments(
+    HintArgsNoHP { exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let bytecode_segment_structure: BytecodeSegmentNode =
         exec_scopes.get(Scope::BytecodeSegmentStructure.into())?;
@@ -47,8 +47,8 @@ pub(crate) fn assign_bytecode_segments<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn assert_end_of_bytecode_segments(
+    HintArgsNoHP { exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let bytecode_segments: &mut IntoIter<BytecodeSegment> =
         exec_scopes.get_mut_ref(Scope::BytecodeSegments.into())?;
@@ -95,8 +95,8 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn delete_memory_data<S: StateReader>(
-    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn delete_memory_data(
+    HintArgsNoHP { vm, ap_tracking, ids_data, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
     if vm.is_accessed(&data_ptr)? {
@@ -109,8 +109,8 @@ pub(crate) fn delete_memory_data<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn is_leaf<S: StateReader>(
-    HintArgs { vm, exec_scopes, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn is_leaf(
+    HintArgsNoHP { vm, exec_scopes, ap_tracking, ids_data, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let bytecode_segment_structure: &BytecodeSegmentNode =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;
@@ -125,8 +125,8 @@ pub(crate) fn is_leaf<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn iter_current_segment_info<S: StateReader>(
-    HintArgs { exec_scopes, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn iter_current_segment_info(
+    HintArgsNoHP { exec_scopes, vm, ap_tracking, ids_data, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let bytecode_segments: &mut IntoIter<BytecodeSegment> =
         exec_scopes.get_mut_ref(Scope::BytecodeSegments.into())?;
@@ -209,8 +209,8 @@ pub(crate) fn load_class<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
-    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn set_ap_to_segment_hash(
+    HintArgsNoHP { exec_scopes, vm, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let bytecode_segment_structure: &BytecodeSegmentNode =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;

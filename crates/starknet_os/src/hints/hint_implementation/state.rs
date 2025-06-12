@@ -9,7 +9,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::create_preimage_mapping;
-use crate::hints::types::HintArgs;
+use crate::hints::types::{HintArgs, HintArgsNoHP};
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::io::os_input::CommitmentInfo;
 
@@ -74,8 +74,8 @@ fn set_preimage_for_commitments<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn compute_commitments_on_finalized_state_with_aliases<S: StateReader>(
-    HintArgs { .. }: HintArgs<'_, '_, S>,
+pub(crate) fn compute_commitments_on_finalized_state_with_aliases(
+    HintArgsNoHP { .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     // Do nothing here and use `address_to_storage_commitment_info` directly from the execution
     // helper.
