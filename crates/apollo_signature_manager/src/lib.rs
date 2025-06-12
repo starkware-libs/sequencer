@@ -1,3 +1,5 @@
+pub mod communication;
+
 use apollo_signature_manager_types::{
     KeyStore,
     PeerId,
