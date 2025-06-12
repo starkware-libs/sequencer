@@ -13,6 +13,10 @@ use crate::mempool::TransactionReference;
 use crate::metrics::TRANSACTION_TIME_SPENT_IN_MEMPOOL;
 use crate::utils::{try_increment_nonce, Clock};
 
+#[cfg(test)]
+#[path = "transaction_pool_test.rs"]
+pub mod transaction_pool_test;
+
 type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
 
 /// Contains all transactions currently held in the mempool.
@@ -163,6 +167,10 @@ impl TransactionPool {
             .get(&tx_hash)
             .map(|submission_id| submission_id.submission_time)
             .ok_or(MempoolError::TransactionNotFound { tx_hash })
+    }
+
+    pub fn get_lowest_nonce(&self, address: ContractAddress) -> Option<Nonce> {
+        self.account_txs_sorted_by_nonce(address).next().map(|tx_ref| tx_ref.nonce)
     }
 
     fn remove_from_main_mapping(&mut self, removed_txs: &Vec<TransactionReference>) {
