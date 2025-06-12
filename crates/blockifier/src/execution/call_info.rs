@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::iter::Sum;
 use std::ops::{Add, AddAssign};
+use std::time::Duration;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
@@ -211,6 +212,9 @@ pub struct CallInfo {
     pub accessed_storage_keys: HashSet<StorageKey>,
     pub read_class_hash_values: Vec<ClassHash>,
     pub accessed_contract_addresses: HashSet<ContractAddress>,
+    /// Execution time of the contract call.
+    /// None implies that the time was not measured.
+    pub time: Option<Duration>,
 }
 
 impl CallInfo {
