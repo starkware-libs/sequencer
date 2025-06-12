@@ -226,7 +226,7 @@ use crate::hints::hint_implementation::syscalls::{
     storage_read,
     storage_write,
 };
-use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
+use crate::hints::types::{HintArgs, HintEnum};
 use crate::{define_hint_enum, define_hint_extension_enum};
 
 #[cfg(test)]
