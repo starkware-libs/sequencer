@@ -335,8 +335,9 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
 impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
 pub struct SyscallHintProcessor {
-    // Sha256 segments.
-    pub(crate) sha256_segment_end_ptr: Option<Relocatable>,
+    // Sha256 segment related fields.
+    pub(crate) sha256_segment: Option<Relocatable>,
+    _sha256_block_count: usize,
     syscall_ptr: Option<Relocatable>,
     pub(crate) syscall_usage: SyscallUsageMap,
 
@@ -350,11 +351,12 @@ pub struct SyscallHintProcessor {
 impl SyscallHintProcessor {
     pub fn new() -> Self {
         Self {
-            sha256_segment_end_ptr: None,
+            sha256_segment: None,
             syscall_ptr: None,
             secp256k1_hint_processor: SecpHintProcessor::default(),
             secp256r1_hint_processor: SecpHintProcessor::default(),
             syscall_usage: SyscallUsageMap::new(),
+            _sha256_block_count: 0,
         }
     }
 
