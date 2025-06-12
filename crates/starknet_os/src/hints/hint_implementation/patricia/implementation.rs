@@ -36,7 +36,7 @@ use crate::hints::hint_implementation::patricia::utils::{
     PreimageMap,
     UpdateTree,
 };
-use crate::hints::types::HintArgs;
+use crate::hints::types::{HintArgs, HintArgsNoHP};
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{
     get_address_of_nested_fields,
@@ -47,8 +47,8 @@ use crate::vm_utils::{
 };
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_siblings<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn set_siblings(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let descend: &Path = exec_scopes.get_ref(Scope::Descend.into())?;
 
@@ -64,8 +64,8 @@ pub(crate) fn set_siblings<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn is_case_right<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn is_case_right(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
     let bit = get_integer_from_var_name(Ids::Bit.into(), vm, ids_data, ap_tracking)?;
@@ -107,8 +107,8 @@ pub(crate) fn set_bit<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_ap_to_descend<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn set_ap_to_descend(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let descent_map: &DescentMap = exec_scopes.get_ref(Scope::DescentMap.into())?;
 
@@ -133,8 +133,8 @@ pub(crate) fn set_ap_to_descend<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn assert_case_is_right<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn assert_case_is_right(
+    HintArgsNoHP { exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
     if case != DecodeNodeCase::Right {
@@ -144,8 +144,8 @@ pub(crate) fn assert_case_is_right<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn write_case_not_left_to_ap<S: StateReader>(
-    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn write_case_not_left_to_ap(
+    HintArgsNoHP { vm, exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
     let value = Felt::from(case != DecodeNodeCase::Left);
@@ -154,8 +154,8 @@ pub(crate) fn write_case_not_left_to_ap<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn split_descend<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn split_descend(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let descend: &Path = exec_scopes.get_ref(Scope::Descend.into())?;
     let length: u8 = descend.0.length.into();
@@ -168,8 +168,8 @@ pub(crate) fn split_descend<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn height_is_zero_or_len_node_preimage_is_two(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let height = get_integer_from_var_name(Ids::Height.into(), vm, ids_data, ap_tracking)?;
 
@@ -303,16 +303,14 @@ fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_node<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn enter_scope_node(HintArgsNoHP { exec_scopes, .. }: HintArgsNoHP<'_>) -> OsHintResult {
     let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
     enter_scope_specific_node(node, exec_scopes)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_new_node<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_new_node(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
 
@@ -353,38 +351,38 @@ fn enter_scope_next_node_bit(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_next_node_bit_0<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_next_node_bit_0(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     enter_scope_next_node_bit(false, vm, exec_scopes, ids_data, ap_tracking)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_next_node_bit_1<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_next_node_bit_1(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     enter_scope_next_node_bit(true, vm, exec_scopes, ids_data, ap_tracking)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_left_child<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_left_child(
+    HintArgsNoHP { exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let left_child: UpdateTree = exec_scopes.get(Scope::LeftChild.into())?;
     enter_scope_specific_node(left_child, exec_scopes)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_right_child<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_right_child(
+    HintArgsNoHP { exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let right_child: UpdateTree = exec_scopes.get(Scope::RightChild.into())?;
     enter_scope_specific_node(right_child, exec_scopes)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_descend_edge<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_descend_edge(
+    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let mut new_node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
     let length: u8 = Ids::Length.fetch_as(vm, ids_data, ap_tracking)?;
@@ -493,9 +491,7 @@ pub(crate) fn load_bottom<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn decode_node<S: StateReader>(
-    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn decode_node(HintArgsNoHP { vm, exec_scopes, .. }: HintArgsNoHP<'_>) -> OsHintResult {
     let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
     let UpdateTree::InnerNode(inner_node) = node else {
         return Err(OsHintError::ExpectedInnerNode);

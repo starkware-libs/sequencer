@@ -37,6 +37,32 @@ macro_rules! define_hint_enum_base {
 }
 
 #[macro_export]
+macro_rules! define_stateless_hint_enum {
+    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+
+        $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
+
+        impl $enum_name {
+            #[allow(clippy::result_large_err)]
+            pub fn execute_hint<S: StateReader>(
+                &self,
+                _hint_processor: &mut SnosHintProcessor<'_, S>,
+                hint_args: HintArgsNoHP<'_,>
+            ) -> OsHintResult {
+                match self {
+                    $(Self::$hint_name => {
+                        #[cfg(feature="testing")]
+                        _hint_processor.unused_hints.remove(&Self::$hint_name.into());
+                        $implementation(hint_args)
+                    })+
+
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
 macro_rules! define_hint_enum {
     ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
 
@@ -44,7 +70,9 @@ macro_rules! define_hint_enum {
 
         impl $enum_name {
             #[allow(clippy::result_large_err)]
-            pub fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, '_, S>) -> OsHintResult {
+            pub fn execute_hint<S: StateReader>(
+                &self, hint_args: HintArgs<'_, '_, S>
+            ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
                         #[cfg(feature="testing")]
