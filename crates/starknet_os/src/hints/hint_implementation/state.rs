@@ -109,13 +109,7 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
             .try_into()?;
     hint_processor.contract_address = Some(contract_address);
-    let commitment_info = hint_processor
-        .execution_helpers_manager
-        .get_current_execution_helper()?
-        .os_block_input
-        .address_to_storage_commitment_info
-        .get(&contract_address)
-        .ok_or(OsHintError::MissingCommitmentInfo(contract_address))?;
+    let commitment_info = hint_processor.get_commitment_info()?;
     insert_value_from_var_name(
         Ids::InitialContractStateRoot.into(),
         commitment_info.previous_root.0,
