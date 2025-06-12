@@ -1907,6 +1907,7 @@ dependencies = [
  "pretty_assertions",
  "rstest",
  "starknet-core",
+ "starknet-crypto",
  "starknet_api",
  "tokio",
 ]
