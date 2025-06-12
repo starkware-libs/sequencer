@@ -5,7 +5,11 @@ use apollo_consensus::metrics::{
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
 };
-use apollo_consensus_manager::metrics::CONSENSUS_VOTES_NUM_SENT_MESSAGES;
+use apollo_consensus_manager::metrics::{
+    CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
+    CONSENSUS_VOTES_NUM_SENT_MESSAGES,
+};
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_mempool::metrics::{
@@ -13,8 +17,10 @@ use apollo_mempool::metrics::{
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
+use apollo_mempool_p2p::metrics::{MEMPOOL_P2P_NUM_CONNECTED_PEERS, MEMPOOL_P2P_NUM_SENT_MESSAGES};
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
+    P2P_SYNC_NUM_CONNECTED_PEERS,
     STATE_SYNC_CLASS_MANAGER_MARKER,
 };
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
@@ -32,6 +38,9 @@ use crate::alerts::{
 
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
 pub const PROMETHEUS_EPSILON: f64 = 0.0001;
+pub const EXPECTED_CONSENSUS_CONNECTED_PEERS: f64 = 3.0; // TODO: make configurable
+pub const EXPECTED_MEMPOOL_P2P_CONNECTED_PEERS: f64 = 3.0; // TODO: make configurable
+pub const EXPECTED_P2P_SYNC_CONNECTED_PEERS: f64 = 3.0; // TODO: make configurable
 
 // Within 30s the metrics should be updated at least twice.
 // If in one of those times the block number is not updated, fire an alert.
@@ -291,15 +300,116 @@ const LAST_BATCHED_BLOCK_STUCK: Alert = Alert {
     severity: AlertSeverity::Regular,
 };
 
+const CONSENSUS_NUM_CONNECTED_PEERS_LOW: Alert = Alert {
+    name: "consensus_num_connected_peers_low",
+    title: "Consensus: Number of connected peers is low",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("avg_over_time({}[10m])", CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: EXPECTED_CONSENSUS_CONNECTED_PEERS,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "10m",
+    evaluation_interval_sec: 60,
+    severity: AlertSeverity::Regular,
+};
+
+const MEMPOOL_P2P_NUM_CONNECTED_PEERS_LOW: Alert = Alert {
+    name: "mempool_p2p_num_connected_peers_low",
+    title: "Mempool P2P: Number of connected peers is low",
+    alert_group: AlertGroup::Mempool,
+    expr: formatcp!(
+        "avg_over_time({}[10m])",
+        MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()
+    ),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: EXPECTED_MEMPOOL_P2P_CONNECTED_PEERS,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "10m",
+    evaluation_interval_sec: 60,
+    severity: AlertSeverity::Regular,
+};
+
+const MEMPOOL_P2P_SENT_MESSAGES_STUCK: Alert = Alert {
+    name: "mempool_p2p_sent_messages_stuck",
+    title: "Mempool P2P: Sent messages not increasing",
+    alert_group: AlertGroup::Mempool,
+    expr: formatcp!("changes({}[5m])", MEMPOOL_P2P_NUM_SENT_MESSAGES.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 1.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 30,
+    severity: AlertSeverity::Regular,
+};
+
+const P2P_SYNC_NUM_CONNECTED_PEERS_LOW: Alert = Alert {
+    name: "p2p_sync_num_connected_peers_low",
+    title: "P2P Sync: Number of connected peers is low",
+    alert_group: AlertGroup::StateSync,
+    expr: formatcp!("avg_over_time({}[10m])", P2P_SYNC_NUM_CONNECTED_PEERS.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: EXPECTED_P2P_SYNC_CONNECTED_PEERS,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "10m",
+    evaluation_interval_sec: 60,
+    severity: AlertSeverity::Regular,
+};
+
+const CONSENSUS_PROPOSALS_SENT_MESSAGES_STUCK: Alert = Alert {
+    name: "consensus_proposals_sent_messages_stuck",
+    title: "Consensus: Proposals sent messages not increasing",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!(
+        "changes({}[5m])",
+        CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES.get_name_with_filter()
+    ),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 1.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 30,
+    severity: AlertSeverity::Regular,
+};
+
+const CONSENSUS_VOTES_SENT_MESSAGES_STUCK: Alert = Alert {
+    name: "consensus_votes_sent_messages_stuck",
+    title: "Consensus: Votes sent messages not increasing",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("changes({}[5m])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 1.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 30,
+    severity: AlertSeverity::Regular,
+};
+
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BLOCK_NUMBER_STUCK,
     CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
+    CONSENSUS_NUM_CONNECTED_PEERS_LOW,
+    CONSENSUS_PROPOSALS_SENT_MESSAGES_STUCK,
+    CONSENSUS_VOTES_SENT_MESSAGES_STUCK,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
     MEMPOOL_GET_TXS_SIZE_DROP,
+    MEMPOOL_P2P_NUM_CONNECTED_PEERS_LOW,
+    MEMPOOL_P2P_SENT_MESSAGES_STUCK,
     HTTP_SERVER_IDLE,
     MEMPOOL_POOL_SIZE_INCREASE,
     CONSENSUS_ROUND_HIGH_AVG,
@@ -308,4 +418,5 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     STATE_SYNC_STUCK,
     BATCHED_TRANSACTIONS_STUCK,
     LAST_BATCHED_BLOCK_STUCK,
+    P2P_SYNC_NUM_CONNECTED_PEERS_LOW,
 ]);
