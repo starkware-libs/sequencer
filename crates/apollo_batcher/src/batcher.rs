@@ -231,10 +231,7 @@ impl Batcher {
         // A channel to receive the transactions included in the proposed block.
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
 
-        let cende_block_metadata = CendeBlockMetadata::new(
-            propose_block_input.block_info.clone(),
-            propose_block_input.retrospective_block_hash,
-        );
+        let cende_block_metadata = CendeBlockMetadata::new(propose_block_input.block_info.clone());
         let (pre_confirmed_block_writer, pre_confirmed_tx_sender, executed_tx_sender) =
             self.pre_confirmed_block_writer_factory.create(
                 propose_block_input.block_info.block_number,
