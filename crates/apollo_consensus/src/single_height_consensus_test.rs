@@ -12,6 +12,7 @@ use crate::single_height_consensus::{ShcEvent, ShcReturn, ShcTask};
 use crate::state_machine::StateMachineEvent;
 use crate::test_utils::{precommit, prevote, MockTestContext, TestBlock, TestProposalPart};
 use crate::types::ValidatorId;
+use crate::votes_threshold::QuorumType;
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
@@ -77,7 +78,7 @@ async fn proposer() {
         false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
-        false,
+        QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
 
@@ -157,7 +158,7 @@ async fn validator(repeat_proposal: bool) {
         false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
-        false,
+        QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
 
@@ -229,7 +230,7 @@ async fn vote_twice(same_vote: bool) {
         false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
-        false,
+        QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
 
@@ -295,7 +296,7 @@ async fn rebroadcast_votes() {
         false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
-        false,
+        QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
 
@@ -359,7 +360,7 @@ async fn repropose() {
         false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
-        false,
+        QuorumType::Byzantine,
         TIMEOUTS.clone(),
     );
 

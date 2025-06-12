@@ -19,6 +19,7 @@ use super::{run_consensus, MultiHeightManager, RunHeightRes};
 use crate::config::TimeoutsConfig;
 use crate::test_utils::{precommit, prevote, proposal_init, MockTestContext, TestProposalPart};
 use crate::types::ValidatorId;
+use crate::votes_threshold::QuorumType;
 use crate::RunConsensusArguments;
 
 lazy_static! {
@@ -106,8 +107,12 @@ async fn manager_multiple_heights_unordered() {
     context.expect_set_height_and_round().returning(move |_, _| ());
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager =
-        MultiHeightManager::new(*VALIDATOR_ID, SYNC_RETRY_INTERVAL, false, TIMEOUTS.clone());
+    let mut manager = MultiHeightManager::new(
+        *VALIDATOR_ID,
+        SYNC_RETRY_INTERVAL,
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+    );
     let mut subscriber_channels = subscriber_channels.into();
     let decision = manager
         .run_height(
@@ -181,7 +186,7 @@ async fn run_consensus_sync() {
         consensus_delay: Duration::ZERO,
         timeouts: TIMEOUTS.clone(),
         sync_retry_interval: SYNC_RETRY_INTERVAL,
-        no_byzantine_validators: false,
+        quorum_type: QuorumType::Byzantine,
     };
     // Start at height 1.
     tokio::spawn(async move {
@@ -238,8 +243,12 @@ async fn test_timeouts() {
         });
     context.expect_broadcast().returning(move |_| Ok(()));
 
-    let mut manager =
-        MultiHeightManager::new(*VALIDATOR_ID, SYNC_RETRY_INTERVAL, false, TIMEOUTS.clone());
+    let mut manager = MultiHeightManager::new(
+        *VALIDATOR_ID,
+        SYNC_RETRY_INTERVAL,
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+    );
     let manager_handle = tokio::spawn(async move {
         let decision = manager
             .run_height(
@@ -295,8 +304,12 @@ async fn timely_message_handling() {
     // Fill up the buffer.
     while vote_sender.send((vote.clone(), metadata.clone())).now_or_never().is_some() {}
 
-    let mut manager =
-        MultiHeightManager::new(*VALIDATOR_ID, SYNC_RETRY_INTERVAL, false, TIMEOUTS.clone());
+    let mut manager = MultiHeightManager::new(
+        *VALIDATOR_ID,
+        SYNC_RETRY_INTERVAL,
+        QuorumType::Byzantine,
+        TIMEOUTS.clone(),
+    );
     let res = manager
         .run_height(
             &mut context,
