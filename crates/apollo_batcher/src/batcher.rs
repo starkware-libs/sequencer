@@ -85,6 +85,7 @@ use crate::utils::{
     ProposalTask,
 };
 
+pub(crate) const TEMP_N_EXECUTED_TXS: u64 = 0;
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 
@@ -484,7 +485,13 @@ impl Batcher {
                 BatcherError::InternalError
             })?;
 
-        Ok(GetProposalContentResponse { content: GetProposalContent::Finished(commitment) })
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Finished {
+                id: commitment,
+                // TODO(AlonH): Consider sending the number of executed transactions.
+                n_executed_txs: TEMP_N_EXECUTED_TXS,
+            },
+        })
     }
 
     #[instrument(skip(self, sync_block), err)]
