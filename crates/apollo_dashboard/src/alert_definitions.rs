@@ -2,6 +2,7 @@ use apollo_batcher::metrics::{BATCHED_TRANSACTIONS, LAST_BATCHED_BLOCK};
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
@@ -87,14 +88,17 @@ const CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT: Alert = Alert {
     severity: AlertSeverity::DayOnly,
 };
 
-const CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT: Alert = Alert {
-    name: "consensus_votes_num_sent_messages",
-    title: "Consensus votes num sent messages",
+const CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK: Alert = Alert {
+    name: "consensus_decisions_reached_by_consensus_stuck",
+    title: "Consensus decisions reached by consensus stuck",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("rate({}[20m])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
+    expr: formatcp!(
+        "changes({}[10m])",
+        CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter()
+    ),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
-        comparison_value: 100.0 / 3600.0, // 100 per hour
+        comparison_value: 1.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -110,6 +114,21 @@ const CONSENSUS_INBOUND_STREAM_EVICTED_ALERT: Alert = Alert {
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
         comparison_value: 5.0 / 3600.0, // 5 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+
+const CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT: Alert = Alert {
+    name: "consensus_votes_num_sent_messages",
+    title: "Consensus votes num sent messages",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[20m])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 100.0 / 3600.0, // 100 per hour
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -382,6 +401,7 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK,
     CONSENSUS_INBOUND_STREAM_EVICTED_ALERT,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY_TOO_HIGH,
     CENDE_WRITE_BLOB_FAILURE_ALERT,
