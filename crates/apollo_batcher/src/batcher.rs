@@ -248,7 +248,7 @@ impl Batcher {
                 },
                 BlockBuilderExecutionParams {
                     deadline: deadline_as_instant(propose_block_input.deadline)?,
-                    fail_on_err: false,
+                    is_validator: false,
                 },
                 Box::new(tx_provider),
                 Some(output_tx_sender),
@@ -318,7 +318,7 @@ impl Batcher {
                 },
                 BlockBuilderExecutionParams {
                     deadline: deadline_as_instant(validate_block_input.deadline)?,
-                    fail_on_err: true,
+                    is_validator: true,
                 },
                 Box::new(tx_provider),
                 None,
