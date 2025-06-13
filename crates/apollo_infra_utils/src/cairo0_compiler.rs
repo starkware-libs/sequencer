@@ -13,6 +13,8 @@ pub mod test;
 #[derive(Debug, Eq, PartialEq)]
 pub struct CairoLangVersion<'a>(pub &'a str);
 
+pub const EXPECTED_CAIRO0_STARKNET_COMPILE_VERSION: CairoLangVersion<'static> =
+    CairoLangVersion("0.14.0a1");
 pub const EXPECTED_CAIRO0_VERSION: CairoLangVersion<'static> = CairoLangVersion("0.14.0a1");
 
 /// The local python requirements used to determine the cairo0 compiler version.
@@ -49,8 +51,7 @@ impl Cairo0Script {
         match self {
             Self::Compile => EXPECTED_CAIRO0_VERSION,
             Self::Format => EXPECTED_CAIRO0_VERSION,
-            // TODO(Dori): Add a different (decoupled) constant for Cairo0 contract compilation.
-            Self::StarknetCompileDeprecated => EXPECTED_CAIRO0_VERSION,
+            Self::StarknetCompileDeprecated => EXPECTED_CAIRO0_STARKNET_COMPILE_VERSION,
         }
     }
 }
