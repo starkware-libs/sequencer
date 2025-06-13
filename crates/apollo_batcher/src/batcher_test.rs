@@ -652,7 +652,9 @@ async fn propose_block_full_flow() {
         .unwrap();
     assert_eq!(
         commitment,
-        GetProposalContentResponse { content: GetProposalContent::Finished(proposal_commitment()) }
+        GetProposalContentResponse {
+            content: GetProposalContent::Finished { id: proposal_commitment(), n_executed_txs: 0 }
+        }
     );
 
     let exhausted =

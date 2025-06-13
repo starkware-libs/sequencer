@@ -484,7 +484,13 @@ impl Batcher {
                 BatcherError::InternalError
             })?;
 
-        Ok(GetProposalContentResponse { content: GetProposalContent::Finished(commitment) })
+        Ok(GetProposalContentResponse {
+            content: GetProposalContent::Finished {
+                id: commitment,
+                // TODO(AlonH): Consider sending the number of executed transactions.
+                n_executed_txs: 0,
+            },
+        })
     }
 
     #[instrument(skip(self, sync_block), err)]
