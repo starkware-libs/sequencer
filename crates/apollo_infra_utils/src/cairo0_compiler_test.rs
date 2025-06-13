@@ -5,6 +5,7 @@ use crate::cairo0_compiler::{
     EXPECTED_CAIRO0_STARKNET_COMPILE_VERSION,
     EXPECTED_CAIRO0_VERSION,
     PIP_REQUIREMENTS_FILE,
+    STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE,
 };
 
 fn get_cairo_lang_version_from_requirements(path_to_requirements: &PathBuf) -> String {
@@ -33,8 +34,8 @@ fn test_cairo0_version_pip_requirements() {
 
 #[test]
 fn test_cairo0_starknet_compile_version_pip_requirements() {
-    // TODO(Dori): Define a different (decoupled) requirements file for starknet deprecated compile.
-    let pip_cairo_lang_version = get_cairo_lang_version_from_requirements(&PIP_REQUIREMENTS_FILE);
+    let pip_cairo_lang_version =
+        get_cairo_lang_version_from_requirements(&STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE);
     assert_eq!(
         CairoLangVersion(pip_cairo_lang_version.as_str()),
         EXPECTED_CAIRO0_STARKNET_COMPILE_VERSION

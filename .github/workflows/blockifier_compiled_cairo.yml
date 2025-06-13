@@ -8,10 +8,10 @@ on:
       - synchronize
     paths:
       - '.github/workflows/blockifier_compiled_cairo.yml'
-      - 'crates/apollo_compile_to_casm/src/constants.rs' # Contains the compiler version.
+      - 'crates/apollo_compile_to_casm/src/constants.rs' # Contains the Cairo1 compiler version.
+      - 'crates/apollo_infra_utils/src/cairo0_compiler.rs' # Contains the Cairo0 compiler version.
       - 'crates/blockifier_test_utils/**'
       - 'scripts/dependencies.sh'
-      - 'scripts/requirements.txt'
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -44,9 +44,8 @@ jobs:
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
         run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
-      - run: pip install -r scripts/requirements.txt
+      - run: pip install -r crates/blockifier_test_utils/resources/blockifier-test-utils-requirements.txt
 
       - name: Verify cairo contract recompilation (both cairo versions).
         run:
-          pip install -r scripts/requirements.txt &&
           cargo test -p blockifier_test_utils --test feature_contracts_compatibility_test -- --include-ignored --nocapture
