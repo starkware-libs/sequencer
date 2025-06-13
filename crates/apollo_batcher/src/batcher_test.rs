@@ -45,7 +45,12 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
 use validator::Validate;
 
-use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
+use crate::batcher::{
+    Batcher,
+    MockBatcherStorageReaderTrait,
+    MockBatcherStorageWriterTrait,
+    TEMP_N_EXECUTED_TXS,
+};
 use crate::block_builder::{
     AbortSignalSender,
     BlockBuilderConfig,
@@ -652,7 +657,12 @@ async fn propose_block_full_flow() {
         .unwrap();
     assert_eq!(
         commitment,
-        GetProposalContentResponse { content: GetProposalContent::Finished(proposal_commitment()) }
+        GetProposalContentResponse {
+            content: GetProposalContent::Finished {
+                id: proposal_commitment(),
+                n_executed_txs: TEMP_N_EXECUTED_TXS
+            }
+        }
     );
 
     let exhausted =
