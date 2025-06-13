@@ -172,9 +172,10 @@ impl TestDeps {
         self.batcher.expect_get_proposal_content().times(1).returning(move |input| {
             assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
             Ok(GetProposalContentResponse {
-                content: GetProposalContent::Finished(ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                }),
+                content: GetProposalContent::Finished {
+                    id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                    n_executed_txs: 0,
+                },
             })
         });
     }
@@ -545,6 +546,7 @@ async fn build_proposal() {
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
     );
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::ExecutedTransactionCount(0));
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
@@ -635,6 +637,7 @@ async fn propose_then_repropose() {
     let _init = receiver.next().await.unwrap();
     let block_info = receiver.next().await.unwrap();
     let txs = receiver.next().await.unwrap();
+    let _n_executed_txs = receiver.next().await.unwrap();
     let fin = receiver.next().await.unwrap();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -650,6 +653,7 @@ async fn propose_then_repropose() {
     let _init = receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), block_info);
     assert_eq!(receiver.next().await.unwrap(), txs);
+    // TODO(Asmaa): Check the executed txs count.
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
 }
@@ -850,6 +854,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
     );
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::ExecutedTransactionCount(0));
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
@@ -972,6 +977,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
     );
+    assert_eq!(receiver.next().await.unwrap(), ProposalPart::ExecutedTransactionCount(0));
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {

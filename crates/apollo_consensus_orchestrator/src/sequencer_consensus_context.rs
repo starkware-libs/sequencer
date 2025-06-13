@@ -1089,6 +1089,10 @@ async fn handle_proposal_part(
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
         }
+        Some(ProposalPart::ExecutedTransactionCount(_)) => {
+            // TODO(Asmaa): Handle executed transaction count.
+            HandledProposalPart::Continue
+        }
         _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),
     }
 }
