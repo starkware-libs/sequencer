@@ -230,7 +230,7 @@ pub enum Event {
     L1HandlerTransaction { l1_handler_tx: L1HandlerTransaction, timestamp: BlockTimestamp },
     TransactionCanceled(EventData),
     TransactionCancellationStarted(TransactionHash),
-    TransactionConsumed(EventData),
+    TransactionConsumed(TransactionHash),
 }
 
 impl Event {
@@ -250,7 +250,14 @@ impl Event {
                 Self::TransactionCancellationStarted(tx_hash)
             }
             L1Event::MessageToL2Canceled(event_data) => Self::TransactionCanceled(event_data),
-            L1Event::ConsumedMessageToL2(event_data) => Self::TransactionConsumed(event_data),
+            L1Event::ConsumedMessageToL2(event_data) => {
+                let tx = starknet_api::transaction::L1HandlerTransaction::from(event_data);
+                let tx_hash = tx.calculate_transaction_hash(
+                    chain_id,
+                    &starknet_api::transaction::L1HandlerTransaction::VERSION,
+                )?;
+                Self::TransactionConsumed(tx_hash)
+            }
         })
     }
 }
