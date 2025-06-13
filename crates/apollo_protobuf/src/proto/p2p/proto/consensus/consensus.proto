@@ -79,5 +79,6 @@ message ProposalPart {
         ProposalFin fin = 2;
         BlockInfo block_info = 3;
         TransactionBatch transactions = 4;
+        uint64 executed_transaction_count = 5;
     }
 }

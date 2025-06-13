@@ -484,7 +484,7 @@ pub struct ProposalFin {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ProposalPart {
-    #[prost(oneof = "proposal_part::Message", tags = "1, 2, 3, 4")]
+    #[prost(oneof = "proposal_part::Message", tags = "1, 2, 3, 4, 5")]
     pub message: ::core::option::Option<proposal_part::Message>,
 }
 /// Nested message and enum types in `ProposalPart`.
@@ -500,6 +500,8 @@ pub mod proposal_part {
         BlockInfo(super::BlockInfo),
         #[prost(message, tag = "4")]
         Transactions(super::TransactionBatch),
+        #[prost(uint64, tag = "5")]
+        ExecutedTransactionCount(u64),
     }
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
