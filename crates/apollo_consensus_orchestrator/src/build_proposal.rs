@@ -201,7 +201,7 @@ pub(crate) async fn get_proposal_content(
                     .await
                     .expect("Failed to broadcast proposal content");
             }
-            GetProposalContent::Finished(id) => {
+            GetProposalContent::Finished { id, n_executed_txs: _ } => {
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
                 let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
                 info!(?proposal_commitment, num_txs = num_txs, "Finished building proposal",);

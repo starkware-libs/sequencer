@@ -172,9 +172,10 @@ impl TestDeps {
         self.batcher.expect_get_proposal_content().times(1).returning(move |input| {
             assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
             Ok(GetProposalContentResponse {
-                content: GetProposalContent::Finished(ProposalCommitment {
-                    state_diff_commitment: STATE_DIFF_COMMITMENT,
-                }),
+                content: GetProposalContent::Finished {
+                    id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
+                    n_executed_txs: INTERNAL_TX_BATCH.len().try_into().unwrap(),
+                },
             })
         });
     }
