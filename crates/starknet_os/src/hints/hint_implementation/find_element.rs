@@ -1,4 +1,3 @@
-use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
@@ -8,13 +7,13 @@ use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::types::HintArgs;
+use crate::hints::types::HintArgsNoHP;
 use crate::hints::vars::Ids;
 
 // TODO(Nimrod): Delete this hint (should be implemented in the VM).
 #[allow(clippy::result_large_err)]
-pub(crate) fn search_sorted_optimistic<S: StateReader>(
-    HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn search_sorted_optimistic(
+    HintArgsNoHP { ids_data, ap_tracking, vm, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let array_ptr = get_ptr_from_var_name(Ids::ArrayPtr.into(), vm, ids_data, ap_tracking)?;
     let elm_size =

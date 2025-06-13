@@ -5,6 +5,7 @@ use serde::Serialize;
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::aggregator::{
     allocate_segments_for_messages,
@@ -226,8 +227,8 @@ use crate::hints::hint_implementation::syscalls::{
     storage_read,
     storage_write,
 };
-use crate::hints::types::{HintArgs, HintEnum};
-use crate::{define_hint_enum, define_hint_extension_enum};
+use crate::hints::types::{HintArgs, HintArgsNoHP, HintEnum};
+use crate::{define_hint_enum, define_hint_extension_enum, define_stateless_hint_enum};
 
 #[cfg(test)]
 #[path = "enum_definition_test.rs"]
@@ -384,7 +385,7 @@ define_hint_enum!(
     ),
 );
 
-define_hint_enum!(
+define_stateless_hint_enum!(
     StatelessHint,
     (
         IsBlockNumberInBlockHashBuffer,

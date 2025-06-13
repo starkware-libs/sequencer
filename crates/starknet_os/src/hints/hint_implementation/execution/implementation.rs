@@ -32,7 +32,7 @@ use crate::hints::hint_implementation::execution::utils::{
     set_state_entry,
 };
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
-use crate::hints::types::HintArgs;
+use crate::hints::types::{HintArgs, HintArgsNoHP};
 use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::syscall_handler_utils::SyscallHandlerType;
 use crate::vm_utils::{
@@ -200,8 +200,8 @@ pub(crate) fn assert_transaction_hash<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_deprecated_syscall_handler(
+    HintArgsNoHP { exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let new_scope = HashMap::from([(
         Scope::SyscallHandlerType.into(),
@@ -212,8 +212,8 @@ pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_syscall_handler<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_syscall_handler(
+    HintArgsNoHP { exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let new_scope = HashMap::from([(
         Scope::SyscallHandlerType.into(),
@@ -224,8 +224,8 @@ pub(crate) fn enter_scope_syscall_handler<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn get_contract_address_state_entry<S: StateReader>(
-    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn get_contract_address_state_entry(
+    HintArgsNoHP { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let contract_address =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?;
@@ -253,10 +253,8 @@ pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn get_block_hash_contract_address_state_entry_and_set_new_state_entry<
-    S: StateReader,
->(
-    HintArgs { vm, exec_scopes, constants, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn get_block_hash_contract_address_state_entry_and_set_new_state_entry(
+    HintArgsNoHP { vm, exec_scopes, constants, ap_tracking, ids_data, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
     set_state_entry(block_hash_contract_address, vm, exec_scopes, ids_data, ap_tracking)
@@ -290,15 +288,15 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn is_deprecated<S: StateReader>(
-    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn is_deprecated(
+    HintArgsNoHP { vm, exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     Ok(insert_value_into_ap(vm, exec_scopes.get::<Felt>(Scope::IsDeprecated.into())?)?)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_syscall_scopes<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_syscall_scopes(
+    HintArgsNoHP { exec_scopes, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     // Unlike the Python implementation, there is no need to add `syscall_handler`,
     // `deprecated_syscall_handler`, `deprecated_class_hashes` and `execution_helper` as scope
@@ -646,8 +644,8 @@ pub(crate) fn check_execution<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn is_remaining_gas_lt_initial_budget<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn is_remaining_gas_lt_initial_budget(
+    HintArgsNoHP { vm, ids_data, ap_tracking, constants, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let remaining_gas =
         get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
@@ -712,8 +710,8 @@ pub(crate) fn check_new_deploy_response<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn initial_ge_required_gas<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn initial_ge_required_gas(
+    HintArgsNoHP { vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     let initial_gas = get_integer_from_var_name(Ids::InitialGas.into(), vm, ids_data, ap_tracking)?;
     let required_gas =
@@ -994,8 +992,8 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn fetch_result<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn fetch_result(
+    HintArgsNoHP { vm, ids_data, ap_tracking, constants, .. }: HintArgsNoHP<'_>,
 ) -> OsHintResult {
     // Fetch the result, up to 100 elements.
     let retdata = get_ptr_from_var_name(Ids::Retdata.into(), vm, ids_data, ap_tracking)?;
