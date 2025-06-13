@@ -51,7 +51,7 @@ use crate::metrics::FULL_BLOCKS;
 use crate::test_utils::{test_l1_handler_txs, test_txs};
 use crate::transaction_executor::MockTransactionExecutorTrait;
 use crate::transaction_provider::TransactionProviderError::L1HandlerTransactionValidationFailed;
-use crate::transaction_provider::{MockTransactionProvider, NextTxs, TransactionProviderError};
+use crate::transaction_provider::{MockTransactionProvider, TransactionProviderError};
 
 const BLOCK_GENERATION_DEADLINE_SECS: u64 = 1;
 const BLOCK_GENERATION_LONG_DEADLINE_SECS: u64 = 5;
@@ -485,7 +485,7 @@ fn mock_tx_provider_limited_calls_ex(
             .times(1)
             .with(eq(input_chunk.len()))
             .in_sequence(&mut seq)
-            .returning(move |_n_txs| Ok(NextTxs::Txs(input_chunk.clone())));
+            .returning(move |_n_txs| Ok(input_chunk.clone()));
     }
     mock_tx_provider.expect_get_n_txs_in_block().return_const(n_txs_in_block);
     mock_tx_provider
@@ -497,18 +497,21 @@ fn mock_tx_provider_stream_done(
     let n_txs = input_chunk.len();
     let mut mock_tx_provider = MockTransactionProvider::new();
     let mut seq = Sequence::new();
+    mock_tx_provider.expect_get_n_txs_in_block().times(1).in_sequence(&mut seq).return_const(None);
     mock_tx_provider
         .expect_get_txs()
         .times(1)
         .in_sequence(&mut seq)
         .with(eq(N_CONCURRENT_TXS))
-        .return_once(move |_n_txs| Ok(NextTxs::Txs(input_chunk)));
+        .return_once(move |_n_txs| Ok(input_chunk));
     mock_tx_provider
-        .expect_get_txs()
+        .expect_get_n_txs_in_block()
         .times(1)
         .in_sequence(&mut seq)
-        .return_once(|_n_txs| Ok(NextTxs::End));
-    mock_tx_provider.expect_get_n_txs_in_block().return_const(Some(n_txs));
+        .return_const(Some(n_txs));
+
+    // Continue to return empty chunks while the block is being built.
+    mock_tx_provider.expect_get_txs().times(1..).returning(|_n_txs| Ok(vec![]));
     mock_tx_provider
 }
 
@@ -524,10 +527,7 @@ fn mock_tx_provider_limitless_calls(
 }
 
 fn add_limitless_empty_calls(mock_tx_provider: &mut MockTransactionProvider) {
-    mock_tx_provider
-        .expect_get_txs()
-        .with(eq(N_CONCURRENT_TXS))
-        .returning(|_n_txs| Ok(NextTxs::Txs(Vec::new())));
+    mock_tx_provider.expect_get_txs().with(eq(N_CONCURRENT_TXS)).returning(|_n_txs| Ok(Vec::new()));
     mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
 }
 
@@ -678,7 +678,7 @@ async fn test_validate_block_excluded_txs() {
     let mut mock_tx_provider =
         mock_tx_provider_limited_calls_ex(vec![first_chunk, second_chunk], Some(n_txs_in_block));
 
-    mock_tx_provider.expect_get_txs().returning(move |_n_txs| Ok(NextTxs::Txs(vec![])));
+    mock_tx_provider.expect_get_txs().returning(move |_n_txs| Ok(vec![]));
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
     let result_block_artifacts = run_build_block(
@@ -1021,7 +1021,7 @@ async fn partial_chunk_execution_validator(#[case] successful: bool) {
     let n_txs_in_block = if successful { 2 } else { 3 };
     let mut mock_tx_provider =
         mock_tx_provider_limited_calls_ex(vec![input_txs.clone()], Some(n_txs_in_block));
-    mock_tx_provider.expect_get_txs().with(eq(2)).returning(|_n_txs| Ok(NextTxs::Txs(Vec::new())));
+    mock_tx_provider.expect_get_txs().with(eq(2)).returning(|_n_txs| Ok(Vec::new()));
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
