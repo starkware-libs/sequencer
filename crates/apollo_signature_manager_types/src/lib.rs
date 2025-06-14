@@ -7,6 +7,7 @@ use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
+use starknet_api::core::Nonce;
 use starknet_api::crypto::utils::{PrivateKey, RawSignature, SignatureConversionError};
 use strum_macros::AsRefStr;
 use thiserror::Error;
@@ -46,7 +47,11 @@ impl From<Vec<u8>> for PeerId {
 /// threads.
 #[async_trait]
 pub trait SignatureManagerClient: Send + Sync {
-    async fn identify(&self, peer_id: PeerId) -> SignatureManagerClientResult<RawSignature>;
+    async fn identify(
+        &self,
+        peer_id: PeerId,
+        nonce: Nonce,
+    ) -> SignatureManagerClientResult<RawSignature>;
 
     async fn sign_precommit_vote(
         &self,
@@ -78,7 +83,7 @@ pub enum SignatureManagerClientError {
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum SignatureManagerRequest {
-    Identify(PeerId),
+    Identify(PeerId, Nonce),
     SignPrecommitVote(BlockHash),
 }
 impl_debug_for_infra_requests_and_responses!(SignatureManagerRequest);
@@ -96,8 +101,12 @@ where
     ComponentClientType:
         Send + Sync + ComponentClient<SignatureManagerRequest, SignatureManagerResponse>,
 {
-    async fn identify(&self, peer_id: PeerId) -> SignatureManagerClientResult<RawSignature> {
-        let request = SignatureManagerRequest::Identify(peer_id);
+    async fn identify(
+        &self,
+        peer_id: PeerId,
+        nonce: Nonce,
+    ) -> SignatureManagerClientResult<RawSignature> {
+        let request = SignatureManagerRequest::Identify(peer_id, nonce);
         handle_all_response_variants!(
             SignatureManagerResponse,
             Identify,

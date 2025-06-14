@@ -22,7 +22,7 @@ impl<KS: KeyStore> ComponentRequestHandler<SignatureManagerRequest, SignatureMan
         request: SignatureManagerRequest,
     ) -> SignatureManagerResponse {
         match request {
-            SignatureManagerRequest::Identify(peer_id) => {
+            SignatureManagerRequest::Identify(peer_id, _nonce) => {
                 SignatureManagerResponse::Identify(self.identify(peer_id).await)
             }
             SignatureManagerRequest::SignPrecommitVote(block_hash) => {
