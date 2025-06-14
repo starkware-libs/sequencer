@@ -560,6 +560,8 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
+
+    fn clear_block_builder_cache(&mut self);
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -694,6 +696,10 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             execution_params,
         ));
         Ok((block_builder, abort_signal_sender))
+    }
+
+    fn clear_block_builder_cache(&mut self) {
+        self.contract_class_manager.clear();
     }
 }
 
