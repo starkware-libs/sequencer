@@ -18,9 +18,12 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
+use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
@@ -44,6 +47,7 @@ use crate::execution::syscalls::hint_processor::{ENTRYPOINT_NOT_FOUND_ERROR, OUT
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
+use crate::utils::{safe_add_gas_panic_on_overflow, u64_from_usize};
 
 pub type Args = Vec<CairoArg>;
 
@@ -362,4 +366,69 @@ pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
     }
+}
+
+mod blake_cost {
+    // U-32 counts
+    pub const N_U32S_MESSAGE: usize = 16;
+    pub const N_U32S_BIG_FELT: usize = 8;
+    pub const N_U32S_SMALL_FELT: usize = 2;
+
+    // Steps counts
+    pub const STEPS_BIG_FELT: usize = 45;
+    pub const STEPS_SMALL_FELT: usize = 15;
+
+    // One-time segment setup cost (full vs partial)
+    pub const BASE_STEPS_FULL_MSG: usize = 217;
+    pub const BASE_STEPS_PARTIAL_MSG: usize = 195;
+    pub const STEPS_PER_2_U32_REMINDER: usize = 3;
+
+    // TODO(AvivG): This is a placeholder, add the actual gas cost for the BLAKE opcode
+    pub const BLAKE_OPCODE_GAS: usize = 0;
+}
+
+fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
+    let total_u32s =
+        n_big_felts * blake_cost::N_U32S_BIG_FELT + n_small_felts * blake_cost::N_U32S_SMALL_FELT;
+    let rem_u32s = total_u32s % blake_cost::N_U32S_MESSAGE;
+    let base = if rem_u32s == 0 {
+        blake_cost::BASE_STEPS_FULL_MSG
+    } else {
+        blake_cost::BASE_STEPS_PARTIAL_MSG + blake_cost::STEPS_PER_2_U32_REMINDER * (rem_u32s / 2)
+    };
+
+    n_big_felts * blake_cost::STEPS_BIG_FELT + n_small_felts * blake_cost::STEPS_SMALL_FELT + base
+}
+
+fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
+    // The BLAKE opcode is used once per 16 u32s.
+    let total_u32s =
+        n_big_felts * blake_cost::N_U32S_BIG_FELT + n_small_felts * blake_cost::N_U32S_SMALL_FELT;
+
+    let mut n_msgs = total_u32s / blake_cost::N_U32S_MESSAGE;
+    n_msgs += if total_u32s % blake_cost::N_U32S_MESSAGE > 0 { 1 } else { 0 };
+
+    n_msgs
+}
+
+/// Estimates the VM resources for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
+/// Accounts for small felts unpack to 2-u32s and big felts to 8-u32s.
+pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
+    n_big_felts: usize,
+    n_small_felts: usize,
+    versioned_constants: &VersionedConstants,
+) -> GasAmount {
+    let n_steps = compute_blake_hash_steps(n_big_felts, n_small_felts);
+    let n_felts = n_big_felts + n_small_felts;
+    // The OS uses one `range_check` per input felt to validate each element’s size constraints.
+    let builtins = HashMap::from([(BuiltinName::range_check, n_felts)]);
+    let resources =
+        ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter: builtins };
+    let blake_opcode_gas =
+        count_blake_opcode(n_big_felts, n_small_felts) * blake_cost::BLAKE_OPCODE_GAS;
+
+    safe_add_gas_panic_on_overflow(
+        vm_resources_to_sierra_gas(resources, versioned_constants),
+        GasAmount(u64_from_usize(blake_opcode_gas)),
+    )
 }

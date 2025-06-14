@@ -373,7 +373,7 @@ fn n_steps_to_sierra_gas(n_steps: usize, versioned_constants: &VersionedConstant
     GasAmount(n_steps_gas_cost)
 }
 
-fn vm_resources_to_sierra_gas(
+pub(crate) fn vm_resources_to_sierra_gas(
     resources: ExecutionResources,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
