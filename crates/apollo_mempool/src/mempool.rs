@@ -19,6 +19,7 @@ use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, instrument, trace};
 
 use crate::config::MempoolConfig;
+use crate::eviction_manager::EvictionManager;
 use crate::metrics::{
     metric_count_committed_txs,
     metric_count_expired_txs,
@@ -237,6 +238,8 @@ pub struct Mempool {
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
+    // Manages eviction of transactions from the Mempool.
+    eviction_manager: EvictionManager,
     state: MempoolState,
     clock: Arc<dyn Clock>,
 }
@@ -248,6 +251,7 @@ impl Mempool {
             delayed_declares: AddTransactionQueue::new(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
+            eviction_manager: EvictionManager::new(),
             state: MempoolState::new(config.committed_nonce_retention_block_count),
             clock,
         }
@@ -372,6 +376,8 @@ impl Mempool {
             self.tx_queue.remove(address);
             self.insert_to_tx_queue(tx_reference);
         }
+
+        self.eviction_manager.add_tx(tx_reference, account_nonce);
     }
 
     fn add_ready_declares(&mut self) {
@@ -423,6 +429,8 @@ impl Mempool {
                     self.insert_to_tx_queue(tx_reference);
                 }
             }
+
+            self.eviction_manager.update_account_nonce(address, next_nonce);
         }
 
         // Commit block and rewind nonces of addresses that were not included in block.
@@ -664,6 +672,11 @@ impl Mempool {
         MEMPOOL_PENDING_QUEUE_SIZE.set_lossy(self.tx_queue.pending_queue_len());
         MEMPOOL_DELAYED_DECLARES_SIZE.set_lossy(self.delayed_declares.len());
         MEMPOOL_TOTAL_SIZE_BYTES.set_lossy(self.size_in_bytes());
+    }
+
+    #[cfg(test)]
+    pub fn eviction_manager(&self) -> &EvictionManager {
+        &self.eviction_manager
     }
 }
 
