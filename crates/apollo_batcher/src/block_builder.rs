@@ -232,7 +232,7 @@ impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
         let mut finished_adding_txs = false;
         let mut n_txs_in_block: Option<usize> = None;
-        while !(finished_adding_txs && self.n_txs_in_progress() == 0) {
+        while !self.finished_block_txs(n_txs_in_block) {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
                 if self.execution_params.fail_on_err {
@@ -312,6 +312,17 @@ impl BlockBuilder {
     /// Returns the number of transactions that are currently being executed by the executor.
     fn n_txs_in_progress(&self) -> usize {
         self.block_txs.len() - self.n_executed_txs
+    }
+
+    /// Returns `true` if all the txs in the block were executed. This function always returns
+    /// `false` in propose mode.
+    fn finished_block_txs(&self, n_txs_in_block: Option<usize>) -> bool {
+        if let Some(n_txs_in_block) = n_txs_in_block {
+            self.n_executed_txs >= n_txs_in_block
+        } else {
+            // n_txs_in_block is not known yet, so the block is not finished.
+            false
+        }
     }
 
     /// Adds new transactions (if there are any) from `tx_provider` to the executor.

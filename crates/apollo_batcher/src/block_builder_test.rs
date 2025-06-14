@@ -474,6 +474,7 @@ fn mock_tx_provider_limited_calls(
 fn mock_tx_provider_stream_done(
     input_chunk: Vec<InternalConsensusTransaction>,
 ) -> MockTransactionProvider {
+    let n_txs = input_chunk.len();
     let mut mock_tx_provider = MockTransactionProvider::new();
     let mut seq = Sequence::new();
     mock_tx_provider
@@ -487,7 +488,7 @@ fn mock_tx_provider_stream_done(
         .times(1)
         .in_sequence(&mut seq)
         .return_once(|_n_txs| Ok(NextTxs::End));
-    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(Some(n_txs));
     mock_tx_provider
 }
 
