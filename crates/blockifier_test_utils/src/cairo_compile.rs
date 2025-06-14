@@ -2,10 +2,7 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::process::{Command, Output, Stdio};
 
-use apollo_infra_utils::cairo0_compiler::{
-    verify_cairo0_compiler_deps,
-    STARKNET_COMPILE_DEPRECATED,
-};
+use apollo_infra_utils::cairo0_compiler::{verify_cairo0_compiler_deps, Cairo0Script};
 use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 use apollo_infra_utils::path::project_path;
 use tempfile::NamedTempFile;
@@ -95,7 +92,7 @@ pub fn cairo0_compile(
     debug_info: bool,
 ) -> CompilationArtifacts {
     verify_cairo0_compiler_deps();
-    let mut command = Command::new(STARKNET_COMPILE_DEPRECATED);
+    let mut command = Command::new(Cairo0Script::StarknetCompileDeprecated.script_name());
     command.arg(&path);
     if let Some(extra_arg) = extra_arg {
         command.arg(extra_arg);
