@@ -1111,6 +1111,7 @@ dependencies = [
  "apollo_network",
  "apollo_proc_macros",
  "apollo_protobuf",
+ "apollo_starknet_client",
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_test_utils",
