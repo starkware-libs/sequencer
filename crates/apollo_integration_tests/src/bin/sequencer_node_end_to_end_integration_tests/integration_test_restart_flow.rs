@@ -4,12 +4,9 @@ use std::time::Duration;
 use apollo_deployments::deployments::consolidated::ConsolidatedNodeServiceName;
 use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::integration_test_manager::{
-    IntegrationTestManager,
-    DEFAULT_SENDER_ACCOUNT,
-};
+use apollo_integration_tests::integration_test_manager::IntegrationTestManager;
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
-use apollo_integration_tests::utils::{ConsensusTxs, N_TXS_IN_FIRST_BLOCK, TPS};
+use apollo_integration_tests::utils::{ConsensusTxs, N_TXS_WHEN_DEPLOYING_ACCOUNT, TPS};
 use strum::IntoEnumIterator;
 use tokio::join;
 use tokio::time::sleep;
@@ -30,6 +27,8 @@ async fn main() {
     // The test restarts a hybrid node and shuts down a non-consolidated (hybrid/distributed) node.
     const RESTART_NODE: usize = N_CONSOLIDATED_SEQUENCERS;
     const SHUTDOWN_NODE: usize = RESTART_NODE + 1;
+    /// The number of sender accounts to use in the test.
+    const SENDER_ACCOUNTS: usize = 2;
 
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
@@ -37,6 +36,7 @@ async fn main() {
         N_DISTRIBUTED_SEQUENCERS,
         None,
         TestIdentifier::RestartFlowIntegrationTest,
+        SENDER_ACCOUNTS,
     )
     .await;
 
@@ -83,8 +83,7 @@ async fn main() {
 
     // TODO(noamsp): Try to refactor this to use tokio::spawn.
     // Task that sends sustained transactions for the entire test duration.
-    let tx_sending_task =
-        simulator.send_txs(&mut tx_generator, &test_scenario, DEFAULT_SENDER_ACCOUNT);
+    let tx_sending_task = simulator.send_txs(&mut tx_generator, &test_scenario);
 
     // Task that awaits transactions and restarts nodes in phases.
     let await_and_restart_nodes_task = async {
@@ -138,7 +137,7 @@ async fn main() {
 
         // The expected accepted number of transactions is the total number of invoke transactions
         // sent + the number of transactions sent during the bootstrap phase.
-        let expected_n_accepted_txs = N_TXS_IN_FIRST_BLOCK
+        let expected_n_accepted_txs = N_TXS_WHEN_DEPLOYING_ACCOUNT * SENDER_ACCOUNTS
             + TryInto::<usize>::try_into(TOTAL_INVOKE_TXS)
                 .expect("Failed to convert TOTAL_INVOKE_TXS to usize");
 

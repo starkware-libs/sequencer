@@ -42,6 +42,7 @@ use starknet_api::{
     nonce,
 };
 use starknet_types_core::felt::Felt;
+use tracing::debug;
 
 use crate::{COMPILED_CLASS_HASH_OF_CONTRACT_CLASS, CONTRACT_CLASS_FILE, TEST_FILES_FOLDER};
 
@@ -260,6 +261,7 @@ pub struct MultiAccountTransactionGenerator {
     // generator.
     nonce_manager: SharedNonceManager,
     l1_handler_tx_generator: L1HandlerTransactionGenerator,
+    current_account_index: usize,
 }
 
 impl MultiAccountTransactionGenerator {
@@ -280,8 +282,13 @@ impl MultiAccountTransactionGenerator {
             .collect();
         let l1_handler_tx_generator =
             L1HandlerTransactionGenerator { l1_tx_nonce: self.l1_handler_tx_generator.l1_tx_nonce };
-
-        Self { account_tx_generators, nonce_manager, l1_handler_tx_generator }
+        let current_account_index = self.current_account_index;
+        Self {
+            account_tx_generators,
+            nonce_manager,
+            l1_handler_tx_generator,
+            current_account_index,
+        }
     }
 
     /// Registers a new account with the given contract, assuming it is already deployed.
@@ -316,6 +323,25 @@ impl MultiAccountTransactionGenerator {
         new_account_id
     }
 
+    pub fn advance_account(&mut self) {
+        if self.account_tx_generators.is_empty() {
+            panic!("No accounts registered in MultiAccountTransactionGenerator");
+        }
+        self.current_account_index =
+            (self.current_account_index + 1) % self.account_tx_generators.len();
+    }
+
+    pub fn current_account_mut(&mut self) -> &mut AccountTransactionGenerator {
+        if self.account_tx_generators.is_empty() {
+            panic!("No accounts registered in MultiAccountTransactionGenerator");
+        }
+        &mut self.account_tx_generators[self.current_account_index]
+    }
+
+    pub fn current_account_index(&self) -> usize {
+        self.current_account_index
+    }
+
     pub fn account_with_id_mut(
         &mut self,
         account_id: AccountId,
@@ -339,10 +365,6 @@ impl MultiAccountTransactionGenerator {
 
     pub fn accounts(&self) -> &[AccountTransactionGenerator] {
         self.account_tx_generators.as_slice()
-    }
-
-    pub fn account_tx_generators(&mut self) -> &mut Vec<AccountTransactionGenerator> {
-        &mut self.account_tx_generators
     }
 
     pub fn deployed_accounts(&self) -> Vec<Contract> {
@@ -400,6 +422,12 @@ impl AccountTransactionGenerator {
              account must be a deploy account transaction."
         );
         let nonce = self.next_nonce();
+        debug!(
+            "Generating invoke tx: sender_address = {:?}, nonce = {:?}, tip = {}",
+            self.sender_address(),
+            nonce,
+            tip
+        );
         let invoke_args = invoke_tx_args!(
             nonce,
             tip : Tip(tip),
@@ -472,6 +500,11 @@ impl AccountTransactionGenerator {
              must be a deploy account transaction."
         );
         let nonce = self.next_nonce();
+        debug!(
+            "Generating deploy account tx: sender_address = {:?}, nonce = {:?}",
+            self.sender_address(),
+            nonce
+        );
         assert_eq!(nonce, nonce!(0), "The deploy account tx should have nonce 0.");
         let deploy_account_args = deploy_account_tx_args!(
             class_hash: self.account.class_hash(),
@@ -483,6 +516,11 @@ impl AccountTransactionGenerator {
 
     pub fn generate_declare(&mut self) -> RpcTransaction {
         let nonce = self.next_nonce();
+        debug!(
+            "Generating declare tx: sender_address = {:?}, nonce = {:?}",
+            self.sender_address(),
+            nonce
+        );
         let declare_args = declare_tx_args!(
             signature: TransactionSignature(vec![Felt::ZERO].into()),
             sender_address: self.sender_address(),
