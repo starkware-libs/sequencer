@@ -270,7 +270,13 @@ impl Batcher {
         )
         .await?;
 
-        self.propose_tx_streams.insert(propose_block_input.proposal_id, output_tx_receiver);
+        let proposal_already_exists =
+            self.propose_tx_streams.insert(propose_block_input.proposal_id, output_tx_receiver);
+        assert!(
+            proposal_already_exists.is_none(),
+            "Proposal {} already exists. This should have been checked when spawning the proposal.",
+            propose_block_input.proposal_id
+        );
         LAST_PROPOSED_BLOCK.set_lossy(block_number.0);
         Ok(())
     }
@@ -340,7 +346,14 @@ impl Batcher {
         )
         .await?;
 
-        self.validate_tx_streams.insert(validate_block_input.proposal_id, input_tx_sender);
+        let validation_already_exists =
+            self.validate_tx_streams.insert(validate_block_input.proposal_id, input_tx_sender);
+        assert!(
+            validation_already_exists.is_none(),
+            "Proposal {} already exists. This should have been checked when spawning the proposal.",
+            validate_block_input.proposal_id
+        );
+
         Ok(())
     }
 
@@ -427,10 +440,13 @@ impl Batcher {
     ) -> BatcherResult<SendProposalContentResponse> {
         if self.is_active(proposal_id).await {
             self.abort_active_proposal().await;
-            self.executed_proposals
+
+            let proposal_already_exists = self
+                .executed_proposals
                 .lock()
                 .await
                 .insert(proposal_id, Err(Arc::new(BlockBuilderError::Aborted)));
+            assert!(proposal_already_exists.is_none(), "Duplicate proposal: {proposal_id}.");
         }
         self.validate_tx_streams.remove(&proposal_id);
         Ok(SendProposalContentResponse { response: ProposalStatus::Aborted })
@@ -713,7 +729,12 @@ impl Batcher {
                 let mut active_proposal = active_proposal.lock().await;
                 if *active_proposal == Some(proposal_id) {
                     active_proposal.take();
-                    executed_proposals.lock().await.insert(proposal_id, result);
+                    let proposal_already_exists =
+                        executed_proposals.lock().await.insert(proposal_id, result);
+                    assert!(
+                        proposal_already_exists.is_none(),
+                        "Duplicate proposal: {proposal_id}."
+                    );
                 }
             }
             .in_current_span(),
