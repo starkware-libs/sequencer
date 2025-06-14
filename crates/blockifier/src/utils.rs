@@ -1,7 +1,6 @@
 use std::collections::HashMap;
-
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-
+use starknet_api::execution_resources::GasAmount;
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
 use crate::transaction::errors::NumericConversionError;
 
@@ -85,4 +84,14 @@ pub fn get_gas_cost_from_vm_resources(
     n_steps * base_costs.step_gas_cost
         + n_memory_holes * base_costs.memory_hole_gas_cost
         + total_builtin_gas_cost
+}
+
+pub fn safe_add_gas_panic_on_overflow(gas: GasAmount, added_gas: GasAmount) -> GasAmount {
+    gas.checked_add(added_gas).unwrap_or_else(|| {
+        panic!(
+            "Addition overflow while adding sierra gas. current gas: {}, try to add
+                 gas: {}.",
+            gas, added_gas
+        )
+    })
 }
