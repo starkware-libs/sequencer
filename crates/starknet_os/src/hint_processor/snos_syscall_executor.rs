@@ -114,14 +114,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         &self.versioned_constants().os_constants.gas_costs
     }
 
-    fn get_sha256_segment_end_ptr(&self, _vm: &mut VirtualMachine) -> Relocatable {
-        self.syscall_hint_processor.sha256_segment.expect("SHA256 segment must be set in OS.")
-    }
-
-    fn set_sha256_segment_end_ptr(&mut self, sha256_segment_end_ptr: Relocatable) {
-        self.syscall_hint_processor.sha256_segment = Some(sha256_segment_end_ptr);
-    }
-
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
         &mut self.syscall_hint_processor.secp256k1_hint_processor
     }
@@ -363,6 +355,27 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
 
     fn versioned_constants(&self) -> &VersionedConstants {
         VersionedConstants::latest_constants()
+    }
+
+    fn write_sha256_state(
+        &mut self,
+        state: &[MaybeRelocatable],
+        vm: &mut VirtualMachine,
+    ) -> Result<Relocatable, Self::Error> {
+        let segment_start =
+            self.syscall_hint_processor.sha256_segment.expect("SHA256 segment must be set in OS.");
+        let entries_offset =
+            get_size_of_cairo_struct(CairoStruct::Sha256ProcessBlock, self.os_program)?
+                * self.syscall_hint_processor.sha256_block_count;
+        let out_state_offset =
+            get_field_offset(CairoStruct::Sha256ProcessBlock, "out_state", self.os_program)?;
+        let total_offset = entries_offset + out_state_offset;
+        let state_start = (segment_start + total_offset)?;
+        vm.load_data(state_start, state)?;
+
+        // Increment the block count for the next call.
+        self.syscall_hint_processor.sha256_block_count += 1;
+        Ok(state_start)
     }
 }
 

@@ -1,4 +1,3 @@
-use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
@@ -30,7 +29,7 @@ pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let sha256_ptr = get_ptr_from_var_name(Ids::Sha256Ptr.into(), vm, ids_data, ap_tracking)?;
-    hint_processor.set_sha256_segment_end_ptr(sha256_ptr);
+    hint_processor.syscall_hint_processor.sha256_segment = Some(sha256_ptr);
     Ok(())
 }
 

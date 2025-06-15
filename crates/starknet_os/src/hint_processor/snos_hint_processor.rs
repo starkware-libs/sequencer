@@ -357,7 +357,7 @@ impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 pub struct SyscallHintProcessor {
     // Sha256 segment related fields.
     pub(crate) sha256_segment: Option<Relocatable>,
-    _sha256_block_count: usize,
+    pub(crate) sha256_block_count: usize,
     syscall_ptr: Option<Relocatable>,
     pub(crate) syscall_usage: SyscallUsageMap,
 
@@ -376,7 +376,7 @@ impl SyscallHintProcessor {
             secp256k1_hint_processor: SecpHintProcessor::default(),
             secp256r1_hint_processor: SecpHintProcessor::default(),
             syscall_usage: SyscallUsageMap::new(),
-            _sha256_block_count: 0,
+            sha256_block_count: 0,
         }
     }
 
