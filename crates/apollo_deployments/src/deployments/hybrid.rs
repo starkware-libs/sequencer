@@ -29,7 +29,6 @@ const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 
 const CORE_STORAGE: usize = 1000;
 
-#[repr(u16)]
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
@@ -57,24 +56,24 @@ impl GetComponentConfigs for HybridNodeServiceName {
         // length.
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
 
-        let base_port_with_offset = base_port.unwrap_or(BASE_PORT);
+        let base_port = base_port.unwrap_or(BASE_PORT);
 
-        let batcher = HybridNodeServiceName::Core
-            .component_config_pair(Some(base_port_with_offset), environment);
-        let class_manager = HybridNodeServiceName::Core
-            .component_config_pair(Some(base_port_with_offset + 1), environment);
-        let gateway = HybridNodeServiceName::Gateway
-            .component_config_pair(Some(base_port_with_offset + 2), environment);
-        let l1_gas_price_provider = HybridNodeServiceName::Core
-            .component_config_pair(Some(base_port_with_offset + 3), environment);
-        let l1_provider = HybridNodeServiceName::Core
-            .component_config_pair(Some(base_port_with_offset + 4), environment);
-        let mempool = HybridNodeServiceName::Mempool
-            .component_config_pair(Some(base_port_with_offset + 5), environment);
+        let batcher =
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port), environment);
+        let class_manager =
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 1), environment);
+        let gateway =
+            HybridNodeServiceName::Gateway.component_config_pair(Some(base_port + 2), environment);
+        let l1_gas_price_provider =
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 3), environment);
+        let l1_provider =
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 4), environment);
+        let mempool =
+            HybridNodeServiceName::Mempool.component_config_pair(Some(base_port + 5), environment);
         let sierra_compiler = HybridNodeServiceName::SierraCompiler
-            .component_config_pair(Some(base_port_with_offset + 6), environment);
-        let state_sync = HybridNodeServiceName::Core
-            .component_config_pair(Some(base_port_with_offset + 7), environment);
+            .component_config_pair(Some(base_port + 6), environment);
+        let state_sync =
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 7), environment);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
