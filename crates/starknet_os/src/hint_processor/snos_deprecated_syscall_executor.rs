@@ -148,7 +148,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
                 account_transaction.tip()
             }
             starknet_api::executable_transaction::Transaction::L1Handler(_) => {
-                unimplemented!("L1 handler transactions do not have a tip field in the OS.")
+                return Ok(original_tx_info_start_ptr);
             }
         };
         let should_replace_to_v1 = tx_version == TransactionVersion::THREE.0
