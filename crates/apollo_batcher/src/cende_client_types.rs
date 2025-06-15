@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::{
-    IntermediateDeployAccountTransaction,
     IntermediateInvokeTransaction,
     L1HandlerTransaction as ClientL1HandlerTransaction,
     ReservedDataAvailabilityMode,
@@ -46,6 +45,8 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
+    Calldata,
+    ContractAddressSalt,
     Fee,
     PaymasterData,
     Tip,
@@ -364,6 +365,34 @@ pub struct IntermediateDeclareTransaction {
     pub max_fee: Option<Fee>,
     pub version: TransactionVersion,
     pub transaction_hash: TransactionHash,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct IntermediateDeployAccountTransaction {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource_bounds: Option<ValidResourceBounds>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tip: Option<Tip>,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    pub contract_address_salt: ContractAddressSalt,
+    pub constructor_calldata: Calldata,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonce_data_availability_mode: Option<ReservedDataAvailabilityMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fee_data_availability_mode: Option<ReservedDataAvailabilityMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paymaster_data: Option<PaymasterData>,
+    // In early versions of starknet, the `sender_address` field was originally named
+    // `contract_address`.
+    #[serde(alias = "contract_address")]
+    pub sender_address: ContractAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_fee: Option<Fee>,
+    pub transaction_hash: TransactionHash,
+    pub version: TransactionVersion,
 }
 
 impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
