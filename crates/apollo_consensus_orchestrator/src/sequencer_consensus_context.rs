@@ -88,6 +88,7 @@ use crate::utils::{
     GasPriceParams,
 };
 
+pub(crate) const TEMP_N_EXECUTED_TXS: u64 = 0;
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
 struct BlockInfoValidation {
@@ -1030,9 +1031,12 @@ async fn handle_proposal_part(
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Fin(fin)) => {
             info!("Received fin={fin:?}");
+            // TODO(Asmaa): send number of executed txs.
             // Output this along with the ID from batcher, to compare them.
-            let input =
-                SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
+            let input = SendProposalContentInput {
+                proposal_id,
+                content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+            };
             let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
                 panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
             });
