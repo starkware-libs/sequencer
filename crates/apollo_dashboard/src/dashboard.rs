@@ -115,7 +115,7 @@ pub struct Dashboard {
 }
 
 impl Dashboard {
-    pub const fn new(name: &'static str, rows: &'static [Row]) -> Self {
+    pub fn new(name: &'static str, rows: &'static [Row]) -> Self {
         Self { name, rows }
     }
 }
