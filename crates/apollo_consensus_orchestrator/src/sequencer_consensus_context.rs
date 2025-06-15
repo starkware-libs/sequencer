@@ -85,10 +85,10 @@ use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
     retrospective_block_hash,
+    truncate_to_executed_txs,
     GasPriceParams,
 };
 
-pub(crate) const TEMP_N_EXECUTED_TXS: u64 = 0;
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
 struct BlockInfoValidation {
@@ -778,6 +778,7 @@ impl SequencerConsensusContext {
 
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
+    let mut n_executed_txs: Option<u64> = None;
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -841,6 +842,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
                     args.deps.batcher.as_ref(),
                     proposal_part,
                     &mut content,
+                    &mut n_executed_txs,
                     args.deps.transaction_converter.clone(),
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
@@ -862,9 +864,9 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         }
     };
 
-    let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
+    let n_executed_txs = content.iter().map(|batch| batch.len()).sum::<usize>();
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL.set_lossy(content.len());
-    CONSENSUS_NUM_TXS_IN_PROPOSAL.set_lossy(num_txs);
+    CONSENSUS_NUM_TXS_IN_PROPOSAL.set_lossy(n_executed_txs);
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
@@ -1035,17 +1037,22 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
+    n_executed_txs: &mut Option<u64>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Fin(fin)) => {
             info!("Received fin={fin:?}");
-            // TODO(Asmaa): send number of executed txs.
+            let Some(executed_txs_count) = *n_executed_txs else {
+                return HandledProposalPart::Failed(
+                    "Received Fin without executed transaction count".to_string(),
+                );
+            };
             // Output this along with the ID from batcher, to compare them.
             let input = SendProposalContentInput {
                 proposal_id,
-                content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+                content: SendProposalContent::Finish(executed_txs_count),
             };
             let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
                 panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
@@ -1056,14 +1063,14 @@ async fn handle_proposal_part(
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             };
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
-            let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
+
             info!(
                 network_block_id = ?fin.proposal_commitment,
                 ?batcher_block_id,
-                num_txs,
+                executed_txs_count,
                 "Finished validating proposal."
             );
-            if num_txs == 0 {
+            if executed_txs_count == 0 {
                 warn!("Validated an empty proposal.");
             }
             HandledProposalPart::Finished(batcher_block_id, fin)
@@ -1103,8 +1110,16 @@ async fn handle_proposal_part(
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
         }
-        Some(ProposalPart::ExecutedTransactionCount(_)) => {
-            // TODO(Asmaa): Handle executed transaction count.
+        Some(ProposalPart::ExecutedTransactionCount(executed_txs_count)) => {
+            debug!("Received executed transaction count: {executed_txs_count}");
+            if n_executed_txs.is_some() {
+                return HandledProposalPart::Failed(
+                    "Received executed transaction count more than once".to_string(),
+                );
+            }
+            *n_executed_txs = Some(executed_txs_count);
+            *content = truncate_to_executed_txs(content, executed_txs_count);
+
             HandledProposalPart::Continue
         }
         _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),

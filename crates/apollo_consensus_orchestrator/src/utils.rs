@@ -20,6 +20,7 @@ use starknet_api::block::{
     GasPrices,
     NonzeroGasPrice,
 };
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use tracing::{info, warn};
 
@@ -174,4 +175,27 @@ pub(crate) async fn retrospective_block_hash(
         }
     };
     Ok(retrospective_block_hash)
+}
+
+pub(crate) fn truncate_to_executed_txs(
+    content: &[Vec<InternalConsensusTransaction>],
+    executed_txs_count: u64,
+) -> Vec<Vec<InternalConsensusTransaction>> {
+    // Truncate `content` to keep only the first `executed_txs_count`, preserving batch
+    // structure.
+    let mut executed_content = Vec::new();
+    let mut remaining: usize =
+        executed_txs_count.try_into().expect("executed_txs_count should fit into usize");
+
+    for batch in content.iter() {
+        if remaining == 0 {
+            break;
+        }
+        let next_batch: Vec<InternalConsensusTransaction> =
+            batch.iter().take(remaining).cloned().collect();
+        remaining -= next_batch.len();
+        executed_content.push(next_batch);
+    }
+
+    executed_content
 }

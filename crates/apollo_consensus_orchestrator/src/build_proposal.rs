@@ -37,6 +37,7 @@ use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
     retrospective_block_hash,
+    truncate_to_executed_txs,
     GasPriceParams,
 };
 
@@ -203,23 +204,7 @@ pub(crate) async fn get_proposal_content(
             }
             GetProposalContent::Finished { id, n_executed_txs } => {
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
-                // Truncate `content` to keep only the first `n_executed_txs`, preserving batch
-                // structure.
-                let mut executed_content = Vec::new();
-                let mut remaining: usize =
-                    n_executed_txs.try_into().expect("n_executed_txs should fit into usize");
-
-                for batch in content {
-                    if remaining == 0 {
-                        break;
-                    }
-                    let next_batch: Vec<InternalConsensusTransaction> =
-                        batch.into_iter().take(remaining).collect();
-                    remaining -= next_batch.len();
-                    executed_content.push(next_batch);
-                }
-
-                content = executed_content;
+                content = truncate_to_executed_txs(&content, n_executed_txs);
 
                 info!(?proposal_commitment, num_txs = n_executed_txs, "Finished building proposal",);
                 if n_executed_txs == 0 {

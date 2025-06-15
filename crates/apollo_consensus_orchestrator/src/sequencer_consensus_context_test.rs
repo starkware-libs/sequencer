@@ -83,7 +83,7 @@ use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::{SequencerConsensusContext, TEMP_N_EXECUTED_TXS};
+use crate::sequencer_consensus_context::SequencerConsensusContext;
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
 const CHANNEL_SIZE: usize = 5000;
@@ -181,7 +181,8 @@ impl TestDeps {
         });
     }
 
-    fn setup_deps_for_validate(&mut self, block_number: BlockNumber) {
+    fn setup_deps_for_validate(&mut self, block_number: BlockNumber, n_executed_txs: usize) {
+        assert!(n_executed_txs <= INTERNAL_TX_BATCH.len());
         self.setup_default_expectations();
         let proposal_id = Arc::new(OnceLock::new());
         let proposal_id_clone = Arc::clone(&proposal_id);
@@ -211,7 +212,10 @@ impl TestDeps {
         self.batcher.expect_send_proposal_content().times(1).returning(
             move |input: SendProposalContentInput| {
                 assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-                assert!(matches!(input.content, SendProposalContent::Finish(TEMP_N_EXECUTED_TXS)));
+                assert_eq!(
+                    input.content,
+                    SendProposalContent::Finish(n_executed_txs.try_into().unwrap())
+                );
                 Ok(SendProposalContentResponse {
                     response: ProposalStatus::Finished(ProposalCommitment {
                         state_diff_commitment: STATE_DIFF_COMMITMENT,
@@ -347,7 +351,7 @@ async fn cancelled_proposal_aborts() {
 #[tokio::test]
 async fn validate_proposal_success() {
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_validate(BlockNumber(0));
+    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len());
     let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
@@ -357,6 +361,10 @@ async fn validate_proposal_success() {
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
         .await
         .unwrap();
     content_sender
@@ -393,11 +401,19 @@ async fn dont_send_block_info() {
     assert!(fin_receiver.await.is_err());
 }
 
+#[rstest]
+#[case::execute_all_txs(true)]
+#[case::dont_execute_last_tx(false)]
 #[tokio::test]
-async fn repropose() {
+async fn repropose(#[case] execute_all_txs: bool) {
     // Receive a proposal. Then re-retrieve it.
     let (mut deps, mut network) = create_test_and_network_deps();
-    deps.setup_deps_for_validate(BlockNumber(0));
+    let executed_transactions = match execute_all_txs {
+        true => TX_BATCH.to_vec(),
+        false => TX_BATCH.iter().take(TX_BATCH.len() - 1).cloned().collect(),
+    };
+    let n_executed_txs = executed_transactions.len();
+    deps.setup_deps_for_validate(BlockNumber(0), n_executed_txs);
     let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
@@ -410,6 +426,10 @@ async fn repropose() {
     let transactions =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
+    content_sender
+        .send(ProposalPart::ExecutedTransactionCount(n_executed_txs.try_into().unwrap()))
+        .await
+        .unwrap();
     let fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
     });
@@ -424,10 +444,13 @@ async fn repropose() {
     let (_, mut receiver) = network.outbound_proposal_receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
     assert_eq!(receiver.next().await.unwrap(), block_info);
-    assert_eq!(receiver.next().await.unwrap(), transactions);
     assert_eq!(
         receiver.next().await.unwrap(),
-        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap())
+        ProposalPart::Transactions(TransactionBatch { transactions: executed_transactions })
+    );
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::ExecutedTransactionCount(n_executed_txs.try_into().unwrap())
     );
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
@@ -436,7 +459,7 @@ async fn repropose() {
 #[tokio::test]
 async fn proposals_from_different_rounds() {
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_validate(BlockNumber(0));
+    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len());
     let mut context = deps.build_context();
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -445,6 +468,8 @@ async fn proposals_from_different_rounds() {
     // Proposal parts sent in the proposals.
     let prop_part_txs =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
+    let prop_part_executed_count =
+        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap());
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
     });
@@ -453,6 +478,7 @@ async fn proposals_from_different_rounds() {
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
+    content_sender.send(prop_part_executed_count.clone()).await.unwrap();
 
     let mut init = ProposalInit { round: 0, ..Default::default() };
     let fin_receiver_past_round = context.validate_proposal(init, TIMEOUT, content_receiver).await;
@@ -463,6 +489,7 @@ async fn proposals_from_different_rounds() {
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
+    content_sender.send(prop_part_executed_count.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     init.round = 1;
     let fin_receiver_curr_round = context.validate_proposal(init, TIMEOUT, content_receiver).await;
@@ -472,6 +499,7 @@ async fn proposals_from_different_rounds() {
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
+    content_sender.send(prop_part_executed_count.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_future_round = context
         .validate_proposal(
@@ -488,7 +516,7 @@ async fn proposals_from_different_rounds() {
 #[tokio::test]
 async fn interrupt_active_proposal() {
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_validate(BlockNumber(0));
+    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len());
     let mut context = deps.build_context();
     // Initialize the context for a specific height, starting with round 0.
     context.set_height_and_round(BlockNumber(0), 0).await;
@@ -505,6 +533,10 @@ async fn interrupt_active_proposal() {
     content_sender_1.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender_1
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
+        .await
+        .unwrap();
+    content_sender_1
+        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
         .await
         .unwrap();
     content_sender_1
@@ -706,7 +738,7 @@ async fn eth_to_fri_rate_out_of_range() {
 #[tokio::test]
 async fn gas_price_limits(#[case] maximum: bool) {
     let (mut deps, _network) = create_test_and_network_deps();
-    deps.setup_deps_for_validate(BlockNumber(0));
+    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len());
     let context_config = ContextConfig::default();
     let min_gas_price = context_config.min_l1_gas_price_wei;
     let min_data_price = context_config.min_l1_data_gas_price_wei;
@@ -748,6 +780,10 @@ async fn gas_price_limits(#[case] maximum: bool) {
     content_sender.send(ProposalPart::BlockInfo(block_info).clone()).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
         .await
         .unwrap();
     content_sender
@@ -893,7 +929,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     let (mut deps, mut network) = create_test_and_network_deps();
     // Validate block number 0, call decision_reached to save the previous block info (block 0), and
     // attempt to build_proposal on block number 1.
-    deps.setup_deps_for_validate(BlockNumber(0));
+    deps.setup_deps_for_validate(BlockNumber(0), INTERNAL_TX_BATCH.len());
     deps.setup_deps_for_build(BlockNumber(1), INTERNAL_TX_BATCH.len());
 
     // set up batcher decision_reached
@@ -947,6 +983,10 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
         .await
         .unwrap();
     content_sender
