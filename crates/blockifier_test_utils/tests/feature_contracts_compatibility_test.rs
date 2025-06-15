@@ -52,7 +52,7 @@ pub struct Cairo1FeatureContractMetadata {
 }
 
 // To fix Cairo0 feature contracts, first enter a python venv and install the requirements (see
-// `ENTER_VENV_INSTRUCTIONS` for how to do this). Then, run the FIX_COMMAND above.
+// `enter_venv_instructions` for how to do this). Then, run the FIX_COMMAND above.
 
 // To fix Cairo1 feature contracts, first clone the Cairo repo and checkout the required tag.
 // The repo should be located next to the sequencer repo:
