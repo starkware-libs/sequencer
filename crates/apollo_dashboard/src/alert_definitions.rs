@@ -14,6 +14,7 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_BLOB_FAILURE,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
+    CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
@@ -262,6 +263,26 @@ fn get_gateway_add_tx_rate_drop_alert() -> Alert {
         pending_duration: "1m",
         evaluation_interval_sec: 20,
         severity: AlertSeverity::Regular,
+    }
+}
+
+fn get_consensus_num_txs_in_proposal_too_low_alert() -> Alert {
+    Alert {
+        name: "num_txs_in_proposal_too_low",
+        title: "Number of transactions in proposal too low",
+        alert_group: AlertGroup::Consensus,
+        expr: format!(
+            "avg_over_time({}[20m])",
+            CONSENSUS_NUM_TXS_IN_PROPOSAL.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 10.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: "1m",
+        evaluation_interval_sec: 20,
+        severity: AlertSeverity::WorkingHours,
     }
 }
 
@@ -577,6 +598,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_round_high_avg_alert(),
         get_consensus_validate_proposal_failed_alert(),
         get_consensus_votes_num_sent_messages_alert(),
+        get_consensus_num_txs_in_proposal_too_low_alert(),
         get_gateway_add_tx_latency_increase_alert(),
         get_gateway_add_tx_rate_drop_alert(),
         get_http_server_idle_alert(),
