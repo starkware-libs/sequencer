@@ -3,10 +3,7 @@
 use std::collections::HashMap;
 
 use apollo_starknet_client::reader::objects::state::StateDiff;
-use apollo_starknet_client::reader::objects::transaction::{
-    L1HandlerTransaction as ClientL1HandlerTransaction,
-    ReservedDataAvailabilityMode,
-};
+use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
 use blockifier::execution::call_info::OrderedEvent;
 use blockifier::state::cached_state::{StateMaps, StorageView};
@@ -33,7 +30,7 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::executable_transaction::L1HandlerTransaction;
+use starknet_api::executable_transaction::L1HandlerTransaction as ExecutableL1HandlerTransaction;
 use starknet_api::execution_resources::GasVector;
 use starknet_api::hash::StarkHash;
 use starknet_api::rpc_transaction::{
@@ -312,7 +309,7 @@ pub enum CendePreConfirmedTransaction {
     #[serde(rename = "INVOKE_FUNCTION")]
     Invoke(IntermediateInvokeTransaction),
     #[serde(rename = "L1_HANDLER")]
-    L1Handler(ClientL1HandlerTransaction),
+    L1Handler(L1HandlerTransaction),
 }
 
 impl CendePreConfirmedTransaction {
@@ -511,10 +508,22 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
     }
 }
 
-impl From<L1HandlerTransaction> for CendePreConfirmedTransaction {
-    fn from(l1_handler_transaction: L1HandlerTransaction) -> Self {
-        let L1HandlerTransaction { tx, tx_hash, .. } = l1_handler_transaction;
-        CendePreConfirmedTransaction::L1Handler(ClientL1HandlerTransaction {
+#[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[serde(deny_unknown_fields)]
+pub struct L1HandlerTransaction {
+    pub transaction_hash: TransactionHash,
+    pub version: TransactionVersion,
+    #[serde(default)]
+    pub nonce: Nonce,
+    pub contract_address: ContractAddress,
+    pub entry_point_selector: EntryPointSelector,
+    pub calldata: Calldata,
+}
+
+impl From<ExecutableL1HandlerTransaction> for CendePreConfirmedTransaction {
+    fn from(l1_handler_transaction: ExecutableL1HandlerTransaction) -> Self {
+        let ExecutableL1HandlerTransaction { tx, tx_hash, .. } = l1_handler_transaction;
+        CendePreConfirmedTransaction::L1Handler(L1HandlerTransaction {
             transaction_hash: tx_hash,
             version: tx.version,
             nonce: tx.nonce,
