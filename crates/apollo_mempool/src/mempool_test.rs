@@ -26,6 +26,7 @@ use starknet_api::{contract_address, declare_tx_args, nonce, tx_hash};
 
 use super::AddTransactionQueue;
 use crate::communication::MempoolCommunicationWrapper;
+use crate::eviction_manager::EvictionManager;
 use crate::mempool::{Mempool, MempoolConfig, MempoolContent, MempoolState, TransactionReference};
 use crate::metrics::register_metrics;
 use crate::test_utils::{
@@ -136,6 +137,7 @@ impl MempoolTestContentBuilder {
                 self.content.pending_txs.unwrap_or_default(),
                 self.gas_price_threshold,
             ),
+            eviction_manager: EvictionManager::new(),
             state: MempoolState::new(self.config.committed_nonce_retention_block_count),
             clock: Arc::new(FakeClock::default()),
         }
