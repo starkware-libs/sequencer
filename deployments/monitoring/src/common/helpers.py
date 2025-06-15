@@ -112,6 +112,12 @@ def arg_parser() -> argparse.ArgumentParser:
         type=str,
         help="Provide Kubernetes cluster to inject into alert expressions.",
     )
+    parser.add_argument(
+        "--env",
+        type=str,
+        choices=["dev", "integration", "testnet", "mainnet"],
+        required=True,
+    )
 
     args = parser.parse_args()
 

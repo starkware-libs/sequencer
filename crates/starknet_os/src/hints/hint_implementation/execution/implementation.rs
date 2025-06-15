@@ -21,6 +21,7 @@ use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_api::transaction::{DeployAccountTransaction, TransactionVersion};
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execution::utils::{
@@ -43,7 +44,8 @@ use crate::vm_utils::{
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_next_tx<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
@@ -75,7 +77,8 @@ pub(crate) fn load_next_tx<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_resource_bounds<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, hint_processor, constants, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     // Guess the resource bounds.
     let resource_bounds = hint_processor
@@ -106,7 +109,8 @@ pub(crate) fn load_resource_bounds<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn exit_tx<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let range_check_ptr =
         get_ptr_from_var_name(Ids::RangeCheckPtr.into(), vm, ids_data, ap_tracking)?;
@@ -126,7 +130,8 @@ pub(crate) fn exit_tx<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn prepare_constructor_execution<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -179,7 +184,8 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn assert_transaction_hash<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let stored_transaction_hash =
         get_integer_from_var_name(Ids::TransactionHash.into(), vm, ids_data, ap_tracking)?;
@@ -200,8 +206,8 @@ pub(crate) fn assert_transaction_hash<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_deprecated_syscall_handler(
+    HintArgs { exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let new_scope = HashMap::from([(
         Scope::SyscallHandlerType.into(),
@@ -212,8 +218,8 @@ pub(crate) fn enter_scope_deprecated_syscall_handler<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_syscall_handler<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_syscall_handler(
+    HintArgs { exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let new_scope = HashMap::from([(
         Scope::SyscallHandlerType.into(),
@@ -224,8 +230,8 @@ pub(crate) fn enter_scope_syscall_handler<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn get_contract_address_state_entry<S: StateReader>(
-    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn get_contract_address_state_entry(
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let contract_address =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?;
@@ -235,7 +241,8 @@ pub(crate) fn get_contract_address_state_entry<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
-    HintArgs { exec_scopes, vm, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_contract_address = vm
         .get_integer(get_address_of_nested_fields(
@@ -253,10 +260,8 @@ pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn get_block_hash_contract_address_state_entry_and_set_new_state_entry<
-    S: StateReader,
->(
-    HintArgs { vm, exec_scopes, constants, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn get_block_hash_contract_address_state_entry_and_set_new_state_entry(
+    HintArgs { vm, exec_scopes, constants, ap_tracking, ids_data, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let block_hash_contract_address = Const::BlockHashContractAddress.fetch(constants)?;
     set_state_entry(block_hash_contract_address, vm, exec_scopes, ids_data, ap_tracking)
@@ -264,7 +269,8 @@ pub(crate) fn get_block_hash_contract_address_state_entry_and_set_new_state_entr
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn check_is_deprecated<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let class_hash = ClassHash(
         *vm.get_integer(
@@ -283,23 +289,19 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
 
     exec_scopes.insert_value(
         Scope::IsDeprecated.into(),
-        Felt::from(hint_processor.deprecated_compiled_classes.contains_key(&class_hash)),
+        Felt::from(hint_processor.deprecated_class_hashes.contains(&class_hash)),
     );
 
     Ok(())
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn is_deprecated<S: StateReader>(
-    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn is_deprecated(HintArgs { vm, exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     Ok(insert_value_into_ap(vm, exec_scopes.get::<Felt>(Scope::IsDeprecated.into())?)?)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_syscall_scopes<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn enter_syscall_scopes(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     // Unlike the Python implementation, there is no need to add `syscall_handler`,
     // `deprecated_syscall_handler`, `deprecated_class_hashes` and `execution_helper` as scope
     // variables since they are accessible via the hint processor.
@@ -313,7 +315,8 @@ pub(crate) fn enter_syscall_scopes<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn end_tx<S: StateReader>(
-    HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
     hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.end_tx()?;
     Ok(())
@@ -321,7 +324,8 @@ pub(crate) fn end_tx<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn enter_call<S: StateReader>(
-    HintArgs { hint_processor, ids_data, vm, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, vm, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let execution_info_ptr = vm.get_relocatable(get_address_of_nested_fields(
         ids_data,
@@ -352,7 +356,8 @@ pub(crate) fn enter_call<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn exit_call<S: StateReader>(
-    HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
     hint_processor
         .get_mut_current_execution_helper()?
@@ -364,7 +369,8 @@ pub(crate) fn exit_call<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn contract_address<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let tx = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?;
     let contract_address = match tx {
@@ -383,7 +389,8 @@ pub(crate) fn contract_address<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_calldata_len<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let calldata =
         get_calldata(hint_processor.execution_helpers_manager.get_current_execution_helper()?)?;
@@ -393,7 +400,8 @@ pub(crate) fn tx_calldata_len<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_calldata<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let calldata: Vec<_> =
         get_calldata(hint_processor.execution_helpers_manager.get_current_execution_helper()?)?
@@ -408,7 +416,8 @@ pub(crate) fn tx_calldata<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_entry_point_selector<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let tx = hint_processor
         .execution_helpers_manager
@@ -427,7 +436,8 @@ pub(crate) fn tx_entry_point_selector<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_version<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let version = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.version();
     insert_value_into_ap(vm, version.0)?;
@@ -436,7 +446,8 @@ pub(crate) fn tx_version<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_tip<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let tip = hint_processor
         .execution_helpers_manager
@@ -450,7 +461,8 @@ pub(crate) fn tx_tip<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_paymaster_data_len<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -464,7 +476,8 @@ pub(crate) fn tx_paymaster_data_len<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_paymaster_data<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -480,7 +493,8 @@ pub(crate) fn tx_paymaster_data<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_nonce_data_availability_mode<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -494,7 +508,8 @@ pub(crate) fn tx_nonce_data_availability_mode<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -508,7 +523,8 @@ pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_deployment_data =
         get_account_deployment_data(hint_processor.get_current_execution_helper()?)?;
@@ -522,7 +538,8 @@ pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn tx_account_deployment_data<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_deployment_data: Vec<_> =
         get_account_deployment_data(hint_processor.get_current_execution_helper()?)?
@@ -537,7 +554,8 @@ pub(crate) fn tx_account_deployment_data<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn gen_signature_arg<S: StateReader>(
-    HintArgs { hint_processor, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -566,7 +584,8 @@ pub(crate) fn gen_signature_arg<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn is_reverted<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let is_reverted = hint_processor
         .execution_helpers_manager
@@ -581,7 +600,8 @@ pub(crate) fn is_reverted<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn check_execution<S: StateReader>(
-    HintArgs { vm, hint_processor, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let current_execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
@@ -646,8 +666,8 @@ pub(crate) fn check_execution<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn is_remaining_gas_lt_initial_budget<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn is_remaining_gas_lt_initial_budget(
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let remaining_gas =
         get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
@@ -658,21 +678,22 @@ pub(crate) fn is_remaining_gas_lt_initial_budget<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn check_syscall_response<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let actual_retdata = extract_actual_retdata(vm, ids_data, ap_tracking)?;
     let call_response_ptr =
         get_ptr_from_var_name(Ids::CallResponse.into(), vm, ids_data, ap_tracking)?;
     let retdata_size = vm.get_integer(get_address_of_nested_fields_from_base_address(
         call_response_ptr,
-        CairoStruct::CallContractResponse,
+        CairoStruct::DeprecatedCallContractResponse,
         vm,
         &["retdata_size"],
         hint_processor.os_program,
     )?)?;
     let retdata_base = vm.get_relocatable(get_address_of_nested_fields_from_base_address(
         call_response_ptr,
-        CairoStruct::CallContractResponse,
+        CairoStruct::DeprecatedCallContractResponse,
         vm,
         &["retdata"],
         hint_processor.os_program,
@@ -683,7 +704,8 @@ pub(crate) fn check_syscall_response<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn check_new_syscall_response<S: StateReader>(
-    HintArgs { hint_processor, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     assert_retdata_as_expected(
         "retdata_start",
@@ -698,7 +720,8 @@ pub(crate) fn check_new_syscall_response<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn check_new_deploy_response<S: StateReader>(
-    HintArgs { hint_processor, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     assert_retdata_as_expected(
         "constructor_retdata_start",
@@ -712,8 +735,8 @@ pub(crate) fn check_new_deploy_response<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn initial_ge_required_gas<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn initial_ge_required_gas(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let initial_gas = get_integer_from_var_name(Ids::InitialGas.into(), vm, ids_data, ap_tracking)?;
     let required_gas =
@@ -724,7 +747,8 @@ pub(crate) fn initial_ge_required_gas<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let nonce = hint_processor
         .execution_helpers_manager
@@ -738,7 +762,8 @@ pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_fp_plus_4_to_tx_nonce<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let nonce = hint_processor
         .execution_helpers_manager
@@ -752,7 +777,8 @@ pub(crate) fn set_fp_plus_4_to_tx_nonce<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 fn write_syscall_result_helper<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
     ids_type: Ids,
     struct_type: CairoStruct,
     key_name: &str,
@@ -800,19 +826,36 @@ fn write_syscall_result_helper<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
-    hint_args: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    hint_args: HintArgs<'_>,
 ) -> OsHintResult {
-    write_syscall_result_helper(hint_args, Ids::SyscallPtr, CairoStruct::StorageWritePtr, "address")
+    write_syscall_result_helper(
+        hint_processor,
+        hint_args,
+        Ids::SyscallPtr,
+        CairoStruct::StorageWritePtr,
+        "address",
+    )
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn write_syscall_result<S: StateReader>(hint_args: HintArgs<'_, '_, S>) -> OsHintResult {
-    write_syscall_result_helper(hint_args, Ids::Request, CairoStruct::StorageWriteRequest, "key")
+pub(crate) fn write_syscall_result<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    hint_args: HintArgs<'_>,
+) -> OsHintResult {
+    write_syscall_result_helper(
+        hint_processor,
+        hint_args,
+        Ids::Request,
+        CairoStruct::StorageWriteRequest,
+        "key",
+    )
 }
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn declare_tx_fields<S: StateReader>(
-    HintArgs { hint_processor, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let account_tx = hint_processor
         .execution_helpers_manager
@@ -880,7 +923,8 @@ pub(crate) fn declare_tx_fields<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn write_old_block_to_storage<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let execution_helper = &mut hint_processor.get_mut_current_execution_helper()?;
 
@@ -902,7 +946,8 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 fn assert_value_cached_by_reading<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
     id: Ids,
     cairo_struct_type: CairoStruct,
     nested_fields: &[&str],
@@ -940,9 +985,11 @@ fn assert_value_cached_by_reading<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
-    hint_args: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    hint_args: HintArgs<'_>,
 ) -> OsHintResult {
     assert_value_cached_by_reading(
+        hint_processor,
         hint_args,
         Ids::Request,
         CairoStruct::StorageReadRequest,
@@ -952,9 +999,12 @@ pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
-    hint_args: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+
+    hint_args: HintArgs<'_>,
 ) -> OsHintResult {
     assert_value_cached_by_reading(
+        hint_processor,
         hint_args,
         Ids::SyscallPtr,
         CairoStruct::StorageReadPtr,
@@ -964,7 +1014,8 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let os_input = &hint_processor.get_current_execution_helper()?.os_block_input;
     let (old_block_number, old_block_hash) =
@@ -994,8 +1045,8 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn fetch_result<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn fetch_result(
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     // Fetch the result, up to 100 elements.
     let retdata = get_ptr_from_var_name(Ids::Retdata.into(), vm, ids_data, ap_tracking)?;

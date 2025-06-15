@@ -379,6 +379,7 @@ class ServiceApp(Construct):
     def _get_volume_mounts(self) -> typing.List[k8s.VolumeMount]:
         volume_mounts = [
             (
+                # TODO(Tsabary/Idan): this folder does not exist.
                 k8s.VolumeMount(
                     name=f"{self.node.id}-config",
                     mount_path="/config/sequencer/presets/",

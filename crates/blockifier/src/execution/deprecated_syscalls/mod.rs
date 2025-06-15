@@ -95,7 +95,7 @@ impl DeprecatedSyscallSelector {
 }
 
 impl TryFrom<Felt> for DeprecatedSyscallSelector {
-    type Error = DeprecatedSyscallExecutionError;
+    type Error = DeprecatedSyscallExecutorBaseError;
     fn try_from(raw_selector: Felt) -> Result<Self, Self::Error> {
         // Remove leading zero bytes from selector.
         let selector_bytes = raw_selector.to_bytes_be();
@@ -136,8 +136,8 @@ impl TryFrom<Felt> for DeprecatedSyscallSelector {
             b"SendMessageToL1" => Ok(Self::SendMessageToL1),
             b"StorageRead" => Ok(Self::StorageRead),
             b"StorageWrite" => Ok(Self::StorageWrite),
-            _ => Err(Self::Error::from(
-                DeprecatedSyscallExecutorBaseError::InvalidDeprecatedSyscallSelector(raw_selector),
+            _ => Err(DeprecatedSyscallExecutorBaseError::InvalidDeprecatedSyscallSelector(
+                raw_selector,
             )),
         }
     }

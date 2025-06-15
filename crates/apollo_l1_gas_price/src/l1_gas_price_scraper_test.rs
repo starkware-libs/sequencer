@@ -24,7 +24,7 @@ fn u64_to_block_hash(value: u64) -> L1BlockHash {
 fn create_l1_block_header(block_number: u64) -> L1BlockHeader {
     L1BlockHeader {
         number: block_number,
-        timestamp: block_number * BLOCK_TIME,
+        timestamp: (block_number * BLOCK_TIME).into(),
         base_fee_per_gas: u128::from(block_number) * GAS_PRICE,
         blob_fee: u128::from(block_number) * DATA_PRICE,
         hash: u64_to_block_hash(block_number),

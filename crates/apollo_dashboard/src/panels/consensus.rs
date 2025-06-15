@@ -3,6 +3,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_BUILD_PROPOSAL_TOTAL,
     CONSENSUS_CACHED_VOTES,
+    CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_HELD_LOCKS,
@@ -19,6 +20,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_PROPOSALS_VALID_INIT,
     CONSENSUS_REPROPOSALS,
     CONSENSUS_ROUND,
+    CONSENSUS_ROUND_ABOVE_ZERO,
     CONSENSUS_TIMEOUTS,
     LABEL_NAME_TIMEOUT_REASON,
 };
@@ -56,6 +58,8 @@ pub(crate) const PANEL_CONSENSUS_ROUND_AVG: Panel = Panel::new(
     formatcp!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name_with_filter()),
     PanelType::Graph,
 );
+pub(crate) const PANEL_CONSENSUS_ROUND_ABOVE_ZERO: Panel =
+    Panel::from_counter(CONSENSUS_ROUND_ABOVE_ZERO, PanelType::Graph);
 pub(crate) const PANEL_CONSENSUS_MAX_CACHED_BLOCK_NUMBER: Panel =
     Panel::from_gauge(CONSENSUS_MAX_CACHED_BLOCK_NUMBER, PanelType::Graph);
 pub(crate) const PANEL_CONSENSUS_CACHED_VOTES: Panel =
@@ -119,6 +123,8 @@ pub(crate) const PANEL_CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES: Panel =
     Panel::from_counter(CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES, PanelType::Graph);
 pub(crate) const PANEL_CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES: Panel =
     Panel::from_counter(CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES, PanelType::Graph);
+pub(crate) const PANEL_CONSENSUS_CONFLICTING_VOTES: Panel =
+    Panel::from_counter(CONSENSUS_CONFLICTING_VOTES, PanelType::Graph);
 
 pub(crate) const PANEL_CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER: Panel =
     Panel::from_gauge(CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER, PanelType::Graph);

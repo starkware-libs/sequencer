@@ -17,9 +17,7 @@ on:
       - "scripts/install_build_tools.sh"
       - "deployments/images/base/Dockerfile"
       - "deployments/images/sequencer/**"
-      - "deployments/monitoring/deploy_local_stack.sh"
-      - "deployments/monitoring/local/docker-compose.yml"
-      - "deployments/monitoring/local/.env"
+      - "deployments/monitoring/**"
 
 permissions:
   contents: read

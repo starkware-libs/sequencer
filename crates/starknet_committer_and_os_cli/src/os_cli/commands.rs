@@ -1,6 +1,6 @@
-use std::fs;
 use std::path::Path;
 
+use apollo_starknet_os_program::test_programs::ALIASES_TEST_BYTES;
 use apollo_starknet_os_program::{
     AGGREGATOR_PROGRAM_BYTES,
     CAIRO_FILES_MAP,
@@ -25,9 +25,6 @@ use crate::shared_utils::read::{load_input, write_to_file};
 #[derive(Deserialize, Debug)]
 /// Input to the os runner.
 pub(crate) struct Input {
-    // A path to a compiled program that its hint set should be a subset of those defined in
-    // starknet-os.
-    pub compiled_os_path: String,
     pub layout: LayoutName,
     pub os_hints: OsHints,
     pub cairo_pie_zip_path: String,
@@ -76,15 +73,11 @@ pub fn validate_input(os_input: &StarknetOsInput) {
 }
 
 pub fn parse_and_run_os(input_path: String, output_path: String) {
-    let Input { compiled_os_path, layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
+    let Input { layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
     validate_input(&os_hints.os_input);
 
-    // Load the compiled_os from the compiled_os_path.
-    let compiled_os =
-        fs::read(Path::new(&compiled_os_path)).expect("Failed to read compiled_os file");
-
     let StarknetOsRunnerOutput { os_output, cairo_pie, unused_hints } =
-        run_os_stateless(&compiled_os, layout, os_hints)
+        run_os_stateless(layout, os_hints)
             .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
     serialize_os_runner_output(
         &OsCliOutput { os_output, unused_hints },
@@ -115,6 +108,7 @@ pub(crate) fn dump_source_files(output_path: String) {
 pub(crate) fn dump_program(output_path: String, program: ProgramToDump) {
     let bytes = match program {
         ProgramToDump::Aggregator => AGGREGATOR_PROGRAM_BYTES,
+        ProgramToDump::AliasesTest => ALIASES_TEST_BYTES,
         ProgramToDump::Os => OS_PROGRAM_BYTES,
     };
     // Dumping the `Program` struct won't work - it is not deserializable via cairo-lang's Program

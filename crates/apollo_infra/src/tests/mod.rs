@@ -6,7 +6,7 @@ mod server_metrics_test;
 use std::sync::Arc;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
-use apollo_metrics::metrics::{MetricCounter, MetricGauge, MetricScope};
+use apollo_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram, MetricScope};
 use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,7 @@ use tokio::sync::Mutex;
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use crate::metrics::{LocalServerMetrics, RemoteServerMetrics};
+use crate::metrics::{LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics};
 
 pub(crate) type ValueA = Felt;
 pub(crate) type ValueB = Felt;
@@ -73,11 +73,23 @@ const REMOTE_TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
     0,
 );
 
+const EXAMPLE_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
+    MetricScope::Infra,
+    "example_histogram_metric",
+    "example_histogram_metric_filter",
+    "example_histogram_metric_sum_filter",
+    "example_histogram_metric_count_filter",
+    "Example histogram metrics",
+);
+
 pub(crate) const TEST_REMOTE_SERVER_METRICS: RemoteServerMetrics = RemoteServerMetrics::new(
     &REMOTE_TEST_MSGS_RECEIVED,
     &REMOTE_VALID_TEST_MSGS_RECEIVED,
     &REMOTE_TEST_MSGS_PROCESSED,
 );
+
+pub(crate) const TEST_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
+    RemoteClientMetrics::new(&EXAMPLE_HISTOGRAM_METRIC);
 
 // Define the shared fixture
 pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {

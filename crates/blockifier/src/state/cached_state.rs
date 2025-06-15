@@ -369,6 +369,7 @@ impl StateMaps {
         }
     }
 }
+
 /// Caches read and write requests.
 /// The tracked changes are needed for block state commitment.
 

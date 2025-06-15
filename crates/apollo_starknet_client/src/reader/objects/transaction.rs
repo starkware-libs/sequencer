@@ -161,17 +161,34 @@ impl From<L1HandlerTransaction> for starknet_api::transaction::L1HandlerTransact
     }
 }
 
+// TODO(Arni): Replace this enum with `starknet_api::data_availability::DataAvailabilityMode`
 // This enum is required since the FGW sends this field with value 0 as a reserved value. Once the
 // feature will be activated this enum should be removed from here and taken from starknet-api.
 #[derive(Debug, Deserialize_repr, Serialize_repr, Clone, Eq, PartialEq)]
 #[repr(u8)]
 pub enum ReservedDataAvailabilityMode {
+    // TODO(Arni): Change `Reserved` to `L1`, an the name of the enum to `DataAvailabilityMode`.
     Reserved = 0,
+    L2 = 1,
 }
 
 impl From<ReservedDataAvailabilityMode> for starknet_api::data_availability::DataAvailabilityMode {
+    // TODO(Arni): Fix this. Support L2 data availability mode.
     fn from(_: ReservedDataAvailabilityMode) -> Self {
         starknet_api::data_availability::DataAvailabilityMode::L1
+    }
+}
+
+impl From<starknet_api::data_availability::DataAvailabilityMode> for ReservedDataAvailabilityMode {
+    fn from(data_availability_mode: starknet_api::data_availability::DataAvailabilityMode) -> Self {
+        match data_availability_mode {
+            starknet_api::data_availability::DataAvailabilityMode::L1 => {
+                ReservedDataAvailabilityMode::Reserved
+            }
+            starknet_api::data_availability::DataAvailabilityMode::L2 => {
+                ReservedDataAvailabilityMode::L2
+            }
+        }
     }
 }
 

@@ -52,6 +52,7 @@ use apollo_protobuf::consensus::{
     Vote,
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_time::time::{Clock, DefaultClock, MockClock};
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
 use futures::channel::oneshot::Canceled;
@@ -77,12 +78,12 @@ use starknet_api::state::ThinStateDiff;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_types_core::felt::Felt;
 
-use super::{DefaultClock, SequencerConsensusContextDeps};
+use super::SequencerConsensusContextDeps;
 use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::{Clock, MockClock, SequencerConsensusContext};
+use crate::sequencer_consensus_context::SequencerConsensusContext;
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
 const CHANNEL_SIZE: usize = 5000;
@@ -276,7 +277,7 @@ fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) {
     let cende_ambassador = MockCendeContext::new();
     let eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
     let l1_gas_price_provider = MockL1GasPriceProviderClient::new();
-    let clock = Arc::new(DefaultClock::default());
+    let clock = Arc::new(DefaultClock);
 
     let test_deps = TestDeps {
         transaction_converter,
@@ -755,7 +756,7 @@ async fn decision_reached_sends_correct_values() {
 
     const BLOCK_TIME_STAMP_SECONDS: u64 = 123456;
     let mut clock = MockClock::new();
-    clock.expect_now_as_timestamp().return_const(BLOCK_TIME_STAMP_SECONDS);
+    clock.expect_unix_now().return_const(BLOCK_TIME_STAMP_SECONDS);
     clock
         .expect_now()
         .return_const(Utc.timestamp_opt(BLOCK_TIME_STAMP_SECONDS.try_into().unwrap(), 0).unwrap());

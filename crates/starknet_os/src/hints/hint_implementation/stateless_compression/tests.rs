@@ -270,16 +270,60 @@ fn test_update_with_unique_values(
 //     return 0
 // ```
 #[rstest]
-#[case::single_value_1(vec![1u32], vec!["0x100000000000000000000000000000100000", "0x1", "0x5"])]
-#[case::single_value_2(vec![2u32], vec!["0x100000000000000000000000000000100000", "0x2", "0x5"])]
-#[case::single_value_3(vec![10u32], vec!["0x100000000000000000000000000000100000", "0xA", "0x5"])]
-#[case::two_values(vec![1u32, 2], vec!["0x200000000000000000000000000000200000", "0x10001", "0x28"])]
-#[case::three_values(vec![2u32, 3, 1], vec!["0x300000000000000000000000000000300000", "0x40018002", "0x11d"])]
-#[case::four_values(vec![1u32, 2, 3, 4], vec!["0x400000000000000000000000000000400000", "0x8000c0010001", "0x7d0"])]
-#[case::extracted_kzg_example(vec![1u32, 1, 6, 1991, 66, 0], vec!["0x10000500000000000000000000000000000600000", "0x841f1c0030001", "0x0", "0x17eff"])]
+#[case::single_value_1(vec!["0x1"], vec!["0x100000000000000000000000000000100000", "0x1", "0x5"])]
+#[case::single_value_2(vec!["0x2"], vec!["0x100000000000000000000000000000100000", "0x2", "0x5"])]
+#[case::single_value_3(vec!["0xa"], vec!["0x100000000000000000000000000000100000", "0xA", "0x5"])]
+#[case::two_values(vec!["0x1", "0x2"], vec!["0x200000000000000000000000000000200000", "0x10001", "0x28"])]
+#[case::three_values(vec!["0x2", "0x3", "0x1"], vec!["0x300000000000000000000000000000300000", "0x40018002", "0x11d"])]
+#[case::four_values(vec!["0x1", "0x2", "0x3", "0x4"], vec!["0x400000000000000000000000000000400000", "0x8000c0010001", "0x7d0"])]
+#[case::extracted_kzg_example(vec!["0x1", "0x1", "0x6", "0x7c7", "0x42", "0x0"], vec!["0x10000500000000000000000000000000000600000", "0x841f1c0030001", "0x0", "0x17eff"])]
+#[case::many_buckets(
+    vec![
+        "0x4",
+        "0x2",
+        "0x12",
+        "0x0",
+        "0x8d",
+        "0x3b28019ccfdbd30ffc65951d94bb85c9e2b8434111a000b5afd533ce65f57a4",
+        "0x8b",
+        "0x3e761c56282df5f70f25fc154e6b3ac9335b7fc41538ecb9276c77a77ee42b4",
+        "0x8a",
+        "0x7e2c7f8fd5d138ac47de629f64c7a2c732b2fd5863bd4b7a3df13a9143313e2",
+        "0x8c",
+        "0x88",
+        "0xa",
+        "0x8a",
+        "0x8af9fb61c",
+        "0x87",
+        "0xfffffffffffffffffffff7506049e4",
+        "0x89",
+        "0xc02",
+        "0x8c",
+        "0x7",
+        "0x7c6f280b97046e3b87f91b905721b07cb7a3c0c5bc3e7415542d334de7c15b6",
+        "0x8b",
+        "0x7075626c69635f6b6579",
+        "0x1",
+        "0x7c6f280b97046e3b87f91b905721b07cb7a3c0c5bc3e7415542d334de7c15b6",
+        "0x3ccabeeed5a2f8b62b97ade270f3c7276c38f2d88c7260ba080d8185c018d37"
+    ],
+    vec![
+        "0x40000f00000000010000100001000050001b00000",
+        "0x3b28019ccfdbd30ffc65951d94bb85c9e2b8434111a000b5afd533ce65f57a4",
+        "0x3e761c56282df5f70f25fc154e6b3ac9335b7fc41538ecb9276c77a77ee42b4",
+        "0x7e2c7f8fd5d138ac47de629f64c7a2c732b2fd5863bd4b7a3df13a9143313e2",
+        "0x7c6f280b97046e3b87f91b905721b07cb7a3c0c5bc3e7415542d334de7c15b6",
+        "0x3ccabeeed5a2f8b62b97ade270f3c7276c38f2d88c7260ba080d8185c018d37",
+        "0xfffffffffffffffffffff7506049e4",
+        "0x7075626c69635f6b6579",
+        "0x8af9fb61c",
+        "0x40038c020112021c005008801180228045808d000000480010004",
+        "0xaad9",
+        "0x1ec63d26ccd3d600757"
+    ])]
 
-fn test_compress_decompress(#[case] input: Vec<u32>, #[case] expected: Vec<&str>) {
-    let data: Vec<_> = input.into_iter().map(Felt::from).collect();
+fn test_compress_decompress(#[case] input: Vec<&str>, #[case] expected: Vec<&str>) {
+    let data: Vec<_> = input.into_iter().map(Felt::from_hex_unchecked).collect();
     let compressed = compress(&data);
     let expected: Vec<_> = expected.iter().map(|s| Felt::from_hex_unchecked(s)).collect();
     assert_eq!(compressed, expected);

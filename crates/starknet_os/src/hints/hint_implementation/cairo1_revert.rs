@@ -8,14 +8,15 @@ use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::execution::utils::set_state_entry;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn prepare_state_entry_for_revert<S: StateReader>(
-    HintArgs { ids_data, ap_tracking, vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn prepare_state_entry_for_revert(
+    HintArgs { ids_data, ap_tracking, vm, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let contract_address: ContractAddress =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?
@@ -30,7 +31,8 @@ pub(crate) fn prepare_state_entry_for_revert<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn read_storage_key_for_revert<S: StateReader>(
-    HintArgs { exec_scopes, hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let contract_address: &ContractAddress =
         exec_scopes.get_ref(Scope::ContractAddressForRevert.into())?;
@@ -45,7 +47,8 @@ pub(crate) fn read_storage_key_for_revert<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn write_storage_key_for_revert<S: StateReader>(
-    HintArgs { exec_scopes, hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let contract_address: &ContractAddress =
         exec_scopes.get_ref(Scope::ContractAddressForRevert.into())?;
@@ -58,9 +61,7 @@ pub(crate) fn write_storage_key_for_revert<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn generate_dummy_os_output_segment<S: StateReader>(
-    HintArgs { vm, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn generate_dummy_os_output_segment(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResult {
     let base = vm.add_memory_segment();
     let segment_data =
         [MaybeRelocatable::from(vm.add_memory_segment()), MaybeRelocatable::from(Felt::ZERO)];

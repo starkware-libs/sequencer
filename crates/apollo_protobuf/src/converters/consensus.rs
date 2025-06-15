@@ -287,6 +287,9 @@ impl TryFrom<protobuf::ProposalPart> for ProposalPart {
             Message::Fin(fin) => Ok(ProposalPart::Fin(fin.try_into()?)),
             Message::BlockInfo(block_info) => Ok(ProposalPart::BlockInfo(block_info.try_into()?)),
             Message::Transactions(content) => Ok(ProposalPart::Transactions(content.try_into()?)),
+            Message::ExecutedTransactionCount(count) => {
+                Ok(ProposalPart::ExecutedTransactionCount(count))
+            }
         }
     }
 }
@@ -305,6 +308,9 @@ impl From<ProposalPart> for protobuf::ProposalPart {
             },
             ProposalPart::Transactions(content) => protobuf::ProposalPart {
                 message: Some(protobuf::proposal_part::Message::Transactions(content.into())),
+            },
+            ProposalPart::ExecutedTransactionCount(count) => protobuf::ProposalPart {
+                message: Some(protobuf::proposal_part::Message::ExecutedTransactionCount(count)),
             },
         }
     }

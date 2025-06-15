@@ -424,6 +424,9 @@ impl TxCollector {
                         .collect();
                     self.accumulated_txs.lock().await.add_transactions(&received_tx_hashes);
                 }
+                StreamMessageBody::Content(ProposalPart::ExecutedTransactionCount(_)) => {
+                    // TODO(Asmaa): Add validation for executed transaction count when implemented.
+                }
                 StreamMessageBody::Fin => {
                     got_channel_fin = true;
                 }

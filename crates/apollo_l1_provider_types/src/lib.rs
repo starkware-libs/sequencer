@@ -13,7 +13,7 @@ use indexmap::IndexSet;
 use mockall::automock;
 use papyrus_base_layer::{EventData, L1Event};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::{
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
@@ -34,6 +34,12 @@ pub type SharedL1ProviderClient = Arc<dyn L1ProviderClient>;
 pub enum ValidationStatus {
     Invalid(InvalidValidationStatus),
     Validated,
+}
+
+impl From<InvalidValidationStatus> for ValidationStatus {
+    fn from(status: InvalidValidationStatus) -> Self {
+        Self::Invalid(status)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -221,24 +227,33 @@ where
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Event {
-    L1HandlerTransaction(L1HandlerTransaction),
+    L1HandlerTransaction {
+        l1_handler_tx: L1HandlerTransaction,
+        timestamp: BlockTimestamp,
+    },
     TransactionCanceled(EventData),
-    TransactionCancellationStarted(TransactionHash),
+    TransactionCancellationStarted {
+        tx_hash: TransactionHash,
+        cancellation_request_timestamp: BlockTimestamp,
+    },
     TransactionConsumed(EventData),
 }
 
 impl Event {
     pub fn from_l1_event(chain_id: &ChainId, l1_event: L1Event) -> Result<Self, StarknetApiError> {
         Ok(match l1_event {
-            L1Event::LogMessageToL2 { tx, fee, .. } => {
+            L1Event::LogMessageToL2 { tx, fee, timestamp, .. } => {
                 let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)?;
-                Self::L1HandlerTransaction(tx)
+                Self::L1HandlerTransaction { l1_handler_tx: tx, timestamp }
             }
-            L1Event::MessageToL2CancellationStarted { cancelled_tx } => {
+            L1Event::MessageToL2CancellationStarted {
+                cancelled_tx,
+                cancellation_request_timestamp,
+            } => {
                 let tx_hash =
                     cancelled_tx.calculate_transaction_hash(chain_id, &cancelled_tx.version)?;
 
-                Self::TransactionCancellationStarted(tx_hash)
+                Self::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp }
             }
             L1Event::MessageToL2Canceled(event_data) => Self::TransactionCanceled(event_data),
             L1Event::ConsumedMessageToL2(event_data) => Self::TransactionConsumed(event_data),
@@ -249,12 +264,21 @@ impl Event {
 impl Display for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Event::L1HandlerTransaction(tx) => {
-                write!(f, "L1HandlerTransaction(tx_hash={})", tx.tx_hash)
+            Event::L1HandlerTransaction { l1_handler_tx: tx, timestamp } => {
+                write!(
+                    f,
+                    "L1HandlerTransaction(tx_hash={}, block_timestamp={})",
+                    tx.tx_hash, timestamp
+                )
             }
             Event::TransactionCanceled(data) => write!(f, "TransactionCanceled({})", data),
-            Event::TransactionCancellationStarted(data) => {
-                write!(f, "TransactionCancellationStarted({})", data)
+            Event::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp } => {
+                write!(
+                    f,
+                    "TransactionCancellationStarted(tx_hash={}, \
+                     cancellation_request_block_timestamp={})",
+                    tx_hash, cancellation_request_timestamp
+                )
             }
             Event::TransactionConsumed(data) => write!(f, "TransactionConsumed({})", data),
         }

@@ -1,101 +1,123 @@
+use std::collections::btree_map::Entry;
+use std::collections::BTreeMap;
+use std::ops::{Deref, Sub};
+use std::time::Duration;
+
 use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
-use indexmap::IndexMap;
+use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
-use crate::soft_delete_index_map::SoftDeleteIndexMap;
+use crate::transaction_record::{Records, TransactionPayload, TransactionRecord, TransactionState};
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TransactionManager {
-    uncommitted: SoftDeleteIndexMap,
-    rejected: SoftDeleteIndexMap,
-    committed: IndexMap<TransactionHash, TransactionPayload>,
+    /// Storage of all l1 handler transactions --- keeps transactions until they can be safely
+    /// removed, like when they are consumed on L1, or fully cancelled on L1.
+    pub records: Records,
+    pub config: TransactionManagerConfig,
+    /// Ordered lexicographically by block timestamp, then order-of-arrival for
+    /// identical timestamps, also at any point the staged transactions are a prefix of the
+    /// structure under this order.
+    /// Invariant: contains all hashes of transactions that are proposable, and only them.
+    /// Invarariant 2: Once removed from this index, a transaction will never be proposed again.
+    proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>>,
+    /// Generation counter used to prevent double usage of an l1 handler transaction in a single
+    /// block.
+    /// Calling `get_txs` or `validate_tx` tags the touched transactions with the current block
+    /// counter, so that further calls will know not to touch them again.
+    /// At the start and end (commit) of every block, the counter is incremented, thus "unstaging"
+    /// all tagged transactions from the previous block attempt.
+    // TODO(Gilad): remove "for rejected" from name when uncommitted is migrated to records DS.
+    current_staging_epoch: StagingEpoch,
 }
 
 impl TransactionManager {
-    pub fn start_block(&mut self) {
-        self.uncommitted.rollback_staging();
-        self.rejected.rollback_staging();
+    pub fn new(new_l1_handler_tx_cooldown_secs: Duration) -> Self {
+        Self {
+            config: TransactionManagerConfig { new_l1_handler_tx_cooldown_secs },
+            records: Default::default(),
+            proposable_index: Default::default(),
+            current_staging_epoch: StagingEpoch::new(),
+        }
     }
 
-    pub fn get_txs(&mut self, n_txs: usize) -> Vec<L1HandlerTransaction> {
-        let mut txs = Vec::with_capacity(n_txs);
+    pub fn start_block(&mut self) {
+        self.rollback_staging();
+    }
 
-        for _ in 0..n_txs {
-            match self.uncommitted.soft_pop_front().cloned() {
-                Some(tx) => txs.push(tx),
-                None => break,
-            }
+    pub fn get_txs(&mut self, n_txs: usize, now: u64) -> Vec<L1HandlerTransaction> {
+        // Oldest        Now.sub(timelock)     Newest       Now
+        //  |<---  passed  --->|                 |           |
+        //  |<--- cooldown --->|                 |           |
+        // t-------------------------------------------------->
+        let cutoff = now.saturating_sub(self.config.new_l1_handler_tx_cooldown_secs.as_secs());
+        let past_cooldown_txs = self.proposable_index.range(..BlockTimestamp(cutoff));
+
+        // Linear scan, but we expect this to be a small number of transactions (< 10 roughly).
+        let unstaged_tx_hashes: Vec<_> = past_cooldown_txs
+            .flat_map(|(_timestamp, tx_hashes)| tx_hashes.iter())
+            .skip_while(|&&tx_hash| self.is_staged(tx_hash))
+            .take(n_txs)
+            .copied()
+            .collect();
+
+        let mut txs = Vec::with_capacity(n_txs);
+        let current_staging_epoch = self.current_staging_epoch; // borrow-checker constraint.
+        for tx_hash in unstaged_tx_hashes {
+            let newly_staged =
+                self.with_record(tx_hash, |record| record.try_mark_staged(current_staging_epoch));
+            assert_eq!(
+                newly_staged,
+                Some(true),
+                "Inconsistent storage state: indexed l1 handler {tx_hash} is not in storage or \
+                 wasn't marked as staged."
+            );
+
+            txs.push(self.records[&tx_hash].get_unchecked().clone());
         }
         txs
     }
 
     pub fn validate_tx(&mut self, tx_hash: TransactionHash) -> ValidationStatus {
-        if self.is_committed(tx_hash) {
-            return ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2);
-        }
+        let current_staging_epoch_cloned = self.current_staging_epoch;
+        let validation_status = self.with_record(tx_hash, |record| {
+            if !record.is_validatable() {
+                match record.state {
+                    TransactionState::Committed => {
+                        InvalidValidationStatus::AlreadyIncludedOnL2.into()
+                    }
+                    // This will soon also replaced with other states, like `Canceled`, which is
+                    // also not-validatable.
+                    _ => unreachable!(),
+                }
+            } else if record.try_mark_staged(current_staging_epoch_cloned) {
+                ValidationStatus::Validated
+            } else {
+                InvalidValidationStatus::AlreadyIncludedInProposedBlock.into()
+            }
+        });
 
-        if self.uncommitted.soft_remove(tx_hash).is_some()
-            || self.rejected.soft_remove(tx_hash).is_some()
-        {
-            ValidationStatus::Validated
-        } else if self.uncommitted.is_staged(&tx_hash) || self.rejected.is_staged(&tx_hash) {
-            ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedInProposedBlock)
-        } else {
-            ValidationStatus::Invalid(InvalidValidationStatus::ConsumedOnL1OrUnknown)
-        }
+        validation_status.unwrap_or(InvalidValidationStatus::ConsumedOnL1OrUnknown.into())
     }
 
-    /// This function does the following:
-    /// 1) Rolls back the uncommitted and rejected staging pools.
-    /// 2) Moves all newly committed transactions from the uncommitted pool to the committed pool.
-    /// 3) Moves all newly rejected transactions from the uncommitted pool to the rejected pool.
-    ///
-    /// # Performance
-    /// This function has linear complexity in the number of known transactions and the
-    /// number of transactions being committed. This is acceptable while the number of
-    /// L1 handler transactions remains low. If higher performance becomes necessary (e.g.,
-    /// requiring amortized log(n) operations), consider replacing `IndexMap` with a
-    /// structure like: `BTreeMap<u32, TransactionEntry>'.
     pub fn commit_txs(
         &mut self,
         committed_txs: &[TransactionHash],
         rejected_txs: &[TransactionHash],
     ) {
-        // When committing transactions, we don't need to have staged transactions.
-        self.uncommitted.rollback_staging();
-        self.rejected.rollback_staging();
+        self.rollback_staging();
 
-        let mut uncommitted = IndexMap::new();
-        let mut rejected = IndexMap::new();
-        let mut committed: IndexMap<_, _> = committed_txs
-            .iter()
-            .copied()
-            .map(|tx_hash| (tx_hash, TransactionPayload::HashOnly))
-            .collect();
-
-        // Iterate over the uncommitted transactions and check if they are committed or rejected.
-        for (hash, entry) in self.uncommitted.txs.drain(..) {
-            // Each rejected transaction is added to the rejected pool.
-            if rejected_txs.contains(&hash) {
-                rejected.insert(hash, entry);
-            } else if committed.contains_key(&hash) {
-                committed.get_mut(&hash).unwrap().set(entry.tx);
-            } else {
-                // If a transaction is not committed or rejected, it is added back to the
-                // uncommitted pool.
-                uncommitted.insert(hash, entry);
-            }
+        for &tx_hash in committed_txs {
+            self.create_record_if_not_exist(tx_hash);
+            self.with_record(tx_hash, |r| r.mark_committed()).unwrap();
         }
-
-        self.rejected.txs.extend(rejected);
-
-        // Assign the remaining uncommitted txs to the uncommitted pool, which was was drained.
-        self.uncommitted.txs = uncommitted;
-
-        // Add all committed tx hashes to the committed buffer, regardless of if they're known or
-        // not, in case we haven't scraped them yet and another node did.
-        self.committed.extend(committed)
+        for &tx_hash in rejected_txs {
+            self.with_record(tx_hash, |r| r.mark_rejected()).expect(
+                "Storage inconsistency: a transaction sent to the batcher was removed \
+                 unexpectedly.",
+            );
+        }
     }
 
     /// Adds a transaction to the transaction manager, return true if the transaction was
@@ -103,66 +125,194 @@ impl TransactionManager {
     /// committed, it will not be added, and false will be returned.
     // Note: if only the committed hash was known, the transaction will "fill in the blank" in the
     // committed txs storage, to account for commit-before-add tx scenario.
-    pub fn add_tx(&mut self, tx: L1HandlerTransaction) -> bool {
-        if let Some(entry) = self.committed.get_mut(&tx.tx_hash) {
-            entry.set(tx);
-            return false;
-        }
+    pub fn add_tx(&mut self, tx: L1HandlerTransaction, block_timestamp: BlockTimestamp) -> bool {
+        let tx_hash = tx.tx_hash;
+        let is_new_record = self.create_record_if_not_exist(tx_hash);
+        self.with_record(tx_hash, move |record| {
+            record.tx.set(tx, block_timestamp);
+        });
 
-        if self.rejected.txs.contains_key(&tx.tx_hash) {
-            return false;
-        }
+        is_new_record
+    }
 
-        self.uncommitted.insert(tx)
+    pub fn request_cancellation(
+        &mut self,
+        tx_hash: TransactionHash,
+        block_timestamp: BlockTimestamp,
+    ) -> Option<BlockTimestamp> {
+        self.with_record(tx_hash, |r| r.mark_cancellation_request(block_timestamp)).expect(
+            "Should not be possible to request cancellation for non-existent transaction {tx_hash}",
+        )
     }
 
     pub fn is_committed(&self, tx_hash: TransactionHash) -> bool {
-        self.committed.contains_key(&tx_hash)
+        self.records.get(&tx_hash).is_some_and(|record| record.is_committed())
+    }
+
+    pub fn exists(&self, tx_hash: TransactionHash) -> bool {
+        self.records.contains_key(&tx_hash)
     }
 
     pub(crate) fn snapshot(&self) -> TransactionManagerSnapshot {
-        TransactionManagerSnapshot {
-            uncommitted: self.uncommitted.txs.keys().copied().collect(),
-            uncommitted_staged: self.uncommitted.staged_txs.iter().copied().collect(),
-            rejected: self.rejected.txs.keys().copied().collect(),
-            rejected_staged: self.rejected.staged_txs.iter().copied().collect(),
-            committed: self.committed.keys().copied().collect(),
+        let mut snapshot = TransactionManagerSnapshot::default();
+
+        for (&tx_hash, record) in self.records.iter() {
+            match record.state {
+                TransactionState::Rejected => {
+                    snapshot.rejected.push(tx_hash);
+                    if self.is_staged(tx_hash) {
+                        snapshot.rejected_staged.push(tx_hash);
+                    }
+                }
+                TransactionState::Committed => {
+                    snapshot.committed.push(tx_hash);
+                }
+                TransactionState::Pending => {
+                    snapshot.uncommitted.push(tx_hash);
+                    if self.is_staged(tx_hash) {
+                        snapshot.uncommitted_staged.push(tx_hash);
+                    }
+                }
+                TransactionState::CancellationStartedOnL2 => {
+                    snapshot.cancellation_started_on_l2.push(tx_hash);
+                }
+            }
+        }
+
+        snapshot
+    }
+
+    fn with_record<F, R>(&mut self, hash: TransactionHash, f: F) -> Option<R>
+    where
+        F: FnOnce(&mut TransactionRecord) -> R,
+    {
+        let record = self.records.get_mut_unchecked(hash)?;
+        let result = f(record);
+        self.maintain_index(hash);
+        Some(result)
+    }
+
+    fn create_record_if_not_exist(&mut self, hash: TransactionHash) -> bool {
+        self.records.insert(hash, TransactionRecord::new(hash.into()))
+    }
+
+    fn is_staged(&self, tx_hash: TransactionHash) -> bool {
+        self.records
+            .get(&tx_hash)
+            .is_some_and(|record| record.is_staged(self.current_staging_epoch))
+    }
+
+    fn rollback_staging(&mut self) {
+        self.current_staging_epoch = self.current_staging_epoch.increment();
+    }
+
+    fn maintain_index(&mut self, hash: TransactionHash) {
+        if let Some(record) = self.records.get(&hash) {
+            let TransactionPayload::Full { created_at_block_timestamp: created_at, .. } = record.tx
+            else {
+                // We haven't scraped this tx yet, so it isn't indexed.
+                return;
+            };
+
+            let tx_hash = hash;
+            if record.is_proposable() {
+                // Assumption: txs will only be added to the index once, on arrival, so this
+                // preserves arrival order.
+                let tx_hashes = self.proposable_index.entry(created_at).or_default();
+                if !tx_hashes.contains(&tx_hash) {
+                    tx_hashes.push(tx_hash);
+                }
+            } else {
+                // Remove from the vec for this timestamp, and drop the entry if it becomes empty.
+                match self.proposable_index.entry(created_at) {
+                    Entry::Occupied(mut entry) => {
+                        let tx_hashes = entry.get_mut();
+                        if let Some(index_in_vec) = tx_hashes.iter().position(|&h| h == tx_hash) {
+                            tx_hashes.remove(index_in_vec);
+                            if tx_hashes.is_empty() {
+                                entry.remove();
+                            }
+                        }
+                    }
+                    Entry::Vacant(_) => {}
+                }
+            }
         }
     }
 
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing(
-        uncommitted: SoftDeleteIndexMap,
-        rejected: SoftDeleteIndexMap,
-        committed: IndexMap<TransactionHash, TransactionPayload>,
+        records: Records,
+        proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>>,
+        current_epoch: StagingEpoch,
+        config: TransactionManagerConfig,
     ) -> Self {
-        Self { uncommitted, rejected, committed }
+        Self { records, proposable_index, current_staging_epoch: current_epoch, config }
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub enum TransactionPayload {
-    #[default]
-    HashOnly,
-    Full(L1HandlerTransaction),
-}
-
-impl TransactionPayload {
-    pub fn set(&mut self, tx: L1HandlerTransaction) {
-        *self = tx.into();
+impl Default for TransactionManager {
+    // Note that new will init the epoch at 1, not 0, this is because a 0 epoch in the transaction
+    // manager will make new transactions automatically staged by default in the first block.
+    fn default() -> Self {
+        Self::new(Duration::from_secs(0))
     }
 }
-
-impl From<L1HandlerTransaction> for TransactionPayload {
-    fn from(tx: L1HandlerTransaction) -> Self {
-        TransactionPayload::Full(tx)
-    }
-}
-
+#[derive(Debug, Default)]
 pub(crate) struct TransactionManagerSnapshot {
     pub uncommitted: Vec<TransactionHash>,
     pub uncommitted_staged: Vec<TransactionHash>,
     pub rejected: Vec<TransactionHash>,
     pub rejected_staged: Vec<TransactionHash>,
     pub committed: Vec<TransactionHash>,
+    pub cancellation_started_on_l2: Vec<TransactionHash>,
+}
+
+// Invariant: Monotone-increasing.
+#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
+pub struct StagingEpoch(u128);
+
+impl StagingEpoch {
+    /// Note: initialized to 1, since new l1 handler transactions are initialized with epoch 0 ---
+    /// this ensures all new transactions are stageable.
+    pub fn new() -> Self {
+        Self(1)
+    }
+
+    pub fn increment(&mut self) -> Self {
+        Self(self.0 + 1)
+    }
+
+    pub fn decrement(&mut self) -> Self {
+        Self(self.0 - 1)
+    }
+}
+
+impl Deref for StagingEpoch {
+    type Target = u128;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<u128> for StagingEpoch {
+    fn from(value: u128) -> Self {
+        Self(value)
+    }
+}
+
+impl Sub<u128> for StagingEpoch {
+    type Output = StagingEpoch;
+
+    fn sub(self, rhs: u128) -> Self::Output {
+        Self(self.0 - rhs)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct TransactionManagerConfig {
+    // How long to wait before allowing new L1 handler transactions to be proposed (validation is
+    // available immediately).
+    pub new_l1_handler_tx_cooldown_secs: Duration,
 }

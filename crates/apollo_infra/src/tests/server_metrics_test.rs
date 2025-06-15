@@ -29,7 +29,12 @@ use crate::component_server::{
     LocalComponentServer,
     RemoteComponentServer,
 };
-use crate::tests::{AVAILABLE_PORTS, TEST_LOCAL_SERVER_METRICS, TEST_REMOTE_SERVER_METRICS};
+use crate::tests::{
+    AVAILABLE_PORTS,
+    TEST_LOCAL_SERVER_METRICS,
+    TEST_REMOTE_CLIENT_METRICS,
+    TEST_REMOTE_SERVER_METRICS,
+};
 
 type TestResult = ClientResult<()>;
 
@@ -163,8 +168,12 @@ async fn setup_remote_server_test(
     task::spawn(async move {
         let _ = remote_server.start().await;
     });
-    let remote_client =
-        RemoteTestComponentClient::new(config, &socket.ip().to_string(), socket.port());
+    let remote_client = RemoteTestComponentClient::new(
+        config,
+        &socket.ip().to_string(),
+        socket.port(),
+        TEST_REMOTE_CLIENT_METRICS,
+    );
 
     (test_sem, remote_client)
 }

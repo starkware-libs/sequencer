@@ -2,6 +2,7 @@ use apollo_infra::metrics::{
     MEMPOOL_LOCAL_MSGS_PROCESSED,
     MEMPOOL_LOCAL_MSGS_RECEIVED,
     MEMPOOL_LOCAL_QUEUE_DEPTH,
+    MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
     MEMPOOL_REMOTE_MSGS_PROCESSED,
     MEMPOOL_REMOTE_MSGS_RECEIVED,
     MEMPOOL_REMOTE_VALID_MSGS_RECEIVED,
@@ -25,17 +26,19 @@ use const_format::formatcp;
 use crate::dashboard::{Panel, PanelType};
 
 pub(crate) const PANEL_MEMPOOL_LOCAL_MSGS_RECEIVED: Panel =
-    Panel::from_counter(MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::Stat);
+    Panel::from_counter(MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::Graph);
 pub(crate) const PANEL_MEMPOOL_LOCAL_MSGS_PROCESSED: Panel =
-    Panel::from_counter(MEMPOOL_LOCAL_MSGS_PROCESSED, PanelType::Stat);
+    Panel::from_counter(MEMPOOL_LOCAL_MSGS_PROCESSED, PanelType::Graph);
 pub(crate) const PANEL_MEMPOOL_REMOTE_MSGS_RECEIVED: Panel =
-    Panel::from_counter(MEMPOOL_REMOTE_MSGS_RECEIVED, PanelType::Stat);
+    Panel::from_counter(MEMPOOL_REMOTE_MSGS_RECEIVED, PanelType::Graph);
 pub(crate) const PANEL_MEMPOOL_REMOTE_VALID_MSGS_RECEIVED: Panel =
-    Panel::from_counter(MEMPOOL_REMOTE_VALID_MSGS_RECEIVED, PanelType::Stat);
+    Panel::from_counter(MEMPOOL_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
 pub(crate) const PANEL_MEMPOOL_REMOTE_MSGS_PROCESSED: Panel =
-    Panel::from_counter(MEMPOOL_REMOTE_MSGS_PROCESSED, PanelType::Stat);
+    Panel::from_counter(MEMPOOL_REMOTE_MSGS_PROCESSED, PanelType::Graph);
 pub(crate) const PANEL_MEMPOOL_LOCAL_QUEUE_DEPTH: Panel =
-    Panel::from_gauge(MEMPOOL_LOCAL_QUEUE_DEPTH, PanelType::Stat);
+    Panel::from_gauge(MEMPOOL_LOCAL_QUEUE_DEPTH, PanelType::Graph);
+pub(crate) const PANEL_MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
+    Panel::from_hist(MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
 
 pub(crate) const PANEL_MEMPOOL_TRANSACTIONS_RECEIVED: Panel = Panel::new(
     MEMPOOL_TRANSACTIONS_RECEIVED.get_name(),

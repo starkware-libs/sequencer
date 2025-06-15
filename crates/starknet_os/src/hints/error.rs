@@ -1,3 +1,4 @@
+use blockifier::execution::deprecated_syscalls::deprecated_syscall_executor::DeprecatedSyscallExecutorBaseError;
 use blockifier::execution::deprecated_syscalls::hint_processor::DeprecatedSyscallExecutionError;
 use blockifier::state::errors::StateError;
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
@@ -10,7 +11,7 @@ use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::ClassHash;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::StarknetApiError;
 use starknet_patricia::hash::hash_trait::HashOutput;
@@ -22,6 +23,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::ExecutionHelperError;
 use crate::hint_processor::os_logger::OsLoggerError;
+use crate::hint_processor::snos_deprecated_syscall_executor::DeprecatedSnosSyscallError;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::hint_implementation::kzg::utils::FftError;
 use crate::hints::hint_implementation::patricia::error::PatriciaError;
@@ -40,6 +42,10 @@ pub enum OsHintError {
     BooleanIdExpected { id: Ids, felt: Felt },
     #[error("Failed to convert {variant:?} felt value {felt:?} to type {ty}: {reason:?}.")]
     ConstConversion { variant: Const, felt: Felt, ty: String, reason: String },
+    #[error(transparent)]
+    DeprecatedBaseSyscall(#[from] DeprecatedSyscallExecutorBaseError),
+    #[error(transparent)]
+    DeprecatedSnosSyscall(#[from] DeprecatedSnosSyscallError),
     #[error(transparent)]
     DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
     #[error("Tried to iterate past the end of {item_type}.")]
@@ -75,8 +81,6 @@ pub enum OsHintError {
     Memory(#[from] MemoryError),
     #[error("No bytecode segment structure for class hash: {0:?}.")]
     MissingBytecodeSegmentStructure(ClassHash),
-    #[error("No commitment info for contract address: {0:?}.")]
-    MissingCommitmentInfo(ContractAddress),
     #[error("Hint {hint:?} has no nondet offset.")]
     MissingOffsetForHint { hint: AllHints },
     #[error("No component hashes for class hash {0:?}.")]

@@ -45,6 +45,10 @@ pub enum NextTxs {
 #[async_trait]
 pub trait TransactionProvider: Send {
     async fn get_txs(&mut self, n_txs: usize) -> TransactionProviderResult<NextTxs>;
+    /// In validate mode ([ValidateTransactionProvider]) returns the final number of transactions
+    /// in the block once it is known, or `None` if it is not known yet.
+    /// Returns `None` in propose mode ([ProposeTransactionProvider]).
+    async fn get_n_txs_in_block(&self) -> Option<usize>;
 }
 
 #[derive(Clone)]
@@ -137,12 +141,28 @@ impl TransactionProvider for ProposeTransactionProvider {
         txs.append(&mut mempool_txs);
         Ok(NextTxs::Txs(txs))
     }
+
+    async fn get_n_txs_in_block(&self) -> Option<usize> {
+        None
+    }
 }
 
 pub struct ValidateTransactionProvider {
     pub tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
     pub l1_provider_client: SharedL1ProviderClient,
     pub height: BlockNumber,
+    // TODO(lior): Remove this field once we have a real implementation for `get_n_txs_in_block`.
+    n_txs_in_block: usize,
+}
+
+impl ValidateTransactionProvider {
+    pub fn new(
+        tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
+        l1_provider_client: SharedL1ProviderClient,
+        height: BlockNumber,
+    ) -> Self {
+        Self { tx_receiver, l1_provider_client, height, n_txs_in_block: 0 }
+    }
 }
 
 #[async_trait]
@@ -151,6 +171,7 @@ impl TransactionProvider for ValidateTransactionProvider {
         assert!(n_txs > 0, "The number of transactions requested must be greater than zero.");
         let mut buffer = Vec::with_capacity(n_txs);
         self.tx_receiver.recv_many(&mut buffer, n_txs).await;
+        self.n_txs_in_block += buffer.len();
         // If the buffer is empty, it means that the stream was dropped, otherwise it would have
         // been waiting for transactions.
         if buffer.is_empty() {
@@ -169,5 +190,14 @@ impl TransactionProvider for ValidateTransactionProvider {
             }
         }
         Ok(NextTxs::Txs(buffer))
+    }
+
+    async fn get_n_txs_in_block(&self) -> Option<usize> {
+        // TODO(lior): Replace with a real implementation.
+        if self.tx_receiver.is_closed() && self.tx_receiver.is_empty() {
+            Some(self.n_txs_in_block)
+        } else {
+            None
+        }
     }
 }

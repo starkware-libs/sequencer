@@ -1,7 +1,7 @@
+use apollo_starknet_os_program::OS_PROGRAM;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::types::layout_name::LayoutName;
-use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::vm_exception::VmException;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 
@@ -17,7 +17,6 @@ use crate::io::os_output::{get_run_output, StarknetOsRunnerOutput};
 
 #[allow(clippy::result_large_err)]
 pub fn run_os<S: StateReader>(
-    compiled_os: &[u8],
     layout: LayoutName,
     OsHints {
         os_hints_config,
@@ -36,12 +35,9 @@ pub fn run_os<S: StateReader>(
         CairoRunConfig { layout, relocate_mem: true, trace_enabled: true, ..Default::default() };
     let allow_missing_builtins = cairo_run_config.allow_missing_builtins.unwrap_or(false);
 
-    // Load the Starknet OS Program.
-    let os_program = Program::from_bytes(compiled_os, Some(cairo_run_config.entrypoint))?;
-
     // Init cairo runner.
     let mut cairo_runner = CairoRunner::new(
-        &os_program,
+        &OS_PROGRAM,
         cairo_run_config.layout,
         cairo_run_config.dynamic_layout_params,
         cairo_run_config.proof_mode,
@@ -58,7 +54,7 @@ pub fn run_os<S: StateReader>(
 
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
-        &os_program,
+        &OS_PROGRAM,
         os_hints_config,
         os_block_inputs.iter().collect(),
         cached_state_inputs,
@@ -112,10 +108,9 @@ pub fn run_os<S: StateReader>(
 /// not pre-loaded as part of the input.
 #[allow(clippy::result_large_err)]
 pub fn run_os_stateless(
-    compiled_os: &[u8],
     layout: LayoutName,
     os_hints: OsHints,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     let n_blocks = os_hints.os_input.os_block_inputs.len();
-    run_os(compiled_os, layout, os_hints, vec![PanickingStateReader; n_blocks])
+    run_os(layout, os_hints, vec![PanickingStateReader; n_blocks])
 }

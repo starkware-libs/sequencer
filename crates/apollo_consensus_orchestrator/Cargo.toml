@@ -18,6 +18,7 @@ apollo_network.workspace = true
 apollo_proc_macros.workspace = true
 apollo_protobuf.workspace = true
 apollo_state_sync_types.workspace = true
+apollo_time.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
@@ -25,7 +26,6 @@ chrono.workspace = true
 ethnum.workspace = true
 futures.workspace = true
 indexmap.workspace = true
-mockall.workspace = true
 num-rational.workspace = true
 paste.workspace = true
 reqwest = { workspace = true, features = ["json"] }
@@ -54,6 +54,7 @@ apollo_network = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
+apollo_time = { workspace = true, features = ["testing"] }
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true

@@ -1,8 +1,6 @@
 use std::num::ParseIntError;
-use std::path::Path;
 use std::sync::LazyLock;
 
-use apollo_infra_utils::compile_time_cargo_manifest_dir;
 use ark_bls12_381::Fr;
 use ark_ff::{BigInteger, PrimeField};
 use ark_poly::{EvaluationDomain, Radix2EvaluationDomain};
@@ -22,6 +20,7 @@ pub static BLS_PRIME: LazyLock<BigUint> = LazyLock::new(|| {
     .unwrap()
 });
 
+const TRUSTED_SETUP: &str = include_str!("trusted_setup.txt");
 const COMMITMENT_BYTES_LENGTH: usize = 48;
 const COMMITMENT_BYTES_MIDPOINT: usize = COMMITMENT_BYTES_LENGTH / 2;
 const LOG2_FIELD_ELEMENTS_PER_BLOB: usize = 12;
@@ -44,10 +43,8 @@ pub enum FftError {
 }
 
 static KZG_SETTINGS: LazyLock<KzgSettings> = LazyLock::new(|| {
-    let path =
-        Path::new(compile_time_cargo_manifest_dir!()).join("resources").join("trusted_setup.txt");
-    KzgSettings::load_trusted_setup_file(&path)
-        .unwrap_or_else(|error| panic!("Failed to load trusted setup file from {path:?}: {error}."))
+    KzgSettings::parse_kzg_trusted_setup(TRUSTED_SETUP)
+        .unwrap_or_else(|error| panic!("Failed to load trusted setup: {error}."))
 });
 
 fn blob_to_kzg_commitment(blob: &Blob) -> Result<KzgCommitment, FftError> {

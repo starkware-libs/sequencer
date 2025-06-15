@@ -29,7 +29,7 @@ async fn main() -> anyhow::Result<()> {
     // Clients are currently unused, but should not be dropped.
     let (_clients, servers) = create_node_modules(&config).await;
 
-    info!("Starting components!");
+    info!("START_UP: Starting components!");
     run_component_servers(servers).await;
 
     // TODO(Tsabary): Add graceful shutdown.

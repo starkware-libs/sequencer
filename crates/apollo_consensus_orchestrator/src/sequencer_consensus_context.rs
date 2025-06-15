@@ -6,18 +6,15 @@
 mod sequencer_consensus_context_test;
 
 use std::cmp::max;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
-    GetProposalContent,
-    GetProposalContentInput,
     ProposalId,
     ProposalStatus,
-    ProposeBlockInput,
     SendProposalContent,
     SendProposalContentInput,
     StartHeightInput,
@@ -47,29 +44,22 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::state_sync_types::SyncBlock;
+use apollo_time::time::{sleep_until, Clock, DateTime};
 use async_trait::async_trait;
-// TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
-use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::{mpsc, oneshot};
-use futures::{FutureExt, SinkExt, StreamExt};
-#[cfg(any(feature = "testing", test))]
-use mockall::automock;
+use futures::{SinkExt, StreamExt};
 use num_rational::Ratio;
 use starknet_api::block::{
     BlockHash,
-    BlockHashAndNumber,
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
     GasPrice,
     GasPricePerToken,
-    GasPriceVector,
-    GasPrices,
-    NonzeroGasPrice,
     WEI_PER_ETH,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, SequencerContractAddress};
+use starknet_api::core::SequencerContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::TransactionHash;
@@ -78,6 +68,7 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
 
+use crate::build_proposal::{build_proposal, ProposalBuildArguments};
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
@@ -90,7 +81,12 @@ use crate::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::{get_oracle_rate_and_prices, GasPriceParams};
+use crate::utils::{
+    convert_to_sn_api_block_info,
+    get_oracle_rate_and_prices,
+    retrospective_block_hash,
+    GasPriceParams,
+};
 
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
@@ -103,7 +99,7 @@ struct BlockInfoValidation {
 }
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
-type ProposalResult<T> = Result<T, BuildProposalError>;
+pub(crate) type ProposalResult<T> = Result<T, BuildProposalError>;
 
 enum HandledProposalPart {
     Continue,
@@ -113,7 +109,7 @@ enum HandledProposalPart {
 }
 
 #[derive(Debug, thiserror::Error)]
-enum BuildProposalError {
+pub(crate) enum BuildProposalError {
     #[error("Batcher error: {0}")]
     Batcher(#[from] BatcherClientError),
     #[error("State sync client error: {0}")]
@@ -126,36 +122,15 @@ enum BuildProposalError {
     L1GasPriceProvider(#[from] L1GasPriceClientError),
 }
 
-// TODO(guy.f): Times are probably used in other crates which would benefit from this. Move this to
-// a common mod that can be used across crates.
-#[cfg_attr(any(test, feature = "testing"), automock)]
-pub trait Clock: Send + Sync {
-    fn now(&self) -> chrono::DateTime<chrono::Utc> {
-        chrono::Utc::now()
-    }
-
-    fn now_as_timestamp(&self) -> u64 {
-        self.now().timestamp().try_into().expect("Failed to convert timestamp to u64")
-    }
-
-    fn now_at_tokio_instant(&self) -> tokio::time::Instant {
-        tokio::time::Instant::now()
-    }
-}
-
-#[derive(Default)]
-pub struct DefaultClock();
-impl Clock for DefaultClock {}
-
 type HeightToIdToContent = BTreeMap<
     BlockNumber,
-    HashMap<
+    BTreeMap<
         ProposalCommitment,
         (ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
     >,
 >;
 
-struct BuiltProposals {
+pub(crate) struct BuiltProposals {
     // {height: {proposal_commitment: (block_info, content, [proposal_ids])}}
     // Note that multiple proposals IDs can be associated with the same content, but we only need
     // to store one of them.
@@ -187,7 +162,7 @@ impl BuiltProposals {
         self.data.retain(|&h, _| h > *height);
     }
 
-    fn insert_proposal_for_height(
+    pub(crate) fn insert_proposal_for_height(
         &mut self,
         height: &BlockNumber,
         proposal_commitment: &ProposalCommitment,
@@ -272,25 +247,6 @@ impl SequencerConsensusContext {
         }
     }
 }
-
-struct ProposalBuildArguments {
-    deps: SequencerConsensusContextDeps,
-    batcher_timeout: Duration,
-    proposal_init: ProposalInit,
-    l1_da_mode: L1DataAvailabilityMode,
-    proposal_sender: mpsc::Sender<ProposalPart>,
-    fin_sender: oneshot::Sender<ProposalCommitment>,
-    gas_price_params: GasPriceParams,
-    valid_proposals: Arc<Mutex<BuiltProposals>>,
-    proposal_id: ProposalId,
-    cende_write_success: AbortOnDropHandle<bool>,
-    l2_gas_price: GasPrice,
-    builder_address: ContractAddress,
-    cancel_token: CancellationToken,
-    previous_block_info: Option<ConsensusBlockInfo>,
-    proposal_round: Round,
-}
-
 struct ProposalValidateArguments {
     deps: SequencerConsensusContextDeps,
     block_info_validation: BlockInfoValidation,
@@ -645,7 +601,7 @@ impl ConsensusContext for SequencerConsensusContext {
         let timestamp = sync_block.block_header_without_hash.timestamp;
         let last_block_timestamp =
             self.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
-        let now: u64 = self.deps.clock.now_as_timestamp();
+        let now: u64 = self.deps.clock.unix_now();
         if !(block_number == height
             && timestamp.0 >= last_block_timestamp
             && timestamp.0 <= now + self.config.block_timestamp_window_seconds)
@@ -809,194 +765,12 @@ impl SequencerConsensusContext {
     }
 }
 
-// Handles building a new proposal without blocking consensus:
-async fn build_proposal(mut args: ProposalBuildArguments) {
-    let block_info = initiate_build(&args).await;
-    let block_info = match block_info {
-        Ok(info) => info,
-        Err(e) => {
-            error!("Failed to initiate proposal build. {e:?}");
-            return;
-        }
-    };
-    args.proposal_sender
-        .send(ProposalPart::Init(args.proposal_init))
-        .await
-        .expect("Failed to send proposal init");
-    args.proposal_sender
-        .send(ProposalPart::BlockInfo(block_info.clone()))
-        .await
-        .expect("Failed to send block info");
-
-    let Some((proposal_commitment, content)) = get_proposal_content(
-        args.proposal_id,
-        args.deps.batcher.as_ref(),
-        args.proposal_sender,
-        args.cende_write_success,
-        args.deps.transaction_converter,
-        args.cancel_token,
-    )
-    .await
-    else {
-        return;
-    };
-
-    // Update valid_proposals before sending fin to avoid a race condition
-    // with `repropose` being called before `valid_proposals` is updated.
-    let mut valid_proposals = args.valid_proposals.lock().expect("Lock was poisoned");
-    valid_proposals.insert_proposal_for_height(
-        &args.proposal_init.height,
-        &proposal_commitment,
-        block_info,
-        content,
-        &args.proposal_id,
-    );
-    if args.fin_sender.send(proposal_commitment).is_err() {
-        // Consensus may exit early (e.g. sync).
-        warn!("Failed to send proposal content id");
-    }
-}
-
-async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
-    let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
-        .expect("Can't convert timeout to chrono::Duration");
-    let timestamp = args.deps.clock.now_as_timestamp();
-    let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
-        args.deps.eth_to_strk_oracle_client.clone(),
-        args.deps.l1_gas_price_provider.clone(),
-        timestamp,
-        args.previous_block_info.as_ref(),
-        &args.gas_price_params,
-    )
-    .await;
-
-    let block_info = ConsensusBlockInfo {
-        height: args.proposal_init.height,
-        timestamp,
-        builder: args.builder_address,
-        l1_da_mode: args.l1_da_mode,
-        l2_gas_price_fri: args.l2_gas_price,
-        l1_gas_price_wei: l1_prices.base_fee_per_gas,
-        l1_data_gas_price_wei: l1_prices.blob_fee,
-        eth_to_fri_rate,
-    };
-
-    let retrospective_block_hash =
-        retrospective_block_hash(args.deps.state_sync_client.clone(), &block_info).await?;
-    let build_proposal_input = ProposeBlockInput {
-        proposal_id: args.proposal_id,
-        deadline: args.deps.clock.now() + batcher_timeout,
-        retrospective_block_hash,
-        block_info: convert_to_sn_api_block_info(&block_info),
-        proposal_round: args.proposal_round,
-    };
-    debug!("Initiating build proposal: {build_proposal_input:?}");
-    args.deps.batcher.propose_block(build_proposal_input).await?;
-    Ok(block_info)
-}
-
-/// 1. Receive chunks of content from the batcher.
-/// 2. Forward these to the stream handler to be streamed out to the network.
-/// 3. Once finished, receive the commitment from the batcher.
-async fn get_proposal_content(
-    proposal_id: ProposalId,
-    batcher: &dyn BatcherClient,
-    mut proposal_sender: mpsc::Sender<ProposalPart>,
-    cende_write_success: AbortOnDropHandle<bool>,
-    transaction_converter: Arc<dyn TransactionConverterTrait>,
-    cancel_token: CancellationToken,
-) -> Option<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
-    let mut content = Vec::new();
-    loop {
-        if cancel_token.is_cancelled() {
-            warn!("Proposal interrupted during building.");
-            return None;
-        }
-        // We currently want one part of the node failing to cause all components to fail. If this
-        // changes, we can simply return None and consider this as a failed proposal which consensus
-        // should support.
-        let response = batcher.get_proposal_content(GetProposalContentInput { proposal_id }).await;
-        let response = match response {
-            Ok(resp) => resp,
-            Err(e) => {
-                error!("Failed to get proposal content. {e:?}");
-                return None;
-            }
-        };
-
-        match response.content {
-            GetProposalContent::Txs(txs) => {
-                content.push(txs.clone());
-                // TODO(matan): Make sure this isn't too large for a single proto message.
-                debug!(
-                    hashes = ?txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>(),
-                    "Sending transaction batch with {} txs.",
-                    txs.len()
-                );
-                let transactions = futures::future::join_all(txs.into_iter().map(|tx| {
-                    transaction_converter.convert_internal_consensus_tx_to_consensus_tx(tx)
-                }))
-                .await
-                .into_iter()
-                .collect::<Result<Vec<_>, _>>();
-                let transactions = match transactions {
-                    Ok(txs) => txs,
-                    Err(e) => {
-                        error!("Failed to convert transactions. {e:?}");
-                        return None;
-                    }
-                };
-
-                trace!(?transactions, "Sending transaction batch with {} txs.", transactions.len());
-                proposal_sender
-                    .send(ProposalPart::Transactions(TransactionBatch { transactions }))
-                    .await
-                    .expect("Failed to broadcast proposal content");
-            }
-            GetProposalContent::Finished(id) => {
-                let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
-                let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
-                info!(?proposal_commitment, num_txs = num_txs, "Finished building proposal",);
-                if num_txs == 0 {
-                    warn!("Built an empty proposal.");
-                }
-
-                // If the blob writing operation to Aerospike doesn't return a success status, we
-                // can't finish the proposal.
-                match cende_write_success.now_or_never() {
-                    Some(Ok(true)) => {
-                        info!("Writing blob to Aerospike completed successfully.");
-                    }
-                    Some(Ok(false)) => {
-                        warn!("Writing blob to Aerospike failed.");
-                        return None;
-                    }
-                    Some(Err(e)) => {
-                        warn!("Writing blob to Aerospike failed. Error: {e:?}");
-                        return None;
-                    }
-                    None => {
-                        warn!("Writing blob to Aerospike didn't return in time.");
-                        return None;
-                    }
-                }
-
-                let fin = ProposalFin { proposal_commitment };
-                info!("Sending fin={fin:?}");
-                proposal_sender
-                    .send(ProposalPart::Fin(fin))
-                    .await
-                    .expect("Failed to broadcast proposal fin");
-                return Some((proposal_commitment, content));
-            }
-        }
-    }
-}
-
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
-    let now = args.deps.clock.now_at_tokio_instant();
-    let Some(deadline) = now.checked_add(args.timeout) else {
+    let now = args.deps.clock.now();
+
+    let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
+    else {
         warn!("Cannot calculate deadline. Timeout: {:?}, now: {:?}", args.timeout, now);
         return;
     };
@@ -1006,6 +780,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         deadline,
         &mut args.content_receiver,
         args.fin_sender,
+        args.deps.clock.as_ref(),
     )
     .await
     else {
@@ -1044,7 +819,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                 return;
             }
-            _ = tokio::time::sleep_until(deadline) => {
+            _ = sleep_until(deadline, args.deps.clock.as_ref()) => {
                 warn!("Validation timed out.");
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                 return;
@@ -1112,7 +887,7 @@ async fn is_block_info_valid(
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: &GasPriceParams,
 ) -> bool {
-    let now: u64 = clock.now_as_timestamp();
+    let now: u64 = clock.unix_now();
     let last_block_timestamp =
         block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
     if !(block_info_proposed.height == block_info_validation.height
@@ -1179,16 +954,17 @@ fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> 
 // 2. BlockInfo - required to begin executing TX batches.
 async fn await_second_proposal_part(
     cancel_token: &CancellationToken,
-    deadline: tokio::time::Instant,
+    deadline: DateTime,
     content_receiver: &mut mpsc::Receiver<ProposalPart>,
     fin_sender: oneshot::Sender<ProposalCommitment>,
+    clock: &dyn Clock,
 ) -> Option<(ConsensusBlockInfo, oneshot::Sender<ProposalCommitment>)> {
     tokio::select! {
         _ = cancel_token.cancelled() => {
             warn!("Proposal interrupted");
             None
         }
-        _ = tokio::time::sleep_until(deadline) => {
+        _ = sleep_until(deadline, clock) => {
             warn!("Validation timed out.");
             None
         }
@@ -1323,70 +1099,4 @@ async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: Propos
         .send_proposal_content(input)
         .await
         .unwrap_or_else(|e| panic!("Failed to send Abort to batcher: {proposal_id:?}. {e:?}"));
-}
-
-fn convert_to_sn_api_block_info(block_info: &ConsensusBlockInfo) -> starknet_api::block::BlockInfo {
-    let l1_gas_price_fri =
-        NonzeroGasPrice::new(block_info.l1_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate))
-            .unwrap();
-    let l1_data_gas_price_fri = NonzeroGasPrice::new(
-        block_info.l1_data_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate),
-    )
-    .unwrap();
-    let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri).unwrap();
-    let l2_gas_price_wei =
-        NonzeroGasPrice::new(block_info.l2_gas_price_fri.fri_to_wei(block_info.eth_to_fri_rate))
-            .unwrap();
-    let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei).unwrap();
-    let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei).unwrap();
-
-    starknet_api::block::BlockInfo {
-        block_number: block_info.height,
-        block_timestamp: BlockTimestamp(block_info.timestamp),
-        sequencer_address: block_info.builder,
-        gas_prices: GasPrices {
-            strk_gas_prices: GasPriceVector {
-                l1_gas_price: l1_gas_price_fri,
-                l1_data_gas_price: l1_data_gas_price_fri,
-                l2_gas_price: l2_gas_price_fri,
-            },
-            eth_gas_prices: GasPriceVector {
-                l1_gas_price: l1_gas_price_wei,
-                l1_data_gas_price: l1_data_gas_price_wei,
-                l2_gas_price: l2_gas_price_wei,
-            },
-        },
-        use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
-    }
-}
-
-async fn retrospective_block_hash(
-    state_sync_client: Arc<dyn StateSyncClient>,
-    block_info: &ConsensusBlockInfo,
-) -> ProposalResult<Option<BlockHashAndNumber>> {
-    let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
-    let retrospective_block_hash = match retrospective_block_number {
-        Some(block_number) => {
-            let block_number = BlockNumber(block_number);
-            let block = state_sync_client
-                // Getting the next block hash because the Sync block only contains parent hash.
-                .get_block(block_number.unchecked_next())
-                .await?
-                .ok_or(BuildProposalError::StateSyncNotReady(format!(
-                "Failed to get retrospective block number {block_number}"
-            )))?;
-            Some(BlockHashAndNumber {
-                number: block_number,
-                hash: block.block_header_without_hash.parent_hash,
-            })
-        }
-        None => {
-            info!(
-                "Retrospective block number is less than {STORED_BLOCK_HASH_BUFFER}, setting None \
-                 as expected."
-            );
-            None
-        }
-    };
-    Ok(retrospective_block_hash)
 }

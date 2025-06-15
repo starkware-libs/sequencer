@@ -77,6 +77,7 @@ async fn proposer() {
         false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
+        false,
         TIMEOUTS.clone(),
     );
 
@@ -156,6 +157,7 @@ async fn validator(repeat_proposal: bool) {
         false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
+        false,
         TIMEOUTS.clone(),
     );
 
@@ -227,6 +229,7 @@ async fn vote_twice(same_vote: bool) {
         false,
         *VALIDATOR_ID_1,
         VALIDATORS.to_vec(),
+        false,
         TIMEOUTS.clone(),
     );
 
@@ -292,6 +295,7 @@ async fn rebroadcast_votes() {
         false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
+        false,
         TIMEOUTS.clone(),
     );
 
@@ -355,6 +359,7 @@ async fn repropose() {
         false,
         *PROPOSER_ID,
         VALIDATORS.to_vec(),
+        false,
         TIMEOUTS.clone(),
     );
 

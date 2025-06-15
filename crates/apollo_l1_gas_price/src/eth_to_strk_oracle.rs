@@ -18,6 +18,8 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, info, instrument, warn};
 use url::Url;
 
+use crate::metrics::{register_eth_to_strk_metrics, ETH_TO_STRK_ERROR_COUNT};
+
 #[cfg(test)]
 #[path = "eth_to_strk_oracle_test.rs"]
 pub mod eth_to_strk_oracle_test;
@@ -126,6 +128,7 @@ impl EthToStrkOracleClient {
              lag_interval_seconds={}",
             config.base_url, config.headers, config.lag_interval_seconds
         );
+        register_eth_to_strk_metrics();
         Self {
             config: config.clone(),
             base_url: config.base_url,
@@ -162,6 +165,7 @@ impl EthToStrkOracleClient {
                 match result {
                     Ok(inner_result) => return inner_result,
                     Err(_) => {
+                        ETH_TO_STRK_ERROR_COUNT.increment(1);
                         warn!("Timeout when resolving query for timestamp {adjusted_timestamp}")
                     }
                 }
@@ -245,6 +249,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             Ok(rate) => rate,
             Err(e) => {
                 warn!("Query failed for timestamp {timestamp}: {e:?}");
+                ETH_TO_STRK_ERROR_COUNT.increment(1);
                 return Err(e);
             }
         };

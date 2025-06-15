@@ -10,11 +10,12 @@ use apollo_l1_provider_types::SessionState::{
 };
 use apollo_l1_provider_types::{Event, InvalidValidationStatus, ValidationStatus};
 use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_time::time::MockClock;
 use assert_matches::assert_matches;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTxArgs};
 use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
@@ -22,7 +23,7 @@ use starknet_api::tx_hash;
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
 use crate::test_utils::{l1_handler, FakeL1ProviderClient, L1ProviderContentBuilder};
-use crate::ProviderState;
+use crate::{L1ProviderConfig, ProviderState};
 
 fn commit_block_no_rejected(
     l1_provider: &mut L1Provider,
@@ -77,11 +78,27 @@ macro_rules! bootstrapper {
     }};
 }
 
+/// Use to easily construct l1 handler messages for tests that don't care about the timestamp.
 fn l1_handler_event(tx_hash: TransactionHash) -> Event {
-    Event::L1HandlerTransaction(executable_l1_handler_tx(L1HandlerTxArgs {
-        tx_hash,
-        ..Default::default()
-    }))
+    let default_timestamp = 0.into();
+    Event::L1HandlerTransaction {
+        l1_handler_tx: executable_l1_handler_tx(L1HandlerTxArgs { tx_hash, ..Default::default() }),
+        timestamp: default_timestamp,
+    }
+}
+
+fn timed_l1_handler_event(tx_hash: TransactionHash, timestamp: BlockTimestamp) -> Event {
+    Event::L1HandlerTransaction {
+        l1_handler_tx: executable_l1_handler_tx(L1HandlerTxArgs { tx_hash, ..Default::default() }),
+        timestamp,
+    }
+}
+
+fn cancellation_event(
+    tx_hash: TransactionHash,
+    cancellation_request_timestamp: BlockTimestamp,
+) -> Event {
+    Event::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp }
 }
 
 #[test]
@@ -164,9 +181,10 @@ fn process_events_happy_flow() {
 #[test]
 fn process_events_committed_txs() {
     // Setup.
+    let timestamp = 1;
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_txs([l1_handler(1)])
-        .with_committed(vec![l1_handler(2)])
+        .with_timed_txs([(l1_handler(1), timestamp)])
+        .with_timed_committed([(l1_handler(2), timestamp)])
         .with_state(ProviderState::Pending)
         .build_into_l1_provider();
 
@@ -174,11 +192,11 @@ fn process_events_committed_txs() {
 
     // Test.
     // Uncommitted transaction, should fail silently.
-    l1_provider.add_events(vec![l1_handler_event(tx_hash!(1))]).unwrap();
+    l1_provider.add_events(vec![timed_l1_handler_event(tx_hash!(1), timestamp.into())]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 
     // Committed transaction, should fail silently.
-    l1_provider.add_events(vec![l1_handler_event(tx_hash!(2))]).unwrap();
+    l1_provider.add_events(vec![timed_l1_handler_event(tx_hash!(2), timestamp.into())]).unwrap();
     assert_eq!(l1_provider, expected_l1_provider);
 }
 
@@ -488,4 +506,492 @@ fn add_new_transaction_not_added_if_rejected() {
     l1_provider.validate(rejected_tx_id, BlockNumber(1)).unwrap();
     l1_provider.add_events(vec![l1_handler_event(rejected_tx_id)]).unwrap();
     expected_l1_provider.assert_eq(&l1_provider);
+}
+
+#[test]
+#[should_panic(expected = "committed twice")]
+fn commit_block_twice_panics() {
+    // Setup.
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_committed([l1_handler(1)]).build_into_l1_provider();
+
+    // Test.
+    l1_provider.commit_block([tx_hash!(1)].into(), [].into(), BlockNumber(0)).unwrap();
+}
+
+#[test]
+fn add_tx_identical_timestamp_both_stored() {
+    // Setup.
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let tx_3 = l1_handler(3);
+    let timestamp_1 = 6;
+    let timestamp_2 = timestamp_1;
+    let timestamp_3 = 7;
+
+    // Test.
+
+    let mut l1_provider = L1ProviderContentBuilder::new().build_into_l1_provider();
+    l1_provider
+        .add_events(vec![
+            timed_l1_handler_event(tx_1.clone().tx_hash, timestamp_1.into()),
+            timed_l1_handler_event(tx_2.clone().tx_hash, timestamp_2.into()),
+            timed_l1_handler_event(tx_3.clone().tx_hash, timestamp_3.into()),
+        ])
+        .unwrap();
+
+    // Should contain txs even if they have identical timestamp.
+    let expected = L1ProviderContentBuilder::new()
+        .with_timed_txs([(tx_1, timestamp_1), (tx_2, timestamp_2), (tx_3, timestamp_3)])
+        .build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn get_txs_same_timestamp_returns_in_arrival_order() {
+    // Setup.
+    let tx1 = l1_handler(100);
+    let tx2 = l1_handler(200);
+    let tx3 = l1_handler(300);
+    let timestamp_1_2 = 1_u64;
+    let timestamp_3 = 2_u64;
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_timed_txs([
+            (tx1.clone(), timestamp_1_2),
+            (tx2.clone(), timestamp_1_2),
+            (tx3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // Test.
+    let expected = [tx1.clone(), tx2.clone(), tx3.clone()];
+    assert_eq!(
+        l1_provider.get_txs(10, l1_provider.current_height).unwrap(),
+        expected,
+        "Transactions with the same timestamp must be returned in order of arrival"
+    );
+
+    // Now with a different order for the equal-timestamped ones.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_timed_txs([
+            (tx2.clone(), timestamp_1_2),
+            (tx1.clone(), timestamp_1_2),
+            (tx3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // Test.
+    let expected = vec![tx2, tx1, tx3];
+    assert_eq!(
+        l1_provider.get_txs(10, l1_provider.current_height).unwrap(),
+        expected,
+        "Transactions with the same timestamp must be returned in order of arrival"
+    );
+}
+
+#[test]
+fn get_txs_identical_timestamps() {
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let tx_3 = l1_handler(3);
+    let timestamp_1 = 1;
+    let timestamp_2 = timestamp_1; // Transaction 2 has the same timestamp as 1.
+    let timestamp_3 = 2;
+
+    let l1_provider_builder = L1ProviderContentBuilder::new()
+        .with_timed_txs([
+            (tx_1.clone(), timestamp_1),
+            (tx_2.clone(), timestamp_2),
+            (tx_3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose);
+
+    // Can get only one tx out of the two with the same timestamp.
+    assert_eq!(
+        l1_provider_builder.clone().build_into_l1_provider().get_txs(1, BlockNumber(0)).unwrap(),
+        [tx_1.clone()]
+    );
+
+    assert_eq!(
+        l1_provider_builder.build_into_l1_provider().get_txs(3, BlockNumber(0)).unwrap(),
+        [tx_1, tx_2, tx_3]
+    );
+}
+
+#[test]
+fn get_txs_timestamp_cutoff_some_eligible() {
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let tx_3 = l1_handler(3);
+    let timestamp_1 = 10;
+    let timestamp_2 = 20;
+    let timestamp_3 = 30;
+    let now = 35u64;
+    let cooldown = 20; // cutoff = now - cooldown = 35 - 20 = 15.
+    // Only tx_1 (timestamp_1=10) is eligible (10 < 15).
+
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+
+    let config = L1ProviderConfig {
+        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
+        ..Default::default()
+    };
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_timed_txs([
+            (tx_1.clone(), timestamp_1),
+            (tx_2.clone(), timestamp_2),
+            (tx_3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    let result = l1_provider.get_txs(10, BlockNumber(0)).unwrap();
+    assert_eq!(result, vec![tx_1.clone()]);
+}
+
+#[test]
+fn get_txs_timestamp_cutoff_none_eligible() {
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let timestamp_1 = 10;
+    let timestamp_2 = 20;
+    let now = 30u64;
+    let cooldown = 21; // cutoff = now - cooldown = 30 - 21 = 9.
+    // No txs have timestamp < cutoff (10,20 >= 9).
+
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+
+    let config = L1ProviderConfig {
+        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
+        ..Default::default()
+    };
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_timed_txs([(tx_1.clone(), timestamp_1), (tx_2.clone(), timestamp_2)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    let result = l1_provider.get_txs(10, BlockNumber(0)).unwrap();
+    assert_eq!(result, vec![]);
+}
+
+#[test]
+fn get_txs_timestamp_cutoff_edge_case_at_cutoff() {
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let tx_3 = l1_handler(3);
+    let timestamp_1 = 10;
+    let timestamp_2 = 11;
+    let timestamp_3 = 9;
+    let now = 30u64;
+    let cooldown = 20; // cutoff = now - cooldown = 30 - 20 = 10
+    // Only tx_3 is eligible (timestamp_3 = 9 < 10).
+
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+
+    let config = L1ProviderConfig {
+        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
+        ..Default::default()
+    };
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_timed_txs([
+            (tx_1.clone(), timestamp_1),
+            (tx_2.clone(), timestamp_2),
+            (tx_3.clone(), timestamp_3),
+        ])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    let result = l1_provider.get_txs(10, BlockNumber(0)).unwrap();
+    assert_eq!(result, vec![tx_3.clone()]);
+}
+
+#[test]
+fn get_txs_excludes_cancellation_requested_and_returns_non_cancellation_requested() {
+    // Setup.
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let unix_now = 5_u64;
+    let l1_handler_cancellation_timelock_seconds = Duration::from_secs(2);
+    let config =
+        L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(unix_now);
+    let cancellation_request_timestamp = unix_now - 1;
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_txs([tx_2.clone()])
+        .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // Test.
+    assert_eq!(l1_provider.get_txs(4, l1_provider.current_height).unwrap(), vec![tx_2.clone()]);
+}
+
+#[test]
+fn get_txs_excludes_transaction_after_cancellation_expiry() {
+    // Setup.
+    let tx_1 = l1_handler(1);
+    let unix_now = 5_u64;
+    let l1_handler_cancellation_timelock_seconds = Duration::from_secs(1);
+    let config =
+        L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(unix_now);
+    let cancellation_request_timestamp = 0;
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // Test.
+    assert_eq!(l1_provider.get_txs(3, l1_provider.current_height).unwrap(), vec![]);
+}
+
+#[test]
+fn commit_block_commits_cancellation_requested_tx_not_expired() {
+    // Setup.
+    let tx = l1_handler(1);
+    let now = 3_u64;
+    let nonzero_timelock = 1_u64;
+    let config = L1ProviderConfig {
+        l1_handler_cancellation_timelock_seconds: Duration::from_secs(nonzero_timelock),
+        ..Default::default()
+    };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+    let cancellation_request_timestamp = now; // Not expired, cause timelock is nonzero.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
+        .build_into_l1_provider();
+
+    // Test.
+    l1_provider.commit_block([tx.tx_hash].into(), [].into(), l1_provider.current_height).unwrap();
+    let expected = L1ProviderContentBuilder::new().with_txs([]).with_committed([tx]).build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn commit_block_commits_cancellation_requested_expired_and_fully_cancelled() {
+    // Setup.
+    let tx_1 = l1_handler(1);
+    let tx_2 = l1_handler(2);
+    let now = 5_u64;
+    let timelock = 2_u64;
+    let config = L1ProviderConfig {
+        l1_handler_cancellation_timelock_seconds: Duration::from_secs(timelock),
+        ..Default::default()
+    };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+    let cancellation_expired = now - timelock - 1;
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        // Both txs are passed cancellation request already, but still not in `Cancelled` state.
+        .with_cancel_requested_txs([
+            (tx_1.clone(), cancellation_expired),
+            (tx_2.clone(), cancellation_expired),
+        ])
+        .with_state(ProviderState::Validate)
+        .build_into_l1_provider();
+
+    // Validate tx_2, which triggers the record to transition to state `CancelledOnL2`.
+    l1_provider.validate(tx_2.tx_hash, l1_provider.current_height).unwrap();
+
+    // Test.
+
+    // Commit overrides both Cancelled state and CancellationStarted state.
+    l1_provider
+        .commit_block([tx_1.tx_hash, tx_2.tx_hash].into(), [].into(), l1_provider.current_height)
+        .unwrap();
+
+    let expected =
+        L1ProviderContentBuilder::new().with_txs([]).with_committed([tx_1, tx_2]).build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn commit_block_commits_mixed_normal_and_cancellation_requested() {
+    // Setup.
+    let tx_normal = l1_handler(1);
+    let tx_cancel = l1_handler(2);
+    let now = 4_u64;
+    let nonzero_timelock = 1_u64;
+    let config = L1ProviderConfig {
+        l1_handler_cancellation_timelock_seconds: Duration::from_secs(nonzero_timelock),
+        ..Default::default()
+    };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+    let cancellation_request_timestamp = now; // Not expired, cause timelock is nonzero.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_txs([tx_normal.clone()])
+        .with_cancel_requested_txs([(tx_cancel.clone(), cancellation_request_timestamp)])
+        .with_state(ProviderState::Propose)
+        .build_into_l1_provider();
+
+    // Test.
+    let txs = [tx_normal.tx_hash, tx_cancel.tx_hash];
+    l1_provider.commit_block(txs.into(), [].into(), l1_provider.current_height).unwrap();
+
+    let expected =
+        L1ProviderContentBuilder::new().with_txs([]).with_committed([tx_normal, tx_cancel]).build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn add_events_tx_and_cancel_same_call_not_expired() {
+    // Setup.
+    let tx = l1_handler(1);
+    let tx_hash = tx.tx_hash;
+    let now = 2_u64;
+    let nonzero_timelock = 1_u64;
+    let cancellation_request_timestamp = now; // Not expired, cause timelock is nonzero.
+    let config = L1ProviderConfig {
+        l1_handler_cancellation_timelock_seconds: Duration::from_secs(nonzero_timelock),
+        ..Default::default()
+    };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .build_into_l1_provider();
+
+    // Test.
+    let events = [
+        l1_handler_event(tx_hash),
+        cancellation_event(tx_hash, cancellation_request_timestamp.into()),
+    ];
+    l1_provider.add_events(events.into()).unwrap();
+    let expected = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
+        .build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn add_events_tx_then_cancel_separate_calls_not_expired() {
+    // Setup.
+    let tx = l1_handler(1);
+    let tx_hash = tx.tx_hash;
+    let now = 4_u64;
+    let nonzero_timelock = 1_u64;
+    let cancellation_request_timestamp = now; // Not expired, cause timelock is nonzero.
+    let config = L1ProviderConfig {
+        l1_handler_cancellation_timelock_seconds: Duration::from_secs(nonzero_timelock),
+        ..Default::default()
+    };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .build_into_l1_provider();
+
+    // Test.
+    l1_provider.add_events(vec![l1_handler_event(tx_hash)]).unwrap();
+    // Tests that cancellations are independent of when their tx was received
+    l1_provider
+        .add_events(vec![cancellation_event(tx_hash, cancellation_request_timestamp.into())])
+        .unwrap();
+    let expected = L1ProviderContentBuilder::new()
+        .with_txs([])
+        .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
+        .build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn add_events_tx_and_cancel_same_call_expired() {
+    // Setup.
+    let tx = l1_handler(1);
+    let now = 3_u64;
+    let timelock = 0_u64; // all cancellations immediately expire.
+    let cancellation_request_timestamp = now;
+    let config = L1ProviderConfig {
+        l1_handler_cancellation_timelock_seconds: Duration::from_secs(timelock),
+        ..Default::default()
+    };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(now);
+    let events = [
+        l1_handler_event(tx.tx_hash),
+        cancellation_event(tx.tx_hash, cancellation_request_timestamp.into()),
+    ];
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_state(ProviderState::Validate)
+        .build_into_l1_provider();
+
+    // Test.
+    l1_provider.add_events(events.into()).unwrap();
+    // Validate tx, which triggers the record to transition to state `CancelledOnL2`.
+    l1_provider.validate(tx.tx_hash, l1_provider.current_height).unwrap();
+
+    let expected = L1ProviderContentBuilder::new()
+        .with_txs([])
+        .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
+        .build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn add_events_only_cancel_event_unknown_tx() {
+    // Setup.
+    let unknown_tx_hash = tx_hash!(2);
+    let mut l1_provider = L1ProviderContentBuilder::new().build_into_l1_provider();
+
+    // Test.
+    l1_provider.add_events(vec![cancellation_event(unknown_tx_hash, 0.into())]).unwrap();
+    let expected_empty =
+        L1ProviderContentBuilder::new().with_txs([]).with_cancel_requested_txs([]).build();
+    expected_empty.assert_eq(&l1_provider);
+}
+
+#[test]
+fn add_events_double_cancellation_only_first_counted() {
+    // Setup.
+    let tx = l1_handler(1);
+    let tx_hash = tx.tx_hash;
+    let cancellation_request_timestamp_first = 3_u64;
+    let cancellation_request_timestamp_second = 4_u64;
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_txs([tx.clone()]).build_into_l1_provider();
+
+    // Test.
+
+    l1_provider.add_events(vec![l1_handler_event(tx_hash)]).unwrap();
+    l1_provider
+        .add_events(vec![cancellation_event(tx_hash, cancellation_request_timestamp_first.into())])
+        .unwrap();
+    l1_provider
+        .add_events(vec![cancellation_event(tx_hash, cancellation_request_timestamp_second.into())])
+        .unwrap();
+    // Only first cancellation counts.
+    let expected = L1ProviderContentBuilder::new()
+        .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp_first)])
+        .build();
+    expected.assert_eq(&l1_provider);
 }

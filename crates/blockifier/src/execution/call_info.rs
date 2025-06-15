@@ -29,6 +29,7 @@ macro_rules! retdata {
     };
 }
 
+// TODO(Arni): Consider rename `OrderedEvent` to `OrderableEvent`.
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Debug, Default, Eq, PartialEq, Serialize)]

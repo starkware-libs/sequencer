@@ -37,19 +37,23 @@ macro_rules! define_hint_enum_base {
 }
 
 #[macro_export]
-macro_rules! define_hint_enum {
+macro_rules! define_stateless_hint_enum {
     ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
-        impl HintImplementation for $enum_name {
+        impl $enum_name {
             #[allow(clippy::result_large_err)]
-            fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, '_, S>) -> OsHintResult {
+            pub fn execute_hint<S: StateReader>(
+                &self,
+                _hint_processor: &mut SnosHintProcessor<'_, S>,
+                hint_args: HintArgs<'_,>
+            ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
                         #[cfg(feature="testing")]
-                        hint_args.hint_processor.unused_hints.remove(&Self::$hint_name.into());
-                        $implementation::<S>(hint_args)
+                        _hint_processor.unused_hints.remove(&Self::$hint_name.into());
+                        $implementation(hint_args)
                     })+
 
                 }
@@ -59,25 +63,54 @@ macro_rules! define_hint_enum {
 }
 
 #[macro_export]
+macro_rules! define_hint_enum {
+    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+
+        $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
+
+        impl $enum_name {
+            #[allow(clippy::result_large_err)]
+            pub fn execute_hint<S: StateReader>(
+                &self,
+                hint_processor: &mut SnosHintProcessor<'_, S>,
+                hint_args: HintArgs<'_>
+            ) -> OsHintResult {
+                match self {
+                    $(Self::$hint_name => {
+                        #[cfg(feature="testing")]
+                        hint_processor.unused_hints.remove(&Self::$hint_name.into());
+                        $implementation::<S>(hint_processor, hint_args)
+                    })+
+
+                }
+            }
+        }
+    };
+}
+
+/// Hint extensions extend the current map of hints used by the VM.
+/// This behavior achieves what the `vm_load_data` primitive does for cairo-lang and is needed to
+/// implement OS hints like `vm_load_program`.
+#[macro_export]
 macro_rules! define_hint_extension_enum {
     ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
-        impl HintExtensionImplementation for $enum_name {
+        impl $enum_name {
             #[allow(clippy::result_large_err)]
-            fn execute_hint_extensive<S: StateReader>(
+            pub fn execute_hint_extensive<S: StateReader>(
                 &self,
-                hint_extension_args: HintArgs<'_, '_, S>,
+                hint_processor: &mut SnosHintProcessor<'_, S>,
+                hint_extension_args: HintArgs<'_>,
             ) -> OsHintExtensionResult {
                 match self {
                     $(Self::$hint_name => {
                         #[cfg(feature="testing")]
-                        hint_extension_args
-                            .hint_processor
+                            hint_processor
                             .unused_hints
                             .remove(&Self::$hint_name.into());
-                        $implementation::<S>(hint_extension_args)
+                        $implementation::<S>(hint_processor, hint_extension_args)
                     })+
                 }
             }

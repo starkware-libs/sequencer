@@ -1,4 +1,5 @@
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use starknet_api::block::BlockHashAndNumber;
 
@@ -25,6 +26,7 @@ pub struct ConcurrentTransactionExecutor<S: StateReader> {
     worker_executor: Arc<WorkerExecutor<CachedState<S>>>,
     worker_pool: Arc<WorkerPool<CachedState<S>>>,
     /// The number of transactions that have been outputted by the executor.
+    /// See [Self::get_new_results].
     n_output_txs: usize,
 }
 
@@ -36,6 +38,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         block_context: BlockContext,
         old_block_number_and_hash: Option<BlockHashAndNumber>,
         worker_pool: Arc<WorkerPool<CachedState<S>>>,
+        block_deadline: Option<Instant>,
     ) -> StateResult<Self> {
         let mut block_state = CachedState::new(initial_state_reader);
         pre_process_block(
@@ -51,11 +54,27 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             vec![],
             block_context.into(),
             Mutex::new(Bouncer::new(bouncer_config)).into(),
-            None, // TODO(lior): Fix execution deadline.
+            block_deadline,
         ));
         worker_pool.run(worker_executor.clone());
 
         Ok(Self { worker_executor, worker_pool: worker_pool.clone(), n_output_txs: 0 })
+    }
+
+    /// Starts executing the given transactions.
+    pub fn add_txs(&mut self, txs: &[Transaction]) {
+        self.worker_executor.add_txs(txs);
+    }
+
+    /// Returns the new execution outputs of the transactions that were processed so far, starting
+    /// from the last call to `get_new_results`.
+    pub fn get_new_results(
+        &mut self,
+    ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
+        let res = self.worker_executor.extract_execution_outputs(self.n_output_txs);
+        self.worker_pool.check_panic();
+        self.n_output_txs += res.len();
+        res
     }
 
     /// Adds the given transactions to the block and waits for them to be executed.
@@ -75,24 +94,34 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
             self.n_output_txs
         );
         self.worker_executor.scheduler.wait_for_completion(to_tx);
-        self.worker_pool.check_panic();
-        let res = self.worker_executor.extract_execution_outputs(from_tx, to_tx);
-
-        self.n_output_txs += res.len();
-        res
+        self.get_new_results()
     }
 
     /// Finalizes the block creation and returns [BlockExecutionSummary].
     ///
     /// Every block must be closed with either `close_block` or `abort_block`.
     #[allow(clippy::result_large_err)]
-    pub fn close_block(&mut self) -> TransactionExecutorResult<BlockExecutionSummary> {
+    pub fn close_block(
+        &mut self,
+        n_txs_in_block: Option<usize>,
+    ) -> TransactionExecutorResult<BlockExecutionSummary> {
+        log::info!("Worker executor: Closing block.");
         let worker_executor = &self.worker_executor;
         worker_executor.scheduler.halt();
 
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
-        let mut state_after_block =
-            worker_executor.commit_chunk_and_recover_block_state(n_committed_txs);
+        let n_txs = if let Some(n_txs_in_block) = n_txs_in_block {
+            assert!(
+                n_txs_in_block <= n_committed_txs,
+                "Close block requested with {n_txs_in_block} transactions, but only \
+                 {n_committed_txs} transactions were committed."
+            );
+            n_txs_in_block
+        } else {
+            n_committed_txs
+        };
+
+        let mut state_after_block = worker_executor.commit_chunk_and_recover_block_state(n_txs);
         finalize_block(
             &worker_executor.bouncer,
             &mut state_after_block,
@@ -100,8 +129,15 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         )
     }
 
-    /// Marks the block as aborted.
+    /// Returns `true` if the scheduler was halted. This happens when the block is full or the
+    /// deadline is reached.
+    pub fn is_done(&self) -> bool {
+        self.worker_executor.scheduler.done()
+    }
+
+    /// Halts the scheduler, to allow the worker threads to continue to the next block.
     pub fn abort_block(&mut self) {
+        log::info!("Worker executor: Aborting block.");
         self.worker_executor.scheduler.halt();
     }
 }

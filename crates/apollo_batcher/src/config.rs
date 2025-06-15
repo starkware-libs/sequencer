@@ -7,6 +7,8 @@ use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
 use crate::block_builder::BlockBuilderConfig;
+use crate::pre_confirmed_block_writer::PreConfirmedBlockWriterConfig;
+use crate::pre_confirmed_cende_client::PreConfirmedCendeConfig;
 
 /// The batcher related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
@@ -16,8 +18,10 @@ pub struct BatcherConfig {
     pub outstream_content_buffer_size: usize,
     pub input_stream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
+    pub pre_confirmed_block_writer_config: PreConfirmedBlockWriterConfig,
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
+    pub pre_confirmed_cende_config: PreConfirmedCendeConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -50,8 +54,16 @@ impl SerializeConfig for BatcherConfig {
             "block_builder_config",
         ));
         dump.append(&mut prepend_sub_config_name(
+            self.pre_confirmed_block_writer_config.dump(),
+            "pre_confirmed_block_writer_config",
+        ));
+        dump.append(&mut prepend_sub_config_name(
             self.contract_class_manager_config.dump(),
             "contract_class_manager_config",
+        ));
+        dump.append(&mut prepend_sub_config_name(
+            self.pre_confirmed_cende_config.dump(),
+            "pre_confirmed_cende_config",
         ));
         dump
     }
@@ -73,18 +85,20 @@ impl Default for BatcherConfig {
             outstream_content_buffer_size: 100,
             input_stream_content_buffer_size: 400,
             block_builder_config: BlockBuilderConfig::default(),
+            pre_confirmed_block_writer_config: PreConfirmedBlockWriterConfig::default(),
             contract_class_manager_config: ContractClassManagerConfig::default(),
             max_l1_handler_txs_per_block_proposal: 3,
+            pre_confirmed_cende_config: PreConfirmedCendeConfig::default(),
         }
     }
 }
 
 fn validate_batcher_config(batcher_config: &BatcherConfig) -> Result<(), ValidationError> {
     if batcher_config.input_stream_content_buffer_size
-        < batcher_config.block_builder_config.tx_chunk_size
+        < batcher_config.block_builder_config.n_concurrent_txs
     {
         return Err(ValidationError::new(
-            "input_stream_content_buffer_size must be at least tx_chunk_size",
+            "input_stream_content_buffer_size must be at least n_concurrent_txs",
         ));
     }
     Ok(())

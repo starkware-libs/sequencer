@@ -35,6 +35,7 @@ use apollo_storage::state::{StateStorageReader, StateStorageWriter};
 use async_trait::async_trait;
 use blockifier::concurrency::worker_pool::WorkerPool;
 use blockifier::state::contract_class_manager::ContractClassManager;
+use futures::FutureExt;
 use indexmap::IndexSet;
 #[cfg(test)]
 use mockall::automock;
@@ -55,6 +56,7 @@ use crate::block_builder::{
     BlockExecutionArtifacts,
     BlockMetadata,
 };
+use crate::cende_client_types::CendeBlockMetadata;
 use crate::config::BatcherConfig;
 use crate::metrics::{
     register_metrics,
@@ -71,6 +73,7 @@ use crate::metrics::{
 use crate::pre_confirmed_block_writer::{
     PreConfirmedBlockWriterFactory,
     PreConfirmedBlockWriterFactoryTrait,
+    PreConfirmedBlockWriterTrait,
 };
 use crate::pre_confirmed_cende_client::PreConfirmedCendeClientTrait;
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
@@ -98,7 +101,7 @@ pub struct Batcher {
     block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
 
     /// Used to create pre-confirmed block writers.
-    _pre_confirmed_block_writer_factory: Box<dyn PreConfirmedBlockWriterFactoryTrait>,
+    pre_confirmed_block_writer_factory: Box<dyn PreConfirmedBlockWriterFactoryTrait>,
 
     /// The height that the batcher is currently working on.
     /// All proposals are considered to be at this height.
@@ -144,7 +147,7 @@ impl Batcher {
             mempool_client,
             transaction_converter,
             block_builder_factory,
-            _pre_confirmed_block_writer_factory: pre_confirmed_block_writer_factory,
+            pre_confirmed_block_writer_factory,
             active_height: None,
             active_proposal: Arc::new(Mutex::new(None)),
             active_proposal_task: None,
@@ -228,6 +231,14 @@ impl Batcher {
         // A channel to receive the transactions included in the proposed block.
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
 
+        let cende_block_metadata = CendeBlockMetadata::new(propose_block_input.block_info.clone());
+        let (pre_confirmed_block_writer, candidate_tx_sender, pre_confirmed_tx_sender) =
+            self.pre_confirmed_block_writer_factory.create(
+                propose_block_input.block_info.block_number,
+                propose_block_input.proposal_round,
+                cende_block_metadata,
+            );
+
         let (block_builder, abort_signal_sender) = self
             .block_builder_factory
             .create_block_builder(
@@ -241,6 +252,8 @@ impl Batcher {
                 },
                 Box::new(tx_provider),
                 Some(output_tx_sender),
+                Some(candidate_tx_sender),
+                Some(pre_confirmed_tx_sender),
                 tokio::runtime::Handle::current(),
             )
             .map_err(|err| {
@@ -252,6 +265,7 @@ impl Batcher {
             propose_block_input.proposal_id,
             block_builder,
             abort_signal_sender,
+            Some(pre_confirmed_block_writer),
             proposal_metrics_handle,
         )
         .await?;
@@ -289,11 +303,11 @@ impl Batcher {
         let (input_tx_sender, input_tx_receiver) =
             tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
 
-        let tx_provider = ValidateTransactionProvider {
-            tx_receiver: input_tx_receiver,
-            l1_provider_client: self.l1_provider_client.clone(),
-            height: validate_block_input.block_info.block_number,
-        };
+        let tx_provider = ValidateTransactionProvider::new(
+            input_tx_receiver,
+            self.l1_provider_client.clone(),
+            validate_block_input.block_info.block_number,
+        );
 
         let (block_builder, abort_signal_sender) = self
             .block_builder_factory
@@ -308,6 +322,8 @@ impl Batcher {
                 },
                 Box::new(tx_provider),
                 None,
+                None,
+                None,
                 tokio::runtime::Handle::current(),
             )
             .map_err(|err| {
@@ -319,6 +335,7 @@ impl Batcher {
             validate_block_input.proposal_id,
             block_builder,
             abort_signal_sender,
+            None,
             proposal_metrics_handle,
         )
         .await?;
@@ -666,6 +683,7 @@ impl Batcher {
         proposal_id: ProposalId,
         mut block_builder: Box<dyn BlockBuilderTrait>,
         abort_signal_sender: tokio::sync::oneshot::Sender<()>,
+        pre_confirmed_block_writer: Option<Box<dyn PreConfirmedBlockWriterTrait>>,
         mut proposal_metrics_handle: ProposalMetricsHandle,
     ) -> BatcherResult<()> {
         self.set_active_proposal(proposal_id).await?;
@@ -674,7 +692,7 @@ impl Batcher {
         let active_proposal = self.active_proposal.clone();
         let executed_proposals = self.executed_proposals.clone();
 
-        let join_handle = tokio::spawn(
+        let execution_join_handle = tokio::spawn(
             async move {
                 let result = match block_builder.build_block().await {
                     Ok(artifacts) => {
@@ -701,7 +719,16 @@ impl Batcher {
             .in_current_span(),
         );
 
-        self.active_proposal_task = Some(ProposalTask { abort_signal_sender, join_handle });
+        let writer_join_handle =
+            pre_confirmed_block_writer.map(|mut pre_confirmed_block_writer| {
+                tokio::spawn(async move {
+                    // TODO(noamsp): add error handling
+                    pre_confirmed_block_writer.run().await.ok();
+                })
+            });
+
+        self.active_proposal_task =
+            Some(ProposalTask { abort_signal_sender, execution_join_handle, writer_join_handle });
         Ok(())
     }
 
@@ -730,8 +757,13 @@ impl Batcher {
     }
 
     pub async fn await_active_proposal(&mut self) {
-        if let Some(proposal_task) = self.active_proposal_task.take() {
-            proposal_task.join_handle.await.ok();
+        if let Some(ProposalTask { execution_join_handle, writer_join_handle, .. }) =
+            self.active_proposal_task.take()
+        {
+            let writer_future = writer_join_handle
+                .map(FutureExt::boxed)
+                .unwrap_or_else(|| futures::future::ready(Ok(())).boxed());
+            let _ = tokio::join!(execution_join_handle, writer_future);
         }
     }
 
@@ -776,9 +808,11 @@ pub fn create_batcher(
         .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
-    let worker_pool = Arc::new(WorkerPool::start(&execute_config.get_worker_pool_config()));
-    let pre_confirmed_block_writer_factory =
-        Box::new(PreConfirmedBlockWriterFactory { cende_client: pre_confirmed_cende_client });
+    let worker_pool = Arc::new(WorkerPool::start(execute_config));
+    let pre_confirmed_block_writer_factory = Box::new(PreConfirmedBlockWriterFactory {
+        config: config.pre_confirmed_block_writer_config,
+        cende_client: pre_confirmed_cende_client,
+    });
     let block_builder_factory = Box::new(BlockBuilderFactory {
         block_builder_config: config.block_builder_config.clone(),
         storage_reader: storage_reader.clone(),

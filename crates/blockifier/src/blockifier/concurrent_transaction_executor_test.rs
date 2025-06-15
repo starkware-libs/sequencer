@@ -1,9 +1,10 @@
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use rstest::rstest;
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::nonce;
 
 use crate::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
@@ -31,7 +32,7 @@ struct TestData {
     max_n_events_in_block: usize,
 }
 
-fn get_test_data() -> TestData {
+fn get_test_data(block_deadline: Option<Instant>) -> TestData {
     let pool = Arc::new(WorkerPool::start(&WorkerPoolConfig::create_for_testing()));
 
     let max_n_events_in_block = 10;
@@ -50,22 +51,18 @@ fn get_test_data() -> TestData {
         block_context,
         block_number_hash_pair,
         pool.clone(),
+        block_deadline,
     )
     .unwrap();
 
     TestData { pool, tx_executor, account_address, contract_address, max_n_events_in_block }
 }
 
-#[rstest]
-fn test_concurrent_transaction_executor() {
-    let TestData {
-        pool,
-        mut tx_executor,
-        account_address,
-        contract_address,
-        max_n_events_in_block,
-    } = get_test_data();
-
+fn test_txs(
+    account_address: ContractAddress,
+    contract_address: ContractAddress,
+    max_n_events_in_block: usize,
+) -> (Vec<Transaction>, Vec<Transaction>) {
     let txs0 = get_txs([
         emit_n_events_tx(1, account_address, contract_address, nonce!(0_u32)),
         // Transaction too big.
@@ -85,6 +82,30 @@ fn test_concurrent_transaction_executor() {
         // Should not be processed since the execution halted.
         emit_n_events_tx(1, account_address, contract_address, nonce!(3_u32)),
     ]);
+
+    (txs0, txs1)
+}
+
+#[rstest]
+#[case::zero_txs(Some(0), None)]
+#[case::one_tx(Some(1), Some(nonce!(1)))]
+#[case::two_txs(Some(2), Some(nonce!(1)))]
+#[case::three_txs(Some(3), Some(nonce!(2)))]
+#[case::four_txs(Some(4), Some(nonce!(3)))]
+#[case::no_tx_limit(None, Some(nonce!(3)))]
+fn test_concurrent_transaction_executor(
+    #[case] n_txs_in_block: Option<usize>,
+    #[case] expected_nonce: Option<Nonce>,
+) {
+    let TestData {
+        pool,
+        mut tx_executor,
+        account_address,
+        contract_address,
+        max_n_events_in_block,
+    } = get_test_data(None);
+
+    let (txs0, txs1) = test_txs(account_address, contract_address, max_n_events_in_block);
 
     // Run.
     let results0 = tx_executor.add_txs_and_wait(&txs0);
@@ -106,7 +127,56 @@ fn test_concurrent_transaction_executor() {
     assert!(results1[0].is_ok());
 
     // Close the block.
-    let block_summary = tx_executor.close_block().unwrap();
+    let block_summary = tx_executor.close_block(n_txs_in_block).unwrap();
+    assert_eq!(
+        block_summary.state_diff.address_to_nonce.get(&account_address).cloned(),
+        expected_nonce
+    );
+
+    // End test by calling pool.join().
+    drop(tx_executor);
+    Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
+}
+
+#[rstest]
+fn test_concurrent_transaction_executor_stream_txs() {
+    let TestData {
+        pool,
+        mut tx_executor,
+        account_address,
+        contract_address,
+        max_n_events_in_block,
+    } = get_test_data(None);
+
+    let (txs0, txs1) = test_txs(account_address, contract_address, max_n_events_in_block);
+
+    // Run.
+    tx_executor.add_txs(&txs0);
+    tx_executor.add_txs(&txs1);
+
+    // Collect the results.
+
+    let mut results = vec![];
+    while !tx_executor.is_done() {
+        results.extend(tx_executor.get_new_results());
+        std::thread::sleep(Duration::from_millis(1));
+    }
+
+    // Check execution results.
+    assert_eq!(results.len(), 4);
+
+    assert!(results[0].is_ok());
+    assert_matches!(
+        results[1].as_ref().unwrap_err(),
+        TransactionExecutorError::TransactionExecutionError(
+            TransactionExecutionError::TransactionTooLarge { .. }
+        )
+    );
+    assert!(results[2].is_ok());
+    assert!(results[3].is_ok());
+
+    // Close the block.
+    let block_summary = tx_executor.close_block(None).unwrap();
     assert_eq!(block_summary.state_diff.address_to_nonce[&account_address], nonce!(3_u32));
 
     // End test by calling pool.join().
@@ -116,10 +186,29 @@ fn test_concurrent_transaction_executor() {
 
 #[rstest]
 fn test_concurrent_transaction_executor_abort() {
-    let TestData { pool, mut tx_executor, .. } = get_test_data();
+    let TestData { pool, mut tx_executor, .. } = get_test_data(None);
 
     // Not calling `abort_block` would cause the `join` below to hang.
     tx_executor.abort_block();
+
+    drop(tx_executor);
+    Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();
+}
+
+#[rstest]
+fn test_concurrent_transaction_executor_deadline() {
+    let deadline = Instant::now();
+    let TestData { pool, mut tx_executor, account_address, contract_address, .. } =
+        get_test_data(Some(deadline));
+
+    let txs0 = get_txs([emit_n_events_tx(1, account_address, contract_address, nonce!(0_u32))]);
+
+    let results0 = tx_executor.add_txs_and_wait(&txs0);
+    // Expect no results since the deadline passed.
+    assert_eq!(results0.len(), 0);
+
+    let block_summary = tx_executor.close_block(None).unwrap();
+    assert!(block_summary.state_diff.address_to_nonce.get(&account_address).is_none());
 
     drop(tx_executor);
     Arc::try_unwrap(pool).expect("More than one instance of worker pool exists").join();

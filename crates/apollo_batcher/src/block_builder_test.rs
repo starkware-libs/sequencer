@@ -11,11 +11,14 @@ use apollo_l1_provider_types::InvalidValidationStatus::{
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
+    TransactionExecutionOutput,
     TransactionExecutorError,
+    TransactionExecutorResult,
 };
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::fee::fee_checks::FeeCheckError;
 use blockifier::fee::receipt::TransactionReceipt;
+use blockifier::state::cached_state::StateMaps;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
@@ -52,7 +55,7 @@ use crate::transaction_provider::{MockTransactionProvider, NextTxs, TransactionP
 const BLOCK_GENERATION_DEADLINE_SECS: u64 = 1;
 const BLOCK_GENERATION_LONG_DEADLINE_SECS: u64 = 5;
 const TX_CHANNEL_SIZE: usize = 50;
-const TX_CHUNK_SIZE: usize = 3;
+const N_CONCURRENT_TXS: usize = 3;
 const TX_POLLING_INTERVAL: u64 = 100;
 
 struct TestExpectations {
@@ -111,7 +114,7 @@ fn one_chunk_test_expectations() -> TestExpectations {
     let (mock_transaction_executor, expected_block_artifacts) =
         one_chunk_mock_executor(&input_txs, block_size);
 
-    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs.clone()]);
+    let mock_tx_provider = mock_tx_provider_limitless_calls(vec![input_txs.clone()]);
 
     TestExpectations {
         mock_transaction_executor,
@@ -122,54 +125,106 @@ fn one_chunk_test_expectations() -> TestExpectations {
     }
 }
 
+struct ExpectationHelper {
+    mock_transaction_executor: MockTransactionExecutorTrait,
+    seq: Sequence,
+}
+
+impl ExpectationHelper {
+    fn new() -> Self {
+        Self {
+            mock_transaction_executor: MockTransactionExecutorTrait::new(),
+            seq: Sequence::new(),
+        }
+    }
+
+    fn expect_add_txs_to_block(&mut self, input_txs: &[InternalConsensusTransaction]) {
+        let input_txs_cloned = input_txs.to_vec();
+        self.mock_transaction_executor
+            .expect_add_txs_to_block()
+            .times(1)
+            .in_sequence(&mut self.seq)
+            .withf(move |blockifier_input| compare_tx_hashes(&input_txs_cloned, blockifier_input))
+            .return_const(());
+    }
+
+    fn expect_get_new_results_with_results(
+        &mut self,
+        results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
+    ) {
+        self.mock_transaction_executor
+            .expect_get_new_results()
+            .times(1)
+            .in_sequence(&mut self.seq)
+            .return_once(move || results);
+    }
+
+    fn expect_successful_get_new_results(&mut self, n_txs: usize) {
+        self.expect_get_new_results_with_results(
+            (0..n_txs).map(|_| Ok((execution_info(), StateMaps::default()))).collect(),
+        );
+    }
+
+    fn expect_is_done(&mut self, is_done: bool) {
+        self.mock_transaction_executor
+            .expect_is_done()
+            .times(1)
+            .in_sequence(&mut self.seq)
+            .return_const(is_done);
+    }
+
+    /// Adds the expectations required for a block whose deadline is reached.
+    /// For such a block, `get_new_results` and `is_done` will be called repeatedly until the
+    /// deadline is reached.
+    fn deadline_expectations(&mut self) {
+        self.mock_transaction_executor.expect_get_new_results().returning(Vec::new);
+        self.mock_transaction_executor.expect_is_done().returning(|| false);
+    }
+}
+
 fn one_chunk_mock_executor(
     input_txs: &[InternalConsensusTransaction],
     block_size: usize,
 ) -> (MockTransactionExecutorTrait, BlockExecutionArtifacts) {
-    let input_txs_cloned = input_txs.to_vec();
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    let mut helper = ExpectationHelper::new();
 
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .withf(move |blockifier_input, _| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_, _| (0..block_size).map(|_| Ok(execution_info())).collect());
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(input_txs);
+    helper.expect_successful_get_new_results(block_size);
+    helper.expect_is_done(false);
+    helper.deadline_expectations();
 
     let expected_block_artifacts =
-        set_close_block_expectations(&mut mock_transaction_executor, block_size);
-    (mock_transaction_executor, expected_block_artifacts)
+        set_close_block_expectations(&mut helper.mock_transaction_executor, block_size);
+    (helper.mock_transaction_executor, expected_block_artifacts)
 }
 
 fn two_chunks_test_expectations() -> TestExpectations {
     let input_txs = test_txs(0..6);
-    let first_chunk = input_txs[..TX_CHUNK_SIZE].to_vec();
-    let second_chunk = input_txs[TX_CHUNK_SIZE..].to_vec();
+    let first_chunk = input_txs[..N_CONCURRENT_TXS].to_vec();
+    let second_chunk = input_txs[N_CONCURRENT_TXS..].to_vec();
     let block_size = input_txs.len();
 
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    let mut mock_add_txs_to_block = |tx_chunk: Vec<InternalConsensusTransaction>,
-                                     seq: &mut Sequence| {
-        mock_transaction_executor
-            .expect_add_txs_to_block()
-            .times(1)
-            .in_sequence(seq)
-            .withf(move |blockifier_input, _| compare_tx_hashes(&tx_chunk, blockifier_input))
-            .return_once(move |_, _| {
-                (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect()
-            });
-    };
+    let mut helper = ExpectationHelper::new();
 
-    let mut seq = Sequence::new();
-    mock_add_txs_to_block(first_chunk.clone(), &mut seq);
-    mock_add_txs_to_block(second_chunk.clone(), &mut seq);
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(&first_chunk);
+    helper.expect_successful_get_new_results(first_chunk.len());
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(&second_chunk);
+    helper.expect_successful_get_new_results(second_chunk.len());
+    helper.expect_is_done(false);
+    helper.deadline_expectations();
 
     let expected_block_artifacts =
-        set_close_block_expectations(&mut mock_transaction_executor, block_size);
+        set_close_block_expectations(&mut helper.mock_transaction_executor, block_size);
 
-    let mock_tx_provider = mock_tx_provider_limitless_calls(2, vec![first_chunk, second_chunk]);
+    let mock_tx_provider = mock_tx_provider_limitless_calls(vec![first_chunk, second_chunk]);
 
     TestExpectations {
-        mock_transaction_executor,
+        mock_transaction_executor: helper.mock_transaction_executor,
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output: input_txs,
@@ -178,15 +233,17 @@ fn two_chunks_test_expectations() -> TestExpectations {
 }
 
 fn empty_block_test_expectations() -> TestExpectations {
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    mock_transaction_executor.expect_add_txs_to_block().times(0);
+    let mut helper = ExpectationHelper::new();
+    helper.deadline_expectations();
+    helper.mock_transaction_executor.expect_add_txs_to_block().times(0);
 
-    let expected_block_artifacts = set_close_block_expectations(&mut mock_transaction_executor, 0);
+    let expected_block_artifacts =
+        set_close_block_expectations(&mut helper.mock_transaction_executor, 0);
 
-    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![vec![]]);
+    let mock_tx_provider = mock_tx_provider_limitless_calls(vec![]);
 
     TestExpectations {
-        mock_transaction_executor,
+        mock_transaction_executor: helper.mock_transaction_executor,
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output: vec![],
@@ -197,17 +254,15 @@ fn empty_block_test_expectations() -> TestExpectations {
 fn mock_transaction_executor_block_full(
     input_txs: &[InternalConsensusTransaction],
 ) -> MockTransactionExecutorTrait {
-    let input_txs_cloned = input_txs.to_vec();
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    let execution_results = vec![Ok(execution_info())];
-    // When the block is full, the executor will return less results than the number of input txs.
-    assert!(input_txs.len() > execution_results.len());
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .withf(move |blockifier_input, _| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_, _| execution_results);
-    mock_transaction_executor
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(input_txs);
+    // Only the first transaction fits in the block.
+    helper.expect_successful_get_new_results(1);
+    helper.expect_is_done(true);
+
+    helper.mock_transaction_executor
 }
 
 fn block_full_test_expectations() -> TestExpectations {
@@ -216,7 +271,7 @@ fn block_full_test_expectations() -> TestExpectations {
 
     let expected_block_artifacts = set_close_block_expectations(&mut mock_transaction_executor, 1);
 
-    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs.clone()]);
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs.clone()]);
 
     TestExpectations {
         mock_transaction_executor,
@@ -227,37 +282,49 @@ fn block_full_test_expectations() -> TestExpectations {
     }
 }
 
-fn mock_transaction_executor_with_delay(
-    input_txs: &[InternalConsensusTransaction],
+fn mock_partial_transaction_execution(
+    first_chunk: &[InternalConsensusTransaction],
+    second_chunk: &[InternalConsensusTransaction],
+    n_completed_txs: usize,
 ) -> MockTransactionExecutorTrait {
-    let input_txs_cloned = input_txs.to_vec();
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .withf(move |blockifier_input, _| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_, _| {
-            std::thread::sleep(std::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS));
-            (0..TX_CHUNK_SIZE).map(move |_| Ok(execution_info())).collect()
-        });
-    mock_transaction_executor
+    assert!(n_completed_txs <= first_chunk.len());
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(first_chunk);
+    if n_completed_txs > 0 {
+        helper.expect_successful_get_new_results(n_completed_txs);
+        helper.expect_is_done(false);
+        helper.expect_add_txs_to_block(second_chunk);
+    }
+
+    // Do not return the results, simulating a deadline reached before the completion of the
+    // transaction execution.
+    helper.deadline_expectations();
+
+    helper.mock_transaction_executor
 }
 
-fn test_expectations_with_delay() -> TestExpectations {
+fn test_expectations_partial_transaction_execution() -> TestExpectations {
+    let n_completed_txs = 1;
     let input_txs = test_txs(0..6);
-    let first_chunk = input_txs[0..TX_CHUNK_SIZE].to_vec();
-    let mut mock_transaction_executor = mock_transaction_executor_with_delay(&first_chunk);
+    let first_chunk = input_txs[0..N_CONCURRENT_TXS].to_vec();
+    // After the execution of the first transaction, one more transaction is fetched from the
+    // provider.
+    let second_chunk = input_txs[N_CONCURRENT_TXS..N_CONCURRENT_TXS + n_completed_txs].to_vec();
+    let mut mock_transaction_executor =
+        mock_partial_transaction_execution(&first_chunk, &second_chunk, n_completed_txs);
 
     let expected_block_artifacts =
-        set_close_block_expectations(&mut mock_transaction_executor, TX_CHUNK_SIZE);
+        set_close_block_expectations(&mut mock_transaction_executor, n_completed_txs);
 
-    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![first_chunk.clone()]);
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![first_chunk, second_chunk]);
 
     TestExpectations {
         mock_transaction_executor,
         mock_tx_provider,
         expected_block_artifacts,
-        expected_txs_output: first_chunk,
+        expected_txs_output: input_txs[..n_completed_txs].to_vec(),
         expected_full_blocks_metric: 0,
     }
 }
@@ -265,22 +332,23 @@ fn test_expectations_with_delay() -> TestExpectations {
 fn stream_done_test_expectations() -> TestExpectations {
     let input_txs = test_txs(0..2);
     let block_size = input_txs.len();
-    let input_txs_cloned = input_txs.clone();
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
+    let mut helper = ExpectationHelper::new();
 
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .withf(move |blockifier_input, _| compare_tx_hashes(&input_txs_cloned, blockifier_input))
-        .return_once(move |_, _| (0..block_size).map(|_| Ok(execution_info())).collect());
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(&input_txs);
+    helper.expect_successful_get_new_results(block_size);
+    helper.expect_is_done(false);
+
+    // No additional calls to get_new_results are expected.
 
     let expected_block_artifacts =
-        set_close_block_expectations(&mut mock_transaction_executor, block_size);
+        set_close_block_expectations(&mut helper.mock_transaction_executor, block_size);
 
     let mock_tx_provider = mock_tx_provider_stream_done(input_txs.clone());
 
     TestExpectations {
-        mock_transaction_executor,
+        mock_transaction_executor: helper.mock_transaction_executor,
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output: input_txs,
@@ -289,33 +357,40 @@ fn stream_done_test_expectations() -> TestExpectations {
 }
 
 fn transaction_failed_test_expectations() -> TestExpectations {
+    let n_txs = 6;
     let input_invoke_txs = test_txs(0..3);
-    let input_l1_handler_txs = test_l1_handler_txs(3..6);
-    let failed_tx_hashes = IndexSet::from([tx_hash!(1), tx_hash!(4)]);
+    let input_l1_handler_txs = test_l1_handler_txs(3..n_txs);
+    let failed_tx_indices = [1, 4];
+    let failed_tx_hashes: IndexSet<TransactionHash> =
+        failed_tx_indices.iter().map(|idx| tx_hash!(*idx)).collect();
     let consumed_l1_handler_tx_hashes: IndexSet<_> =
         input_l1_handler_txs.iter().map(|tx| tx.tx_hash()).collect();
-    let input_txs = input_invoke_txs.into_iter().chain(input_l1_handler_txs);
+    let input_txs: Vec<_> = input_invoke_txs.iter().chain(&input_l1_handler_txs).cloned().collect();
 
     let expected_txs_output: Vec<_> =
-        input_txs.clone().filter(|tx| !failed_tx_hashes.contains(&tx.tx_hash())).collect();
+        input_txs.iter().filter(|tx| !failed_tx_hashes.contains(&tx.tx_hash())).cloned().collect();
 
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    let failed_tx_hashes_ref = failed_tx_hashes.clone();
-    let mocked_add_txs_response = move |txs: &[BlockifierTransaction], _| {
-        txs.iter()
-            .map(|tx| {
-                if (failed_tx_hashes_ref).contains(&BlockifierTransaction::tx_hash(tx)) {
-                    Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress))
-                } else {
-                    Ok(execution_info())
-                }
-            })
-            .collect()
-    };
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .return_once(mocked_add_txs_response);
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    for start_idx in [0, 3] {
+        helper.expect_add_txs_to_block(&input_txs[start_idx..start_idx + 3]);
+        helper.expect_get_new_results_with_results(
+            (start_idx..start_idx + 3)
+                .map(|idx| {
+                    if failed_tx_indices.contains(&idx) {
+                        Err(TransactionExecutorError::StateError(
+                            StateError::OutOfRangeContractAddress,
+                        ))
+                    } else {
+                        Ok((execution_info(), StateMaps::default()))
+                    }
+                })
+                .collect(),
+        );
+        helper.expect_is_done(false);
+    }
+    helper.deadline_expectations();
 
     let execution_infos_mapping =
         expected_txs_output.iter().map(|tx| (tx.tx_hash(), execution_info())).collect();
@@ -326,7 +401,7 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         consumed_l1_handler_tx_hashes,
     );
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
-    mock_transaction_executor.expect_close_block().times(1).return_once(move || {
+    helper.mock_transaction_executor.expect_close_block().times(1).return_once(move |_| {
         Ok(BlockExecutionSummary {
             state_diff: expected_block_artifacts_copy.commitment_state_diff,
             compressed_state_diff: None,
@@ -335,10 +410,11 @@ fn transaction_failed_test_expectations() -> TestExpectations {
         })
     });
 
-    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![input_txs.collect()]);
+    let mock_tx_provider =
+        mock_tx_provider_limitless_calls(vec![input_invoke_txs, input_l1_handler_txs]);
 
     TestExpectations {
-        mock_transaction_executor,
+        mock_transaction_executor: helper.mock_transaction_executor,
         mock_tx_provider,
         expected_block_artifacts,
         expected_txs_output,
@@ -361,7 +437,7 @@ fn set_close_block_expectations(
 ) -> BlockExecutionArtifacts {
     let output_block_artifacts = block_builder_expected_output(block_size);
     let output_block_artifacts_copy = output_block_artifacts.clone();
-    mock_transaction_executor.expect_close_block().times(1).return_once(move || {
+    mock_transaction_executor.expect_close_block().times(1).return_once(move |_| {
         Ok(BlockExecutionSummary {
             state_diff: output_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
@@ -373,46 +449,54 @@ fn set_close_block_expectations(
 }
 
 /// Create a mock tx provider that will return the input chunks for number of chunks queries.
-/// This function assumes constant chunk size of TX_CHUNK_SIZE.
 fn mock_tx_provider_limited_calls(
-    n_calls: usize,
-    mut input_chunks: Vec<Vec<InternalConsensusTransaction>>,
+    input_chunks: Vec<Vec<InternalConsensusTransaction>>,
 ) -> MockTransactionProvider {
     let mut mock_tx_provider = MockTransactionProvider::new();
-    mock_tx_provider
-        .expect_get_txs()
-        .times(n_calls)
-        .with(eq(TX_CHUNK_SIZE))
-        .returning(move |_n_txs| Ok(NextTxs::Txs(input_chunks.remove(0))));
+    let mut seq = Sequence::new();
+    for input_chunk in input_chunks {
+        mock_tx_provider
+            .expect_get_n_txs_in_block()
+            .times(1)
+            .in_sequence(&mut seq)
+            .return_const(None);
+        mock_tx_provider
+            .expect_get_txs()
+            .times(1)
+            .with(eq(input_chunk.len()))
+            .in_sequence(&mut seq)
+            .returning(move |_n_txs| Ok(NextTxs::Txs(input_chunk.clone())));
+    }
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
     mock_tx_provider
 }
 
 fn mock_tx_provider_stream_done(
     input_chunk: Vec<InternalConsensusTransaction>,
 ) -> MockTransactionProvider {
+    let n_txs = input_chunk.len();
     let mut mock_tx_provider = MockTransactionProvider::new();
     let mut seq = Sequence::new();
     mock_tx_provider
         .expect_get_txs()
         .times(1)
         .in_sequence(&mut seq)
-        .with(eq(TX_CHUNK_SIZE))
+        .with(eq(N_CONCURRENT_TXS))
         .return_once(move |_n_txs| Ok(NextTxs::Txs(input_chunk)));
     mock_tx_provider
         .expect_get_txs()
         .times(1)
         .in_sequence(&mut seq)
         .return_once(|_n_txs| Ok(NextTxs::End));
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(Some(n_txs));
     mock_tx_provider
 }
 
 /// Create a mock tx provider client that will return the input chunks and then empty chunks.
-/// This function assumes constant chunk size of TX_CHUNK_SIZE.
 fn mock_tx_provider_limitless_calls(
-    n_calls: usize,
     input_chunks: Vec<Vec<InternalConsensusTransaction>>,
 ) -> MockTransactionProvider {
-    let mut mock_tx_provider = mock_tx_provider_limited_calls(n_calls, input_chunks);
+    let mut mock_tx_provider = mock_tx_provider_limited_calls(input_chunks);
 
     // The number of times the mempool will be called until timeout is unpredicted.
     add_limitless_empty_calls(&mut mock_tx_provider);
@@ -422,8 +506,9 @@ fn mock_tx_provider_limitless_calls(
 fn add_limitless_empty_calls(mock_tx_provider: &mut MockTransactionProvider) {
     mock_tx_provider
         .expect_get_txs()
-        .with(eq(TX_CHUNK_SIZE))
+        .with(eq(N_CONCURRENT_TXS))
         .returning(|_n_txs| Ok(NextTxs::Txs(Vec::new())));
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
 }
 
 fn mock_tx_provider_with_error(error: TransactionProviderError) -> MockTransactionProvider {
@@ -431,8 +516,9 @@ fn mock_tx_provider_with_error(error: TransactionProviderError) -> MockTransacti
     mock_tx_provider
         .expect_get_txs()
         .times(1)
-        .with(eq(TX_CHUNK_SIZE))
+        .with(eq(N_CONCURRENT_TXS))
         .return_once(move |_n_txs| Err(error));
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
     mock_tx_provider
 }
 
@@ -483,9 +569,11 @@ async fn run_build_block(
         mock_transaction_executor,
         Box::new(tx_provider),
         output_sender,
+        None,
+        None,
         abort_receiver,
         transaction_converter,
-        TX_CHUNK_SIZE,
+        N_CONCURRENT_TXS,
         TX_POLLING_INTERVAL,
         BlockBuilderExecutionParams { deadline, fail_on_err },
     );
@@ -498,7 +586,7 @@ async fn run_build_block(
 #[case::two_chunks_block(two_chunks_test_expectations())]
 #[case::empty_block(empty_block_test_expectations())]
 #[case::block_full(block_full_test_expectations())]
-#[case::deadline_reached_after_first_chunk(test_expectations_with_delay())]
+#[case::deadline_reached_after_first_chunk(test_expectations_partial_transaction_execution())]
 #[case::stream_done(stream_done_test_expectations())]
 #[case::transaction_failed(transaction_failed_test_expectations())]
 #[tokio::test]
@@ -558,7 +646,10 @@ async fn test_validate_block() {
 
 #[rstest]
 #[case::block_full(test_txs(0..3), mock_transaction_executor_block_full(&input_txs), FailOnErrorCause::BlockFull)]
-#[case::deadline_reached(test_txs(0..3), mock_transaction_executor_with_delay(&input_txs), FailOnErrorCause::DeadlineReached)]
+#[case::deadline_reached(
+    test_txs(0..3), mock_partial_transaction_execution(&input_txs, &[], 0),
+    FailOnErrorCause::DeadlineReached
+)]
 #[tokio::test]
 async fn test_validate_block_with_error(
     #[case] input_txs: Vec<InternalConsensusTransaction>,
@@ -568,7 +659,7 @@ async fn test_validate_block_with_error(
     mock_transaction_executor.expect_close_block().times(0);
     mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
 
-    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs]);
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs]);
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
     let result = run_build_block(
@@ -601,11 +692,13 @@ async fn test_validate_block_l1_handler_validation_error(#[case] status: Invalid
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+    let mut helper = ExpectationHelper::new();
+    helper.deadline_expectations();
+
+    helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
 
     let result = run_build_block(
-        mock_transaction_executor,
+        helper.mock_transaction_executor,
         tx_provider,
         None,
         true,
@@ -628,15 +721,20 @@ async fn test_validate_block_l1_handler_validation_error(#[case] status: Invalid
 #[rstest]
 #[tokio::test]
 async fn test_build_block_abort() {
-    let mock_tx_provider = mock_tx_provider_limitless_calls(1, vec![test_txs(0..3)]);
+    let n_txs = 3;
+    let mock_tx_provider = mock_tx_provider_limitless_calls(vec![test_txs(0..n_txs)]);
 
     // Expect one transaction chunk to be added to the block, and then abort.
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .return_once(|_, _| (0..3).map(|_| Ok(execution_info())).collect());
-    mock_transaction_executor.expect_close_block().times(0);
-    mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(&test_txs(0..3));
+    helper.expect_successful_get_new_results(3);
+    helper.expect_is_done(false);
+    helper.deadline_expectations();
+
+    helper.mock_transaction_executor.expect_close_block().times(0);
+    helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
 
     let (output_tx_sender, mut output_tx_receiver) = output_channel();
     let (abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
@@ -649,7 +747,7 @@ async fn test_build_block_abort() {
 
     assert_matches!(
         run_build_block(
-            mock_transaction_executor,
+            helper.mock_transaction_executor,
             mock_tx_provider,
             Some(output_tx_sender),
             false,
@@ -667,6 +765,7 @@ async fn test_build_block_abort_immediately() {
     // Expect no transactions requested from the provider, and to be added to the block
     let mut mock_tx_provider = MockTransactionProvider::new();
     mock_tx_provider.expect_get_txs().times(0);
+    mock_tx_provider.expect_get_n_txs_in_block().return_const(None);
     let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
     mock_transaction_executor.expect_add_txs_to_block().times(0);
     mock_transaction_executor.expect_close_block().times(0);
@@ -748,18 +847,20 @@ async fn test_execution_info_order() {
 #[rstest]
 #[tokio::test]
 async fn failed_l1_handler_transaction_consumed() {
-    let l1_handler_tx = test_l1_handler_txs(0..2);
-    let mock_tx_provider = mock_tx_provider_stream_done(l1_handler_tx.clone());
+    let l1_handler_txs = test_l1_handler_txs(0..2);
+    let mock_tx_provider = mock_tx_provider_stream_done(l1_handler_txs.clone());
 
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    mock_transaction_executor.expect_add_txs_to_block().times(1).return_once(move |_, _| {
-        vec![
-            Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress)),
-            Ok(execution_info()),
-        ]
-    });
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(&l1_handler_txs);
+    helper.expect_get_new_results_with_results(vec![
+        Err(TransactionExecutorError::StateError(StateError::OutOfRangeContractAddress)),
+        Ok((execution_info(), StateMaps::default())),
+    ]);
+    helper.expect_is_done(false);
 
-    mock_transaction_executor.expect_close_block().times(1).return_once(|| {
+    helper.mock_transaction_executor.expect_close_block().times(1).return_once(|_| {
         Ok(BlockExecutionSummary {
             state_diff: Default::default(),
             compressed_state_diff: None,
@@ -770,7 +871,7 @@ async fn failed_l1_handler_transaction_consumed() {
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
     let result_block_artifacts = run_build_block(
-        mock_transaction_executor,
+        helper.mock_transaction_executor,
         mock_tx_provider,
         None,
         false,
@@ -783,7 +884,7 @@ async fn failed_l1_handler_transaction_consumed() {
     // Verify that all L1 handler transaction's are included in the consumed l1 transactions.
     assert_eq!(
         result_block_artifacts.execution_data.consumed_l1_handler_tx_hashes,
-        l1_handler_tx.iter().map(|tx| tx.tx_hash()).collect::<IndexSet<_>>()
+        l1_handler_txs.iter().map(|tx| tx.tx_hash()).collect::<IndexSet<_>>()
     );
 }
 
@@ -795,17 +896,20 @@ async fn partial_chunk_execution_without_fail_on_error_flag() {
     let expected_execution_infos: IndexMap<_, _> =
         executed_txs.iter().map(|tx| (tx.tx_hash(), execution_info())).collect();
 
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .return_once(move |_, _| executed_txs.iter().map(|_| Ok(execution_info())).collect());
+    let mut helper = ExpectationHelper::new();
+
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(&input_txs);
+    // Return only 2 txs, simulating a partial chunk execution.
+    helper.expect_successful_get_new_results(executed_txs.len());
+    helper.expect_is_done(true);
 
     let expected_block_artifacts =
         block_execution_artifacts(expected_execution_infos, Default::default(), Default::default());
 
     let expected_block_artifacts_copy = expected_block_artifacts.clone();
-    mock_transaction_executor.expect_close_block().times(1).return_once(move || {
+    helper.mock_transaction_executor.expect_close_block().times(1).return_once(move |_| {
         Ok(BlockExecutionSummary {
             state_diff: expected_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
@@ -814,13 +918,13 @@ async fn partial_chunk_execution_without_fail_on_error_flag() {
         })
     });
 
-    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs.clone()]);
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs.clone()]);
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
     // Block should be built with the executed transactions without any errors.
     let fail_on_error = false;
     let result_block_artifacts = run_build_block(
-        mock_transaction_executor,
+        helper.mock_transaction_executor,
         mock_tx_provider,
         None,
         fail_on_error,
@@ -836,24 +940,26 @@ async fn partial_chunk_execution_without_fail_on_error_flag() {
 #[tokio::test]
 async fn partial_chunk_execution_with_fail_on_error_flag() {
     let input_txs = test_txs(0..3);
-    let executed_txs = input_txs[..2].to_vec();
 
-    let mut mock_transaction_executor = MockTransactionExecutorTrait::new();
-    mock_transaction_executor
-        .expect_add_txs_to_block()
-        .times(1)
-        .return_once(move |_, _| executed_txs.iter().map(|_| Ok(execution_info())).collect()); // We return only 2 txs, simulating a partial chunk execution.
-    mock_transaction_executor.expect_close_block().times(0);
-    mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+    let mut helper = ExpectationHelper::new();
+    helper.expect_successful_get_new_results(0);
+    helper.expect_is_done(false);
+    helper.expect_add_txs_to_block(&input_txs);
+    // Return only 2 txs, simulating a partial chunk execution.
+    helper.expect_successful_get_new_results(2);
+    helper.expect_is_done(true);
 
-    let mock_tx_provider = mock_tx_provider_limited_calls(1, vec![input_txs.clone()]);
+    helper.mock_transaction_executor.expect_close_block().times(0);
+    helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
+
+    let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs.clone()]);
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
     // Block should return BlockFull error since a chunk is not completed, a time constrain on
     // block.
     let fail_on_error = true;
     let result_block_artifacts = run_build_block(
-        mock_transaction_executor,
+        helper.mock_transaction_executor,
         mock_tx_provider,
         None,
         fail_on_error,

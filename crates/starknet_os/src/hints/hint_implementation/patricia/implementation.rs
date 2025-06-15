@@ -5,7 +5,6 @@ use cairo_vm::any_box;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
-    get_relocatable_from_var_name,
     insert_value_from_var_name,
     insert_value_into_ap,
 };
@@ -23,6 +22,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::patricia::utils::{
     build_update_tree,
@@ -48,8 +48,8 @@ use crate::vm_utils::{
 };
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_siblings<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn set_siblings(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let descend: &Path = exec_scopes.get_ref(Scope::Descend.into())?;
 
@@ -65,8 +65,8 @@ pub(crate) fn set_siblings<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn is_case_right<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn is_case_right(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
     let bit = get_integer_from_var_name(Ids::Bit.into(), vm, ids_data, ap_tracking)?;
@@ -86,7 +86,8 @@ pub(crate) fn is_case_right<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_bit<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let edge_path_addr = get_address_of_nested_fields(
         ids_data,
@@ -108,8 +109,8 @@ pub(crate) fn set_bit<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_ap_to_descend<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn set_ap_to_descend(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let descent_map: &DescentMap = exec_scopes.get_ref(Scope::DescentMap.into())?;
 
@@ -134,9 +135,7 @@ pub(crate) fn set_ap_to_descend<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn assert_case_is_right<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn assert_case_is_right(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
     if case != DecodeNodeCase::Right {
         return Err(OsHintError::AssertionFailed { message: "case != 'right".to_string() });
@@ -145,8 +144,8 @@ pub(crate) fn assert_case_is_right<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn write_case_not_left_to_ap<S: StateReader>(
-    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn write_case_not_left_to_ap(
+    HintArgs { vm, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
     let value = Felt::from(case != DecodeNodeCase::Left);
@@ -155,8 +154,8 @@ pub(crate) fn write_case_not_left_to_ap<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn split_descend<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn split_descend(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let descend: &Path = exec_scopes.get_ref(Scope::Descend.into())?;
     let length: u8 = descend.0.length.into();
@@ -169,8 +168,8 @@ pub(crate) fn split_descend<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn height_is_zero_or_len_node_preimage_is_two(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let height = get_integer_from_var_name(Ids::Height.into(), vm, ids_data, ap_tracking)?;
 
@@ -191,7 +190,8 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReader>(
-    HintArgs { hint_processor, vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
     let UpdateTree::InnerNode(inner_node) = node else {
@@ -227,7 +227,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
         hint_processor.os_program,
     )?;
 
-    // TODO(Rotem): Verify that it's OK to ignore the scope variable
+    // We don't support hash verification skipping and the scope variable
     // `__patricia_skip_validation_runner`.
 
     insert_value_into_ap(vm, Felt::from(case != DecodeNodeCase::Both))?;
@@ -237,7 +237,8 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn build_descent_map<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, hint_processor, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_updates: usize = Ids::NUpdates.fetch_as(vm, ids_data, ap_tracking)?;
 
@@ -281,8 +282,8 @@ pub(crate) fn build_descent_map<S: StateReader>(
     // translate too well in Rust. We just make sure that `descent_map`, and `preimage` are in
     // the scope.
 
-    // TODO(Rotem): If and when hash verification skipping is supported, take
-    // `__patricia_skip_validation_runner` into account.
+    // We don't support hash verification skipping and the scope variable
+    // `__patricia_skip_validation_runner`.
 
     Ok(())
 }
@@ -304,16 +305,14 @@ fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_node<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn enter_scope_node(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
     enter_scope_specific_node(node, exec_scopes)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_new_node<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_new_node(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
 
@@ -354,38 +353,34 @@ fn enter_scope_next_node_bit(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_next_node_bit_0<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_next_node_bit_0(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     enter_scope_next_node_bit(false, vm, exec_scopes, ids_data, ap_tracking)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_next_node_bit_1<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_next_node_bit_1(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     enter_scope_next_node_bit(true, vm, exec_scopes, ids_data, ap_tracking)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_left_child<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn enter_scope_left_child(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let left_child: UpdateTree = exec_scopes.get(Scope::LeftChild.into())?;
     enter_scope_specific_node(left_child, exec_scopes)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_right_child<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn enter_scope_right_child(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let right_child: UpdateTree = exec_scopes.get(Scope::RightChild.into())?;
     enter_scope_specific_node(right_child, exec_scopes)
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_descend_edge<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn enter_scope_descend_edge(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let mut new_node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
     let length: u8 = Ids::Length.fetch_as(vm, ids_data, ap_tracking)?;
@@ -414,9 +409,10 @@ pub(crate) fn enter_scope_descend_edge<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_edge<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    // TODO(Nimrod): Verify that it's ok to ignore the scope variable
+    // We don't support hash verification skipping and the scope variable
     // `__patricia_skip_validation_runner`.
     let node = HashOutput(get_integer_from_var_name(Ids::Node.into(), vm, ids_data, ap_tracking)?);
     let preimage_mapping: &PreimageMap = exec_scopes.get_ref(Scope::Preimage.into())?;
@@ -456,7 +452,8 @@ pub(crate) fn load_edge<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_bottom<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let bottom_hash = HashOutput(
         vm.get_integer(get_address_of_nested_fields(
@@ -476,8 +473,7 @@ pub(crate) fn load_bottom<S: StateReader>(
         preimage_map.get(&bottom_hash).ok_or(OsHintError::MissingPreimage(bottom_hash))?;
     let binary_data = preimage.get_binary()?;
 
-    let hash_ptr_address =
-        get_relocatable_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
+    let hash_ptr_address = get_ptr_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
     let nested_fields_and_values =
         [("x", binary_data.left_hash.0.into()), ("y", binary_data.right_hash.0.into())];
     insert_values_to_fields(
@@ -488,16 +484,14 @@ pub(crate) fn load_bottom<S: StateReader>(
         hint_processor.os_program,
     )?;
 
-    // TODO(Rotem): If and when hash verification skipping is supported, take
-    // `__patricia_skip_validation_runner` into account.
+    // We don't support hash verification skipping and the scope variable
+    // `__patricia_skip_validation_runner`.
 
     Ok(())
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn decode_node<S: StateReader>(
-    HintArgs { vm, exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn decode_node(HintArgs { vm, exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
     let UpdateTree::InnerNode(inner_node) = node else {
         return Err(OsHintError::ExpectedInnerNode);

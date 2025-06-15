@@ -2,6 +2,7 @@ use apollo_infra::metrics::{
     STATE_SYNC_LOCAL_MSGS_PROCESSED,
     STATE_SYNC_LOCAL_MSGS_RECEIVED,
     STATE_SYNC_LOCAL_QUEUE_DEPTH,
+    STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
     STATE_SYNC_REMOTE_MSGS_PROCESSED,
     STATE_SYNC_REMOTE_MSGS_RECEIVED,
     STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
@@ -22,17 +23,19 @@ use apollo_state_sync_metrics::metrics::{
 use crate::dashboard::{Panel, PanelType};
 
 pub(crate) const PANEL_STATE_SYNC_LOCAL_MSGS_RECEIVED: Panel =
-    Panel::from_counter(STATE_SYNC_LOCAL_MSGS_RECEIVED, PanelType::Stat);
+    Panel::from_counter(STATE_SYNC_LOCAL_MSGS_RECEIVED, PanelType::Graph);
 pub(crate) const PANEL_STATE_SYNC_LOCAL_MSGS_PROCESSED: Panel =
-    Panel::from_counter(STATE_SYNC_LOCAL_MSGS_PROCESSED, PanelType::Stat);
+    Panel::from_counter(STATE_SYNC_LOCAL_MSGS_PROCESSED, PanelType::Graph);
 pub(crate) const PANEL_STATE_SYNC_REMOTE_MSGS_RECEIVED: Panel =
-    Panel::from_counter(STATE_SYNC_REMOTE_MSGS_RECEIVED, PanelType::Stat);
+    Panel::from_counter(STATE_SYNC_REMOTE_MSGS_RECEIVED, PanelType::Graph);
 pub(crate) const PANEL_STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED: Panel =
-    Panel::from_counter(STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED, PanelType::Stat);
+    Panel::from_counter(STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
 pub(crate) const PANEL_STATE_SYNC_REMOTE_MSGS_PROCESSED: Panel =
-    Panel::from_counter(STATE_SYNC_REMOTE_MSGS_PROCESSED, PanelType::Stat);
+    Panel::from_counter(STATE_SYNC_REMOTE_MSGS_PROCESSED, PanelType::Graph);
 pub(crate) const PANEL_STATE_SYNC_LOCAL_QUEUE_DEPTH: Panel =
-    Panel::from_gauge(STATE_SYNC_LOCAL_QUEUE_DEPTH, PanelType::Stat);
+    Panel::from_gauge(STATE_SYNC_LOCAL_QUEUE_DEPTH, PanelType::Graph);
+pub(crate) const PANEL_STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
+    Panel::from_hist(STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
 
 pub(crate) const PANEL_P2P_SYNC_NUM_CONNECTED_PEERS: Panel =
     Panel::from_gauge(P2P_SYNC_NUM_CONNECTED_PEERS, PanelType::Stat);

@@ -1,5 +1,4 @@
 use apollo_compile_to_casm_types::SerializedClass;
-use apollo_metrics::metrics::{LabeledMetricCounter, LabeledMetricHistogram};
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 use strum::VariantNames;
 

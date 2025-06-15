@@ -15,6 +15,7 @@ use starknet_api::core::ClassHash;
 use starknet_types_core::felt::Felt;
 
 use super::utils::BytecodeSegment;
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::compiled_class::utils::{
     create_bytecode_segment_structure,
@@ -31,9 +32,7 @@ use crate::vm_utils::{
 };
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn assign_bytecode_segments<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn assign_bytecode_segments(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let bytecode_segment_structure: BytecodeSegmentNode =
         exec_scopes.get(Scope::BytecodeSegmentStructure.into())?;
 
@@ -47,8 +46,8 @@ pub(crate) fn assign_bytecode_segments<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn assert_end_of_bytecode_segments(
+    HintArgs { exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let bytecode_segments: &mut IntoIter<BytecodeSegment> =
         exec_scopes.get_mut_ref(Scope::BytecodeSegments.into())?;
@@ -62,7 +61,8 @@ pub(crate) fn assert_end_of_bytecode_segments<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn bytecode_segment_structure<S: StateReader>(
-    HintArgs { hint_processor, exec_scopes, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { exec_scopes, ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let bytecode_segment_structures: &BTreeMap<ClassHash, BytecodeSegmentNode> =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructures.into())?;
@@ -95,8 +95,8 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn delete_memory_data<S: StateReader>(
-    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn delete_memory_data(
+    HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
     if vm.is_accessed(&data_ptr)? {
@@ -109,8 +109,8 @@ pub(crate) fn delete_memory_data<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn is_leaf<S: StateReader>(
-    HintArgs { vm, exec_scopes, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn is_leaf(
+    HintArgs { vm, exec_scopes, ap_tracking, ids_data, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let bytecode_segment_structure: &BytecodeSegmentNode =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;
@@ -125,8 +125,8 @@ pub(crate) fn is_leaf<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn iter_current_segment_info<S: StateReader>(
-    HintArgs { exec_scopes, vm, ap_tracking, ids_data, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn iter_current_segment_info(
+    HintArgs { exec_scopes, vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let bytecode_segments: &mut IntoIter<BytecodeSegment> =
         exec_scopes.get_mut_ref(Scope::BytecodeSegments.into())?;
@@ -182,7 +182,8 @@ pub(crate) fn iter_current_segment_info<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_class<S: StateReader>(
-    HintArgs { exec_scopes, ids_data, ap_tracking, vm, hint_processor, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { exec_scopes, ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     exec_scopes.exit_scope()?;
     let expected_hash_address = get_address_of_nested_fields(
@@ -209,8 +210,8 @@ pub(crate) fn load_class<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
-    HintArgs { exec_scopes, vm, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn set_ap_to_segment_hash(
+    HintArgs { exec_scopes, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let bytecode_segment_structure: &BytecodeSegmentNode =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructure.into())?;
@@ -220,7 +221,8 @@ pub(crate) fn set_ap_to_segment_hash<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
-    HintArgs { hint_processor, exec_scopes, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let mut bytecode_segment_structures = BTreeMap::new();
     for (compiled_hash, compiled_class) in hint_processor.compiled_classes.iter() {
@@ -243,7 +245,8 @@ pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
 // Hint extensions.
 #[allow(clippy::result_large_err)]
 pub(crate) fn load_class_inner<S: StateReader>(
-    HintArgs { hint_processor, constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintExtensionResult {
     let identifier_getter = hint_processor.os_program;
     let mut hint_extension = HintExtension::new();
