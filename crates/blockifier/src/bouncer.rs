@@ -222,15 +222,7 @@ impl CasmHashComputationData {
             .extend(other.class_hash_to_casm_hash_computation_gas);
         self.sierra_gas_without_casm_hash_computation = self
             .sierra_gas_without_casm_hash_computation
-            .checked_add(other.sierra_gas_without_casm_hash_computation)
-            .unwrap_or_else(|| {
-                panic!(
-                    "Addition overflow while adding sierra gas. current gas: {}, try to add
-                 gas: {}.",
-                    self.sierra_gas_without_casm_hash_computation,
-                    other.sierra_gas_without_casm_hash_computation
-                )
-            });
+            .checked_add_panic_on_overflow(other.sierra_gas_without_casm_hash_computation)
     }
 }
 
@@ -434,37 +426,27 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
     let sierra_gas_without_casm_hash_computation =
-        sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
-            panic!(
-                "Addition overflow while adding sierra gas. current gas: {}, try to add
-                 gas: {}.",
-                sierra_gas, vm_resources_gas
-            )
-        });
+        sierra_gas.checked_add_panic_on_overflow(vm_resources_gas);
+
     let class_hash_to_casm_hash_computation_resources =
         map_class_hash_to_casm_hash_computation_resources(state_reader, executed_class_hashes)?;
-    let total_casm_hash_computation_resources = class_hash_to_casm_hash_computation_resources
-        .values()
-        .fold(ExecutionResources::default(), |acc, resources| &acc + resources);
-    let total_casm_hash_computation_gas =
-        vm_resources_to_sierra_gas(total_casm_hash_computation_resources, versioned_constants);
-    let sierra_gas = sierra_gas_without_casm_hash_computation
-        .checked_add(total_casm_hash_computation_gas)
-        .unwrap_or_else(|| {
-            panic!(
-                "Addition overflow while adding sierra gas. current gas: {}, try to add
-                 gas: {}.",
-                sierra_gas_without_casm_hash_computation, total_casm_hash_computation_gas
-            )
-        });
-    let casm_hash_computation_data = CasmHashComputationData {
-        class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_resources
+    let class_hash_to_casm_hash_computation_gas: HashMap<_, _> =
+        class_hash_to_casm_hash_computation_resources
             .into_iter()
             .map(|(class_hash, resources)| {
                 let gas = vm_resources_to_sierra_gas(resources, versioned_constants);
                 (class_hash, gas)
             })
-            .collect(),
+            .collect();
+    let total_casm_hash_computation_gas = class_hash_to_casm_hash_computation_gas
+        .values()
+        .fold(GasAmount::ZERO, |acc, gas| acc.checked_add_panic_on_overflow(*gas));
+
+    let total_sierra_gas = sierra_gas_without_casm_hash_computation
+        .checked_add_panic_on_overflow(total_casm_hash_computation_gas);
+
+    let casm_hash_computation_data = CasmHashComputationData {
+        class_hash_to_casm_hash_computation_gas,
         sierra_gas_without_casm_hash_computation,
     };
     let bouncer_weights = BouncerWeights {
@@ -472,7 +454,7 @@ pub fn get_tx_weights<S: StateReader>(
         message_segment_length: message_resources.message_segment_length,
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
-        sierra_gas,
+        sierra_gas: total_sierra_gas,
         n_txs: 1,
     };
 

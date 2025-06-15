@@ -64,6 +64,16 @@ impl GasAmount {
         self.0.checked_add(rhs.0).map(Self)
     }
 
+    pub fn checked_add_panic_on_overflow(self, added_gas: GasAmount) -> GasAmount {
+        self.checked_add(added_gas).unwrap_or_else(|| {
+            panic!(
+                "Addition overflow while adding sierra gas. current gas: {}, try to add
+                 gas: {}.",
+                self, added_gas
+            )
+        })
+    }
+
     pub fn checked_sub(self, rhs: Self) -> Option<Self> {
         self.0.checked_sub(rhs.0).map(Self)
     }
