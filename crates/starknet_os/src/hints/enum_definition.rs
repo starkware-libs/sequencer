@@ -817,11 +817,6 @@ else:
     ),
     (SplitDescend, split_descend, "ids.length, ids.word = descend"),
     (
-        HeightIsZeroOrLenNodePreimageIsTwo,
-        height_is_zero_or_len_node_preimage_is_two,
-        "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0"
-    ),
-    (
         RemainingGasGtMax,
         remaining_gas_gt_max,
         "memory[ap] = to_felt_or_relocatable(ids.remaining_gas > ids.max_gas)"
@@ -1716,6 +1711,11 @@ assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
 	    __patricia_skip_validation_runner.verified_addresses.add(
 	        ids.hash_ptr + ids.HashBuiltin.result)"#
         }
+    ),
+    (
+        HeightIsZeroOrLenNodePreimageIsTwo,
+        height_is_zero_or_len_node_preimage_is_two,
+        "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0"
     ),
     (
         SetSyscallPtr,
