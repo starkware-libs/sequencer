@@ -10,7 +10,7 @@ use apollo_l1_provider_types::SessionState::{
 };
 use apollo_l1_provider_types::{Event, InvalidValidationStatus, ValidationStatus};
 use apollo_state_sync_types::communication::MockStateSyncClient;
-use apollo_time::time::MockClock;
+use apollo_time::test_utils::FakeClock;
 use assert_matches::assert_matches;
 use itertools::Itertools;
 use pretty_assertions::assert_eq;
@@ -553,8 +553,8 @@ fn get_txs_same_timestamp_returns_in_arrival_order() {
     let tx1 = l1_handler(100);
     let tx2 = l1_handler(200);
     let tx3 = l1_handler(300);
-    let timestamp_1_2 = 1_u64;
-    let timestamp_3 = 2_u64;
+    let timestamp_1_2 = 1;
+    let timestamp_3 = 2;
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_timed_txs([
             (tx1.clone(), timestamp_1_2),
@@ -628,12 +628,11 @@ fn get_txs_timestamp_cutoff_some_eligible() {
     let timestamp_1 = 10;
     let timestamp_2 = 20;
     let timestamp_3 = 30;
-    let now = 35u64;
+    let now = 35;
     let cooldown = 20; // cutoff = now - cooldown = 35 - 20 = 15.
     // Only tx_1 (timestamp_1=10) is eligible (10 < 15).
 
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(now);
+    let clock = Arc::new(FakeClock::new(now));
 
     let config = L1ProviderConfig {
         new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
@@ -641,7 +640,7 @@ fn get_txs_timestamp_cutoff_some_eligible() {
     };
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .with_timed_txs([
             (tx_1.clone(), timestamp_1),
             (tx_2.clone(), timestamp_2),
@@ -660,12 +659,11 @@ fn get_txs_timestamp_cutoff_none_eligible() {
     let tx_2 = l1_handler(2);
     let timestamp_1 = 10;
     let timestamp_2 = 20;
-    let now = 30u64;
+    let now = 30;
     let cooldown = 21; // cutoff = now - cooldown = 30 - 21 = 9.
     // No txs have timestamp < cutoff (10,20 >= 9).
 
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(now);
+    let clock = Arc::new(FakeClock::new(now));
 
     let config = L1ProviderConfig {
         new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
@@ -673,7 +671,7 @@ fn get_txs_timestamp_cutoff_none_eligible() {
     };
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .with_timed_txs([(tx_1.clone(), timestamp_1), (tx_2.clone(), timestamp_2)])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
@@ -690,12 +688,11 @@ fn get_txs_timestamp_cutoff_edge_case_at_cutoff() {
     let timestamp_1 = 10;
     let timestamp_2 = 11;
     let timestamp_3 = 9;
-    let now = 30u64;
+    let now = 30;
     let cooldown = 20; // cutoff = now - cooldown = 30 - 20 = 10
     // Only tx_3 is eligible (timestamp_3 = 9 < 10).
 
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(now);
+    let clock = Arc::new(FakeClock::new(now));
 
     let config = L1ProviderConfig {
         new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
@@ -703,7 +700,7 @@ fn get_txs_timestamp_cutoff_edge_case_at_cutoff() {
     };
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .with_timed_txs([
             (tx_1.clone(), timestamp_1),
             (tx_2.clone(), timestamp_2),
@@ -721,16 +718,15 @@ fn get_txs_excludes_cancellation_requested_and_returns_non_cancellation_requeste
     // Setup.
     let tx_1 = l1_handler(1);
     let tx_2 = l1_handler(2);
-    let unix_now = 5_u64;
+    let unix_now = 5;
     let l1_handler_cancellation_timelock_seconds = Duration::from_secs(2);
     let config =
         L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(unix_now);
+    let clock = Arc::new(FakeClock::new(unix_now));
     let cancellation_request_timestamp = unix_now - 1;
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .with_txs([tx_2.clone()])
         .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Propose)
@@ -744,16 +740,15 @@ fn get_txs_excludes_cancellation_requested_and_returns_non_cancellation_requeste
 fn get_txs_excludes_transaction_after_cancellation_expiry() {
     // Setup.
     let tx_1 = l1_handler(1);
-    let unix_now = 5_u64;
+    let unix_now = 5;
     let l1_handler_cancellation_timelock_seconds = Duration::from_secs(1);
     let config =
         L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(unix_now);
+    let clock = Arc::new(FakeClock::new(unix_now));
     let cancellation_request_timestamp = 0;
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
@@ -766,16 +761,15 @@ fn get_txs_excludes_transaction_after_cancellation_expiry() {
 fn validate_tx_cancellation_requested_not_expired_returns_validated() {
     // Setup.
     let tx_1 = l1_handler(1);
-    let unix_now = 5_u64;
+    let unix_now = 5;
     let l1_handler_cancellation_timelock_seconds = Duration::from_secs(10);
     let config =
         L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(unix_now);
+    let clock = Arc::new(FakeClock::new(unix_now));
     let cancellation_request_timestamp = 2;
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
@@ -789,16 +783,15 @@ fn validate_tx_cancellation_requested_not_expired_returns_validated() {
 fn validate_tx_cancellation_requested_expired_returns_cancelled() {
     // Setup.
     let tx_1 = l1_handler(2);
-    let unix_now = 15_u64;
+    let unix_now = 15;
     let l1_handler_cancellation_timelock_seconds = Duration::from_secs(10);
     let config =
         L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(unix_now);
+    let clock = Arc::new(FakeClock::new(unix_now));
     let cancellation_request_timestamp = 2;
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
@@ -819,12 +812,11 @@ fn validate_tx_cancellation_requested_validated_then_expired_returns_cancelled()
     let l1_handler_cancellation_timelock_seconds = Duration::from_secs(10);
     let config =
         L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(5_u64); // now = 5, cancellation at 2, expires at 12
+    let clock = Arc::new(FakeClock::new(5)); // now = 5, cancellation at 2, expires at 12
     let cancellation_request_timestamp = 2;
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock.clone())
         .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
@@ -837,9 +829,7 @@ fn validate_tx_cancellation_requested_validated_then_expired_returns_cancelled()
     // Now, advance time past expiry and validate again,
     // This tests the edge case: a tx can be validatable before expiry, but if validated again after
     // expiry, it should return the cancellation error.
-    let mut mock_clock2 = MockClock::new();
-    mock_clock2.expect_unix_now().return_const(20u64); // now = 20 > 12
-    l1_provider.clock = Arc::new(mock_clock2);
+    clock.advance(Duration::from_secs(15)); // advance from 5 to 20
     let status2 = l1_provider.validate(tx_1.tx_hash, l1_provider.current_height).unwrap();
     assert_eq!(status2, InvalidValidationStatus::CancelledOnL2.into());
 }
@@ -848,18 +838,17 @@ fn validate_tx_cancellation_requested_validated_then_expired_returns_cancelled()
 fn commit_block_commits_cancellation_requested_tx_not_expired() {
     // Setup.
     let tx = l1_handler(1);
-    let now = 3_u64;
-    let nonzero_timelock = 1_u64;
+    let now = 3;
+    let nonzero_timelock = 1;
     let config = L1ProviderConfig {
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(nonzero_timelock),
         ..Default::default()
     };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(now);
+    let clock = Arc::new(FakeClock::new(now));
     let cancellation_request_timestamp = now; // Not expired, cause timelock is nonzero.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
         .build_into_l1_provider();
 
@@ -874,18 +863,17 @@ fn commit_block_commits_cancellation_requested_expired_and_fully_cancelled() {
     // Setup.
     let tx_1 = l1_handler(1);
     let tx_2 = l1_handler(2);
-    let now = 5_u64;
-    let timelock = 2_u64;
+    let now = 5;
+    let timelock = 2;
     let config = L1ProviderConfig {
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(timelock),
         ..Default::default()
     };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(now);
+    let clock = Arc::new(FakeClock::new(now));
     let cancellation_expired = now - timelock - 1;
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         // Both txs are passed cancellation request already, but still not in `Cancelled` state.
         .with_cancel_requested_txs([
             (tx_1.clone(), cancellation_expired),
@@ -914,18 +902,17 @@ fn commit_block_commits_mixed_normal_and_cancellation_requested() {
     // Setup.
     let tx_normal = l1_handler(1);
     let tx_cancel = l1_handler(2);
-    let now = 4_u64;
-    let nonzero_timelock = 1_u64;
+    let now = 4;
+    let nonzero_timelock = 1;
     let config = L1ProviderConfig {
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(nonzero_timelock),
         ..Default::default()
     };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(now);
+    let clock = Arc::new(FakeClock::new(now));
     let cancellation_request_timestamp = now; // Not expired, cause timelock is nonzero.
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .with_txs([tx_normal.clone()])
         .with_cancel_requested_txs([(tx_cancel.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Propose)
@@ -945,18 +932,17 @@ fn add_events_tx_and_cancel_same_call_not_expired() {
     // Setup.
     let tx = l1_handler(1);
     let tx_hash = tx.tx_hash;
-    let now = 2_u64;
-    let nonzero_timelock = 1_u64;
+    let now = 2;
+    let nonzero_timelock = 1;
     let cancellation_request_timestamp = now; // Not expired, cause timelock is nonzero.
     let config = L1ProviderConfig {
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(nonzero_timelock),
         ..Default::default()
     };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(now);
+    let clock = Arc::new(FakeClock::new(now));
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .build_into_l1_provider();
 
     // Test.
@@ -977,18 +963,17 @@ fn add_events_tx_then_cancel_separate_calls_not_expired() {
     // Setup.
     let tx = l1_handler(1);
     let tx_hash = tx.tx_hash;
-    let now = 4_u64;
-    let nonzero_timelock = 1_u64;
+    let now = 4;
+    let nonzero_timelock = 1;
     let cancellation_request_timestamp = now; // Not expired, cause timelock is nonzero.
     let config = L1ProviderConfig {
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(nonzero_timelock),
         ..Default::default()
     };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(now);
+    let clock = Arc::new(FakeClock::new(now));
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .build_into_l1_provider();
 
     // Test.
@@ -1008,22 +993,21 @@ fn add_events_tx_then_cancel_separate_calls_not_expired() {
 fn add_events_tx_and_cancel_same_call_expired() {
     // Setup.
     let tx = l1_handler(1);
-    let now = 3_u64;
-    let timelock = 0_u64; // all cancellations immediately expire.
+    let now = 3;
+    let timelock = 0; // all cancellations immediately expire.
     let cancellation_request_timestamp = now;
     let config = L1ProviderConfig {
         l1_handler_cancellation_timelock_seconds: Duration::from_secs(timelock),
         ..Default::default()
     };
-    let mut mock_clock = MockClock::new();
-    mock_clock.expect_unix_now().return_const(now);
+    let clock = Arc::new(FakeClock::new(now));
     let events = [
         l1_handler_event(tx.tx_hash),
         cancellation_event(tx.tx_hash, cancellation_request_timestamp.into()),
     ];
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_clock(Arc::new(mock_clock))
+        .with_clock(clock)
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
 
@@ -1057,8 +1041,8 @@ fn add_events_double_cancellation_only_first_counted() {
     // Setup.
     let tx = l1_handler(1);
     let tx_hash = tx.tx_hash;
-    let cancellation_request_timestamp_first = 3_u64;
-    let cancellation_request_timestamp_second = 4_u64;
+    let cancellation_request_timestamp_first = 3;
+    let cancellation_request_timestamp_second = 4;
     let mut l1_provider =
         L1ProviderContentBuilder::new().with_txs([tx.clone()]).build_into_l1_provider();
 
