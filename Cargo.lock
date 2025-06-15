@@ -1524,6 +1524,7 @@ dependencies = [
  "metrics-exporter-prometheus",
  "mockall",
  "pretty_assertions",
+ "rand 0.8.5",
  "rstest",
  "serde",
  "starknet-types-core",
