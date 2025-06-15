@@ -83,7 +83,7 @@ use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::SequencerConsensusContext;
+use crate::sequencer_consensus_context::{SequencerConsensusContext, TEMP_N_EXECUTED_TXS};
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
 const CHANNEL_SIZE: usize = 5000;
@@ -210,7 +210,7 @@ impl TestDeps {
         self.batcher.expect_send_proposal_content().times(1).returning(
             move |input: SendProposalContentInput| {
                 assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-                assert!(matches!(input.content, SendProposalContent::Finish));
+                assert!(matches!(input.content, SendProposalContent::Finish(TEMP_N_EXECUTED_TXS)));
                 Ok(SendProposalContentResponse {
                     response: ProposalStatus::Finished(ProposalCommitment {
                         state_diff_commitment: STATE_DIFF_COMMITMENT,

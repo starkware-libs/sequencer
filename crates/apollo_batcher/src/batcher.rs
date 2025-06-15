@@ -359,7 +359,10 @@ impl Batcher {
 
         match send_proposal_content_input.content {
             SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
-            SendProposalContent::Finish => self.handle_finish_proposal_request(proposal_id).await,
+            SendProposalContent::Finish(_) => {
+                // TODO(AlonH): Handle the number of executed transactions.
+                self.handle_finish_proposal_request(proposal_id).await
+            }
             SendProposalContent::Abort => self.handle_abort_proposal_request(proposal_id).await,
         }
     }
@@ -488,7 +491,7 @@ impl Batcher {
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished {
                 id: commitment,
-                // TODO(AlonH): Consider sending the number of executed transactions.
+                // TODO(AlonH): Send the actual number of executed transactions.
                 n_executed_txs: TEMP_N_EXECUTED_TXS,
             },
         })
