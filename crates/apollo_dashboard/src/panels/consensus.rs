@@ -131,16 +131,15 @@ pub(crate) const PANEL_CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER: Panel =
 pub(crate) const PANEL_CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY: Panel = Panel::new(
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name(),
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_description(),
-    formatcp!(
-        "avg_over_time({}[2m])",
-        CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name_with_filter()
-    ),
+    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
+    CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name_with_filter(),
     PanelType::Graph,
 );
 pub(crate) const PANEL_CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY: Panel = Panel::new(
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name(),
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter()),
+    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
+    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter(),
     PanelType::Graph,
 );
 pub(crate) const PANEL_CENDE_WRITE_BLOB_SUCCESS: Panel =
