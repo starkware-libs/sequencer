@@ -113,15 +113,8 @@ starknet_version_enum! {
     (V0_13_5, 0, 13, 5),
     (V0_13_6, 0, 13, 6),
     (V0_14_0, 0, 14, 0),
-<<<<<<< HEAD
     (V0_14_1, 0, 14, 1),
     V0_14_1
-||||||| dd972f762
-    V0_14_0
-=======
-    V0_14_0
-
->>>>>>> origin/main-v0.14.0
 }
 
 impl Default for StarknetVersion {
