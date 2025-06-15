@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::{
-    IntermediateInvokeTransaction,
     L1HandlerTransaction as ClientL1HandlerTransaction,
     ReservedDataAvailabilityMode,
 };
@@ -391,6 +390,38 @@ pub struct IntermediateDeployAccountTransaction {
     pub sender_address: ContractAddress,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_fee: Option<Fee>,
+    pub transaction_hash: TransactionHash,
+    pub version: TransactionVersion,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct IntermediateInvokeTransaction {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource_bounds: Option<ValidResourceBounds>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tip: Option<Tip>,
+    pub calldata: Calldata,
+    // In early versions of starknet, the `sender_address` field was originally named
+    // `contract_address`.
+    #[serde(alias = "contract_address")]
+    pub sender_address: ContractAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub entry_point_selector: Option<EntryPointSelector>,
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<Nonce>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_fee: Option<Fee>,
+    pub signature: TransactionSignature,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonce_data_availability_mode: Option<ReservedDataAvailabilityMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fee_data_availability_mode: Option<ReservedDataAvailabilityMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paymaster_data: Option<PaymasterData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_deployment_data: Option<AccountDeploymentData>,
     pub transaction_hash: TransactionHash,
     pub version: TransactionVersion,
 }
