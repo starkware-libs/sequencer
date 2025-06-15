@@ -169,7 +169,7 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
                     match msg {
                         Some((tx, tx_receipt, tx_state_diff)) => {
                             let tx = CendePreConfirmedTransaction::from(tx);
-                            let tx_hash = tx.transaction.transaction_hash();
+                            let tx_hash = tx.transaction_hash();
                             transactions_map.insert(tx_hash, (tx, Some(tx_receipt), Some(tx_state_diff)));
                             pending_changes = true;
                         }
@@ -185,7 +185,7 @@ impl PreConfirmedBlockWriterTrait for PreConfirmedBlockWriter {
                             // Skip transactions that were already executed, to avoid an unnecessary write.
                             for tx in txs {
                                 let tx = CendePreConfirmedTransaction::from(tx);
-                                match transactions_map.entry(tx.transaction.transaction_hash()) {
+                                match transactions_map.entry(tx.transaction_hash()) {
                                     Entry::Vacant(entry) => {
                                         entry.insert((tx, None, None));
                                         pending_changes = true;
