@@ -32,6 +32,8 @@ async fn main() {
         Some(custom_paths),
         // TODO(Tsabary/Nadin): add a different identifier.
         TestIdentifier::PositiveFlowIntegrationTest,
+        // TODO(Tsabary): add a different number of sender accounts as arg
+        1,
     )
     .await;
 
