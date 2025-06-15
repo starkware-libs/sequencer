@@ -446,9 +446,9 @@ impl BlockBuilder {
     }
 }
 
-fn lock_executor<'a>(
-    executor: &'a Arc<Mutex<dyn TransactionExecutorTrait>>,
-) -> MutexGuard<'a, dyn TransactionExecutorTrait> {
+fn lock_executor(
+    executor: &Arc<Mutex<dyn TransactionExecutorTrait>>,
+) -> MutexGuard<'_, dyn TransactionExecutorTrait> {
     executor.try_lock().expect("Only a single task should use the executor.")
 }
 
