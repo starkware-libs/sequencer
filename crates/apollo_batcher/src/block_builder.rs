@@ -154,8 +154,7 @@ pub trait BlockBuilderTrait: Send {
 
 pub struct BlockBuilderExecutionParams {
     pub deadline: tokio::time::Instant,
-    // Only true in validation flow.
-    pub fail_on_err: bool,
+    pub is_validator: bool,
 }
 
 pub struct BlockBuilder {
@@ -233,7 +232,7 @@ impl BlockBuilder {
         while !self.finished_block_txs(n_txs_in_block) {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
-                if self.execution_params.fail_on_err {
+                if self.execution_params.is_validator {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
                 break;
@@ -253,7 +252,7 @@ impl BlockBuilder {
 
             if lock_executor(&self.executor).is_done() {
                 info!("Block is full.");
-                if self.execution_params.fail_on_err {
+                if self.execution_params.is_validator {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
                 } else {
                     FULL_BLOCKS.increment(1);
@@ -349,7 +348,7 @@ impl BlockBuilder {
 
         let next_txs = match self.tx_provider.get_txs(n_txs_to_fetch).await {
             Err(e @ TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
-                if self.execution_params.fail_on_err =>
+                if self.execution_params.is_validator =>
             {
                 return Err(BlockBuilderError::FailOnError(L1HandlerTransactionValidationFailed(
                     e,
@@ -406,7 +405,7 @@ impl BlockBuilder {
             results,
             &mut self.execution_data,
             &self.output_content_sender,
-            self.execution_params.fail_on_err,
+            self.execution_params.is_validator,
             &self.pre_confirmed_tx_sender,
         )
         .await
@@ -475,7 +474,7 @@ async fn collect_execution_results_and_stream_txs(
     output_content_sender: &Option<
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
-    fail_on_err: bool,
+    is_validator: bool,
     pre_confirmed_tx_sender: &Option<PreConfirmedTxSender>,
 ) -> BlockBuilderResult<()> {
     assert!(
@@ -533,7 +532,7 @@ async fn collect_execution_results_and_stream_txs(
                     tx_hash,
                     err.log_compatible_to_string()
                 );
-                if fail_on_err {
+                if is_validator {
                     return Err(BlockBuilderError::FailOnError(
                         FailOnErrorCause::TransactionFailed(err),
                     ));
