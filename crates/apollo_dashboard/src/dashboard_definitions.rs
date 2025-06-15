@@ -174,6 +174,8 @@ use crate::panels::state_sync::{
 #[path = "dashboard_definitions_test.rs"]
 mod dashboard_definitions_test;
 
+// TODO(Tsabary): this file should be managed by this crate, hence should be moved here to a
+// resources folder.
 pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
 
 const MEMPOOL_P2P_ROW: Row = Row::new(
@@ -441,28 +443,30 @@ pub const MEMPOOL_INFRA_ROW: Row = Row::new(
 pub const COMPILE_TO_CASM_ROW: Row =
     Row::new("Compile sierra to casm", &[PANEL_COMPILATION_DURATION]);
 
-pub const SEQUENCER_DASHBOARD: Dashboard = Dashboard::new(
-    "Sequencer Node Dashboard",
-    &[
-        BATCHER_ROW,
-        CONSENSUS_ROW,
-        HTTP_SERVER_ROW,
-        STATE_SYNC_ROW,
-        MEMPOOL_P2P_ROW,
-        CONSENSUS_P2P_ROW,
-        STATE_SYNC_P2P_ROW,
-        GATEWAY_ROW,
-        MEMPOOL_ROW,
-        BLOCKIFIER_STATE_READER_ROW,
-        BATCHER_INFRA_ROW,
-        GATEWAY_INFRA_ROW,
-        CLASS_MANAGER_INFRA_ROW,
-        L1_PROVIDER_INFRA_ROW,
-        L1_GAS_PRICE_INFRA_ROW,
-        MEMPOOL_INFRA_ROW,
-        MEMPOOL_P2P_INFRA_ROW,
-        SIERRA_COMPILER_INFRA_ROW,
-        COMPILE_TO_CASM_ROW,
-        STATE_SYNC_INFRA_ROW,
-    ],
-);
+pub fn get_apollo_dashboard() -> Dashboard {
+    Dashboard::new(
+        "Sequencer Node Dashboard",
+        &[
+            BATCHER_ROW,
+            CONSENSUS_ROW,
+            HTTP_SERVER_ROW,
+            STATE_SYNC_ROW,
+            MEMPOOL_P2P_ROW,
+            CONSENSUS_P2P_ROW,
+            STATE_SYNC_P2P_ROW,
+            GATEWAY_ROW,
+            MEMPOOL_ROW,
+            BLOCKIFIER_STATE_READER_ROW,
+            BATCHER_INFRA_ROW,
+            GATEWAY_INFRA_ROW,
+            CLASS_MANAGER_INFRA_ROW,
+            L1_PROVIDER_INFRA_ROW,
+            L1_GAS_PRICE_INFRA_ROW,
+            MEMPOOL_INFRA_ROW,
+            MEMPOOL_P2P_INFRA_ROW,
+            SIERRA_COMPILER_INFRA_ROW,
+            COMPILE_TO_CASM_ROW,
+            STATE_SYNC_INFRA_ROW,
+        ],
+    )
+}
