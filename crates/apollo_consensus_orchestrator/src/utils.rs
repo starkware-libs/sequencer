@@ -26,6 +26,8 @@ use tracing::{info, warn};
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
 use crate::sequencer_consensus_context::{BuildProposalError, ProposalResult};
 
+pub(crate) type ExecutedTransactionCount = u64;
+
 pub(crate) struct GasPriceParams {
     pub min_l1_gas_price_wei: GasPrice,
     pub max_l1_gas_price_wei: GasPrice,
