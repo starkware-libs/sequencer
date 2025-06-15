@@ -390,6 +390,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         _vm: &mut VirtualMachine,
         _syscall_handler: &mut Self,
     ) -> Result<ReplaceClassResponse, Self::Error> {
+        println!("Deprecated syscall: replace_class in the OS.");
         Ok(ReplaceClassResponse {})
     }
 
@@ -399,6 +400,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         _vm: &mut VirtualMachine,
         _syscall_handler: &mut Self,
     ) -> Result<SendMessageToL1Response, Self::Error> {
+        println!("Deprecated syscall: send_message_to_l1 in the OS.");
         Ok(SendMessageToL1Response {})
     }
 
