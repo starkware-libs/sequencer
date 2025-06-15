@@ -14,13 +14,13 @@ use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintResult};
-use crate::hints::types::{HintArgs, HintArgsNoHP};
+use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn selected_builtins(
-    HintArgsNoHP { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_selected_builtins =
         get_integer_from_var_name(Ids::NSelectedBuiltins.into(), vm, ids_data, ap_tracking)?;
@@ -32,7 +32,7 @@ pub(crate) fn selected_builtins(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn select_builtin(
-    HintArgsNoHP { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
+    HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_selected_builtins: Felt = exec_scopes.get(Scope::NSelectedBuiltins.into())?;
     let selected_encodings_ptr =

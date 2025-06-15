@@ -12,13 +12,11 @@ use starknet_types_core::felt::Felt;
 use super::utils::compress;
 use crate::hints::error::OsHintResult;
 use crate::hints::hint_implementation::stateless_compression::utils::TOTAL_N_BUCKETS;
-use crate::hints::types::HintArgsNoHP;
+use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn dictionary_from_bucket(
-    HintArgsNoHP { exec_scopes, .. }: HintArgsNoHP<'_>,
-) -> OsHintResult {
+pub(crate) fn dictionary_from_bucket(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = (0..TOTAL_N_BUCKETS)
         .map(|bucket_index| (Felt::from(bucket_index).into(), Felt::ZERO.into()))
         .collect();
@@ -28,7 +26,7 @@ pub(crate) fn dictionary_from_bucket(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn get_prev_offset(
-    HintArgsNoHP { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let dict_manager = exec_scopes.get_dict_manager()?;
 
@@ -43,7 +41,7 @@ pub(crate) fn get_prev_offset(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn compression_hint(
-    HintArgsNoHP { vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let data_start = get_ptr_from_var_name(Ids::DataStart.into(), vm, ids_data, ap_tracking)?;
     let data_end = get_ptr_from_var_name(Ids::DataEnd.into(), vm, ids_data, ap_tracking)?;
@@ -63,7 +61,7 @@ pub(crate) fn compression_hint(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_decompressed_dst(
-    HintArgsNoHP { vm, ids_data, ap_tracking, .. }: HintArgsNoHP<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let decompressed_dst =
         get_ptr_from_var_name(Ids::DecompressedDst.into(), vm, ids_data, ap_tracking)?;
