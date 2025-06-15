@@ -8,7 +8,6 @@ use apollo_starknet_client::reader::objects::transaction::{
     IntermediateDeployAccountTransaction,
     IntermediateInvokeTransaction,
     L1HandlerTransaction as ClientL1HandlerTransaction,
-    Transaction,
 };
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
 use blockifier::execution::call_info::OrderedEvent;
@@ -283,10 +282,33 @@ fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> Executi
     }
 }
 
-#[derive(Deserialize, Serialize, Clone, Debug, Eq, PartialEq)]
-pub struct CendePreConfirmedTransaction {
-    #[serde(flatten)]
-    pub transaction: Transaction,
+// TODO(shahak): consider extracting common fields out (version, hash, type).
+// This is a modified version of the enum
+// `apollo_starknet_client::reader::objects::transaction::Transaction`.
+// The main difference is that the `Deploy` variant is not present in this enum.
+// Also a few modifications were made to the serialization format.
+#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[serde(tag = "type")]
+pub enum CendePreConfirmedTransaction {
+    #[serde(rename = "DECLARE")]
+    Declare(IntermediateDeclareTransaction),
+    #[serde(rename = "DEPLOY_ACCOUNT")]
+    DeployAccount(IntermediateDeployAccountTransaction),
+    #[serde(rename = "INVOKE_FUNCTION")]
+    Invoke(IntermediateInvokeTransaction),
+    #[serde(rename = "L1_HANDLER")]
+    L1Handler(ClientL1HandlerTransaction),
+}
+
+impl CendePreConfirmedTransaction {
+    pub fn transaction_hash(&self) -> TransactionHash {
+        match self {
+            CendePreConfirmedTransaction::Declare(tx) => tx.transaction_hash,
+            CendePreConfirmedTransaction::DeployAccount(tx) => tx.transaction_hash,
+            CendePreConfirmedTransaction::Invoke(tx) => tx.transaction_hash,
+            CendePreConfirmedTransaction::L1Handler(tx) => tx.transaction_hash,
+        }
+    }
 }
 
 impl From<InternalConsensusTransaction> for CendePreConfirmedTransaction {
@@ -310,31 +332,29 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
                 declare_transaction,
             ) => {
                 let version = declare_transaction.version();
-                CendePreConfirmedTransaction {
-                    transaction: Transaction::Declare(IntermediateDeclareTransaction {
-                        resource_bounds: Some(ValidResourceBounds::AllResources(
-                            declare_transaction.resource_bounds,
-                        )),
-                        tip: Some(declare_transaction.tip),
-                        signature: declare_transaction.signature,
-                        nonce: declare_transaction.nonce,
-                        class_hash: declare_transaction.class_hash,
-                        compiled_class_hash: Some(declare_transaction.compiled_class_hash),
-                        sender_address: declare_transaction.sender_address,
-                        nonce_data_availability_mode: Some(
-                            declare_transaction.nonce_data_availability_mode.into(),
-                        ),
-                        fee_data_availability_mode: Some(
-                            declare_transaction.fee_data_availability_mode.into(),
-                        ),
-                        paymaster_data: Some(declare_transaction.paymaster_data),
-                        account_deployment_data: Some(declare_transaction.account_deployment_data),
-                        version,
-                        transaction_hash: tx_hash,
-                        // Irrelevant for V3 declare transactions.
-                        max_fee: None,
-                    }),
-                }
+                CendePreConfirmedTransaction::Declare(IntermediateDeclareTransaction {
+                    resource_bounds: Some(ValidResourceBounds::AllResources(
+                        declare_transaction.resource_bounds,
+                    )),
+                    tip: Some(declare_transaction.tip),
+                    signature: declare_transaction.signature,
+                    nonce: declare_transaction.nonce,
+                    class_hash: declare_transaction.class_hash,
+                    compiled_class_hash: Some(declare_transaction.compiled_class_hash),
+                    sender_address: declare_transaction.sender_address,
+                    nonce_data_availability_mode: Some(
+                        declare_transaction.nonce_data_availability_mode.into(),
+                    ),
+                    fee_data_availability_mode: Some(
+                        declare_transaction.fee_data_availability_mode.into(),
+                    ),
+                    paymaster_data: Some(declare_transaction.paymaster_data),
+                    account_deployment_data: Some(declare_transaction.account_deployment_data),
+                    version,
+                    transaction_hash: tx_hash,
+                    // Irrelevant for V3 declare transactions.
+                    max_fee: None,
+                })
             }
             starknet_api::rpc_transaction::InternalRpcTransactionWithoutTxHash::DeployAccount(
                 deploy_account_transaction,
@@ -344,54 +364,46 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
                     tx: RpcDeployAccountTransaction::V3(tx),
                     contract_address,
                 } = deploy_account_transaction;
-                CendePreConfirmedTransaction {
-                    transaction: Transaction::DeployAccount(IntermediateDeployAccountTransaction {
-                        resource_bounds: Some(ValidResourceBounds::AllResources(
-                            tx.resource_bounds,
-                        )),
-                        tip: Some(tx.tip),
-                        signature: tx.signature,
-                        nonce: tx.nonce,
-                        class_hash: tx.class_hash,
-                        contract_address_salt: tx.contract_address_salt,
-                        constructor_calldata: tx.constructor_calldata,
-                        nonce_data_availability_mode: Some(tx.nonce_data_availability_mode.into()),
-                        fee_data_availability_mode: Some(tx.fee_data_availability_mode.into()),
-                        paymaster_data: Some(tx.paymaster_data),
-                        sender_address: contract_address,
-                        transaction_hash: tx_hash,
-                        version,
-                        // Irrelevant for V3 deploy account transactions.
-                        max_fee: None,
-                    }),
-                }
+                CendePreConfirmedTransaction::DeployAccount(IntermediateDeployAccountTransaction {
+                    resource_bounds: Some(ValidResourceBounds::AllResources(tx.resource_bounds)),
+                    tip: Some(tx.tip),
+                    signature: tx.signature,
+                    nonce: tx.nonce,
+                    class_hash: tx.class_hash,
+                    contract_address_salt: tx.contract_address_salt,
+                    constructor_calldata: tx.constructor_calldata,
+                    nonce_data_availability_mode: Some(tx.nonce_data_availability_mode.into()),
+                    fee_data_availability_mode: Some(tx.fee_data_availability_mode.into()),
+                    paymaster_data: Some(tx.paymaster_data),
+                    sender_address: contract_address,
+                    transaction_hash: tx_hash,
+                    version,
+                    // Irrelevant for V3 deploy account transactions.
+                    max_fee: None,
+                })
             }
             starknet_api::rpc_transaction::InternalRpcTransactionWithoutTxHash::Invoke(
                 invoke_transaction,
             ) => {
                 let version = invoke_transaction.version();
                 let RpcInvokeTransaction::V3(tx) = invoke_transaction;
-                CendePreConfirmedTransaction {
-                    transaction: Transaction::Invoke(IntermediateInvokeTransaction {
-                        resource_bounds: Some(ValidResourceBounds::AllResources(
-                            tx.resource_bounds,
-                        )),
-                        tip: Some(tx.tip),
-                        calldata: tx.calldata,
-                        sender_address: tx.sender_address,
-                        nonce: Some(tx.nonce),
-                        signature: tx.signature,
-                        nonce_data_availability_mode: Some(tx.nonce_data_availability_mode.into()),
-                        fee_data_availability_mode: Some(tx.fee_data_availability_mode.into()),
-                        paymaster_data: Some(tx.paymaster_data),
-                        account_deployment_data: Some(tx.account_deployment_data),
-                        version,
-                        transaction_hash: tx_hash,
-                        // Irrelevant for V3 invoke transactions.
-                        entry_point_selector: None,
-                        max_fee: None,
-                    }),
-                }
+                CendePreConfirmedTransaction::Invoke(IntermediateInvokeTransaction {
+                    resource_bounds: Some(ValidResourceBounds::AllResources(tx.resource_bounds)),
+                    tip: Some(tx.tip),
+                    calldata: tx.calldata,
+                    sender_address: tx.sender_address,
+                    nonce: Some(tx.nonce),
+                    signature: tx.signature,
+                    nonce_data_availability_mode: Some(tx.nonce_data_availability_mode.into()),
+                    fee_data_availability_mode: Some(tx.fee_data_availability_mode.into()),
+                    paymaster_data: Some(tx.paymaster_data),
+                    account_deployment_data: Some(tx.account_deployment_data),
+                    version,
+                    transaction_hash: tx_hash,
+                    // Irrelevant for V3 invoke transactions.
+                    entry_point_selector: None,
+                    max_fee: None,
+                })
             }
         }
     }
@@ -400,16 +412,14 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
 impl From<L1HandlerTransaction> for CendePreConfirmedTransaction {
     fn from(l1_handler_transaction: L1HandlerTransaction) -> Self {
         let L1HandlerTransaction { tx, tx_hash, .. } = l1_handler_transaction;
-        CendePreConfirmedTransaction {
-            transaction: Transaction::L1Handler(ClientL1HandlerTransaction {
-                transaction_hash: tx_hash,
-                version: tx.version,
-                nonce: tx.nonce,
-                contract_address: tx.contract_address,
-                entry_point_selector: tx.entry_point_selector,
-                calldata: tx.calldata,
-            }),
-        }
+        CendePreConfirmedTransaction::L1Handler(ClientL1HandlerTransaction {
+            transaction_hash: tx_hash,
+            version: tx.version,
+            nonce: tx.nonce,
+            contract_address: tx.contract_address,
+            entry_point_selector: tx.entry_point_selector,
+            calldata: tx.calldata,
+        })
     }
 }
 
