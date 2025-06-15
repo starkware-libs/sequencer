@@ -13,7 +13,7 @@ use blockifier::execution::contract_class::{
 use blockifier::state::errors::{couple_casm_and_sierra, StateError};
 use blockifier::state::global_cache::CompiledClasses;
 use blockifier::state::state_api::{StateReader, StateResult};
-use blockifier::state::state_reader_and_contract_manager::FetchCompiliedClasses;
+use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::BlockNumber;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
@@ -211,7 +211,7 @@ impl StateReader for PapyrusReader {
     }
 }
 
-impl FetchCompiliedClasses for PapyrusReader {
+impl FetchCompiledClasses for PapyrusReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
         self.get_compiled_class_from_db(class_hash)
     }
