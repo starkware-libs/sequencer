@@ -39,6 +39,20 @@ pub fn deserialize_transaction_json_to_starknet_api_tx(
     let tx_type: String = serde_json::from_value(raw_transaction["type"].clone())?;
     let tx_version: String = serde_json::from_value(raw_transaction["version"].clone())?;
 
+    // rpc_v8 fix (remove redundantly added L1DataGas)
+    let raw_resourcebounds = &raw_transaction["resource_bounds"];
+    if !raw_resourcebounds.is_null()
+        && !raw_resourcebounds["l1_data_gas"].is_null()
+        && raw_resourcebounds["l1_data_gas"]["max_amount"] == "0x0"
+        && !raw_resourcebounds["l2_gas"].is_null()
+        && raw_resourcebounds["l2_gas"]["max_amount"] == "0x0"
+    {
+        raw_transaction["resource_bounds"]
+            .as_object_mut()
+            .expect("should be map of resource bounds")
+            .remove("l1_data_gas");
+    }
+
     match (tx_type.as_str(), tx_version.as_str()) {
         ("INVOKE", "0x0") => {
             Ok(Transaction::Invoke(InvokeTransaction::V0(serde_json::from_value(raw_transaction)?)))
