@@ -2,6 +2,7 @@ use apollo_batcher::metrics::{BATCHED_TRANSACTIONS, LAST_BATCHED_BLOCK};
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
+    CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_PROPOSALS_INVALID,
@@ -193,6 +194,21 @@ const CONSENSUS_ROUND_ABOVE_ZERO_ALERT: Alert = Alert {
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
         comparison_value: 5.0 / 3600.0, // 5 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+
+const CONSENSUS_CONFLICTING_VOTES_RATE: Alert = Alert {
+    name: "consensus_conflicting_votes_rate",
+    title: "Consensus conflicting votes rate",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[20m])", CONSENSUS_CONFLICTING_VOTES.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -407,6 +423,7 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CENDE_WRITE_BLOB_FAILURE_ALERT,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE,
     CONSENSUS_ROUND_ABOVE_ZERO_ALERT,
+    CONSENSUS_CONFLICTING_VOTES_RATE,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     MEMPOOL_ADD_TX_RATE_DROP,
