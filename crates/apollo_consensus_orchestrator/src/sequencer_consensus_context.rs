@@ -89,7 +89,6 @@ use crate::utils::{
     GasPriceParams,
 };
 
-pub(crate) const TEMP_N_EXECUTED_TXS: u64 = 0;
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
 struct BlockInfoValidation {
@@ -106,7 +105,7 @@ pub(crate) type ProposalResult<T> = Result<T, BuildProposalError>;
 enum HandledProposalPart {
     Continue,
     Invalid,
-    Finished(ProposalCommitment, ProposalFin),
+    Finished(ProposalCommitment, ProposalFin, ExecutedTransactionCount),
     Failed(String),
 }
 
@@ -784,6 +783,7 @@ impl SequencerConsensusContext {
 
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
+    let mut n_executed_txs: Option<ExecutedTransactionCount> = None;
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -829,7 +829,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         return;
     }
     // Validating the rest of the proposal parts.
-    let (built_block, received_fin) = loop {
+    let (built_block, received_fin, n_executed_txs) = loop {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
                 warn!("Proposal interrupted during validation.");
@@ -847,10 +847,11 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
                     args.deps.batcher.as_ref(),
                     proposal_part,
                     &mut content,
+                    &mut n_executed_txs,
                     args.deps.transaction_converter.clone(),
                 ).await {
-                    HandledProposalPart::Finished(built_block, received_fin) => {
-                        break (built_block, received_fin);
+                    HandledProposalPart::Finished(built_block, received_fin, n_executed_txs) => {
+                        break (built_block, received_fin, n_executed_txs);
                     }
                     HandledProposalPart::Continue => {continue;}
                     HandledProposalPart::Invalid => {
@@ -868,9 +869,8 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
         }
     };
 
-    let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL.set_lossy(content.len());
-    CONSENSUS_NUM_TXS_IN_PROPOSAL.set_lossy(num_txs);
+    CONSENSUS_NUM_TXS_IN_PROPOSAL.set_lossy(n_executed_txs);
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
@@ -878,9 +878,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     valid_proposals.insert_proposal_for_height(
         &args.block_info_validation.height,
         &built_block,
-        // TODO(Asmaa): return the number of executed transactions from handle_proposal_part and
-        // use it here.
-        num_txs.try_into().expect("Number of executed transactions should fit in u64"),
+        n_executed_txs,
         block_info,
         content,
         &args.proposal_id,
@@ -1044,17 +1042,22 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
+    n_executed_txs: &mut Option<ExecutedTransactionCount>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Fin(fin)) => {
             info!("Received fin={fin:?}");
-            // TODO(Asmaa): send number of executed txs.
+            let Some(executed_txs_count) = *n_executed_txs else {
+                return HandledProposalPart::Failed(
+                    "Received Fin without executed transaction count".to_string(),
+                );
+            };
             // Output this along with the ID from batcher, to compare them.
             let input = SendProposalContentInput {
                 proposal_id,
-                content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+                content: SendProposalContent::Finish(executed_txs_count),
             };
             let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
                 panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
@@ -1075,7 +1078,7 @@ async fn handle_proposal_part(
             if num_txs == 0 {
                 warn!("Validated an empty proposal.");
             }
-            HandledProposalPart::Finished(batcher_block_id, fin)
+            HandledProposalPart::Finished(batcher_block_id, fin, executed_txs_count)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
@@ -1112,8 +1115,9 @@ async fn handle_proposal_part(
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
         }
-        Some(ProposalPart::ExecutedTransactionCount(_)) => {
-            // TODO(Asmaa): Handle executed transaction count.
+        Some(ProposalPart::ExecutedTransactionCount(executed_txs_count)) => {
+            debug!("Received executed transaction count: {executed_txs_count}");
+            *n_executed_txs = Some(executed_txs_count);
             HandledProposalPart::Continue
         }
         _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),

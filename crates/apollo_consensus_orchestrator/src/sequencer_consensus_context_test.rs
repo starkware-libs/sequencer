@@ -83,7 +83,7 @@ use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::{SequencerConsensusContext, TEMP_N_EXECUTED_TXS};
+use crate::sequencer_consensus_context::SequencerConsensusContext;
 
 const TIMEOUT: Duration = Duration::from_millis(1200);
 const CHANNEL_SIZE: usize = 5000;
@@ -210,7 +210,10 @@ impl TestDeps {
         self.batcher.expect_send_proposal_content().times(1).returning(
             move |input: SendProposalContentInput| {
                 assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-                assert!(matches!(input.content, SendProposalContent::Finish(TEMP_N_EXECUTED_TXS)));
+                assert_eq!(
+                    input.content,
+                    SendProposalContent::Finish(INTERNAL_TX_BATCH.len().try_into().unwrap())
+                );
                 Ok(SendProposalContentResponse {
                     response: ProposalStatus::Finished(ProposalCommitment {
                         state_diff_commitment: STATE_DIFF_COMMITMENT,
@@ -359,6 +362,10 @@ async fn validate_proposal_success() {
         .await
         .unwrap();
     content_sender
+        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
+        .await
+        .unwrap();
+    content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
         }))
@@ -409,6 +416,10 @@ async fn repropose() {
     let transactions =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
+    content_sender
+        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
+        .await
+        .unwrap();
     let fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
     });
@@ -444,6 +455,8 @@ async fn proposals_from_different_rounds() {
     // Proposal parts sent in the proposals.
     let prop_part_txs =
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
+    let prop_part_executed_count =
+        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap());
     let prop_part_fin = ProposalPart::Fin(ProposalFin {
         proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
     });
@@ -452,6 +465,7 @@ async fn proposals_from_different_rounds() {
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
+    content_sender.send(prop_part_executed_count.clone()).await.unwrap();
 
     let mut init = ProposalInit { round: 0, ..Default::default() };
     let fin_receiver_past_round = context.validate_proposal(init, TIMEOUT, content_receiver).await;
@@ -462,6 +476,7 @@ async fn proposals_from_different_rounds() {
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
+    content_sender.send(prop_part_executed_count.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     init.round = 1;
     let fin_receiver_curr_round = context.validate_proposal(init, TIMEOUT, content_receiver).await;
@@ -471,6 +486,7 @@ async fn proposals_from_different_rounds() {
     let (mut content_sender, content_receiver) = mpsc::channel(context.config.proposal_buffer_size);
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender.send(prop_part_txs.clone()).await.unwrap();
+    content_sender.send(prop_part_executed_count.clone()).await.unwrap();
     content_sender.send(prop_part_fin.clone()).await.unwrap();
     let fin_receiver_future_round = context
         .validate_proposal(
@@ -504,6 +520,10 @@ async fn interrupt_active_proposal() {
     content_sender_1.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender_1
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
+        .await
+        .unwrap();
+    content_sender_1
+        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
         .await
         .unwrap();
     content_sender_1
@@ -741,6 +761,10 @@ async fn gas_price_limits(#[case] maximum: bool) {
         .await
         .unwrap();
     content_sender
+        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
+        .await
+        .unwrap();
+    content_sender
         .send(ProposalPart::Fin(ProposalFin {
             proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
         }))
@@ -937,6 +961,10 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     content_sender.send(ProposalPart::BlockInfo(block_info(BlockNumber(0)))).await.unwrap();
     content_sender
         .send(ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() }))
+        .await
+        .unwrap();
+    content_sender
+        .send(ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap()))
         .await
         .unwrap();
     content_sender
