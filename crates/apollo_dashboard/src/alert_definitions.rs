@@ -347,6 +347,24 @@ const L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT: Alert = Alert {
     severity: AlertSeverity::Informational,
 };
 
+const L1_MESSAGE_SCRAPER_REORG_DETECTED_ALERT: Alert = Alert {
+    name: "l1_message_scraper_reorg_detected",
+    title: "L1 message scraper reorg detected",
+    alert_group: AlertGroup::L1Messages,
+    expr: formatcp!(
+        "rate({}[1m])",
+        L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
+    ),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Informational,
+};
+
 // The rate of add_txs is lower than the rate of transactions inserted into a block since this node
 // is not always the proposer.
 const MEMPOOL_GET_TXS_SIZE_DROP: Alert = Alert {
@@ -492,6 +510,7 @@ pub fn get_apollo_alerts() -> Alerts {
         L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
         L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY_ALERT,
         L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
+        L1_MESSAGE_SCRAPER_REORG_DETECTED_ALERT,
         MEMPOOL_ADD_TX_RATE_DROP,
         MEMPOOL_GET_TXS_SIZE_DROP,
         HTTP_SERVER_IDLE,
