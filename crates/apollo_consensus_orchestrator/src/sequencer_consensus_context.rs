@@ -1030,9 +1030,10 @@ async fn handle_proposal_part(
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Fin(fin)) => {
             info!("Received fin={fin:?}");
+            // TODO(Asmaa): send number of executed txs.
             // Output this along with the ID from batcher, to compare them.
             let input =
-                SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
+                SendProposalContentInput { proposal_id, content: SendProposalContent::Finish(0) };
             let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
                 panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
             });
