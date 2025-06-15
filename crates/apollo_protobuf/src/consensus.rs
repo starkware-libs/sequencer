@@ -120,6 +120,8 @@ pub enum ProposalPart {
     BlockInfo(ConsensusBlockInfo),
     /// A part of the proposal that contains one or more transactions.
     Transactions(TransactionBatch),
+    /// Number of executed transactions in the proposal.
+    ExecutedTransactionCount(u64),
 }
 
 impl TryInto<ProposalInit> for ProposalPart {
