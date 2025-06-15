@@ -10,7 +10,7 @@ define_metrics!(
         MetricCounter { CONSENSUS_L1_DATA_GAS_MISMATCH, "consensus_l1_data_gas_mismatch", "The number of times the L1 data gas in a proposal does not match the value expected by this validator", init = 0 },
         MetricGauge { CONSENSUS_L2_GAS_PRICE, "consensus_l2_gas_price", "The L2 gas price calculated in an accepted proposal" },
         MetricCounter { CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR, "consensus_l1_gas_price_provider_error", "Number of times the context got an error when querying the L1 gas price provider", init=0},
-
+        MetricCounter { CONSENSUS_ETH_TO_STRK_ORACLE_ERROR, "consensus_eth_to_strk_oracle_error", "Number of times the context got an error when querying the ETH to STRK oracle", init=0},
         // Cende metrics
         MetricGauge { CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER, "cende_last_prepared_blob_block_number", "The blob block number that cende knows. That means the sequencer can be the proposer only if the current height is greater by one than this value." },
         MetricHistogram { CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY, "cende_prepare_blob_for_next_height_latency", "The time it takes to prepare the blob for the next height, i.e create the blob object." },
@@ -50,6 +50,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_L1_DATA_GAS_MISMATCH.register();
     CONSENSUS_L2_GAS_PRICE.register();
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.register();
+    CONSENSUS_ETH_TO_STRK_ORACLE_ERROR.register();
     CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER.register();
     CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.register();
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.register();
