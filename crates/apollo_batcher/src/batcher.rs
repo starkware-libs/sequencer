@@ -358,7 +358,9 @@ impl Batcher {
 
         match send_proposal_content_input.content {
             SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
-            SendProposalContent::Finish => self.handle_finish_proposal_request(proposal_id).await,
+            SendProposalContent::Finish(_) => {
+                self.handle_finish_proposal_request(proposal_id).await
+            }
             SendProposalContent::Abort => self.handle_abort_proposal_request(proposal_id).await,
         }
     }
