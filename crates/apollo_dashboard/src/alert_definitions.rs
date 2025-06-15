@@ -4,6 +4,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
@@ -17,10 +18,7 @@ use apollo_consensus_orchestrator::metrics::{
 };
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
-use apollo_l1_gas_price::metrics::{
-    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
-    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
-};
+use apollo_l1_gas_price::metrics::L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT;
 use apollo_l1_provider::metrics::L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT;
 use apollo_mempool::metrics::{
     MEMPOOL_GET_TXS_SIZE,
@@ -47,16 +45,14 @@ use crate::alerts::{
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
 pub const PROMETHEUS_EPSILON: f64 = 0.0001;
 
-// Within 30s the metrics should be updated at least twice.
-// If in one of those times the block number is not updated, fire an alert.
 const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
     name: "consensus_block_number_stuck",
     title: "Consensus block number stuck",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("changes({}[30s])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
+    expr: formatcp!("changes({}[5m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
-        comparison_value: 2.0,
+        comparison_value: 10.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1s",
@@ -64,14 +60,15 @@ const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
     severity: AlertSeverity::Regular,
 };
 
+// If this happens, we expect to also see other nodes alert on `consensus_validate_proposal_failed`.
 const CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT: Alert = Alert {
     name: "consensus_build_proposal_failed",
     title: "Consensus build proposal failed",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("rate({}[1m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+    expr: formatcp!("increase({}[1h])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
-        comparison_value: 0.0,
+        comparison_value: 10.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "10s",
@@ -79,14 +76,29 @@ const CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT: Alert = Alert {
     severity: AlertSeverity::DayOnly,
 };
 
+const CONSENSUS_BUILD_PROPOSAL_FAILED_ONCE_ALERT: Alert = Alert {
+    name: "consensus_build_proposal_failed_once",
+    title: "Consensus build proposal failed once",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("increase({}[1m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "10s",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Informational,
+};
+
 const CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT: Alert = Alert {
     name: "consensus_validate_proposal_failed",
     title: "Consensus validate proposal failed",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("rate({}[1h])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter()),
+    expr: formatcp!("increase({}[1h])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
-        comparison_value: 5.0 / 3600.0, // 5 per hour
+        comparison_value: 10.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -94,17 +106,20 @@ const CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT: Alert = Alert {
     severity: AlertSeverity::DayOnly,
 };
 
-const CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK: Alert = Alert {
-    name: "consensus_decisions_reached_by_consensus_stuck",
-    title: "Consensus decisions reached by consensus stuck",
+const CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_RATIO: Alert = Alert {
+    name: "consensus_decisions_reached_by_consensus_ratio",
+    title: "Consensus decisions reached by consensus ratio",
     alert_group: AlertGroup::Consensus,
+    // Clamp to avoid divide by 0.
     expr: formatcp!(
-        "changes({}[10m])",
-        CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter()
+        "increase({}[10m]) / clamp_min(increase({}[10m]) + increase({}[10m]), 1)",
+        CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter(),
+        CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter(),
+        CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter()
     ),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
-        comparison_value: 1.0,
+        comparison_value: 0.5,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -116,30 +131,30 @@ const CONSENSUS_INBOUND_STREAM_EVICTED_ALERT: Alert = Alert {
     name: "consensus_inbound_stream_evicted",
     title: "Consensus inbound stream evicted",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("rate({}[1h])", CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()),
+    expr: formatcp!("increase({}[1h])", CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
-        comparison_value: 5.0 / 3600.0, // 5 per hour
+        comparison_value: 5,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
-    severity: AlertSeverity::WorkingHours,
+    severity: AlertSeverity::Informational,
 };
 
 const CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT: Alert = Alert {
     name: "consensus_votes_num_sent_messages",
     title: "Consensus votes num sent messages",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("rate({}[20m])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
+    expr: formatcp!("increase({}[20m])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
-        comparison_value: 100.0 / 3600.0, // 100 per hour
+        comparison_value: 20,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
-    severity: AlertSeverity::WorkingHours,
+    severity: AlertSeverity::Informational,
 };
 
 const CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY_TOO_HIGH: Alert = Alert {
@@ -165,7 +180,22 @@ const CENDE_WRITE_BLOB_FAILURE_ALERT: Alert = Alert {
     name: "cende_write_blob_failure",
     title: "Cende write blob failure",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("rate({}[20m])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
+    expr: formatcp!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 10.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::DayOnly,
+};
+
+const CENDE_WRITE_BLOB_FAILURE_ONCE_ALERT: Alert = Alert {
+    name: "cende_write_blob_failure_once",
+    title: "Cende write blob failure once",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
         comparison_value: 0.0,
@@ -173,7 +203,7 @@ const CENDE_WRITE_BLOB_FAILURE_ALERT: Alert = Alert {
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
-    severity: AlertSeverity::WorkingHours,
+    severity: AlertSeverity::Informational,
 };
 
 const CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE: Alert = Alert {
@@ -203,7 +233,7 @@ const CONSENSUS_ROUND_ABOVE_ZERO_ALERT: Alert = Alert {
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
-    severity: AlertSeverity::WorkingHours,
+    severity: AlertSeverity::Informational,
 };
 
 const CONSENSUS_CONFLICTING_VOTES_RATE: Alert = Alert {
@@ -218,7 +248,7 @@ const CONSENSUS_CONFLICTING_VOTES_RATE: Alert = Alert {
     }],
     pending_duration: "1m",
     evaluation_interval_sec: 20,
-    severity: AlertSeverity::WorkingHours,
+    severity: AlertSeverity::Regular,
 };
 
 const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
@@ -302,24 +332,6 @@ const L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT: Alert = Alert {
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
         comparison_value: 5.0 / 3600.0, // 5 per hour
-        logical_op: AlertLogicalOp::And,
-    }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
-    severity: AlertSeverity::Informational,
-};
-
-const L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY_ALERT: Alert = Alert {
-    name: "l1_gas_price_provider_insufficient_history",
-    title: "L1 gas price provider insufficient history",
-    alert_group: AlertGroup::L1GasPrice,
-    expr: formatcp!(
-        "rate({}[1m])",
-        L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY.get_name_with_filter()
-    ),
-    conditions: &[AlertCondition {
-        comparison_op: AlertComparisonOp::GreaterThan,
-        comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -456,37 +468,24 @@ const BATCHED_TRANSACTIONS_STUCK: Alert = Alert {
     severity: AlertSeverity::Regular,
 };
 
-const LAST_BATCHED_BLOCK_STUCK: Alert = Alert {
-    name: "last_batched_block_stuck",
-    title: "Last batched block stuck",
-    alert_group: AlertGroup::Batcher,
-    expr: formatcp!("changes({}[5m])", LAST_BATCHED_BLOCK.get_name_with_filter()),
-    conditions: &[AlertCondition {
-        comparison_op: AlertComparisonOp::LessThan,
-        comparison_value: 1.0,
-        logical_op: AlertLogicalOp::And,
-    }],
-    pending_duration: "1s",
-    evaluation_interval_sec: 10,
-    severity: AlertSeverity::Regular,
-};
-
 pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     CONSENSUS_BLOCK_NUMBER_STUCK,
     CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
+    CONSENSUS_BUILD_PROPOSAL_FAILED_ONCE_ALERT,
     CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_RATIO,
     CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
-    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK,
+    CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_RATIO,
     CONSENSUS_INBOUND_STREAM_EVICTED_ALERT,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY_TOO_HIGH,
     CENDE_WRITE_BLOB_FAILURE_ALERT,
+    CENDE_WRITE_BLOB_FAILURE_ONCE_ALERT,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE,
     CONSENSUS_ROUND_ABOVE_ZERO_ALERT,
     CONSENSUS_CONFLICTING_VOTES_RATE,
     GATEWAY_ADD_TX_RATE_DROP,
     GATEWAY_ADD_TX_LATENCY_INCREASE,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
-    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY_ALERT,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
     MEMPOOL_ADD_TX_RATE_DROP,
     MEMPOOL_GET_TXS_SIZE_DROP,
@@ -497,5 +496,4 @@ pub const SEQUENCER_ALERTS: Alerts = Alerts::new(&[
     STATE_SYNC_LAG,
     STATE_SYNC_STUCK,
     BATCHED_TRANSACTIONS_STUCK,
-    LAST_BATCHED_BLOCK_STUCK,
 ]);
