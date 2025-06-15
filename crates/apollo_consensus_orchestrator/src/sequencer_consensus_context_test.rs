@@ -210,7 +210,7 @@ impl TestDeps {
         self.batcher.expect_send_proposal_content().times(1).returning(
             move |input: SendProposalContentInput| {
                 assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-                assert!(matches!(input.content, SendProposalContent::Finish));
+                assert!(matches!(input.content, SendProposalContent::Finish(0)));
                 Ok(SendProposalContentResponse {
                     response: ProposalStatus::Finished(ProposalCommitment {
                         state_diff_commitment: STATE_DIFF_COMMITMENT,
