@@ -13,7 +13,7 @@ use apollo_l1_provider_types::{
 use apollo_time::time::{Clock, DefaultClock};
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
-use itertools::Itertools;
+use itertools::{chain, Itertools};
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::executable_transaction::{
@@ -92,6 +92,15 @@ impl L1ProviderContentBuilder {
     }
 
     pub fn with_config(mut self, config: L1ProviderConfig) -> Self {
+        let new_l1_handler_tx_cooldown_secs = config.new_l1_handler_cooldown_seconds;
+        let l1_handler_cancellation_timelock_seconds =
+            config.l1_handler_cancellation_timelock_seconds;
+        self.tx_manager_content_builder =
+            self.tx_manager_content_builder.with_config(TransactionManagerConfig {
+                new_l1_handler_tx_cooldown_secs,
+                l1_handler_cancellation_timelock_seconds,
+            });
+
         self.config = Some(config);
         self
     }
@@ -167,14 +176,7 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn build(mut self) -> L1ProviderContent {
-        if let Some(config) = self.config {
-            self.tx_manager_content_builder =
-                self.tx_manager_content_builder.with_config(TransactionManagerConfig {
-                    new_l1_handler_tx_cooldown_secs: config.new_l1_handler_cooldown_seconds,
-                });
-        };
-
+    pub fn build(self) -> L1ProviderContent {
         L1ProviderContent {
             config: self.config,
             tx_manager_content: self.tx_manager_content_builder.build(),
@@ -229,7 +231,7 @@ impl TransactionManagerContent {
                     .iter()
                     .map(|CancellationRequest { tx, .. }| tx.tx_hash)
                     .collect_vec(),
-                snapshot.cancellation_started_on_l2
+                chain!(snapshot.cancellation_started_on_l2, snapshot.cancelled_on_l2).collect_vec(),
             );
         }
     }
@@ -469,7 +471,6 @@ impl L1ProviderClient for FakeL1ProviderClient {
         todo!()
     }
 }
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct TimedL1HandlerTransaction {
     pub tx: L1HandlerTransaction,

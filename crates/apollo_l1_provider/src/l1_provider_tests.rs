@@ -763,6 +763,88 @@ fn get_txs_excludes_transaction_after_cancellation_expiry() {
 }
 
 #[test]
+fn validate_tx_cancellation_requested_not_expired_returns_validated() {
+    // Setup.
+    let tx_1 = l1_handler(1);
+    let unix_now = 5_u64;
+    let l1_handler_cancellation_timelock_seconds = Duration::from_secs(10);
+    let config =
+        L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(unix_now);
+    let cancellation_request_timestamp = 2;
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
+        .with_state(ProviderState::Validate)
+        .build_into_l1_provider();
+
+    // Test.
+    let status = l1_provider.validate(tx_1.tx_hash, l1_provider.current_height).unwrap();
+    assert_eq!(status, ValidationStatus::Validated);
+}
+
+#[test]
+fn validate_tx_cancellation_requested_expired_returns_cancelled() {
+    // Setup.
+    let tx_1 = l1_handler(2);
+    let unix_now = 15_u64;
+    let l1_handler_cancellation_timelock_seconds = Duration::from_secs(10);
+    let config =
+        L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(unix_now);
+    let cancellation_request_timestamp = 2;
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
+        .with_state(ProviderState::Validate)
+        .build_into_l1_provider();
+
+    // Test.
+    // Should return Invalid(CancelledOnL2),
+    let status = l1_provider.validate(tx_1.tx_hash, l1_provider.current_height).unwrap();
+    assert_eq!(status, InvalidValidationStatus::CancelledOnL2.into());
+    // Idempotent.
+    let status2 = l1_provider.validate(tx_1.tx_hash, l1_provider.current_height).unwrap();
+    assert_eq!(status2, InvalidValidationStatus::CancelledOnL2.into());
+}
+
+#[test]
+fn validate_tx_cancellation_requested_validated_then_expired_returns_cancelled() {
+    // Setup.
+    let tx_1 = l1_handler(1);
+    let l1_handler_cancellation_timelock_seconds = Duration::from_secs(10);
+    let config =
+        L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
+    let mut mock_clock = MockClock::new();
+    mock_clock.expect_unix_now().return_const(5_u64); // now = 5, cancellation at 2, expires at 12
+    let cancellation_request_timestamp = 2;
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(Arc::new(mock_clock))
+        .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
+        .with_state(ProviderState::Validate)
+        .build_into_l1_provider();
+
+    // Test.
+
+    // Should be validatable before expiry,
+    let status = l1_provider.validate(tx_1.tx_hash, l1_provider.current_height).unwrap();
+    assert_eq!(status, ValidationStatus::Validated);
+    // Now, advance time past expiry and validate again,
+    // This tests the edge case: a tx can be validatable before expiry, but if validated again after
+    // expiry, it should return the cancellation error.
+    let mut mock_clock2 = MockClock::new();
+    mock_clock2.expect_unix_now().return_const(20u64); // now = 20 > 12
+    l1_provider.clock = Arc::new(mock_clock2);
+    let status2 = l1_provider.validate(tx_1.tx_hash, l1_provider.current_height).unwrap();
+    assert_eq!(status2, InvalidValidationStatus::CancelledOnL2.into());
+}
+
+#[test]
 fn commit_block_commits_cancellation_requested_tx_not_expired() {
     // Setup.
     let tx = l1_handler(1);
