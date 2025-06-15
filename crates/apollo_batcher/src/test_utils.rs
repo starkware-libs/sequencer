@@ -21,7 +21,7 @@ use crate::block_builder::{
     BlockExecutionArtifacts,
     BlockTransactionExecutionData,
 };
-use crate::transaction_provider::{NextTxs, TransactionProvider};
+use crate::transaction_provider::TransactionProvider;
 
 pub const EXECUTION_INFO_LEN: usize = 10;
 
@@ -42,7 +42,8 @@ impl BlockBuilderTrait for FakeValidateBlockBuilder {
         let build_block_result = self.build_block_result.take().unwrap();
 
         if build_block_result.is_ok() {
-            while self.tx_provider.get_txs(1).await.is_ok_and(|v| v != NextTxs::End) {
+            while self.tx_provider.get_n_txs_in_block().await.is_none() {
+                self.tx_provider.get_txs(1).await.unwrap();
                 tokio::task::yield_now().await;
             }
         }

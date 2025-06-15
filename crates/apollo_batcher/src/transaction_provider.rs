@@ -35,11 +35,7 @@ pub enum TransactionProviderError {
     L1ProviderError(#[from] L1ProviderClientError),
 }
 
-#[derive(Debug, PartialEq)]
-pub enum NextTxs {
-    Txs(Vec<InternalConsensusTransaction>),
-    End,
-}
+pub type NextTxs = Vec<InternalConsensusTransaction>;
 
 #[cfg_attr(test, automock)]
 #[async_trait]
@@ -133,13 +129,13 @@ impl TransactionProvider for ProposeTransactionProvider {
 
             txs.append(&mut l1handler_txs);
             if txs.len() == n_txs {
-                return Ok(NextTxs::Txs(txs));
+                return Ok(txs);
             }
         }
 
         let mut mempool_txs = self.get_mempool_txs(n_txs - txs.len()).await?;
         txs.append(&mut mempool_txs);
-        Ok(NextTxs::Txs(txs))
+        Ok(txs)
     }
 
     async fn get_n_txs_in_block(&self) -> Option<usize> {
@@ -169,14 +165,16 @@ impl ValidateTransactionProvider {
 impl TransactionProvider for ValidateTransactionProvider {
     async fn get_txs(&mut self, n_txs: usize) -> TransactionProviderResult<NextTxs> {
         assert!(n_txs > 0, "The number of transactions requested must be greater than zero.");
+
+        if self.tx_receiver.is_empty() {
+            // Return immediately to avoid blocking the caller.
+            return Ok(vec![]);
+        }
+
         let mut buffer = Vec::with_capacity(n_txs);
         self.tx_receiver.recv_many(&mut buffer, n_txs).await;
         self.n_txs_in_block += buffer.len();
-        // If the buffer is empty, it means that the stream was dropped, otherwise it would have
-        // been waiting for transactions.
-        if buffer.is_empty() {
-            return Ok(NextTxs::End);
-        }
+
         for tx in &buffer {
             if let InternalConsensusTransaction::L1Handler(tx) = tx {
                 let l1_validation_status =
@@ -189,7 +187,7 @@ impl TransactionProvider for ValidateTransactionProvider {
                 }
             }
         }
-        Ok(NextTxs::Txs(buffer))
+        Ok(buffer)
     }
 
     async fn get_n_txs_in_block(&self) -> Option<usize> {
