@@ -261,7 +261,6 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
         if let Some(hint_processor_data) = hint_data.downcast_ref::<Cairo0Hint>() {
             // AllHints (OS hint, aggregator hint, Cairo0 syscall) or Cairo0 core hint.
             let hint_args = HintArgs {
-                hint_processor: self,
                 vm,
                 exec_scopes,
                 ids_data: &hint_processor_data.ids_data,
@@ -285,23 +284,23 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
                         Ok(HintExtension::default())
                     }
                     AllHints::OsHint(os_hint) => {
-                        os_hint.execute_hint(hint_args)?;
+                        os_hint.execute_hint(self, hint_args)?;
                         Ok(HintExtension::default())
                     }
                     AllHints::AggregatorHint(aggregator_hint) => {
-                        aggregator_hint.execute_hint(hint_args)?;
+                        aggregator_hint.execute_hint(self, hint_args)?;
                         Ok(HintExtension::default())
                     }
                     AllHints::DeprecatedSyscallHint(deprecated_syscall_hint) => {
-                        deprecated_syscall_hint.execute_hint(hint_args)?;
+                        deprecated_syscall_hint.execute_hint(self, hint_args)?;
                         Ok(HintExtension::default())
                     }
                     AllHints::HintExtension(hint_extension) => {
-                        Ok(hint_extension.execute_hint_extensive(hint_args)?)
+                        Ok(hint_extension.execute_hint_extensive(self, hint_args)?)
                     }
                     #[cfg(any(test, feature = "testing"))]
                     AllHints::TestHint => {
-                        test_hint(hint_processor_data.code.as_str(), hint_args)?;
+                        test_hint(hint_processor_data.code.as_str(), self, hint_args)?;
                         Ok(HintExtension::default())
                     }
                 };

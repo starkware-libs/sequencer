@@ -9,6 +9,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use num_bigint::BigInt;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::{HintArgs, HintArgsNoHP};
 use crate::hints::vars::{CairoStruct, Ids, Scope};
@@ -36,7 +37,8 @@ pub(crate) fn is_on_curve(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn read_ec_point_from_address<S: StateReader>(
-    HintArgs { ids_data, ap_tracking, vm, hint_processor, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let not_on_curve =
         get_integer_from_var_name(Ids::NotOnCurve.into(), vm, ids_data, ap_tracking)?;

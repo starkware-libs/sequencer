@@ -12,6 +12,7 @@ use num_traits::ToPrimitive;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::enum_definition::{AllHints, OsHint, StatelessHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::execute_transactions::utils::{
@@ -25,7 +26,8 @@ use crate::hints::vars::{Const, Ids};
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let sha256_ptr = get_ptr_from_var_name(Ids::Sha256Ptr.into(), vm, ids_data, ap_tracking)?;
     hint_processor.set_sha256_segment_end_ptr(sha256_ptr);
@@ -63,7 +65,8 @@ pub(crate) fn fill_holes_in_rc96_segment(
 /// Assumes the current transaction is of type Declare.
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_component_hashes<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let current_execution_helper = hint_processor.get_current_execution_helper()?;
     let account_tx = current_execution_helper.tx_tracker.get_account_tx()?;
@@ -132,7 +135,8 @@ pub(crate) fn segments_add_temp(HintArgsNoHP { vm, .. }: HintArgsNoHP<'_>) -> Os
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn set_ap_to_actual_fee<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let actual_fee = hint_processor
         .get_current_execution_helper()?
@@ -146,14 +150,16 @@ pub(crate) fn set_ap_to_actual_fee<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn skip_tx<S: StateReader>(
-    HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
     Ok(hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.skip_tx()?)
 }
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn start_tx<S: StateReader>(
-    HintArgs { hint_processor, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let tx_type = hint_processor.get_current_execution_helper()?.tx_tracker.get_tx()?.tx_type();
     hint_processor.get_mut_current_execution_helper()?.tx_execution_iter.start_tx(tx_type)?;
@@ -162,7 +168,8 @@ pub(crate) fn start_tx<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn os_input_transactions<S: StateReader>(
-    HintArgs { hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let num_txns = hint_processor.get_current_execution_helper()?.os_block_input.transactions.len();
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::OsInputTransactions), num_txns)
