@@ -4,6 +4,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
@@ -49,6 +50,7 @@ use crate::alerts::{
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
 const PROMETHEUS_EPSILON: f64 = 0.0001;
 
+<<<<<<< HEAD
 // Within 30s the metrics should be updated at least twice.
 // If in one of those times the block number is not updated, fire an alert.
 fn get_consensus_block_number_stuck_alert() -> Alert {
@@ -67,7 +69,41 @@ fn get_consensus_block_number_stuck_alert() -> Alert {
         severity: AlertSeverity::Regular,
     }
 }
+||||||| parent of 488469450 (apollo_dashboard: updates to alerts from meeting)
+// Within 30s the metrics should be updated at least twice.
+// If in one of those times the block number is not updated, fire an alert.
+const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
+    name: "consensus_block_number_stuck",
+    title: "Consensus block number stuck",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("changes({}[30s])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 2.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1s",
+    evaluation_interval_sec: 10,
+    severity: AlertSeverity::Regular,
+};
+=======
+const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
+    name: "consensus_block_number_stuck",
+    title: "Consensus block number stuck",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("changes({}[5m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 10.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1s",
+    evaluation_interval_sec: 10,
+    severity: AlertSeverity::Regular,
+};
+>>>>>>> 488469450 (apollo_dashboard: updates to alerts from meeting)
 
+<<<<<<< HEAD
 fn get_consensus_build_proposal_failed_alert() -> Alert {
     Alert {
         name: "consensus_build_proposal_failed",
@@ -84,7 +120,40 @@ fn get_consensus_build_proposal_failed_alert() -> Alert {
         severity: AlertSeverity::DayOnly,
     }
 }
+||||||| parent of 488469450 (apollo_dashboard: updates to alerts from meeting)
+const CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT: Alert = Alert {
+    name: "consensus_build_proposal_failed",
+    title: "Consensus build proposal failed",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[1m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "10s",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::DayOnly,
+};
+=======
+// If this happens, we expect to also see other nodes alert on `consensus_validate_proposal_failed`.
+const CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT: Alert = Alert {
+    name: "consensus_build_proposal_failed",
+    title: "Consensus build proposal failed",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("increase({}[1h])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 10.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "10s",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::DayOnly,
+};
+>>>>>>> 488469450 (apollo_dashboard: updates to alerts from meeting)
 
+<<<<<<< HEAD
 fn get_consensus_validate_proposal_failed_alert() -> Alert {
     Alert {
         name: "consensus_validate_proposal_failed",
@@ -101,7 +170,54 @@ fn get_consensus_validate_proposal_failed_alert() -> Alert {
         severity: AlertSeverity::DayOnly,
     }
 }
+||||||| parent of 488469450 (apollo_dashboard: updates to alerts from meeting)
+const CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT: Alert = Alert {
+    name: "consensus_validate_proposal_failed",
+    title: "Consensus validate proposal failed",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[1h])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0 / 3600.0, // 5 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::DayOnly,
+};
+=======
+const CONSENSUS_BUILD_PROPOSAL_FAILED_ONCE_ALERT: Alert = Alert {
+    name: "consensus_build_proposal_failed_once",
+    title: "Consensus build proposal failed once",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("increase({}[1m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "10s",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Informational,
+};
 
+const CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT: Alert = Alert {
+    name: "consensus_validate_proposal_failed",
+    title: "Consensus validate proposal failed",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("increase({}[1h])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 10.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::DayOnly,
+};
+>>>>>>> 488469450 (apollo_dashboard: updates to alerts from meeting)
+
+<<<<<<< HEAD
 fn get_consensus_decisions_reached_by_consensus_stuck_alert() -> Alert {
     Alert {
         name: "consensus_decisions_reached_by_consensus_stuck",
@@ -121,7 +237,48 @@ fn get_consensus_decisions_reached_by_consensus_stuck_alert() -> Alert {
         severity: AlertSeverity::WorkingHours,
     }
 }
+||||||| parent of 488469450 (apollo_dashboard: updates to alerts from meeting)
+const CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK: Alert = Alert {
+    name: "consensus_decisions_reached_by_consensus_stuck",
+    title: "Consensus decisions reached by consensus stuck",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!(
+        "changes({}[10m])",
+        CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter()
+    ),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 1.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+=======
+const CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_RATIO: Alert = Alert {
+    name: "consensus_decisions_reached_by_consensus_ratio",
+    title: "Consensus decisions reached by consensus ratio",
+    alert_group: AlertGroup::Consensus,
+    // Clamp to avoid divide by 0.
+    expr: formatcp!(
+        "increase({}[10m]) / clamp_min(increase({}[10m]) + increase({}[10m]), 1)",
+        CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter(),
+        CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter(),
+        CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter()
+    ),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 0.5,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+>>>>>>> 488469450 (apollo_dashboard: updates to alerts from meeting)
 
+<<<<<<< HEAD
 fn get_consensus_inbound_stream_evicted_alert() -> Alert {
     Alert {
         name: "consensus_inbound_stream_evicted",
@@ -138,7 +295,39 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
         severity: AlertSeverity::WorkingHours,
     }
 }
+||||||| parent of 488469450 (apollo_dashboard: updates to alerts from meeting)
+const CONSENSUS_INBOUND_STREAM_EVICTED_ALERT: Alert = Alert {
+    name: "consensus_inbound_stream_evicted",
+    title: "Consensus inbound stream evicted",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[1h])", CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0 / 3600.0, // 5 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+=======
+const CONSENSUS_INBOUND_STREAM_EVICTED_ALERT: Alert = Alert {
+    name: "consensus_inbound_stream_evicted",
+    title: "Consensus inbound stream evicted",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("increase({}[1h])", CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Informational,
+};
+>>>>>>> 488469450 (apollo_dashboard: updates to alerts from meeting)
 
+<<<<<<< HEAD
 fn get_consensus_votes_num_sent_messages_alert() -> Alert {
     Alert {
         name: "consensus_votes_num_sent_messages",
@@ -155,6 +344,37 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
         severity: AlertSeverity::WorkingHours,
     }
 }
+||||||| parent of 488469450 (apollo_dashboard: updates to alerts from meeting)
+const CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT: Alert = Alert {
+    name: "consensus_votes_num_sent_messages",
+    title: "Consensus votes num sent messages",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[20m])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 100.0 / 3600.0, // 100 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+=======
+const CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT: Alert = Alert {
+    name: "consensus_votes_num_sent_messages",
+    title: "Consensus votes num sent messages",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("increase({}[20m])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::LessThan,
+        comparison_value: 20.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Informational,
+};
+>>>>>>> 488469450 (apollo_dashboard: updates to alerts from meeting)
 
 fn get_cende_write_prev_height_blob_latency_too_high_alert() -> Alert {
     Alert {
@@ -177,6 +397,7 @@ fn get_cende_write_prev_height_blob_latency_too_high_alert() -> Alert {
     }
 }
 
+<<<<<<< HEAD
 fn get_cende_write_blob_failure_alert() -> Alert {
     Alert {
         name: "cende_write_blob_failure",
@@ -193,6 +414,52 @@ fn get_cende_write_blob_failure_alert() -> Alert {
         severity: AlertSeverity::WorkingHours,
     }
 }
+||||||| parent of 488469450 (apollo_dashboard: updates to alerts from meeting)
+const CENDE_WRITE_BLOB_FAILURE_ALERT: Alert = Alert {
+    name: "cende_write_blob_failure",
+    title: "Cende write blob failure",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[20m])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+=======
+const CENDE_WRITE_BLOB_FAILURE_ALERT: Alert = Alert {
+    name: "cende_write_blob_failure",
+    title: "Cende write blob failure",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 10.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::DayOnly,
+};
+
+const CENDE_WRITE_BLOB_FAILURE_ONCE_ALERT: Alert = Alert {
+    name: "cende_write_blob_failure_once",
+    title: "Cende write blob failure once",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Informational,
+};
+>>>>>>> 488469450 (apollo_dashboard: updates to alerts from meeting)
 
 fn get_consensus_l1_gas_price_provider_error_rate_alert() -> Alert {
     Alert {
@@ -211,6 +478,7 @@ fn get_consensus_l1_gas_price_provider_error_rate_alert() -> Alert {
     }
 }
 
+<<<<<<< HEAD
 fn get_consensus_round_above_zero_alert() -> Alert {
     Alert {
         name: "consensus_round_above_zero",
@@ -227,7 +495,39 @@ fn get_consensus_round_above_zero_alert() -> Alert {
         severity: AlertSeverity::WorkingHours,
     }
 }
+||||||| parent of 488469450 (apollo_dashboard: updates to alerts from meeting)
+const CONSENSUS_ROUND_ABOVE_ZERO_ALERT: Alert = Alert {
+    name: "consensus_round_above_zero",
+    title: "Consensus round above zero",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[1h])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0 / 3600.0, // 5 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+=======
+const CONSENSUS_ROUND_ABOVE_ZERO_ALERT: Alert = Alert {
+    name: "consensus_round_above_zero",
+    title: "Consensus round above zero",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[1h])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 5.0 / 3600.0, // 5 per hour
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Informational,
+};
+>>>>>>> 488469450 (apollo_dashboard: updates to alerts from meeting)
 
+<<<<<<< HEAD
 fn get_consensus_conflicting_votes_rate_alert() -> Alert {
     Alert {
         name: "consensus_conflicting_votes_rate",
@@ -244,6 +544,37 @@ fn get_consensus_conflicting_votes_rate_alert() -> Alert {
         severity: AlertSeverity::WorkingHours,
     }
 }
+||||||| parent of 488469450 (apollo_dashboard: updates to alerts from meeting)
+const CONSENSUS_CONFLICTING_VOTES_RATE: Alert = Alert {
+    name: "consensus_conflicting_votes_rate",
+    title: "Consensus conflicting votes rate",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[20m])", CONSENSUS_CONFLICTING_VOTES.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::WorkingHours,
+};
+=======
+const CONSENSUS_CONFLICTING_VOTES_RATE: Alert = Alert {
+    name: "consensus_conflicting_votes_rate",
+    title: "Consensus conflicting votes rate",
+    alert_group: AlertGroup::Consensus,
+    expr: formatcp!("rate({}[20m])", CONSENSUS_CONFLICTING_VOTES.get_name_with_filter()),
+    conditions: &[AlertCondition {
+        comparison_op: AlertComparisonOp::GreaterThan,
+        comparison_value: 0.0,
+        logical_op: AlertLogicalOp::And,
+    }],
+    pending_duration: "1m",
+    evaluation_interval_sec: 20,
+    severity: AlertSeverity::Regular,
+};
+>>>>>>> 488469450 (apollo_dashboard: updates to alerts from meeting)
 
 fn get_gateway_add_tx_rate_drop_alert() -> Alert {
     Alert {
@@ -563,6 +894,7 @@ fn get_last_batched_block_stuck_alert() -> Alert {
 }
 
 pub fn get_apollo_alerts() -> Alerts {
+<<<<<<< HEAD
     Alerts::new(vec![
         get_consensus_block_number_stuck_alert(),
         get_consensus_build_proposal_failed_alert(),
@@ -592,5 +924,68 @@ pub fn get_apollo_alerts() -> Alerts {
         get_state_sync_stuck_alert(),
         get_batched_transactions_stuck_alert(),
         get_last_batched_block_stuck_alert(),
+||||||| parent of 488469450 (apollo_dashboard: updates to alerts from meeting)
+    Alerts::new(&[
+        CONSENSUS_BLOCK_NUMBER_STUCK,
+        CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
+        CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT,
+        CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
+        CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_STUCK,
+        CONSENSUS_INBOUND_STREAM_EVICTED_ALERT,
+        CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY_TOO_HIGH,
+        CENDE_WRITE_BLOB_FAILURE_ALERT,
+        CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE,
+        CONSENSUS_ROUND_ABOVE_ZERO_ALERT,
+        CONSENSUS_CONFLICTING_VOTES_RATE,
+        GATEWAY_ADD_TX_RATE_DROP,
+        GATEWAY_ADD_TX_LATENCY_INCREASE,
+        L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
+        L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY_ALERT,
+        L1_GAS_PRICE_REORG_DETECTED_ALERT,
+        L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
+        L1_MESSAGE_SCRAPER_REORG_DETECTED_ALERT,
+        MEMPOOL_ADD_TX_RATE_DROP,
+        MEMPOOL_GET_TXS_SIZE_DROP,
+        HTTP_SERVER_IDLE,
+        MEMPOOL_POOL_SIZE_INCREASE,
+        CONSENSUS_ROUND_HIGH_AVG,
+        NATIVE_COMPILATION_ERROR_INCREASE,
+        STATE_SYNC_LAG,
+        STATE_SYNC_STUCK,
+        BATCHED_TRANSACTIONS_STUCK,
+        LAST_BATCHED_BLOCK_STUCK,
+=======
+    Alerts::new(&[
+        BATCHED_TRANSACTIONS_STUCK,
+        CENDE_WRITE_BLOB_FAILURE_ALERT,
+        CENDE_WRITE_BLOB_FAILURE_ONCE_ALERT,
+        CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY_TOO_HIGH,
+        CONSENSUS_BLOCK_NUMBER_STUCK,
+        CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
+        CONSENSUS_BUILD_PROPOSAL_FAILED_ONCE_ALERT,
+        CONSENSUS_CONFLICTING_VOTES_RATE,
+        CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_RATIO,
+        CONSENSUS_INBOUND_STREAM_EVICTED_ALERT,
+        CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE,
+        CONSENSUS_ROUND_ABOVE_ZERO_ALERT,
+        CONSENSUS_ROUND_HIGH_AVG,
+        CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT,
+        CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
+        GATEWAY_ADD_TX_LATENCY_INCREASE,
+        GATEWAY_ADD_TX_RATE_DROP,
+        HTTP_SERVER_IDLE,
+        L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY_ALERT,
+        L1_GAS_PRICE_REORG_DETECTED_ALERT,
+        L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
+        L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
+        L1_MESSAGE_SCRAPER_REORG_DETECTED_ALERT,
+        LAST_BATCHED_BLOCK_STUCK,
+        MEMPOOL_ADD_TX_RATE_DROP,
+        MEMPOOL_GET_TXS_SIZE_DROP,
+        MEMPOOL_POOL_SIZE_INCREASE,
+        NATIVE_COMPILATION_ERROR_INCREASE,
+        STATE_SYNC_LAG,
+        STATE_SYNC_STUCK,
+>>>>>>> 488469450 (apollo_dashboard: updates to alerts from meeting)
     ])
 }
