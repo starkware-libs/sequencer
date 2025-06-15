@@ -151,23 +151,21 @@ pub fn compile_cairo0_program(
 /// `crate::cairo0_compiler::cairo0_scripts_correct_version` instead.
 #[cfg(any(test, feature = "testing"))]
 pub fn verify_cairo0_compiler_deps() {
-    let specific_error = match cairo0_scripts_correct_version() {
-        Ok(_) => {
-            return;
-        }
-        Err(Cairo0ScriptVersionError::CompilerNotFound(error_str)) => {
-            format!("No installed cairo-lang found. Original error: {error_str}.")
-        }
-        Err(Cairo0ScriptVersionError::IncorrectVersion { existing, script, .. }) => {
-            format!("Installed {script} version: {existing}")
-        }
-    };
-
-    panic!(
-        "At least one cairo-lang script not found or of incorrect version ({specific_error}). \
-         Please enter a venv and rerun the test:\n{}",
-        *ENTER_VENV_INSTRUCTIONS
-    );
+    if let Err(verification_error) = cairo0_scripts_correct_version() {
+        let error = match verification_error {
+            Cairo0ScriptVersionError::CompilerNotFound(error_str) => {
+                format!("No installed cairo-lang found. Original error: {error_str}.")
+            }
+            Cairo0ScriptVersionError::IncorrectVersion { existing, script, .. } => {
+                format!("Installed {script} version: {existing}")
+            }
+        };
+        panic!(
+            "At least one cairo-lang script not found or of incorrect version ({error}). Please \
+             enter a venv and rerun the test:\n{}",
+            *ENTER_VENV_INSTRUCTIONS
+        )
+    }
 }
 
 /// Runs the Cairo0 formatter on the input source code.
