@@ -85,7 +85,7 @@ use crate::utils::{
     ProposalTask,
 };
 
-pub(crate) const TEMP_N_EXECUTED_TXS: u64 = 0;
+pub(crate) const TEMP_N_EXECUTED_TXS: u64 = u64::MAX;
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 
