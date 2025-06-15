@@ -31,7 +31,34 @@
       "name": "cende_write_blob_failure",
       "title": "Cende write blob failure",
       "ruleGroup": "consensus",
-      "expr": "rate(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
+      "expr": "increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20,
+      "severity": "p3"
+    },
+    {
+      "name": "cende_write_blob_failure_once",
+      "title": "Cende write blob failure once",
+      "ruleGroup": "consensus",
+      "expr": "increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
@@ -52,7 +79,7 @@
       ],
       "for": "1m",
       "intervalSec": 20,
-      "severity": "p4"
+      "severity": "p5"
     },
     {
       "name": "cende_write_prev_height_blob_latency_too_high",
@@ -85,12 +112,12 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus block number stuck",
       "ruleGroup": "consensus",
-      "expr": "changes(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[30s])",
+      "expr": "changes(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              2.0
+              10.0
             ],
             "type": "lt"
           },
@@ -112,7 +139,34 @@
       "name": "consensus_build_proposal_failed",
       "title": "Consensus build proposal failed",
       "ruleGroup": "consensus",
-      "expr": "rate(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "10s",
+      "intervalSec": 20,
+      "severity": "p3"
+    },
+    {
+      "name": "consensus_build_proposal_failed_once",
+      "title": "Consensus build proposal failed once",
+      "ruleGroup": "consensus",
+      "expr": "increase(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -133,7 +187,7 @@
       ],
       "for": "10s",
       "intervalSec": 20,
-      "severity": "p3"
+      "severity": "p5"
     },
     {
       "name": "consensus_conflicting_votes_rate",
@@ -160,18 +214,18 @@
       ],
       "for": "1m",
       "intervalSec": 20,
-      "severity": "p4"
+      "severity": "p2"
     },
     {
-      "name": "consensus_decisions_reached_by_consensus_stuck",
-      "title": "Consensus decisions reached by consensus stuck",
+      "name": "consensus_decisions_reached_by_consensus_ratio",
+      "title": "Consensus decisions reached by consensus ratio",
       "ruleGroup": "consensus",
-      "expr": "changes(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
+      "expr": "increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / clamp_min(increase(consensus_decisions_reached_by_consensus{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) + increase(consensus_decisions_reached_by_sync{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]), 1)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              1.0
+              0.5
             ],
             "type": "lt"
           },
@@ -193,12 +247,12 @@
       "name": "consensus_inbound_stream_evicted",
       "title": "Consensus inbound stream evicted",
       "ruleGroup": "consensus",
-      "expr": "rate(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(consensus_inbound_stream_evicted{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.001388888888888889
+              5.0
             ],
             "type": "gt"
           },
@@ -214,7 +268,7 @@
       ],
       "for": "1m",
       "intervalSec": 20,
-      "severity": "p4"
+      "severity": "p5"
     },
     {
       "name": "consensus_l1_gas_price_provider_error_rate",
@@ -268,7 +322,7 @@
       ],
       "for": "1m",
       "intervalSec": 20,
-      "severity": "p4"
+      "severity": "p5"
     },
     {
       "name": "consensus_round_high_avg",
@@ -301,12 +355,12 @@
       "name": "consensus_validate_proposal_failed",
       "title": "Consensus validate proposal failed",
       "ruleGroup": "consensus",
-      "expr": "rate(consensus_proposals_invalid{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(consensus_proposals_invalid{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.001388888888888889
+              10.0
             ],
             "type": "gt"
           },
@@ -328,12 +382,12 @@
       "name": "consensus_votes_num_sent_messages",
       "title": "Consensus votes num sent messages",
       "ruleGroup": "consensus",
-      "expr": "rate(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
+      "expr": "increase(apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.027777777777777776
+              20.0
             ],
             "type": "lt"
           },
@@ -349,7 +403,7 @@
       ],
       "for": "1m",
       "intervalSec": 20,
-      "severity": "p4"
+      "severity": "p5"
     },
     {
       "name": "gateway_add_tx_latency_increase",
