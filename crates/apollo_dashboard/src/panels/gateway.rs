@@ -70,14 +70,16 @@ pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
 pub(crate) const PANEL_GATEWAY_ADD_TX_LATENCY: Panel = Panel::new(
     GATEWAY_ADD_TX_LATENCY.get_name(),
     GATEWAY_ADD_TX_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", GATEWAY_ADD_TX_LATENCY.get_name_with_filter()),
+    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
+    GATEWAY_ADD_TX_LATENCY.get_name_with_filter(),
     PanelType::Graph,
 );
 
 pub(crate) const PANEL_GATEWAY_VALIDATE_TX_LATENCY: Panel = Panel::new(
     GATEWAY_VALIDATE_TX_LATENCY.get_name(),
     GATEWAY_VALIDATE_TX_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", GATEWAY_VALIDATE_TX_LATENCY.get_name_with_filter()),
+    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
+    GATEWAY_VALIDATE_TX_LATENCY.get_name_with_filter(),
     PanelType::Graph,
 );
 

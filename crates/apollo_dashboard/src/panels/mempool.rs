@@ -120,6 +120,7 @@ pub(crate) const PANEL_MEMPOOL_DELAYED_DECLARES_SIZE: Panel = Panel::new(
 pub(crate) const PANEL_MEMPOOL_TRANSACTION_TIME_SPENT: Panel = Panel::new(
     TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_name(),
     TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_description(),
-    formatcp!("avg_over_time({}[2m])", TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_name_with_filter()),
+    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
+    TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_name_with_filter(),
     PanelType::Graph,
 );

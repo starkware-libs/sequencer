@@ -353,6 +353,7 @@ const MEMPOOL_GET_TXS_SIZE_DROP: Alert = Alert {
     name: "mempool_get_txs_size_drop",
     title: "Mempool get_txs size drop",
     alert_group: AlertGroup::Mempool,
+    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[20m])".
     expr: formatcp!("avg_over_time({}[20m])", MEMPOOL_GET_TXS_SIZE.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
