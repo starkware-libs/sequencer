@@ -22,7 +22,11 @@ use tokio::time::sleep;
 use tracing::{debug, error, info, instrument, warn};
 use validator::Validate;
 
-use crate::metrics::{register_scraper_metrics, L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT};
+use crate::metrics::{
+    register_scraper_metrics,
+    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_MESSAGE_SCRAPER_REORG_DETECTED,
+};
 
 #[cfg(test)]
 #[path = "l1_scraper_tests.rs"]
@@ -193,6 +197,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .map_err(L1ScraperError::BaseLayerError)?;
 
         let Some(last_block_processed_fresh) = last_block_processed_fresh else {
+            L1_MESSAGE_SCRAPER_REORG_DETECTED.increment(1);
             return Err(L1ScraperError::L1ReorgDetected {
                 reason: format!(
                     "Last processed L1 block with number {last_processed_l1_block_number} no \
@@ -202,6 +207,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         };
 
         if last_block_processed_fresh.hash != self.last_l1_block_processed.hash {
+            L1_MESSAGE_SCRAPER_REORG_DETECTED.increment(1);
             return Err(L1ScraperError::L1ReorgDetected {
                 reason: format!(
                     "Last processed L1 block hash, {}, for block number {}, is different from the \
