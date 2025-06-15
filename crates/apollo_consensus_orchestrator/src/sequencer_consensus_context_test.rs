@@ -424,6 +424,10 @@ async fn repropose() {
     assert_eq!(receiver.next().await.unwrap(), ProposalPart::Init(init));
     assert_eq!(receiver.next().await.unwrap(), block_info);
     assert_eq!(receiver.next().await.unwrap(), transactions);
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap())
+    );
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
 }
@@ -548,6 +552,10 @@ async fn build_proposal() {
     );
     assert_eq!(
         receiver.next().await.unwrap(),
+        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap())
+    );
+    assert_eq!(
+        receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
         })
@@ -636,6 +644,7 @@ async fn propose_then_repropose() {
     let _init = receiver.next().await.unwrap();
     let block_info = receiver.next().await.unwrap();
     let txs = receiver.next().await.unwrap();
+    let n_executed_txs = receiver.next().await.unwrap();
     let fin = receiver.next().await.unwrap();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -651,6 +660,7 @@ async fn propose_then_repropose() {
     let _init = receiver.next().await.unwrap();
     assert_eq!(receiver.next().await.unwrap(), block_info);
     assert_eq!(receiver.next().await.unwrap(), txs);
+    assert_eq!(receiver.next().await.unwrap(), n_executed_txs);
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
 }
@@ -853,6 +863,10 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     );
     assert_eq!(
         receiver.next().await.unwrap(),
+        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap())
+    );
+    assert_eq!(
+        receiver.next().await.unwrap(),
         ProposalPart::Fin(ProposalFin {
             proposal_commitment: BlockHash(STATE_DIFF_COMMITMENT.0.0),
         })
@@ -972,6 +986,10 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     assert_eq!(
         receiver.next().await.unwrap(),
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() })
+    );
+    assert_eq!(
+        receiver.next().await.unwrap(),
+        ProposalPart::ExecutedTransactionCount(INTERNAL_TX_BATCH.len().try_into().unwrap())
     );
     assert_eq!(
         receiver.next().await.unwrap(),

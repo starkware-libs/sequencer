@@ -37,6 +37,7 @@ use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
     retrospective_block_hash,
+    ExecutedTransactionCount,
     GasPriceParams,
 };
 
@@ -77,7 +78,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         .await
         .expect("Failed to send block info");
 
-    let Some((proposal_commitment, content)) = get_proposal_content(
+    let Some((proposal_commitment, n_executed_txs, content)) = get_proposal_content(
         args.proposal_id,
         args.deps.batcher.as_ref(),
         args.proposal_sender,
@@ -96,6 +97,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
     valid_proposals.insert_proposal_for_height(
         &args.proposal_init.height,
         &proposal_commitment,
+        n_executed_txs,
         block_info,
         content,
         &args.proposal_id,
@@ -153,7 +155,8 @@ pub(crate) async fn get_proposal_content(
     cende_write_success: AbortOnDropHandle<bool>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     cancel_token: CancellationToken,
-) -> Option<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
+) -> Option<(ProposalCommitment, ExecutedTransactionCount, Vec<Vec<InternalConsensusTransaction>>)>
+{
     let mut content = Vec::new();
     loop {
         if cancel_token.is_cancelled() {
@@ -201,7 +204,7 @@ pub(crate) async fn get_proposal_content(
                     .await
                     .expect("Failed to broadcast proposal content");
             }
-            GetProposalContent::Finished { id, n_executed_txs: _ } => {
+            GetProposalContent::Finished { id, n_executed_txs } => {
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
                 let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
                 info!(?proposal_commitment, num_txs = num_txs, "Finished building proposal",);
@@ -229,13 +232,17 @@ pub(crate) async fn get_proposal_content(
                     }
                 }
 
+                proposal_sender
+                    .send(ProposalPart::ExecutedTransactionCount(n_executed_txs))
+                    .await
+                    .expect("Failed to broadcast executed transaction count");
                 let fin = ProposalFin { proposal_commitment };
                 info!("Sending fin={fin:?}");
                 proposal_sender
                     .send(ProposalPart::Fin(fin))
                     .await
                     .expect("Failed to broadcast proposal fin");
-                return Some((proposal_commitment, content));
+                return Some((proposal_commitment, n_executed_txs, content));
             }
         }
     }

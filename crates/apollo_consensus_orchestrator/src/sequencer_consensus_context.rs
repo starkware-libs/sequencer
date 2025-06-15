@@ -85,6 +85,7 @@ use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
     retrospective_block_hash,
+    ExecutedTransactionCount,
     GasPriceParams,
 };
 
@@ -127,7 +128,12 @@ type HeightToIdToContent = BTreeMap<
     BlockNumber,
     BTreeMap<
         ProposalCommitment,
-        (ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId),
+        (
+            ConsensusBlockInfo,
+            Vec<Vec<InternalConsensusTransaction>>,
+            ExecutedTransactionCount,
+            ProposalId,
+        ),
     >,
 >;
 
@@ -151,7 +157,12 @@ impl BuiltProposals {
         &self,
         height: &BlockNumber,
         commitment: &ProposalCommitment,
-    ) -> &(ConsensusBlockInfo, Vec<Vec<InternalConsensusTransaction>>, ProposalId) {
+    ) -> &(
+        ConsensusBlockInfo,
+        Vec<Vec<InternalConsensusTransaction>>,
+        ExecutedTransactionCount,
+        ProposalId,
+    ) {
         self.data
             .get(height)
             .unwrap_or_else(|| panic!("No proposals found for height {height}"))
@@ -167,6 +178,7 @@ impl BuiltProposals {
         &mut self,
         height: &BlockNumber,
         proposal_commitment: &ProposalCommitment,
+        n_executed_txs: ExecutedTransactionCount,
         block_info: ConsensusBlockInfo,
         transactions: Vec<Vec<InternalConsensusTransaction>>,
         proposal_id: &ProposalId,
@@ -174,7 +186,7 @@ impl BuiltProposals {
         self.data
             .entry(*height)
             .or_default()
-            .insert(*proposal_commitment, (block_info, transactions, *proposal_id));
+            .insert(*proposal_commitment, (block_info, transactions, n_executed_txs, *proposal_id));
     }
 }
 
@@ -392,7 +404,7 @@ impl ConsensusContext for SequencerConsensusContext {
     async fn repropose(&mut self, id: ProposalCommitment, init: ProposalInit) {
         info!(?id, ?init, "Reproposing.");
         let height = init.height;
-        let (block_info, txs, _) = self
+        let (block_info, txs, n_executed_txs, _) = self
             .valid_proposals
             .lock()
             .expect("Lock on active proposals was poisoned due to a previous panic")
@@ -433,6 +445,10 @@ impl ConsensusContext for SequencerConsensusContext {
                         .await
                         .expect("Failed to broadcast proposal content");
                 }
+                proposal_sender
+                    .send(ProposalPart::ExecutedTransactionCount(n_executed_txs))
+                    .await
+                    .expect("Failed to broadcast executed transaction count");
                 proposal_sender
                     .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
                     .await
@@ -479,7 +495,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 .valid_proposals
                 .lock()
                 .expect("Lock on active proposals was poisoned due to a previous panic");
-            (block_info, transactions, proposal_id) =
+            (block_info, transactions, _, proposal_id) =
                 proposals.get_proposal(&height, &block).clone();
 
             proposals.remove_proposals_below_or_at_height(&height);
@@ -862,6 +878,9 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
     valid_proposals.insert_proposal_for_height(
         &args.block_info_validation.height,
         &built_block,
+        // TODO(Asmaa): return the number of executed transactions from handle_proposal_part and
+        // use it here.
+        num_txs.try_into().expect("Number of executed transactions should fit in u64"),
         block_info,
         content,
         &args.proposal_id,
@@ -1092,6 +1111,10 @@ async fn handle_proposal_part(
                 ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
+        }
+        Some(ProposalPart::ExecutedTransactionCount(_)) => {
+            // TODO(Asmaa): Handle executed transaction count.
+            HandledProposalPart::Continue
         }
         _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),
     }
