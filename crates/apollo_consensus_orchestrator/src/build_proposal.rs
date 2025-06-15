@@ -201,11 +201,27 @@ pub(crate) async fn get_proposal_content(
                     .await
                     .expect("Failed to broadcast proposal content");
             }
-            GetProposalContent::Finished { id, n_executed_txs: _ } => {
+            GetProposalContent::Finished { id, n_executed_txs } => {
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
-                let num_txs: usize = content.iter().map(|batch| batch.len()).sum();
-                info!(?proposal_commitment, num_txs = num_txs, "Finished building proposal",);
-                if num_txs == 0 {
+                // Truncate `content` to keep only the first `n_executed_txs`, preserving batch
+                // structure.
+                let mut executed_content = Vec::new();
+                let mut remaining: usize =
+                    n_executed_txs.try_into().expect("n_executed_txs should fit into usize");
+
+                for batch in content {
+                    if remaining == 0 {
+                        break;
+                    }
+                    let take_n = remaining.min(batch.len());
+                    executed_content.push(batch.into_iter().take(take_n).collect());
+                    remaining -= take_n;
+                }
+
+                content = executed_content;
+
+                info!(?proposal_commitment, num_txs = n_executed_txs, "Finished building proposal",);
+                if n_executed_txs == 0 {
                     warn!("Built an empty proposal.");
                 }
 
@@ -229,6 +245,10 @@ pub(crate) async fn get_proposal_content(
                     }
                 }
 
+                proposal_sender
+                    .send(ProposalPart::ExecutedTransactionCount(n_executed_txs))
+                    .await
+                    .expect("Failed to broadcast executed transaction count");
                 let fin = ProposalFin { proposal_commitment };
                 info!("Sending fin={fin:?}");
                 proposal_sender

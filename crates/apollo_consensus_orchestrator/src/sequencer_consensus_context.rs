@@ -433,6 +433,15 @@ impl ConsensusContext for SequencerConsensusContext {
                         .await
                         .expect("Failed to broadcast proposal content");
                 }
+                let n_executed_txs = txs.iter().map(|batch| batch.len()).sum::<usize>();
+                proposal_sender
+                    .send(ProposalPart::ExecutedTransactionCount(
+                        n_executed_txs
+                            .try_into()
+                            .expect("Number of executed transactions should fit in u64"),
+                    ))
+                    .await
+                    .expect("Failed to broadcast executed transaction count");
                 proposal_sender
                     .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
                     .await
@@ -1092,6 +1101,10 @@ async fn handle_proposal_part(
                 ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
+        }
+        Some(ProposalPart::ExecutedTransactionCount(_)) => {
+            // TODO(Asmaa): Handle executed transaction count.
+            HandledProposalPart::Continue
         }
         _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),
     }
