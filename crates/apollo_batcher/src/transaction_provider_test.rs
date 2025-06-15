@@ -72,11 +72,11 @@ impl MockDependencies {
     }
 
     fn validate_tx_provider(self) -> ValidateTransactionProvider {
-        ValidateTransactionProvider {
-            tx_receiver: self.tx_receiver,
-            l1_provider_client: Arc::new(self.l1_provider_client),
-            height: HEIGHT,
-        }
+        ValidateTransactionProvider::new(
+            self.tx_receiver,
+            Arc::new(self.l1_provider_client),
+            HEIGHT,
+        )
     }
 }
 

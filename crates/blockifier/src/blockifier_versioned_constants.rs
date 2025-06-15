@@ -45,6 +45,7 @@ define_versioned_constants!(
     (V0_13_3, "../resources/blockifier_versioned_constants_0_13_3.json"),
     (V0_13_4, "../resources/blockifier_versioned_constants_0_13_4.json"),
     (V0_13_5, "../resources/blockifier_versioned_constants_0_13_5.json"),
+    (V0_13_6, "../resources/blockifier_versioned_constants_0_13_6.json"),
     (V0_14_0, "../resources/blockifier_versioned_constants_0_14_0.json"),
     (V0_14_1, "../resources/blockifier_versioned_constants_0_14_1.json"),
 );
@@ -1099,6 +1100,7 @@ pub struct OsConstants {
     pub validated: String,
 
     // Error strings.
+    // TODO(Nimrod): Use these strings instead of the constants in `hint_processor.rs`.
     pub error_block_number_out_of_range: String,
     pub error_invalid_input_len: String,
     pub error_invalid_argument: String,

@@ -26,6 +26,7 @@ use crate::config::TimeoutsConfig;
 use crate::metrics::{
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_BUILD_PROPOSAL_TOTAL,
+    CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_PROPOSALS_VALIDATED,
     CONSENSUS_PROPOSALS_VALID_INIT,
@@ -179,12 +180,14 @@ impl SingleHeightConsensus {
         is_observer: bool,
         id: ValidatorId,
         validators: Vec<ValidatorId>,
+        no_byzantine_validators: bool,
         timeouts: TimeoutsConfig,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
-            u32::try_from(validators.len()).expect("Should have way less than u32::MAX validators");
-        let state_machine = StateMachine::new(id, n_validators, is_observer);
+            u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
+        let state_machine =
+            StateMachine::new(id, n_validators, is_observer, no_byzantine_validators);
         Self {
             height,
             validators,
@@ -397,6 +400,7 @@ impl SingleHeightConsensus {
                 let old = entry.get();
                 if old.block_hash != vote.block_hash {
                     warn!("Conflicting votes: old={:?}, new={:?}", old, vote);
+                    CONSENSUS_CONFLICTING_VOTES.increment(1);
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 } else {
                     // Replay, ignore.

@@ -1,4 +1,3 @@
-use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     insert_value_into_ap,
@@ -10,8 +9,8 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn is_block_number_in_block_hash_buffer<S: StateReader>(
-    HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn is_block_number_in_block_hash_buffer(
+    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let request_block_number =
         get_integer_from_var_name(Ids::RequestBlockNumber.into(), vm, ids_data, ap_tracking)?;

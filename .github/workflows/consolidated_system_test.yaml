@@ -14,12 +14,12 @@ on:
       - ".github/workflows/consolidated_system_test.yaml"
       - "deployments/**"
       - "crates/**"
-      - "config/sequencer/testing/**"
+      - "crates/apollo_deployments/resources/testing/**"
       - "scripts/system_tests/**"
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  deployment_config_path: ${{ github.workspace }}/config/sequencer/testing/deployment_configs/deployment_test_consolidated.json
+  deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/testing/deployment_configs/deployment_test_consolidated.json
   namespace: sequencer-consolidated-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
   cluster_name: consolidated-system-test
 
@@ -32,7 +32,38 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  check-system-test-trigger:
+    runs-on: starkware-ubuntu-24.04-small
+    outputs:
+      should_run: ${{ steps.system_check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+          cache: "pip"
+
+      - run: pip install -r scripts/requirements.txt
+
+      - name: Check for system-test-triggering changes
+        id: system_check
+        run: |
+          echo "Checking if any system-test-triggering crates were modified..."
+          OUTPUT_FILE=$(mktemp)
+
+          python ./scripts/check_system_test_trigger.py --output_file $OUTPUT_FILE --commit_id ${{ github.event.pull_request.base.sha }}
+
+          should_run=$(cat "$OUTPUT_FILE")
+          echo "Captured output: $should_run"
+          echo "should_run=$should_run" >> $GITHUB_OUTPUT
+
   system_test:
+    needs: check-system-test-trigger
+    if: needs.check-system-test-trigger.outputs.should_run == 'true'
     runs-on: starkware-ubuntu-24.04-large
     steps:
       - name: Checkout repository
@@ -239,6 +270,9 @@ jobs:
             --config-dir ${{ env.config_dir }} \
             --timeout ${{ env.check_timeout_sec }} \
             --interval ${{ env.check_interval_sec }}
+
+      - name: Copy state and restart pod
+        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0"
 
       - name: Get container logs
         if: always()

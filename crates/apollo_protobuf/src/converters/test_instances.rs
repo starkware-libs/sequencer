@@ -60,6 +60,7 @@ auto_impl_get_test_instance! {
         Fin(ProposalFin) = 1,
         BlockInfo(ConsensusBlockInfo) = 2,
         Transactions(TransactionBatch) = 3,
+        ExecutedTransactionCount(u64) = 4,
     }
 
 }

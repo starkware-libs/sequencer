@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 
@@ -15,10 +16,11 @@ use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use apollo_state_reader::papyrus_state::{ClassReader, PapyrusReader};
 use apollo_storage::StorageReader;
 use async_trait::async_trait;
-use blockifier::blockifier::config::TransactionExecutorConfig;
+use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransactionExecutor;
+use blockifier::blockifier::config::WorkerPoolConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
-    TransactionExecutor,
+    TransactionExecutionOutput,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
 };
@@ -44,11 +46,13 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
-use tokio::sync::Mutex;
-use tracing::{debug, error, info, trace};
+use tokio::sync::{Mutex, MutexGuard};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
+use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
 use crate::metrics::FULL_BLOCKS;
+use crate::pre_confirmed_block_writer::{CandidateTxSender, PreConfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
 
@@ -84,6 +88,12 @@ pub enum FailOnErrorCause {
     TransactionFailed(BlockifierTransactionExecutorError),
     #[error("L1 Handler transaction validation failed")]
     L1HandlerTransactionValidationFailed(TransactionProviderError),
+}
+
+enum AddTxsToExecutorResult {
+    NoNewTxs,
+    NewTxs,
+    Exhausted,
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -144,6 +154,7 @@ pub trait BlockBuilderTrait: Send {
 
 pub struct BlockBuilderExecutionParams {
     pub deadline: tokio::time::Instant,
+    // Only true in validation flow.
     pub fail_on_err: bool,
 }
 
@@ -152,11 +163,20 @@ pub struct BlockBuilder {
     executor: Arc<Mutex<dyn TransactionExecutorTrait>>,
     tx_provider: Box<dyn TransactionProvider>,
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
+    /// The senders are utilized only during block proposal and not during block validation.
+    candidate_tx_sender: Option<CandidateTxSender>,
+    pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
+    /// The number of transactions whose execution is completed.
+    n_executed_txs: usize,
+    /// The transactions whose execution started.
+    block_txs: Vec<InternalConsensusTransaction>,
+    execution_data: BlockTransactionExecutionData,
+    l2_gas_used: GasAmount,
 
-    // Parameters to configure the block builder behavior.
-    tx_chunk_size: usize,
+    /// Parameters to configure the block builder behavior.
+    n_concurrent_txs: usize,
     tx_polling_interval_millis: u64,
     execution_params: BlockBuilderExecutionParams,
 }
@@ -169,9 +189,11 @@ impl BlockBuilder {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
+        candidate_tx_sender: Option<CandidateTxSender>,
+        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         transaction_converter: TransactionConverter,
-        tx_chunk_size: usize,
+        n_concurrent_txs: usize,
         tx_polling_interval_millis: u64,
         execution_params: BlockBuilderExecutionParams,
     ) -> Self {
@@ -180,9 +202,15 @@ impl BlockBuilder {
             executor,
             tx_provider,
             output_content_sender,
+            candidate_tx_sender,
+            pre_confirmed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
-            tx_chunk_size,
+            n_executed_txs: 0,
+            block_txs: Vec::new(),
+            execution_data: BlockTransactionExecutionData::default(),
+            l2_gas_used: GasAmount::ZERO,
+            n_concurrent_txs,
             tx_polling_interval_millis,
             execution_params,
         }
@@ -202,11 +230,9 @@ impl BlockBuilderTrait for BlockBuilder {
 
 impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        let mut block_is_full = false;
-        let mut l2_gas_used = GasAmount::ZERO;
-        let mut execution_data = BlockTransactionExecutionData::default();
-        // TODO(yael 6/10/2024): delete the timeout condition once the executor has a timeout
-        while !block_is_full {
+        let mut finished_adding_txs = false;
+        let mut n_txs_in_block: Option<usize> = None;
+        while !self.finished_block_txs(n_txs_in_block) {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
                 if self.execution_params.fail_on_err {
@@ -214,85 +240,216 @@ impl BlockBuilder {
                 }
                 break;
             }
+            if n_txs_in_block.is_none() {
+                if let Some(res) = self.tx_provider.get_n_txs_in_block().await {
+                    info!("Received final number of transactions in block proposal: {res}.");
+                    n_txs_in_block = Some(res);
+                }
+            }
             if self.abort_signal_receiver.try_recv().is_ok() {
                 info!("Received abort signal. Aborting block builder.");
                 return Err(BlockBuilderError::Aborted);
             }
-            let next_txs = match self.tx_provider.get_txs(self.tx_chunk_size).await {
-                Err(e @ TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
-                    if self.execution_params.fail_on_err =>
-                {
-                    return Err(BlockBuilderError::FailOnError(
-                        L1HandlerTransactionValidationFailed(e),
-                    ));
+
+            self.handle_executed_txs().await?;
+
+            if lock_executor(&self.executor).is_done() {
+                info!("Block is full.");
+                if self.execution_params.fail_on_err {
+                    return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
+                } else {
+                    FULL_BLOCKS.increment(1);
                 }
-                Err(err) => {
-                    error!("Failed to get transactions from the transaction provider: {:?}", err);
-                    return Err(err.into());
-                }
-                Ok(result) => result,
-            };
-            let next_tx_chunk = match next_txs {
-                NextTxs::Txs(txs) => txs,
-                NextTxs::End => break,
-            };
-            debug!("Got {} transactions from the transaction provider.", next_tx_chunk.len());
-            if next_tx_chunk.is_empty() {
-                tokio::time::sleep(tokio::time::Duration::from_millis(
-                    self.tx_polling_interval_millis,
-                ))
-                .await;
-                continue;
+                break;
             }
 
-            let tx_convert_futures = next_tx_chunk.iter().map(|tx| async {
-                convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()).await
-            });
-            let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
-
-            // Execute the transactions on a separate thread pool to avoid blocking the executor
-            // while waiting on `block_on` calls.
-            debug!(
-                "Starting execution of a chunk with {} transactions.",
-                executor_input_chunk.len()
-            );
-            let executor = self.executor.clone();
-            let block_deadline = self.execution_params.deadline;
-            let results = tokio::task::spawn_blocking(move || {
-                executor
-                    .try_lock() // Acquire the lock in a sync manner.
-                    .expect("Only a single task should use the executor.")
-                    .add_txs_to_block(executor_input_chunk.as_slice(), block_deadline)
-            })
-            .await
-            .expect("Failed to spawn blocking executor task.");
-            debug!("Finished execution of transactions chunk.");
-            trace!("Transaction execution results: {:?}", results);
-            block_is_full = collect_execution_results_and_stream_txs(
-                next_tx_chunk,
-                results,
-                &mut l2_gas_used,
-                &mut execution_data,
-                &self.output_content_sender,
-                self.execution_params.fail_on_err,
-            )
-            .await?;
+            if finished_adding_txs {
+                // Only reached in validation flow.
+                // Avoid busy wait while waiting for the executor to finish executing the
+                // transactions.
+                self.sleep().await;
+            } else {
+                match self.add_txs_to_executor().await? {
+                    AddTxsToExecutorResult::NoNewTxs => self.sleep().await,
+                    AddTxsToExecutorResult::NewTxs => {}
+                    AddTxsToExecutorResult::Exhausted => {
+                        finished_adding_txs = true;
+                    }
+                }
+            }
         }
+
+        info!(
+            "Finished building block with {} out of {} transactions.",
+            self.n_executed_txs,
+            self.block_txs.len()
+        );
+
+        // Move a clone of the executor into the lambda function.
+        let executor = self.executor.clone();
+        let block_summary = tokio::task::spawn_blocking(move || {
+            lock_executor(&executor).close_block(n_txs_in_block)
+        })
+        .await
+        .expect("Failed to spawn blocking executor task.")?;
+
         let BlockExecutionSummary {
             state_diff,
             compressed_state_diff,
             bouncer_weights,
             casm_hash_computation_data,
-        } = self.executor.lock().await.close_block()?;
+        } = block_summary;
         Ok(BlockExecutionArtifacts {
-            execution_data,
+            execution_data: std::mem::take(&mut self.execution_data),
             commitment_state_diff: state_diff,
             compressed_state_diff,
             bouncer_weights,
-            l2_gas_used,
+            l2_gas_used: self.l2_gas_used,
             casm_hash_computation_data,
         })
     }
+
+    /// Returns the number of transactions that are currently being executed by the executor.
+    fn n_txs_in_progress(&self) -> usize {
+        self.block_txs.len() - self.n_executed_txs
+    }
+
+    /// Returns `true` if all the txs in the block were executed. This function always returns
+    /// `false` in propose mode.
+    fn finished_block_txs(&self, n_txs_in_block: Option<usize>) -> bool {
+        if let Some(n_txs_in_block) = n_txs_in_block {
+            self.n_executed_txs >= n_txs_in_block
+        } else {
+            // n_txs_in_block is not known yet, so the block is not finished.
+            false
+        }
+    }
+
+    /// Adds new transactions (if there are any) from `tx_provider` to the executor.
+    ///
+    /// Returns whether new transactions were added and whether the transaction stream is exhausted
+    /// (this can only happen in validator mode).
+    async fn add_txs_to_executor(&mut self) -> BlockBuilderResult<AddTxsToExecutorResult> {
+        // Restrict the number of transactions to fetch such that the number of transactions in
+        // progress is at most `n_concurrent_txs`.
+        let n_txs_to_fetch =
+            self.n_concurrent_txs - min(self.n_txs_in_progress(), self.n_concurrent_txs);
+
+        if n_txs_to_fetch == 0 {
+            return Ok(AddTxsToExecutorResult::NoNewTxs);
+        }
+
+        let next_txs = match self.tx_provider.get_txs(n_txs_to_fetch).await {
+            Err(e @ TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
+                if self.execution_params.fail_on_err =>
+            {
+                return Err(BlockBuilderError::FailOnError(L1HandlerTransactionValidationFailed(
+                    e,
+                )));
+            }
+            Err(err) => {
+                error!("Failed to get transactions from the transaction provider: {:?}", err);
+                return Err(err.into());
+            }
+            Ok(result) => result,
+        };
+        let next_tx_chunk = match next_txs {
+            NextTxs::Txs(txs) => txs,
+            // Only reached in validation flow.
+            NextTxs::End => return Ok(AddTxsToExecutorResult::Exhausted),
+        };
+        let n_txs = next_tx_chunk.len();
+        debug!("Got {} transactions from the transaction provider.", n_txs);
+        if next_tx_chunk.is_empty() {
+            return Ok(AddTxsToExecutorResult::NoNewTxs);
+        }
+
+        self.send_candidate_txs(&next_tx_chunk);
+
+        self.block_txs.extend(next_tx_chunk.iter().cloned());
+
+        let tx_convert_futures = next_tx_chunk.into_iter().map(|tx| async {
+            convert_to_executable_blockifier_tx(&self.transaction_converter, tx).await
+        });
+        let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
+
+        // Start the execution of the transactions on the worker pool.
+        info!("Starting execution of {} transactions.", n_txs);
+        lock_executor(&self.executor).add_txs_to_block(executor_input_chunk.as_slice());
+
+        Ok(AddTxsToExecutorResult::NewTxs)
+    }
+
+    /// Handles the transactions that were executed so far by the executor.
+    async fn handle_executed_txs(&mut self) -> BlockBuilderResult<()> {
+        let results = lock_executor(&self.executor).get_new_results();
+
+        if results.is_empty() {
+            return Ok(());
+        }
+
+        info!("Finished execution of {} transactions.", results.len());
+
+        let old_n_executed_txs = self.n_executed_txs;
+        self.n_executed_txs += results.len();
+
+        collect_execution_results_and_stream_txs(
+            &self.block_txs[old_n_executed_txs..self.n_executed_txs],
+            results,
+            &mut self.l2_gas_used,
+            &mut self.execution_data,
+            &self.output_content_sender,
+            self.execution_params.fail_on_err,
+            &self.pre_confirmed_tx_sender,
+        )
+        .await
+    }
+
+    fn send_candidate_txs(&mut self, next_tx_chunk: &[InternalConsensusTransaction]) {
+        // Skip sending candidate transactions during validation flow.
+        // In validate flow candidate_tx_sender is None.
+        let Some(candidate_tx_sender) = &self.candidate_tx_sender else {
+            return;
+        };
+
+        let txs = next_tx_chunk.to_vec();
+        let num_txs = txs.len();
+
+        trace!(
+            "Attempting to send a candidate transaction chunk with {num_txs} transactions to the \
+             PreConfirmedBlockWriter.",
+        );
+
+        match candidate_tx_sender.try_send(txs) {
+            Ok(_) => {
+                info!(
+                    "Successfully sent a candidate transaction chunk with {num_txs} transactions \
+                     to the PreConfirmedBlockWriter.",
+                );
+            }
+            // We continue with block building even if sending candidate transactions to
+            // the PreConfirmedBlockWriter fails because it is not critical for the block
+            // building process.
+            Err(err) => {
+                error!(
+                    "Failed to send a candidate transaction chunk with {num_txs} transactions to \
+                     the PreConfirmedBlockWriter: {:?}",
+                    err
+                );
+            }
+        }
+    }
+
+    async fn sleep(&mut self) {
+        tokio::time::sleep(tokio::time::Duration::from_millis(self.tx_polling_interval_millis))
+            .await;
+    }
+}
+
+fn lock_executor<'a>(
+    executor: &'a Arc<Mutex<dyn TransactionExecutorTrait>>,
+) -> MutexGuard<'a, dyn TransactionExecutorTrait> {
+    executor.try_lock().expect("Only a single task should use the executor.")
 }
 
 async fn convert_to_executable_blockifier_tx(
@@ -304,35 +461,23 @@ async fn convert_to_executable_blockifier_tx(
     Ok(BlockifierTransaction::new_for_sequencing(executable_tx))
 }
 
-/// Returns true if the block is full and should be closed, false otherwise.
 async fn collect_execution_results_and_stream_txs(
-    tx_chunk: Vec<InternalConsensusTransaction>,
-    results: Vec<TransactionExecutorResult<TransactionExecutionInfo>>,
+    tx_chunk: &[InternalConsensusTransaction],
+    results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
     l2_gas_used: &mut GasAmount,
     execution_data: &mut BlockTransactionExecutionData,
     output_content_sender: &Option<
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
     fail_on_err: bool,
-) -> BlockBuilderResult<bool> {
+    pre_confirmed_tx_sender: &Option<PreConfirmedTxSender>,
+) -> BlockBuilderResult<()> {
     assert!(
-        results.len() <= tx_chunk.len(),
-        "The number of results should be less than or equal to the number of transactions."
+        results.len() == tx_chunk.len(),
+        "The number of results match the number of transactions."
     );
-    let mut block_is_full = false;
-    // If the block is full, we won't get an error from the executor. We will just get only the
-    // results of the transactions that were executed before the block was full.
-    // see [TransactionExecutor::execute_txs].
-    if results.len() < tx_chunk.len() {
-        info!("Block is full.");
-        if fail_on_err {
-            return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
-        } else {
-            FULL_BLOCKS.increment(1);
-            block_is_full = true;
-        }
-    }
-    for (input_tx, result) in tx_chunk.into_iter().zip(results.into_iter()) {
+
+    for (input_tx, result) in tx_chunk.iter().zip(results.into_iter()) {
         let tx_hash = input_tx.tx_hash();
 
         // Insert the tx_hash into the appropriate collection if it's an L1_Handler transaction.
@@ -341,19 +486,45 @@ async fn collect_execution_results_and_stream_txs(
         }
 
         match result {
-            Ok(tx_execution_info) => {
+            Ok((tx_execution_info, state_maps)) => {
                 *l2_gas_used = l2_gas_used
                     .checked_add(tx_execution_info.receipt.gas.l2_gas)
                     .expect("Total L2 gas overflow.");
 
-                execution_data.execution_infos.insert(tx_hash, tx_execution_info);
+                let (tx_index, _) =
+                    execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
 
                 if let Some(output_content_sender) = output_content_sender {
-                    output_content_sender.send(input_tx)?;
+                    // Only reached in proposal flow.
+                    output_content_sender.send(input_tx.clone())?;
+                }
+
+                // Skip sending the pre confirmed executed transactions, receipts and state diffs
+                // during validation flow. In validate flow pre_confirmed_tx_sender is None.
+                if let Some(pre_confirmed_tx_sender) = pre_confirmed_tx_sender {
+                    let tx_receipt = StarknetClientTransactionReceipt::from((
+                        tx_hash,
+                        tx_index,
+                        // TODO(noamsp): Consider using tx_execution_info and moving the line that
+                        // consumes it below this (if it doesn't change functionality).
+                        &execution_data.execution_infos[&tx_hash],
+                    ));
+
+                    let tx_state_diff = StarknetClientStateDiff::from(state_maps).0;
+
+                    let result = pre_confirmed_tx_sender.try_send((
+                        input_tx.clone(),
+                        tx_receipt,
+                        tx_state_diff,
+                    ));
+                    if result.is_err() {
+                        // We continue with block building even if sending data to The
+                        // PreConfirmedBlockWriter fails because it is not critical
+                        // for the block building process.
+                        warn!("Sending data to preconfirmed block writer failed.");
+                    }
                 }
             }
-            // TODO(yael 18/9/2024): add timeout error handling here once this
-            // feature is added.
             Err(err) => {
                 info!(
                     "Transaction {} failed with error: {}.",
@@ -369,7 +540,8 @@ async fn collect_execution_results_and_stream_txs(
             }
         }
     }
-    Ok(block_is_full)
+
+    Ok(())
 }
 
 pub struct BlockMetadata {
@@ -386,7 +558,7 @@ pub type BatcherWorkerPool =
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
     // TODO(noamsp): Investigate and remove this clippy warning.
-    #[allow(clippy::result_large_err)]
+    #[allow(clippy::result_large_err, clippy::too_many_arguments)]
     fn create_block_builder(
         &self,
         block_metadata: BlockMetadata,
@@ -395,6 +567,8 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
+        candidate_tx_sender: Option<CandidateTxSender>,
+        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
 }
@@ -402,9 +576,9 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BlockBuilderConfig {
     pub chain_info: ChainInfo,
-    pub execute_config: TransactionExecutorConfig,
+    pub execute_config: WorkerPoolConfig,
     pub bouncer_config: BouncerConfig,
-    pub tx_chunk_size: usize,
+    pub n_concurrent_txs: usize,
     pub tx_polling_interval_millis: u64,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
 }
@@ -414,9 +588,9 @@ impl Default for BlockBuilderConfig {
         Self {
             // TODO(AlonH): update the default values once the actual values are known.
             chain_info: ChainInfo::default(),
-            execute_config: TransactionExecutorConfig::default(),
+            execute_config: WorkerPoolConfig::default(),
             bouncer_config: BouncerConfig::default(),
-            tx_chunk_size: 100,
+            n_concurrent_txs: 100,
             tx_polling_interval_millis: 100,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
@@ -429,8 +603,8 @@ impl SerializeConfig for BlockBuilderConfig {
         dump.append(&mut prepend_sub_config_name(self.execute_config.dump(), "execute_config"));
         dump.append(&mut prepend_sub_config_name(self.bouncer_config.dump(), "bouncer_config"));
         dump.append(&mut BTreeMap::from([ser_param(
-            "tx_chunk_size",
-            &self.tx_chunk_size,
+            "n_concurrent_txs",
+            &self.n_concurrent_txs,
             "Number of transactions in each request from the tx_provider.",
             ParamPrivacyInput::Public,
         )]));
@@ -464,7 +638,9 @@ impl BlockBuilderFactory {
         &self,
         block_metadata: BlockMetadata,
         runtime: tokio::runtime::Handle,
-    ) -> BlockBuilderResult<TransactionExecutor<StateReaderAndContractManager<PapyrusReader>>> {
+    ) -> BlockBuilderResult<
+        ConcurrentTransactionExecutor<StateReaderAndContractManager<PapyrusReader>>,
+    > {
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(
@@ -485,12 +661,12 @@ impl BlockBuilderFactory {
             contract_class_manager: self.contract_class_manager.clone(),
         };
 
-        let executor = TransactionExecutor::pre_process_and_create_with_pool(
+        let executor = ConcurrentTransactionExecutor::start_block(
             state_reader,
             block_context,
             block_metadata.retrospective_block_hash,
-            block_builder_config.execute_config,
-            Some(self.worker_pool.clone()),
+            self.worker_pool.clone(),
+            None,
         )?;
 
         Ok(executor)
@@ -506,6 +682,8 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
         output_content_sender: Option<
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
+        candidate_tx_sender: Option<CandidateTxSender>,
+        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
         let executor = self.preprocess_and_create_transaction_executor(block_metadata, runtime)?;
@@ -518,9 +696,11 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             executor,
             tx_provider,
             output_content_sender,
+            candidate_tx_sender,
+            pre_confirmed_tx_sender,
             abort_signal_receiver,
             transaction_converter,
-            self.block_builder_config.tx_chunk_size,
+            self.block_builder_config.n_concurrent_txs,
             self.block_builder_config.tx_polling_interval_millis,
             execution_params,
         ));

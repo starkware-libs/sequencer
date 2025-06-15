@@ -45,6 +45,31 @@ impl Preimage {
     }
 }
 
+impl TryFrom<&Vec<Felt>> for Preimage {
+    type Error = PatriciaError;
+
+    fn try_from(raw_preimage: &Vec<Felt>) -> Result<Self, Self::Error> {
+        match raw_preimage.as_slice() {
+            [left, right] => Ok(Preimage::Binary(BinaryData {
+                left_hash: HashOutput(*left),
+                right_hash: HashOutput(*right),
+            })),
+            [length, path, bottom] => {
+                Ok(Preimage::Edge(EdgeData {
+                    bottom_hash: HashOutput(*bottom),
+                    path_to_bottom: PathToBottom::new(
+                        (*path).into(),
+                        EdgePathLength::new((*length).try_into().map_err(|_| {
+                            PatriciaError::InvalidRawPreimage(raw_preimage.clone())
+                        })?)?,
+                    )?,
+                }))
+            }
+            _ => Err(PatriciaError::InvalidRawPreimage(raw_preimage.clone())),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum DecodeNodeCase {
     Left,
@@ -255,28 +280,7 @@ pub(crate) fn create_preimage_mapping(
 ) -> Result<PreimageMap, PatriciaError> {
     let mut preimage_mapping = PreimageMap::new();
     for (hash, raw_preimage) in commitment_facts.iter() {
-        match raw_preimage.as_slice() {
-            [left, right] => {
-                let binary_data =
-                    BinaryData { left_hash: HashOutput(*left), right_hash: HashOutput(*right) };
-                preimage_mapping.insert(*hash, Preimage::Binary(binary_data));
-            }
-            [length, path, bottom] => {
-                let edge_data = EdgeData {
-                    bottom_hash: HashOutput(*bottom),
-                    path_to_bottom: PathToBottom::new(
-                        (*path).into(),
-                        EdgePathLength::new((*length).try_into().map_err(|_| {
-                            PatriciaError::InvalidRawPreimage(raw_preimage.clone())
-                        })?)?,
-                    )?,
-                };
-                preimage_mapping.insert(*hash, Preimage::Edge(edge_data));
-            }
-            _ => {
-                return Err(PatriciaError::InvalidRawPreimage(raw_preimage.clone()));
-            }
-        }
+        preimage_mapping.insert(*hash, Preimage::try_from(raw_preimage)?);
     }
     Ok(preimage_mapping)
 }
