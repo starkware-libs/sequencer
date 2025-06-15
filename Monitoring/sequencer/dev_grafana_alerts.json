@@ -298,6 +298,33 @@
       "severity": "p4"
     },
     {
+      "name": "num_txs_in_proposal_too_low",
+      "title": "Number of transactions in proposal too low",
+      "ruleGroup": "consensus",
+      "expr": "avg_over_time(consensus_num_txs_in_proposal{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20,
+      "severity": "p4"
+    },
+    {
       "name": "gateway_add_tx_rate_drop",
       "title": "Gateway add_tx rate drop",
       "ruleGroup": "gateway",
