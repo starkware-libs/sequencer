@@ -446,7 +446,7 @@ pub const COMPILE_TO_CASM_ROW: Row =
 pub fn get_apollo_dashboard() -> Dashboard {
     Dashboard::new(
         "Sequencer Node Dashboard",
-        &[
+        vec![
             BATCHER_ROW,
             CONSENSUS_ROW,
             HTTP_SERVER_ROW,

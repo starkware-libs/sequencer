@@ -111,11 +111,11 @@ impl Serialize for Row {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dashboard {
     name: &'static str,
-    rows: &'static [Row],
+    rows: Vec<Row>,
 }
 
 impl Dashboard {
-    pub fn new(name: &'static str, rows: &'static [Row]) -> Self {
+    pub fn new(name: &'static str, rows: Vec<Row>) -> Self {
         Self { name, rows }
     }
 }
@@ -128,7 +128,7 @@ impl Serialize for Dashboard {
     {
         let mut map = serializer.serialize_map(Some(1))?;
         let mut row_map = IndexMap::new();
-        for row in self.rows {
+        for row in &self.rows {
             row_map.insert(row.name, row.panels);
         }
 
