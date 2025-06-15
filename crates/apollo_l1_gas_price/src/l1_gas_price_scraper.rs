@@ -20,7 +20,11 @@ use thiserror::Error;
 use tracing::{error, info, warn};
 use validator::Validate;
 
-use crate::metrics::{register_scraper_metrics, L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT};
+use crate::metrics::{
+    register_scraper_metrics,
+    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
+};
 
 #[cfg(test)]
 #[path = "l1_gas_price_scraper_test.rs"]
@@ -194,6 +198,7 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         };
 
         if new_header.parent_hash != last_header.hash {
+            L1_GAS_PRICE_SCRAPER_REORG_DETECTED.increment(1);
             return Err(L1GasPriceScraperError::L1ReorgDetected {
                 reason: format!(
                     "Last processed L1 block hash, {}, for block number {}, is different from the \
