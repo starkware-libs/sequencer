@@ -1,4 +1,4 @@
-use crate::cairo0_compiler::{EXPECTED_CAIRO0_VERSION, PIP_REQUIREMENTS_FILE};
+use crate::cairo0_compiler::{CairoLangVersion, EXPECTED_CAIRO0_VERSION, PIP_REQUIREMENTS_FILE};
 
 #[test]
 fn test_cairo0_version_pip_requirements() {
@@ -16,5 +16,5 @@ fn test_cairo0_version_pip_requirements() {
                 *PIP_REQUIREMENTS_FILE
             )
         });
-    assert_eq!(pip_cairo_lang_version, format!("{EXPECTED_CAIRO0_VERSION}"));
+    assert_eq!(CairoLangVersion(pip_cairo_lang_version), EXPECTED_CAIRO0_VERSION);
 }
