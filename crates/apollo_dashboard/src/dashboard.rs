@@ -12,10 +12,10 @@ mod dashboard_test;
 /// Grafana panel types.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub enum PanelType {
-    #[serde(rename = "stat")]
-    Stat,
     #[serde(rename = "graph")]
     Graph,
+    #[serde(rename = "stat")]
+    Stat,
 }
 
 #[derive(Clone, Debug, PartialEq)]
