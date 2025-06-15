@@ -4,10 +4,10 @@ use std::collections::HashMap;
 
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::{
-    IntermediateDeclareTransaction,
     IntermediateDeployAccountTransaction,
     IntermediateInvokeTransaction,
     L1HandlerTransaction as ClientL1HandlerTransaction,
+    ReservedDataAvailabilityMode,
 };
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
 use blockifier::execution::call_info::OrderedEvent;
@@ -26,7 +26,14 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    EthAddress,
+    Nonce,
+};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::GasVector;
@@ -37,13 +44,21 @@ use starknet_api::rpc_transaction::{
     RpcDeployAccountTransaction,
     RpcInvokeTransaction,
 };
-use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
+use starknet_api::transaction::fields::{
+    AccountDeploymentData,
+    Fee,
+    PaymasterData,
+    Tip,
+    TransactionSignature,
+    ValidResourceBounds,
+};
 use starknet_api::transaction::{
     Event,
     L1ToL2Payload,
     L2ToL1Payload,
     TransactionHash,
     TransactionOffsetInBlock,
+    TransactionVersion,
 };
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
@@ -322,6 +337,33 @@ impl From<InternalConsensusTransaction> for CendePreConfirmedTransaction {
             }
         }
     }
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct IntermediateDeclareTransaction {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource_bounds: Option<ValidResourceBounds>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tip: Option<Tip>,
+    pub signature: TransactionSignature,
+    pub nonce: Nonce,
+    pub class_hash: ClassHash,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub compiled_class_hash: Option<CompiledClassHash>,
+    pub sender_address: ContractAddress,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonce_data_availability_mode: Option<ReservedDataAvailabilityMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fee_data_availability_mode: Option<ReservedDataAvailabilityMode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paymaster_data: Option<PaymasterData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub account_deployment_data: Option<AccountDeploymentData>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_fee: Option<Fee>,
+    pub version: TransactionVersion,
+    pub transaction_hash: TransactionHash,
 }
 
 impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
