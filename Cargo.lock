@@ -1907,6 +1907,7 @@ dependencies = [
  "rstest",
  "starknet-core",
  "starknet-crypto",
+ "starknet-types-core",
  "starknet_api",
  "tokio",
 ]

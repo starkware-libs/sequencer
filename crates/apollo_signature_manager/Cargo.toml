@@ -20,6 +20,7 @@ pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-core.workspace = true
 starknet-crypto.workspace = true
+starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
 
