@@ -15,7 +15,7 @@ fn serialize_alert() {
         name: "Name",
         title: "Message",
         alert_group: AlertGroup::Batcher,
-        expr: "max",
+        expr: "max".to_string(),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 10.0,
