@@ -41,13 +41,14 @@ use starknet_api::rpc_transaction::{
 };
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
+    AllResourceBounds,
     Calldata,
     ContractAddressSalt,
     Fee,
     PaymasterData,
+    ResourceBounds,
     Tip,
     TransactionSignature,
-    ValidResourceBounds,
 };
 use starknet_api::transaction::{
     Event,
@@ -336,11 +337,32 @@ impl From<InternalConsensusTransaction> for CendePreConfirmedTransaction {
     }
 }
 
+// TODO(Arni): Share code with `crates/apollo_consensus_orchestrator/src/cende/central_objects.rs`.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, Eq)]
+pub struct CentralResourceBounds {
+    #[serde(rename = "L1_GAS")]
+    l1_gas: ResourceBounds,
+    #[serde(rename = "L2_GAS")]
+    l2_gas: ResourceBounds,
+    #[serde(rename = "L1_DATA_GAS")]
+    l1_data_gas: ResourceBounds,
+}
+
+impl From<AllResourceBounds> for CentralResourceBounds {
+    fn from(resource_bounds: AllResourceBounds) -> CentralResourceBounds {
+        CentralResourceBounds {
+            l1_gas: resource_bounds.l1_gas,
+            l2_gas: resource_bounds.l2_gas,
+            l1_data_gas: resource_bounds.l1_data_gas,
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct IntermediateDeclareTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resource_bounds: Option<ValidResourceBounds>,
+    pub resource_bounds: Option<CentralResourceBounds>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
     pub signature: TransactionSignature,
@@ -367,7 +389,7 @@ pub struct IntermediateDeclareTransaction {
 #[serde(deny_unknown_fields)]
 pub struct IntermediateDeployAccountTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resource_bounds: Option<ValidResourceBounds>,
+    pub resource_bounds: Option<CentralResourceBounds>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
     pub signature: TransactionSignature,
@@ -395,7 +417,7 @@ pub struct IntermediateDeployAccountTransaction {
 #[serde(deny_unknown_fields)]
 pub struct IntermediateInvokeTransaction {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub resource_bounds: Option<ValidResourceBounds>,
+    pub resource_bounds: Option<CentralResourceBounds>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tip: Option<Tip>,
     pub calldata: Calldata,
@@ -432,9 +454,7 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
             ) => {
                 let version = declare_transaction.version();
                 CendePreConfirmedTransaction::Declare(IntermediateDeclareTransaction {
-                    resource_bounds: Some(ValidResourceBounds::AllResources(
-                        declare_transaction.resource_bounds,
-                    )),
+                    resource_bounds: Some(declare_transaction.resource_bounds.into()),
                     tip: Some(declare_transaction.tip),
                     signature: declare_transaction.signature,
                     nonce: declare_transaction.nonce,
@@ -464,7 +484,7 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
                     contract_address,
                 } = deploy_account_transaction;
                 CendePreConfirmedTransaction::DeployAccount(IntermediateDeployAccountTransaction {
-                    resource_bounds: Some(ValidResourceBounds::AllResources(tx.resource_bounds)),
+                    resource_bounds: Some(tx.resource_bounds.into()),
                     tip: Some(tx.tip),
                     signature: tx.signature,
                     nonce: tx.nonce,
@@ -487,7 +507,7 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
                 let version = invoke_transaction.version();
                 let RpcInvokeTransaction::V3(tx) = invoke_transaction;
                 CendePreConfirmedTransaction::Invoke(IntermediateInvokeTransaction {
-                    resource_bounds: Some(ValidResourceBounds::AllResources(tx.resource_bounds)),
+                    resource_bounds: Some(tx.resource_bounds.into()),
                     tip: Some(tx.tip),
                     calldata: tx.calldata,
                     sender_address: tx.sender_address,
