@@ -15,6 +15,7 @@ starknet-crypto.workspace = true
 starknet_api.workspace = true
 
 [dev-dependencies]
+apollo_signature_manager.workspace = true
 apollo_signature_manager_types.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
