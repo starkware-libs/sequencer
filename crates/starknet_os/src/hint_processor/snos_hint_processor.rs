@@ -376,7 +376,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
         // Cairo1 syscall or Cairo1 core hint.
         match hint_data.downcast_ref::<Cairo1Hint>().ok_or(HintError::WrongHintData)? {
             Cairo1Hint::Core(hint) => {
-                let no_temporary_segments = true;
+                let no_temporary_segments = false;
                 execute_core_hint_base(vm, exec_scopes, hint, no_temporary_segments)?;
                 Ok(HintExtension::default())
             }
