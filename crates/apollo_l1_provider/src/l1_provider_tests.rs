@@ -634,12 +634,8 @@ fn get_txs_timestamp_cutoff_some_eligible() {
 
     let clock = Arc::new(FakeClock::new(now));
 
-    let config = L1ProviderConfig {
-        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
-        ..Default::default()
-    };
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_config(config)
+        .with_new_tx_cooldown(cooldown)
         .with_clock(clock)
         .with_timed_txs([
             (tx_1.clone(), timestamp_1),
@@ -665,12 +661,8 @@ fn get_txs_timestamp_cutoff_none_eligible() {
 
     let clock = Arc::new(FakeClock::new(now));
 
-    let config = L1ProviderConfig {
-        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
-        ..Default::default()
-    };
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_config(config)
+        .with_new_tx_cooldown(cooldown)
         .with_clock(clock)
         .with_timed_txs([(tx_1.clone(), timestamp_1), (tx_2.clone(), timestamp_2)])
         .with_state(ProviderState::Propose)
@@ -694,12 +686,8 @@ fn get_txs_timestamp_cutoff_edge_case_at_cutoff() {
 
     let clock = Arc::new(FakeClock::new(now));
 
-    let config = L1ProviderConfig {
-        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
-        ..Default::default()
-    };
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_config(config)
+        .with_new_tx_cooldown(cooldown)
         .with_clock(clock)
         .with_timed_txs([
             (tx_1.clone(), timestamp_1),
@@ -719,13 +707,9 @@ fn get_txs_excludes_cancellation_requested_and_returns_non_cancellation_requeste
     let tx_1 = l1_handler(1);
     let tx_2 = l1_handler(2);
     let unix_now = 5;
-    let l1_handler_cancellation_timelock_seconds = Duration::from_secs(2);
-    let config =
-        L1ProviderConfig { l1_handler_cancellation_timelock_seconds, ..Default::default() };
     let clock = Arc::new(FakeClock::new(unix_now));
     let cancellation_request_timestamp = unix_now - 1;
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_config(config)
         .with_clock(clock)
         .with_txs([tx_2.clone()])
         .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])

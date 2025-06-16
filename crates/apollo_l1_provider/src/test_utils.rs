@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::mem;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use apollo_l1_provider_types::{
     Event,
@@ -173,6 +174,14 @@ impl L1ProviderContentBuilder {
         let cancel_requested = cancel_requested.into_iter().map(Into::into);
         self.tx_manager_content_builder =
             self.tx_manager_content_builder.with_cancel_requested_txs(cancel_requested);
+        self
+    }
+
+    pub fn with_new_tx_cooldown(mut self, cooldown: u64) -> Self {
+        self.config = Some(L1ProviderConfig {
+            new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
+            ..self.config.unwrap_or_default()
+        });
         self
     }
 
