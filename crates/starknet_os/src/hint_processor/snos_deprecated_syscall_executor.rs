@@ -45,7 +45,9 @@ use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::transaction::TransactionVersion;
+use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::{CallInfoTracker, ExecutionHelperError};
@@ -65,6 +67,8 @@ pub enum DeprecatedSnosSyscallError {
     ExecutionHelper(#[from] ExecutionHelperError),
     #[error(transparent)]
     Memory(#[from] MemoryError),
+    #[error(transparent)]
+    StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
     SyscallExecutorBase(#[from] DeprecatedSyscallExecutorBaseError),
     #[error(transparent)]
@@ -260,25 +264,45 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     #[allow(clippy::result_large_err)]
     fn get_block_number(
         _request: GetBlockNumberRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetBlockNumberResponse, Self::Error> {
-        let block_number =
-            syscall_handler.get_current_execution_helper()?.os_block_input.block_info.block_number;
+        let execution_info_ptr = syscall_handler.get_execution_info_ptr()?;
+        let block_number_as_felt = vm
+            .get_integer(get_address_of_nested_fields_from_base_address(
+                execution_info_ptr,
+                CairoStruct::ExecutionInfo,
+                vm,
+                &["block_info", "block_number"],
+                syscall_handler.os_program,
+            )?)?
+            .into_owned();
+        let block_number = BlockNumber(
+            u64::try_from(block_number_as_felt).expect("Block number is expected to fit in u64."),
+        );
         Ok(GetBlockNumberResponse { block_number })
     }
 
     #[allow(clippy::result_large_err)]
     fn get_block_timestamp(
         _request: GetBlockTimestampRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetBlockTimestampResponse, Self::Error> {
-        let block_timestamp = syscall_handler
-            .get_current_execution_helper()?
-            .os_block_input
-            .block_info
-            .block_timestamp;
+        let execution_info_ptr = syscall_handler.get_execution_info_ptr()?;
+        let block_timestamp_as_felt = vm
+            .get_integer(get_address_of_nested_fields_from_base_address(
+                execution_info_ptr,
+                CairoStruct::ExecutionInfo,
+                vm,
+                &["block_info", "block_timestamp"],
+                syscall_handler.os_program,
+            )?)?
+            .into_owned();
+        let block_timestamp = BlockTimestamp(
+            u64::try_from(block_timestamp_as_felt)
+                .expect("Block timestamp is expected to fit in u64."),
+        );
         Ok(GetBlockTimestampResponse { block_timestamp })
     }
 
@@ -307,14 +331,20 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     #[allow(clippy::result_large_err)]
     fn get_sequencer_address(
         _request: GetSequencerAddressRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetSequencerAddressResponse, Self::Error> {
-        let sequencer_address = syscall_handler
-            .get_current_execution_helper()?
-            .os_block_input
-            .block_info
-            .sequencer_address;
+        let execution_info_ptr = syscall_handler.get_execution_info_ptr()?;
+        let sequencer_address = vm
+            .get_integer(get_address_of_nested_fields_from_base_address(
+                execution_info_ptr,
+                CairoStruct::ExecutionInfo,
+                vm,
+                &["block_info", "sequencer_address"],
+                syscall_handler.os_program,
+            )?)?
+            .into_owned()
+            .try_into()?;
         Ok(GetSequencerAddressResponse { address: sequencer_address })
     }
 
