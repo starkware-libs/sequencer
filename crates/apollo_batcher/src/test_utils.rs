@@ -42,7 +42,7 @@ impl BlockBuilderTrait for FakeValidateBlockBuilder {
         let build_block_result = self.build_block_result.take().unwrap();
 
         if build_block_result.is_ok() {
-            while self.tx_provider.get_n_txs_in_block().await.is_none() {
+            while self.tx_provider.get_final_n_executed_txs().await.is_none() {
                 self.tx_provider.get_txs(1).await.unwrap();
                 tokio::task::yield_now().await;
             }
@@ -144,7 +144,7 @@ impl BlockExecutionArtifacts {
             bouncer_weights: BouncerWeights::empty(),
             l2_gas_used: GasAmount::default(),
             casm_hash_computation_data: CasmHashComputationData::empty(),
-            n_txs_in_block: 2,
+            final_n_executed_txs: 2,
         }
     }
 }

@@ -28,7 +28,7 @@ pub trait TransactionExecutorTrait: Send {
     #[allow(clippy::result_large_err)]
     fn close_block(
         &mut self,
-        n_txs_in_block: Option<usize>,
+        final_n_executed_txs: Option<usize>,
     ) -> TransactionExecutorResult<BlockExecutionSummary>;
 
     /// Notifies the transaction executor that the block is aborted.
@@ -57,9 +57,9 @@ impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait
     #[allow(clippy::result_large_err)]
     fn close_block(
         &mut self,
-        n_txs_in_block: Option<usize>,
+        final_n_executed_txs: Option<usize>,
     ) -> TransactionExecutorResult<BlockExecutionSummary> {
-        ConcurrentTransactionExecutor::close_block(self, n_txs_in_block)
+        ConcurrentTransactionExecutor::close_block(self, final_n_executed_txs)
     }
 
     fn abort_block(&mut self) {

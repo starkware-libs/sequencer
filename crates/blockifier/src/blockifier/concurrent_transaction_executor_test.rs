@@ -94,7 +94,7 @@ fn test_txs(
 #[case::four_txs(Some(4), Some(nonce!(3)))]
 #[case::no_tx_limit(None, Some(nonce!(3)))]
 fn test_concurrent_transaction_executor(
-    #[case] n_txs_in_block: Option<usize>,
+    #[case] final_n_executed_txs: Option<usize>,
     #[case] expected_nonce: Option<Nonce>,
 ) {
     let TestData {
@@ -127,7 +127,7 @@ fn test_concurrent_transaction_executor(
     assert!(results1[0].is_ok());
 
     // Close the block.
-    let block_summary = tx_executor.close_block(n_txs_in_block).unwrap();
+    let block_summary = tx_executor.close_block(final_n_executed_txs).unwrap();
     assert_eq!(
         block_summary.state_diff.address_to_nonce.get(&account_address).cloned(),
         expected_nonce

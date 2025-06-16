@@ -125,20 +125,20 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
     #[allow(clippy::result_large_err)]
     pub fn close_block(
         &mut self,
-        n_txs_in_block: Option<usize>,
+        final_n_executed_txs: Option<usize>,
     ) -> TransactionExecutorResult<BlockExecutionSummary> {
         log::info!("Worker executor: Closing block.");
         let worker_executor = &self.worker_executor;
         worker_executor.scheduler.halt();
 
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
-        let n_txs = if let Some(n_txs_in_block) = n_txs_in_block {
+        let n_txs = if let Some(final_n_executed_txs) = final_n_executed_txs {
             assert!(
-                n_txs_in_block <= n_committed_txs,
-                "Close block requested with {n_txs_in_block} transactions, but only \
+                final_n_executed_txs <= n_committed_txs,
+                "Close block requested with {final_n_executed_txs} transactions, but only \
                  {n_committed_txs} transactions were committed."
             );
-            n_txs_in_block
+            final_n_executed_txs
         } else {
             n_committed_txs
         };
