@@ -20,18 +20,30 @@ pub const EXPECTED_CAIRO0_VERSION: CairoLangVersion<'static> = CairoLangVersion(
 /// The local python requirements used to determine the cairo0 compiler version.
 pub(crate) static PIP_REQUIREMENTS_FILE: LazyLock<PathBuf> =
     LazyLock::new(|| resolve_project_relative_path("scripts/requirements.txt").unwrap());
+pub(crate) static STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE: LazyLock<PathBuf> =
+    LazyLock::new(|| {
+        resolve_project_relative_path(
+            "crates/blockifier_test_utils/resources/blockifier-test-utils-requirements.txt",
+        )
+        .unwrap()
+    });
 
-static ENTER_VENV_INSTRUCTIONS: LazyLock<String> = LazyLock::new(|| {
+fn enter_venv_instructions(script_type: &Cairo0Script) -> String {
+    let requirements_path = match script_type {
+        Cairo0Script::Compile | Cairo0Script::Format => format!("{PIP_REQUIREMENTS_FILE:#?}"),
+        Cairo0Script::StarknetCompileDeprecated => {
+            format!("{STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE:#?}")
+        }
+    };
     format!(
         r#"
 python3 -m venv sequencer_venv
 . sequencer_venv/bin/activate
-pip install -r {:#?}"#,
-        *PIP_REQUIREMENTS_FILE
+pip install -r {requirements_path}"#,
     )
-});
+}
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub enum Cairo0Script {
     Compile,
     Format,
@@ -59,15 +71,16 @@ impl Cairo0Script {
 #[derive(thiserror::Error, Debug)]
 pub enum Cairo0ScriptVersionError {
     #[error(
-        "{script} version is not correct: required {required}, got {existing}. Are you in the \
-         venv? If not, run the following commands:\n{}", *ENTER_VENV_INSTRUCTIONS
+        "{script:?} version is not correct: required {required}, got {existing}. Are you in the \
+         venv? If not, run the following commands:\n{}",
+        enter_venv_instructions(script)
     )]
-    IncorrectVersion { script: String, existing: String, required: String },
+    IncorrectVersion { script: Cairo0Script, existing: String, required: String },
     #[error(
-        "{0}. Are you in the venv? If not, run the following commands:\n{}",
-        *ENTER_VENV_INSTRUCTIONS
+        "{error}. Are you in the venv? If not, run the following commands:\n{}",
+        enter_venv_instructions(script)
     )]
-    CompilerNotFound(String),
+    CompilerNotFound { script: Cairo0Script, error: String },
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -94,19 +107,21 @@ pub fn cairo0_script_correct_version(
     let version = match Command::new(script).arg("--version").output() {
         Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
         Err(error) => {
-            return Err(Cairo0ScriptVersionError::CompilerNotFound(format!(
-                "Failed to get {script} version: {error}."
-            )));
+            return Err(Cairo0ScriptVersionError::CompilerNotFound {
+                script: *script_type,
+                error: format!("Failed to get {script} version: {error}."),
+            });
         }
     };
-    if CairoLangVersion(
-        version.trim().replace("==", " ").split(" ").nth(1).ok_or(
-            Cairo0ScriptVersionError::CompilerNotFound(format!("No {script} version found.")),
-        )?,
-    ) != expected_version
+    if CairoLangVersion(version.trim().replace("==", " ").split(" ").nth(1).ok_or(
+        Cairo0ScriptVersionError::CompilerNotFound {
+            script: *script_type,
+            error: format!("No {script} version found."),
+        },
+    )?) != expected_version
     {
         return Err(Cairo0ScriptVersionError::IncorrectVersion {
-            script: script.to_string(),
+            script: *script_type,
             existing: version,
             required: expected_version.0.to_string(),
         });
@@ -156,17 +171,17 @@ pub fn compile_cairo0_program(
 pub fn verify_cairo0_compiler_deps(script_type: &Cairo0Script) {
     if let Err(verification_error) = cairo0_script_correct_version(script_type) {
         let error = match verification_error {
-            Cairo0ScriptVersionError::CompilerNotFound(error_str) => {
-                format!("No installed cairo-lang found. Original error: {error_str}.")
+            Cairo0ScriptVersionError::CompilerNotFound { error, .. } => {
+                format!("No installed cairo-lang found. Original error: {error}.")
             }
             Cairo0ScriptVersionError::IncorrectVersion { existing, script, .. } => {
-                format!("Installed {script} version: {existing}")
+                format!("Installed {script:?} version: {existing}")
             }
         };
         panic!(
             "{script_type:?} script not found or of incorrect version ({error}). Please enter a \
              venv and rerun the test:\n{}",
-            *ENTER_VENV_INSTRUCTIONS
+            enter_venv_instructions(script_type)
         )
     }
 }

@@ -1,0 +1,13 @@
+# Requirements definition for blockifier test utils venv (for starknet Cairo0 contract compilation).
+# Actual requirements are installed from blockifier-test-utils-requirements.txt - to update it, run
+# the following (note that the python version is hard coded in this comment but it may be changed in
+# the future; point of truth is the CI workflow that recompiles the contracts):
+# ```bash
+# python3.9 -m venv reqs_venv
+# . reqs_venv/bin/activate
+# pip install -r crates/blockifier_test_utils/resources/blockifier-test-utils-requirements-gen.txt
+# pip freeze > crates/blockifier_test_utils/resources/blockifier-test-utils-requirements.txt
+# deactivate
+# rm -r reqs_venv
+# ```
+cairo-lang==0.14.0a1
