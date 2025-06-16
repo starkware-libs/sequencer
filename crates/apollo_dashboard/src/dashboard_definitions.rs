@@ -1,14 +1,6 @@
 use crate::dashboard::{Dashboard, Row};
 use crate::panels::batcher::{get_batcher_infra_row, get_batcher_row};
-use crate::panels::class_manager::{
-    PANEL_CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
-    PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
-    PANEL_CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
-    PANEL_CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    PANEL_CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
-    PANEL_CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
-    PANEL_CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
-};
+use crate::panels::class_manager::get_class_manager_infra_row;
 use crate::panels::consensus::{
     PANEL_CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
     PANEL_CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
@@ -132,21 +124,6 @@ fn get_consensus_p2p_row() -> Row {
             PANEL_CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
             PANEL_CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
             PANEL_CONSENSUS_CONFLICTING_VOTES,
-        ],
-    )
-}
-
-fn get_class_manager_infra_row() -> Row {
-    Row::new(
-        "Class Manager Infra",
-        vec![
-            PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
-            PANEL_CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
-            PANEL_CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
-            PANEL_CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
-            PANEL_CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
-            PANEL_CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
-            PANEL_CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
         ],
     )
 }
