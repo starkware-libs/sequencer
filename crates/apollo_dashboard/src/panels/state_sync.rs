@@ -20,40 +20,81 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_STATE_MARKER,
 };
 
-use crate::dashboard::{Panel, PanelType};
+use crate::dashboard::{Panel, PanelType, Row};
 
-pub(crate) const PANEL_STATE_SYNC_LOCAL_MSGS_RECEIVED: Panel =
+const PANEL_STATE_SYNC_LOCAL_MSGS_RECEIVED: Panel =
     Panel::from_counter(STATE_SYNC_LOCAL_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_STATE_SYNC_LOCAL_MSGS_PROCESSED: Panel =
+const PANEL_STATE_SYNC_LOCAL_MSGS_PROCESSED: Panel =
     Panel::from_counter(STATE_SYNC_LOCAL_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_STATE_SYNC_REMOTE_MSGS_RECEIVED: Panel =
+const PANEL_STATE_SYNC_REMOTE_MSGS_RECEIVED: Panel =
     Panel::from_counter(STATE_SYNC_REMOTE_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED: Panel =
+const PANEL_STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED: Panel =
     Panel::from_counter(STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_STATE_SYNC_REMOTE_MSGS_PROCESSED: Panel =
+const PANEL_STATE_SYNC_REMOTE_MSGS_PROCESSED: Panel =
     Panel::from_counter(STATE_SYNC_REMOTE_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_STATE_SYNC_LOCAL_QUEUE_DEPTH: Panel =
+const PANEL_STATE_SYNC_LOCAL_QUEUE_DEPTH: Panel =
     Panel::from_gauge(STATE_SYNC_LOCAL_QUEUE_DEPTH, PanelType::Graph);
-pub(crate) const PANEL_STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
+const PANEL_STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
     Panel::from_hist(STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
 
-pub(crate) const PANEL_P2P_SYNC_NUM_CONNECTED_PEERS: Panel =
+const PANEL_P2P_SYNC_NUM_CONNECTED_PEERS: Panel =
     Panel::from_gauge(P2P_SYNC_NUM_CONNECTED_PEERS, PanelType::Stat);
-pub(crate) const PANEL_P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS: Panel =
+const PANEL_P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS: Panel =
     Panel::from_gauge(P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS, PanelType::Stat);
-pub(crate) const PANEL_P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS: Panel =
+const PANEL_P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS: Panel =
     Panel::from_gauge(P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS, PanelType::Stat);
-pub(crate) const PANEL_STATE_SYNC_PROCESSED_TRANSACTIONS: Panel =
+const PANEL_STATE_SYNC_PROCESSED_TRANSACTIONS: Panel =
     Panel::from_counter(STATE_SYNC_PROCESSED_TRANSACTIONS, PanelType::Stat);
-pub(crate) const PANEL_STATE_SYNC_REVERTED_TRANSACTIONS: Panel =
+const PANEL_STATE_SYNC_REVERTED_TRANSACTIONS: Panel =
     Panel::from_counter(STATE_SYNC_REVERTED_TRANSACTIONS, PanelType::Stat);
-pub(crate) const PANEL_CENTRAL_SYNC_CENTRAL_BLOCK_MARKER: Panel =
+const PANEL_CENTRAL_SYNC_CENTRAL_BLOCK_MARKER: Panel =
     Panel::from_gauge(CENTRAL_SYNC_CENTRAL_BLOCK_MARKER, PanelType::Stat);
-pub(crate) const PANEL_STATE_SYNC_BODY_MARKER: Panel =
+const PANEL_STATE_SYNC_BODY_MARKER: Panel =
     Panel::from_gauge(STATE_SYNC_BODY_MARKER, PanelType::Stat);
-pub(crate) const PANEL_STATE_SYNC_CLASS_MANAGER_MARKER: Panel =
+const PANEL_STATE_SYNC_CLASS_MANAGER_MARKER: Panel =
     Panel::from_gauge(STATE_SYNC_CLASS_MANAGER_MARKER, PanelType::Stat);
-pub(crate) const PANEL_STATE_SYNC_HEADER_MARKER: Panel =
+const PANEL_STATE_SYNC_HEADER_MARKER: Panel =
     Panel::from_gauge(STATE_SYNC_HEADER_MARKER, PanelType::Stat);
-pub(crate) const PANEL_STATE_SYNC_STATE_MARKER: Panel =
+const PANEL_STATE_SYNC_STATE_MARKER: Panel =
     Panel::from_gauge(STATE_SYNC_STATE_MARKER, PanelType::Stat);
+
+pub(crate) fn get_state_sync_row() -> Row {
+    Row::new(
+        "State Sync",
+        vec![
+            PANEL_STATE_SYNC_PROCESSED_TRANSACTIONS,
+            PANEL_STATE_SYNC_REVERTED_TRANSACTIONS,
+            PANEL_CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
+            PANEL_STATE_SYNC_BODY_MARKER,
+            PANEL_STATE_SYNC_CLASS_MANAGER_MARKER,
+            PANEL_STATE_SYNC_HEADER_MARKER,
+            PANEL_STATE_SYNC_STATE_MARKER,
+        ],
+    )
+}
+
+pub(crate) fn get_state_sync_infra_row() -> Row {
+    Row::new(
+        "StateSyncInfra",
+        vec![
+            PANEL_STATE_SYNC_LOCAL_MSGS_RECEIVED,
+            PANEL_STATE_SYNC_LOCAL_MSGS_PROCESSED,
+            PANEL_STATE_SYNC_LOCAL_QUEUE_DEPTH,
+            PANEL_STATE_SYNC_REMOTE_MSGS_RECEIVED,
+            PANEL_STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
+            PANEL_STATE_SYNC_REMOTE_MSGS_PROCESSED,
+            PANEL_STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
+        ],
+    )
+}
+
+pub(crate) fn get_state_sync_p2p_row() -> Row {
+    Row::new(
+        "StateSyncP2p",
+        vec![
+            PANEL_P2P_SYNC_NUM_CONNECTED_PEERS,
+            PANEL_P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
+            PANEL_P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
+        ],
+    )
+}

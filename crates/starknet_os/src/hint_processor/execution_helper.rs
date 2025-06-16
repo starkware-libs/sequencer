@@ -7,6 +7,7 @@ use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::BlockHash;
 use starknet_api::contract_class::EntryPointType;
@@ -17,6 +18,7 @@ use starknet_types_core::felt::Felt;
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
 use crate::io::os_input::{CachedStateInput, OsBlockInput};
+use crate::vm_utils::VmUtilsError;
 
 /// A helper struct that provides access to the OS state and commitments.
 pub struct OsExecutionHelper<'a, S: StateReader> {
@@ -353,6 +355,8 @@ pub enum ExecutionHelperError {
     ContextOverwrite { context: String },
     #[error("Tried to iterate past the end of {item_type}.")]
     EndOfIterator { item_type: String },
+    #[error(transparent)]
+    Memory(#[from] MemoryError),
     #[error("No call info found.")]
     MissingCallInfo,
     #[error("No commitment info for contract address: {0:?}.")]
@@ -369,4 +373,6 @@ pub enum ExecutionHelperError {
     UnexhaustedCallInfoIterator,
     #[error("Unexpected tx type: {0:?}.")]
     UnexpectedTxType(TransactionType),
+    #[error(transparent)]
+    VmUtils(#[from] VmUtilsError),
 }

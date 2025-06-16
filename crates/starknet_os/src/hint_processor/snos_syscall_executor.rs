@@ -200,7 +200,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         _remaining_gas: &mut u64,
     ) -> Result<GetBlockHashResponse, Self::Error> {
         let block_number = request.block_number;
-        let execution_helper = syscall_handler.get_mut_current_execution_helper().unwrap();
+        let execution_helper = syscall_handler.get_mut_current_execution_helper()?;
         let diff = execution_helper.os_block_input.block_info.block_number.0 - block_number.0;
         assert!(diff >= STORED_BLOCK_HASH_BUFFER, "Block number out of range {diff}.");
         let block_hash = execution_helper
@@ -236,38 +236,22 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<GetExecutionInfoResponse, Self::Error> {
-        let call_info_tracker = syscall_handler
-            .get_current_execution_helper()?
-            .tx_execution_iter
-            .get_tx_execution_info_ref()?
-            .get_call_info_tracker()?;
+        let call_info_tracker = syscall_handler.get_current_call_info_tracker()?;
         let original_execution_info_ptr = call_info_tracker.execution_info_ptr;
         let class_hash =
             call_info_tracker.call_info.call.class_hash.expect("No class hash was set.");
-        let tx_version = vm
-            .get_integer(get_address_of_nested_fields_from_base_address(
-                original_execution_info_ptr,
-                CairoStruct::ExecutionInfo,
-                vm,
-                &["tx_info", "version"],
-                syscall_handler.os_program,
-            )?)?
-            .into_owned();
+        let tx_version =
+            syscall_handler.get_execution_info_nested_field_value(&["tx_info", "version"], vm)?;
+
         let os_constants = &syscall_handler.versioned_constants().os_constants;
         // Check if we should exclude L1 data gas for this class hash.
         let should_exclude_l1_data_gas = tx_version == TransactionVersion::THREE.0
             && os_constants.data_gas_accounts.contains(&class_hash);
         // Check if we should return version = 1.
-        let tip = vm.get_integer(get_address_of_nested_fields_from_base_address(
-            original_execution_info_ptr,
-            CairoStruct::ExecutionInfo,
-            vm,
-            &["tx_info", "tip"],
-            syscall_handler.os_program,
-        )?)?;
+        let tip = syscall_handler.get_execution_info_nested_field_value(&["tx_info", "tip"], vm)?;
         let should_replace_to_v1 = tx_version == TransactionVersion::THREE.0
             && os_constants.v1_bound_accounts_cairo1.contains(&class_hash)
-            && *tip <= Felt::from(os_constants.v1_bound_accounts_max_tip.0);
+            && tip <= Felt::from(os_constants.v1_bound_accounts_max_tip.0);
 
         // Allocate or return the original execution info segment.
         let execution_info_ptr = allocate_or_return_execution_info_segment(
@@ -387,7 +371,6 @@ fn allocate_or_return_execution_info_segment<IG: IdentifierGetter>(
     vm: &mut VirtualMachine,
     identifier_getter: &IG,
 ) -> Result<Relocatable, SnosSyscallError> {
-    // TODO(Nimrod): Handle errors correctly.
     if !should_replace_to_v1 && !should_exclude_l1_data_gas {
         // No need to replace anything - return the original pointer.
         return Ok(original_ptr);

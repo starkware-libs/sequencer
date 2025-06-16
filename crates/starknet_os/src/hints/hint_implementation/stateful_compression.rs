@@ -11,6 +11,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use starknet_api::core::ContractAddress;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hint_processor::state_update_pointers::{
     get_contract_state_entry_and_storage_ptr,
@@ -144,8 +145,8 @@ pub(crate) fn contract_address_le_max_for_compression(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+pub(crate) fn guess_contract_addr_storage_ptr<'program, CHP: CommonHintProcessor<'program>>(
+    hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let key_address = get_address_of_nested_fields(
@@ -155,11 +156,11 @@ pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
         vm,
         ap_tracking,
         &["key"],
-        hint_processor.os_program,
+        hint_processor.get_program(),
     )?;
     let contract_address = ContractAddress(vm.get_integer(key_address)?.into_owned().try_into()?);
     let (state_entry, storage_ptr) = get_contract_state_entry_and_storage_ptr(
-        &mut hint_processor.state_update_pointers,
+        hint_processor.get_mut_state_update_pointers(),
         vm,
         contract_address,
     );
@@ -182,11 +183,12 @@ pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
+pub(crate) fn update_contract_addr_to_storage_ptr<'program, CHP: CommonHintProcessor<'program>>(
+    hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
+    let program = hint_processor.get_program();
+    if let Some(state_update_pointers) = hint_processor.get_mut_state_update_pointers() {
         let key_address = get_address_of_nested_fields(
             ids_data,
             Ids::StateChanges,
@@ -194,7 +196,7 @@ pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
             vm,
             ap_tracking,
             &["key"],
-            hint_processor.os_program,
+            program,
         )?;
         let contract_address =
             ContractAddress(vm.get_integer(key_address)?.into_owned().try_into()?);

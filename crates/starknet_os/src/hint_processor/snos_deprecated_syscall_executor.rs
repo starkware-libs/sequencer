@@ -45,7 +45,10 @@ use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::transaction::TransactionVersion;
+use starknet_api::StarknetApiError;
+use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::{CallInfoTracker, ExecutionHelperError};
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -64,6 +67,8 @@ pub enum DeprecatedSnosSyscallError {
     ExecutionHelper(#[from] ExecutionHelperError),
     #[error(transparent)]
     Memory(#[from] MemoryError),
+    #[error(transparent)]
+    StarknetApi(#[from] StarknetApiError),
     #[error(transparent)]
     SyscallExecutorBase(#[from] DeprecatedSyscallExecutorBaseError),
     #[error(transparent)]
@@ -121,11 +126,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<Relocatable, DeprecatedSnosSyscallError> {
-        let call_info_tracker = syscall_handler
-            .get_current_execution_helper()?
-            .tx_execution_iter
-            .get_tx_execution_info_ref()?
-            .get_call_info_tracker()?;
+        let call_info_tracker = syscall_handler.get_current_call_info_tracker()?;
         let original_tx_info_start_ptr = call_info_tracker.deprecated_tx_info_ptr;
         let class_hash =
             call_info_tracker.call_info.call.class_hash.expect("No class hash was set.");
@@ -138,22 +139,11 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         )?)?;
         let os_constants = &syscall_handler.versioned_constants().os_constants;
         // Check if we should return version = 1.
-        let tip = match syscall_handler
-            .get_current_execution_helper()?
-            .tx_tracker
-            .tx_ref
-            .expect("Transaction must be set at this point.")
-        {
-            starknet_api::executable_transaction::Transaction::Account(account_transaction) => {
-                account_transaction.tip()
-            }
-            starknet_api::executable_transaction::Transaction::L1Handler(_) => {
-                unimplemented!("L1 handler transactions do not have a tip field in the OS.")
-            }
-        };
+        let tip = syscall_handler.get_execution_info_nested_field_value(&["tx_info", "tip"], vm)?;
+
         let should_replace_to_v1 = tx_version == TransactionVersion::THREE.0
             && os_constants.v1_bound_accounts_cairo0.contains(&class_hash)
-            && tip <= os_constants.v1_bound_accounts_max_tip;
+            && tip <= Felt::from(os_constants.v1_bound_accounts_max_tip.0);
 
         if should_replace_to_v1 {
             // Deal with version bound accounts.
@@ -267,25 +257,29 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     #[allow(clippy::result_large_err)]
     fn get_block_number(
         _request: GetBlockNumberRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetBlockNumberResponse, Self::Error> {
-        let block_number =
-            syscall_handler.get_current_execution_helper()?.os_block_input.block_info.block_number;
+        let block_number_as_felt = syscall_handler
+            .get_execution_info_nested_field_value(&["block_info", "block_number"], vm)?;
+        let block_number = BlockNumber(
+            u64::try_from(block_number_as_felt).expect("Block number is expected to fit in u64."),
+        );
         Ok(GetBlockNumberResponse { block_number })
     }
 
     #[allow(clippy::result_large_err)]
     fn get_block_timestamp(
         _request: GetBlockTimestampRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetBlockTimestampResponse, Self::Error> {
-        let block_timestamp = syscall_handler
-            .get_current_execution_helper()?
-            .os_block_input
-            .block_info
-            .block_timestamp;
+        let block_timestamp_as_felt = syscall_handler
+            .get_execution_info_nested_field_value(&["block_info", "block_timestamp"], vm)?;
+        let block_timestamp = BlockTimestamp(
+            u64::try_from(block_timestamp_as_felt)
+                .expect("Block timestamp is expected to fit in u64."),
+        );
         Ok(GetBlockTimestampResponse { block_timestamp })
     }
 
@@ -314,14 +308,12 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     #[allow(clippy::result_large_err)]
     fn get_sequencer_address(
         _request: GetSequencerAddressRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<GetSequencerAddressResponse, Self::Error> {
         let sequencer_address = syscall_handler
-            .get_current_execution_helper()?
-            .os_block_input
-            .block_info
-            .sequencer_address;
+            .get_execution_info_nested_field_value(&["block_info", "sequencer_address"], vm)?
+            .try_into()?;
         Ok(GetSequencerAddressResponse { address: sequencer_address })
     }
 

@@ -29,7 +29,12 @@ use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
-use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionHelper};
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
+use crate::hint_processor::execution_helper::{
+    CallInfoTracker,
+    ExecutionHelperError,
+    OsExecutionHelper,
+};
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 #[cfg(any(test, feature = "testing"))]
 use crate::hint_processor::test_hint::test_hint;
@@ -37,6 +42,7 @@ use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum};
+use crate::hints::vars::CairoStruct;
 use crate::io::os_input::{
     CachedStateInput,
     CommitmentInfo,
@@ -44,6 +50,7 @@ use crate::io::os_input::{
     OsHintsConfig,
     OsInputError,
 };
+use crate::vm_utils::get_address_of_nested_fields_from_base_address;
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
@@ -120,7 +127,7 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     // Indicates wether to create pages or not when serializing data-availability.
     pub(crate) serialize_data_availability_create_pages: bool,
     // For testing, track hint coverage.
-    #[cfg(feature = "testing")]
+    #[cfg(any(test, feature = "testing"))]
     pub unused_hints: HashSet<AllHints>,
 }
 
@@ -172,22 +179,9 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
             serialize_data_availability_create_pages: false,
-            #[cfg(feature = "testing")]
+            #[cfg(any(test, feature = "testing"))]
             unused_hints: AllHints::all_iter().collect(),
         })
-    }
-
-    /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
-    /// mode.
-    #[allow(clippy::result_large_err)]
-    pub(crate) fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
-        if self.da_segment.is_some() {
-            return Err(OsHintError::AssertionFailed {
-                message: "DA segment is already initialized.".to_string(),
-            });
-        }
-        self.da_segment = Some(da_segment);
-        Ok(())
     }
 
     /// Returns an execution helper reference of the currently processed block.
@@ -202,6 +196,43 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         &mut self,
     ) -> Result<&mut OsExecutionHelper<'a, S>, ExecutionHelperError> {
         self.execution_helpers_manager.get_mut_current_execution_helper()
+    }
+
+    /// Returns the current execution info ptr.
+    pub fn get_execution_info_ptr(&self) -> Result<Relocatable, ExecutionHelperError> {
+        Ok(self.get_current_call_info_tracker()?.execution_info_ptr)
+    }
+
+    /// Returns the current deprecated transaction info ptr.
+    pub fn get_deprecated_tx_info_ptr(&self) -> Result<Relocatable, ExecutionHelperError> {
+        Ok(self.get_current_call_info_tracker()?.deprecated_tx_info_ptr)
+    }
+
+    /// Returns the current call info tracker.
+    pub fn get_current_call_info_tracker(
+        &self,
+    ) -> Result<&CallInfoTracker<'_>, ExecutionHelperError> {
+        self.get_current_execution_helper()?
+            .tx_execution_iter
+            .get_tx_execution_info_ref()?
+            .get_call_info_tracker()
+    }
+
+    /// Returns the value of the given nested fields of the current execution info.
+    pub fn get_execution_info_nested_field_value(
+        &self,
+        nested_fields: &[&str],
+        vm: &VirtualMachine,
+    ) -> Result<Felt, ExecutionHelperError> {
+        Ok(vm
+            .get_integer(get_address_of_nested_fields_from_base_address(
+                self.get_execution_info_ptr()?,
+                CairoStruct::ExecutionInfo,
+                vm,
+                nested_fields,
+                self.os_program,
+            )?)?
+            .into_owned())
     }
 
     /// Returns the number of blocks executed by the OS.
@@ -237,6 +268,42 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
                 .get(&contract_address)
                 .ok_or(ExecutionHelperError::MissingCommitmentInfo(contract_address))?,
         })
+    }
+}
+
+impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
+    fn get_program(&self) -> &'program Program {
+        self.os_program
+    }
+
+    fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers> {
+        &mut self.state_update_pointers
+    }
+
+    fn _get_da_segment(&mut self) -> &mut Option<Vec<Felt>> {
+        &mut self.da_segment
+    }
+
+    /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
+    /// mode.
+    #[allow(clippy::result_large_err)]
+    fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
+        if self.da_segment.is_some() {
+            return Err(OsHintError::AssertionFailed {
+                message: "DA segment is already initialized.".to_string(),
+            });
+        }
+        self.da_segment = Some(da_segment);
+        Ok(())
+    }
+
+    fn get_serialize_data_availability_create_pages(&self) -> bool {
+        self.serialize_data_availability_create_pages
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    fn get_unused_hints(&mut self) -> &mut HashSet<AllHints> {
+        &mut self.unused_hints
     }
 }
 

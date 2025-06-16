@@ -18,9 +18,9 @@ use apollo_infra::metrics::{
 };
 use const_format::formatcp;
 
-use crate::dashboard::{Panel, PanelType};
+use crate::dashboard::{Panel, PanelType, Row};
 
-pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE: Panel = Panel::new(
+const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE: Panel = Panel::new(
     GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
     GATEWAY_TRANSACTIONS_RECEIVED.get_description(),
     formatcp!(
@@ -31,22 +31,22 @@ pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE: Panel = Panel::new
     PanelType::Stat,
 );
 
-pub(crate) const PANEL_GATEWAY_LOCAL_MSGS_RECEIVED: Panel =
+const PANEL_GATEWAY_LOCAL_MSGS_RECEIVED: Panel =
     Panel::from_counter(GATEWAY_LOCAL_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_GATEWAY_LOCAL_MSGS_PROCESSED: Panel =
+const PANEL_GATEWAY_LOCAL_MSGS_PROCESSED: Panel =
     Panel::from_counter(GATEWAY_LOCAL_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_GATEWAY_REMOTE_MSGS_RECEIVED: Panel =
+const PANEL_GATEWAY_REMOTE_MSGS_RECEIVED: Panel =
     Panel::from_counter(GATEWAY_REMOTE_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_GATEWAY_REMOTE_VALID_MSGS_RECEIVED: Panel =
+const PANEL_GATEWAY_REMOTE_VALID_MSGS_RECEIVED: Panel =
     Panel::from_counter(GATEWAY_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_GATEWAY_REMOTE_MSGS_PROCESSED: Panel =
+const PANEL_GATEWAY_REMOTE_MSGS_PROCESSED: Panel =
     Panel::from_counter(GATEWAY_REMOTE_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_GATEWAY_LOCAL_QUEUE_DEPTH: Panel =
+const PANEL_GATEWAY_LOCAL_QUEUE_DEPTH: Panel =
     Panel::from_gauge(GATEWAY_LOCAL_QUEUE_DEPTH, PanelType::Graph);
-pub(crate) const PANEL_GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
+const PANEL_GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
     Panel::from_hist(GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
 
-pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
+const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
     GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
     GATEWAY_TRANSACTIONS_RECEIVED.get_description(),
     formatcp!(
@@ -57,7 +57,7 @@ pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::n
     PanelType::Stat,
 );
 
-pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
+const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
     "gateway_transactions_received_rate (TPS)",
     "The rate of transactions received by the gateway during the last 20 minutes",
     formatcp!(
@@ -67,21 +67,23 @@ pub(crate) const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
     PanelType::Graph,
 );
 
-pub(crate) const PANEL_GATEWAY_ADD_TX_LATENCY: Panel = Panel::new(
+const PANEL_GATEWAY_ADD_TX_LATENCY: Panel = Panel::new(
     GATEWAY_ADD_TX_LATENCY.get_name(),
     GATEWAY_ADD_TX_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", GATEWAY_ADD_TX_LATENCY.get_name_with_filter()),
+    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
+    GATEWAY_ADD_TX_LATENCY.get_name_with_filter(),
     PanelType::Graph,
 );
 
-pub(crate) const PANEL_GATEWAY_VALIDATE_TX_LATENCY: Panel = Panel::new(
+const PANEL_GATEWAY_VALIDATE_TX_LATENCY: Panel = Panel::new(
     GATEWAY_VALIDATE_TX_LATENCY.get_name(),
     GATEWAY_VALIDATE_TX_LATENCY.get_description(),
-    formatcp!("avg_over_time({}[2m])", GATEWAY_VALIDATE_TX_LATENCY.get_name_with_filter()),
+    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
+    GATEWAY_VALIDATE_TX_LATENCY.get_name_with_filter(),
     PanelType::Graph,
 );
 
-pub(crate) const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
+const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
     GATEWAY_TRANSACTIONS_FAILED.get_name(),
     GATEWAY_TRANSACTIONS_FAILED.get_description(),
     formatcp!(
@@ -92,7 +94,7 @@ pub(crate) const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(
     PanelType::Stat,
 );
 
-pub(crate) const PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL: Panel = Panel::new(
+const PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL: Panel = Panel::new(
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name(),
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_description(),
     formatcp!(
@@ -102,3 +104,33 @@ pub(crate) const PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL: Panel = Panel::new(
     ),
     PanelType::Stat,
 );
+
+pub(crate) fn get_gateway_row() -> Row {
+    Row::new(
+        "Gateway",
+        vec![
+            PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE,
+            PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE,
+            PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE,
+            PANEL_GATEWAY_ADD_TX_LATENCY,
+            PANEL_GATEWAY_VALIDATE_TX_LATENCY,
+            PANEL_GATEWAY_TRANSACTIONS_FAILED,
+            PANEL_GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
+        ],
+    )
+}
+
+pub(crate) fn get_gateway_infra_row() -> Row {
+    Row::new(
+        "Gateway Infra",
+        vec![
+            PANEL_GATEWAY_LOCAL_MSGS_RECEIVED,
+            PANEL_GATEWAY_LOCAL_MSGS_PROCESSED,
+            PANEL_GATEWAY_LOCAL_QUEUE_DEPTH,
+            PANEL_GATEWAY_REMOTE_MSGS_RECEIVED,
+            PANEL_GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
+            PANEL_GATEWAY_REMOTE_MSGS_PROCESSED,
+            PANEL_GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
+        ],
+    )
+}

@@ -1,3 +1,4 @@
+pub mod common_hint_processor;
 pub mod constants;
 pub mod execution_helper;
 pub mod os_logger;

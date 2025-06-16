@@ -56,14 +56,7 @@ pub(crate) fn is_sierra_gas_mode<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let current_execution_helper =
-        hint_processor.execution_helpers_manager.get_current_execution_helper()?;
-    let gas_mode = current_execution_helper
-        .tx_execution_iter
-        .get_tx_execution_info_ref()?
-        .get_call_info_tracker()?
-        .call_info
-        .tracked_resource;
+    let gas_mode = hint_processor.get_current_call_info_tracker()?.call_info.tracked_resource;
 
     Ok(insert_value_from_var_name(
         Ids::IsSierraGasMode.into(),

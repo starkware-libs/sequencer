@@ -91,8 +91,9 @@ pub fn cairo0_compile(
     extra_arg: Option<String>,
     debug_info: bool,
 ) -> CompilationArtifacts {
-    verify_cairo0_compiler_deps();
-    let mut command = Command::new(Cairo0Script::StarknetCompileDeprecated.script_name());
+    let script_type = Cairo0Script::StarknetCompileDeprecated;
+    verify_cairo0_compiler_deps(&script_type);
+    let mut command = Command::new(script_type.script_name());
     command.arg(&path);
     if let Some(extra_arg) = extra_arg {
         command.arg(extra_arg);

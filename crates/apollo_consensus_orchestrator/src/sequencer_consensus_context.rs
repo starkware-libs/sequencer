@@ -88,6 +88,7 @@ use crate::utils::{
     GasPriceParams,
 };
 
+pub(crate) const TEMP_N_EXECUTED_TXS: u64 = 0;
 // Contains parameters required for validating block info.
 #[derive(Clone, Debug)]
 struct BlockInfoValidation {
@@ -417,6 +418,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     .send(ProposalPart::BlockInfo(block_info.clone()))
                     .await
                     .expect("Failed to send block info");
+                let mut n_executed_txs = 0;
                 for batch in txs.iter() {
                     let transactions = futures::future::join_all(batch.iter().map(|tx| {
                         transaction_converter
@@ -431,7 +433,16 @@ impl ConsensusContext for SequencerConsensusContext {
                         .send(ProposalPart::Transactions(TransactionBatch { transactions }))
                         .await
                         .expect("Failed to broadcast proposal content");
+                    n_executed_txs += batch.len();
                 }
+                proposal_sender
+                    .send(ProposalPart::ExecutedTransactionCount(
+                        n_executed_txs
+                            .try_into()
+                            .expect("Number of executed transactions should fit in u64"),
+                    ))
+                    .await
+                    .expect("Failed to broadcast executed transaction count");
                 proposal_sender
                     .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
                     .await
@@ -1030,9 +1041,12 @@ async fn handle_proposal_part(
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Fin(fin)) => {
             info!("Received fin={fin:?}");
+            // TODO(Asmaa): send number of executed txs.
             // Output this along with the ID from batcher, to compare them.
-            let input =
-                SendProposalContentInput { proposal_id, content: SendProposalContent::Finish };
+            let input = SendProposalContentInput {
+                proposal_id,
+                content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+            };
             let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
                 panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
             });
@@ -1088,6 +1102,10 @@ async fn handle_proposal_part(
                 ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
+        }
+        Some(ProposalPart::ExecutedTransactionCount(_)) => {
+            // TODO(Asmaa): Handle executed transaction count.
+            HandledProposalPart::Continue
         }
         _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),
     }

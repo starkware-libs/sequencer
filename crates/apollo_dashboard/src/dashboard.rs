@@ -12,10 +12,10 @@ mod dashboard_test;
 /// Grafana panel types.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub enum PanelType {
-    #[serde(rename = "stat")]
-    Stat,
     #[serde(rename = "graph")]
     Graph,
+    #[serde(rename = "stat")]
+    Stat,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -87,11 +87,11 @@ impl Serialize for Panel {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Row {
     name: &'static str,
-    panels: &'static [Panel],
+    panels: Vec<Panel>,
 }
 
 impl Row {
-    pub const fn new(name: &'static str, panels: &'static [Panel]) -> Self {
+    pub const fn new(name: &'static str, panels: Vec<Panel>) -> Self {
         Self { name, panels }
     }
 }
@@ -111,11 +111,11 @@ impl Serialize for Row {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Dashboard {
     name: &'static str,
-    rows: &'static [Row],
+    rows: Vec<Row>,
 }
 
 impl Dashboard {
-    pub const fn new(name: &'static str, rows: &'static [Row]) -> Self {
+    pub fn new(name: &'static str, rows: Vec<Row>) -> Self {
         Self { name, rows }
     }
 }
@@ -128,8 +128,8 @@ impl Serialize for Dashboard {
     {
         let mut map = serializer.serialize_map(Some(1))?;
         let mut row_map = IndexMap::new();
-        for row in self.rows {
-            row_map.insert(row.name, row.panels);
+        for row in &self.rows {
+            row_map.insert(row.name, &row.panels);
         }
 
         map.serialize_entry(self.name, &row_map)?;

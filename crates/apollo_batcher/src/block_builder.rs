@@ -54,7 +54,7 @@ use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransacti
 use crate::metrics::FULL_BLOCKS;
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreConfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
-use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
+use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
 
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
@@ -93,7 +93,6 @@ pub enum FailOnErrorCause {
 enum AddTxsToExecutorResult {
     NoNewTxs,
     NewTxs,
-    Exhausted,
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -154,8 +153,7 @@ pub trait BlockBuilderTrait: Send {
 
 pub struct BlockBuilderExecutionParams {
     pub deadline: tokio::time::Instant,
-    // Only true in validation flow.
-    pub fail_on_err: bool,
+    pub is_validator: bool,
 }
 
 pub struct BlockBuilder {
@@ -173,7 +171,6 @@ pub struct BlockBuilder {
     /// The transactions whose execution started.
     block_txs: Vec<InternalConsensusTransaction>,
     execution_data: BlockTransactionExecutionData,
-    l2_gas_used: GasAmount,
 
     /// Parameters to configure the block builder behavior.
     n_concurrent_txs: usize,
@@ -209,7 +206,6 @@ impl BlockBuilder {
             n_executed_txs: 0,
             block_txs: Vec::new(),
             execution_data: BlockTransactionExecutionData::default(),
-            l2_gas_used: GasAmount::ZERO,
             n_concurrent_txs,
             tx_polling_interval_millis,
             execution_params,
@@ -230,12 +226,11 @@ impl BlockBuilderTrait for BlockBuilder {
 
 impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        let mut finished_adding_txs = false;
         let mut n_txs_in_block: Option<usize> = None;
         while !self.finished_block_txs(n_txs_in_block) {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
-                if self.execution_params.fail_on_err {
+                if self.execution_params.is_validator {
                     return Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached));
                 }
                 break;
@@ -253,29 +248,19 @@ impl BlockBuilder {
 
             self.handle_executed_txs().await?;
 
-            if lock_executor(&self.executor).is_done() {
+            // Check if the block is full. This is only relevant in propose mode.
+            // In validate mode, this is ignored and we simply wait for the proposer to send the
+            // final number of transactions in the block.
+            // TODO(lior): Check !self.execution_params.is_validator before calling `is_done()`.
+            if lock_executor(&self.executor).is_done() && !self.execution_params.is_validator {
                 info!("Block is full.");
-                if self.execution_params.fail_on_err {
-                    return Err(BlockBuilderError::FailOnError(FailOnErrorCause::BlockFull));
-                } else {
-                    FULL_BLOCKS.increment(1);
-                }
+                FULL_BLOCKS.increment(1);
                 break;
             }
 
-            if finished_adding_txs {
-                // Only reached in validation flow.
-                // Avoid busy wait while waiting for the executor to finish executing the
-                // transactions.
-                self.sleep().await;
-            } else {
-                match self.add_txs_to_executor().await? {
-                    AddTxsToExecutorResult::NoNewTxs => self.sleep().await,
-                    AddTxsToExecutorResult::NewTxs => {}
-                    AddTxsToExecutorResult::Exhausted => {
-                        finished_adding_txs = true;
-                    }
-                }
+            match self.add_txs_to_executor().await? {
+                AddTxsToExecutorResult::NoNewTxs => self.sleep().await,
+                AddTxsToExecutorResult::NewTxs => {}
             }
         }
 
@@ -299,12 +284,22 @@ impl BlockBuilder {
             bouncer_weights,
             casm_hash_computation_data,
         } = block_summary;
+        let mut execution_data = std::mem::take(&mut self.execution_data);
+        if let Some(n_txs_in_block) = n_txs_in_block {
+            // Remove the transactions that were executed, but eventually not included in the block.
+            // This can happen if the proposer sends some transactions but closes the block before
+            // including them, while the validator already executed those transactions.
+            let remove_tx_hashes: Vec<TransactionHash> =
+                self.block_txs[n_txs_in_block..].iter().map(|tx| tx.tx_hash()).collect();
+            execution_data.remove_last_txs(&remove_tx_hashes);
+        }
+        let l2_gas_used = execution_data.l2_gas_used();
         Ok(BlockExecutionArtifacts {
-            execution_data: std::mem::take(&mut self.execution_data),
+            execution_data,
             commitment_state_diff: state_diff,
             compressed_state_diff,
             bouncer_weights,
-            l2_gas_used: self.l2_gas_used,
+            l2_gas_used,
             casm_hash_computation_data,
         })
     }
@@ -341,7 +336,7 @@ impl BlockBuilder {
 
         let next_txs = match self.tx_provider.get_txs(n_txs_to_fetch).await {
             Err(e @ TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
-                if self.execution_params.fail_on_err =>
+                if self.execution_params.is_validator =>
             {
                 return Err(BlockBuilderError::FailOnError(L1HandlerTransactionValidationFailed(
                     e,
@@ -353,22 +348,18 @@ impl BlockBuilder {
             }
             Ok(result) => result,
         };
-        let next_tx_chunk = match next_txs {
-            NextTxs::Txs(txs) => txs,
-            // Only reached in validation flow.
-            NextTxs::End => return Ok(AddTxsToExecutorResult::Exhausted),
-        };
-        let n_txs = next_tx_chunk.len();
+
+        let n_txs = next_txs.len();
         debug!("Got {} transactions from the transaction provider.", n_txs);
-        if next_tx_chunk.is_empty() {
+        if next_txs.is_empty() {
             return Ok(AddTxsToExecutorResult::NoNewTxs);
         }
 
-        self.send_candidate_txs(&next_tx_chunk);
+        self.send_candidate_txs(&next_txs);
 
-        self.block_txs.extend(next_tx_chunk.iter().cloned());
+        self.block_txs.extend(next_txs.iter().cloned());
 
-        let tx_convert_futures = next_tx_chunk.into_iter().map(|tx| async {
+        let tx_convert_futures = next_txs.into_iter().map(|tx| async {
             convert_to_executable_blockifier_tx(&self.transaction_converter, tx).await
         });
         let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
@@ -396,10 +387,8 @@ impl BlockBuilder {
         collect_execution_results_and_stream_txs(
             &self.block_txs[old_n_executed_txs..self.n_executed_txs],
             results,
-            &mut self.l2_gas_used,
             &mut self.execution_data,
             &self.output_content_sender,
-            self.execution_params.fail_on_err,
             &self.pre_confirmed_tx_sender,
         )
         .await
@@ -464,12 +453,10 @@ async fn convert_to_executable_blockifier_tx(
 async fn collect_execution_results_and_stream_txs(
     tx_chunk: &[InternalConsensusTransaction],
     results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
-    l2_gas_used: &mut GasAmount,
     execution_data: &mut BlockTransactionExecutionData,
     output_content_sender: &Option<
         tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
     >,
-    fail_on_err: bool,
     pre_confirmed_tx_sender: &Option<PreConfirmedTxSender>,
 ) -> BlockBuilderResult<()> {
     assert!(
@@ -482,17 +469,17 @@ async fn collect_execution_results_and_stream_txs(
 
         // Insert the tx_hash into the appropriate collection if it's an L1_Handler transaction.
         if let InternalConsensusTransaction::L1Handler(_) = input_tx {
-            execution_data.consumed_l1_handler_tx_hashes.insert(tx_hash);
+            let is_new_entry = execution_data.consumed_l1_handler_tx_hashes.insert(tx_hash);
+            // Even though this doesn't get past the set insertion, this indicates a major, possibly
+            // reorg-producing bug, either in some batcher cache or the l1 provider.
+            assert!(is_new_entry, "Duplicate L1 handler transaction hash: {tx_hash}.");
         }
 
         match result {
             Ok((tx_execution_info, state_maps)) => {
-                *l2_gas_used = l2_gas_used
-                    .checked_add(tx_execution_info.receipt.gas.l2_gas)
-                    .expect("Total L2 gas overflow.");
-
-                let (tx_index, _) =
+                let (tx_index, duplicate_tx_hash) =
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
+                assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
 
                 if let Some(output_content_sender) = output_content_sender {
                     // Only reached in proposal flow.
@@ -531,12 +518,8 @@ async fn collect_execution_results_and_stream_txs(
                     tx_hash,
                     err.log_compatible_to_string()
                 );
-                if fail_on_err {
-                    return Err(BlockBuilderError::FailOnError(
-                        FailOnErrorCause::TransactionFailed(err),
-                    ));
-                }
-                execution_data.rejected_tx_hashes.insert(tx_hash);
+                let is_new_entry = execution_data.rejected_tx_hashes.insert(tx_hash);
+                assert!(is_new_entry, "Duplicate rejected transaction hash: {tx_hash}.");
             }
         }
     }
@@ -715,4 +698,41 @@ pub struct BlockTransactionExecutionData {
     pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub rejected_tx_hashes: IndexSet<TransactionHash>,
     pub consumed_l1_handler_tx_hashes: IndexSet<TransactionHash>,
+}
+
+impl BlockTransactionExecutionData {
+    /// Removes the last txs with the given hashes from the execution data.
+    fn remove_last_txs(&mut self, tx_hashes: &[TransactionHash]) {
+        for tx_hash in tx_hashes.iter().rev() {
+            remove_last_map(&mut self.execution_infos, tx_hash);
+            remove_last_set(&mut self.rejected_tx_hashes, tx_hash);
+            remove_last_set(&mut self.consumed_l1_handler_tx_hashes, tx_hash);
+        }
+    }
+
+    fn l2_gas_used(&self) -> GasAmount {
+        let mut res = GasAmount::ZERO;
+        for execution_info in self.execution_infos.values() {
+            res =
+                res.checked_add(execution_info.receipt.gas.l2_gas).expect("Total L2 gas overflow.");
+        }
+
+        res
+    }
+}
+
+/// Removes the tx_hash from the map, if it exists.
+/// Verifies that the removed transaction is the last one in the map.
+fn remove_last_map<V>(map: &mut IndexMap<TransactionHash, V>, tx_hash: &TransactionHash) {
+    if let Some((idx, _, _)) = map.swap_remove_full(tx_hash) {
+        assert_eq!(idx, map.len(), "The removed txs must be the last ones.");
+    }
+}
+
+/// Removes the tx_hash from the set, if it exists.
+/// Verifies that the removed transaction is the last one in the set.
+fn remove_last_set(set: &mut IndexSet<TransactionHash>, tx_hash: &TransactionHash) {
+    if let Some((idx, _)) = set.swap_remove_full(tx_hash) {
+        assert_eq!(idx, set.len(), "The removed txs must be the last ones.");
+    }
 }

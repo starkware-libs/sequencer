@@ -821,6 +821,7 @@ dependencies = [
  "chrono",
  "futures",
  "indexmap 2.9.0",
+ "itertools 0.12.1",
  "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
@@ -1111,6 +1112,7 @@ dependencies = [
  "apollo_network",
  "apollo_proc_macros",
  "apollo_protobuf",
+ "apollo_starknet_client",
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_test_utils",
@@ -4075,9 +4077,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.5.0-rc.5"
+version = "0.5.0-rc.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6629dd8614a0745e588d71542d570f0c74bf74a704382c806822fbc43708d4d9"
+checksum = "4a0d61db673287e071a97aca5b1127dddd40f97d8247818f2d5d37ba94a78c74"
 dependencies = [
  "anyhow",
  "aquamarine",

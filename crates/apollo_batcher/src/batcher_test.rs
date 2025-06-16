@@ -45,7 +45,12 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
 use validator::Validate;
 
-use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
+use crate::batcher::{
+    Batcher,
+    MockBatcherStorageReaderTrait,
+    MockBatcherStorageWriterTrait,
+    TEMP_N_EXECUTED_TXS,
+};
 use crate::block_builder::{
     AbortSignalSender,
     BlockBuilderConfig,
@@ -506,8 +511,10 @@ async fn validate_block_full_flow() {
         SendProposalContentResponse { response: ProposalStatus::Processing }
     );
 
-    let finish_proposal =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Finish };
+    let finish_proposal = SendProposalContentInput {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+    };
     assert_eq!(
         batcher.send_proposal_content(finish_proposal).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment()) }
@@ -518,7 +525,7 @@ async fn validate_block_full_flow() {
 
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)))]
-#[case::send_finish(SendProposalContent::Finish)]
+#[case::send_finish(SendProposalContent::Finish(TEMP_N_EXECUTED_TXS))]
 #[case::send_abort(SendProposalContent::Abort)]
 #[tokio::test]
 async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
@@ -532,7 +539,10 @@ async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) 
 
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal)]
-#[case::send_finish(SendProposalContent::Finish, ProposalStatus::InvalidProposal)]
+#[case::send_finish(
+    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+    ProposalStatus::InvalidProposal
+)]
 #[case::send_abort(SendProposalContent::Abort, ProposalStatus::Aborted)]
 #[tokio::test]
 async fn send_content_to_an_invalid_proposal(
@@ -550,11 +560,20 @@ async fn send_content_to_an_invalid_proposal(
 }
 
 #[rstest]
-#[case::send_txs_after_finish(SendProposalContent::Finish, SendProposalContent::Txs(test_txs(0..1)))]
-#[case::send_finish_after_finish(SendProposalContent::Finish, SendProposalContent::Finish)]
-#[case::send_abort_after_finish(SendProposalContent::Finish, SendProposalContent::Abort)]
+#[case::send_txs_after_finish(SendProposalContent::Finish(TEMP_N_EXECUTED_TXS), SendProposalContent::Txs(test_txs(0..1)))]
+#[case::send_finish_after_finish(
+    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS)
+)]
+#[case::send_abort_after_finish(
+    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+    SendProposalContent::Abort
+)]
 #[case::send_txs_after_abort(SendProposalContent::Abort, SendProposalContent::Txs(test_txs(0..1)))]
-#[case::send_finish_after_abort(SendProposalContent::Abort, SendProposalContent::Finish)]
+#[case::send_finish_after_abort(
+    SendProposalContent::Abort,
+    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS)
+)]
 #[case::send_abort_after_abort(SendProposalContent::Abort, SendProposalContent::Abort)]
 #[tokio::test]
 async fn send_proposal_content_after_finish_or_abort(
@@ -652,7 +671,12 @@ async fn propose_block_full_flow() {
         .unwrap();
     assert_eq!(
         commitment,
-        GetProposalContentResponse { content: GetProposalContent::Finished(proposal_commitment()) }
+        GetProposalContentResponse {
+            content: GetProposalContent::Finished {
+                id: proposal_commitment(),
+                n_executed_txs: TEMP_N_EXECUTED_TXS
+            }
+        }
     );
 
     let exhausted =
@@ -741,7 +765,7 @@ async fn consecutive_proposal_generation_success() {
         batcher.validate_block(validate_block_input(ProposalId(2 * i + 1))).await.unwrap();
         let finish_proposal = SendProposalContentInput {
             proposal_id: ProposalId(2 * i + 1),
-            content: SendProposalContent::Finish,
+            content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
         };
         batcher.send_proposal_content(finish_proposal).await.unwrap();
         batcher.await_active_proposal().await;
@@ -775,7 +799,7 @@ async fn concurrent_proposals_generation_fail() {
     batcher
         .send_proposal_content(SendProposalContentInput {
             proposal_id: ProposalId(0),
-            content: SendProposalContent::Finish,
+            content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
         })
         .await
         .unwrap();
@@ -820,7 +844,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
     batcher
         .send_proposal_content(SendProposalContentInput {
             proposal_id: ProposalId(1),
-            content: SendProposalContent::Finish,
+            content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
         })
         .await
         .unwrap();

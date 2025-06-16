@@ -62,7 +62,7 @@ macro_rules! define_metrics {
             pub const $name: $crate::metrics::MetricHistogram = $crate::metrics::MetricHistogram::new(
                 $crate::metrics::MetricScope::$scope,
                 $key,
-                concat!($key, $crate::metric_label_filter!()),
+                concat!($key, "_bucket", $crate::metric_label_filter!()),
                 concat!($key, "_sum", $crate::metric_label_filter!()),
                 concat!($key, "_count", $crate::metric_label_filter!()),
                 $desc

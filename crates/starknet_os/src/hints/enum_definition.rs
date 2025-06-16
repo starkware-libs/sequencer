@@ -5,6 +5,7 @@ use serde::Serialize;
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
 
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
 use crate::hints::hint_implementation::aggregator::{
@@ -228,7 +229,12 @@ use crate::hints::hint_implementation::syscalls::{
     storage_write,
 };
 use crate::hints::types::{HintArgs, HintEnum};
-use crate::{define_hint_enum, define_hint_extension_enum, define_stateless_hint_enum};
+use crate::{
+    define_common_hint_enum,
+    define_hint_enum,
+    define_hint_extension_enum,
+    define_stateless_hint_enum,
+};
 
 #[cfg(test)]
 #[path = "enum_definition_test.rs"]
@@ -817,11 +823,6 @@ else:
     ),
     (SplitDescend, split_descend, "ids.length, ids.word = descend"),
     (
-        HeightIsZeroOrLenNodePreimageIsTwo,
-        height_is_zero_or_len_node_preimage_is_two,
-        "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0"
-    ),
-    (
         RemainingGasGtMax,
         remaining_gas_gt_max,
         "memory[ap] = to_felt_or_relocatable(ids.remaining_gas > ids.max_gas)"
@@ -881,7 +882,7 @@ ids.initial_carried_outputs = segments.gen_arg(
     ),
 );
 
-define_hint_enum!(
+define_common_hint_enum!(
     CommonHint,
     (
         SetTreeStructure,
@@ -1716,6 +1717,11 @@ assert commitment_info.tree_height == ids.MERKLE_HEIGHT"#
 	    __patricia_skip_validation_runner.verified_addresses.add(
 	        ids.hash_ptr + ids.HashBuiltin.result)"#
         }
+    ),
+    (
+        HeightIsZeroOrLenNodePreimageIsTwo,
+        height_is_zero_or_len_node_preimage_is_two,
+        "memory[ap] = 1 if ids.height == 0 or len(preimage[ids.node]) == 2 else 0"
     ),
     (
         SetSyscallPtr,

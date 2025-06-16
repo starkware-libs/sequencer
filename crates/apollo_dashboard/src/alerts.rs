@@ -113,7 +113,7 @@ pub struct Alert {
     #[serde(rename = "ruleGroup")]
     pub alert_group: AlertGroup,
     // The expression to evaluate for the alert.
-    pub expr: &'static str,
+    pub expr: String,
     // The conditions that must be met for the alert to be triggered.
     pub conditions: &'static [AlertCondition],
     // The time duration for which the alert conditions must be true before an alert is triggered.
@@ -129,11 +129,11 @@ pub struct Alert {
 /// Description of the alerts to be configured in the dashboard.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Alerts {
-    alerts: &'static [Alert],
+    alerts: Vec<Alert>,
 }
 
 impl Alerts {
-    pub const fn new(alerts: &'static [Alert]) -> Self {
+    pub const fn new(alerts: Vec<Alert>) -> Self {
         Self { alerts }
     }
 }
