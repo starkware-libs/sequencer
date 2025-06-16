@@ -418,6 +418,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     .send(ProposalPart::BlockInfo(block_info.clone()))
                     .await
                     .expect("Failed to send block info");
+                let mut n_executed_txs = 0;
                 for batch in txs.iter() {
                     let transactions = futures::future::join_all(batch.iter().map(|tx| {
                         transaction_converter
@@ -432,7 +433,16 @@ impl ConsensusContext for SequencerConsensusContext {
                         .send(ProposalPart::Transactions(TransactionBatch { transactions }))
                         .await
                         .expect("Failed to broadcast proposal content");
+                    n_executed_txs += batch.len();
                 }
+                proposal_sender
+                    .send(ProposalPart::ExecutedTransactionCount(
+                        n_executed_txs
+                            .try_into()
+                            .expect("Number of executed transactions should fit in u64"),
+                    ))
+                    .await
+                    .expect("Failed to broadcast executed transaction count");
                 proposal_sender
                     .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
                     .await
@@ -1092,6 +1102,10 @@ async fn handle_proposal_part(
                 ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
+        }
+        Some(ProposalPart::ExecutedTransactionCount(_)) => {
+            // TODO(Asmaa): Handle executed transaction count.
+            HandledProposalPart::Continue
         }
         _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),
     }
