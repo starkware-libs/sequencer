@@ -14,28 +14,55 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
 
-use crate::dashboard::{Panel, PanelType};
+use crate::dashboard::{Panel, PanelType, Row};
 
-pub(crate) const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel =
+const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel =
     Panel::from_gauge(MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::Stat);
-pub(crate) const PANEL_MEMPOOL_P2P_NUM_SENT_MESSAGES: Panel =
+const PANEL_MEMPOOL_P2P_NUM_SENT_MESSAGES: Panel =
     Panel::from_counter(MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::Stat);
-pub(crate) const PANEL_MEMPOOL_P2P_NUM_RECEIVED_MESSAGES: Panel =
+const PANEL_MEMPOOL_P2P_NUM_RECEIVED_MESSAGES: Panel =
     Panel::from_counter(MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::Stat);
-pub(crate) const PANEL_MEMPOOL_P2P_BROADCASTED_BATCH_SIZE: Panel =
+const PANEL_MEMPOOL_P2P_BROADCASTED_BATCH_SIZE: Panel =
     Panel::from_hist(MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, PanelType::Stat);
 
-pub(crate) const PANEL_MEMPOOL_P2P_LOCAL_MSGS_RECEIVED: Panel =
+const PANEL_MEMPOOL_P2P_LOCAL_MSGS_RECEIVED: Panel =
     Panel::from_counter(MEMPOOL_P2P_LOCAL_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_LOCAL_MSGS_PROCESSED: Panel =
+const PANEL_MEMPOOL_P2P_LOCAL_MSGS_PROCESSED: Panel =
     Panel::from_counter(MEMPOOL_P2P_LOCAL_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_REMOTE_MSGS_RECEIVED: Panel =
+const PANEL_MEMPOOL_P2P_REMOTE_MSGS_RECEIVED: Panel =
     Panel::from_counter(MEMPOOL_P2P_REMOTE_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED: Panel =
+const PANEL_MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED: Panel =
     Panel::from_counter(MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_REMOTE_MSGS_PROCESSED: Panel =
+const PANEL_MEMPOOL_P2P_REMOTE_MSGS_PROCESSED: Panel =
     Panel::from_counter(MEMPOOL_P2P_REMOTE_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_LOCAL_QUEUE_DEPTH: Panel =
+const PANEL_MEMPOOL_P2P_LOCAL_QUEUE_DEPTH: Panel =
     Panel::from_gauge(MEMPOOL_P2P_LOCAL_QUEUE_DEPTH, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
+const PANEL_MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
     Panel::from_hist(MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
+
+pub(crate) fn get_mempool_p2p_row() -> Row {
+    Row::new(
+        "MempoolP2p",
+        vec![
+            PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+            PANEL_MEMPOOL_P2P_NUM_SENT_MESSAGES,
+            PANEL_MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
+            PANEL_MEMPOOL_P2P_BROADCASTED_BATCH_SIZE,
+        ],
+    )
+}
+
+pub(crate) fn get_mempool_p2p_infra_row() -> Row {
+    Row::new(
+        "MempoolP2pInfra",
+        vec![
+            PANEL_MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
+            PANEL_MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
+            PANEL_MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
+            PANEL_MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
+            PANEL_MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
+            PANEL_MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
+            PANEL_MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
+        ],
+    )
+}

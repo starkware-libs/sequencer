@@ -77,19 +77,7 @@ use crate::panels::l1_provider::{
     PANEL_L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
 };
 use crate::panels::mempool::{get_mempool_infra_row, get_mempool_row};
-use crate::panels::mempool_p2p::{
-    PANEL_MEMPOOL_P2P_BROADCASTED_BATCH_SIZE,
-    PANEL_MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
-    PANEL_MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
-    PANEL_MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
-    PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS,
-    PANEL_MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
-    PANEL_MEMPOOL_P2P_NUM_SENT_MESSAGES,
-    PANEL_MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
-    PANEL_MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
-    PANEL_MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
-    PANEL_MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
-};
+use crate::panels::mempool_p2p::{get_mempool_p2p_infra_row, get_mempool_p2p_row};
 use crate::panels::sierra_compiler::{
     PANEL_COMPILATION_DURATION,
     PANEL_SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
@@ -132,33 +120,6 @@ mod dashboard_definitions_test;
 // TODO(Tsabary): this file should be managed by this crate, hence should be moved here to a
 // resources folder.
 pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
-
-fn get_mempool_p2p_row() -> Row {
-    Row::new(
-        "MempoolP2p",
-        vec![
-            PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS,
-            PANEL_MEMPOOL_P2P_NUM_SENT_MESSAGES,
-            PANEL_MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
-            PANEL_MEMPOOL_P2P_BROADCASTED_BATCH_SIZE,
-        ],
-    )
-}
-
-fn get_mempool_p2p_infra_row() -> Row {
-    Row::new(
-        "MempoolP2pInfra",
-        vec![
-            PANEL_MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
-            PANEL_MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
-            PANEL_MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
-            PANEL_MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
-            PANEL_MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
-            PANEL_MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
-            PANEL_MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
-        ],
-    )
-}
 
 fn get_sierra_compiler_infra_row() -> Row {
     Row::new(
