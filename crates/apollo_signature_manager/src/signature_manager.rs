@@ -37,6 +37,7 @@ impl Deref for MessageDigest {
 }
 
 /// Provides signing and signature verification functionality.
+#[derive(Clone, Debug)]
 pub struct SignatureManager<KS: KeyStore> {
     pub keystore: KS,
 }
