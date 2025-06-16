@@ -17,10 +17,11 @@ use starknet_os::test_utils::cairo_runner::{
     PointerArg,
     ValueArg,
 };
+use starknet_os::test_utils::errors::OsSpecificTestError;
 use starknet_types_core::felt::Felt;
 use tracing::info;
 
-use crate::os_cli::tests::types::{OsPythonTestResult, OsSpecificTestError};
+use crate::os_cli::tests::types::OsPythonTestResult;
 use crate::os_cli::tests::utils::{
     pack_bigint3,
     seeded_random_prng,

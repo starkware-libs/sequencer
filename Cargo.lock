@@ -809,6 +809,7 @@ dependencies = [
  "apollo_mempool_types",
  "apollo_metrics",
  "apollo_reverts",
+ "apollo_starknet_client",
  "apollo_state_reader",
  "apollo_state_sync_types",
  "apollo_storage",
@@ -816,9 +817,11 @@ dependencies = [
  "async-trait",
  "blockifier",
  "cairo-lang-starknet-classes",
+ "cairo-vm",
  "chrono",
  "futures",
  "indexmap 2.9.0",
+ "itertools 0.12.1",
  "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
@@ -1082,6 +1085,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_reverts",
  "apollo_state_sync_types",
+ "apollo_time",
  "async-trait",
  "futures",
  "mockall",
@@ -1108,9 +1112,11 @@ dependencies = [
  "apollo_network",
  "apollo_proc_macros",
  "apollo_protobuf",
+ "apollo_starknet_client",
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_test_utils",
+ "apollo_time",
  "async-trait",
  "blockifier",
  "cairo-lang-casm",
@@ -1159,6 +1165,7 @@ dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price",
+ "apollo_l1_provider",
  "apollo_mempool",
  "apollo_mempool_p2p",
  "apollo_metrics",
@@ -1179,6 +1186,7 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_node",
  "apollo_protobuf",
+ "const_format",
  "indexmap 2.9.0",
  "serde",
  "serde_json",
@@ -1276,6 +1284,7 @@ dependencies = [
  "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
+ "regex",
  "reqwest 0.11.27",
  "rstest",
  "serde",
@@ -1463,6 +1472,7 @@ dependencies = [
  "apollo_l1_provider_types",
  "apollo_metrics",
  "apollo_state_sync_types",
+ "apollo_time",
  "assert_matches",
  "async-trait",
  "hex",
@@ -1973,6 +1983,7 @@ dependencies = [
  "starknet-types-core",
  "starknet_api",
  "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]
@@ -2130,6 +2141,15 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+]
+
+[[package]]
+name = "apollo_time"
+version = "0.15.0-rc.2"
+dependencies = [
+ "chrono",
+ "mockall",
+ "tokio",
 ]
 
 [[package]]
@@ -4057,9 +4077,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.5.0-rc.5"
+version = "0.5.0-rc.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6629dd8614a0745e588d71542d570f0c74bf74a704382c806822fbc43708d4d9"
+checksum = "4a0d61db673287e071a97aca5b1127dddd40f97d8247818f2d5d37ba94a78c74"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -9389,6 +9409,7 @@ dependencies = [
  "colored 3.0.0",
  "ethers",
  "ethers-core",
+ "futures",
  "mockall",
  "pretty_assertions",
  "serde",
@@ -12144,7 +12165,7 @@ dependencies = [
 name = "starknet_os"
 version = "0.0.0"
 dependencies = [
- "apollo_infra_utils",
+ "apollo_starknet_os_program",
  "ark-bls12-381",
  "ark-ff 0.4.2",
  "ark-poly 0.4.2",
@@ -12152,6 +12173,7 @@ dependencies = [
  "ark-secp256r1 0.4.0",
  "assert_matches",
  "blockifier",
+ "blockifier_test_utils",
  "c-kzg",
  "cairo-lang-casm",
  "cairo-lang-runner",
@@ -12170,6 +12192,7 @@ dependencies = [
  "rstest",
  "serde",
  "serde_json",
+ "sha2",
  "sha3",
  "shared_execution_objects",
  "starknet-types-core",

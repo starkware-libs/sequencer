@@ -17,10 +17,12 @@ use crate::metrics::{
     CONSENSUS_HELD_LOCKS,
     CONSENSUS_NEW_VALUE_LOCKS,
     CONSENSUS_ROUND,
+    CONSENSUS_ROUND_ABOVE_ZERO,
     CONSENSUS_TIMEOUTS,
     LABEL_NAME_TIMEOUT_REASON,
 };
 use crate::types::{ProposalCommitment, Round, ValidatorId};
+use crate::votes_threshold::{VotesThreshold, ROUND_SKIP_THRESHOLD};
 
 /// Events which the state machine sends/receives.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -66,8 +68,9 @@ pub struct StateMachine {
     id: ValidatorId,
     round: Round,
     step: Step,
-    quorum: u32,
-    round_skip_threshold: u32,
+    quorum: VotesThreshold,
+    round_skip_threshold: VotesThreshold,
+    total_weight: u64,
     is_observer: bool,
     // {round: (proposal_id, valid_round)}
     proposals: HashMap<Round, (Option<ProposalCommitment>, Option<Round>)>,
@@ -87,13 +90,21 @@ pub struct StateMachine {
 
 impl StateMachine {
     /// total_weight - the total voting weight of all validators for this height.
-    pub fn new(id: ValidatorId, total_weight: u32, is_observer: bool) -> Self {
+    pub fn new(
+        id: ValidatorId,
+        total_weight: u64,
+        is_observer: bool,
+        no_byzantine_validators: bool,
+    ) -> Self {
         Self {
             id,
             round: 0,
             step: Step::Propose,
-            quorum: (2 * total_weight / 3) + 1,
-            round_skip_threshold: total_weight / 3 + 1,
+            // Byzantine: 2/3 votes, Honest: 1/2 votes.
+            quorum: VotesThreshold::from_quorum_type(no_byzantine_validators),
+            // Skip round threshold is 1/3 of the total weight.
+            round_skip_threshold: ROUND_SKIP_THRESHOLD,
+            total_weight,
             is_observer,
             proposals: HashMap::new(),
             prevotes: HashMap::new(),
@@ -112,8 +123,8 @@ impl StateMachine {
         self.round
     }
 
-    pub fn quorum_size(&self) -> u32 {
-        self.quorum
+    pub fn quorum_size(&self) -> u64 {
+        self.quorum.amount_required(self.total_weight)
     }
 
     /// Starts the state machine, effectively calling `StartRound(0)` from the paper. This is
@@ -354,13 +365,17 @@ impl StateMachine {
         LeaderFn: Fn(Round) -> ValidatorId,
     {
         CONSENSUS_ROUND.set(round);
+        // Count how many times consensus advanced above round 0.
+        if round == 1 {
+            CONSENSUS_ROUND_ABOVE_ZERO.increment(1);
+        }
         if self.locked_value_round.is_some() {
             CONSENSUS_HELD_LOCKS.increment(1);
         }
         self.round = round;
         self.step = Step::Propose;
         let mut output = if !self.is_observer && self.id == leader_fn(self.round) {
-            info!("Starting round {round} as Proposer");
+            info!("START_ROUND_PROPOSER: Starting round {round} as Proposer");
             // Leader.
             match self.valid_value_round {
                 Some((proposal_id, valid_round)) => VecDeque::from([StateMachineEvent::Proposal(
@@ -375,7 +390,7 @@ impl StateMachine {
                 }
             }
         } else {
-            info!("Starting round {round} as Validator");
+            info!("START_ROUND_VALIDATOR: Starting round {round} as Validator");
             VecDeque::from([StateMachineEvent::TimeoutPropose(self.round)])
         };
         output.append(&mut self.current_round_upons());
@@ -460,7 +475,7 @@ impl StateMachine {
         if valid_round >= &self.round {
             return VecDeque::new();
         }
-        if !value_has_enough_votes(&self.prevotes, *valid_round, proposal_id, self.quorum) {
+        if !self.value_has_enough_votes(&self.prevotes, *valid_round, proposal_id, &self.quorum) {
             return VecDeque::new();
         }
         let mut output = if proposal_id.is_some_and(|v| {
@@ -481,7 +496,7 @@ impl StateMachine {
         if self.step != Step::Prevote {
             return VecDeque::new();
         }
-        if !round_has_enough_votes(&self.prevotes, self.round, self.quorum) {
+        if !self.round_has_enough_votes(&self.prevotes, self.round, &self.quorum) {
             return VecDeque::new();
         }
         // Getting mixed prevote quorum for the first time.
@@ -499,7 +514,12 @@ impl StateMachine {
         let Some((Some(proposal_id), _)) = self.proposals.get(&self.round) else {
             return VecDeque::new();
         };
-        if !value_has_enough_votes(&self.prevotes, self.round, &Some(*proposal_id), self.quorum) {
+        if !self.value_has_enough_votes(
+            &self.prevotes,
+            self.round,
+            &Some(*proposal_id),
+            &self.quorum,
+        ) {
             return VecDeque::new();
         }
         // Getting prevote quorum for the first time.
@@ -526,7 +546,7 @@ impl StateMachine {
         if self.step != Step::Prevote {
             return VecDeque::new();
         }
-        if !value_has_enough_votes(&self.prevotes, self.round, &None, self.quorum) {
+        if !self.value_has_enough_votes(&self.prevotes, self.round, &None, &self.quorum) {
             return VecDeque::new();
         }
         let mut output = VecDeque::from([StateMachineEvent::Precommit(None, self.round)]);
@@ -536,7 +556,7 @@ impl StateMachine {
 
     // LOC 47 in the paper.
     fn maybe_initiate_timeout_precommit(&mut self) -> VecDeque<StateMachineEvent> {
-        if !round_has_enough_votes(&self.precommits, self.round, self.quorum) {
+        if !self.round_has_enough_votes(&self.precommits, self.round, &self.quorum) {
             return VecDeque::new();
         }
         // Getting mixed precommit quorum for the first time.
@@ -551,7 +571,8 @@ impl StateMachine {
         let Some((Some(proposal_id), _)) = self.proposals.get(&round) else {
             return VecDeque::new();
         };
-        if !value_has_enough_votes(&self.precommits, round, &Some(*proposal_id), self.quorum) {
+        if !self.value_has_enough_votes(&self.precommits, round, &Some(*proposal_id), &self.quorum)
+        {
             return VecDeque::new();
         }
 
@@ -567,29 +588,35 @@ impl StateMachine {
     where
         LeaderFn: Fn(Round) -> ValidatorId,
     {
-        if round_has_enough_votes(&self.prevotes, round, self.round_skip_threshold)
-            || round_has_enough_votes(&self.precommits, round, self.round_skip_threshold)
+        if self.round_has_enough_votes(&self.prevotes, round, &self.round_skip_threshold)
+            || self.round_has_enough_votes(&self.precommits, round, &self.round_skip_threshold)
         {
             self.advance_to_round(round, leader_fn)
         } else {
             VecDeque::new()
         }
     }
-}
 
-fn round_has_enough_votes(
-    votes: &HashMap<u32, HashMap<Option<ProposalCommitment>, u32>>,
-    round: u32,
-    threshold: u32,
-) -> bool {
-    votes.get(&round).map_or(0, |v| v.values().sum()) >= threshold
-}
+    fn round_has_enough_votes(
+        &self,
+        votes: &HashMap<u32, HashMap<Option<ProposalCommitment>, u32>>,
+        round: u32,
+        threshold: &VotesThreshold,
+    ) -> bool {
+        threshold
+            .is_met(votes.get(&round).map_or(0, |v| v.values().sum()).into(), self.total_weight)
+    }
 
-fn value_has_enough_votes(
-    votes: &HashMap<u32, HashMap<Option<ProposalCommitment>, u32>>,
-    round: u32,
-    value: &Option<ProposalCommitment>,
-    threshold: u32,
-) -> bool {
-    votes.get(&round).map_or(0, |v| *v.get(value).unwrap_or(&0)) >= threshold
+    fn value_has_enough_votes(
+        &self,
+        votes: &HashMap<u32, HashMap<Option<ProposalCommitment>, u32>>,
+        round: u32,
+        value: &Option<ProposalCommitment>,
+        threshold: &VotesThreshold,
+    ) -> bool {
+        threshold.is_met(
+            votes.get(&round).map_or(0, |v| *v.get(value).unwrap_or(&0)).into(),
+            self.total_weight,
+        )
+    }
 }

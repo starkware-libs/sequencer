@@ -1,5 +1,4 @@
 use apollo_metrics::define_metrics;
-use apollo_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram};
 
 define_metrics!(
     MempoolP2p => {

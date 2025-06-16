@@ -11,6 +11,8 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use starknet_api::core::ContractAddress;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hint_processor::state_update_pointers::{
     get_contract_state_entry_and_storage_ptr,
     StateEntryPtr,
@@ -24,9 +26,7 @@ use crate::hints::vars::{CairoStruct, Const, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn enter_scope_with_aliases<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn enter_scope_with_aliases(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     // Note that aliases, execution_helper, state_update_pointers and block_input do not enter the
     // new scope as they are not needed.
     let dict_manager = exec_scopes.get_dict_manager()?;
@@ -36,8 +36,8 @@ pub(crate) fn enter_scope_with_aliases<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
-    HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn key_lt_min_alias_alloc_value(
+    HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let key = get_integer_from_var_name(Ids::Key.into(), vm, ids_data, ap_tracking)?;
     let min_value_for_alias_alloc = *Const::MinValueForAliasAlloc.fetch(constants)?;
@@ -45,8 +45,8 @@ pub(crate) fn key_lt_min_alias_alloc_value<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn assert_key_big_enough_for_alias<S: StateReader>(
-    HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn assert_key_big_enough_for_alias(
+    HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let key = get_integer_from_var_name(Ids::Key.into(), vm, ids_data, ap_tracking)?;
     let min_value_for_alias_alloc = *Const::MinValueForAliasAlloc.fetch(constants)?;
@@ -61,7 +61,8 @@ pub(crate) fn assert_key_big_enough_for_alias<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn read_alias_from_key<S: StateReader>(
-    HintArgs { hint_processor, ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let key = get_integer_from_var_name(Ids::Key.into(), vm, ids_data, ap_tracking)?;
     let execution_helper = hint_processor.get_current_execution_helper()?;
@@ -73,7 +74,8 @@ pub(crate) fn read_alias_from_key<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn write_next_alias_from_key<S: StateReader>(
-    HintArgs { hint_processor, ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let key = get_integer_from_var_name(Ids::Key.into(), vm, ids_data, ap_tracking)?;
     let next_available_alias =
@@ -89,7 +91,8 @@ pub(crate) fn write_next_alias_from_key<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn read_alias_counter<S: StateReader>(
-    HintArgs { hint_processor, vm, constants, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
@@ -102,7 +105,8 @@ pub(crate) fn read_alias_counter<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn initialize_alias_counter<S: StateReader>(
-    HintArgs { hint_processor, constants, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
@@ -116,7 +120,8 @@ pub(crate) fn initialize_alias_counter<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn update_alias_counter<S: StateReader>(
-    HintArgs { hint_processor, constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { constants, ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let alias_counter_storage_key = Const::get_alias_counter_storage_key(constants)?;
@@ -130,8 +135,8 @@ pub(crate) fn update_alias_counter<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
-    HintArgs { constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn contract_address_le_max_for_compression(
+    HintArgs { constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let contract_address =
         get_integer_from_var_name(Ids::ContractAddress.into(), vm, ids_data, ap_tracking)?;
@@ -140,8 +145,9 @@ pub(crate) fn contract_address_le_max_for_compression<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn guess_contract_addr_storage_ptr<'program, CHP: CommonHintProcessor<'program>>(
+    hint_processor: &mut CHP,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let key_address = get_address_of_nested_fields(
         ids_data,
@@ -150,11 +156,11 @@ pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
         vm,
         ap_tracking,
         &["key"],
-        hint_processor.os_program,
+        hint_processor.get_program(),
     )?;
     let contract_address = ContractAddress(vm.get_integer(key_address)?.into_owned().try_into()?);
     let (state_entry, storage_ptr) = get_contract_state_entry_and_storage_ptr(
-        &mut hint_processor.state_update_pointers,
+        hint_processor.get_mut_state_update_pointers(),
         vm,
         contract_address,
     );
@@ -177,10 +183,12 @@ pub(crate) fn guess_contract_addr_storage_ptr<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn update_contract_addr_to_storage_ptr<'program, CHP: CommonHintProcessor<'program>>(
+    hint_processor: &mut CHP,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
+    let program = hint_processor.get_program();
+    if let Some(state_update_pointers) = hint_processor.get_mut_state_update_pointers() {
         let key_address = get_address_of_nested_fields(
             ids_data,
             Ids::StateChanges,
@@ -188,7 +196,7 @@ pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
             vm,
             ap_tracking,
             &["key"],
-            hint_processor.os_program,
+            program,
         )?;
         let contract_address =
             ContractAddress(vm.get_integer(key_address)?.into_owned().try_into()?);
@@ -209,7 +217,8 @@ pub(crate) fn update_contract_addr_to_storage_ptr<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let aliases_contract_address = Const::get_alias_contract_address(constants)?;
     let (state_entry_ptr, storage_ptr) = get_contract_state_entry_and_storage_ptr(
@@ -236,7 +245,8 @@ pub(crate) fn guess_aliases_contract_storage_ptr<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn update_aliases_contract_to_storage_ptr<S: StateReader>(
-    HintArgs { hint_processor, vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     if let Some(state_update_pointers) = &mut hint_processor.state_update_pointers {
         let aliases_contract_address = Const::get_alias_contract_address(constants)?;

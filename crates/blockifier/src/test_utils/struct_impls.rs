@@ -250,6 +250,9 @@ impl NativeCompiledClassV1 {
             &sierra_contract_class.entry_points_by_type,
             sierra_version.clone().into(),
             cairo_native::OptLevel::Default,
+            // `stats` - Passing a [cairo_native::statistics::Statistics] object enables collecting
+            // compilation statistics.
+            None,
         )
         .expect("Cannot compile sierra into native");
 

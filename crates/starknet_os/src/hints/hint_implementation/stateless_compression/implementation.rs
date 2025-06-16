@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_maybe_relocatable_from_var_name,
@@ -17,9 +16,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn dictionary_from_bucket<S: StateReader>(
-    HintArgs { exec_scopes, .. }: HintArgs<'_, '_, S>,
-) -> OsHintResult {
+pub(crate) fn dictionary_from_bucket(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = (0..TOTAL_N_BUCKETS)
         .map(|bucket_index| (Felt::from(bucket_index).into(), Felt::ZERO.into()))
         .collect();
@@ -28,15 +25,12 @@ pub(crate) fn dictionary_from_bucket<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn get_prev_offset<S: StateReader>(
-    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn get_prev_offset(
+    HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let dict_manager = exec_scopes.get_dict_manager()?;
 
     let dict_ptr = get_ptr_from_var_name(Ids::DictPtr.into(), vm, ids_data, ap_tracking)?;
-    let dict_tracker = dict_manager.borrow().get_tracker(dict_ptr)?.get_dictionary_copy();
-    exec_scopes.insert_box(Scope::DictTracker.into(), Box::new(dict_tracker));
-
     let bucket_index =
         get_maybe_relocatable_from_var_name(Ids::BucketIndex.into(), vm, ids_data, ap_tracking)?;
     let prev_offset =
@@ -46,8 +40,8 @@ pub(crate) fn get_prev_offset<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn compression_hint<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn compression_hint(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let data_start = get_ptr_from_var_name(Ids::DataStart.into(), vm, ids_data, ap_tracking)?;
     let data_end = get_ptr_from_var_name(Ids::DataEnd.into(), vm, ids_data, ap_tracking)?;
@@ -66,8 +60,8 @@ pub(crate) fn compression_hint<S: StateReader>(
 }
 
 #[allow(clippy::result_large_err)]
-pub(crate) fn set_decompressed_dst<S: StateReader>(
-    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_, '_, S>,
+pub(crate) fn set_decompressed_dst(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let decompressed_dst =
         get_ptr_from_var_name(Ids::DecompressedDst.into(), vm, ids_data, ap_tracking)?;

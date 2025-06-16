@@ -22,11 +22,13 @@ apollo_l1_provider_types.workspace = true
 apollo_mempool_types.workspace = true
 apollo_metrics.workspace = true
 apollo_reverts.workspace = true
+apollo_starknet_client.workspace = true
 apollo_state_reader.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_storage.workspace = true
 async-trait.workspace = true
 blockifier.workspace = true
+cairo-vm.workspace = true
 chrono.workspace = true
 futures.workspace = true
 indexmap.workspace = true
@@ -50,6 +52,7 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 chrono = { workspace = true }
+itertools.workspace = true
 mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true

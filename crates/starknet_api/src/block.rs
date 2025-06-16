@@ -2,6 +2,9 @@
 #[path = "block_test.rs"]
 mod block_test;
 
+use std::fmt::Display;
+use std::ops::Deref;
+
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use size_of::SizeOf;
@@ -108,9 +111,17 @@ starknet_version_enum! {
     (V0_13_3, 0, 13, 3),
     (V0_13_4, 0, 13, 4),
     (V0_13_5, 0, 13, 5),
+    (V0_13_6, 0, 13, 6),
     (V0_14_0, 0, 14, 0),
+<<<<<<< HEAD
     (V0_14_1, 0, 14, 1),
     V0_14_1
+||||||| dd972f762
+    V0_14_0
+=======
+    V0_14_0
+
+>>>>>>> origin/main-v0.14.0
 }
 
 impl Default for StarknetVersion {
@@ -545,11 +556,32 @@ impl GasPrices {
 pub struct BlockTimestamp(pub u64);
 
 impl BlockTimestamp {
-    pub fn saturating_sub(self, rhs: Self) -> Self {
-        Self(self.0.saturating_sub(rhs.0))
+    pub fn saturating_add(self, rhs: &u64) -> Self {
+        Self(self.0.saturating_add(*rhs))
     }
-    pub fn saturating_sub_seconds(self, rhs: u64) -> Self {
-        Self(self.0.saturating_sub(rhs))
+
+    pub fn saturating_sub(self, rhs: &u64) -> Self {
+        Self(self.0.saturating_sub(*rhs))
+    }
+}
+
+impl Deref for BlockTimestamp {
+    type Target = u64;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl From<u64> for BlockTimestamp {
+    fn from(value: u64) -> Self {
+        Self(value)
+    }
+}
+
+impl Display for BlockTimestamp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
     }
 }
 

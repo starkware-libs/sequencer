@@ -177,17 +177,13 @@ impl<S: StateReader> WorkerExecutor<S> {
         (from_tx, to_tx)
     }
 
-    /// Extracts the outputs of the committed transactions in the range [from_tx, to_tx).
-    /// Note that the number of transactions may be smaller than `to_tx - from_tx`, if the execution
-    /// was halted (due to time or full block).
+    /// Extracts the outputs of the completed transactions starting from `from_tx`.
     pub fn extract_execution_outputs(
         &self,
         from_tx: usize,
-        to_tx: usize,
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let n_committed_txs = self.scheduler.get_n_committed_txs();
-        let actual_to_tx = std::cmp::min(n_committed_txs, to_tx);
-        (from_tx..actual_to_tx)
+        (from_tx..n_committed_txs)
             .map(|tx_index| {
                 let execution_output = self.extract_execution_output(tx_index);
                 execution_output

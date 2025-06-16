@@ -5,8 +5,9 @@ pub mod communication;
 pub mod l1_provider;
 pub mod l1_scraper;
 pub mod metrics;
-pub mod soft_delete_index_map;
-pub mod transaction_manager;
+
+pub(crate) mod transaction_manager;
+pub(crate) mod transaction_record;
 
 #[cfg(any(test, feature = "testing"))]
 pub mod test_utils;
@@ -17,7 +18,11 @@ use std::time::Duration;
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_l1_provider_types::SessionState;
-use papyrus_base_layer::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
+use papyrus_base_layer::constants::{
+    EventIdentifier,
+    LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
+    MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
+};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use validator::Validate;
@@ -102,16 +107,36 @@ pub struct L1ProviderConfig {
     pub bootstrap_catch_up_height_override: Option<BlockNumber>,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub startup_sync_sleep_retry_interval_seconds: Duration,
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub l1_handler_cancellation_timelock_seconds: Duration,
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub new_l1_handler_cooldown_seconds: Duration,
 }
 
 impl SerializeConfig for L1ProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut dump = BTreeMap::from([ser_param(
-            "startup_sync_sleep_retry_interval_seconds",
-            &self.startup_sync_sleep_retry_interval_seconds.as_secs_f64(),
-            "Interval in seconds between each retry of syncing with L2 during startup.",
-            ParamPrivacyInput::Public,
-        )]);
+        let mut dump = BTreeMap::from([
+            ser_param(
+                "startup_sync_sleep_retry_interval_seconds",
+                &self.startup_sync_sleep_retry_interval_seconds.as_secs_f64(),
+                "Interval in seconds between each retry of syncing with L2 during startup.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "l1_handler_cancellation_timelock_seconds",
+                &self.l1_handler_cancellation_timelock_seconds.as_secs_f64(),
+                "How long to allow a transaction requested for cancellation to be validated \
+                 against (proposals are banned upon receiving a cancellation request).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "new_l1_handler_cooldown_seconds",
+                &self.new_l1_handler_cooldown_seconds.as_secs_f64(),
+                "How long to wait before allowing new L1 handler transactions to be proposed \
+                 (validation is available immediately).",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
 
         dump.extend(ser_optional_param(
             &self.provider_startup_height_override,
@@ -132,5 +157,5 @@ impl SerializeConfig for L1ProviderConfig {
 }
 
 pub const fn event_identifiers_to_track() -> &'static [EventIdentifier] {
-    &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER]
+    &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER, MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER]
 }

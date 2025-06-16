@@ -4,7 +4,7 @@ use std::process::Command;
 use alloy::network::TransactionBuilder;
 use alloy::node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
 pub(crate) use alloy::primitives::Address as EthereumContractAddress;
-use alloy::primitives::U256;
+use alloy::primitives::{Address, U256};
 use alloy::providers::Provider;
 use alloy::rpc::types::TransactionRequest;
 use colored::*;
@@ -154,14 +154,13 @@ pub async fn deploy_starknet_l1_contract(config: EthereumBaseLayerConfig) -> Sta
 }
 
 pub async fn make_block_history_on_anvil(
-    anvil: &AnvilInstance,
+    sender_address: Address,
+    receiver_address: Address,
     base_layer_config: EthereumBaseLayerConfig,
     num_blocks: usize,
 ) {
     let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
     let provider = base_layer.contract.provider();
-    let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
-    let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
     let mut prev_block_number =
         usize::try_from(provider.get_block_number().await.unwrap()).unwrap();
     for _ in 0..num_blocks {

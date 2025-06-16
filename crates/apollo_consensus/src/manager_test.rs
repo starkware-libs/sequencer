@@ -113,6 +113,7 @@ async fn manager_multiple_heights_unordered() {
             BlockNumber(1),
             false,
             SYNC_RETRY_INTERVAL,
+            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -128,6 +129,7 @@ async fn manager_multiple_heights_unordered() {
             BlockNumber(2),
             false,
             SYNC_RETRY_INTERVAL,
+            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )
@@ -185,6 +187,7 @@ async fn run_consensus_sync() {
             Duration::ZERO,
             TIMEOUTS.clone(),
             SYNC_RETRY_INTERVAL,
+            false,
             subscriber_channels.into(),
             proposal_receiver_receiver,
         )
@@ -243,6 +246,7 @@ async fn test_timeouts() {
                 BlockNumber(1),
                 false,
                 SYNC_RETRY_INTERVAL,
+                false,
                 &mut subscriber_channels.into(),
                 &mut proposal_receiver_receiver,
             )
@@ -299,6 +303,7 @@ async fn timely_message_handling() {
             BlockNumber(1),
             false,
             SYNC_RETRY_INTERVAL,
+            false,
             &mut subscriber_channels,
             &mut proposal_receiver_receiver,
         )

@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-#[cfg(feature = "testing")]
-use std::collections::HashSet;
+use std::collections::btree_map::IntoIter;
+use std::collections::{BTreeMap, HashSet};
 
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
@@ -30,13 +29,28 @@ use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
-use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionHelper};
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
+use crate::hint_processor::execution_helper::{
+    CallInfoTracker,
+    ExecutionHelperError,
+    OsExecutionHelper,
+};
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
+#[cfg(any(test, feature = "testing"))]
+use crate::hint_processor::test_hint::test_hint;
 use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
-use crate::hints::types::{HintArgs, HintEnum, HintExtensionImplementation, HintImplementation};
-use crate::io::os_input::{CachedStateInput, OsBlockInput, OsHintsConfig, OsInputError};
+use crate::hints::types::{HintArgs, HintEnum};
+use crate::hints::vars::CairoStruct;
+use crate::io::os_input::{
+    CachedStateInput,
+    CommitmentInfo,
+    OsBlockInput,
+    OsHintsConfig,
+    OsInputError,
+};
+use crate::vm_utils::get_address_of_nested_fields_from_base_address;
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
@@ -74,7 +88,6 @@ impl<'a, S: StateReader> ExecutionHelpersManager<'a, S> {
             .expect("Current execution helper index is out of bounds."))
     }
 
-    #[allow(dead_code)]
     /// Increments the current helper index.
     pub fn increment_current_helper_index(&mut self) {
         self.current_index = match self.current_index {
@@ -100,7 +113,8 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
-    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
+    pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, ContractClass>,
+    pub(crate) deprecated_class_hashes: HashSet<ClassHash>,
     pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     pub(crate) deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
@@ -113,7 +127,7 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     // Indicates wether to create pages or not when serializing data-availability.
     pub(crate) serialize_data_availability_create_pages: bool,
     // For testing, track hint coverage.
-    #[cfg(feature = "testing")]
+    #[cfg(any(test, feature = "testing"))]
     pub unused_hints: HashSet<AllHints>,
 }
 
@@ -159,27 +173,15 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             deprecated_syscall_hint_processor,
             da_segment: None,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
-            deprecated_compiled_classes,
+            deprecated_class_hashes: deprecated_compiled_classes.keys().copied().collect(),
+            deprecated_compiled_classes_iter: deprecated_compiled_classes.into_iter(),
             compiled_classes,
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
             serialize_data_availability_create_pages: false,
-            #[cfg(feature = "testing")]
+            #[cfg(any(test, feature = "testing"))]
             unused_hints: AllHints::all_iter().collect(),
         })
-    }
-
-    /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
-    /// mode.
-    #[allow(clippy::result_large_err)]
-    pub(crate) fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
-        if self.da_segment.is_some() {
-            return Err(OsHintError::AssertionFailed {
-                message: "DA segment is already initialized.".to_string(),
-            });
-        }
-        self.da_segment = Some(da_segment);
-        Ok(())
     }
 
     /// Returns an execution helper reference of the currently processed block.
@@ -196,32 +198,112 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         self.execution_helpers_manager.get_mut_current_execution_helper()
     }
 
+    /// Returns the current execution info ptr.
+    pub fn get_execution_info_ptr(&self) -> Result<Relocatable, ExecutionHelperError> {
+        Ok(self.get_current_call_info_tracker()?.execution_info_ptr)
+    }
+
+    /// Returns the current deprecated transaction info ptr.
+    pub fn get_deprecated_tx_info_ptr(&self) -> Result<Relocatable, ExecutionHelperError> {
+        Ok(self.get_current_call_info_tracker()?.deprecated_tx_info_ptr)
+    }
+
+    /// Returns the current call info tracker.
+    pub fn get_current_call_info_tracker(
+        &self,
+    ) -> Result<&CallInfoTracker<'_>, ExecutionHelperError> {
+        self.get_current_execution_helper()?
+            .tx_execution_iter
+            .get_tx_execution_info_ref()?
+            .get_call_info_tracker()
+    }
+
+    /// Returns the value of the given nested fields of the current execution info.
+    pub fn get_execution_info_nested_field_value(
+        &self,
+        nested_fields: &[&str],
+        vm: &VirtualMachine,
+    ) -> Result<Felt, ExecutionHelperError> {
+        Ok(vm
+            .get_integer(get_address_of_nested_fields_from_base_address(
+                self.get_execution_info_ptr()?,
+                CairoStruct::ExecutionInfo,
+                vm,
+                nested_fields,
+                self.os_program,
+            )?)?
+            .into_owned())
+    }
+
     /// Returns the number of blocks executed by the OS.
     pub fn n_blocks(&self) -> usize {
         // Each execution helper corresponds to a block.
         self.execution_helpers_manager.n_helpers()
     }
 
-    pub fn get_next_call_execution(&mut self) -> &CallExecution {
-        // TODO(Tzahi): Change `expect`s to regular errors once the syscall trait has an associated
-        // error type.
-        let call_tracker = self
+    pub fn get_next_call_execution(&mut self) -> Result<&CallExecution, ExecutionHelperError> {
+        Ok(&self
             .execution_helpers_manager
-            .get_mut_current_execution_helper()
-            .expect("No current execution helper")
+            .get_mut_current_execution_helper()?
             .tx_execution_iter
-            .get_mut_tx_execution_info_ref()
-            .expect("No current tx execution info")
-            .call_info_tracker
-            .as_mut()
-            .expect("No call info tracker found");
+            .get_mut_tx_execution_info_ref()?
+            .get_mut_call_info_tracker()?
+            .next_inner_call()?
+            .execution)
+    }
 
-        &call_tracker
-            .inner_calls_iterator
-            .next()
-            .ok_or(ExecutionHelperError::MissingCallInfo)
-            .expect("Missing call info")
-            .execution
+    /// Get the current commitment info according to the commitment type.
+    /// If the commitment type is `Contract`, returns the commitment info for the
+    /// contract address specified.
+    pub fn get_commitment_info(&self) -> Result<&CommitmentInfo, ExecutionHelperError> {
+        let os_input = self.get_current_execution_helper()?.os_block_input;
+        Ok(match self.commitment_type {
+            CommitmentType::Class => &os_input.contract_class_commitment_info,
+            CommitmentType::State => &os_input.contract_state_commitment_info,
+            CommitmentType::Contract(contract_address) => self
+                .execution_helpers_manager
+                .get_current_execution_helper()?
+                .os_block_input
+                .address_to_storage_commitment_info
+                .get(&contract_address)
+                .ok_or(ExecutionHelperError::MissingCommitmentInfo(contract_address))?,
+        })
+    }
+}
+
+impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
+    fn get_program(&self) -> &'program Program {
+        self.os_program
+    }
+
+    fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers> {
+        &mut self.state_update_pointers
+    }
+
+    fn _get_da_segment(&mut self) -> &mut Option<Vec<Felt>> {
+        &mut self.da_segment
+    }
+
+    /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
+    /// mode.
+    #[allow(clippy::result_large_err)]
+    fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
+        if self.da_segment.is_some() {
+            return Err(OsHintError::AssertionFailed {
+                message: "DA segment is already initialized.".to_string(),
+            });
+        }
+        self.da_segment = Some(da_segment);
+        Ok(())
+    }
+
+    fn get_serialize_data_availability_create_pages(&self) -> bool {
+        self.serialize_data_availability_create_pages
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    fn get_unused_hints(&mut self) -> &mut HashSet<AllHints> {
+        &mut self.unused_hints
     }
 }
 
@@ -246,7 +328,6 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
         if let Some(hint_processor_data) = hint_data.downcast_ref::<Cairo0Hint>() {
             // AllHints (OS hint, aggregator hint, Cairo0 syscall) or Cairo0 core hint.
             let hint_args = HintArgs {
-                hint_processor: self,
                 vm,
                 exec_scopes,
                 ids_data: &hint_processor_data.ids_data,
@@ -256,20 +337,33 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
             if let Ok(hint) = AllHints::from_str(hint_processor_data.code.as_str()) {
                 // OS hint, aggregator hint, Cairo0 syscall.
                 return match hint {
+                    AllHints::StatelessHint(stateless) => {
+                        stateless.execute_hint(self, hint_args)?;
+                        Ok(HintExtension::default())
+                    }
+                    AllHints::CommonHint(common_hint) => {
+                        common_hint.execute_hint(self, hint_args)?;
+                        Ok(HintExtension::default())
+                    }
                     AllHints::OsHint(os_hint) => {
-                        os_hint.execute_hint(hint_args)?;
+                        os_hint.execute_hint(self, hint_args)?;
                         Ok(HintExtension::default())
                     }
                     AllHints::AggregatorHint(aggregator_hint) => {
-                        aggregator_hint.execute_hint(hint_args)?;
+                        aggregator_hint.execute_hint(self, hint_args)?;
                         Ok(HintExtension::default())
                     }
                     AllHints::DeprecatedSyscallHint(deprecated_syscall_hint) => {
-                        deprecated_syscall_hint.execute_hint(hint_args)?;
+                        deprecated_syscall_hint.execute_hint(self, hint_args)?;
                         Ok(HintExtension::default())
                     }
                     AllHints::HintExtension(hint_extension) => {
-                        Ok(hint_extension.execute_hint_extensive(hint_args)?)
+                        Ok(hint_extension.execute_hint_extensive(self, hint_args)?)
+                    }
+                    #[cfg(any(test, feature = "testing"))]
+                    AllHints::TestHint => {
+                        test_hint(hint_processor_data.code.as_str(), self, hint_args)?;
+                        Ok(HintExtension::default())
                     }
                 };
             } else {
@@ -282,7 +376,7 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
         // Cairo1 syscall or Cairo1 core hint.
         match hint_data.downcast_ref::<Cairo1Hint>().ok_or(HintError::WrongHintData)? {
             Cairo1Hint::Core(hint) => {
-                let no_temporary_segments = true;
+                let no_temporary_segments = false;
                 execute_core_hint_base(vm, exec_scopes, hint, no_temporary_segments)?;
                 Ok(HintExtension::default())
             }
@@ -332,8 +426,9 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
 impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
 pub struct SyscallHintProcessor {
-    // Sha256 segments.
-    sha256_segment: Option<Relocatable>,
+    // Sha256 segment related fields.
+    pub(crate) sha256_segment: Option<Relocatable>,
+    pub(crate) sha256_block_count: usize,
     syscall_ptr: Option<Relocatable>,
     pub(crate) syscall_usage: SyscallUsageMap,
 
@@ -352,11 +447,8 @@ impl SyscallHintProcessor {
             secp256k1_hint_processor: SecpHintProcessor::default(),
             secp256r1_hint_processor: SecpHintProcessor::default(),
             syscall_usage: SyscallUsageMap::new(),
+            sha256_block_count: 0,
         }
-    }
-
-    pub fn set_sha256_segment(&mut self, sha256_segment: Relocatable) {
-        self.sha256_segment = Some(sha256_segment);
     }
 
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {

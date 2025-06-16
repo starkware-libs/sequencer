@@ -8,7 +8,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockHashAndNumber;
+use starknet_api::block::{BlockHashAndNumber, BlockTimestamp};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
@@ -90,7 +90,7 @@ pub struct L1BlockHeader {
     pub number: L1BlockNumber,
     pub hash: L1BlockHash,
     pub parent_hash: L1BlockHash,
-    pub timestamp: u64,
+    pub timestamp: BlockTimestamp,
     pub base_fee_per_gas: u128,
     pub blob_fee: u128,
 }
@@ -100,8 +100,18 @@ pub struct L1BlockHeader {
 pub enum L1Event {
     ConsumedMessageToL2(EventData),
     // TODO(Arni): Consider adding the l1_tx_hash to all variants of L1 Event.
-    LogMessageToL2 { tx: L1HandlerTransaction, fee: Fee, l1_tx_hash: Option<FixedBytes<32>> },
-    MessageToL2CancellationStarted { cancelled_tx: L1HandlerTransaction },
+    LogMessageToL2 {
+        tx: L1HandlerTransaction,
+        fee: Fee,
+        l1_tx_hash: Option<FixedBytes<32>>,
+        timestamp: BlockTimestamp,
+    },
+    MessageToL2CancellationStarted {
+        cancelled_tx: L1HandlerTransaction,
+        // To clarify, this is the timestamp of the cancellation request, not the timestamp of the
+        // cancellation itself, nor is it the timestamp of the transaction that was cancelled.
+        cancellation_request_timestamp: BlockTimestamp,
+    },
     MessageToL2Canceled(EventData),
 }
 

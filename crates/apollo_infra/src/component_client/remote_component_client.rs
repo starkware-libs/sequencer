@@ -12,11 +12,12 @@ use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, St
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
-use tracing::{debug, error};
+use tracing::{debug, trace, warn};
 use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
+use crate::metrics::RemoteClientMetrics;
 use crate::serde_utils::SerdeWrapper;
 
 const DEFAULT_RETRIES: usize = 50;
@@ -91,6 +92,8 @@ impl SerializeConfig for RemoteClientConfig {
 /// ```rust
 /// // Example usage of the RemoteComponentClient
 ///
+/// use apollo_infra::metrics::RemoteClientMetrics;
+/// use apollo_metrics::metrics::{MetricHistogram, MetricScope};
 /// use serde::{Deserialize, Serialize};
 ///
 /// use crate::apollo_infra::component_client::{RemoteClientConfig, RemoteComponentClient};
@@ -119,7 +122,18 @@ impl SerializeConfig for RemoteClientConfig {
 ///         idle_timeout: 90,
 ///         retry_interval: 3,
 ///     };
-///     let client = RemoteComponentClient::<MyRequest, MyResponse>::new(config, &url, port);
+///
+///     const EXAMPLE_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
+///         MetricScope::Infra,
+///         "example_histogram_metric",
+///         "example_histogram_metric_filter",
+///         "example_histogram_metric_sum_filter",
+///         "example_histogram_metric_count_filter",
+///         "Example histogram metrics",
+///     );
+///     let metrics = RemoteClientMetrics::new(&EXAMPLE_HISTOGRAM_METRIC);
+///     let client =
+///         RemoteComponentClient::<MyRequest, MyResponse>::new(config, &url, port, metrics);
 ///
 ///     // Instantiate a request.
 ///     let request = MyRequest { content: "Hello, world!".to_string() };
@@ -141,6 +155,7 @@ where
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
     config: RemoteClientConfig,
+    metrics: RemoteClientMetrics,
     // [`RemoteComponentClient<Request,Response>`] should be [`Send + Sync`] while [`Request`] and
     // [`Response`] are only [`Send`]. [`Phantom<T>`] is [`Send + Sync`] only if [`T`] is, despite
     // this bound making no sense as the phantom data field is unused. As such, we wrap it as
@@ -156,7 +171,12 @@ where
     Request: Serialize + DeserializeOwned + Debug,
     Response: Serialize + DeserializeOwned + Debug,
 {
-    pub fn new(config: RemoteClientConfig, url: &str, port: u16) -> Self {
+    pub fn new(
+        config: RemoteClientConfig,
+        url: &str,
+        port: u16,
+        metrics: RemoteClientMetrics,
+    ) -> Self {
         let uri = format!("http://{}:{}/", url, port).parse().unwrap();
         let client = Client::builder()
             .http2_only(true)
@@ -164,11 +184,11 @@ where
             .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
             .build_http();
         debug!("RemoteComponentClient created with URI: {:?}", uri);
-        Self { uri, client, config, _req: PhantomData, _res: PhantomData }
+        Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
     }
 
     fn construct_http_request(&self, serialized_request: Vec<u8>) -> HyperRequest<Body> {
-        debug!("Constructing remote request");
+        trace!("Constructing remote request");
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
             .body(Body::from(serialized_request))
@@ -176,20 +196,20 @@ where
     }
 
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
-        debug!("Sending HTTP request");
+        trace!("Sending HTTP request");
         let http_response = self.client.request(http_request).await.map_err(|err| {
-            error!("HTTP request failed with error: {:?}", err);
+            warn!("HTTP request failed with error: {:?}", err);
             ClientError::CommunicationFailure(err.to_string())
         })?;
 
         match http_response.status() {
             StatusCode::OK => {
                 let response_body = get_response_body(http_response).await;
-                debug!("Successfully deserialized response");
+                trace!("Successfully deserialized response");
                 response_body
             }
             status_code => {
-                error!(
+                warn!(
                     "Unexpected response status: {:?}. Unable to deserialize response.",
                     status_code
                 );
@@ -220,20 +240,21 @@ where
         // Construct the request, and send it up to 'max_retries + 1' times. Return if received a
         // successful response, or the last response if all attempts failed.
         let max_attempts = self.config.retries + 1;
-        debug!("Starting retry loop: max_attempts = {:?}", max_attempts);
-        for attempt in 0..max_attempts {
-            debug!("Attempt {} of {:?}", attempt + 1, max_attempts);
+        trace!("Starting retry loop: max_attempts = {:?}", max_attempts);
+        for attempt in 1..max_attempts + 1 {
+            trace!("Attempt {} of {:?}", attempt, max_attempts);
             let http_request = self.construct_http_request(serialized_request.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
-                debug!("Request successful on attempt {}/{}", attempt + 1, max_attempts);
+                trace!("Request successful on attempt {}/{}", attempt, max_attempts);
+                self.metrics.record_attempt(attempt);
                 return res;
             }
-            error!("Request failed on attempt {}/{}: {:?}", attempt + 1, max_attempts, res);
-            if attempt == max_attempts - 1 {
+            warn!("Request failed on attempt {}/{}: {:?}", attempt, max_attempts, res);
+            if attempt == max_attempts {
+                self.metrics.record_attempt(attempt);
                 return res;
             }
-            error!("sleeping for {:?}", self.config.retry_interval);
             tokio::time::sleep(Duration::from_secs(self.config.retry_interval)).await;
         }
         unreachable!("Guaranteed to return a response before reaching this point.");
@@ -264,6 +285,7 @@ where
             uri: self.uri.clone(),
             client: self.client.clone(),
             config: self.config.clone(),
+            metrics: self.metrics.clone(),
             _req: PhantomData,
             _res: PhantomData,
         }

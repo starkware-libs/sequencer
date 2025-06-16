@@ -108,4 +108,12 @@ impl FetchCompiledClasses for DictStateReader {
             }
         }
     }
+
+    fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool> {
+        Ok(match self.class_hash_to_class.get(&class_hash) {
+            // Cairo0 classes are not declared.
+            Some(class) => !matches!(class, RunnableCompiledClass::V0(_)),
+            None => false,
+        })
+    }
 }

@@ -84,22 +84,21 @@ define_string_enum! {
         (BytecodeSegmentStructures),
         (Case),
         (CompiledClass),
-        (CompiledClassFacts),
         (CompiledClassHash),
         (ContractAddressForRevert),
         (Descend),
         (DescentMap),
         (DictManager),
-        (DictTracker),
         (InitialDict),
         (IsDeprecated),
         (LeftChild),
         (NSelectedBuiltins),
         (Node),
-        (Preimage),
         (RightChild),
         (SyscallHandlerType),
         (UseKzgDa),
+        (Y),
+        (YSquareInt),
     }
 }
 
@@ -177,6 +176,7 @@ define_string_enum! {
         (InitialRoot),
         (IsLeaf),
         (IsNUpdatesSmall),
+        (IsOnCurve),
         (IsSegmentUsed),
         (IsSierraGasMode),
         (IsUsedLeaf),
@@ -185,6 +185,7 @@ define_string_enum! {
         (Length),
         (Low),
         (MaxGas),
+        (N),
         (NBlobs),
         (NBlocks),
         (NBuiltins),
@@ -229,6 +230,7 @@ define_string_enum! {
         (Selector),
         (SenderAddress),
         (Sha256Ptr, "sha256_ptr"),
+        (Sha256PtrEnd, "sha256_ptr_end"),
         (Siblings),
         (SignatureLen),
         (SignatureStart),
@@ -310,7 +312,9 @@ define_string_enum! {
             "starkware.starknet.core.os.state.aliases.MAX_NON_COMPRESSED_CONTRACT_ADDRESS"
         ),
         (MerkleHeight, "starkware.starknet.core.os.state.commitment.MERKLE_HEIGHT"),
-        (NUpdatesSmallPackingBound, "starkware.starknet.core.os.state.N_UPDATES_SMALL_PACKING_BOUND"),
+        (NUpdatesSmallPackingBound, "starkware.starknet.core.os.state.output.N_UPDATES_SMALL_PACKING_BOUND"),
+        (ShaBatchSize, "starkware.cairo.common.cairo_sha256.sha256_utils.BATCH_SIZE"),
+        (Sha256InputChunkSize, "starkware.cairo.common.cairo_sha256.sha256_utils.SHA256_INPUT_CHUNK_SIZE_FELTS"),
         (StoredBlockHashBuffer, "starkware.starknet.core.os.constants.STORED_BLOCK_HASH_BUFFER"),
         (Validated, "starkware.starknet.core.os.constants.VALIDATED"),
     }
@@ -358,6 +362,7 @@ define_string_enum! {
     #[derive(Copy, Clone)]
     pub enum CairoStruct {
         (BigInt3, "starkware.starknet.core.os.data_availability.bls_field.BigInt3"),
+        (BlockInfo, "starkware.starknet.common.new_syscalls.BlockInfo"),
         (BuiltinParamsPtr, "starkware.starknet.core.os.builtins.BuiltinParams*"),
         (BuiltinPointersPtr, "starkware.starknet.core.os.builtins.BuiltinPointers*"),
         (CallContractResponse, "starkware.starknet.common.new_syscalls.CallContractResponse"),
@@ -371,6 +376,7 @@ define_string_enum! {
             "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact"
         ),
         (DeployResponse, "starkware.starknet.common.new_syscalls.DeployResponse"),
+        (DeprecatedCallContractResponse, "starkware.starknet.common.syscalls.CallContractResponse"),
         (
             DeprecatedCompiledClass,
             "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
@@ -391,12 +397,14 @@ define_string_enum! {
             "starkware.starknet.core.os.contract_class.deprecated_compiled_class.\
             DeprecatedContractEntryPoint"
         ),
+        (DeprecatedTxInfo, "starkware.starknet.common.syscalls.TxInfo"),
         (DictAccess, "starkware.cairo.common.dict_access.DictAccess"),
         (DictAccessPtr, "starkware.cairo.common.dict_access.DictAccess*"),
         (
             EntryPointReturnValuesPtr,
             "starkware.starknet.core.os.execution.execute_entry_point.EntryPointReturnValues*"
         ),
+        (ExecutionInfo, "starkware.starknet.common.new_syscalls.ExecutionInfo"),
         (
             ExecutionContextPtr,
             "starkware.starknet.core.os.execution.execute_entry_point.ExecutionContext*"
@@ -407,14 +415,16 @@ define_string_enum! {
         (NonSelectableBuiltins, "starkware.starknet.core.os.builtins.NonSelectableBuiltins"),
         (OsStateUpdate, "starkware.starknet.core.os.state.state.OsStateUpdate"),
         (ResourceBounds, "starkware.starknet.common.new_syscalls.ResourceBounds"),
-        (SecpNewResponse, "starkware.starknet.common.new_syscalls.SecpNewResponse"),
+        (SecpNewResponsePtr, "starkware.starknet.common.new_syscalls.SecpNewResponse*"),
         (SelectableBuiltins, "starkware.starknet.core.os.builtins.SelectableBuiltins"),
+        (Sha256ProcessBlock, "starkware.cairo.common.sha256_state.Sha256ProcessBlock"),
         (SpongeHashBuiltin, "starkware.cairo.common.sponge_as_hash.SpongeHashBuiltin"),
         (StateEntry, "starkware.starknet.core.os.state.commitment.StateEntry"),
         (StorageReadPtr, "starkware.starknet.common.syscalls.StorageRead*"),
         (StorageReadRequest, "starkware.starknet.common.new_syscalls.StorageReadRequest"),
         (StorageWritePtr, "starkware.starknet.common.syscalls.StorageWrite*"),
         (StorageWriteRequest, "starkware.starknet.common.new_syscalls.StorageWriteRequest"),
+        (TxInfo, "starkware.starknet.common.new_syscalls.TxInfo"),
         (TxInfoPtr, "starkware.starknet.common.new_syscalls.TxInfo*"),
     }
 }

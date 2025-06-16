@@ -56,6 +56,7 @@ members = [
   "crates/apollo_storage",
   "crates/apollo_task_executor",
   "crates/apollo_test_utils",
+  "crates/apollo_time",
   "crates/blake2s",
   "crates/blockifier",
   "crates/blockifier_reexecution",
@@ -140,6 +141,7 @@ apollo_state_sync_types.path = "crates/apollo_state_sync_types"
 apollo_storage.path = "crates/apollo_storage"
 apollo_task_executor.path = "crates/apollo_task_executor"
 apollo_test_utils.path = "crates/apollo_test_utils"
+apollo_time.path = "crates/apollo_time"
 ark-bls12-381 = "0.4.0"
 ark-ec = "0.4.2"
 ark-ff = "0.4.0-alpha.7"
@@ -173,7 +175,7 @@ cairo-lang-sierra = "2.12.0-dev.1"
 cairo-lang-sierra-to-casm = "2.12.0-dev.1"
 cairo-lang-starknet-classes = "2.12.0-dev.1"
 cairo-lang-utils = "2.12.0-dev.1"
-cairo-native = "0.5.0-rc.5"
+cairo-native = "0.5.0-rc.6"
 cairo-vm = "2.2.0"
 camelpaste = "0.1.0"
 chrono = "0.4.26"

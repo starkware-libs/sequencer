@@ -45,7 +45,12 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
 use validator::Validate;
 
-use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
+use crate::batcher::{
+    Batcher,
+    MockBatcherStorageReaderTrait,
+    MockBatcherStorageWriterTrait,
+    TEMP_N_EXECUTED_TXS,
+};
 use crate::block_builder::{
     AbortSignalSender,
     BlockBuilderConfig,
@@ -68,7 +73,10 @@ use crate::metrics::{
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
-use crate::pre_confirmed_block_writer::MockPreConfirmedBlockWriterFactoryTrait;
+use crate::pre_confirmed_block_writer::{
+    MockPreConfirmedBlockWriterFactoryTrait,
+    MockPreConfirmedBlockWriterTrait,
+};
 use crate::test_utils::{
     test_txs,
     verify_indexed_execution_infos,
@@ -134,7 +142,14 @@ impl Default for MockDependencies {
             .with(eq(CommitBlockArgs::default()))
             .returning(|_| Ok(()));
         let block_builder_factory = MockBlockBuilderFactoryTrait::new();
-        let pre_confirmed_block_writer_factory = MockPreConfirmedBlockWriterFactoryTrait::new();
+        let mut pre_confirmed_block_writer_factory = MockPreConfirmedBlockWriterFactoryTrait::new();
+        pre_confirmed_block_writer_factory.expect_create().returning(|_, _, _| {
+            let (non_working_candidate_tx_sender, _) = tokio::sync::mpsc::channel(1);
+            let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
+            let mut mock_writer = Box::new(MockPreConfirmedBlockWriterTrait::new());
+            mock_writer.expect_run().return_once(|| Box::pin(async move { Ok(()) }));
+            (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
+        });
 
         Self {
             storage_reader,
@@ -187,7 +202,7 @@ fn mock_create_builder_for_validate_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        |_, _, tx_provider, _, _| {
+        |_, _, tx_provider, _, _, _, _| {
             let block_builder = FakeValidateBlockBuilder {
                 tx_provider,
                 build_block_result: Some(build_block_result),
@@ -203,7 +218,7 @@ fn mock_create_builder_for_propose_block(
     build_block_result: BlockBuilderResult<BlockExecutionArtifacts>,
 ) {
     block_builder_factory.expect_create_block_builder().times(1).return_once(
-        move |_, _, _, output_content_sender, _| {
+        move |_, _, _, output_content_sender, _, _, _| {
             let block_builder = FakeProposeBlockBuilder {
                 output_content_sender: output_content_sender.unwrap(),
                 output_txs,
@@ -496,8 +511,10 @@ async fn validate_block_full_flow() {
         SendProposalContentResponse { response: ProposalStatus::Processing }
     );
 
-    let finish_proposal =
-        SendProposalContentInput { proposal_id: PROPOSAL_ID, content: SendProposalContent::Finish };
+    let finish_proposal = SendProposalContentInput {
+        proposal_id: PROPOSAL_ID,
+        content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+    };
     assert_eq!(
         batcher.send_proposal_content(finish_proposal).await.unwrap(),
         SendProposalContentResponse { response: ProposalStatus::Finished(proposal_commitment()) }
@@ -508,7 +525,7 @@ async fn validate_block_full_flow() {
 
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)))]
-#[case::send_finish(SendProposalContent::Finish)]
+#[case::send_finish(SendProposalContent::Finish(TEMP_N_EXECUTED_TXS))]
 #[case::send_abort(SendProposalContent::Abort)]
 #[tokio::test]
 async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
@@ -522,7 +539,10 @@ async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) 
 
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal)]
-#[case::send_finish(SendProposalContent::Finish, ProposalStatus::InvalidProposal)]
+#[case::send_finish(
+    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+    ProposalStatus::InvalidProposal
+)]
 #[case::send_abort(SendProposalContent::Abort, ProposalStatus::Aborted)]
 #[tokio::test]
 async fn send_content_to_an_invalid_proposal(
@@ -540,11 +560,20 @@ async fn send_content_to_an_invalid_proposal(
 }
 
 #[rstest]
-#[case::send_txs_after_finish(SendProposalContent::Finish, SendProposalContent::Txs(test_txs(0..1)))]
-#[case::send_finish_after_finish(SendProposalContent::Finish, SendProposalContent::Finish)]
-#[case::send_abort_after_finish(SendProposalContent::Finish, SendProposalContent::Abort)]
+#[case::send_txs_after_finish(SendProposalContent::Finish(TEMP_N_EXECUTED_TXS), SendProposalContent::Txs(test_txs(0..1)))]
+#[case::send_finish_after_finish(
+    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS)
+)]
+#[case::send_abort_after_finish(
+    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+    SendProposalContent::Abort
+)]
 #[case::send_txs_after_abort(SendProposalContent::Abort, SendProposalContent::Txs(test_txs(0..1)))]
-#[case::send_finish_after_abort(SendProposalContent::Abort, SendProposalContent::Finish)]
+#[case::send_finish_after_abort(
+    SendProposalContent::Abort,
+    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS)
+)]
 #[case::send_abort_after_abort(SendProposalContent::Abort, SendProposalContent::Abort)]
 #[tokio::test]
 async fn send_proposal_content_after_finish_or_abort(
@@ -642,7 +671,12 @@ async fn propose_block_full_flow() {
         .unwrap();
     assert_eq!(
         commitment,
-        GetProposalContentResponse { content: GetProposalContent::Finished(proposal_commitment()) }
+        GetProposalContentResponse {
+            content: GetProposalContent::Finished {
+                id: proposal_commitment(),
+                n_executed_txs: TEMP_N_EXECUTED_TXS
+            }
+        }
     );
 
     let exhausted =
@@ -731,7 +765,7 @@ async fn consecutive_proposal_generation_success() {
         batcher.validate_block(validate_block_input(ProposalId(2 * i + 1))).await.unwrap();
         let finish_proposal = SendProposalContentInput {
             proposal_id: ProposalId(2 * i + 1),
-            content: SendProposalContent::Finish,
+            content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
         };
         batcher.send_proposal_content(finish_proposal).await.unwrap();
         batcher.await_active_proposal().await;
@@ -765,7 +799,7 @@ async fn concurrent_proposals_generation_fail() {
     batcher
         .send_proposal_content(SendProposalContentInput {
             proposal_id: ProposalId(0),
-            content: SendProposalContent::Finish,
+            content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
         })
         .await
         .unwrap();
@@ -810,7 +844,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
     batcher
         .send_proposal_content(SendProposalContentInput {
             proposal_id: ProposalId(1),
-            content: SendProposalContent::Finish,
+            content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
         })
         .await
         .unwrap();
@@ -1094,7 +1128,7 @@ async fn mempool_not_ready() {
 fn validate_batcher_config_failure() {
     let config = BatcherConfig {
         input_stream_content_buffer_size: 99,
-        block_builder_config: BlockBuilderConfig { tx_chunk_size: 100, ..Default::default() },
+        block_builder_config: BlockBuilderConfig { n_concurrent_txs: 100, ..Default::default() },
         ..Default::default()
     };
 
@@ -1102,7 +1136,7 @@ fn validate_batcher_config_failure() {
     assert!(
         error
             .to_string()
-            .contains("input_stream_content_buffer_size must be at least tx_chunk_size")
+            .contains("input_stream_content_buffer_size must be at least n_concurrent_txs")
     );
 }
 

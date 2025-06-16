@@ -1,10 +1,16 @@
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
+use sha2::digest::generic_array::GenericArray;
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::{GasCostsError, SyscallGasCost, VersionedConstants};
+use crate::blockifier_versioned_constants::{
+    GasCosts,
+    GasCostsError,
+    SyscallGasCost,
+    VersionedConstants,
+};
 use crate::execution::execution_utils::felt_from_ptr;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
 use crate::execution::syscalls::secp::{
@@ -22,7 +28,6 @@ use crate::execution::syscalls::secp::{
     SecpNewRequest,
     SecpNewResponse,
 };
-use crate::execution::syscalls::syscall_base::SyscallResult;
 use crate::execution::syscalls::vm_syscall_utils::{
     CallContractRequest,
     CallContractResponse,
@@ -60,13 +65,17 @@ use crate::execution::syscalls::vm_syscall_utils::{
 pub trait SyscallExecutor {
     type Error: From<SyscallExecutorBaseError> + TryExtractRevert;
 
-    #[allow(clippy::result_large_err)]
-    fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> SyscallResult<Felt> {
-        Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr())?)
+    fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> Result<Felt, Self::Error> {
+        Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr()).map_err(SyscallExecutorBaseError::from)?)
     }
 
-    // TODO(Aner): replace function with inline after implementing fn get_gas_costs.
-    fn get_keccak_round_cost_base_syscall_cost(&self) -> u64;
+    fn gas_costs(&self) -> &GasCosts;
+
+    fn write_sha256_state(
+        &mut self,
+        state: &[MaybeRelocatable],
+        vm: &mut VirtualMachine,
+    ) -> Result<Relocatable, Self::Error>;
 
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config>;
 
@@ -103,7 +112,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<CallContractResponse>;
+    ) -> Result<CallContractResponse, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn deploy(
@@ -111,7 +120,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<DeployResponse>;
+    ) -> Result<DeployResponse, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn emit_event(
@@ -119,7 +128,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<EmitEventResponse>;
+    ) -> Result<EmitEventResponse, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn get_block_hash(
@@ -127,7 +136,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<GetBlockHashResponse>;
+    ) -> Result<GetBlockHashResponse, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn get_class_hash_at(
@@ -135,7 +144,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<GetClassHashAtResponse>;
+    ) -> Result<GetClassHashAtResponse, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn get_execution_info(
@@ -143,7 +152,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<GetExecutionInfoResponse>;
+    ) -> Result<GetExecutionInfoResponse, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn keccak(
@@ -151,10 +160,13 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<KeccakResponse> {
-        let input_length = (request.input_end - request.input_start)?;
+    ) -> Result<KeccakResponse, Self::Error> {
+        let input_length =
+            (request.input_end - request.input_start).map_err(SyscallExecutorBaseError::from)?;
 
-        let data = vm.get_integer_range(request.input_start, input_length)?;
+        let data = vm
+            .get_integer_range(request.input_start, input_length)
+            .map_err(SyscallExecutorBaseError::from)?;
         let data_u64: &[u64] = &data
             .iter()
             .map(|felt| {
@@ -168,7 +180,7 @@ pub trait SyscallExecutor {
             .collect::<Result<Vec<u64>, _>>()?;
 
         let (state, n_rounds) = base_keccak(
-            syscall_handler.get_keccak_round_cost_base_syscall_cost(),
+            syscall_handler.gas_costs().syscalls.keccak_round.base_syscall_cost(),
             data_u64,
             remaining_gas,
         )?;
@@ -189,7 +201,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<LibraryCallResponse>;
+    ) -> Result<LibraryCallResponse, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn meta_tx_v0(
@@ -197,15 +209,54 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<MetaTxV0Response>;
+    ) -> Result<MetaTxV0Response, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn sha256_process_block(
         request: Sha256ProcessBlockRequest,
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
-        remaining_gas: &mut u64,
-    ) -> SyscallResult<Sha256ProcessBlockResponse>;
+        _remaining_gas: &mut u64,
+    ) -> Result<Sha256ProcessBlockResponse, Self::Error> {
+        const SHA256_BLOCK_SIZE: usize = 16;
+
+        let data = vm
+            .get_integer_range(request.input_start, SHA256_BLOCK_SIZE)
+            .map_err(SyscallExecutorBaseError::from)?;
+        const SHA256_STATE_SIZE: usize = 8;
+        let prev_state = vm
+            .get_integer_range(request.state_ptr, SHA256_STATE_SIZE)
+            .map_err(SyscallExecutorBaseError::from)?;
+
+        let data_as_bytes: GenericArray<u8, sha2::digest::consts::U64> =
+            sha2::digest::generic_array::GenericArray::from_exact_iter(data.iter().flat_map(
+                |felt| {
+                    felt.to_bigint()
+                        .to_u32()
+                        .expect("libfunc should ensure the input is an [u32; 16].")
+                        .to_be_bytes()
+                },
+            ))
+            .expect(
+                "u32.to_be_bytes() returns 4 bytes, and data.len() == 16. So data contains 64 \
+                 bytes.",
+            );
+
+        let mut state_as_words: [u32; SHA256_STATE_SIZE] = core::array::from_fn(|i| {
+            prev_state[i].to_bigint().to_u32().expect(
+                "libfunc only accepts SHA256StateHandle which can only be created from an \
+                 Array<u32>.",
+            )
+        });
+
+        sha2::compress256(&mut state_as_words, &[data_as_bytes]);
+
+        let data: Vec<MaybeRelocatable> =
+            state_as_words.iter().map(|&arg| MaybeRelocatable::from(Felt::from(arg))).collect();
+        let response = syscall_handler.write_sha256_state(&data, vm)?;
+
+        Ok(Sha256ProcessBlockResponse { state_ptr: response })
+    }
 
     #[allow(clippy::result_large_err)]
     fn replace_class(
@@ -213,7 +264,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<ReplaceClassResponse>;
+    ) -> Result<ReplaceClassResponse, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn secp256k1_add(
@@ -221,7 +272,7 @@ pub trait SyscallExecutor {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpAddResponse> {
+    ) -> Result<SecpAddResponse, Self::Error> {
         Ok(syscall_handler.get_secpk1_hint_processor().secp_add(request)?)
     }
 
@@ -231,7 +282,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpGetPointFromXResponse> {
+    ) -> Result<SecpGetPointFromXResponse, Self::Error> {
         Ok(syscall_handler.get_secpk1_hint_processor().secp_get_point_from_x(vm, request)?)
     }
 
@@ -241,7 +292,7 @@ pub trait SyscallExecutor {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpGetXyResponse> {
+    ) -> Result<SecpGetXyResponse, Self::Error> {
         Ok(syscall_handler.get_secpk1_hint_processor().secp_get_xy(request)?)
     }
 
@@ -251,7 +302,7 @@ pub trait SyscallExecutor {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpMulResponse> {
+    ) -> Result<SecpMulResponse, Self::Error> {
         Ok(syscall_handler.get_secpk1_hint_processor().secp_mul(request)?)
     }
 
@@ -261,7 +312,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpNewResponse> {
+    ) -> Result<SecpNewResponse, Self::Error> {
         Ok(syscall_handler.get_secpk1_hint_processor().secp_new(vm, request)?)
     }
 
@@ -271,7 +322,7 @@ pub trait SyscallExecutor {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpAddResponse> {
+    ) -> Result<SecpAddResponse, Self::Error> {
         Ok(syscall_handler.get_secpr1_hint_processor().secp_add(request)?)
     }
 
@@ -281,7 +332,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpGetPointFromXResponse> {
+    ) -> Result<SecpGetPointFromXResponse, Self::Error> {
         Ok(syscall_handler.get_secpr1_hint_processor().secp_get_point_from_x(vm, request)?)
     }
 
@@ -291,7 +342,7 @@ pub trait SyscallExecutor {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpGetXyResponse> {
+    ) -> Result<SecpGetXyResponse, Self::Error> {
         Ok(syscall_handler.get_secpr1_hint_processor().secp_get_xy(request)?)
     }
 
@@ -301,7 +352,7 @@ pub trait SyscallExecutor {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SecpMulResponse> {
+    ) -> Result<SecpMulResponse, Self::Error> {
         Ok(syscall_handler.get_secpr1_hint_processor().secp_mul(request)?)
     }
 
@@ -311,7 +362,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<Secp256r1NewResponse> {
+    ) -> Result<Secp256r1NewResponse, Self::Error> {
         Ok(syscall_handler.get_secpr1_hint_processor().secp_new(vm, request)?)
     }
 
@@ -321,7 +372,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<SendMessageToL1Response>;
+    ) -> Result<SendMessageToL1Response, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn storage_read(
@@ -329,7 +380,7 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<StorageReadResponse>;
+    ) -> Result<StorageReadResponse, Self::Error>;
 
     #[allow(clippy::result_large_err)]
     fn storage_write(
@@ -337,5 +388,5 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<StorageWriteResponse>;
+    ) -> Result<StorageWriteResponse, Self::Error>;
 }

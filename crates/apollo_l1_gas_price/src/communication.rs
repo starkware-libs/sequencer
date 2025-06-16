@@ -26,6 +26,7 @@ impl ComponentRequestHandler<L1GasPriceRequest, L1GasPriceResponse> for L1GasPri
     #[instrument(skip(self))]
     async fn handle_request(&mut self, request: L1GasPriceRequest) -> L1GasPriceResponse {
         match request {
+            L1GasPriceRequest::Initialize => L1GasPriceResponse::Initialize(self.initialize()),
             L1GasPriceRequest::GetGasPrice(timestamp) => {
                 L1GasPriceResponse::GetGasPrice(self.get_price_info(timestamp))
             }

@@ -13,7 +13,6 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::runners::cairo_runner::{ResourceTracker, RunResources};
 use cairo_vm::vm::vm_core::VirtualMachine;
-use num_traits::ToPrimitive;
 use starknet_api::block::BlockHash;
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
@@ -70,8 +69,6 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
-    Sha256ProcessBlockRequest,
-    Sha256ProcessBlockResponse,
     StorageReadRequest,
     StorageReadResponse,
     StorageWriteRequest,
@@ -293,10 +290,6 @@ impl<'a> SyscallHintProcessor<'a> {
         self.execution_mode() == ExecutionMode::Validate
     }
 
-    pub fn gas_costs(&self) -> &GasCosts {
-        self.base.context.gas_costs()
-    }
-
     #[allow(clippy::result_large_err)]
     pub fn get_or_allocate_execution_info_segment(
         &mut self,
@@ -469,8 +462,8 @@ impl<'a> SyscallHintProcessor<'a> {
 impl SyscallExecutor for SyscallHintProcessor<'_> {
     type Error = SyscallExecutionError;
 
-    fn get_keccak_round_cost_base_syscall_cost(&self) -> u64 {
-        self.gas_costs().syscalls.keccak_round.base_syscall_cost()
+    fn gas_costs(&self) -> &GasCosts {
+        self.base.context.gas_costs()
     }
 
     fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
@@ -500,7 +493,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<CallContractResponse> {
+    ) -> Result<CallContractResponse, Self::Error> {
         let storage_address = request.contract_address;
         let class_hash = syscall_handler.base.state.get_class_hash_at(storage_address)?;
         let selector = request.function_selector;
@@ -546,7 +539,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<DeployResponse> {
+    ) -> Result<DeployResponse, Self::Error> {
         // Increment the Deploy syscall's linear cost counter by the number of elements in the
         // constructor calldata.
         syscall_handler.increment_linear_factor_by(
@@ -574,7 +567,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<EmitEventResponse> {
+    ) -> Result<EmitEventResponse, Self::Error> {
         syscall_handler.base.emit_event(request.content)?;
         Ok(EmitEventResponse {})
     }
@@ -590,7 +583,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<GetBlockHashResponse> {
+    ) -> Result<GetBlockHashResponse, Self::Error> {
         let block_hash = BlockHash(syscall_handler.base.get_block_hash(request.block_number.0)?);
         Ok(GetBlockHashResponse { block_hash })
     }
@@ -601,7 +594,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<GetClassHashAtResponse> {
+    ) -> Result<GetClassHashAtResponse, Self::Error> {
         syscall_handler.base.get_class_hash_at(request)
     }
 
@@ -611,7 +604,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<GetExecutionInfoResponse> {
+    ) -> Result<GetExecutionInfoResponse, Self::Error> {
         let execution_info_ptr = syscall_handler.get_or_allocate_execution_info_segment(vm)?;
 
         Ok(GetExecutionInfoResponse { execution_info_ptr })
@@ -623,7 +616,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<LibraryCallResponse> {
+    ) -> Result<LibraryCallResponse, Self::Error> {
         let entry_point = CallEntryPoint {
             class_hash: Some(request.class_hash),
             code_address: None,
@@ -657,7 +650,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
-    ) -> SyscallResult<MetaTxV0Response> {
+    ) -> Result<MetaTxV0Response, Self::Error> {
         // Increment the MetaTxV0 syscall's linear cost counter by the number of elements in the
         // calldata.
         syscall_handler.increment_linear_factor_by(
@@ -681,57 +674,12 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
     }
 
     #[allow(clippy::result_large_err)]
-    fn sha256_process_block(
-        request: Sha256ProcessBlockRequest,
-        vm: &mut VirtualMachine,
-        syscall_handler: &mut Self,
-        _remaining_gas: &mut u64,
-    ) -> SyscallResult<Sha256ProcessBlockResponse> {
-        const SHA256_BLOCK_SIZE: usize = 16;
-
-        let data = vm.get_integer_range(request.input_start, SHA256_BLOCK_SIZE)?;
-        const SHA256_STATE_SIZE: usize = 8;
-        let prev_state = vm.get_integer_range(request.state_ptr, SHA256_STATE_SIZE)?;
-
-        let data_as_bytes = sha2::digest::generic_array::GenericArray::from_exact_iter(
-            data.iter().flat_map(|felt| {
-                felt.to_bigint()
-                    .to_u32()
-                    .expect("libfunc should ensure the input is an [u32; 16].")
-                    .to_be_bytes()
-            }),
-        )
-        .expect(
-            "u32.to_be_bytes() returns 4 bytes, and data.len() == 16. So data contains 64 bytes.",
-        );
-
-        let mut state_as_words: [u32; SHA256_STATE_SIZE] = core::array::from_fn(|i| {
-            prev_state[i].to_bigint().to_u32().expect(
-                "libfunc only accepts SHA256StateHandle which can only be created from an \
-                 Array<u32>.",
-            )
-        });
-
-        sha2::compress256(&mut state_as_words, &[data_as_bytes]);
-
-        let segment = syscall_handler.sha256_segment_end_ptr.unwrap_or(vm.add_memory_segment());
-
-        let response = segment;
-        let data: Vec<MaybeRelocatable> =
-            state_as_words.iter().map(|&arg| MaybeRelocatable::from(Felt::from(arg))).collect();
-
-        syscall_handler.sha256_segment_end_ptr = Some(vm.load_data(segment, &data)?);
-
-        Ok(Sha256ProcessBlockResponse { state_ptr: response })
-    }
-
-    #[allow(clippy::result_large_err)]
     fn replace_class(
         request: ReplaceClassRequest,
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<ReplaceClassResponse> {
+    ) -> Result<ReplaceClassResponse, Self::Error> {
         syscall_handler.base.replace_class(request.class_hash)?;
         Ok(ReplaceClassResponse {})
     }
@@ -742,7 +690,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<SendMessageToL1Response> {
+    ) -> Result<SendMessageToL1Response, Self::Error> {
         syscall_handler.base.send_message_to_l1(request.message)?;
         Ok(SendMessageToL1Response {})
     }
@@ -753,7 +701,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<StorageReadResponse> {
+    ) -> Result<StorageReadResponse, Self::Error> {
         let value = syscall_handler.base.storage_read(request.address)?;
         Ok(StorageReadResponse { value })
     }
@@ -764,13 +712,24 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         _vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
-    ) -> SyscallResult<StorageWriteResponse> {
+    ) -> Result<StorageWriteResponse, Self::Error> {
         syscall_handler.base.storage_write(request.address, request.value)?;
         Ok(StorageWriteResponse {})
     }
 
     fn versioned_constants(&self) -> &VersionedConstants {
         self.base.context.versioned_constants()
+    }
+
+    fn write_sha256_state(
+        &mut self,
+        state: &[MaybeRelocatable],
+        vm: &mut VirtualMachine,
+    ) -> Result<Relocatable, Self::Error> {
+        let current_end = self.sha256_segment_end_ptr.unwrap_or(vm.add_memory_segment());
+        let new_end = vm.load_data(current_end, state)?;
+        self.sha256_segment_end_ptr = Some(new_end);
+        Ok(current_end)
     }
 }
 
@@ -818,7 +777,7 @@ impl HintProcessorLogic for SyscallHintProcessor<'_> {
             Hint::Core(hint) => {
                 execute_core_hint_base(vm, exec_scopes, hint, no_temporary_segments)
             }
-            Hint::Starknet(hint) => execute_next_syscall(self, vm, hint),
+            Hint::Starknet(hint) => Ok(execute_next_syscall(self, vm, hint)?),
             Hint::External(_) => {
                 panic!("starknet should never accept classes with external hints!")
             }
