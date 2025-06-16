@@ -108,7 +108,7 @@ pub struct BlockExecutionArtifacts {
     pub casm_hash_computation_data: CasmHashComputationData,
     // The number of transactions executed by the proposer out of the transactions that were sent.
     // This value includes rejected transactions.
-    pub n_txs_in_block: usize,
+    pub final_n_executed_txs: usize,
 }
 
 impl BlockExecutionArtifacts {
@@ -229,8 +229,8 @@ impl BlockBuilderTrait for BlockBuilder {
 
 impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        let mut n_txs_in_block: Option<usize> = None;
-        while !self.finished_block_txs(n_txs_in_block) {
+        let mut final_n_executed_txs: Option<usize> = None;
+        while !self.finished_block_txs(final_n_executed_txs) {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
                 if self.execution_params.is_validator {
@@ -238,10 +238,10 @@ impl BlockBuilder {
                 }
                 break;
             }
-            if n_txs_in_block.is_none() {
-                if let Some(res) = self.tx_provider.get_n_txs_in_block().await {
+            if final_n_executed_txs.is_none() {
+                if let Some(res) = self.tx_provider.get_final_n_executed_txs().await {
                     info!("Received final number of transactions in block proposal: {res}.");
-                    n_txs_in_block = Some(res);
+                    final_n_executed_txs = Some(res);
                 }
             }
             if self.abort_signal_receiver.try_recv().is_ok() {
@@ -276,17 +276,20 @@ impl BlockBuilder {
         // The final number of transactions to consider for the block.
         // Proposer: this is the number of transactions that were executed.
         // Validator: the number of transactions we got from the proposer.
-        let n_txs_in_block_nonopt = if self.execution_params.is_validator {
-            n_txs_in_block.expect("n_txs_in_block must be set in validate mode.")
+        let final_n_executed_txs_nonopt = if self.execution_params.is_validator {
+            final_n_executed_txs.expect("final_n_executed_txs must be set in validate mode.")
         } else {
-            assert!(n_txs_in_block.is_none(), "n_txs_in_block must be None in propose mode.");
+            assert!(
+                final_n_executed_txs.is_none(),
+                "final_n_executed_txs must be None in propose mode."
+            );
             self.n_executed_txs
         };
 
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
         let block_summary = tokio::task::spawn_blocking(move || {
-            lock_executor(&executor).close_block(n_txs_in_block_nonopt)
+            lock_executor(&executor).close_block(final_n_executed_txs_nonopt)
         })
         .await
         .expect("Failed to spawn blocking executor task.")?;
@@ -298,12 +301,12 @@ impl BlockBuilder {
             casm_hash_computation_data,
         } = block_summary;
         let mut execution_data = std::mem::take(&mut self.execution_data);
-        if let Some(n_txs_in_block) = n_txs_in_block {
+        if let Some(final_n_executed_txs) = final_n_executed_txs {
             // Remove the transactions that were executed, but eventually not included in the block.
             // This can happen if the proposer sends some transactions but closes the block before
             // including them, while the validator already executed those transactions.
             let remove_tx_hashes: Vec<TransactionHash> =
-                self.block_txs[n_txs_in_block..].iter().map(|tx| tx.tx_hash()).collect();
+                self.block_txs[final_n_executed_txs..].iter().map(|tx| tx.tx_hash()).collect();
             execution_data.remove_last_txs(&remove_tx_hashes);
         }
         let l2_gas_used = execution_data.l2_gas_used();
@@ -314,7 +317,7 @@ impl BlockBuilder {
             bouncer_weights,
             l2_gas_used,
             casm_hash_computation_data,
-            n_txs_in_block: n_txs_in_block_nonopt,
+            final_n_executed_txs: final_n_executed_txs_nonopt,
         })
     }
 
@@ -325,11 +328,11 @@ impl BlockBuilder {
 
     /// Returns `true` if all the txs in the block were executed. This function always returns
     /// `false` in propose mode.
-    fn finished_block_txs(&self, n_txs_in_block: Option<usize>) -> bool {
-        if let Some(n_txs_in_block) = n_txs_in_block {
-            self.n_executed_txs >= n_txs_in_block
+    fn finished_block_txs(&self, final_n_executed_txs: Option<usize>) -> bool {
+        if let Some(final_n_executed_txs) = final_n_executed_txs {
+            self.n_executed_txs >= final_n_executed_txs
         } else {
-            // n_txs_in_block is not known yet, so the block is not finished.
+            // final_n_executed_txs is not known yet, so the block is not finished.
             false
         }
     }
