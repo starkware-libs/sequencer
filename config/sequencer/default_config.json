@@ -764,6 +764,56 @@
     "privacy": "Public",
     "value": "localhost"
   },
+  "components.signature_manager.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.signature_manager.ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.signature_manager.local_server_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 32
+  },
+  "components.signature_manager.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "components.signature_manager.port": {
+    "description": "Listening port of the remote component server.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "components.signature_manager.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 18446744073709551615
+  },
+  "components.signature_manager.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 90
+  },
+  "components.signature_manager.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "components.signature_manager.remote_client_config.retry_interval": {
+    "description": "The duration in seconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "components.signature_manager.url": {
+    "description": "URL of the remote component server.",
+    "privacy": "Public",
+    "value": "localhost"
+  },
   "components.state_sync.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
