@@ -263,24 +263,19 @@ fn empty_block_test_expectations() -> TestExpectations {
     }
 }
 
-fn mock_transaction_executor_block_full(
-    input_txs: &[InternalConsensusTransaction],
-) -> MockTransactionExecutorTrait {
+fn block_full_test_expectations(before_is_done: bool) -> TestExpectations {
+    let input_txs = test_txs(0..3);
+
     let mut helper = ExpectationHelper::new();
     helper.expect_successful_get_new_results(0);
     helper.expect_is_done(false);
-    helper.expect_add_txs_to_block(input_txs);
+    helper.expect_add_txs_to_block(&input_txs);
     // Only the first transaction fits in the block.
-    helper.expect_successful_get_new_results(1);
+    helper.expect_successful_get_new_results(if before_is_done { 1 } else { 0 });
     helper.expect_is_done(true);
+    helper.expect_successful_get_new_results(if before_is_done { 0 } else { 1 });
 
-    helper.mock_transaction_executor
-}
-
-fn block_full_test_expectations() -> TestExpectations {
-    let input_txs = test_txs(0..3);
-    let mut mock_transaction_executor = mock_transaction_executor_block_full(&input_txs);
-
+    let mut mock_transaction_executor = helper.mock_transaction_executor;
     let expected_block_artifacts = set_close_block_expectations(&mut mock_transaction_executor, 1);
 
     let mock_tx_provider = mock_tx_provider_limited_calls(vec![input_txs.clone()]);
@@ -605,7 +600,8 @@ async fn run_build_block(
 #[case::one_chunk_block(one_chunk_test_expectations())]
 #[case::two_chunks_block(two_chunks_test_expectations())]
 #[case::empty_block(empty_block_test_expectations())]
-#[case::block_full(block_full_test_expectations())]
+#[case::block_full_before_is_done(block_full_test_expectations(true))]
+#[case::block_full_after_is_done(block_full_test_expectations(false))]
 #[case::deadline_reached_after_first_chunk(test_expectations_partial_transaction_execution())]
 #[case::stream_done(stream_done_test_expectations())]
 #[case::transaction_failed(transaction_failed_test_expectations())]
@@ -954,6 +950,7 @@ async fn partial_chunk_execution_proposer() {
     // Return only 2 txs, simulating a partial chunk execution.
     helper.expect_successful_get_new_results(executed_txs.len());
     helper.expect_is_done(true);
+    helper.expect_successful_get_new_results(0);
 
     let expected_block_artifacts =
         block_execution_artifacts(expected_execution_infos, Default::default(), Default::default());
