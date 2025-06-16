@@ -94,6 +94,6 @@
   "components.state_sync.remote_client_config.retries": 50,
   "components.state_sync.remote_client_config.retry_interval": 3,
   "components.state_sync.url": "localhost",
-  "l1_provider_config.provider_startup_height_override": 1,
+  "l1_provider_config.provider_startup_height_override": 300,
   "l1_provider_config.provider_startup_height_override.#is_none": false
 }
