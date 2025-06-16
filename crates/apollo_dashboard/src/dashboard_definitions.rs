@@ -133,33 +133,6 @@ mod dashboard_definitions_test;
 // resources folder.
 pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
 
-fn get_mempool_p2p_row() -> Row {
-    Row::new(
-        "MempoolP2p",
-        vec![
-            PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS,
-            PANEL_MEMPOOL_P2P_NUM_SENT_MESSAGES,
-            PANEL_MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
-            PANEL_MEMPOOL_P2P_BROADCASTED_BATCH_SIZE,
-        ],
-    )
-}
-
-fn get_mempool_p2p_infra_row() -> Row {
-    Row::new(
-        "MempoolP2pInfra",
-        vec![
-            PANEL_MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
-            PANEL_MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
-            PANEL_MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
-            PANEL_MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
-            PANEL_MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
-            PANEL_MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
-            PANEL_MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
-        ],
-    )
-}
-
 fn get_sierra_compiler_infra_row() -> Row {
     Row::new(
         "SierraCompilerInfra",
