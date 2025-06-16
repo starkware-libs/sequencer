@@ -4,6 +4,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_BUILD_PROPOSAL_FAILED,
     CONSENSUS_CONFLICTING_VOTES,
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
+    CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
@@ -49,17 +50,15 @@ use crate::alerts::{
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
 const PROMETHEUS_EPSILON: f64 = 0.0001;
 
-// Within 30s the metrics should be updated at least twice.
-// If in one of those times the block number is not updated, fire an alert.
-fn get_consensus_block_number_stuck_alert() -> Alert {
+fn get_consensus_block_number_stuck() -> Alert {
     Alert {
         name: "consensus_block_number_stuck",
         title: "Consensus block number stuck",
         alert_group: AlertGroup::Consensus,
-        expr: format!("changes({}[30s])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
+        expr: format!("changes({}[5m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 2.0,
+            comparison_value: 10.0,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: "1s",
@@ -68,15 +67,16 @@ fn get_consensus_block_number_stuck_alert() -> Alert {
     }
 }
 
+// If this happens, we expect to also see other nodes alert on `consensus_validate_proposal_failed`.
 fn get_consensus_build_proposal_failed_alert() -> Alert {
     Alert {
         name: "consensus_build_proposal_failed",
         title: "Consensus build proposal failed",
         alert_group: AlertGroup::Consensus,
-        expr: format!("rate({}[1m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+        expr: format!("increase({}[1h])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
+            comparison_value: 10.0,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: "10s",
@@ -85,15 +85,32 @@ fn get_consensus_build_proposal_failed_alert() -> Alert {
     }
 }
 
+fn get_consensus_build_proposal_failed_once_alert() -> Alert {
+    Alert {
+        name: "consensus_build_proposal_failed_once",
+        title: "Consensus build proposal failed once",
+        alert_group: AlertGroup::Consensus,
+        expr: format!("increase({}[1m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: "10s",
+        evaluation_interval_sec: 20,
+        severity: AlertSeverity::Informational,
+    }
+}
+
 fn get_consensus_validate_proposal_failed_alert() -> Alert {
     Alert {
         name: "consensus_validate_proposal_failed",
         title: "Consensus validate proposal failed",
         alert_group: AlertGroup::Consensus,
-        expr: format!("rate({}[1h])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter()),
+        expr: format!("increase({}[1h])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 5.0 / 3600.0, // 5 per hour
+            comparison_value: 10.0,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: "1m",
@@ -102,18 +119,21 @@ fn get_consensus_validate_proposal_failed_alert() -> Alert {
     }
 }
 
-fn get_consensus_decisions_reached_by_consensus_stuck_alert() -> Alert {
+fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
     Alert {
-        name: "consensus_decisions_reached_by_consensus_stuck",
-        title: "Consensus decisions reached by consensus stuck",
+        name: "consensus_decisions_reached_by_consensus_ratio",
+        title: "Consensus decisions reached by consensus ratio",
         alert_group: AlertGroup::Consensus,
+        // Clamp to avoid divide by 0.
         expr: format!(
-            "changes({}[10m])",
-            CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter()
+            "increase({consensus}[10m]) / clamp_min(increase({sync}[10m]) + \
+             increase({consensus}[10m]), 1)",
+            consensus = CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.get_name_with_filter(),
+            sync = CONSENSUS_DECISIONS_REACHED_BY_SYNC.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
+            comparison_value: 0.5,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: "1m",
@@ -127,15 +147,15 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
         name: "consensus_inbound_stream_evicted",
         title: "Consensus inbound stream evicted",
         alert_group: AlertGroup::Consensus,
-        expr: format!("rate({}[1h])", CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()),
+        expr: format!("increase({}[1h])", CONSENSUS_INBOUND_STREAM_EVICTED.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 5.0 / 3600.0, // 5 per hour
+            comparison_value: 5.0,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: "1m",
         evaluation_interval_sec: 20,
-        severity: AlertSeverity::WorkingHours,
+        severity: AlertSeverity::Informational,
     }
 }
 
@@ -144,19 +164,22 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
         name: "consensus_votes_num_sent_messages",
         title: "Consensus votes num sent messages",
         alert_group: AlertGroup::Consensus,
-        expr: format!("rate({}[20m])", CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()),
+        expr: format!(
+            "increase({}[20m])",
+            CONSENSUS_VOTES_NUM_SENT_MESSAGES.get_name_with_filter()
+        ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 100.0 / 3600.0, // 100 per hour
+            comparison_value: 20.0,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: "1m",
         evaluation_interval_sec: 20,
-        severity: AlertSeverity::WorkingHours,
+        severity: AlertSeverity::Informational,
     }
 }
 
-fn get_cende_write_prev_height_blob_latency_too_high_alert() -> Alert {
+fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
     Alert {
         name: "cende_write_prev_height_blob_latency_too_high",
         title: "Cende write prev height blob latency too high",
@@ -182,7 +205,24 @@ fn get_cende_write_blob_failure_alert() -> Alert {
         name: "cende_write_blob_failure",
         title: "Cende write blob failure",
         alert_group: AlertGroup::Consensus,
-        expr: format!("rate({}[20m])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
+        expr: format!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 10.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: "1m",
+        evaluation_interval_sec: 20,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
+fn get_cende_write_blob_failure_once_alert() -> Alert {
+    Alert {
+        name: "cende_write_blob_failure_once",
+        title: "Cende write blob failure once",
+        alert_group: AlertGroup::Consensus,
+        expr: format!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -190,11 +230,11 @@ fn get_cende_write_blob_failure_alert() -> Alert {
         }],
         pending_duration: "1m",
         evaluation_interval_sec: 20,
-        severity: AlertSeverity::WorkingHours,
+        severity: AlertSeverity::Informational,
     }
 }
 
-fn get_consensus_l1_gas_price_provider_error_rate_alert() -> Alert {
+fn get_consensus_l1_gas_price_provider_error_rate() -> Alert {
     Alert {
         name: "consensus_l1_gas_price_provider_error_rate",
         title: "Consensus L1 gas price provider error rate",
@@ -224,11 +264,11 @@ fn get_consensus_round_above_zero_alert() -> Alert {
         }],
         pending_duration: "1m",
         evaluation_interval_sec: 20,
-        severity: AlertSeverity::WorkingHours,
+        severity: AlertSeverity::Informational,
     }
 }
 
-fn get_consensus_conflicting_votes_rate_alert() -> Alert {
+fn get_consensus_conflicting_votes_rate() -> Alert {
     Alert {
         name: "consensus_conflicting_votes_rate",
         title: "Consensus conflicting votes rate",
@@ -241,11 +281,11 @@ fn get_consensus_conflicting_votes_rate_alert() -> Alert {
         }],
         pending_duration: "1m",
         evaluation_interval_sec: 20,
-        severity: AlertSeverity::WorkingHours,
+        severity: AlertSeverity::Regular,
     }
 }
 
-fn get_gateway_add_tx_rate_drop_alert() -> Alert {
+fn get_gateway_add_tx_rate_drop() -> Alert {
     Alert {
         name: "gateway_add_tx_rate_drop",
         title: "Gateway add_tx rate drop",
@@ -265,7 +305,7 @@ fn get_gateway_add_tx_rate_drop_alert() -> Alert {
     }
 }
 
-fn get_gateway_add_tx_latency_increase_alert() -> Alert {
+fn get_gateway_add_tx_latency_increase() -> Alert {
     Alert {
         name: "gateway_add_tx_latency_increase",
         title: "Gateway avg add_tx latency increase",
@@ -286,7 +326,7 @@ fn get_gateway_add_tx_latency_increase_alert() -> Alert {
     }
 }
 
-fn get_mempool_add_tx_rate_drop_alert() -> Alert {
+fn get_mempool_add_tx_rate_drop() -> Alert {
     Alert {
         name: "mempool_add_tx_rate_drop",
         title: "Mempool add_tx rate drop",
@@ -306,7 +346,7 @@ fn get_mempool_add_tx_rate_drop_alert() -> Alert {
     }
 }
 
-fn get_http_server_idle_alert() -> Alert {
+fn get_http_server_idle() -> Alert {
     Alert {
         name: "http_server_idle",
         title: "http server idle",
@@ -422,7 +462,7 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
 
 // The rate of add_txs is lower than the rate of transactions inserted into a block since this node
 // is not always the proposer.
-fn get_mempool_get_txs_size_drop_alert() -> Alert {
+fn get_mempool_get_txs_size_drop() -> Alert {
     Alert {
         name: "mempool_get_txs_size_drop",
         title: "Mempool get_txs size drop",
@@ -439,7 +479,7 @@ fn get_mempool_get_txs_size_drop_alert() -> Alert {
     }
 }
 
-fn get_mempool_pool_size_increase_alert() -> Alert {
+fn get_mempool_pool_size_increase() -> Alert {
     Alert {
         name: "mempool_pool_size_increase",
         title: "Mempool pool size increase",
@@ -456,7 +496,7 @@ fn get_mempool_pool_size_increase_alert() -> Alert {
     }
 }
 
-fn get_consensus_round_high_avg_alert() -> Alert {
+fn get_consensus_round_high_avg() -> Alert {
     Alert {
         name: "consensus_round_high_avg",
         title: "Consensus round high average",
@@ -473,7 +513,7 @@ fn get_consensus_round_high_avg_alert() -> Alert {
     }
 }
 
-fn get_native_compilation_error_increase_alert() -> Alert {
+fn get_native_compilation_error_increase() -> Alert {
     Alert {
         name: "native_compilation_error",
         title: "Native compilation alert",
@@ -490,7 +530,7 @@ fn get_native_compilation_error_increase_alert() -> Alert {
     }
 }
 
-fn get_state_sync_lag_alert() -> Alert {
+fn get_state_sync_lag() -> Alert {
     Alert {
         name: "state_sync_lag",
         title: "State sync lag",
@@ -511,7 +551,7 @@ fn get_state_sync_lag_alert() -> Alert {
     }
 }
 
-fn get_state_sync_stuck_alert() -> Alert {
+fn get_state_sync_stuck() -> Alert {
     Alert {
         name: "state_sync_stuck",
         title: "State sync stuck",
@@ -528,7 +568,7 @@ fn get_state_sync_stuck_alert() -> Alert {
     }
 }
 
-fn get_batched_transactions_stuck_alert() -> Alert {
+fn get_batched_transactions_stuck() -> Alert {
     Alert {
         name: "batched_transactions_stuck",
         title: "Batched transactions stuck",
@@ -545,7 +585,7 @@ fn get_batched_transactions_stuck_alert() -> Alert {
     }
 }
 
-fn get_last_batched_block_stuck_alert() -> Alert {
+fn get_last_batched_block_stuck() -> Alert {
     Alert {
         name: "last_batched_block_stuck",
         title: "Last batched block stuck",
@@ -564,33 +604,35 @@ fn get_last_batched_block_stuck_alert() -> Alert {
 
 pub fn get_apollo_alerts() -> Alerts {
     Alerts::new(vec![
-        get_batched_transactions_stuck_alert(),
+        get_batched_transactions_stuck(),
         get_cende_write_blob_failure_alert(),
-        get_cende_write_prev_height_blob_latency_too_high_alert(),
-        get_consensus_block_number_stuck_alert(),
+        get_cende_write_blob_failure_once_alert(),
+        get_cende_write_prev_height_blob_latency_too_high(),
+        get_consensus_block_number_stuck(),
         get_consensus_build_proposal_failed_alert(),
-        get_consensus_conflicting_votes_rate_alert(),
-        get_consensus_decisions_reached_by_consensus_stuck_alert(),
+        get_consensus_build_proposal_failed_once_alert(),
+        get_consensus_conflicting_votes_rate(),
+        get_consensus_decisions_reached_by_consensus_ratio(),
         get_consensus_inbound_stream_evicted_alert(),
-        get_consensus_l1_gas_price_provider_error_rate_alert(),
+        get_consensus_l1_gas_price_provider_error_rate(),
         get_consensus_round_above_zero_alert(),
-        get_consensus_round_high_avg_alert(),
+        get_consensus_round_high_avg(),
         get_consensus_validate_proposal_failed_alert(),
         get_consensus_votes_num_sent_messages_alert(),
-        get_gateway_add_tx_latency_increase_alert(),
-        get_gateway_add_tx_rate_drop_alert(),
-        get_http_server_idle_alert(),
+        get_gateway_add_tx_latency_increase(),
+        get_gateway_add_tx_rate_drop(),
+        get_http_server_idle(),
         get_l1_gas_price_provider_insufficient_history_alert(),
         get_l1_gas_price_reorg_detected_alert(),
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_reorg_detected_alert(),
-        get_last_batched_block_stuck_alert(),
-        get_mempool_add_tx_rate_drop_alert(),
-        get_mempool_get_txs_size_drop_alert(),
-        get_mempool_pool_size_increase_alert(),
-        get_native_compilation_error_increase_alert(),
-        get_state_sync_lag_alert(),
-        get_state_sync_stuck_alert(),
+        get_last_batched_block_stuck(),
+        get_mempool_add_tx_rate_drop(),
+        get_mempool_get_txs_size_drop(),
+        get_mempool_pool_size_increase(),
+        get_native_compilation_error_increase(),
+        get_state_sync_lag(),
+        get_state_sync_stuck(),
     ])
 }
