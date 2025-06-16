@@ -3,7 +3,7 @@ use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteCompo
 use apollo_signature_manager_types::{KeyStore, SignatureManagerRequest, SignatureManagerResponse};
 use async_trait::async_trait;
 
-use crate::SignatureManager;
+use crate::signature_manager::SignatureManager;
 
 pub type LocalSignatureManagerServer<KS> = ConcurrentLocalComponentServer<
     SignatureManager<KS>,
