@@ -116,9 +116,11 @@ pub struct Alert {
     pub expr: &'static str,
     // The conditions that must be met for the alert to be triggered.
     pub conditions: &'static [AlertCondition],
+    // TODO(Tsabary): Consider removing this and making it constant for all alerts
     // The time duration for which the alert conditions must be true before an alert is triggered.
     #[serde(rename = "for")]
     pub pending_duration: &'static str,
+    // TODO(Tsabary): Consider removing this and making it constant for all alerts
     // The interval in sec between evaluations of the alert.
     #[serde(rename = "intervalSec")]
     pub evaluation_interval_sec: u64,

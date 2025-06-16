@@ -59,7 +59,7 @@ const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
         comparison_value: 10.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1s",
+    pending_duration: "10s",
     evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
@@ -76,7 +76,7 @@ const CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT: Alert = Alert {
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "10s",
-    evaluation_interval_sec: 20,
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::DayOnly,
 };
 
@@ -91,7 +91,7 @@ const CONSENSUS_BUILD_PROPOSAL_FAILED_ONCE_ALERT: Alert = Alert {
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "10s",
-    evaluation_interval_sec: 20,
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -105,8 +105,8 @@ const CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT: Alert = Alert {
         comparison_value: 10.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::DayOnly,
 };
 
@@ -126,8 +126,8 @@ const CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_RATIO: Alert = Alert {
         comparison_value: 0.5,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::WorkingHours,
 };
 
@@ -141,8 +141,8 @@ const CONSENSUS_INBOUND_STREAM_EVICTED_ALERT: Alert = Alert {
         comparison_value: 5.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -156,8 +156,8 @@ const CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT: Alert = Alert {
         comparison_value: 20.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -175,8 +175,8 @@ const CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY_TOO_HIGH: Alert = Alert {
         comparison_value: 1.5,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::WorkingHours,
 };
 
@@ -190,8 +190,8 @@ const CENDE_WRITE_BLOB_FAILURE_ALERT: Alert = Alert {
         comparison_value: 10.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::DayOnly,
 };
 
@@ -205,8 +205,8 @@ const CENDE_WRITE_BLOB_FAILURE_ONCE_ALERT: Alert = Alert {
         comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -223,8 +223,8 @@ const CONSENSUS_L1_GAS_PRICE_PROVIDER_FAILURE: Alert = Alert {
         comparison_value: 5.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::WorkingHours,
 };
 
@@ -238,8 +238,8 @@ const CONSENSUS_ROUND_ABOVE_ZERO_ALERT: Alert = Alert {
         comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -253,8 +253,8 @@ const CONSENSUS_CONFLICTING_VOTES_ALERT: Alert = Alert {
         comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
 
@@ -271,8 +271,8 @@ const GATEWAY_ADD_TX_IDLE: Alert = Alert {
         comparison_value: 0.1,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
 
@@ -290,8 +290,8 @@ const GATEWAY_ADD_TX_LATENCY_INCREASE: Alert = Alert {
         comparison_value: 2.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
 
@@ -308,8 +308,8 @@ const MEMPOOL_ADD_TX_IDLE: Alert = Alert {
         comparison_value: 0.1,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
 
@@ -326,8 +326,8 @@ const HTTP_SERVER_IDLE: Alert = Alert {
         comparison_value: 0.000001,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "5m",
-    evaluation_interval_sec: 60,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
 
@@ -344,8 +344,8 @@ const L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT: Alert = Alert {
         comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -362,8 +362,8 @@ const L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY_ALERT: Alert = Alert {
         comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -377,8 +377,8 @@ const L1_GAS_PRICE_REORG_DETECTED_ALERT: Alert = Alert {
         comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -395,8 +395,8 @@ const L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT: Alert = Alert {
         comparison_value: 5.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -413,8 +413,8 @@ const L1_MESSAGE_SCRAPER_REORG_DETECTED_ALERT: Alert = Alert {
         comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -431,8 +431,8 @@ const MEMPOOL_GET_TXS_SIZE_DROP: Alert = Alert {
         comparison_value: 0.01,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
 
@@ -446,8 +446,8 @@ const MEMPOOL_POOL_SIZE_INCREASE: Alert = Alert {
         comparison_value: 2000.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
 
@@ -461,8 +461,8 @@ const CONSENSUS_ROUND_HIGH_AVG: Alert = Alert {
         comparison_value: 0.2,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
 
@@ -476,8 +476,8 @@ const NATIVE_COMPILATION_ERROR_INCREASE: Alert = Alert {
         comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Informational,
 };
 
@@ -495,8 +495,8 @@ const STATE_SYNC_LAG: Alert = Alert {
         comparison_value: 5.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "3m",
-    evaluation_interval_sec: 20,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
 
@@ -510,8 +510,8 @@ const STATE_SYNC_STUCK: Alert = Alert {
         comparison_value: 1.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "3m",
-    evaluation_interval_sec: 60,
+    pending_duration: "10s",
+    evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
 
@@ -525,7 +525,7 @@ const BATCHED_TRANSACTIONS_STUCK: Alert = Alert {
         comparison_value: 1.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1s",
+    pending_duration: "10s",
     evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
@@ -540,7 +540,7 @@ const LAST_BATCHED_BLOCK_STUCK: Alert = Alert {
         comparison_value: 1.0,
         logical_op: AlertLogicalOp::And,
     }],
-    pending_duration: "1s",
+    pending_duration: "10s",
     evaluation_interval_sec: 10,
     severity: AlertSeverity::Regular,
 };
