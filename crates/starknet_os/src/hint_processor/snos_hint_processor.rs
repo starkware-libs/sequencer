@@ -42,6 +42,7 @@ use crate::hints::enum_definition::AllHints;
 use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum};
+use crate::hints::vars::CairoStruct;
 use crate::io::os_input::{
     CachedStateInput,
     CommitmentInfo,
@@ -49,6 +50,7 @@ use crate::io::os_input::{
     OsHintsConfig,
     OsInputError,
 };
+use crate::vm_utils::get_address_of_nested_fields_from_base_address;
 
 type VmHintResultType<T> = Result<T, VmHintError>;
 type VmHintResult = VmHintResultType<()>;
@@ -214,6 +216,23 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             .tx_execution_iter
             .get_tx_execution_info_ref()?
             .get_call_info_tracker()
+    }
+
+    /// Returns the value of the given nested fields of the current execution info.
+    pub fn get_execution_info_nested_field_value(
+        &self,
+        nested_fields: &[&str],
+        vm: &VirtualMachine,
+    ) -> Result<Felt, ExecutionHelperError> {
+        Ok(vm
+            .get_integer(get_address_of_nested_fields_from_base_address(
+                self.get_execution_info_ptr()?,
+                CairoStruct::ExecutionInfo,
+                vm,
+                nested_fields,
+                self.os_program,
+            )?)?
+            .into_owned())
     }
 
     /// Returns the number of blocks executed by the OS.
