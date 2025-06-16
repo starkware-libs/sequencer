@@ -46,6 +46,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::transaction::TransactionVersion;
+use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::execution_helper::{CallInfoTracker, ExecutionHelperError};
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -138,22 +139,24 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         )?)?;
         let os_constants = &syscall_handler.versioned_constants().os_constants;
         // Check if we should return version = 1.
-        let tip = match syscall_handler
+        let original_execution_info_ptr = syscall_handler
             .get_current_execution_helper()?
-            .tx_tracker
-            .tx_ref
-            .expect("Transaction must be set at this point.")
-        {
-            starknet_api::executable_transaction::Transaction::Account(account_transaction) => {
-                account_transaction.tip()
-            }
-            starknet_api::executable_transaction::Transaction::L1Handler(_) => {
-                unimplemented!("L1 handler transactions do not have a tip field in the OS.")
-            }
-        };
+            .tx_execution_iter
+            .get_tx_execution_info_ref()?
+            .get_call_info_tracker()?
+            .execution_info_ptr;
+
+        let tip = vm.get_integer(get_address_of_nested_fields_from_base_address(
+            original_execution_info_ptr,
+            CairoStruct::ExecutionInfo,
+            vm,
+            &["tx_info", "tip"],
+            syscall_handler.os_program,
+        )?)?;
+
         let should_replace_to_v1 = tx_version == TransactionVersion::THREE.0
             && os_constants.v1_bound_accounts_cairo0.contains(&class_hash)
-            && tip <= os_constants.v1_bound_accounts_max_tip;
+            && *tip <= Felt::from(os_constants.v1_bound_accounts_max_tip.0);
 
         if should_replace_to_v1 {
             // Deal with version bound accounts.
