@@ -23,8 +23,8 @@
           "type": "query"
         }
       ],
-      "for": "1s",
-      "intervalSec": 10,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -50,8 +50,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p3"
     },
     {
@@ -77,8 +77,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -104,8 +104,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p4"
     },
     {
@@ -131,8 +131,8 @@
           "type": "query"
         }
       ],
-      "for": "1s",
-      "intervalSec": 10,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -158,8 +158,8 @@
           "type": "query"
         }
       ],
-      "for": "10s",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p3"
     },
     {
@@ -185,8 +185,8 @@
           "type": "query"
         }
       ],
-      "for": "10s",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -212,8 +212,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -239,8 +239,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p4"
     },
     {
@@ -266,8 +266,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -293,8 +293,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p4"
     },
     {
@@ -320,8 +320,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -347,8 +347,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -374,8 +374,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p3"
     },
     {
@@ -401,8 +401,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -428,8 +428,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -455,8 +455,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -482,8 +482,8 @@
           "type": "query"
         }
       ],
-      "for": "5m",
-      "intervalSec": 60,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -509,8 +509,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -536,8 +536,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -563,8 +563,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -590,8 +590,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -617,8 +617,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -644,8 +644,8 @@
           "type": "query"
         }
       ],
-      "for": "1s",
-      "intervalSec": 10,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -671,8 +671,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -698,8 +698,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -725,8 +725,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -752,8 +752,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -779,8 +779,8 @@
           "type": "query"
         }
       ],
-      "for": "3m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -806,8 +806,8 @@
           "type": "query"
         }
       ],
-      "for": "3m",
-      "intervalSec": 60,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     }
   ]
