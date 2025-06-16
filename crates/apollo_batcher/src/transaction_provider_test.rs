@@ -33,6 +33,8 @@ struct MockDependencies {
     l1_provider_client: MockL1ProviderClient,
     tx_sender: tokio::sync::mpsc::Sender<InternalConsensusTransaction>,
     tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
+    n_txs_in_block_sender: tokio::sync::mpsc::Sender<usize>,
+    n_txs_in_block_receiver: tokio::sync::mpsc::Receiver<usize>,
 }
 
 impl MockDependencies {
@@ -74,9 +76,14 @@ impl MockDependencies {
     fn validate_tx_provider(self) -> ValidateTransactionProvider {
         ValidateTransactionProvider::new(
             self.tx_receiver,
+            self.n_txs_in_block_receiver,
             Arc::new(self.l1_provider_client),
             HEIGHT,
         )
+    }
+
+    fn get_n_txs_in_block_sender(&self) -> tokio::sync::mpsc::Sender<usize> {
+        self.n_txs_in_block_sender.clone()
     }
 }
 
@@ -86,13 +93,20 @@ fn mock_dependencies(
         tokio::sync::mpsc::Sender<InternalConsensusTransaction>,
         tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
     ),
+    n_txs_in_block_channel: (
+        tokio::sync::mpsc::Sender<usize>,
+        tokio::sync::mpsc::Receiver<usize>,
+    ),
 ) -> MockDependencies {
     let (tx_sender, tx_receiver) = tx_channel;
+    let (n_txs_in_block_sender, n_txs_in_block_receiver) = n_txs_in_block_channel;
     MockDependencies {
         mempool_client: MockMempoolClient::new(),
         l1_provider_client: MockL1ProviderClient::new(),
         tx_sender,
         tx_receiver,
+        n_txs_in_block_sender,
+        n_txs_in_block_receiver,
     }
 }
 
@@ -102,6 +116,14 @@ fn tx_channel() -> (
     tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
 ) {
     tokio::sync::mpsc::channel(VALIDATE_BUFFER_SIZE)
+}
+
+#[fixture]
+fn n_txs_in_block_channel() -> (
+    tokio::sync::mpsc::Sender<usize>,
+    tokio::sync::mpsc::Receiver<usize>,
+) {
+    tokio::sync::mpsc::channel(1)
 }
 
 fn test_l1handler_tx() -> L1HandlerTransaction {
@@ -201,6 +223,23 @@ async fn validate_flow(mut mock_dependencies: MockDependencies) {
     assert_eq!(data.len(), 2);
     assert!(matches!(data[0], InternalConsensusTransaction::L1Handler(_)));
     assert!(matches!(data[1], InternalConsensusTransaction::RpcTransaction(_)));
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_n_txs_in_block(mock_dependencies: MockDependencies) {
+    let n_txs_in_block_sender = mock_dependencies.get_n_txs_in_block_sender();
+    let mut validate_tx_provider = mock_dependencies.validate_tx_provider();
+
+    // Calling `get_n_txs_in_block` before sending the number of transactions returns `None`.
+    assert_eq!(validate_tx_provider.get_n_txs_in_block().await, None);
+
+    // Send the number of transactions and verify that it is returned.
+    n_txs_in_block_sender.send(10).await.unwrap();
+    assert_eq!(validate_tx_provider.get_n_txs_in_block().await, Some(10));
+
+    // Future calls to `get_n_txs_in_block` return `None`.
+    assert_eq!(validate_tx_provider.get_n_txs_in_block().await, None);
 }
 
 #[rstest]

@@ -88,6 +88,7 @@ use crate::utils::{
 pub(crate) const TEMP_N_EXECUTED_TXS: u64 = 0;
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
+type NTxInBlockSender = tokio::sync::mpsc::Sender<usize>;
 
 pub struct Batcher {
     pub config: BatcherConfig,
@@ -126,6 +127,10 @@ pub struct Batcher {
     /// Each stream is kept until SendProposalContent::Finish/Abort is received, or a new height is
     /// started.
     validate_tx_streams: HashMap<ProposalId, InputStreamSender>,
+
+    /// The final number of transactions in the block. It is possible that this number is smaller
+    /// than the number of transactions that were sent.
+    n_txs_in_block_senders: HashMap<ProposalId, NTxInBlockSender>,
 }
 
 impl Batcher {
@@ -155,6 +160,7 @@ impl Batcher {
             executed_proposals: Arc::new(Mutex::new(HashMap::new())),
             propose_tx_streams: HashMap::new(),
             validate_tx_streams: HashMap::new(),
+            n_txs_in_block_senders: HashMap::new(),
         }
     }
 
@@ -309,9 +315,12 @@ impl Batcher {
         // A channel to send the transactions to include in the block being validated.
         let (input_tx_sender, input_tx_receiver) =
             tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
+        let (n_txs_in_block_sender, n_txs_in_block_receiver) =
+            tokio::sync::mpsc::channel(1);
 
         let tx_provider = ValidateTransactionProvider::new(
             input_tx_receiver,
+            n_txs_in_block_receiver,
             self.l1_provider_client.clone(),
             validate_block_input.block_info.block_number,
         );
@@ -355,6 +364,15 @@ impl Batcher {
             validate_block_input.proposal_id
         );
 
+        let n_txs_in_block_already_exists = self
+            .n_txs_in_block_senders
+            .insert(validate_block_input.proposal_id, n_txs_in_block_sender);
+        assert!(
+            n_txs_in_block_already_exists.is_none(),
+            "Proposal {} already exists. This should have been checked when spawning the proposal.",
+            validate_block_input.proposal_id
+        );
+
         Ok(())
     }
 
@@ -372,9 +390,9 @@ impl Batcher {
 
         match send_proposal_content_input.content {
             SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
-            SendProposalContent::Finish(_) => {
-                // TODO(AlonH): Handle the number of executed transactions.
-                self.handle_finish_proposal_request(proposal_id).await
+            SendProposalContent::Finish(n_txs_in_block) => {
+                // TODO: remove `try_into()` once the type is `usize`.
+                self.handle_finish_proposal_request(proposal_id, n_txs_in_block.try_into().unwrap()).await
             }
             SendProposalContent::Abort => self.handle_abort_proposal_request(proposal_id).await,
         }
@@ -421,11 +439,25 @@ impl Batcher {
     async fn handle_finish_proposal_request(
         &mut self,
         proposal_id: ProposalId,
+        n_txs_in_block: usize,
     ) -> BatcherResult<SendProposalContentResponse> {
         debug!("Send proposal content done for {}", proposal_id);
 
         self.validate_tx_streams.remove(&proposal_id).expect("validate tx stream should exist.");
         if self.is_active(proposal_id).await {
+            let n_txs_in_block_sender = &self
+                .n_txs_in_block_senders
+                .get(&proposal_id)
+                .expect("Expecting n_txs_in_block to exist during batching.");
+
+            n_txs_in_block_sender.send(n_txs_in_block).await.map_err(|err| {
+                error!(
+                    "Failed to send n_txs_in_block ({n_txs_in_block}) to the tx provider: {}",
+                    err
+                );
+                BatcherError::InternalError
+            })?;
+
             self.await_active_proposal().await;
         }
 

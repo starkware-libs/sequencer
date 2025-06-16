@@ -47,8 +47,9 @@ pub trait TransactionProvider: Send {
     async fn get_txs(&mut self, n_txs: usize) -> TransactionProviderResult<NextTxs>;
     /// In validate mode ([ValidateTransactionProvider]) returns the final number of transactions
     /// in the block once it is known, or `None` if it is not known yet.
+    /// Once `Some()` is returned for the first time, future calls to this method may return `None`.
     /// Returns `None` in propose mode ([ProposeTransactionProvider]).
-    async fn get_n_txs_in_block(&self) -> Option<usize>;
+    async fn get_n_txs_in_block(&mut self) -> Option<usize>;
 }
 
 #[derive(Clone)]
@@ -142,26 +143,26 @@ impl TransactionProvider for ProposeTransactionProvider {
         Ok(NextTxs::Txs(txs))
     }
 
-    async fn get_n_txs_in_block(&self) -> Option<usize> {
+    async fn get_n_txs_in_block(&mut self) -> Option<usize> {
         None
     }
 }
 
 pub struct ValidateTransactionProvider {
-    pub tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
-    pub l1_provider_client: SharedL1ProviderClient,
-    pub height: BlockNumber,
-    // TODO(lior): Remove this field once we have a real implementation for `get_n_txs_in_block`.
-    n_txs_in_block: usize,
+    tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
+    n_txs_in_block_receiver: tokio::sync::mpsc::Receiver<usize>,
+    l1_provider_client: SharedL1ProviderClient,
+    height: BlockNumber,
 }
 
 impl ValidateTransactionProvider {
     pub fn new(
         tx_receiver: tokio::sync::mpsc::Receiver<InternalConsensusTransaction>,
+        n_txs_in_block_receiver: tokio::sync::mpsc::Receiver<usize>,
         l1_provider_client: SharedL1ProviderClient,
         height: BlockNumber,
     ) -> Self {
-        Self { tx_receiver, l1_provider_client, height, n_txs_in_block: 0 }
+        Self { tx_receiver, n_txs_in_block_receiver, l1_provider_client, height }
     }
 }
 
@@ -171,7 +172,6 @@ impl TransactionProvider for ValidateTransactionProvider {
         assert!(n_txs > 0, "The number of transactions requested must be greater than zero.");
         let mut buffer = Vec::with_capacity(n_txs);
         self.tx_receiver.recv_many(&mut buffer, n_txs).await;
-        self.n_txs_in_block += buffer.len();
         // If the buffer is empty, it means that the stream was dropped, otherwise it would have
         // been waiting for transactions.
         if buffer.is_empty() {
@@ -192,12 +192,13 @@ impl TransactionProvider for ValidateTransactionProvider {
         Ok(NextTxs::Txs(buffer))
     }
 
-    async fn get_n_txs_in_block(&self) -> Option<usize> {
-        // TODO(lior): Replace with a real implementation.
-        if self.tx_receiver.is_closed() && self.tx_receiver.is_empty() {
-            Some(self.n_txs_in_block)
-        } else {
-            None
+    async fn get_n_txs_in_block(&mut self) -> Option<usize> {
+        match self.n_txs_in_block_receiver.try_recv() {
+            Ok(n_txs_in_block) => Some(n_txs_in_block),
+            Err(_) => {
+                // Return None if the receiver is empty or closed unexpectedly.
+                None
+            }
         }
     }
 }
