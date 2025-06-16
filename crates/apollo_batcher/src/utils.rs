@@ -14,6 +14,7 @@ pub(crate) type ProposalResult<T> = Result<T, Arc<BlockBuilderError>>;
 // Represents a spawned task of building new block proposal.
 pub(crate) struct ProposalTask {
     pub abort_signal_sender: tokio::sync::oneshot::Sender<()>,
+    pub final_n_executed_txs_sender: Option<tokio::sync::oneshot::Sender<usize>>,
     // Handle for awaiting completion of the block proposal execution task.
     pub execution_join_handle: tokio::task::JoinHandle<()>,
     // Optional handle for awaiting completion of the pre-confirmed block writer task,
