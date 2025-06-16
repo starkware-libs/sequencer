@@ -438,9 +438,6 @@ fn get_gateway_infra_row() -> Row {
     )
 }
 
-// TODO(MatanM/GuyN): add l1 gas price row to the dashboard when relevant, and delete the
-// annotation.
-#[allow(dead_code)]
 fn get_l1_gas_price_row() -> Row {
     Row::new(
         "L1 Gas Price",
@@ -453,9 +450,6 @@ fn get_l1_gas_price_row() -> Row {
     )
 }
 
-// TODO(MatanM/GuyN): add l1 gas price row to the dashboard when relevant, and delete the
-// annotation.
-#[allow(dead_code)]
 fn get_l1_provider_row() -> Row {
     Row::new(
         "L1 Provider",
@@ -522,7 +516,9 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_gateway_infra_row(),
             get_class_manager_infra_row(),
             get_l1_provider_infra_row(),
+            get_l1_provider_row(),
             get_l1_gas_price_infra_row(),
+            get_l1_gas_price_row(),
             get_mempool_infra_row(),
             get_mempool_p2p_infra_row(),
             get_sierra_compiler_infra_row(),
