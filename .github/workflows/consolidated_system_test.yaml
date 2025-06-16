@@ -203,6 +203,24 @@ jobs:
           kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
           echo "🚀 Anvil deployed successfully."
 
+          echo "🔍 Extracting Anvil addresses from logs."
+
+          ANVIL_POD=$(kubectl get pods -n "${{ env.namespace }}" -l app=anvil -o jsonpath="{.items[0].metadata.name}")
+          ANVIL_LOGS=$(kubectl logs -n "${{ env.namespace }}" "$ANVIL_POD")
+
+          echo "🔍 Extracting Anvil addresses from logs..."
+          ANVIL_POD=$(kubectl get pods -n ${{ env.namespace }} -l app=anvil -o jsonpath="{.items[0].metadata.name}")
+          ADDRESSES=$(kubectl logs -n ${{ env.namespace }} "$ANVIL_POD" | grep -oP '0x[a-fA-F0-9]{40}' | head -n 2)
+
+          SENDER_ADDRESS=$(echo "$ADDRESSES" | head -n 1)
+          RECEIVER_ADDRESS=$(echo "$ADDRESSES" | tail -n 1)
+
+          echo "💡 SENDER_ADDRESS=$SENDER_ADDRESS"
+          echo "💡 RECEIVER_ADDRESS=$RECEIVER_ADDRESS"
+
+          echo "SENDER_ADDRESS=$SENDER_ADDRESS" >> "$GITHUB_ENV"
+          echo "RECEIVER_ADDRESS=$RECEIVER_ADDRESS" >> "$GITHUB_ENV"
+
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
 
