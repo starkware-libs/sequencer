@@ -17,6 +17,7 @@ use starknet_types_core::felt::Felt;
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
 use crate::io::os_input::{CachedStateInput, OsBlockInput};
+use crate::vm_utils::VmUtilsError;
 
 /// A helper struct that provides access to the OS state and commitments.
 pub struct OsExecutionHelper<'a, S: StateReader> {
@@ -369,4 +370,6 @@ pub enum ExecutionHelperError {
     UnexhaustedCallInfoIterator,
     #[error("Unexpected tx type: {0:?}.")]
     UnexpectedTxType(TransactionType),
+    #[error(transparent)]
+    VmUtils(#[from] VmUtilsError),
 }
