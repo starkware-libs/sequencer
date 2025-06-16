@@ -232,7 +232,11 @@ pub(crate) async fn get_proposal_content(
                 }
 
                 proposal_sender
-                    .send(ProposalPart::ExecutedTransactionCount(n_executed_txs))
+                    .send(ProposalPart::ExecutedTransactionCount(
+                        n_executed_txs
+                            .try_into()
+                            .expect("Executed transactions count should fit in u64"),
+                    ))
                     .await
                     .expect("Failed to broadcast executed transaction count");
                 let fin = ProposalFin { proposal_commitment };

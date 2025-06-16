@@ -175,7 +175,7 @@ impl TestDeps {
             Ok(GetProposalContentResponse {
                 content: GetProposalContent::Finished {
                     id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
-                    n_executed_txs: n_executed_txs.try_into().unwrap(),
+                    n_executed_txs,
                 },
             })
         });
@@ -212,10 +212,7 @@ impl TestDeps {
         self.batcher.expect_send_proposal_content().times(1).returning(
             move |input: SendProposalContentInput| {
                 assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-                assert_eq!(
-                    input.content,
-                    SendProposalContent::Finish(n_executed_txs.try_into().unwrap())
-                );
+                assert_eq!(input.content, SendProposalContent::Finish(n_executed_txs));
                 Ok(SendProposalContentResponse {
                     response: ProposalStatus::Finished(ProposalCommitment {
                         state_diff_commitment: STATE_DIFF_COMMITMENT,

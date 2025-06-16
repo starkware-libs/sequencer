@@ -179,14 +179,13 @@ pub(crate) async fn retrospective_block_hash(
 
 pub(crate) fn truncate_to_executed_txs(
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
-    executed_txs_count: u64,
+    executed_txs_count: usize,
 ) -> Vec<Vec<InternalConsensusTransaction>> {
     let content = std::mem::take(content);
     // Truncate `content` to keep only the first `executed_txs_count`, preserving batch
     // structure.
     let mut executed_content: Vec<Vec<InternalConsensusTransaction>> = Vec::new();
-    let mut remaining: usize =
-        executed_txs_count.try_into().expect("executed_txs_count should fit into usize");
+    let mut remaining = executed_txs_count;
 
     for batch in content {
         if remaining < batch.len() {

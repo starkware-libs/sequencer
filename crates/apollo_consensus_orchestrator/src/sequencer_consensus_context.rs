@@ -778,7 +778,7 @@ impl SequencerConsensusContext {
 
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
-    let mut n_executed_txs: Option<u64> = None;
+    let mut n_executed_txs: Option<usize> = None;
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -1037,7 +1037,7 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
-    n_executed_txs: &mut Option<u64>,
+    n_executed_txs: &mut Option<usize>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
@@ -1116,6 +1116,9 @@ async fn handle_proposal_part(
             }
         }
         Some(ProposalPart::ExecutedTransactionCount(executed_txs_count)) => {
+            let executed_txs_count: usize = executed_txs_count
+                .try_into()
+                .expect("Number of executed transactions should fit in usize");
             debug!("Received executed transaction count: {executed_txs_count}");
             if n_executed_txs.is_some() {
                 return HandledProposalPart::Failed(

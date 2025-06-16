@@ -65,7 +65,7 @@ pub struct GetProposalContentResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GetProposalContent {
     Txs(Vec<InternalConsensusTransaction>),
-    Finished { id: ProposalCommitment, n_executed_txs: u64 },
+    Finished { id: ProposalCommitment, n_executed_txs: usize },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -87,7 +87,7 @@ pub struct SendProposalContentInput {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SendProposalContent {
     Txs(Vec<InternalConsensusTransaction>),
-    Finish(u64), // The number of executed transactions.
+    Finish(usize), // The number of executed transactions.
     Abort,
 }
 
