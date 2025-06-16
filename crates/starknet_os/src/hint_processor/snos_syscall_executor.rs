@@ -236,11 +236,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<GetExecutionInfoResponse, Self::Error> {
-        let call_info_tracker = syscall_handler
-            .get_current_execution_helper()?
-            .tx_execution_iter
-            .get_tx_execution_info_ref()?
-            .get_call_info_tracker()?;
+        let call_info_tracker = syscall_handler.get_current_call_info_tracker()?;
         let original_execution_info_ptr = call_info_tracker.execution_info_ptr;
         let class_hash =
             call_info_tracker.call_info.call.class_hash.expect("No class hash was set.");
