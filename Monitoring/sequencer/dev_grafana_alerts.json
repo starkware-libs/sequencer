@@ -112,7 +112,7 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus block number stuck",
       "ruleGroup": "consensus",
-      "expr": "changes(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "expr": "increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
       "conditions": [
         {
           "evaluator": {
@@ -190,10 +190,10 @@
       "severity": "p5"
     },
     {
-      "name": "consensus_conflicting_votes_rate",
-      "title": "Consensus conflicting votes rate",
+      "name": "consensus_conflicting_votes",
+      "title": "Consensus conflicting votes",
       "ruleGroup": "consensus",
-      "expr": "rate(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
+      "expr": "increase(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
       "conditions": [
         {
           "evaluator": {
@@ -271,15 +271,15 @@
       "severity": "p5"
     },
     {
-      "name": "consensus_l1_gas_price_provider_error_rate",
-      "title": "Consensus L1 gas price provider error rate",
+      "name": "consensus_l1_gas_price_provider_failure",
+      "title": "Consensus L1 gas price provider failure",
       "ruleGroup": "consensus",
-      "expr": "rate(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.001388888888888889
+              5.0
             ],
             "type": "gt"
           },
@@ -301,12 +301,12 @@
       "name": "consensus_round_above_zero",
       "title": "Consensus round above zero",
       "ruleGroup": "consensus",
-      "expr": "rate(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "max_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.001388888888888889
+              0.0
             ],
             "type": "gt"
           },
@@ -433,10 +433,10 @@
       "severity": "p2"
     },
     {
-      "name": "gateway_add_tx_rate_drop",
-      "title": "Gateway add_tx rate drop",
+      "name": "gateway_add_tx_idle",
+      "title": "Gateway add_tx idle",
       "ruleGroup": "gateway",
-      "expr": "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
+      "expr": "increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -463,7 +463,7 @@
       "name": "http_server_idle",
       "title": "http server idle",
       "ruleGroup": "http_server",
-      "expr": "rate(max(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"})[60m:])",
+      "expr": "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -490,7 +490,7 @@
       "name": "l1_gas_price_provider_insufficient_history",
       "title": "L1 gas price provider insufficient history",
       "ruleGroup": "l1_gas_price",
-      "expr": "rate(l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -517,7 +517,7 @@
       "name": "l1_gas_price_scraper_reorg_detected",
       "title": "L1 gas price scraper reorg detected",
       "ruleGroup": "l1_gas_price",
-      "expr": "rate(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -544,12 +544,12 @@
       "name": "l1_message_scraper_baselayer_error_count",
       "title": "L1 message scraper baselayer error count",
       "ruleGroup": "l1_gas_price",
-      "expr": "rate(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.001388888888888889
+              0.0
             ],
             "type": "gt"
           },
@@ -571,12 +571,12 @@
       "name": "l1_message_scraper_baselayer_error_count",
       "title": "L1 message scraper baselayer error count",
       "ruleGroup": "l1_messages",
-      "expr": "rate(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.001388888888888889
+              5.0
             ],
             "type": "gt"
           },
@@ -598,7 +598,7 @@
       "name": "l1_message_scraper_reorg_detected",
       "title": "L1 message scraper reorg detected",
       "ruleGroup": "l1_messages",
-      "expr": "rate(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -649,10 +649,10 @@
       "severity": "p2"
     },
     {
-      "name": "mempool_add_tx_rate_drop",
-      "title": "Mempool add_tx rate drop",
+      "name": "mempool_add_tx_idle",
+      "title": "Mempool add_tx idle",
       "ruleGroup": "mempool",
-      "expr": "sum(rate(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
+      "expr": "increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -787,12 +787,12 @@
       "name": "state_sync_stuck",
       "title": "State sync stuck",
       "ruleGroup": "state_sync",
-      "expr": "rate(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.0001
+              1.0
             ],
             "type": "lt"
           },
