@@ -27,6 +27,8 @@ pub struct ComponentConfig {
     #[validate]
     pub sierra_compiler: ReactiveComponentExecutionConfig,
     #[validate]
+    pub signature_manager: ReactiveComponentExecutionConfig,
+    #[validate]
     pub state_sync: ReactiveComponentExecutionConfig,
     #[validate]
     pub l1_provider: ReactiveComponentExecutionConfig,
@@ -78,6 +80,7 @@ impl ComponentConfig {
             mempool: ReactiveComponentExecutionConfig::disabled(),
             mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
             sierra_compiler: ReactiveComponentExecutionConfig::disabled(),
+            signature_manager: ReactiveComponentExecutionConfig::disabled(),
             state_sync: ReactiveComponentExecutionConfig::disabled(),
             l1_provider: ReactiveComponentExecutionConfig::disabled(),
             l1_gas_price_provider: ReactiveComponentExecutionConfig::disabled(),
@@ -97,6 +100,7 @@ impl ComponentConfig {
         self.mempool.set_url_to_localhost();
         self.mempool_p2p.set_url_to_localhost();
         self.sierra_compiler.set_url_to_localhost();
+        self.signature_manager.set_url_to_localhost();
         self.state_sync.set_url_to_localhost();
         self.l1_provider.set_url_to_localhost();
         self.l1_gas_price_provider.set_url_to_localhost();
