@@ -8,7 +8,6 @@ use apollo_consensus::metrics::{
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
-    CONSENSUS_ROUND_ABOVE_ZERO,
 };
 use apollo_consensus_manager::metrics::CONSENSUS_VOTES_NUM_SENT_MESSAGES;
 use apollo_consensus_orchestrator::metrics::{
@@ -49,13 +48,12 @@ use crate::alerts::{
 // TODO(Tsabary): this file should be managed by this crate, hence should be moved here to a
 // resources folder.
 pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
-pub const PROMETHEUS_EPSILON: f64 = 0.0001;
 
 const CONSENSUS_BLOCK_NUMBER_STUCK: Alert = Alert {
     name: "consensus_block_number_stuck",
     title: "Consensus block number stuck",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("changes({}[5m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
+    expr: formatcp!("increase({}[5m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
         comparison_value: 10.0,
@@ -212,14 +210,17 @@ const CENDE_WRITE_BLOB_FAILURE_ONCE_ALERT: Alert = Alert {
     severity: AlertSeverity::Informational,
 };
 
-const CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE: Alert = Alert {
-    name: "consensus_l1_gas_price_provider_error_rate",
-    title: "Consensus L1 gas price provider error rate",
+const CONSENSUS_L1_GAS_PRICE_PROVIDER_FAILURE: Alert = Alert {
+    name: "consensus_l1_gas_price_provider_failure",
+    title: "Consensus L1 gas price provider failure",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("rate({}[1h])", CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()),
+    expr: formatcp!(
+        "increase({}[1h])",
+        CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()
+    ),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
-        comparison_value: 5.0 / 3600.0, // 5 per hour
+        comparison_value: 5.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -231,10 +232,10 @@ const CONSENSUS_ROUND_ABOVE_ZERO_ALERT: Alert = Alert {
     name: "consensus_round_above_zero",
     title: "Consensus round above zero",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("rate({}[1h])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
+    expr: formatcp!("max_over_time({}[1h])", CONSENSUS_ROUND.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
-        comparison_value: 5.0 / 3600.0, // 5 per hour
+        comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -242,11 +243,11 @@ const CONSENSUS_ROUND_ABOVE_ZERO_ALERT: Alert = Alert {
     severity: AlertSeverity::Informational,
 };
 
-const CONSENSUS_CONFLICTING_VOTES_RATE: Alert = Alert {
-    name: "consensus_conflicting_votes_rate",
-    title: "Consensus conflicting votes rate",
+const CONSENSUS_CONFLICTING_VOTES: Alert = Alert {
+    name: "consensus_conflicting_votes",
+    title: "Consensus conflicting votes",
     alert_group: AlertGroup::Consensus,
-    expr: formatcp!("rate({}[20m])", CONSENSUS_CONFLICTING_VOTES.get_name_with_filter()),
+    expr: formatcp!("increase({}[20m])", CONSENSUS_CONFLICTING_VOTES.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
         comparison_value: 0.0,
@@ -257,12 +258,12 @@ const CONSENSUS_CONFLICTING_VOTES_RATE: Alert = Alert {
     severity: AlertSeverity::Regular,
 };
 
-const GATEWAY_ADD_TX_RATE_DROP: Alert = Alert {
-    name: "gateway_add_tx_rate_drop",
-    title: "Gateway add_tx rate drop",
+const GATEWAY_ADD_TX_IDLE: Alert = Alert {
+    name: "gateway_add_tx_idle",
+    title: "Gateway add_tx idle",
     alert_group: AlertGroup::Gateway,
     expr: formatcp!(
-        "sum(rate({}[20m])) or vector(0)",
+        "increase({}[20m]) or vector(0)",
         GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
     ),
     conditions: &[AlertCondition {
@@ -294,12 +295,12 @@ const GATEWAY_ADD_TX_LATENCY_INCREASE: Alert = Alert {
     severity: AlertSeverity::Regular,
 };
 
-const MEMPOOL_ADD_TX_RATE_DROP: Alert = Alert {
-    name: "mempool_add_tx_rate_drop",
-    title: "Mempool add_tx rate drop",
+const MEMPOOL_ADD_TX_IDLE: Alert = Alert {
+    name: "mempool_add_tx_idle",
+    title: "Mempool add_tx idle",
     alert_group: AlertGroup::Mempool,
     expr: formatcp!(
-        "sum(rate({}[20m])) or vector(0)",
+        "increase({}[20m]) or vector(0)",
         MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter()
     ),
     conditions: &[AlertCondition {
@@ -316,7 +317,10 @@ const HTTP_SERVER_IDLE: Alert = Alert {
     name: "http_server_idle",
     title: "http server idle",
     alert_group: AlertGroup::HttpServer,
-    expr: formatcp!("rate(max({})[60m:])", ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()),
+    expr: formatcp!(
+        "increase({}[20m]) or vector(0)",
+        ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
+    ),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
         comparison_value: 0.000001,
@@ -332,12 +336,12 @@ const L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT: Alert = Alert {
     title: "L1 message scraper baselayer error count",
     alert_group: AlertGroup::L1GasPrice,
     expr: formatcp!(
-        "rate({}[1h])",
+        "increase({}[5m])",
         L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
     ),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
-        comparison_value: 5.0 / 3600.0, // 5 per hour
+        comparison_value: 0.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -350,7 +354,7 @@ const L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY_ALERT: Alert = Alert {
     title: "L1 gas price provider insufficient history",
     alert_group: AlertGroup::L1GasPrice,
     expr: formatcp!(
-        "rate({}[1m])",
+        "increase({}[1m])",
         L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY.get_name_with_filter()
     ),
     conditions: &[AlertCondition {
@@ -367,7 +371,7 @@ const L1_GAS_PRICE_REORG_DETECTED_ALERT: Alert = Alert {
     name: "l1_gas_price_scraper_reorg_detected",
     title: "L1 gas price scraper reorg detected",
     alert_group: AlertGroup::L1GasPrice,
-    expr: formatcp!("rate({}[1m])", L1_GAS_PRICE_SCRAPER_REORG_DETECTED.get_name_with_filter()),
+    expr: formatcp!("increase({}[1m])", L1_GAS_PRICE_SCRAPER_REORG_DETECTED.get_name_with_filter()),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
         comparison_value: 0.0,
@@ -383,12 +387,12 @@ const L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT: Alert = Alert {
     title: "L1 message scraper baselayer error count",
     alert_group: AlertGroup::L1Messages,
     expr: formatcp!(
-        "rate({}[1h])",
+        "increase({}[1h])",
         L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
     ),
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::GreaterThan,
-        comparison_value: 5.0 / 3600.0, // 5 per hour
+        comparison_value: 5.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "1m",
@@ -401,7 +405,7 @@ const L1_MESSAGE_SCRAPER_REORG_DETECTED_ALERT: Alert = Alert {
     title: "L1 message scraper reorg detected",
     alert_group: AlertGroup::L1Messages,
     expr: formatcp!(
-        "rate({}[1m])",
+        "increase({}[1m])",
         L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.get_name_with_filter()
     ),
     conditions: &[AlertCondition {
@@ -500,10 +504,10 @@ const STATE_SYNC_STUCK: Alert = Alert {
     name: "state_sync_stuck",
     title: "State sync stuck",
     alert_group: AlertGroup::StateSync,
-    expr: formatcp!("rate({}[1m])", STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()), /* Alert is triggered when the class manager marker is not updated for 1m */
+    expr: formatcp!("increase({}[1m])", STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()), /* Alert is triggered when the class manager marker is not updated for 1m */
     conditions: &[AlertCondition {
         comparison_op: AlertComparisonOp::LessThan,
-        comparison_value: PROMETHEUS_EPSILON,
+        comparison_value: 1.0,
         logical_op: AlertLogicalOp::And,
     }],
     pending_duration: "3m",
@@ -550,16 +554,16 @@ pub fn get_apollo_alerts() -> Alerts {
         CONSENSUS_BLOCK_NUMBER_STUCK,
         CONSENSUS_BUILD_PROPOSAL_FAILED_ALERT,
         CONSENSUS_BUILD_PROPOSAL_FAILED_ONCE_ALERT,
-        CONSENSUS_CONFLICTING_VOTES_RATE,
+        CONSENSUS_CONFLICTING_VOTES,
         CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS_RATIO,
         CONSENSUS_INBOUND_STREAM_EVICTED_ALERT,
-        CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR_RATE,
+        CONSENSUS_L1_GAS_PRICE_PROVIDER_FAILURE,
         CONSENSUS_ROUND_ABOVE_ZERO_ALERT,
         CONSENSUS_ROUND_HIGH_AVG,
         CONSENSUS_VALIDATE_PROPOSAL_FAILED_ALERT,
         CONSENSUS_VOTES_NUM_SENT_MESSAGES_ALERT,
         GATEWAY_ADD_TX_LATENCY_INCREASE,
-        GATEWAY_ADD_TX_RATE_DROP,
+        GATEWAY_ADD_TX_IDLE,
         HTTP_SERVER_IDLE,
         L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY_ALERT,
         L1_GAS_PRICE_REORG_DETECTED_ALERT,
@@ -567,7 +571,7 @@ pub fn get_apollo_alerts() -> Alerts {
         L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT_ALERT,
         L1_MESSAGE_SCRAPER_REORG_DETECTED_ALERT,
         LAST_BATCHED_BLOCK_STUCK,
-        MEMPOOL_ADD_TX_RATE_DROP,
+        MEMPOOL_ADD_TX_IDLE,
         MEMPOOL_GET_TXS_SIZE_DROP,
         MEMPOOL_POOL_SIZE_INCREASE,
         NATIVE_COMPILATION_ERROR_INCREASE,
