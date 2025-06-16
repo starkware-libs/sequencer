@@ -1,4 +1,8 @@
-use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_from_var_name;
+use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
+    insert_value_from_var_name,
+    insert_value_into_ap,
+};
+use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::aggregator_hint_processor::AggregatorHintProcessor;
 use crate::hints::error::OsHintResult;
@@ -56,18 +60,22 @@ pub(crate) fn write_da_segment(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn get_full_output_from_input(
-    _hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { .. }: HintArgs<'_>,
+    hint_processor: &mut AggregatorHintProcessor<'_>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    todo!()
+    let full_output: Felt = hint_processor.input.full_output.into();
+    insert_value_into_ap(vm, full_output)?;
+    Ok(())
 }
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn get_use_kzg_da_from_input(
-    _hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { .. }: HintArgs<'_>,
+    hint_processor: &mut AggregatorHintProcessor<'_>,
+    HintArgs { vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    todo!()
+    let use_kzg_da: Felt = hint_processor.input.use_kzg_da.into();
+    insert_value_into_ap(vm, use_kzg_da)?;
+    Ok(())
 }
 
 #[allow(clippy::result_large_err)]
