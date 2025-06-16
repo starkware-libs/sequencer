@@ -106,6 +106,9 @@ pub struct BlockExecutionArtifacts {
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
     pub casm_hash_computation_data: CasmHashComputationData,
+    // The number of transactions executed by the proposer out of the transactions that were sent.
+    // This value includes rejected transactions.
+    pub n_txs_in_block: usize,
 }
 
 impl BlockExecutionArtifacts {
@@ -270,10 +273,15 @@ impl BlockBuilder {
             self.block_txs.len()
         );
 
+        // The final number of transactions to consider for the block.
+        // Proposer: this is the number of transactions that were executed.
+        // Validator: the number of transactions we got from the proposer.
+        let n_txs_in_block_nonopt = n_txs_in_block.unwrap_or(self.n_executed_txs);
+
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
         let block_summary = tokio::task::spawn_blocking(move || {
-            lock_executor(&executor).close_block(n_txs_in_block)
+            lock_executor(&executor).close_block(Some(n_txs_in_block_nonopt))
         })
         .await
         .expect("Failed to spawn blocking executor task.")?;
@@ -301,6 +309,7 @@ impl BlockBuilder {
             bouncer_weights,
             l2_gas_used,
             casm_hash_computation_data,
+            n_txs_in_block: n_txs_in_block_nonopt,
         })
     }
 
