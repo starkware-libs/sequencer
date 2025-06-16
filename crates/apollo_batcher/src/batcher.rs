@@ -85,7 +85,6 @@ use crate::utils::{
     ProposalTask,
 };
 
-pub(crate) const TEMP_N_EXECUTED_TXS: usize = usize::MAX;
 type OutputStreamReceiver = tokio::sync::mpsc::UnboundedReceiver<InternalConsensusTransaction>;
 type InputStreamSender = tokio::sync::mpsc::Sender<InternalConsensusTransaction>;
 
@@ -432,7 +431,7 @@ impl Batcher {
         let proposal_result =
             self.get_completed_proposal_result(proposal_id).await.expect("Proposal should exist.");
         let proposal_status = match proposal_result {
-            Ok(commitment) => ProposalStatus::Finished(commitment),
+            Ok((commitment, _)) => ProposalStatus::Finished(commitment),
             Err(err) => proposal_status_from(err)?,
         };
         Ok(SendProposalContentResponse { response: proposal_status })
@@ -495,7 +494,7 @@ impl Batcher {
         // TODO(AlonH): Consider removing the proposal from the proposal manager and keep it in the
         // batcher for decision reached.
         self.propose_tx_streams.remove(&proposal_id);
-        let commitment = self
+        let (commitment, n_final_executed_txs) = self
             .get_completed_proposal_result(proposal_id)
             .await
             .expect("Proposal should exist.")
@@ -507,8 +506,7 @@ impl Batcher {
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished {
                 id: commitment,
-                // TODO(AlonH): Send the actual number of executed transactions.
-                final_n_executed_txs: TEMP_N_EXECUTED_TXS,
+                final_n_executed_txs: n_final_executed_txs,
             },
         })
     }
@@ -763,16 +761,19 @@ impl Batcher {
         Ok(())
     }
 
-    // Returns a completed proposal result, either its commitment or an error if the proposal
-    // failed. If the proposal doesn't exist, or it's still active, returns None.
+    // Returns a completed proposal result, either its commitment and n_final_executed_txs or an
+    // error if the proposal failed. If the proposal doesn't exist, or it's still active,
+    // returns None.
     async fn get_completed_proposal_result(
         &self,
         proposal_id: ProposalId,
-    ) -> Option<ProposalResult<ProposalCommitment>> {
+    ) -> Option<ProposalResult<(ProposalCommitment, usize)>> {
         let guard = self.executed_proposals.lock().await;
         let proposal_result = guard.get(&proposal_id);
         match proposal_result {
-            Some(Ok(artifacts)) => Some(Ok(artifacts.commitment())),
+            Some(Ok(artifacts)) => {
+                Some(Ok((artifacts.commitment(), artifacts.final_n_executed_txs)))
+            }
             Some(Err(e)) => Some(Err(e.clone())),
             None => None,
         }
