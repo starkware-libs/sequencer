@@ -59,7 +59,7 @@ fn get_consensus_block_number_stuck() -> Alert {
             comparison_value: 10.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1s",
+        pending_duration: "10s",
         evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
@@ -78,7 +78,7 @@ fn get_consensus_build_proposal_failed_alert() -> Alert {
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: "10s",
-        evaluation_interval_sec: 20,
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::DayOnly,
     }
 }
@@ -95,7 +95,7 @@ fn get_consensus_build_proposal_failed_once_alert() -> Alert {
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: "10s",
-        evaluation_interval_sec: 20,
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -111,8 +111,8 @@ fn get_consensus_validate_proposal_failed_alert() -> Alert {
             comparison_value: 10.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::DayOnly,
     }
 }
@@ -134,8 +134,8 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
             comparison_value: 0.5,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::WorkingHours,
     }
 }
@@ -151,8 +151,8 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
             comparison_value: 5.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -171,8 +171,8 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
             comparison_value: 20.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -192,8 +192,8 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
             comparison_value: 1.5,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::WorkingHours,
     }
 }
@@ -209,8 +209,8 @@ fn get_cende_write_blob_failure_alert() -> Alert {
             comparison_value: 10.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::DayOnly,
     }
 }
@@ -226,8 +226,8 @@ fn get_cende_write_blob_failure_once_alert() -> Alert {
             comparison_value: 0.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -246,8 +246,8 @@ fn get_consensus_l1_gas_price_provider_failure() -> Alert {
             comparison_value: 5.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::WorkingHours,
     }
 }
@@ -263,8 +263,8 @@ fn get_consensus_round_above_zero() -> Alert {
             comparison_value: 0.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -280,8 +280,8 @@ fn get_consensus_conflicting_votes() -> Alert {
             comparison_value: 0.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
 }
@@ -300,8 +300,8 @@ fn get_gateway_add_tx_idle() -> Alert {
             comparison_value: 0.1,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
 }
@@ -321,8 +321,8 @@ fn get_gateway_add_tx_latency_increase() -> Alert {
             comparison_value: 2.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
 }
@@ -341,8 +341,8 @@ fn get_mempool_add_tx_idle() -> Alert {
             comparison_value: 0.1,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
 }
@@ -361,8 +361,8 @@ fn get_http_server_idle() -> Alert {
             comparison_value: 0.000001,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "5m",
-        evaluation_interval_sec: 60,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
 }
@@ -381,8 +381,8 @@ fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
             comparison_value: 0.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -401,8 +401,8 @@ fn get_l1_gas_price_provider_insufficient_history_alert() -> Alert {
             comparison_value: 0.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -421,8 +421,8 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
             comparison_value: 0.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -441,8 +441,8 @@ fn get_l1_message_scraper_baselayer_error_count_alert() -> Alert {
             comparison_value: 5.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -461,8 +461,8 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
             comparison_value: 0.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -480,8 +480,8 @@ fn get_mempool_get_txs_size_drop() -> Alert {
             comparison_value: 0.01,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
 }
@@ -497,8 +497,8 @@ fn get_mempool_pool_size_increase() -> Alert {
             comparison_value: 2000.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
 }
@@ -514,8 +514,8 @@ fn get_consensus_round_high_avg() -> Alert {
             comparison_value: 0.2,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
 }
@@ -531,8 +531,8 @@ fn get_native_compilation_error_increase() -> Alert {
             comparison_value: 0.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Informational,
     }
 }
@@ -552,8 +552,8 @@ fn get_state_sync_lag() -> Alert {
             comparison_value: 5.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "3m",
-        evaluation_interval_sec: 20,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
 }
@@ -569,8 +569,8 @@ fn get_state_sync_stuck() -> Alert {
             comparison_value: 1.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "3m",
-        evaluation_interval_sec: 60,
+        pending_duration: "10s",
+        evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
 }
@@ -586,7 +586,7 @@ fn get_batched_transactions_stuck() -> Alert {
             comparison_value: 1.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1s",
+        pending_duration: "10s",
         evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
@@ -603,7 +603,7 @@ fn get_last_batched_block_stuck() -> Alert {
             comparison_value: 1.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: "1s",
+        pending_duration: "10s",
         evaluation_interval_sec: 10,
         severity: AlertSeverity::Regular,
     }
