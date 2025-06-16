@@ -89,8 +89,7 @@ impl LocalKeyStore {
         Self { private_key, public_key }
     }
 
-    #[cfg(test)]
-    const fn new_for_testing() -> Self {
+    pub(crate) const fn new_for_testing() -> Self {
         // Created using `cairo-lang`.
         const PRIVATE_KEY: PrivateKey = PrivateKey(Felt::from_hex_unchecked(
             "0x608bf2cdb1ad4138e72d2f82b8c5db9fa182d1883868ae582ed373429b7a133",
