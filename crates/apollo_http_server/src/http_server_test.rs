@@ -246,7 +246,7 @@ async fn test_response(#[case] index: u16, #[case] tx: impl GatewayTransaction) 
                 .to_string(),
         },
 )]
-#[case::newer_version(4, Some("0x4"), StarknetError {
+#[case::newer_version(3, Some("0x4"), StarknetError {
                 code: StarknetErrorCode::KnownErrorCode(
                     KnownStarknetErrorCode::InvalidTransactionVersion,
                 ),
@@ -276,4 +276,39 @@ async fn test_unsupported_tx_version(
     let serialized_err = http_client.assert_add_tx_error(tx_json, StatusCode::BAD_REQUEST).await;
     let starknet_error = serde_json::from_str::<StarknetError>(&serialized_err).unwrap();
     assert_eq!(starknet_error, expected_err);
+}
+
+#[tokio::test]
+async fn sanitizing_error_message() {
+    // Set the tx version to be a problematic text.
+    let mut tx_json =
+        TransactionSerialization(serde_json::to_value(deprecated_gateway_invoke_tx()).unwrap());
+    let tx_object = tx_json.0.as_object_mut().unwrap();
+    let malicious_version: &'static str = "<script>alert(1)</script>";
+    tx_object.insert("version".to_string(), Value::String(malicious_version.to_string())).unwrap();
+
+    let mock_gateway_client = MockGatewayClient::new();
+    let http_client = add_tx_http_client(mock_gateway_client, 13).await;
+
+    let serialized_err = http_client.assert_add_tx_error(tx_json, StatusCode::BAD_REQUEST).await;
+    let starknet_error: StarknetError =
+        serde_json::from_str(&serialized_err).expect("Expected valid StarknetError JSON");
+
+    assert_eq!(
+        starknet_error.code,
+        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::MalformedRequest)
+    );
+
+    // Make sure the original payload is NOT included directly.
+    assert!(
+        !starknet_error.message.contains("<script>"),
+        "Message should not contain unescaped script tag"
+    );
+
+    // Make sure it is escaped.
+    assert!(
+        starknet_error.message.contains("?script?alert?1???script?"),
+        "Escaped message not found. This is the returned error message: {}",
+        starknet_error.message
+    );
 }

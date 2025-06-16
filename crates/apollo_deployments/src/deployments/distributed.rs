@@ -33,7 +33,6 @@ const STATE_SYNC_STORAGE: usize = 500;
 
 // TODO(Tsabary): define consts and functions whenever relevant.
 
-#[repr(u16)]
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum DistributedNodeServiceName {
@@ -60,31 +59,28 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         base_port: Option<u16>,
         environment: &Environment,
     ) -> IndexMap<ServiceName, ComponentConfig> {
+        // TODO(Tsabary): change this function to take a slice of port numbers at the exact expected
+        // length.
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
 
-        // TODO(Tsabary): the following is a temporary solution to differentiate the l1 provider
-        // and the l1 gas price provider ports. Need to come up with a better way for that.
-        // The offset value has to exceed 3, to avoid conflicting with the remaining services:
-        // mempool, sierra compiler, and state sync. The value of 5 was chosen arbitrarily
-        // to satisfy the above.
-        let base_port_with_offset = Some(base_port.unwrap_or(BASE_PORT) + 5);
+        let base_port = base_port.unwrap_or(BASE_PORT);
 
         let batcher =
-            DistributedNodeServiceName::Batcher.component_config_pair(base_port, environment);
-        let class_manager =
-            DistributedNodeServiceName::ClassManager.component_config_pair(base_port, environment);
-        let gateway =
-            DistributedNodeServiceName::Gateway.component_config_pair(base_port, environment);
-        let l1_gas_price_provider = DistributedNodeServiceName::L1
-            .component_config_pair(base_port_with_offset, environment);
+            DistributedNodeServiceName::Batcher.component_config_pair(Some(base_port), environment);
+        let class_manager = DistributedNodeServiceName::ClassManager
+            .component_config_pair(Some(base_port + 1), environment);
+        let gateway = DistributedNodeServiceName::Gateway
+            .component_config_pair(Some(base_port + 2), environment);
+        let l1_gas_price_provider =
+            DistributedNodeServiceName::L1.component_config_pair(Some(base_port + 3), environment);
         let l1_provider =
-            DistributedNodeServiceName::L1.component_config_pair(base_port, environment);
-        let mempool =
-            DistributedNodeServiceName::Mempool.component_config_pair(base_port, environment);
+            DistributedNodeServiceName::L1.component_config_pair(Some(base_port + 4), environment);
+        let mempool = DistributedNodeServiceName::Mempool
+            .component_config_pair(Some(base_port + 5), environment);
         let sierra_compiler = DistributedNodeServiceName::SierraCompiler
-            .component_config_pair(base_port, environment);
-        let state_sync =
-            DistributedNodeServiceName::StateSync.component_config_pair(base_port, environment);
+            .component_config_pair(Some(base_port + 6), environment);
+        let state_sync = DistributedNodeServiceName::StateSync
+            .component_config_pair(Some(base_port + 7), environment);
 
         for inner_service_name in DistributedNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -328,21 +324,12 @@ impl DistributedNodeServiceName {
 
     /// Unique port number per service.
     fn port(&self, base_port: Option<u16>) -> u16 {
-        let port_offset = self.get_port_offset();
-        let base_port = base_port.unwrap_or(BASE_PORT);
-        base_port + port_offset
+        base_port.unwrap_or(BASE_PORT)
     }
 
     /// Listening address per service.
     fn ip(&self) -> IpAddr {
         IpAddr::from(Ipv4Addr::UNSPECIFIED)
-    }
-
-    // Use the enum discriminant to generate a unique port per service.
-    // TODO(Tsabary): consider alternatives that enable removing the linter suppression.
-    #[allow(clippy::as_conversions)]
-    fn get_port_offset(&self) -> u16 {
-        *self as u16
     }
 }
 

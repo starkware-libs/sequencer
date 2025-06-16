@@ -37,19 +37,74 @@ macro_rules! define_hint_enum_base {
 }
 
 #[macro_export]
+macro_rules! define_hint_enum_helper {
+    (
+        $enum_name:ident,
+        $hp_arg:ident,
+        $(($hint_name:ident, $implementation:ident, $hint_str:expr $(, $passed_arg:ident)?)),+ $(,)?
+    ) => {
+
+        $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
+
+        impl $enum_name {
+            #[allow(clippy::result_large_err)]
+            pub(crate) fn execute_hint<'program, CHP: CommonHintProcessor<'program>>(
+                &self,
+                $hp_arg: &mut CHP,
+                hint_args: HintArgs<'_>
+            ) -> OsHintResult {
+                match self {
+                    $(Self::$hint_name => {
+                        #[cfg(any(test, feature = "testing"))]
+                        $hp_arg.get_unused_hints().remove(&Self::$hint_name.into());
+                        $implementation($($passed_arg, )? hint_args)
+                    })+
+                }
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! define_stateless_hint_enum {
+    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+        $crate::define_hint_enum_helper!(
+            $enum_name,
+            _hint_processor,
+            $(($hint_name, $implementation, $hint_str)),+
+        );
+    };
+}
+
+#[macro_export]
+macro_rules! define_common_hint_enum {
+    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+        $crate::define_hint_enum_helper!(
+            $enum_name,
+            hint_processor,
+            $(($hint_name, $implementation, $hint_str, hint_processor)),+
+        );
+    };
+}
+
+#[macro_export]
 macro_rules! define_hint_enum {
     ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
-        impl HintImplementation for $enum_name {
+        impl $enum_name {
             #[allow(clippy::result_large_err)]
-            fn execute_hint<S: StateReader>(&self, hint_args: HintArgs<'_, '_, S>) -> OsHintResult {
+            pub fn execute_hint<S: StateReader>(
+                &self,
+                hint_processor: &mut SnosHintProcessor<'_, S>,
+                hint_args: HintArgs<'_>
+            ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
-                        #[cfg(feature="testing")]
-                        hint_args.hint_processor.unused_hints.remove(&Self::$hint_name.into());
-                        $implementation::<S>(hint_args)
+                        #[cfg(any(test, feature = "testing"))]
+                        hint_processor.unused_hints.remove(&Self::$hint_name.into());
+                        $implementation::<S>(hint_processor, hint_args)
                     })+
 
                 }
@@ -58,26 +113,29 @@ macro_rules! define_hint_enum {
     };
 }
 
+/// Hint extensions extend the current map of hints used by the VM.
+/// This behavior achieves what the `vm_load_data` primitive does for cairo-lang and is needed to
+/// implement OS hints like `vm_load_program`.
 #[macro_export]
 macro_rules! define_hint_extension_enum {
     ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
-        impl HintExtensionImplementation for $enum_name {
+        impl $enum_name {
             #[allow(clippy::result_large_err)]
-            fn execute_hint_extensive<S: StateReader>(
+            pub fn execute_hint_extensive<S: StateReader>(
                 &self,
-                hint_extension_args: HintArgs<'_, '_, S>,
+                hint_processor: &mut SnosHintProcessor<'_, S>,
+                hint_extension_args: HintArgs<'_>,
             ) -> OsHintExtensionResult {
                 match self {
                     $(Self::$hint_name => {
-                        #[cfg(feature="testing")]
-                        hint_extension_args
-                            .hint_processor
+                        #[cfg(any(test, feature = "testing"))]
+                            hint_processor
                             .unused_hints
                             .remove(&Self::$hint_name.into());
-                        $implementation::<S>(hint_extension_args)
+                        $implementation::<S>(hint_processor, hint_extension_args)
                     })+
                 }
             }

@@ -10,37 +10,77 @@ use crate::path::resolve_project_relative_path;
 #[path = "cairo0_compiler_test.rs"]
 pub mod test;
 
-pub const STARKNET_COMPILE_DEPRECATED: &str = "starknet-compile-deprecated";
-pub const CAIRO0_COMPILE: &str = "cairo-compile";
-pub const CAIRO0_FORMAT: &str = "cairo-format";
-pub const EXPECTED_CAIRO0_VERSION: &str = "0.14.0a1";
+#[derive(Debug, Eq, PartialEq)]
+pub struct CairoLangVersion<'a>(pub &'a str);
+
+pub const EXPECTED_CAIRO0_STARKNET_COMPILE_VERSION: CairoLangVersion<'static> =
+    CairoLangVersion("0.14.0a1");
+pub const EXPECTED_CAIRO0_VERSION: CairoLangVersion<'static> = CairoLangVersion("0.14.0a1");
 
 /// The local python requirements used to determine the cairo0 compiler version.
 pub(crate) static PIP_REQUIREMENTS_FILE: LazyLock<PathBuf> =
     LazyLock::new(|| resolve_project_relative_path("scripts/requirements.txt").unwrap());
+pub(crate) static STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE: LazyLock<PathBuf> =
+    LazyLock::new(|| {
+        resolve_project_relative_path(
+            "crates/blockifier_test_utils/resources/blockifier-test-utils-requirements.txt",
+        )
+        .unwrap()
+    });
 
-static ENTER_VENV_INSTRUCTIONS: LazyLock<String> = LazyLock::new(|| {
+fn enter_venv_instructions(script_type: &Cairo0Script) -> String {
+    let requirements_path = match script_type {
+        Cairo0Script::Compile | Cairo0Script::Format => format!("{PIP_REQUIREMENTS_FILE:#?}"),
+        Cairo0Script::StarknetCompileDeprecated => {
+            format!("{STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE:#?}")
+        }
+    };
     format!(
         r#"
 python3 -m venv sequencer_venv
 . sequencer_venv/bin/activate
-pip install -r {:#?}"#,
-        *PIP_REQUIREMENTS_FILE
+pip install -r {requirements_path}"#,
     )
-});
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Cairo0Script {
+    Compile,
+    Format,
+    StarknetCompileDeprecated,
+}
+
+impl Cairo0Script {
+    pub fn script_name(&self) -> &'static str {
+        match self {
+            Self::Compile => "cairo-compile",
+            Self::Format => "cairo-format",
+            Self::StarknetCompileDeprecated => "starknet-compile-deprecated",
+        }
+    }
+
+    pub fn required_version(&self) -> CairoLangVersion<'static> {
+        match self {
+            Self::Compile => EXPECTED_CAIRO0_VERSION,
+            Self::Format => EXPECTED_CAIRO0_VERSION,
+            Self::StarknetCompileDeprecated => EXPECTED_CAIRO0_STARKNET_COMPILE_VERSION,
+        }
+    }
+}
 
 #[derive(thiserror::Error, Debug)]
 pub enum Cairo0ScriptVersionError {
     #[error(
-        "{script} version is not correct: required {required}, got {existing}. Are you in the \
-         venv? If not, run the following commands:\n{}", *ENTER_VENV_INSTRUCTIONS
+        "{script:?} version is not correct: required {required}, got {existing}. Are you in the \
+         venv? If not, run the following commands:\n{}",
+        enter_venv_instructions(script)
     )]
-    IncorrectVersion { script: String, existing: String, required: String },
+    IncorrectVersion { script: Cairo0Script, existing: String, required: String },
     #[error(
-        "{0}. Are you in the venv? If not, run the following commands:\n{}",
-        *ENTER_VENV_INSTRUCTIONS
+        "{error}. Are you in the venv? If not, run the following commands:\n{}",
+        enter_venv_instructions(script)
     )]
-    CompilerNotFound(String),
+    CompilerNotFound { script: Cairo0Script, error: String },
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -59,26 +99,32 @@ pub enum Cairo0CompilerError {
     SourceFileNotFound(PathBuf),
 }
 
-pub fn cairo0_scripts_correct_version() -> Result<(), Cairo0ScriptVersionError> {
-    for script in [CAIRO0_COMPILE, CAIRO0_FORMAT, STARKNET_COMPILE_DEPRECATED] {
-        let version = match Command::new(script).arg("--version").output() {
-            Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
-            Err(error) => {
-                return Err(Cairo0ScriptVersionError::CompilerNotFound(format!(
-                    "Failed to get {script} version: {error}."
-                )));
-            }
-        };
-        if version.trim().replace("==", " ").split(" ").nth(1).ok_or(
-            Cairo0ScriptVersionError::CompilerNotFound("No script version found.".to_string()),
-        )? != EXPECTED_CAIRO0_VERSION
-        {
-            return Err(Cairo0ScriptVersionError::IncorrectVersion {
-                script: script.to_string(),
-                existing: version,
-                required: EXPECTED_CAIRO0_VERSION.to_string(),
+pub fn cairo0_script_correct_version(
+    script_type: &Cairo0Script,
+) -> Result<(), Cairo0ScriptVersionError> {
+    let expected_version = script_type.required_version();
+    let script = script_type.script_name();
+    let version = match Command::new(script).arg("--version").output() {
+        Ok(output) => String::from_utf8_lossy(&output.stdout).to_string(),
+        Err(error) => {
+            return Err(Cairo0ScriptVersionError::CompilerNotFound {
+                script: *script_type,
+                error: format!("Failed to get {script} version: {error}."),
             });
         }
+    };
+    if CairoLangVersion(version.trim().replace("==", " ").split(" ").nth(1).ok_or(
+        Cairo0ScriptVersionError::CompilerNotFound {
+            script: *script_type,
+            error: format!("No {script} version found."),
+        },
+    )?) != expected_version
+    {
+        return Err(Cairo0ScriptVersionError::IncorrectVersion {
+            script: *script_type,
+            existing: version,
+            required: expected_version.0.to_string(),
+        });
     }
 
     Ok(())
@@ -89,14 +135,15 @@ pub fn compile_cairo0_program(
     path_to_main: PathBuf,
     cairo_root_path: PathBuf,
 ) -> Result<Vec<u8>, Cairo0CompilerError> {
-    cairo0_scripts_correct_version()?;
+    let script_type = Cairo0Script::Compile;
+    cairo0_script_correct_version(&script_type)?;
     if !path_to_main.exists() {
         return Err(Cairo0CompilerError::SourceFileNotFound(path_to_main));
     }
     if !cairo_root_path.exists() {
         return Err(Cairo0CompilerError::CairoRootNotFound(cairo_root_path));
     }
-    let mut compile_command = Command::new(CAIRO0_COMPILE);
+    let mut compile_command = Command::new(script_type.script_name());
     compile_command.args([
         path_to_main.to_str().ok_or(Cairo0CompilerError::InvalidPath(path_to_main.clone()))?,
         "--debug_info_with_source",
@@ -121,37 +168,36 @@ pub fn compile_cairo0_program(
 /// For use in tests only. If cairo0 compiler verification is required in business logic, use
 /// `crate::cairo0_compiler::cairo0_scripts_correct_version` instead.
 #[cfg(any(test, feature = "testing"))]
-pub fn verify_cairo0_compiler_deps() {
-    let specific_error = match cairo0_scripts_correct_version() {
-        Ok(_) => {
-            return;
-        }
-        Err(Cairo0ScriptVersionError::CompilerNotFound(_)) => {
-            "no installed cairo-lang found".to_string()
-        }
-        Err(Cairo0ScriptVersionError::IncorrectVersion { existing, .. }) => {
-            format!("installed version: {existing}")
-        }
-    };
-
-    panic!(
-        "cairo-lang version {EXPECTED_CAIRO0_VERSION} not found ({specific_error}). Please enter \
-         a venv and rerun the test:\n{}",
-        *ENTER_VENV_INSTRUCTIONS
-    );
+pub fn verify_cairo0_compiler_deps(script_type: &Cairo0Script) {
+    if let Err(verification_error) = cairo0_script_correct_version(script_type) {
+        let error = match verification_error {
+            Cairo0ScriptVersionError::CompilerNotFound { error, .. } => {
+                format!("No installed cairo-lang found. Original error: {error}.")
+            }
+            Cairo0ScriptVersionError::IncorrectVersion { existing, script, .. } => {
+                format!("Installed {script:?} version: {existing}")
+            }
+        };
+        panic!(
+            "{script_type:?} script not found or of incorrect version ({error}). Please enter a \
+             venv and rerun the test:\n{}",
+            enter_venv_instructions(script_type)
+        )
+    }
 }
 
 /// Runs the Cairo0 formatter on the input source code.
 #[cfg(any(test, feature = "testing"))]
 pub fn cairo0_format(unformatted: &String) -> String {
-    verify_cairo0_compiler_deps();
+    let script_type = Cairo0Script::Format;
+    verify_cairo0_compiler_deps(&script_type);
 
     // Dump string to temporary file.
     let mut temp_file = tempfile::NamedTempFile::new().unwrap();
     temp_file.write_all(unformatted.as_bytes()).unwrap();
 
     // Run formatter.
-    let mut command = Command::new("cairo-format");
+    let mut command = Command::new(script_type.script_name());
     command.arg(temp_file.path().to_str().unwrap());
     let format_output = command.output().unwrap();
     let stderr_output = String::from_utf8(format_output.stderr).unwrap();

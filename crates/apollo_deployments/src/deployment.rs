@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::fmt::{Display, Formatter, Result};
 use std::path::{Path, PathBuf};
 
 use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
@@ -12,7 +13,6 @@ use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use indexmap::IndexMap;
 use serde::Serialize;
 use serde_json::{json, to_value, Value};
-use starknet_api::core::ChainId;
 
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams, Service, ServiceName};
@@ -33,9 +33,11 @@ const BOOTSTRAP_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 100_000; // 100k seconds ~
 const OPERATIONAL_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS: u64 = 3600; // 1 hour
 const OPERATIONAL_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 300; // 300 seconds ~ 5 minutes
 
+const PRAGMA_URL_TEMPLATE: &str =
+    "https://api.{}.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median";
+
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Deployment {
-    chain_id: ChainId,
     application_config_subdir: PathBuf,
     #[serde(skip_serializing)]
     deployment_name: DeploymentName,
@@ -48,11 +50,8 @@ pub struct Deployment {
     base_app_config_file_path: PathBuf,
 }
 
-// TODO(Tsabary): reduce number of args.
-#[allow(clippy::too_many_arguments)]
 impl Deployment {
     pub fn new(
-        chain_id: ChainId,
         deployment_name: DeploymentName,
         environment: Environment,
         instance_name: &str,
@@ -93,7 +92,6 @@ impl Deployment {
             })
             .collect();
         Self {
-            chain_id,
             application_config_subdir,
             deployment_name,
             environment,
@@ -233,6 +231,22 @@ impl ConfigOverride {
     }
 }
 
+/// Represents the domain of the pragma directive in the configuration.
+pub enum PragmaDomain {
+    Dev,
+    Prod,
+}
+
+impl Display for PragmaDomain {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        let s = match self {
+            PragmaDomain::Dev => "devnet",
+            PragmaDomain::Prod => "production",
+        };
+        write!(f, "{}", s)
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct DeploymentConfigOverride {
     #[serde(rename = "base_layer_config.starknet_contract_address")]
@@ -241,6 +255,8 @@ pub struct DeploymentConfigOverride {
     eth_fee_token_address: String,
     starknet_url: String,
     strk_fee_token_address: String,
+    #[serde(rename = "consensus_manager_config.eth_to_strk_oracle_config.base_url")]
+    consensus_manager_config_eth_to_strk_oracle_config_base_url: String,
 }
 
 impl DeploymentConfigOverride {
@@ -250,6 +266,7 @@ impl DeploymentConfigOverride {
         eth_fee_token_address: impl ToString,
         starknet_url: impl ToString,
         strk_fee_token_address: impl ToString,
+        pragma_domain: PragmaDomain,
     ) -> Self {
         Self {
             starknet_contract_address: starknet_contract_address.to_string(),
@@ -257,6 +274,8 @@ impl DeploymentConfigOverride {
             eth_fee_token_address: eth_fee_token_address.to_string(),
             starknet_url: starknet_url.to_string(),
             strk_fee_token_address: strk_fee_token_address.to_string(),
+            consensus_manager_config_eth_to_strk_oracle_config_base_url: PRAGMA_URL_TEMPLATE
+                .replace("{}", &pragma_domain.to_string()),
         }
     }
 }
@@ -354,10 +373,40 @@ impl DeploymentTypeConfigOverride {
     }
 }
 
+// TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be
+// removed, and the p2p address should always be `External`.
+pub(crate) enum P2PCommunicationType {
+    Internal,
+    External,
+}
+
+impl P2PCommunicationType {
+    fn get_p2p_address(
+        &self,
+        service_name: &str,
+        namespace: &str,
+        domain: &str,
+        port: u16,
+        first_node_address: &str,
+    ) -> String {
+        let domain = match self {
+            P2PCommunicationType::Internal => "svc.cluster.local",
+            P2PCommunicationType::External => domain,
+        };
+
+        format!(
+            "/dns/{}.{}.{}/tcp/{}/p2p/{}",
+            service_name, namespace, domain, port, first_node_address
+        )
+    }
+}
+
 pub(crate) fn create_hybrid_instance_config_override(
     id: usize,
     namespace: &'static str,
     deployment_type: DeploymentType,
+    p2p_communication_type: P2PCommunicationType,
+    domain: &str,
 ) -> InstanceConfigOverride {
     assert!(id < MAX_NODE_ID, "Node id {} exceeds the number of nodes {}", id, MAX_NODE_ID);
 
@@ -389,15 +438,21 @@ pub(crate) fn create_hybrid_instance_config_override(
         )
     } else {
         InstanceConfigOverride::new(
-            format!(
-                "/dns/{}.{}.svc.cluster.local/tcp/{}/p2p/{}",
-                CORE_SERVICE_NAME, namespace, CORE_SERVICE_PORT, FIRST_NODE_ADDRESS
+            p2p_communication_type.get_p2p_address(
+                CORE_SERVICE_NAME,
+                namespace,
+                domain,
+                CORE_SERVICE_PORT,
+                FIRST_NODE_ADDRESS,
             ),
             false,
             get_secret_key(id),
-            format!(
-                "/dns/{}.{}.svc.cluster.local/tcp/{}/p2p/{}",
-                MEMPOOL_SERVICE_NAME, namespace, MEMPOOL_SERVICE_PORT, FIRST_NODE_ADDRESS
+            p2p_communication_type.get_p2p_address(
+                MEMPOOL_SERVICE_NAME,
+                namespace,
+                domain,
+                MEMPOOL_SERVICE_PORT,
+                FIRST_NODE_ADDRESS,
             ),
             false,
             get_secret_key(id),

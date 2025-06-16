@@ -242,7 +242,6 @@ impl<IG: IdentifierGetter, T: LoadCairoObject<IG> + CairoSized<IG>> LoadCairoObj
     }
 }
 
-#[allow(dead_code)]
 /// Returns the offset of a field in a cairo struct.
 pub(crate) fn get_field_offset<IG: IdentifierGetter>(
     var_type: CairoStruct,

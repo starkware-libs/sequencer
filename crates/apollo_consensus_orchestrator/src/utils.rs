@@ -7,11 +7,25 @@ use apollo_l1_gas_price_types::{
     DEFAULT_ETH_TO_FRI_RATE,
 };
 use apollo_protobuf::consensus::ConsensusBlockInfo;
+use apollo_state_sync_types::communication::StateSyncClient;
+// TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use num_rational::Ratio;
-use starknet_api::block::{BlockTimestamp, GasPrice};
+use starknet_api::block::{
+    BlockHashAndNumber,
+    BlockNumber,
+    BlockTimestamp,
+    GasPrice,
+    GasPriceVector,
+    GasPrices,
+    NonzeroGasPrice,
+};
+use starknet_api::consensus_transaction::InternalConsensusTransaction;
+use starknet_api::data_availability::L1DataAvailabilityMode;
 use tracing::{info, warn};
 
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
+use crate::sequencer_consensus_context::{BuildProposalError, ProposalResult};
 
 pub(crate) struct GasPriceParams {
     pub min_l1_gas_price_wei: GasPrice,
@@ -35,7 +49,11 @@ pub(crate) async fn get_oracle_rate_and_prices(
     );
 
     if price_info.is_err() {
+        warn!("Failed to get l1 gas price from provider: {:?}", price_info);
         CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.increment(1);
+    }
+    if eth_to_strk_rate.is_err() {
+        warn!("Failed to get eth to strk rate from oracle: {:?}", eth_to_strk_rate);
     }
 
     match (eth_to_strk_rate, price_info) {
@@ -44,12 +62,8 @@ pub(crate) async fn get_oracle_rate_and_prices(
             apply_fee_transformations(&mut price_info, gas_price_params);
             return (eth_to_strk_rate, price_info);
         }
-        err => {
-            warn!(
-                "Failed to get oracle prices from l1 gas price provider or eth to strk oracle. \
-                 Using values from previous block info. {:?}",
-                err
-            );
+        _ => {
+            warn!("Using values from previous block info.")
         }
     }
 
@@ -93,4 +107,96 @@ fn apply_fee_transformations(price_info: &mut PriceInfo, gas_price_params: &GasP
         (gas_price_params.l1_data_gas_price_multiplier * price_info.blob_fee.0).to_integer(),
     )
     .clamp(gas_price_params.min_l1_data_gas_price_wei, gas_price_params.max_l1_data_gas_price_wei);
+}
+
+pub(crate) fn convert_to_sn_api_block_info(
+    block_info: &ConsensusBlockInfo,
+) -> starknet_api::block::BlockInfo {
+    let l1_gas_price_fri =
+        NonzeroGasPrice::new(block_info.l1_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate))
+            .unwrap();
+    let l1_data_gas_price_fri = NonzeroGasPrice::new(
+        block_info.l1_data_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate),
+    )
+    .unwrap();
+    let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri).unwrap();
+    let l2_gas_price_wei =
+        NonzeroGasPrice::new(block_info.l2_gas_price_fri.fri_to_wei(block_info.eth_to_fri_rate))
+            .unwrap();
+    let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei).unwrap();
+    let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei).unwrap();
+
+    starknet_api::block::BlockInfo {
+        block_number: block_info.height,
+        block_timestamp: BlockTimestamp(block_info.timestamp),
+        sequencer_address: block_info.builder,
+        gas_prices: GasPrices {
+            strk_gas_prices: GasPriceVector {
+                l1_gas_price: l1_gas_price_fri,
+                l1_data_gas_price: l1_data_gas_price_fri,
+                l2_gas_price: l2_gas_price_fri,
+            },
+            eth_gas_prices: GasPriceVector {
+                l1_gas_price: l1_gas_price_wei,
+                l1_data_gas_price: l1_data_gas_price_wei,
+                l2_gas_price: l2_gas_price_wei,
+            },
+        },
+        use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
+    }
+}
+
+pub(crate) async fn retrospective_block_hash(
+    state_sync_client: Arc<dyn StateSyncClient>,
+    block_info: &ConsensusBlockInfo,
+) -> ProposalResult<Option<BlockHashAndNumber>> {
+    let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
+    let retrospective_block_hash = match retrospective_block_number {
+        Some(block_number) => {
+            let block_number = BlockNumber(block_number);
+            let block = state_sync_client
+                // Getting the next block hash because the Sync block only contains parent hash.
+                .get_block(block_number.unchecked_next())
+                .await?
+                .ok_or(BuildProposalError::StateSyncNotReady(format!(
+                "Failed to get retrospective block number {block_number}"
+            )))?;
+            Some(BlockHashAndNumber {
+                number: block_number,
+                hash: block.block_header_without_hash.parent_hash,
+            })
+        }
+        None => {
+            info!(
+                "Retrospective block number is less than {STORED_BLOCK_HASH_BUFFER}, setting None \
+                 as expected."
+            );
+            None
+        }
+    };
+    Ok(retrospective_block_hash)
+}
+
+pub(crate) fn truncate_to_executed_txs(
+    content: &mut Vec<Vec<InternalConsensusTransaction>>,
+    executed_txs_count: u64,
+) -> Vec<Vec<InternalConsensusTransaction>> {
+    let content = std::mem::take(content);
+    // Truncate `content` to keep only the first `executed_txs_count`, preserving batch
+    // structure.
+    let mut executed_content: Vec<Vec<InternalConsensusTransaction>> = Vec::new();
+    let mut remaining: usize =
+        executed_txs_count.try_into().expect("executed_txs_count should fit into usize");
+
+    for batch in content {
+        if remaining < batch.len() {
+            executed_content.push(batch.into_iter().take(remaining).collect());
+            break;
+        } else {
+            remaining -= batch.len();
+            executed_content.push(batch);
+        }
+    }
+
+    executed_content
 }

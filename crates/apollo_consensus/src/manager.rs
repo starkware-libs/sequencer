@@ -69,6 +69,7 @@ pub async fn run_consensus<ContextT>(
     consensus_delay: Duration,
     timeouts: TimeoutsConfig,
     sync_retry_interval: Duration,
+    no_byzantine_validators: bool,
     mut vote_receiver: BroadcastVoteChannel,
     mut proposals_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
 ) -> Result<(), ConsensusError>
@@ -77,7 +78,8 @@ where
 {
     info!(
         "Running consensus, start_active_height={start_active_height}, \
-         start_observe_height={start_observe_height}, consensus_delay={}, timeouts={timeouts:?}",
+         start_observe_height={start_observe_height}, consensus_delay={}, timeouts={timeouts:?} \
+         no_byzantine_validators={no_byzantine_validators}",
         consensus_delay.as_secs(),
     );
     register_metrics();
@@ -89,7 +91,6 @@ where
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT).set(current_height.0 as f64);
-
         let must_observer = current_height < start_active_height;
         match manager
             .run_height(
@@ -97,6 +98,7 @@ where
                 current_height,
                 must_observer,
                 sync_retry_interval,
+                no_byzantine_validators,
                 &mut vote_receiver,
                 &mut proposals_receiver,
             )
@@ -108,7 +110,7 @@ where
                 let round = decision.precommits[0].round;
                 let proposer = context.proposer(current_height, round);
                 info!(
-                    "Decision reached for round {} with proposer {}. {:?}",
+                    "DECISION_REACHED: Decision reached for round {} with proposer {}. {:?}",
                     round, proposer, decision
                 );
                 CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.increment(1);
@@ -172,6 +174,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Inputs - see [`run_consensus`].
     /// - `must_observer`: Whether the node must observe or if it is allowed to be active (assuming
     ///   it is in the validator set).
+    #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all, fields(height=%height.0), level = "error")]
     pub(crate) async fn run_height(
         &mut self,
@@ -179,6 +182,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         height: BlockNumber,
         must_observer: bool,
         sync_retry_interval: Duration,
+        no_byzantine_validators: bool,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
@@ -188,6 +192,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 height,
                 must_observer,
                 sync_retry_interval,
+                no_byzantine_validators,
                 broadcast_channels,
                 proposals_receiver,
             )
@@ -220,12 +225,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         Ok(res)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn run_height_inner(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         must_observer: bool,
         sync_retry_interval: Duration,
+        no_byzantine_validators: bool,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
@@ -237,8 +244,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let validators = context.validators(height).await;
         let is_observer = must_observer || !validators.contains(&self.validator_id);
         info!(
-            "running consensus for height {height:?}. is_observer: {is_observer}, validators: \
-             {validators:?}"
+            "START_HEIGHT: running consensus for height {height:?}. is_observer: {is_observer}, \
+             validators: {validators:?}"
         );
         CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
 
@@ -247,6 +254,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             is_observer,
             self.validator_id,
             validators,
+            no_byzantine_validators,
             self.timeouts.clone(),
         );
         let mut shc_events = FuturesUnordered::new();

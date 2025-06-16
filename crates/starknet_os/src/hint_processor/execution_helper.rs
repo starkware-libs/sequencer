@@ -7,6 +7,7 @@ use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::vm::errors::memory_errors::MemoryError;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::BlockHash;
 use starknet_api::contract_class::EntryPointType;
@@ -17,6 +18,7 @@ use starknet_types_core::felt::Felt;
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
 use crate::io::os_input::{CachedStateInput, OsBlockInput};
+use crate::vm_utils::VmUtilsError;
 
 /// A helper struct that provides access to the OS state and commitments.
 pub struct OsExecutionHelper<'a, S: StateReader> {
@@ -210,6 +212,16 @@ pub struct CallInfoTracker<'a> {
     pub deprecated_tx_info_ptr: Relocatable,
 }
 
+macro_rules! next_iterator_method {
+    ($fn_name:ident, $field:ident, $return_type:ty) => {
+        pub fn $fn_name(&mut self) -> Result<$return_type, ExecutionHelperError> {
+            self.$field.next().ok_or(ExecutionHelperError::EndOfIterator {
+                item_type: stringify!($field).to_string(),
+            })
+        }
+    };
+}
+
 impl<'a> CallInfoTracker<'a> {
     pub fn new(
         call_info: &'a CallInfo,
@@ -276,6 +288,24 @@ impl<'a> CallInfoTracker<'a> {
         }
         Ok(())
     }
+
+    next_iterator_method!(next_execute_code_read, execute_code_read_iterator, &Felt);
+    next_iterator_method!(
+        next_execute_code_class_hash_read,
+        execute_code_class_hash_read_iterator,
+        &ClassHash
+    );
+    next_iterator_method!(
+        next_execute_code_block_hash_read,
+        execute_code_block_hash_read_iterator,
+        &BlockHash
+    );
+    next_iterator_method!(next_inner_call, inner_calls_iterator, &CallInfo);
+    next_iterator_method!(
+        next_deployed_contracts_iterator,
+        deployed_contracts_iterator,
+        ContractAddress
+    );
 }
 
 fn check_exhausted<I>(iterator: &mut I, name: &str, unexhausteds: &mut Vec<String>)
@@ -325,8 +355,12 @@ pub enum ExecutionHelperError {
     ContextOverwrite { context: String },
     #[error("Tried to iterate past the end of {item_type}.")]
     EndOfIterator { item_type: String },
+    #[error(transparent)]
+    Memory(#[from] MemoryError),
     #[error("No call info found.")]
     MissingCallInfo,
+    #[error("No commitment info for contract address: {0:?}.")]
+    MissingCommitmentInfo(ContractAddress),
     #[error("No transaction found.")]
     MissingTx,
     #[error("No transaction execution info found.")]
@@ -339,4 +373,6 @@ pub enum ExecutionHelperError {
     UnexhaustedCallInfoIterator,
     #[error("Unexpected tx type: {0:?}.")]
     UnexpectedTxType(TransactionType),
+    #[error(transparent)]
+    VmUtils(#[from] VmUtilsError),
 }

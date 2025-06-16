@@ -8,10 +8,11 @@ use rand::rngs::StdRng;
 use rand::SeedableRng;
 use starknet_os::hints::hint_implementation::kzg::utils::BASE;
 use starknet_os::test_utils::cairo_runner::{EndpointArg, EntryPointRunnerConfig, ImplicitArg};
+use starknet_os::test_utils::errors::OsSpecificTestError;
 use starknet_os::test_utils::utils::run_cairo_function_and_check_result;
 use starknet_types_core::felt::Felt;
 
-use crate::os_cli::tests::types::{OsPythonTestResult, OsSpecificTestError};
+use crate::os_cli::tests::types::OsPythonTestResult;
 use crate::shared_utils::types::PythonTestError;
 
 // 2**251 + 17 * 2**192 + 1

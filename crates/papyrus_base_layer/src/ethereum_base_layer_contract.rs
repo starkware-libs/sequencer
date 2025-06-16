@@ -25,6 +25,7 @@ use tracing::{debug, error, instrument};
 use url::Url;
 use validator::Validate;
 
+use crate::eth_events::parse_event;
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
@@ -159,13 +160,20 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             self.contract.provider().get_logs(&filter),
         )
         .await??;
-        let received_tx_hashes: Vec<_> =
-            matching_logs.iter().map(|log| log.transaction_hash).collect();
-        debug!(
-            "Got events of blocks in range {:?} with transaction hash: {:?}",
-            block_range, received_tx_hashes
-        );
-        matching_logs.into_iter().map(L1Event::try_from).collect()
+
+        // Debugging.
+        let hashes: Vec<_> = matching_logs.iter().filter_map(|log| log.transaction_hash).collect();
+        debug!("Got events in {:?}, transaction hashes: {:?}", block_range, hashes);
+
+        let block_header_futures = matching_logs.into_iter().map(|log| {
+            let block_number = log.block_number.unwrap();
+            async move {
+                let header = self.get_block_header(block_number).await?.unwrap();
+                parse_event(log, header.timestamp)
+            }
+        });
+
+        futures::future::join_all(block_header_futures).await.into_iter().collect()
     }
 
     #[instrument(skip(self), err)]
@@ -243,7 +251,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             number: block.header.number,
             hash: block.header.hash.0,
             parent_hash: block.header.parent_hash.0,
-            timestamp: block.header.timestamp,
+            timestamp: block.header.timestamp.into(),
             base_fee_per_gas: base_fee.into(),
             blob_fee,
         }))

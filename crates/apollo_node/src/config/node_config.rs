@@ -119,7 +119,10 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 &POINTER_TARGET_VALUE.to_string(),
                 "The URL of the Pythonic cende_recorder",
             ),
-            set_pointing_param_paths(&["consensus_manager_config.cende_config.recorder_url"]),
+            set_pointing_param_paths(&[
+                "consensus_manager_config.cende_config.recorder_url",
+                "batcher_config.pre_confirmed_cende_config.recorder_url",
+            ]),
         ),
     ];
     let mut common_execution_config = generate_struct_pointer(
