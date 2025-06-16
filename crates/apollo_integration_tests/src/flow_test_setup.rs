@@ -39,6 +39,7 @@ use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
     make_block_history_on_anvil,
     spawn_anvil_and_deploy_starknet_l1_contract,
+    DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX,
 };
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::ConsensusTransaction;
@@ -125,7 +126,15 @@ impl FlowTestSetup {
             spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config).await;
 
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
-        make_block_history_on_anvil(&anvil, base_layer_config.clone(), NUM_L1_TRANSACTIONS).await;
+        let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
+        let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
+        make_block_history_on_anvil(
+            sender_address,
+            receiver_address,
+            base_layer_config.clone(),
+            NUM_L1_TRANSACTIONS,
+        )
+        .await;
 
         // Spawn a thread that listens to proposals and collects batched transactions.
         let accumulated_txs = Arc::new(Mutex::new(AccumulatedTransactions::default()));
