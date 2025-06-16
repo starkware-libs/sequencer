@@ -176,7 +176,12 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn build(self) -> L1ProviderContent {
+    pub fn build(mut self) -> L1ProviderContent {
+        if let Some(config) = self.config {
+            self.tx_manager_content_builder =
+                self.tx_manager_content_builder.with_config(config.into());
+        }
+
         L1ProviderContent {
             config: self.config,
             tx_manager_content: self.tx_manager_content_builder.build(),

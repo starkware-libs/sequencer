@@ -39,15 +39,9 @@ pub struct TransactionManager {
 }
 
 impl TransactionManager {
-    pub fn new(
-        new_l1_handler_tx_cooldown_secs: Duration,
-        l1_handler_cancellation_timelock_seconds: Duration,
-    ) -> Self {
+    pub fn new(config: TransactionManagerConfig) -> Self {
         Self {
-            config: TransactionManagerConfig {
-                new_l1_handler_tx_cooldown_secs,
-                l1_handler_cancellation_timelock_seconds,
-            },
+            config,
             records: Default::default(),
             proposable_index: Default::default(),
             current_staging_epoch: StagingEpoch::new(),
@@ -279,7 +273,7 @@ impl Default for TransactionManager {
     // Note that new will init the epoch at 1, not 0, this is because a 0 epoch in the transaction
     // manager will make new transactions automatically staged by default in the first block.
     fn default() -> Self {
-        Self::new(Duration::from_secs(0), Duration::from_secs(0))
+        Self::new(TransactionManagerConfig::default())
     }
 }
 #[derive(Debug, Default)]

@@ -400,10 +400,7 @@ impl L1ProviderBuilder {
 
         L1Provider {
             current_height: l1_provider_startup_height,
-            tx_manager: TransactionManager::new(
-                self.config.new_l1_handler_cooldown_seconds,
-                self.config.l1_handler_cancellation_timelock_seconds,
-            ),
+            tx_manager: TransactionManager::new(self.config.into()),
             state: ProviderState::Bootstrap(bootstrapper),
             config: self.config,
             clock: Arc::new(DefaultClock),
