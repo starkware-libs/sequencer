@@ -203,6 +203,26 @@ jobs:
           kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
           echo "🚀 Anvil deployed successfully."
 
+          echo "🔍 Extracting Anvil addresses from logs..."
+
+          ANVIL_POD=$(kubectl get pods -n "${{ env.namespace }}" -l app=anvil -o jsonpath="{.items[0].metadata.name}")
+          ANVIL_LOGS=$(kubectl logs -n "${{ env.namespace }}" "$ANVIL_POD")
+
+          # Extract only lines that contain Anvil accounts
+          ADDRESSES=$(echo "$ANVIL_LOGS" | grep -oP '^0x[a-fA-F0-9]{40}$' | head -n 2)
+
+          SENDER_ADDRESS=$(echo "$ADDRESSES" | sed -n '1p')
+          RECEIVER_ADDRESS=$(echo "$ADDRESSES" | sed -n '2p')
+
+          echo "💡 SENDER_ADDRESS=$SENDER_ADDRESS"
+          echo "💡 RECEIVER_ADDRESS=$RECEIVER_ADDRESS"
+
+          # Export to GitHub environment
+          {
+            echo "SENDER_ADDRESS=$SENDER_ADDRESS"
+            echo "RECEIVER_ADDRESS=$RECEIVER_ADDRESS"
+          } >> "$GITHUB_ENV"
+
       - name: Build binaries
         run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
 
