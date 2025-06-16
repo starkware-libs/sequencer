@@ -8,19 +8,34 @@ use apollo_infra::metrics::{
     CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
 };
 
-use crate::dashboard::{Panel, PanelType};
+use crate::dashboard::{Panel, PanelType, Row};
 
-pub(crate) const PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED: Panel =
+const PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED: Panel =
     Panel::from_counter(CLASS_MANAGER_LOCAL_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_CLASS_MANAGER_LOCAL_MSGS_PROCESSED: Panel =
+const PANEL_CLASS_MANAGER_LOCAL_MSGS_PROCESSED: Panel =
     Panel::from_counter(CLASS_MANAGER_LOCAL_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_CLASS_MANAGER_REMOTE_MSGS_RECEIVED: Panel =
+const PANEL_CLASS_MANAGER_REMOTE_MSGS_RECEIVED: Panel =
     Panel::from_counter(CLASS_MANAGER_REMOTE_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED: Panel =
+const PANEL_CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED: Panel =
     Panel::from_counter(CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_CLASS_MANAGER_REMOTE_MSGS_PROCESSED: Panel =
+const PANEL_CLASS_MANAGER_REMOTE_MSGS_PROCESSED: Panel =
     Panel::from_counter(CLASS_MANAGER_REMOTE_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_CLASS_MANAGER_LOCAL_QUEUE_DEPTH: Panel =
+const PANEL_CLASS_MANAGER_LOCAL_QUEUE_DEPTH: Panel =
     Panel::from_gauge(CLASS_MANAGER_LOCAL_QUEUE_DEPTH, PanelType::Graph);
-pub(crate) const PANEL_CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
+const PANEL_CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
     Panel::from_hist(CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
+
+pub(crate) fn get_class_manager_infra_row() -> Row {
+    Row::new(
+        "Class Manager Infra",
+        vec![
+            PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
+            PANEL_CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
+            PANEL_CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
+            PANEL_CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
+            PANEL_CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
+            PANEL_CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
+            PANEL_CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
+        ],
+    )
+}
