@@ -106,23 +106,9 @@ use crate::panels::state_reader::{
     PANEL_NATIVE_COMPILATION_ERROR,
 };
 use crate::panels::state_sync::{
-    PANEL_CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
-    PANEL_P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
-    PANEL_P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
-    PANEL_P2P_SYNC_NUM_CONNECTED_PEERS,
-    PANEL_STATE_SYNC_BODY_MARKER,
-    PANEL_STATE_SYNC_CLASS_MANAGER_MARKER,
-    PANEL_STATE_SYNC_HEADER_MARKER,
-    PANEL_STATE_SYNC_LOCAL_MSGS_PROCESSED,
-    PANEL_STATE_SYNC_LOCAL_MSGS_RECEIVED,
-    PANEL_STATE_SYNC_LOCAL_QUEUE_DEPTH,
-    PANEL_STATE_SYNC_PROCESSED_TRANSACTIONS,
-    PANEL_STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
-    PANEL_STATE_SYNC_REMOTE_MSGS_PROCESSED,
-    PANEL_STATE_SYNC_REMOTE_MSGS_RECEIVED,
-    PANEL_STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
-    PANEL_STATE_SYNC_REVERTED_TRANSACTIONS,
-    PANEL_STATE_SYNC_STATE_MARKER,
+    get_state_sync_infra_row,
+    get_state_sync_p2p_row,
+    get_state_sync_row,
 };
 
 #[cfg(test)]
@@ -175,21 +161,6 @@ fn get_sierra_compiler_infra_row() -> Row {
     )
 }
 
-fn get_state_sync_infra_row() -> Row {
-    Row::new(
-        "StateSyncInfra",
-        vec![
-            PANEL_STATE_SYNC_LOCAL_MSGS_RECEIVED,
-            PANEL_STATE_SYNC_LOCAL_MSGS_PROCESSED,
-            PANEL_STATE_SYNC_LOCAL_QUEUE_DEPTH,
-            PANEL_STATE_SYNC_REMOTE_MSGS_RECEIVED,
-            PANEL_STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
-            PANEL_STATE_SYNC_REMOTE_MSGS_PROCESSED,
-            PANEL_STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
-        ],
-    )
-}
-
 fn get_consensus_p2p_row() -> Row {
     Row::new(
         "ConsensusP2p",
@@ -200,17 +171,6 @@ fn get_consensus_p2p_row() -> Row {
             PANEL_CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
             PANEL_CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
             PANEL_CONSENSUS_CONFLICTING_VOTES,
-        ],
-    )
-}
-
-fn get_state_sync_p2p_row() -> Row {
-    Row::new(
-        "StateSyncP2p",
-        vec![
-            PANEL_P2P_SYNC_NUM_CONNECTED_PEERS,
-            PANEL_P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
-            PANEL_P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
         ],
     )
 }
@@ -314,21 +274,6 @@ fn get_consensus_row() -> Row {
 
 fn get_http_server_row() -> Row {
     Row::new("Http Server", vec![PANEL_ADDED_TRANSACTIONS_TOTAL])
-}
-
-fn get_state_sync_row() -> Row {
-    Row::new(
-        "State Sync",
-        vec![
-            PANEL_STATE_SYNC_PROCESSED_TRANSACTIONS,
-            PANEL_STATE_SYNC_REVERTED_TRANSACTIONS,
-            PANEL_CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
-            PANEL_STATE_SYNC_BODY_MARKER,
-            PANEL_STATE_SYNC_CLASS_MANAGER_MARKER,
-            PANEL_STATE_SYNC_HEADER_MARKER,
-            PANEL_STATE_SYNC_STATE_MARKER,
-        ],
-    )
 }
 
 // TODO(MatanM/GuyN): add l1 gas price row to the dashboard when relevant, and delete the
