@@ -54,7 +54,7 @@ use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransacti
 use crate::metrics::FULL_BLOCKS;
 use crate::pre_confirmed_block_writer::{CandidateTxSender, PreConfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
-use crate::transaction_provider::{NextTxs, TransactionProvider, TransactionProviderError};
+use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
 
 #[derive(Debug, Error)]
 pub enum BlockBuilderError {
@@ -93,7 +93,6 @@ pub enum FailOnErrorCause {
 enum AddTxsToExecutorResult {
     NoNewTxs,
     NewTxs,
-    Exhausted,
 }
 
 #[cfg_attr(test, derive(Clone))]
@@ -227,7 +226,6 @@ impl BlockBuilderTrait for BlockBuilder {
 
 impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        let mut finished_adding_txs = false;
         let mut n_txs_in_block: Option<usize> = None;
         while !self.finished_block_txs(n_txs_in_block) {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
@@ -260,19 +258,9 @@ impl BlockBuilder {
                 break;
             }
 
-            if finished_adding_txs {
-                // Only reached in validation flow.
-                // Avoid busy wait while waiting for the executor to finish executing the
-                // transactions.
-                self.sleep().await;
-            } else {
-                match self.add_txs_to_executor().await? {
-                    AddTxsToExecutorResult::NoNewTxs => self.sleep().await,
-                    AddTxsToExecutorResult::NewTxs => {}
-                    AddTxsToExecutorResult::Exhausted => {
-                        finished_adding_txs = true;
-                    }
-                }
+            match self.add_txs_to_executor().await? {
+                AddTxsToExecutorResult::NoNewTxs => self.sleep().await,
+                AddTxsToExecutorResult::NewTxs => {}
             }
         }
 
@@ -360,22 +348,18 @@ impl BlockBuilder {
             }
             Ok(result) => result,
         };
-        let next_tx_chunk = match next_txs {
-            NextTxs::Txs(txs) => txs,
-            // Only reached in validation flow.
-            NextTxs::End => return Ok(AddTxsToExecutorResult::Exhausted),
-        };
-        let n_txs = next_tx_chunk.len();
+
+        let n_txs = next_txs.len();
         debug!("Got {} transactions from the transaction provider.", n_txs);
-        if next_tx_chunk.is_empty() {
+        if next_txs.is_empty() {
             return Ok(AddTxsToExecutorResult::NoNewTxs);
         }
 
-        self.send_candidate_txs(&next_tx_chunk);
+        self.send_candidate_txs(&next_txs);
 
-        self.block_txs.extend(next_tx_chunk.iter().cloned());
+        self.block_txs.extend(next_txs.iter().cloned());
 
-        let tx_convert_futures = next_tx_chunk.into_iter().map(|tx| async {
+        let tx_convert_futures = next_txs.into_iter().map(|tx| async {
             convert_to_executable_blockifier_tx(&self.transaction_converter, tx).await
         });
         let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
