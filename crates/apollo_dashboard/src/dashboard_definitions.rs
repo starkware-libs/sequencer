@@ -1,19 +1,5 @@
 use crate::dashboard::{Dashboard, Row};
-use crate::panels::batcher::{
-    PANEL_BATCHED_TRANSACTIONS,
-    PANEL_BATCHER_LOCAL_MSGS_PROCESSED,
-    PANEL_BATCHER_LOCAL_MSGS_RECEIVED,
-    PANEL_BATCHER_LOCAL_QUEUE_DEPTH,
-    PANEL_BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    PANEL_BATCHER_REMOTE_MSGS_PROCESSED,
-    PANEL_BATCHER_REMOTE_MSGS_RECEIVED,
-    PANEL_BATCHER_REMOTE_VALID_MSGS_RECEIVED,
-    PANEL_LAST_BATCHED_BLOCK,
-    PANEL_PROPOSAL_ABORTED,
-    PANEL_PROPOSAL_FAILED,
-    PANEL_PROPOSAL_STARTED,
-    PANEL_PROPOSAL_SUCCEEDED,
-};
+use crate::panels::batcher::{get_batcher_infra_row, get_batcher_row};
 use crate::panels::class_manager::{
     PANEL_CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
     PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
@@ -225,35 +211,6 @@ fn get_state_sync_p2p_row() -> Row {
             PANEL_P2P_SYNC_NUM_CONNECTED_PEERS,
             PANEL_P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
             PANEL_P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
-        ],
-    )
-}
-
-fn get_batcher_row() -> Row {
-    Row::new(
-        "Batcher",
-        vec![
-            PANEL_PROPOSAL_ABORTED,
-            PANEL_PROPOSAL_STARTED,
-            PANEL_PROPOSAL_SUCCEEDED,
-            PANEL_PROPOSAL_FAILED,
-            PANEL_BATCHED_TRANSACTIONS,
-            PANEL_LAST_BATCHED_BLOCK,
-        ],
-    )
-}
-
-fn get_batcher_infra_row() -> Row {
-    Row::new(
-        "Batcher Infra",
-        vec![
-            PANEL_BATCHER_LOCAL_MSGS_RECEIVED,
-            PANEL_BATCHER_LOCAL_MSGS_PROCESSED,
-            PANEL_BATCHER_LOCAL_QUEUE_DEPTH,
-            PANEL_BATCHER_REMOTE_MSGS_RECEIVED,
-            PANEL_BATCHER_REMOTE_VALID_MSGS_RECEIVED,
-            PANEL_BATCHER_REMOTE_MSGS_PROCESSED,
-            PANEL_BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
         ],
     )
 }
