@@ -61,6 +61,28 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         Ok(Self { worker_executor, worker_pool: worker_pool.clone(), n_output_txs: 0 })
     }
 
+    /// Similar to [start_block], except that [pre_process_block] is not called.
+    /// Used for testing purposes.
+    #[cfg(any(feature = "testing", test))]
+    pub fn new_for_testing(
+        block_state: CachedState<S>,
+        block_context: BlockContext,
+        worker_pool: Arc<WorkerPool<CachedState<S>>>,
+        block_deadline: Option<Instant>,
+    ) -> Self {
+        let bouncer_config = block_context.bouncer_config.clone();
+        let worker_executor = Arc::new(WorkerExecutor::initialize(
+            block_state,
+            vec![],
+            block_context.into(),
+            Mutex::new(Bouncer::new(bouncer_config)).into(),
+            block_deadline,
+        ));
+        worker_pool.run(worker_executor.clone());
+
+        Self { worker_executor, worker_pool: worker_pool.clone(), n_output_txs: 0 }
+    }
+
     /// Starts executing the given transactions.
     pub fn add_txs(&mut self, txs: &[Transaction]) {
         self.worker_executor.add_txs(txs);
