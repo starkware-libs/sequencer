@@ -37,8 +37,12 @@ macro_rules! define_hint_enum_base {
 }
 
 #[macro_export]
-macro_rules! define_stateless_hint_enum {
-    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+macro_rules! define_hint_enum_helper {
+    (
+        $enum_name:ident,
+        $hp_arg:ident,
+        $(($hint_name:ident, $implementation:ident, $hint_str:expr $(, $passed_arg:ident)?)),+ $(,)?
+    ) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
@@ -46,16 +50,15 @@ macro_rules! define_stateless_hint_enum {
             #[allow(clippy::result_large_err)]
             pub(crate) fn execute_hint<'program, CHP: CommonHintProcessor<'program>>(
                 &self,
-                _hint_processor: &mut CHP,
-                hint_args: HintArgs<'_,>
+                $hp_arg: &mut CHP,
+                hint_args: HintArgs<'_>
             ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
                         #[cfg(any(test, feature = "testing"))]
-                        _hint_processor.get_unused_hints().remove(&Self::$hint_name.into());
-                        $implementation(hint_args)
+                        $hp_arg.get_unused_hints().remove(&Self::$hint_name.into());
+                        $implementation($($passed_arg, )? hint_args)
                     })+
-
                 }
             }
         }
@@ -63,28 +66,24 @@ macro_rules! define_stateless_hint_enum {
 }
 
 #[macro_export]
+macro_rules! define_stateless_hint_enum {
+    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+        $crate::define_hint_enum_helper!(
+            $enum_name,
+            _hint_processor,
+            $(($hint_name, $implementation, $hint_str)),+
+        );
+    };
+}
+
+#[macro_export]
 macro_rules! define_common_hint_enum {
     ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
-
-        $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
-
-        impl $enum_name {
-            #[allow(clippy::result_large_err)]
-            pub(crate) fn execute_hint<'program, CHP: CommonHintProcessor<'program>>(
-                &self,
-                hint_processor: &mut CHP,
-                hint_args: HintArgs<'_>
-            ) -> OsHintResult {
-                match self {
-                    $(Self::$hint_name => {
-                        #[cfg(any(test, feature = "testing"))]
-                        hint_processor.get_unused_hints().remove(&Self::$hint_name.into());
-                        $implementation(hint_processor, hint_args)
-                    })+
-
-                }
-            }
-        }
+        $crate::define_hint_enum_helper!(
+            $enum_name,
+            hint_processor,
+            $(($hint_name, $implementation, $hint_str, hint_processor)),+
+        );
     };
 }
 
