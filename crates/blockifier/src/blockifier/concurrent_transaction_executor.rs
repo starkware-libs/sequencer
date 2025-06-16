@@ -108,7 +108,6 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let (from_tx, to_tx) = self.worker_executor.add_txs(txs);
-        // TODO(lior): Remove this check once tx streaming is supported.
         assert_eq!(
             from_tx, self.n_output_txs,
             "Can't add transaction after a partial result from an early run. Returned {} out of \

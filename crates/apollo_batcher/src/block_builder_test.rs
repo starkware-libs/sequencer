@@ -113,7 +113,7 @@ fn one_chunk_test_expectations() -> TestExpectations {
     let input_txs = test_txs(0..3);
     let block_size = input_txs.len();
     let (mock_transaction_executor, expected_block_artifacts) =
-        one_chunk_mock_executor(&input_txs, block_size);
+        one_chunk_mock_executor(&input_txs, block_size, false);
 
     let mock_tx_provider = mock_tx_provider_limitless_calls(vec![input_txs.clone()]);
 
@@ -186,14 +186,19 @@ impl ExpectationHelper {
 fn one_chunk_mock_executor(
     input_txs: &[InternalConsensusTransaction],
     block_size: usize,
+    is_validator: bool,
 ) -> (MockTransactionExecutorTrait, BlockExecutionArtifacts) {
     let mut helper = ExpectationHelper::new();
 
     helper.expect_successful_get_new_results(0);
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.expect_add_txs_to_block(input_txs);
     helper.expect_successful_get_new_results(block_size);
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.deadline_expectations();
 
     let expected_block_artifacts =
@@ -201,7 +206,7 @@ fn one_chunk_mock_executor(
     (helper.mock_transaction_executor, expected_block_artifacts)
 }
 
-fn two_chunks_mock_executor() -> (
+fn two_chunks_mock_executor(is_validator: bool) -> (
     Vec<InternalConsensusTransaction>,
     Vec<InternalConsensusTransaction>,
     MockTransactionExecutorTrait,
@@ -213,20 +218,26 @@ fn two_chunks_mock_executor() -> (
     let mut helper = ExpectationHelper::new();
 
     helper.expect_successful_get_new_results(0);
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.expect_add_txs_to_block(&first_chunk);
     helper.expect_successful_get_new_results(first_chunk.len());
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.expect_add_txs_to_block(&second_chunk);
     helper.expect_successful_get_new_results(second_chunk.len());
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.deadline_expectations();
 
     (first_chunk, second_chunk, helper.mock_transaction_executor)
 }
 
 fn two_chunks_test_expectations() -> TestExpectations {
-    let (first_chunk, second_chunk, mut mock_transaction_executor) = two_chunks_mock_executor();
+    let (first_chunk, second_chunk, mut mock_transaction_executor) = two_chunks_mock_executor(false);
     let block_size = first_chunk.len() + second_chunk.len();
 
     let expected_block_artifacts =
@@ -298,15 +309,20 @@ fn mock_partial_transaction_execution(
     first_chunk: &[InternalConsensusTransaction],
     second_chunk: &[InternalConsensusTransaction],
     n_completed_txs: usize,
+    is_validator: bool,
 ) -> MockTransactionExecutorTrait {
     assert!(n_completed_txs <= first_chunk.len());
     let mut helper = ExpectationHelper::new();
     helper.expect_successful_get_new_results(0);
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.expect_add_txs_to_block(first_chunk);
     if n_completed_txs > 0 {
         helper.expect_successful_get_new_results(n_completed_txs);
-        helper.expect_is_done(false);
+        if !is_validator {
+            helper.expect_is_done(false);
+        }
         helper.expect_add_txs_to_block(second_chunk);
     }
 
@@ -325,7 +341,7 @@ fn test_expectations_partial_transaction_execution() -> TestExpectations {
     // provider.
     let second_chunk = input_txs[N_CONCURRENT_TXS..N_CONCURRENT_TXS + n_completed_txs].to_vec();
     let mut mock_transaction_executor =
-        mock_partial_transaction_execution(&first_chunk, &second_chunk, n_completed_txs);
+        mock_partial_transaction_execution(&first_chunk, &second_chunk, n_completed_txs, false);
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, n_completed_txs);
@@ -646,7 +662,7 @@ async fn test_build_block(#[case] test_expectations: TestExpectations) {
 async fn test_validate_block() {
     let input_txs = test_txs(0..3);
     let (mock_transaction_executor, expected_block_artifacts) =
-        one_chunk_mock_executor(&input_txs, input_txs.len());
+        one_chunk_mock_executor(&input_txs, input_txs.len(), true);
     let mock_tx_provider = mock_tx_provider_stream_done(input_txs);
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
@@ -668,7 +684,7 @@ async fn test_validate_block() {
 /// of transactions that were executed.
 #[tokio::test]
 async fn test_validate_block_excluded_txs() {
-    let (first_chunk, second_chunk, mut mock_transaction_executor) = two_chunks_mock_executor();
+    let (first_chunk, second_chunk, mut mock_transaction_executor) = two_chunks_mock_executor(true);
     let n_executed_txs = first_chunk.len() + second_chunk.len();
     let n_txs_in_block = n_executed_txs - 1;
 
@@ -697,7 +713,7 @@ async fn test_validate_block_excluded_txs() {
 
 #[rstest]
 #[case::deadline_reached(
-    test_txs(0..3), mock_partial_transaction_execution(&input_txs, &[], 0),
+    test_txs(0..3), mock_partial_transaction_execution(&input_txs, &[], 0, true),
     FailOnErrorCause::DeadlineReached
 )]
 #[tokio::test]
@@ -846,7 +862,7 @@ async fn test_build_block_abort_immediately() {
 async fn test_l2_gas_used() {
     let n_txs = 3;
     let input_txs = test_txs(0..n_txs);
-    let (mock_transaction_executor, _) = one_chunk_mock_executor(&input_txs, input_txs.len());
+    let (mock_transaction_executor, _) = one_chunk_mock_executor(&input_txs, input_txs.len(), true);
     let mock_tx_provider = mock_tx_provider_stream_done(input_txs);
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
@@ -871,7 +887,7 @@ async fn test_l2_gas_used() {
 #[tokio::test]
 async fn test_execution_info_order() {
     let input_txs = test_txs(0..6);
-    let (mock_transaction_executor, _) = one_chunk_mock_executor(&input_txs, input_txs.len());
+    let (mock_transaction_executor, _) = one_chunk_mock_executor(&input_txs, input_txs.len(), false);
     let mock_tx_provider = mock_tx_provider_stream_done(input_txs.clone());
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
 
@@ -996,11 +1012,9 @@ async fn partial_chunk_execution_validator(#[case] successful: bool) {
 
     let mut helper = ExpectationHelper::new();
     helper.expect_successful_get_new_results(0);
-    helper.expect_is_done(false);
     helper.expect_add_txs_to_block(&input_txs);
     // Return only 2 txs, simulating a partial chunk execution.
     helper.expect_successful_get_new_results(2);
-    helper.expect_is_done(true);
 
     let expected_block_artifacts = if successful {
         helper.mock_transaction_executor.expect_abort_block().times(0);
@@ -1008,7 +1022,6 @@ async fn partial_chunk_execution_validator(#[case] successful: bool) {
     } else {
         // Validator continues the loop even after the scheduler is done.
         helper.mock_transaction_executor.expect_get_new_results().times(1..).returning(Vec::new);
-        helper.mock_transaction_executor.expect_is_done().times(1..).return_const(true);
 
         helper.mock_transaction_executor.expect_close_block().times(0);
         helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());
