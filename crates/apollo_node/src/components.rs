@@ -278,7 +278,7 @@ pub async fn create_node_components(
                         // genesis. The former should override the height, or setup Anvil accordingly, and
                         // the latter should use the correct L1 height.
                         .inspect_err(|err|{
-                            warn!("Error while attempting to get the L2 block at the L1 height \
+                            debug!("Error while attempting to get the L2 block at the L1 height \
                             the scraper was initialized on. This is either due to running a \
                             test with faulty Anvil state, or if the scraper was initialized too \
                             far back.  Will attempt to use provider startup height override \
