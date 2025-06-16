@@ -19,6 +19,7 @@ use apollo_monitoring_endpoint::monitoring_endpoint::{
     create_monitoring_endpoint,
     MonitoringEndpoint,
 };
+use apollo_signature_manager::{create_signature_manager, SignatureManager};
 use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
@@ -48,6 +49,7 @@ pub struct SequencerNodeComponents {
     pub mempool_p2p_propagator: Option<MempoolP2pPropagator>,
     pub mempool_p2p_runner: Option<MempoolP2pRunner>,
     pub sierra_compiler: Option<SierraCompiler>,
+    pub signature_manager: Option<SignatureManager>,
     pub state_sync: Option<StateSync>,
     pub state_sync_runner: Option<StateSyncRunner>,
 }
@@ -366,6 +368,14 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
+    let signature_manager = match config.components.signature_manager.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            Some(create_signature_manager())
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+    };
+
     SequencerNodeComponents {
         batcher,
         class_manager,
@@ -381,6 +391,7 @@ pub async fn create_node_components(
         mempool_p2p_propagator,
         mempool_p2p_runner,
         sierra_compiler,
+        signature_manager,
         state_sync,
         state_sync_runner,
     }
