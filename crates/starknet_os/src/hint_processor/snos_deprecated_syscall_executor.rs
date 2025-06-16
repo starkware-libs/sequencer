@@ -122,11 +122,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
     ) -> Result<Relocatable, DeprecatedSnosSyscallError> {
-        let call_info_tracker = syscall_handler
-            .get_current_execution_helper()?
-            .tx_execution_iter
-            .get_tx_execution_info_ref()?
-            .get_call_info_tracker()?;
+        let call_info_tracker = syscall_handler.get_current_call_info_tracker()?;
         let original_tx_info_start_ptr = call_info_tracker.deprecated_tx_info_ptr;
         let class_hash =
             call_info_tracker.call_info.call.class_hash.expect("No class hash was set.");
@@ -139,13 +135,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         )?)?;
         let os_constants = &syscall_handler.versioned_constants().os_constants;
         // Check if we should return version = 1.
-        let original_execution_info_ptr = syscall_handler
-            .get_current_execution_helper()?
-            .tx_execution_iter
-            .get_tx_execution_info_ref()?
-            .get_call_info_tracker()?
-            .execution_info_ptr;
-
+        let original_execution_info_ptr = call_info_tracker.execution_info_ptr;
         let tip = vm.get_integer(get_address_of_nested_fields_from_base_address(
             original_execution_info_ptr,
             CairoStruct::ExecutionInfo,

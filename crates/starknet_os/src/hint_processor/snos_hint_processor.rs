@@ -30,7 +30,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
-use crate::hint_processor::execution_helper::{ExecutionHelperError, OsExecutionHelper};
+use crate::hint_processor::execution_helper::{
+    CallInfoTracker,
+    ExecutionHelperError,
+    OsExecutionHelper,
+};
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 #[cfg(any(test, feature = "testing"))]
 use crate::hint_processor::test_hint::test_hint;
@@ -190,6 +194,26 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         &mut self,
     ) -> Result<&mut OsExecutionHelper<'a, S>, ExecutionHelperError> {
         self.execution_helpers_manager.get_mut_current_execution_helper()
+    }
+
+    /// Returns the current execution info ptr.
+    pub fn get_execution_info_ptr(&self) -> Result<Relocatable, ExecutionHelperError> {
+        Ok(self.get_current_call_info_tracker()?.execution_info_ptr)
+    }
+
+    /// Returns the current deprecated transaction info ptr.
+    pub fn get_deprecated_tx_info_ptr(&self) -> Result<Relocatable, ExecutionHelperError> {
+        Ok(self.get_current_call_info_tracker()?.deprecated_tx_info_ptr)
+    }
+
+    /// Returns the current call info tracker.
+    pub fn get_current_call_info_tracker(
+        &self,
+    ) -> Result<&CallInfoTracker<'_>, ExecutionHelperError> {
+        self.get_current_execution_helper()?
+            .tx_execution_iter
+            .get_tx_execution_info_ref()?
+            .get_call_info_tracker()
     }
 
     /// Returns the number of blocks executed by the OS.
