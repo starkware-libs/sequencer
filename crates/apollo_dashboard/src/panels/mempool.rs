@@ -28,31 +28,24 @@ use crate::dashboard::{Panel, PanelType, Row};
 fn get_panel_mempool_local_msgs_received() -> Panel {
     Panel::from_counter(MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::Graph)
 }
-
 fn get_panel_mempool_local_msgs_processed() -> Panel {
     Panel::from_counter(MEMPOOL_LOCAL_MSGS_PROCESSED, PanelType::Graph)
 }
-
 fn get_panel_mempool_remote_msgs_received() -> Panel {
     Panel::from_counter(MEMPOOL_REMOTE_MSGS_RECEIVED, PanelType::Graph)
 }
-
 fn get_panel_mempool_remote_valid_msgs_received() -> Panel {
     Panel::from_counter(MEMPOOL_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph)
 }
-
 fn get_panel_mempool_remote_msgs_processed() -> Panel {
     Panel::from_counter(MEMPOOL_REMOTE_MSGS_PROCESSED, PanelType::Graph)
 }
-
 fn get_panel_mempool_local_queue_depth() -> Panel {
     Panel::from_gauge(MEMPOOL_LOCAL_QUEUE_DEPTH, PanelType::Graph)
 }
-
 fn get_panel_mempool_remote_client_send_attempts() -> Panel {
     Panel::from_hist(MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph)
 }
-
 fn get_panel_mempool_transactions_received() -> Panel {
     Panel::new(
         MEMPOOL_TRANSACTIONS_RECEIVED.get_name(),
@@ -65,7 +58,6 @@ fn get_panel_mempool_transactions_received() -> Panel {
         PanelType::Stat,
     )
 }
-
 fn get_panel_mempool_transactions_received_rate() -> Panel {
     Panel::new(
         "mempool_transactions_received_rate (TPS)",
@@ -77,11 +69,9 @@ fn get_panel_mempool_transactions_received_rate() -> Panel {
         PanelType::Graph,
     )
 }
-
 fn get_panel_mempool_transactions_committed() -> Panel {
     Panel::from_counter(MEMPOOL_TRANSACTIONS_COMMITTED, PanelType::Stat)
 }
-
 fn get_panel_mempool_transactions_dropped() -> Panel {
     Panel::new(
         MEMPOOL_TRANSACTIONS_DROPPED.get_name(),
@@ -94,7 +84,6 @@ fn get_panel_mempool_transactions_dropped() -> Panel {
         PanelType::Stat,
     )
 }
-
 fn get_panel_mempool_pool_size() -> Panel {
     Panel::new(
         MEMPOOL_POOL_SIZE.get_name(),
@@ -103,7 +92,6 @@ fn get_panel_mempool_pool_size() -> Panel {
         PanelType::Graph,
     )
 }
-
 fn get_panel_mempool_priority_queue_size() -> Panel {
     Panel::new(
         MEMPOOL_PRIORITY_QUEUE_SIZE.get_name(),
@@ -112,7 +100,6 @@ fn get_panel_mempool_priority_queue_size() -> Panel {
         PanelType::Graph,
     )
 }
-
 fn get_panel_mempool_pending_queue_size() -> Panel {
     Panel::new(
         MEMPOOL_PENDING_QUEUE_SIZE.get_name(),
@@ -121,7 +108,6 @@ fn get_panel_mempool_pending_queue_size() -> Panel {
         PanelType::Graph,
     )
 }
-
 fn get_panel_mempool_total_size_in_bytes() -> Panel {
     Panel::new(
         MEMPOOL_TOTAL_SIZE_BYTES.get_name(),
@@ -130,7 +116,6 @@ fn get_panel_mempool_total_size_in_bytes() -> Panel {
         PanelType::Graph,
     )
 }
-
 fn get_panel_mempool_get_txs_size() -> Panel {
     Panel::new(
         MEMPOOL_GET_TXS_SIZE.get_name(),
@@ -139,7 +124,6 @@ fn get_panel_mempool_get_txs_size() -> Panel {
         PanelType::Graph,
     )
 }
-
 fn get_panel_mempool_delayed_declares_size() -> Panel {
     Panel::new(
         MEMPOOL_DELAYED_DECLARES_SIZE.get_name(),
@@ -148,7 +132,6 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
         PanelType::Graph,
     )
 }
-
 fn get_panel_mempool_transaction_time_spent() -> Panel {
     // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
     Panel::new(
