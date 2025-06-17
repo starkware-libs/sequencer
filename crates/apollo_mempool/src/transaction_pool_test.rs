@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use apollo_time::test_utils::FakeClock;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::{contract_address, nonce, tx_hash};
 
-use crate::test_utils::FakeClock;
 use crate::transaction_pool::TransactionPool;
 use crate::tx;
 
