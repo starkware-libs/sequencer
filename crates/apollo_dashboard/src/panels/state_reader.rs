@@ -24,7 +24,7 @@ fn get_panel_blockifier_state_reader_class_cache_miss_ratio() -> Panel {
             CLASS_CACHE_HITS.get_name_with_filter(),
             STATE_READER_METRIC_RATE_DURATION
         ),
-        PanelType::Graph,
+        PanelType::TimeSeries,
     )
 }
 
@@ -42,7 +42,7 @@ fn get_panel_blockifier_state_reader_native_class_returned_ratio() -> Panel {
             CLASS_CACHE_MISSES.get_name_with_filter(),
             STATE_READER_METRIC_RATE_DURATION,
         ),
-        PanelType::Graph,
+        PanelType::TimeSeries,
     )
 }
 
