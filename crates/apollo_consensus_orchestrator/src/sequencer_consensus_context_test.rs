@@ -148,8 +148,8 @@ impl TestDeps {
         self.setup_default_eth_to_strk_oracle_client();
     }
 
-    fn setup_deps_for_build(&mut self, block_number: BlockNumber, n_executed_txs: usize) {
-        assert!(n_executed_txs <= INTERNAL_TX_BATCH.len());
+    fn setup_deps_for_build(&mut self, block_number: BlockNumber, final_n_executed_txs: usize) {
+        assert!(final_n_executed_txs <= INTERNAL_TX_BATCH.len());
         self.setup_default_expectations();
         let proposal_id = Arc::new(OnceLock::new());
         let proposal_id_clone = Arc::clone(&proposal_id);
@@ -175,14 +175,14 @@ impl TestDeps {
             Ok(GetProposalContentResponse {
                 content: GetProposalContent::Finished {
                     id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
-                    n_executed_txs: n_executed_txs.try_into().unwrap(),
+                    final_n_executed_txs,
                 },
             })
         });
     }
 
-    fn setup_deps_for_validate(&mut self, block_number: BlockNumber, n_executed_txs: usize) {
-        assert!(n_executed_txs <= INTERNAL_TX_BATCH.len());
+    fn setup_deps_for_validate(&mut self, block_number: BlockNumber, final_n_executed_txs: usize) {
+        assert!(final_n_executed_txs <= INTERNAL_TX_BATCH.len());
         self.setup_default_expectations();
         let proposal_id = Arc::new(OnceLock::new());
         let proposal_id_clone = Arc::clone(&proposal_id);
@@ -212,10 +212,7 @@ impl TestDeps {
         self.batcher.expect_send_proposal_content().times(1).returning(
             move |input: SendProposalContentInput| {
                 assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-                assert_eq!(
-                    input.content,
-                    SendProposalContent::Finish(n_executed_txs.try_into().unwrap())
-                );
+                assert_eq!(input.content, SendProposalContent::Finish(final_n_executed_txs));
                 Ok(SendProposalContentResponse {
                     response: ProposalStatus::Finished(ProposalCommitment {
                         state_diff_commitment: STATE_DIFF_COMMITMENT,
@@ -412,8 +409,8 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
         true => TX_BATCH.to_vec(),
         false => TX_BATCH.iter().take(TX_BATCH.len() - 1).cloned().collect(),
     };
-    let n_executed_txs = executed_transactions.len();
-    deps.setup_deps_for_validate(BlockNumber(0), n_executed_txs);
+    let final_n_executed_txs = executed_transactions.len();
+    deps.setup_deps_for_validate(BlockNumber(0), final_n_executed_txs);
     let mut context = deps.build_context();
 
     // Initialize the context for a specific height, starting with round 0.
@@ -427,7 +424,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
         ProposalPart::Transactions(TransactionBatch { transactions: TX_BATCH.to_vec() });
     content_sender.send(transactions.clone()).await.unwrap();
     content_sender
-        .send(ProposalPart::ExecutedTransactionCount(n_executed_txs.try_into().unwrap()))
+        .send(ProposalPart::ExecutedTransactionCount(final_n_executed_txs.try_into().unwrap()))
         .await
         .unwrap();
     let fin = ProposalPart::Fin(ProposalFin {
@@ -450,7 +447,7 @@ async fn validate_then_repropose(#[case] execute_all_txs: bool) {
     );
     assert_eq!(
         receiver.next().await.unwrap(),
-        ProposalPart::ExecutedTransactionCount(n_executed_txs.try_into().unwrap())
+        ProposalPart::ExecutedTransactionCount(final_n_executed_txs.try_into().unwrap())
     );
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
@@ -683,7 +680,8 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     let _init = receiver.next().await.unwrap();
     let block_info = receiver.next().await.unwrap();
     let _txs = receiver.next().await.unwrap();
-    let n_executed_txs = receiver.next().await.unwrap();
+    let final_n_executed_txs = receiver.next().await.unwrap();
+    assert!(matches!(final_n_executed_txs, ProposalPart::ExecutedTransactionCount(_)));
     let fin = receiver.next().await.unwrap();
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
 
@@ -702,7 +700,7 @@ async fn propose_then_repropose(#[case] execute_all_txs: bool) {
     let reproposed_txs = ProposalPart::Transactions(TransactionBatch { transactions });
     assert_eq!(receiver.next().await.unwrap(), reproposed_txs);
 
-    assert_eq!(receiver.next().await.unwrap(), n_executed_txs);
+    assert_eq!(receiver.next().await.unwrap(), final_n_executed_txs);
     assert_eq!(receiver.next().await.unwrap(), fin);
     assert!(receiver.next().await.is_none());
 }
