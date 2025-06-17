@@ -7,6 +7,7 @@ use apollo_l1_gas_price::communication::L1GasPriceRequestAndResponseSender;
 use apollo_l1_provider::communication::L1ProviderRequestAndResponseSender;
 use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
 use apollo_mempool_types::communication::MempoolRequestAndResponseSender;
+use apollo_signature_manager_types::SignatureManagerRequestAndResponseSender;
 use apollo_state_sync_types::communication::StateSyncRequestAndResponseSender;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
@@ -21,6 +22,7 @@ pub struct SequencerNodeCommunication {
     mempool_p2p_propagator_channel:
         ComponentCommunication<MempoolP2pPropagatorRequestAndResponseSender>,
     sierra_compiler_channel: ComponentCommunication<SierraCompilerRequestAndResponseSender>,
+    signature_manager_channel: ComponentCommunication<SignatureManagerRequestAndResponseSender>,
     state_sync_channel: ComponentCommunication<StateSyncRequestAndResponseSender>,
 }
 
@@ -91,6 +93,18 @@ impl SequencerNodeCommunication {
         self.sierra_compiler_channel.take_rx()
     }
 
+    pub fn take_signature_manager_tx(
+        &mut self,
+    ) -> Sender<SignatureManagerRequestAndResponseSender> {
+        self.signature_manager_channel.take_tx()
+    }
+
+    pub fn take_signature_manager_rx(
+        &mut self,
+    ) -> Receiver<SignatureManagerRequestAndResponseSender> {
+        self.signature_manager_channel.take_rx()
+    }
+
     pub fn take_state_sync_tx(&mut self) -> Sender<StateSyncRequestAndResponseSender> {
         self.state_sync_channel.take_tx()
     }
@@ -127,6 +141,9 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
     let (tx_sierra_compiler, rx_sierra_compiler) =
         channel::<SierraCompilerRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
+    let (tx_signature_manager, rx_signature_manager) =
+        channel::<SignatureManagerRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+
     let (tx_state_sync, rx_state_sync) =
         channel::<StateSyncRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
 
@@ -153,6 +170,10 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
         sierra_compiler_channel: ComponentCommunication::new(
             Some(tx_sierra_compiler),
             Some(rx_sierra_compiler),
+        ),
+        signature_manager_channel: ComponentCommunication::new(
+            Some(tx_signature_manager),
+            Some(rx_signature_manager),
         ),
         state_sync_channel: ComponentCommunication::new(Some(tx_state_sync), Some(rx_state_sync)),
     }
