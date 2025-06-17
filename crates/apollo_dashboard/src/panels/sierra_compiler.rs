@@ -10,26 +10,45 @@ use apollo_infra::metrics::{
 };
 use const_format::formatcp;
 
-use crate::dashboard::{Panel, PanelType};
+use crate::dashboard::{Panel, PanelType, Row};
 
-pub(crate) const PANEL_SIERRA_COMPILER_LOCAL_MSGS_RECEIVED: Panel =
+const PANEL_SIERRA_COMPILER_LOCAL_MSGS_RECEIVED: Panel =
     Panel::from_counter(SIERRA_COMPILER_LOCAL_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_SIERRA_COMPILER_LOCAL_MSGS_PROCESSED: Panel =
+const PANEL_SIERRA_COMPILER_LOCAL_MSGS_PROCESSED: Panel =
     Panel::from_counter(SIERRA_COMPILER_LOCAL_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_SIERRA_COMPILER_REMOTE_MSGS_RECEIVED: Panel =
+const PANEL_SIERRA_COMPILER_REMOTE_MSGS_RECEIVED: Panel =
     Panel::from_counter(SIERRA_COMPILER_REMOTE_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED: Panel =
+const PANEL_SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED: Panel =
     Panel::from_counter(SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_SIERRA_COMPILER_REMOTE_MSGS_PROCESSED: Panel =
+const PANEL_SIERRA_COMPILER_REMOTE_MSGS_PROCESSED: Panel =
     Panel::from_counter(SIERRA_COMPILER_REMOTE_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_SIERRA_COMPILER_LOCAL_QUEUE_DEPTH: Panel =
+const PANEL_SIERRA_COMPILER_LOCAL_QUEUE_DEPTH: Panel =
     Panel::from_gauge(SIERRA_COMPILER_LOCAL_QUEUE_DEPTH, PanelType::Graph);
-pub(crate) const PANEL_SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
+const PANEL_SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
     Panel::from_hist(SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
 
-pub(crate) const PANEL_COMPILATION_DURATION: Panel = Panel::new(
+const PANEL_COMPILATION_DURATION: Panel = Panel::new(
     COMPILATION_DURATION.get_name_with_filter(),
     COMPILATION_DURATION.get_description(),
     formatcp!("avg_over_time({}[2m])", COMPILATION_DURATION.get_name_with_filter()),
     PanelType::Graph,
 );
+
+pub(crate) fn get_sierra_compiler_infra_row() -> Row {
+    Row::new(
+        "SierraCompilerInfra",
+        vec![
+            PANEL_SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
+            PANEL_SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
+            PANEL_SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
+            PANEL_SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
+            PANEL_SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
+            PANEL_SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
+            PANEL_SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
+        ],
+    )
+}
+
+pub(crate) fn get_compile_to_casm_row() -> Row {
+    Row::new("Compile sierra to casm", vec![PANEL_COMPILATION_DURATION])
+}

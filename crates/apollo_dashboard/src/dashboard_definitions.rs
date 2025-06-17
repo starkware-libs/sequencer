@@ -38,16 +38,7 @@ use crate::panels::l1_provider::{
 };
 use crate::panels::mempool::{get_mempool_infra_row, get_mempool_row};
 use crate::panels::mempool_p2p::{get_mempool_p2p_infra_row, get_mempool_p2p_row};
-use crate::panels::sierra_compiler::{
-    PANEL_COMPILATION_DURATION,
-    PANEL_SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
-    PANEL_SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
-    PANEL_SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
-    PANEL_SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    PANEL_SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
-    PANEL_SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
-    PANEL_SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
-};
+use crate::panels::sierra_compiler::{get_compile_to_casm_row, get_sierra_compiler_infra_row};
 use crate::panels::state_reader::{
     PANEL_BLOCKIFIER_STATE_READER_CLASS_CACHE_MISS_RATIO,
     PANEL_BLOCKIFIER_STATE_READER_NATIVE_CLASS_RETURNED_RATIO,
@@ -66,21 +57,6 @@ mod dashboard_definitions_test;
 // TODO(Tsabary): this file should be managed by this crate, hence should be moved here to a
 // resources folder.
 pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
-
-fn get_sierra_compiler_infra_row() -> Row {
-    Row::new(
-        "SierraCompilerInfra",
-        vec![
-            PANEL_SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
-            PANEL_SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
-            PANEL_SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
-            PANEL_SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
-            PANEL_SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
-            PANEL_SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
-            PANEL_SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
-        ],
-    )
-}
 
 fn get_class_manager_infra_row() -> Row {
     Row::new(
@@ -168,10 +144,6 @@ fn get_l1_provider_row() -> Row {
             PANEL_L1_MESSAGE_SCRAPER_REORG_DETECTED,
         ],
     )
-}
-
-fn get_compile_to_casm_row() -> Row {
-    Row::new("Compile sierra to casm", vec![PANEL_COMPILATION_DURATION])
 }
 
 pub fn get_apollo_dashboard() -> Dashboard {
