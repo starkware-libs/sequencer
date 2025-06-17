@@ -166,7 +166,7 @@
       "name": "consensus_build_proposal_failed_once",
       "title": "Consensus build proposal failed once",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
