@@ -602,20 +602,41 @@ fn get_mempool_pool_size_increase() -> Alert {
     }
 }
 
-fn get_consensus_round_high_avg() -> Alert {
+fn get_consensus_round_high() -> Alert {
     Alert {
-        name: "consensus_round_high_avg",
-        title: "Consensus round high average",
+        name: "consensus_round_high",
+        title: "Consensus round high",
         alert_group: AlertGroup::Consensus,
-        expr: format!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name_with_filter()),
+        expr: format!("max_over_time({}[1m])", CONSENSUS_ROUND.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.2,
+            comparison_value: 20.0,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+    }
+}
+
+fn get_consensus_round_above_zero_ratio() -> Alert {
+    Alert {
+        name: "consensus_round_above_zero_ratio",
+        title: "Consensus round above zero ratio",
+        alert_group: AlertGroup::Consensus,
+        expr: format!(
+            "count_over_time({} > 0 [1h]) / count_over_time({}[1h])",
+            CONSENSUS_ROUND.get_name_with_filter(),
+            CONSENSUS_ROUND.get_name_with_filter(),
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.05,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: 10,
+        severity: AlertSeverity::DayOnly,
     }
 }
 
@@ -723,7 +744,8 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_l1_gas_price_provider_failure(),
         get_consensus_l1_gas_price_provider_failure_once(),
         get_consensus_round_above_zero(),
-        get_consensus_round_high_avg(),
+        get_consensus_round_above_zero_ratio(),
+        get_consensus_round_high(),
         get_consensus_validate_proposal_failed_alert(),
         get_consensus_votes_num_sent_messages_alert(),
         get_gateway_add_tx_latency_increase(),

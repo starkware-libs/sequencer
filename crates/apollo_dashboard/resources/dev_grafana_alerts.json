@@ -352,15 +352,42 @@
       "severity": "p5"
     },
     {
-      "name": "consensus_round_high_avg",
-      "title": "Consensus round high average",
+      "name": "consensus_round_above_zero_ratio",
+      "title": "Consensus round above zero ratio",
       "ruleGroup": "consensus",
-      "expr": "avg_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])",
+      "expr": "count_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"} > 0 [1h]) / count_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.2
+              0.05
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 10,
+      "severity": "p3"
+    },
+    {
+      "name": "consensus_round_high",
+      "title": "Consensus round high",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              20.0
             ],
             "type": "gt"
           },
