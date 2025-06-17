@@ -23,25 +23,25 @@ use apollo_state_sync_metrics::metrics::{
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_state_sync_local_msgs_received() -> Panel {
-    Panel::from_counter(STATE_SYNC_LOCAL_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(STATE_SYNC_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_state_sync_local_msgs_processed() -> Panel {
-    Panel::from_counter(STATE_SYNC_LOCAL_MSGS_PROCESSED, PanelType::Graph)
+    Panel::from_counter(STATE_SYNC_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_state_sync_remote_msgs_received() -> Panel {
-    Panel::from_counter(STATE_SYNC_REMOTE_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(STATE_SYNC_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_state_sync_remote_valid_msgs_received() -> Panel {
-    Panel::from_counter(STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_state_sync_remote_msgs_processed() -> Panel {
-    Panel::from_counter(STATE_SYNC_REMOTE_MSGS_PROCESSED, PanelType::Graph)
+    Panel::from_counter(STATE_SYNC_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_state_sync_local_queue_depth() -> Panel {
-    Panel::from_gauge(STATE_SYNC_LOCAL_QUEUE_DEPTH, PanelType::Graph)
+    Panel::from_gauge(STATE_SYNC_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
 }
 fn get_panel_state_sync_remote_client_send_attempts() -> Panel {
-    Panel::from_hist(STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph)
+    Panel::from_hist(STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 
 fn get_panel_p2p_sync_num_connected_peers() -> Panel {

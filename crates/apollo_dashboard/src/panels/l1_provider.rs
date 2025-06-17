@@ -15,31 +15,31 @@ use apollo_l1_provider::metrics::{
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_l1_provider_local_msgs_received() -> Panel {
-    Panel::from_counter(L1_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(L1_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_l1_provider_local_msgs_processed() -> Panel {
-    Panel::from_counter(L1_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::Graph)
+    Panel::from_counter(L1_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_l1_provider_remote_msgs_received() -> Panel {
-    Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_l1_provider_remote_valid_msgs_received() -> Panel {
-    Panel::from_counter(L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_l1_provider_remote_msgs_processed() -> Panel {
-    Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::Graph)
+    Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_l1_provider_local_queue_depth() -> Panel {
-    Panel::from_gauge(L1_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::Graph)
+    Panel::from_gauge(L1_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
 }
 fn get_panel_l1_provider_remote_client_send_attempts() -> Panel {
-    Panel::from_hist(L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph)
+    Panel::from_hist(L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
-    Panel::from_counter(L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::Graph)
+    Panel::from_counter(L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::TimeSeries)
 }
 fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
-    Panel::from_counter(L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::Graph)
+    Panel::from_counter(L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::TimeSeries)
 }
 
 pub(crate) fn get_l1_provider_row() -> Row {
