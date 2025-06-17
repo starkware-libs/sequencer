@@ -69,7 +69,7 @@ use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::{convert_to_sn_api_block_info, GasPriceParams};
+use crate::utils::{convert_to_sn_api_block_info, GasPriceParams, StreamSender};
 use crate::validate_proposal::{validate_proposal, BlockInfoValidation, ProposalValidateArguments};
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
@@ -213,6 +213,16 @@ impl SequencerConsensusContext {
             previous_block_info: None,
         }
     }
+
+    async fn start_stream(&mut self, stream_id: HeightAndRound) -> StreamSender {
+        let (proposal_sender, proposal_receiver) = mpsc::channel(self.config.proposal_buffer_size);
+        self.deps
+            .outbound_proposal_sender
+            .send((stream_id, proposal_receiver))
+            .await
+            .expect("Failed to send proposal receiver");
+        StreamSender { proposal_sender }
+    }
 }
 
 #[async_trait]
@@ -243,13 +253,8 @@ impl ConsensusContext for SequencerConsensusContext {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         assert!(timeout > self.config.build_proposal_margin_millis);
-        let (proposal_sender, proposal_receiver) = mpsc::channel(self.config.proposal_buffer_size);
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
-        self.deps
-            .outbound_proposal_sender
-            .send((stream_id, proposal_receiver))
-            .await
-            .expect("Failed to send proposal receiver");
+        let stream_sender = self.start_stream(stream_id).await;
 
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
         let cancel_token = CancellationToken::new();
@@ -270,7 +275,7 @@ impl ConsensusContext for SequencerConsensusContext {
             batcher_timeout: timeout - self.config.build_proposal_margin_millis,
             proposal_init,
             l1_da_mode: self.l1_da_mode,
-            proposal_sender,
+            stream_sender,
             fin_sender,
             gas_price_params,
             valid_proposals: Arc::clone(&self.valid_proposals),
@@ -354,21 +359,14 @@ impl ConsensusContext for SequencerConsensusContext {
             .clone();
 
         let transaction_converter = self.deps.transaction_converter.clone();
-        let mut outbound_proposal_sender = self.deps.outbound_proposal_sender.clone();
-        let channel_size = self.config.proposal_buffer_size;
+        let mut stream_sender = self.start_stream(HeightAndRound(height.0, init.round)).await;
         tokio::spawn(
             async move {
-                let (mut proposal_sender, proposal_receiver) = mpsc::channel(channel_size);
-                let stream_id = HeightAndRound(height.0, init.round);
-                outbound_proposal_sender
-                    .send((stream_id, proposal_receiver))
-                    .await
-                    .expect("Failed to send proposal receiver");
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::Init(init))
                     .await
                     .expect("Failed to send proposal init");
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::BlockInfo(block_info.clone()))
                     .await
                     .expect("Failed to send block info");
@@ -383,13 +381,13 @@ impl ConsensusContext for SequencerConsensusContext {
                     .collect::<Result<Vec<_>, _>>()
                     .expect("Failed converting transaction during repropose");
 
-                    proposal_sender
+                    stream_sender
                         .send(ProposalPart::Transactions(TransactionBatch { transactions }))
                         .await
                         .expect("Failed to broadcast proposal content");
                     n_executed_txs += batch.len();
                 }
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::ExecutedTransactionCount(
                         n_executed_txs
                             .try_into()
@@ -397,7 +395,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     ))
                     .await
                     .expect("Failed to broadcast executed transaction count");
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
                     .await
                     .expect("Failed to broadcast proposal fin");

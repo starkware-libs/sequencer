@@ -17,8 +17,8 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
-use futures::channel::{mpsc, oneshot};
-use futures::{FutureExt, SinkExt};
+use futures::channel::oneshot;
+use futures::FutureExt;
 use starknet_api::block::{BlockHash, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -39,6 +39,7 @@ use crate::utils::{
     retrospective_block_hash,
     truncate_to_executed_txs,
     GasPriceParams,
+    StreamSender,
 };
 
 pub(crate) struct ProposalBuildArguments {
@@ -46,7 +47,7 @@ pub(crate) struct ProposalBuildArguments {
     pub batcher_timeout: Duration,
     pub proposal_init: ProposalInit,
     pub l1_da_mode: L1DataAvailabilityMode,
-    pub proposal_sender: mpsc::Sender<ProposalPart>,
+    pub stream_sender: StreamSender,
     pub fin_sender: oneshot::Sender<ProposalCommitment>,
     pub gas_price_params: GasPriceParams,
     pub valid_proposals: Arc<Mutex<BuiltProposals>>,
@@ -69,11 +70,11 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
             return;
         }
     };
-    args.proposal_sender
+    args.stream_sender
         .send(ProposalPart::Init(args.proposal_init))
         .await
         .expect("Failed to send proposal init");
-    args.proposal_sender
+    args.stream_sender
         .send(ProposalPart::BlockInfo(block_info.clone()))
         .await
         .expect("Failed to send block info");
@@ -81,7 +82,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
     let Some((proposal_commitment, content)) = get_proposal_content(
         args.proposal_id,
         args.deps.batcher.as_ref(),
-        args.proposal_sender,
+        args.stream_sender,
         args.cende_write_success,
         args.deps.transaction_converter,
         args.cancel_token,
@@ -150,7 +151,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
 pub(crate) async fn get_proposal_content(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
-    mut proposal_sender: mpsc::Sender<ProposalPart>,
+    mut stream_sender: StreamSender,
     cende_write_success: AbortOnDropHandle<bool>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     cancel_token: CancellationToken,
@@ -197,7 +198,7 @@ pub(crate) async fn get_proposal_content(
                 };
 
                 trace!(?transactions, "Sending transaction batch with {} txs.", transactions.len());
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::Transactions(TransactionBatch { transactions }))
                     .await
                     .expect("Failed to broadcast proposal content");
@@ -238,13 +239,13 @@ pub(crate) async fn get_proposal_content(
                 let final_n_executed_txs_u64 = final_n_executed_txs
                     .try_into()
                     .expect("Number of executed transactions should fit in u64");
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::ExecutedTransactionCount(final_n_executed_txs_u64))
                     .await
                     .expect("Failed to broadcast executed transaction count");
                 let fin = ProposalFin { proposal_commitment };
                 info!("Sending fin={fin:?}");
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::Fin(fin))
                     .await
                     .expect("Failed to broadcast proposal fin");

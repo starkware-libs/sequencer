@@ -6,10 +6,12 @@ use apollo_l1_gas_price_types::{
     PriceInfo,
     DEFAULT_ETH_TO_FRI_RATE,
 };
-use apollo_protobuf::consensus::ConsensusBlockInfo;
+use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
 use apollo_state_sync_types::communication::StateSyncClient;
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
+use futures::channel::mpsc;
+use futures::SinkExt;
 use num_rational::Ratio;
 use starknet_api::block::{
     BlockHashAndNumber,
@@ -26,6 +28,16 @@ use tracing::{info, warn};
 
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
 use crate::sequencer_consensus_context::{BuildProposalError, ProposalResult};
+
+pub(crate) struct StreamSender {
+    pub proposal_sender: mpsc::Sender<ProposalPart>,
+}
+
+impl StreamSender {
+    pub async fn send(&mut self, proposal_part: ProposalPart) -> Result<(), mpsc::SendError> {
+        self.proposal_sender.send(proposal_part).await
+    }
+}
 
 pub(crate) struct GasPriceParams {
     pub min_l1_gas_price_wei: GasPrice,
