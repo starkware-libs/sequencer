@@ -25,6 +25,7 @@ use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkM
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
+use apollo_signature_manager_types::SharedSignatureManagerClient;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
@@ -48,6 +49,7 @@ pub struct ConsensusManager {
     pub batcher_client: SharedBatcherClient,
     pub state_sync_client: SharedStateSyncClient,
     pub class_manager_client: SharedClassManagerClient,
+    pub signature_manager_client: SharedSignatureManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
 }
 
@@ -57,6 +59,7 @@ impl ConsensusManager {
         batcher_client: SharedBatcherClient,
         state_sync_client: SharedStateSyncClient,
         class_manager_client: SharedClassManagerClient,
+        signature_manager_client: SharedSignatureManagerClient,
         l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     ) -> Self {
         Self {
@@ -64,6 +67,7 @@ impl ConsensusManager {
             batcher_client,
             state_sync_client,
             class_manager_client,
+            signature_manager_client,
             l1_gas_price_provider,
         }
     }
@@ -232,6 +236,7 @@ pub fn create_consensus_manager(
     batcher_client: SharedBatcherClient,
     state_sync_client: SharedStateSyncClient,
     class_manager_client: SharedClassManagerClient,
+    signature_manager_client: SharedSignatureManagerClient,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
 ) -> ConsensusManager {
     ConsensusManager::new(
@@ -239,6 +244,7 @@ pub fn create_consensus_manager(
         batcher_client,
         state_sync_client,
         class_manager_client,
+        signature_manager_client,
         l1_gas_price_provider,
     )
 }

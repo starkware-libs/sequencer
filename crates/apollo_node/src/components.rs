@@ -105,6 +105,9 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
+            let signature_manager_client = clients
+                .get_signature_manager_shared_client()
+                .expect("Signature Manager Client should be available");
             let l1_gas_price_client = clients
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price shared client should be available");
@@ -113,6 +116,7 @@ pub async fn create_node_components(
                 batcher_client,
                 state_sync_client,
                 class_manager_client,
+                signature_manager_client,
                 l1_gas_price_client,
             ))
         }

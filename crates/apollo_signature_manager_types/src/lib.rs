@@ -5,6 +5,8 @@ use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndRe
 use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockHash;
 use starknet_api::core::Nonce;
@@ -53,6 +55,7 @@ impl From<Vec<u8>> for PeerId {
 /// Requires `Send + Sync` to allow transferring and sharing resources (inputs, futures) across
 /// threads.
 #[async_trait]
+#[cfg_attr(any(feature = "testing", test), automock)]
 pub trait SignatureManagerClient: Send + Sync {
     async fn identify(
         &self,

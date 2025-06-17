@@ -5,6 +5,7 @@ use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_l1_gas_price_types::MockL1GasPriceProviderClient;
 use apollo_reverts::RevertConfig;
+use apollo_signature_manager_types::MockSignatureManagerClient;
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use mockall::predicate::eq;
 use starknet_api::block::BlockNumber;
@@ -47,6 +48,7 @@ async fn revert_batcher_blocks() {
         Arc::new(mock_batcher_client),
         Arc::new(MockStateSyncClient::new()),
         Arc::new(EmptyClassManagerClient),
+        Arc::new(MockSignatureManagerClient::new()),
         Arc::new(MockL1GasPriceProviderClient::new()),
     );
 
@@ -65,6 +67,7 @@ async fn no_reverts_without_config() {
         Arc::new(mock_batcher),
         Arc::new(MockStateSyncClient::new()),
         Arc::new(EmptyClassManagerClient),
+        Arc::new(MockSignatureManagerClient::new()),
         Arc::new(MockL1GasPriceProviderClient::new()),
     );
 
