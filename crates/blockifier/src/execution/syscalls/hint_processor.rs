@@ -66,6 +66,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertSegment,
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
@@ -730,6 +731,10 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         let new_end = vm.load_data(current_end, state)?;
         self.sha256_segment_end_ptr = Some(new_end);
         Ok(current_end)
+    }
+
+    fn revert_segment(&self) -> RevertSegment {
+        RevertSegment::Temporary
     }
 }
 

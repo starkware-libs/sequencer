@@ -97,9 +97,15 @@ impl<T: SyscallRequest> SyscallRequest for SyscallRequestWrapper<T> {
     }
 }
 
+/// Marks wether the revert error is written to a temporary segment or not.
+pub enum RevertSegment {
+    Temporary,
+    Permanent,
+}
+
 pub enum SyscallResponseWrapper<T: SyscallResponse> {
     Success { gas_counter: u64, response: T },
-    Failure { gas_counter: u64, error_data: Vec<Felt> },
+    Failure { gas_counter: u64, error_data: Vec<Felt>, revert_segment: RevertSegment },
 }
 impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
     #[allow(clippy::result_large_err)]
@@ -111,13 +117,16 @@ impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
                 write_felt(vm, ptr, Felt::ZERO)?;
                 response.write(vm, ptr)
             }
-            Self::Failure { gas_counter, error_data } => {
+            Self::Failure { gas_counter, error_data, revert_segment } => {
                 write_felt(vm, ptr, Felt::from(gas_counter))?;
                 // 1 to indicate failure.
                 write_felt(vm, ptr, Felt::ONE)?;
 
                 // Write the error data to a new memory segment.
-                let revert_reason_start = vm.add_memory_segment();
+                let revert_reason_start = match revert_segment {
+                    RevertSegment::Temporary => vm.add_temporary_segment(),
+                    RevertSegment::Permanent => vm.add_memory_segment(),
+                };
                 let revert_reason_end = vm.load_data(
                     revert_reason_start,
                     &error_data.into_iter().map(Into::into).collect::<Vec<MaybeRelocatable>>(),
@@ -708,8 +717,11 @@ where
         //  Out of gas failure.
         let out_of_gas_error =
             Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutorBaseError::from)?;
-        let response: SyscallResponseWrapper<Response> =
-            SyscallResponseWrapper::Failure { gas_counter, error_data: vec![out_of_gas_error] };
+        let response: SyscallResponseWrapper<Response> = SyscallResponseWrapper::Failure {
+            gas_counter,
+            error_data: vec![out_of_gas_error],
+            revert_segment: syscall_executor.revert_segment(),
+        };
         response.write(vm, syscall_executor.get_mut_syscall_ptr())?;
 
         return Ok(());
@@ -736,9 +748,11 @@ where
     let response = match original_response {
         Ok(response) => SyscallResponseWrapper::Success { gas_counter: remaining_gas, response },
         Err(error) => match error.try_extract_revert() {
-            SelfOrRevert::Revert(data) => {
-                SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
-            }
+            SelfOrRevert::Revert(data) => SyscallResponseWrapper::Failure {
+                gas_counter: remaining_gas,
+                error_data: data,
+                revert_segment: syscall_executor.revert_segment(),
+            },
             SelfOrRevert::Original(err) => return Err(err),
         },
     };
