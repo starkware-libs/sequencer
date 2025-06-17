@@ -22,43 +22,43 @@ pub enum PanelType {
 pub struct Panel {
     name: &'static str,
     description: &'static str,
-    expr: &'static str,
+    exprs: Vec<String>,
     panel_type: PanelType,
 }
 
 impl Panel {
-    pub const fn new(
+    pub fn new(
         name: &'static str,
         description: &'static str,
-        expr: &'static str,
+        exprs: Vec<String>,
         panel_type: PanelType,
     ) -> Self {
-        Self { name, description, expr, panel_type }
+        Self { name, description, exprs, panel_type }
     }
 
-    pub const fn from_counter(metric: MetricCounter, panel_type: PanelType) -> Self {
+    pub fn from_counter(metric: MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            metric.get_name_with_filter(),
+            vec![metric.get_name_with_filter().to_string()],
             panel_type,
         )
     }
 
-    pub const fn from_gauge(metric: MetricGauge, panel_type: PanelType) -> Self {
+    pub fn from_gauge(metric: MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            metric.get_name_with_filter(),
+            vec![metric.get_name_with_filter().to_string()],
             panel_type,
         )
     }
 
-    pub const fn from_hist(metric: MetricHistogram, panel_type: PanelType) -> Self {
+    pub fn from_hist(metric: MetricHistogram, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            metric.get_name_with_filter(),
+            vec![metric.get_name_with_filter().to_string()],
             panel_type,
         )
     }
@@ -74,7 +74,8 @@ impl Serialize for Panel {
         state.serialize_field("title", &self.name)?;
         state.serialize_field("description", &self.description)?;
         state.serialize_field("type", &self.panel_type)?;
-        state.serialize_field("expr", &self.expr)?;
+        // TODO(Tsabary): currently supporting only a single expression per panel.
+        state.serialize_field("expr", &self.exprs[0])?;
 
         // Append an empty dictionary `{}` at the end
         let empty_map: HashMap<String, String> = HashMap::new();
