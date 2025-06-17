@@ -48,153 +48,232 @@ use const_format::formatcp;
 
 use crate::dashboard::{Panel, PanelType, Row};
 
-const PANEL_CONSENSUS_BLOCK_NUMBER: Panel =
-    Panel::from_gauge(CONSENSUS_BLOCK_NUMBER, PanelType::Graph);
-const PANEL_CONSENSUS_ROUND: Panel = Panel::from_gauge(CONSENSUS_ROUND, PanelType::Graph);
-const PANEL_CONSENSUS_ROUND_AVG: Panel = Panel::new(
-    "Average consensus round",
-    "Average consensus round (10m)",
-    formatcp!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name_with_filter()),
-    PanelType::Graph,
-);
-const PANEL_CONSENSUS_ROUND_ABOVE_ZERO: Panel =
-    Panel::from_counter(CONSENSUS_ROUND_ABOVE_ZERO, PanelType::Graph);
-const PANEL_CONSENSUS_MAX_CACHED_BLOCK_NUMBER: Panel =
-    Panel::from_gauge(CONSENSUS_MAX_CACHED_BLOCK_NUMBER, PanelType::Graph);
-const PANEL_CONSENSUS_CACHED_VOTES: Panel =
-    Panel::from_gauge(CONSENSUS_CACHED_VOTES, PanelType::Graph);
-const PANEL_CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS: Panel =
-    Panel::from_counter(CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, PanelType::Graph);
-const PANEL_CONSENSUS_DECISIONS_REACHED_BY_SYNC: Panel =
-    Panel::from_counter(CONSENSUS_DECISIONS_REACHED_BY_SYNC, PanelType::Graph);
-const PANEL_CONSENSUS_INBOUND_STREAM_STARTED: Panel =
-    Panel::from_counter(CONSENSUS_INBOUND_STREAM_STARTED, PanelType::Graph);
-const PANEL_CONSENSUS_INBOUND_STREAM_EVICTED: Panel =
-    Panel::from_counter(CONSENSUS_INBOUND_STREAM_EVICTED, PanelType::Graph);
-const PANEL_CONSENSUS_INBOUND_STREAM_FINISHED: Panel =
-    Panel::from_counter(CONSENSUS_INBOUND_STREAM_FINISHED, PanelType::Graph);
-const PANEL_CONSENSUS_OUTBOUND_STREAM_STARTED: Panel =
-    Panel::from_counter(CONSENSUS_OUTBOUND_STREAM_STARTED, PanelType::Graph);
-const PANEL_CONSENSUS_OUTBOUND_STREAM_FINISHED: Panel =
-    Panel::from_counter(CONSENSUS_OUTBOUND_STREAM_FINISHED, PanelType::Graph);
-const PANEL_CONSENSUS_PROPOSALS_RECEIVED: Panel =
-    Panel::from_counter(CONSENSUS_PROPOSALS_RECEIVED, PanelType::Graph);
-const PANEL_CONSENSUS_PROPOSALS_VALID_INIT: Panel =
-    Panel::from_counter(CONSENSUS_PROPOSALS_VALID_INIT, PanelType::Graph);
-const PANEL_CONSENSUS_PROPOSALS_VALIDATED: Panel =
-    Panel::from_counter(CONSENSUS_PROPOSALS_VALIDATED, PanelType::Graph);
-const PANEL_CONSENSUS_PROPOSALS_INVALID: Panel =
-    Panel::from_counter(CONSENSUS_PROPOSALS_INVALID, PanelType::Graph);
-const PANEL_CONSENSUS_BUILD_PROPOSAL_TOTAL: Panel =
-    Panel::from_counter(CONSENSUS_BUILD_PROPOSAL_TOTAL, PanelType::Graph);
-const PANEL_CONSENSUS_BUILD_PROPOSAL_FAILED: Panel =
-    Panel::from_counter(CONSENSUS_BUILD_PROPOSAL_FAILED, PanelType::Graph);
-const PANEL_CONSENSUS_REPROPOSALS: Panel =
-    Panel::from_counter(CONSENSUS_REPROPOSALS, PanelType::Graph);
-const PANEL_CONSENSUS_NEW_VALUE_LOCKS: Panel =
-    Panel::from_counter(CONSENSUS_NEW_VALUE_LOCKS, PanelType::Graph);
-const PANEL_CONSENSUS_HELD_LOCKS: Panel =
-    Panel::from_counter(CONSENSUS_HELD_LOCKS, PanelType::Graph);
-const PANEL_CONSENSUS_TIMEOUTS_BY_TYPE: Panel = Panel::new(
-    CONSENSUS_TIMEOUTS.get_name(),
-    CONSENSUS_TIMEOUTS.get_description(),
-    formatcp!(
-        "sum  by ({}) ({})",
-        LABEL_NAME_TIMEOUT_REASON,
-        CONSENSUS_TIMEOUTS.get_name_with_filter()
-    ),
-    PanelType::Graph,
-);
-const PANEL_CONSENSUS_NUM_BATCHES_IN_PROPOSAL: Panel =
-    Panel::from_gauge(CONSENSUS_NUM_BATCHES_IN_PROPOSAL, PanelType::Graph);
-const PANEL_CONSENSUS_NUM_TXS_IN_PROPOSAL: Panel =
-    Panel::from_gauge(CONSENSUS_NUM_TXS_IN_PROPOSAL, PanelType::Graph);
-const PANEL_CONSENSUS_L2_GAS_PRICE: Panel =
-    Panel::from_gauge(CONSENSUS_L2_GAS_PRICE, PanelType::Graph);
+fn get_panel_consensus_block_number() -> Panel {
+    Panel::from_gauge(CONSENSUS_BLOCK_NUMBER, PanelType::Graph)
+}
 
-const PANEL_CONSENSUS_NUM_CONNECTED_PEERS: Panel =
-    Panel::from_gauge(CONSENSUS_NUM_CONNECTED_PEERS, PanelType::Graph);
-const PANEL_CONSENSUS_VOTES_NUM_SENT_MESSAGES: Panel =
-    Panel::from_counter(CONSENSUS_VOTES_NUM_SENT_MESSAGES, PanelType::Graph);
-const PANEL_CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES: Panel =
-    Panel::from_counter(CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES, PanelType::Graph);
-const PANEL_CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES: Panel =
-    Panel::from_counter(CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES, PanelType::Graph);
-const PANEL_CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES: Panel =
-    Panel::from_counter(CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES, PanelType::Graph);
-const PANEL_CONSENSUS_CONFLICTING_VOTES: Panel =
-    Panel::from_counter(CONSENSUS_CONFLICTING_VOTES, PanelType::Graph);
+fn get_panel_consensus_round() -> Panel {
+    Panel::from_gauge(CONSENSUS_ROUND, PanelType::Graph)
+}
 
-const PANEL_CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER: Panel =
-    Panel::from_gauge(CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER, PanelType::Graph);
-const PANEL_CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY: Panel = Panel::new(
-    CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name(),
-    CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_description(),
-    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
-    CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name_with_filter(),
-    PanelType::Graph,
-);
-const PANEL_CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY: Panel = Panel::new(
-    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name(),
-    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_description(),
-    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
-    CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter(),
-    PanelType::Graph,
-);
-const PANEL_CENDE_WRITE_BLOB_SUCCESS: Panel =
-    Panel::from_counter(CENDE_WRITE_BLOB_SUCCESS, PanelType::Graph);
-const PANEL_CENDE_WRITE_BLOB_FAILURE: Panel = Panel::new(
-    CENDE_WRITE_BLOB_FAILURE.get_name(),
-    CENDE_WRITE_BLOB_FAILURE.get_description(),
-    formatcp!(
-        "sum  by ({}) ({})",
-        LABEL_CENDE_FAILURE_REASON,
-        CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()
-    ),
-    PanelType::Graph,
-);
-const PANEL_CONSENSUS_L1_DATA_GAS_MISMATCH: Panel =
-    Panel::from_counter(CONSENSUS_L1_DATA_GAS_MISMATCH, PanelType::Graph);
-const PANEL_CONSENSUS_L1_GAS_MISMATCH: Panel =
-    Panel::from_counter(CONSENSUS_L1_GAS_MISMATCH, PanelType::Graph);
+fn get_panel_consensus_round_avg() -> Panel {
+    Panel::new(
+        "Average consensus round",
+        "Average consensus round (10m)",
+        formatcp!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name_with_filter()),
+        PanelType::Graph,
+    )
+}
+
+fn get_panel_consensus_round_above_zero() -> Panel {
+    Panel::from_counter(CONSENSUS_ROUND_ABOVE_ZERO, PanelType::Graph)
+}
+
+fn get_panel_consensus_max_cached_block_number() -> Panel {
+    Panel::from_gauge(CONSENSUS_MAX_CACHED_BLOCK_NUMBER, PanelType::Graph)
+}
+
+fn get_panel_consensus_cached_votes() -> Panel {
+    Panel::from_gauge(CONSENSUS_CACHED_VOTES, PanelType::Graph)
+}
+
+fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
+    Panel::from_counter(CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, PanelType::Graph)
+}
+
+fn get_panel_consensus_decisions_reached_by_sync() -> Panel {
+    Panel::from_counter(CONSENSUS_DECISIONS_REACHED_BY_SYNC, PanelType::Graph)
+}
+
+fn get_panel_consensus_inbound_stream_started() -> Panel {
+    Panel::from_counter(CONSENSUS_INBOUND_STREAM_STARTED, PanelType::Graph)
+}
+
+fn get_panel_consensus_inbound_stream_evicted() -> Panel {
+    Panel::from_counter(CONSENSUS_INBOUND_STREAM_EVICTED, PanelType::Graph)
+}
+
+fn get_panel_consensus_inbound_stream_finished() -> Panel {
+    Panel::from_counter(CONSENSUS_INBOUND_STREAM_FINISHED, PanelType::Graph)
+}
+
+fn get_panel_consensus_outbound_stream_started() -> Panel {
+    Panel::from_counter(CONSENSUS_OUTBOUND_STREAM_STARTED, PanelType::Graph)
+}
+
+fn get_panel_consensus_outbound_stream_finished() -> Panel {
+    Panel::from_counter(CONSENSUS_OUTBOUND_STREAM_FINISHED, PanelType::Graph)
+}
+
+fn get_panel_consensus_proposals_received() -> Panel {
+    Panel::from_counter(CONSENSUS_PROPOSALS_RECEIVED, PanelType::Graph)
+}
+
+fn get_panel_consensus_proposals_valid_init() -> Panel {
+    Panel::from_counter(CONSENSUS_PROPOSALS_VALID_INIT, PanelType::Graph)
+}
+
+fn get_panel_consensus_proposals_validated() -> Panel {
+    Panel::from_counter(CONSENSUS_PROPOSALS_VALIDATED, PanelType::Graph)
+}
+
+fn get_panel_consensus_proposals_invalid() -> Panel {
+    Panel::from_counter(CONSENSUS_PROPOSALS_INVALID, PanelType::Graph)
+}
+
+fn get_panel_consensus_build_proposal_total() -> Panel {
+    Panel::from_counter(CONSENSUS_BUILD_PROPOSAL_TOTAL, PanelType::Graph)
+}
+
+fn get_panel_consensus_build_proposal_failed() -> Panel {
+    Panel::from_counter(CONSENSUS_BUILD_PROPOSAL_FAILED, PanelType::Graph)
+}
+
+fn get_panel_consensus_reproposals() -> Panel {
+    Panel::from_counter(CONSENSUS_REPROPOSALS, PanelType::Graph)
+}
+
+fn get_panel_consensus_new_value_locks() -> Panel {
+    Panel::from_counter(CONSENSUS_NEW_VALUE_LOCKS, PanelType::Graph)
+}
+
+fn get_panel_consensus_held_locks() -> Panel {
+    Panel::from_counter(CONSENSUS_HELD_LOCKS, PanelType::Graph)
+}
+
+fn get_panel_consensus_timeouts_by_type() -> Panel {
+    Panel::new(
+        CONSENSUS_TIMEOUTS.get_name(),
+        CONSENSUS_TIMEOUTS.get_description(),
+        formatcp!(
+            "sum  by ({}) ({})",
+            LABEL_NAME_TIMEOUT_REASON,
+            CONSENSUS_TIMEOUTS.get_name_with_filter()
+        ),
+        PanelType::Graph,
+    )
+}
+
+fn get_panel_consensus_num_batches_in_proposal() -> Panel {
+    Panel::from_gauge(CONSENSUS_NUM_BATCHES_IN_PROPOSAL, PanelType::Graph)
+}
+
+fn get_panel_consensus_num_txs_in_proposal() -> Panel {
+    Panel::from_gauge(CONSENSUS_NUM_TXS_IN_PROPOSAL, PanelType::Graph)
+}
+
+fn get_panel_consensus_l2_gas_price() -> Panel {
+    Panel::from_gauge(CONSENSUS_L2_GAS_PRICE, PanelType::Graph)
+}
+
+fn get_panel_consensus_num_connected_peers() -> Panel {
+    Panel::from_gauge(CONSENSUS_NUM_CONNECTED_PEERS, PanelType::Graph)
+}
+
+fn get_panel_consensus_votes_num_sent_messages() -> Panel {
+    Panel::from_counter(CONSENSUS_VOTES_NUM_SENT_MESSAGES, PanelType::Graph)
+}
+
+fn get_panel_consensus_votes_num_received_messages() -> Panel {
+    Panel::from_counter(CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES, PanelType::Graph)
+}
+
+fn get_panel_consensus_proposals_num_sent_messages() -> Panel {
+    Panel::from_counter(CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES, PanelType::Graph)
+}
+
+fn get_panel_consensus_proposals_num_received_messages() -> Panel {
+    Panel::from_counter(CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES, PanelType::Graph)
+}
+
+fn get_panel_consensus_conflicting_votes() -> Panel {
+    Panel::from_counter(CONSENSUS_CONFLICTING_VOTES, PanelType::Graph)
+}
+
+fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
+    Panel::from_gauge(CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER, PanelType::Graph)
+}
+
+fn get_panel_cende_prepare_blob_for_next_height_latency() -> Panel {
+    Panel::new(
+        CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name(),
+        CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_description(),
+        CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name_with_filter(),
+        PanelType::Graph,
+    )
+}
+
+fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
+    Panel::new(
+        CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name(),
+        CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_description(),
+        CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter(),
+        PanelType::Graph,
+    )
+}
+
+fn get_panel_cende_write_blob_success() -> Panel {
+    Panel::from_counter(CENDE_WRITE_BLOB_SUCCESS, PanelType::Graph)
+}
+
+fn get_panel_cende_write_blob_failure() -> Panel {
+    Panel::new(
+        CENDE_WRITE_BLOB_FAILURE.get_name(),
+        CENDE_WRITE_BLOB_FAILURE.get_description(),
+        formatcp!(
+            "sum  by ({}) ({})",
+            LABEL_CENDE_FAILURE_REASON,
+            CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()
+        ),
+        PanelType::Graph,
+    )
+}
+
+fn get_panel_consensus_l1_data_gas_mismatch() -> Panel {
+    Panel::from_counter(CONSENSUS_L1_DATA_GAS_MISMATCH, PanelType::Graph)
+}
+
+fn get_panel_consensus_l1_gas_mismatch() -> Panel {
+    Panel::from_counter(CONSENSUS_L1_GAS_MISMATCH, PanelType::Graph)
+}
 
 pub(crate) fn get_consensus_row() -> Row {
     Row::new(
         "Consensus",
         vec![
-            PANEL_CONSENSUS_BLOCK_NUMBER,
-            PANEL_CONSENSUS_ROUND,
-            PANEL_CONSENSUS_ROUND_AVG,
-            PANEL_CONSENSUS_ROUND_ABOVE_ZERO,
-            PANEL_CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
-            PANEL_CONSENSUS_CACHED_VOTES,
-            PANEL_CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
-            PANEL_CONSENSUS_DECISIONS_REACHED_BY_SYNC,
-            PANEL_CONSENSUS_PROPOSALS_RECEIVED,
-            PANEL_CONSENSUS_PROPOSALS_VALID_INIT,
-            PANEL_CONSENSUS_PROPOSALS_VALIDATED,
-            PANEL_CONSENSUS_PROPOSALS_INVALID,
-            PANEL_CONSENSUS_BUILD_PROPOSAL_TOTAL,
-            PANEL_CONSENSUS_BUILD_PROPOSAL_FAILED,
-            PANEL_CONSENSUS_REPROPOSALS,
-            PANEL_CONSENSUS_NEW_VALUE_LOCKS,
-            PANEL_CONSENSUS_HELD_LOCKS,
-            PANEL_CONSENSUS_TIMEOUTS_BY_TYPE,
-            PANEL_CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
-            PANEL_CONSENSUS_NUM_TXS_IN_PROPOSAL,
-            PANEL_CONSENSUS_INBOUND_STREAM_STARTED,
-            PANEL_CONSENSUS_INBOUND_STREAM_EVICTED,
-            PANEL_CONSENSUS_INBOUND_STREAM_FINISHED,
-            PANEL_CONSENSUS_OUTBOUND_STREAM_STARTED,
-            PANEL_CONSENSUS_OUTBOUND_STREAM_FINISHED,
-            PANEL_CONSENSUS_L2_GAS_PRICE,
-            PANEL_CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER,
-            PANEL_CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY,
-            PANEL_CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
-            PANEL_CENDE_WRITE_BLOB_SUCCESS,
-            PANEL_CENDE_WRITE_BLOB_FAILURE,
-            PANEL_CONSENSUS_L1_DATA_GAS_MISMATCH,
-            PANEL_CONSENSUS_L1_GAS_MISMATCH,
+            get_panel_consensus_block_number(),
+            get_panel_consensus_round(),
+            get_panel_consensus_round_avg(),
+            get_panel_consensus_round_above_zero(),
+            get_panel_consensus_max_cached_block_number(),
+            get_panel_consensus_cached_votes(),
+            get_panel_consensus_decisions_reached_by_consensus(),
+            get_panel_consensus_decisions_reached_by_sync(),
+            get_panel_consensus_proposals_received(),
+            get_panel_consensus_proposals_valid_init(),
+            get_panel_consensus_proposals_validated(),
+            get_panel_consensus_proposals_invalid(),
+            get_panel_consensus_build_proposal_total(),
+            get_panel_consensus_build_proposal_failed(),
+            get_panel_consensus_reproposals(),
+            get_panel_consensus_new_value_locks(),
+            get_panel_consensus_held_locks(),
+            get_panel_consensus_timeouts_by_type(),
+            get_panel_consensus_num_batches_in_proposal(),
+            get_panel_consensus_num_txs_in_proposal(),
+            get_panel_consensus_inbound_stream_started(),
+            get_panel_consensus_inbound_stream_evicted(),
+            get_panel_consensus_inbound_stream_finished(),
+            get_panel_consensus_outbound_stream_started(),
+            get_panel_consensus_outbound_stream_finished(),
+            get_panel_consensus_l2_gas_price(),
+            get_panel_cende_last_prepared_blob_block_number(),
+            get_panel_cende_prepare_blob_for_next_height_latency(),
+            get_panel_cende_write_prev_height_blob_latency(),
+            get_panel_cende_write_blob_success(),
+            get_panel_cende_write_blob_failure(),
+            get_panel_consensus_l1_data_gas_mismatch(),
+            get_panel_consensus_l1_gas_mismatch(),
         ],
     )
 }
@@ -203,12 +282,12 @@ pub(crate) fn get_consensus_p2p_row() -> Row {
     Row::new(
         "ConsensusP2p",
         vec![
-            PANEL_CONSENSUS_NUM_CONNECTED_PEERS,
-            PANEL_CONSENSUS_VOTES_NUM_SENT_MESSAGES,
-            PANEL_CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
-            PANEL_CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
-            PANEL_CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
-            PANEL_CONSENSUS_CONFLICTING_VOTES,
+            get_panel_consensus_num_connected_peers(),
+            get_panel_consensus_votes_num_sent_messages(),
+            get_panel_consensus_votes_num_received_messages(),
+            get_panel_consensus_proposals_num_sent_messages(),
+            get_panel_consensus_proposals_num_received_messages(),
+            get_panel_consensus_conflicting_votes(),
         ],
     )
 }
