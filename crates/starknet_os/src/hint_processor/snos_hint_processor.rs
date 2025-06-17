@@ -109,7 +109,7 @@ impl<'a, S: StateReader> ExecutionHelpersManager<'a, S> {
 
 pub struct SnosHintProcessor<'a, S: StateReader> {
     // The program being run. The hint processor does not require ownership.
-    pub(crate) os_program: &'a Program,
+    pub(crate) program: &'a Program,
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
@@ -133,7 +133,6 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
 
 impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     #[allow(clippy::too_many_arguments)]
-    #[allow(clippy::result_large_err)]
     pub fn new(
         os_program: &'a Program,
         os_hints_config: OsHintsConfig,
@@ -166,7 +165,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             })
             .collect::<Result<_, _>>()?;
         Ok(Self {
-            os_program,
+            program: os_program,
             execution_helpers_manager: ExecutionHelpersManager::new(execution_helpers),
             os_hints_config,
             syscall_hint_processor,
@@ -230,7 +229,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
                 CairoStruct::ExecutionInfo,
                 vm,
                 nested_fields,
-                self.os_program,
+                self.program,
             )?)?
             .into_owned())
     }
@@ -273,7 +272,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
 
 impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
     fn get_program(&self) -> &'program Program {
-        self.os_program
+        self.program
     }
 
     fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers> {
@@ -286,7 +285,6 @@ impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcess
 
     /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
     /// mode.
-    #[allow(clippy::result_large_err)]
     fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
         if self.da_segment.is_some() {
             return Err(OsHintError::AssertionFailed {
@@ -393,7 +391,6 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
 
 #[cfg(any(test, feature = "testing"))]
 impl<'a> SnosHintProcessor<'a, DictStateReader> {
-    #[allow(clippy::result_large_err)]
     pub fn new_for_testing(
         state_reader: Option<DictStateReader>,
         os_program: &'a Program,
@@ -405,8 +402,8 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         let block_inputs = vec![os_block_input];
         let state_inputs = vec![os_state_input.unwrap_or_default()];
         let os_hints_config = os_hints_config.unwrap_or_default();
-        let syscall_handler = SyscallHintProcessor::new();
-        let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::new();
+        let syscall_handler = SyscallHintProcessor::default();
+        let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::default();
 
         SnosHintProcessor::new(
             os_program,
@@ -425,6 +422,7 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
 /// Default implementation (required for the VM to use the type as a hint processor).
 impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
+#[derive(Default)]
 pub struct SyscallHintProcessor {
     // Sha256 segment related fields.
     pub(crate) sha256_segment: Option<Relocatable>,
@@ -437,25 +435,11 @@ pub struct SyscallHintProcessor {
     pub(crate) secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,
 }
 
-// TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
-#[allow(clippy::new_without_default)]
 impl SyscallHintProcessor {
-    pub fn new() -> Self {
-        Self {
-            sha256_segment: None,
-            syscall_ptr: None,
-            secp256k1_hint_processor: SecpHintProcessor::default(),
-            secp256r1_hint_processor: SecpHintProcessor::default(),
-            syscall_usage: SyscallUsageMap::new(),
-            sha256_block_count: 0,
-        }
-    }
-
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
         self.syscall_ptr = Some(syscall_ptr);
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn validate_and_discard_syscall_ptr(
         &mut self,
         syscall_ptr_end: &Relocatable,
@@ -472,24 +456,18 @@ impl SyscallHintProcessor {
         }
     }
 
-    #[allow(clippy::result_large_err)]
     pub(crate) fn get_mut_syscall_ptr(&mut self) -> Result<&mut Relocatable, OsHintError> {
         self.syscall_ptr.as_mut().ok_or(OsHintError::UnsetSyscallPtr)
     }
 }
 
+#[derive(Default)]
 pub struct DeprecatedSyscallHintProcessor {
     pub(crate) syscall_ptr: Option<Relocatable>,
     pub(crate) syscalls_usage: SyscallUsageMap,
 }
 
-// TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
-#[allow(clippy::new_without_default)]
 impl DeprecatedSyscallHintProcessor {
-    pub fn new() -> Self {
-        Self { syscall_ptr: None, syscalls_usage: SyscallUsageMap::new() }
-    }
-
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
         self.syscall_ptr = Some(syscall_ptr);
     }

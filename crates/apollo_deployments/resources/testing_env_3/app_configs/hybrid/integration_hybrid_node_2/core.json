@@ -79,7 +79,7 @@
   "components.sierra_compiler.local_server_config.channel_buffer_size": 32,
   "components.sierra_compiler.max_concurrency": 100,
   "components.sierra_compiler.port": 55006,
-  "components.sierra_compiler.remote_client_config.idle_connections": 18446744073709551615,
+  "components.sierra_compiler.remote_client_config.idle_connections": 0,
   "components.sierra_compiler.remote_client_config.idle_timeout": 1,
   "components.sierra_compiler.remote_client_config.retries": 3,
   "components.sierra_compiler.remote_client_config.retry_interval": 1,

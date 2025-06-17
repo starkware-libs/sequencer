@@ -12,7 +12,6 @@ use crate::vm_utils::get_address_of_nested_fields;
 ///
 /// * The limbs of value are in the range [0, BASE * 3).
 /// * value is in the range [0, 2 ** 256).
-#[allow(clippy::result_large_err)]
 pub(crate) fn compute_ids_low<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
     HintArgs { vm, ap_tracking, ids_data, constants, .. }: HintArgs<'_>,

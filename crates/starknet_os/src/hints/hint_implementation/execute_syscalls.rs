@@ -8,7 +8,6 @@ use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn is_block_number_in_block_hash_buffer(
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {

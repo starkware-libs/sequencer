@@ -47,7 +47,8 @@ pub enum OsHintError {
     #[error(transparent)]
     DeprecatedSnosSyscall(#[from] DeprecatedSnosSyscallError),
     #[error(transparent)]
-    DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
+    // TODO(Dori): Remove the Box if and when DeprecatedSyscallExecutionError is small.
+    DeprecatedSyscallExecution(#[from] Box<DeprecatedSyscallExecutionError>),
     #[error("Tried to iterate past the end of {item_type}.")]
     EndOfIterator { item_type: String },
     #[error(transparent)]

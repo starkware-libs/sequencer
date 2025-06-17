@@ -202,12 +202,16 @@ pub(crate) async fn get_proposal_content(
                     .await
                     .expect("Failed to broadcast proposal content");
             }
-            GetProposalContent::Finished { id, n_executed_txs } => {
+            GetProposalContent::Finished { id, final_n_executed_txs } => {
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
-                content = truncate_to_executed_txs(&mut content, n_executed_txs);
+                content = truncate_to_executed_txs(&mut content, final_n_executed_txs);
 
-                info!(?proposal_commitment, num_txs = n_executed_txs, "Finished building proposal",);
-                if n_executed_txs == 0 {
+                info!(
+                    ?proposal_commitment,
+                    num_txs = final_n_executed_txs,
+                    "Finished building proposal",
+                );
+                if final_n_executed_txs == 0 {
                     warn!("Built an empty proposal.");
                 }
 
@@ -231,8 +235,11 @@ pub(crate) async fn get_proposal_content(
                     }
                 }
 
+                let final_n_executed_txs_u64 = final_n_executed_txs
+                    .try_into()
+                    .expect("Number of executed transactions should fit in u64");
                 proposal_sender
-                    .send(ProposalPart::ExecutedTransactionCount(n_executed_txs))
+                    .send(ProposalPart::ExecutedTransactionCount(final_n_executed_txs_u64))
                     .await
                     .expect("Failed to broadcast executed transaction count");
                 let fin = ProposalFin { proposal_commitment };

@@ -23,8 +23,8 @@
           "type": "query"
         }
       ],
-      "for": "1s",
-      "intervalSec": 10,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -50,8 +50,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p3"
     },
     {
@@ -77,8 +77,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -104,15 +104,15 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p4"
     },
     {
       "name": "consensus_block_number_stuck",
       "title": "Consensus block number stuck",
       "ruleGroup": "consensus",
-      "expr": "changes(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "expr": "increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
       "conditions": [
         {
           "evaluator": {
@@ -131,8 +131,8 @@
           "type": "query"
         }
       ],
-      "for": "1s",
-      "intervalSec": 10,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -158,15 +158,15 @@
           "type": "query"
         }
       ],
-      "for": "10s",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p3"
     },
     {
       "name": "consensus_build_proposal_failed_once",
       "title": "Consensus build proposal failed once",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(consensus_build_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
@@ -185,15 +185,15 @@
           "type": "query"
         }
       ],
-      "for": "10s",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
-      "name": "consensus_conflicting_votes_rate",
-      "title": "Consensus conflicting votes rate",
+      "name": "consensus_conflicting_votes",
+      "title": "Consensus conflicting votes",
       "ruleGroup": "consensus",
-      "expr": "rate(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
+      "expr": "increase(consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
       "conditions": [
         {
           "evaluator": {
@@ -212,9 +212,9 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
-      "severity": "p2"
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4"
     },
     {
       "name": "consensus_decisions_reached_by_consensus_ratio",
@@ -239,8 +239,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p4"
     },
     {
@@ -266,20 +266,20 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
-      "name": "consensus_l1_gas_price_provider_error_rate",
-      "title": "Consensus L1 gas price provider error rate",
+      "name": "consensus_l1_gas_price_provider_failure",
+      "title": "Consensus L1 gas price provider failure",
       "ruleGroup": "consensus",
-      "expr": "rate(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.001388888888888889
+              5.0
             ],
             "type": "gt"
           },
@@ -293,20 +293,47 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p4"
+    },
+    {
+      "name": "consensus_l1_gas_price_provider_failure_once",
+      "title": "Consensus L1 gas price provider failure once",
+      "ruleGroup": "consensus",
+      "expr": "increase(consensus_l1_gas_price_provider_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p5"
     },
     {
       "name": "consensus_round_above_zero",
       "title": "Consensus round above zero",
       "ruleGroup": "consensus",
-      "expr": "rate(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "max_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.001388888888888889
+              0.0
             ],
             "type": "gt"
           },
@@ -320,8 +347,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -347,8 +374,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -374,8 +401,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p3"
     },
     {
@@ -401,8 +428,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -428,15 +455,15 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
-      "name": "gateway_add_tx_rate_drop",
-      "title": "Gateway add_tx rate drop",
+      "name": "gateway_add_tx_idle",
+      "title": "Gateway add_tx idle",
       "ruleGroup": "gateway",
-      "expr": "sum(rate(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
+      "expr": "increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -455,15 +482,15 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
       "name": "http_server_idle",
       "title": "http server idle",
       "ruleGroup": "http_server",
-      "expr": "rate(max(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"})[60m:])",
+      "expr": "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -482,15 +509,15 @@
           "type": "query"
         }
       ],
-      "for": "5m",
-      "intervalSec": 60,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
       "name": "l1_gas_price_provider_insufficient_history",
       "title": "L1 gas price provider insufficient history",
       "ruleGroup": "l1_gas_price",
-      "expr": "rate(l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -509,15 +536,15 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
       "name": "l1_gas_price_scraper_reorg_detected",
       "title": "L1 gas price scraper reorg detected",
       "ruleGroup": "l1_gas_price",
-      "expr": "rate(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -536,20 +563,47 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
       "name": "l1_message_scraper_baselayer_error_count",
       "title": "L1 message scraper baselayer error count",
       "ruleGroup": "l1_gas_price",
-      "expr": "rate(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.001388888888888889
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p5"
+    },
+    {
+      "name": "eth_to_strk_error_count",
+      "title": "Eth to Strk error count",
+      "ruleGroup": "l1_gas_price",
+      "expr": "increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
             ],
             "type": "gt"
           },
@@ -571,12 +625,12 @@
       "name": "l1_message_scraper_baselayer_error_count",
       "title": "L1 message scraper baselayer error count",
       "ruleGroup": "l1_messages",
-      "expr": "rate(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.001388888888888889
+              5.0
             ],
             "type": "gt"
           },
@@ -590,15 +644,15 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
       "name": "l1_message_scraper_reorg_detected",
       "title": "L1 message scraper reorg detected",
       "ruleGroup": "l1_messages",
-      "expr": "rate(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
       "conditions": [
         {
           "evaluator": {
@@ -617,42 +671,15 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
-      "name": "last_batched_block_stuck",
-      "title": "Last batched block stuck",
-      "ruleGroup": "batcher",
-      "expr": "changes(batcher_last_batched_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              1.0
-            ],
-            "type": "lt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "1s",
-      "intervalSec": 10,
-      "severity": "p2"
-    },
-    {
-      "name": "mempool_add_tx_rate_drop",
-      "title": "Mempool add_tx rate drop",
+      "name": "mempool_add_tx_idle",
+      "title": "Mempool add_tx idle",
       "ruleGroup": "mempool",
-      "expr": "sum(rate(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
+      "expr": "increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -671,8 +698,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -698,8 +725,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
@@ -725,15 +752,15 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
       "name": "native_compilation_error",
       "title": "Native compilation alert",
       "ruleGroup": "batcher",
-      "expr": "increase(native_compilation_error[1m])",
+      "expr": "increase(native_compilation_error[1h])",
       "conditions": [
         {
           "evaluator": {
@@ -752,8 +779,8 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p5"
     },
     {
@@ -779,20 +806,20 @@
           "type": "query"
         }
       ],
-      "for": "3m",
-      "intervalSec": 20,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     },
     {
       "name": "state_sync_stuck",
       "title": "State sync stuck",
       "ruleGroup": "state_sync",
-      "expr": "rate(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.0001
+              1.0
             ],
             "type": "lt"
           },
@@ -806,8 +833,8 @@
           "type": "query"
         }
       ],
-      "for": "3m",
-      "intervalSec": 60,
+      "for": "30s",
+      "intervalSec": 30,
       "severity": "p2"
     }
   ]

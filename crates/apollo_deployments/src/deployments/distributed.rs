@@ -1,5 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr};
 
+use apollo_infra::component_client::RemoteClientConfig;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -11,6 +12,7 @@ use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
 use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
+use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::service::{
     get_environment_ingress_internal,
     get_ingress,
@@ -299,6 +301,24 @@ impl DistributedNodeServiceName {
             max_concurrency,
             remote_client_config,
         } = environment.get_component_config_modifications();
+
+        // TODO(Tsabary): this is a temporary solution, we should create a separate config for each
+        // service to begin with, instead of a per-environment.
+        let remote_client_config = match self {
+            DistributedNodeServiceName::Gateway | DistributedNodeServiceName::SierraCompiler => {
+                RemoteClientConfig {
+                    idle_connections: IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES,
+                    ..remote_client_config
+                }
+            }
+            DistributedNodeServiceName::Batcher
+            | DistributedNodeServiceName::ClassManager
+            | DistributedNodeServiceName::ConsensusManager
+            | DistributedNodeServiceName::HttpServer
+            | DistributedNodeServiceName::L1
+            | DistributedNodeServiceName::Mempool
+            | DistributedNodeServiceName::StateSync => remote_client_config,
+        };
         base.remote_client_config = remote_client_config;
         base.max_concurrency = max_concurrency;
         base

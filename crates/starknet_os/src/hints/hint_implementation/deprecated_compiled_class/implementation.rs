@@ -19,7 +19,6 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -35,7 +34,6 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_>,
@@ -46,7 +44,7 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
         })?;
 
     let dep_class_base = vm.add_memory_segment();
-    deprecated_class.load_into(vm, hint_processor.os_program, dep_class_base, constants)?;
+    deprecated_class.load_into(vm, hint_processor.program, dep_class_base, constants)?;
 
     exec_scopes.insert_value(Scope::CompiledClassHash.into(), class_hash);
     exec_scopes.insert_value(Scope::CompiledClass.into(), deprecated_class);
@@ -60,7 +58,6 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     )?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn load_deprecated_class<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -72,7 +69,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         vm,
         ap_tracking,
         &["hash"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
     let computed_hash = vm.get_integer(computed_hash_addr)?;
     let expected_hash = exec_scopes.get::<ClassHash>(Scope::CompiledClassHash.into())?;
@@ -113,7 +110,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         vm,
         ap_tracking,
         &["bytecode_ptr"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
     let byte_code_ptr = vm.get_relocatable(byte_code_ptr_addr)?;
 

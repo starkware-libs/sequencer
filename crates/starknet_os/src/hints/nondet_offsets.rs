@@ -30,12 +30,10 @@ pub(crate) static NONDET_FP_OFFSETS: LazyLock<HashMap<AllHints, usize>> = LazyLo
     ])
 });
 
-#[allow(clippy::result_large_err)]
 fn fetch_offset(hint: AllHints) -> Result<usize, OsHintError> {
     Ok(*NONDET_FP_OFFSETS.get(&hint).ok_or(OsHintError::MissingOffsetForHint { hint })?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn insert_nondet_hint_value<T: Into<MaybeRelocatable>>(
     vm: &mut VirtualMachine,
     hint: AllHints,

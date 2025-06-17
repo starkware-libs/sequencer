@@ -25,7 +25,7 @@
   "components.gateway.local_server_config.channel_buffer_size": 32,
   "components.gateway.max_concurrency": 100,
   "components.gateway.port": 55002,
-  "components.gateway.remote_client_config.idle_connections": 18446744073709551615,
+  "components.gateway.remote_client_config.idle_connections": 0,
   "components.gateway.remote_client_config.idle_timeout": 1,
   "components.gateway.remote_client_config.retries": 3,
   "components.gateway.remote_client_config.retry_interval": 1,

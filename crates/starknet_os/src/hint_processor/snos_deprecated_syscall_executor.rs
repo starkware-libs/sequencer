@@ -85,7 +85,6 @@ pub enum CallRequest {
 }
 
 impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
-    #[allow(clippy::result_large_err)]
     fn _call_contract(
         request: CallRequest,
         vm: &mut VirtualMachine,
@@ -105,7 +104,6 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         Ok(CallContractResponse { segment: write_to_temp_segment(ret_data, vm)? })
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_mut_call_info_tracker(
         &mut self,
     ) -> Result<&mut CallInfoTracker<'a>, DeprecatedSnosSyscallError> {
@@ -116,12 +114,10 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             .get_mut_call_info_tracker()?)
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_call_entry_point(&mut self) -> Result<&CallEntryPoint, DeprecatedSnosSyscallError> {
         Ok(&self.get_mut_call_info_tracker()?.call_info.call)
     }
 
-    #[allow(clippy::result_large_err)]
     fn _get_tx_info_ptr(
         vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
@@ -135,7 +131,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             CairoStruct::TxInfo,
             vm,
             &["version"],
-            syscall_handler.os_program,
+            syscall_handler.program,
         )?)?;
         let os_constants = &syscall_handler.versioned_constants().os_constants;
         // Check if we should return version = 1.
@@ -148,16 +144,14 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         if should_replace_to_v1 {
             // Deal with version bound accounts.
             let replaced_tx_info = vm.add_memory_segment();
-            let tx_info_size = get_size_of_cairo_struct(
-                CairoStruct::DeprecatedTxInfo,
-                syscall_handler.os_program,
-            )?;
+            let tx_info_size =
+                get_size_of_cairo_struct(CairoStruct::DeprecatedTxInfo, syscall_handler.program)?;
             let mut flattened_tx_info =
                 vm.get_continuous_range(original_tx_info_start_ptr, tx_info_size)?;
             let version_offset = get_field_offset(
                 CairoStruct::DeprecatedTxInfo,
                 "version",
-                syscall_handler.os_program,
+                syscall_handler.program,
             )?;
             // Replace the version field with 1.
             flattened_tx_info[version_offset] = TransactionVersion::ONE.0.into();
@@ -180,7 +174,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
             .increment_call_count();
     }
 
-    #[allow(clippy::result_large_err)]
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> Result<(), Self::Error> {
         let expected_ptr = self
             .deprecated_syscall_hint_processor
@@ -202,7 +195,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
             .expect("Syscall pointer must be set when executing syscall.")
     }
 
-    #[allow(clippy::result_large_err)]
     fn call_contract(
         request: CallContractRequest,
         vm: &mut VirtualMachine,
@@ -211,7 +203,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Self::_call_contract(CallRequest::CallContract(request), vm, syscall_handler)
     }
 
-    #[allow(clippy::result_large_err)]
     fn delegate_call(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
@@ -220,7 +211,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Self::_call_contract(CallRequest::DelegateCall(request), vm, syscall_handler)
     }
 
-    #[allow(clippy::result_large_err)]
     fn delegate_l1_handler(
         request: DelegateCallRequest,
         vm: &mut VirtualMachine,
@@ -229,7 +219,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Self::_call_contract(CallRequest::DelegateL1Handler(request), vm, syscall_handler)
     }
 
-    #[allow(clippy::result_large_err)]
     fn deploy(
         _request: DeployRequest,
         _vm: &mut VirtualMachine,
@@ -245,7 +234,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(DeployResponse { contract_address })
     }
 
-    #[allow(clippy::result_large_err)]
     fn emit_event(
         _request: EmitEventRequest,
         _vm: &mut VirtualMachine,
@@ -254,7 +242,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(EmitEventResponse {})
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_block_number(
         _request: GetBlockNumberRequest,
         vm: &mut VirtualMachine,
@@ -268,7 +255,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(GetBlockNumberResponse { block_number })
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_block_timestamp(
         _request: GetBlockTimestampRequest,
         vm: &mut VirtualMachine,
@@ -283,7 +269,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(GetBlockTimestampResponse { block_timestamp })
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_caller_address(
         _request: GetCallerAddressRequest,
         _vm: &mut VirtualMachine,
@@ -294,7 +279,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         })
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_contract_address(
         _request: GetContractAddressRequest,
         _vm: &mut VirtualMachine,
@@ -305,7 +289,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         })
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_sequencer_address(
         _request: GetSequencerAddressRequest,
         vm: &mut VirtualMachine,
@@ -317,7 +300,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(GetSequencerAddressResponse { address: sequencer_address })
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_tx_info(
         _request: GetTxInfoRequest,
         vm: &mut VirtualMachine,
@@ -327,7 +309,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(GetTxInfoResponse { tx_info_start_ptr })
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_tx_signature(
         _request: GetTxSignatureRequest,
         vm: &mut VirtualMachine,
@@ -340,14 +321,14 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
                 CairoStruct::DeprecatedTxInfo,
                 vm,
                 &["signature"],
-                syscall_handler.os_program,
+                syscall_handler.program,
             )?)?;
         let tx_signature_len = *vm.get_integer(get_address_of_nested_fields_from_base_address(
             tx_info_start_ptr,
             CairoStruct::DeprecatedTxInfo,
             vm,
             &["signature_len"],
-            syscall_handler.os_program,
+            syscall_handler.program,
         )?)?;
         Ok(GetTxSignatureResponse {
             segment: ReadOnlySegment {
@@ -358,7 +339,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         })
     }
 
-    #[allow(clippy::result_large_err)]
     fn library_call(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
@@ -367,7 +347,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Self::_call_contract(CallRequest::LibraryCall(request), vm, syscall_handler)
     }
 
-    #[allow(clippy::result_large_err)]
     fn library_call_l1_handler(
         request: LibraryCallRequest,
         vm: &mut VirtualMachine,
@@ -376,7 +355,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Self::_call_contract(CallRequest::LibraryCallL1Handler(request), vm, syscall_handler)
     }
 
-    #[allow(clippy::result_large_err)]
     fn replace_class(
         _request: ReplaceClassRequest,
         _vm: &mut VirtualMachine,
@@ -385,7 +363,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(ReplaceClassResponse {})
     }
 
-    #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
         _request: SendMessageToL1Request,
         _vm: &mut VirtualMachine,
@@ -394,7 +371,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(SendMessageToL1Response {})
     }
 
-    #[allow(clippy::result_large_err)]
     fn storage_read(
         _request: StorageReadRequest,
         _vm: &mut VirtualMachine,
@@ -404,7 +380,6 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(StorageReadResponse { value })
     }
 
-    #[allow(clippy::result_large_err)]
     fn storage_write(
         _request: StorageWriteRequest,
         _vm: &mut VirtualMachine,

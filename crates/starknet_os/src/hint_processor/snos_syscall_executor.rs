@@ -135,7 +135,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
 
     fn update_revert_gas_with_next_remaining_gas(&mut self, _next_remaining_gas: GasAmount) {}
 
-    #[allow(clippy::result_large_err)]
     fn call_contract(
         request: CallContractRequest,
         vm: &mut VirtualMachine,
@@ -150,7 +149,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         call_contract_helper(vm, syscall_handler, remaining_gas)
     }
 
-    #[allow(clippy::result_large_err)]
     fn deploy(
         _request: DeployRequest,
         vm: &mut VirtualMachine,
@@ -182,7 +180,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         })
     }
 
-    #[allow(clippy::result_large_err)]
     fn emit_event(
         _request: EmitEventRequest,
         _vm: &mut VirtualMachine,
@@ -192,7 +189,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(EmitEventResponse {})
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_block_hash(
         request: GetBlockHashRequest,
         _vm: &mut VirtualMachine,
@@ -212,7 +208,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(GetBlockHashResponse { block_hash: *block_hash })
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_class_hash_at(
         _request: GetClassHashAtRequest,
         _vm: &mut VirtualMachine,
@@ -229,7 +224,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(*class_hash)
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_execution_info(
         _request: GetExecutionInfoRequest,
         vm: &mut VirtualMachine,
@@ -259,12 +253,11 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
             should_exclude_l1_data_gas,
             should_replace_to_v1,
             vm,
-            syscall_handler.os_program,
+            syscall_handler.program,
         )?;
         Ok(GetExecutionInfoResponse { execution_info_ptr })
     }
 
-    #[allow(clippy::result_large_err)]
     fn library_call(
         _request: LibraryCallRequest,
         vm: &mut VirtualMachine,
@@ -274,7 +267,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         call_contract_helper(vm, syscall_handler, remaining_gas)
     }
 
-    #[allow(clippy::result_large_err)]
     fn meta_tx_v0(
         request: MetaTxV0Request,
         vm: &mut VirtualMachine,
@@ -289,7 +281,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         call_contract_helper(vm, syscall_handler, remaining_gas)
     }
 
-    #[allow(clippy::result_large_err)]
     fn replace_class(
         _request: ReplaceClassRequest,
         _vm: &mut VirtualMachine,
@@ -299,7 +290,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(ReplaceClassResponse {})
     }
 
-    #[allow(clippy::result_large_err)]
     fn send_message_to_l1(
         _request: SendMessageToL1Request,
         _vm: &mut VirtualMachine,
@@ -309,7 +299,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(SendMessageToL1Response {})
     }
 
-    #[allow(clippy::result_large_err)]
     fn storage_read(
         request: StorageReadRequest,
         _vm: &mut VirtualMachine,
@@ -327,7 +316,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         Ok(StorageReadResponse { value })
     }
 
-    #[allow(clippy::result_large_err)]
     fn storage_write(
         _request: StorageWriteRequest,
         _vm: &mut VirtualMachine,
@@ -349,10 +337,10 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         let segment_start =
             self.syscall_hint_processor.sha256_segment.expect("SHA256 segment must be set in OS.");
         let entries_offset =
-            get_size_of_cairo_struct(CairoStruct::Sha256ProcessBlock, self.os_program)?
+            get_size_of_cairo_struct(CairoStruct::Sha256ProcessBlock, self.program)?
                 * self.syscall_hint_processor.sha256_block_count;
         let out_state_offset =
-            get_field_offset(CairoStruct::Sha256ProcessBlock, "out_state", self.os_program)?;
+            get_field_offset(CairoStruct::Sha256ProcessBlock, "out_state", self.program)?;
         let total_offset = entries_offset + out_state_offset;
         let state_start = (segment_start + total_offset)?;
         vm.load_data(state_start, state)?;
@@ -363,7 +351,6 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     }
 }
 
-#[allow(clippy::result_large_err)]
 fn allocate_or_return_execution_info_segment<IG: IdentifierGetter>(
     original_ptr: Relocatable,
     should_exclude_l1_data_gas: bool,
@@ -431,7 +418,6 @@ fn allocate_or_return_execution_info_segment<IG: IdentifierGetter>(
     Ok(replaced_execution_info)
 }
 
-#[allow(clippy::result_large_err)]
 fn call_contract_helper(
     vm: &mut VirtualMachine,
     syscall_handler: &mut SnosHintProcessor<'_, impl StateReader>,

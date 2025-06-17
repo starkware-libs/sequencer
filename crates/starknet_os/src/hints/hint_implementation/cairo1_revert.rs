@@ -14,7 +14,6 @@ use crate::hints::hint_implementation::execution::utils::set_state_entry;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn prepare_state_entry_for_revert(
     HintArgs { ids_data, ap_tracking, vm, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -29,7 +28,6 @@ pub(crate) fn prepare_state_entry_for_revert(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn read_storage_key_for_revert<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -45,7 +43,6 @@ pub(crate) fn read_storage_key_for_revert<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn write_storage_key_for_revert<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -60,7 +57,6 @@ pub(crate) fn write_storage_key_for_revert<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn generate_dummy_os_output_segment(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResult {
     let base = vm.add_memory_segment();
     let segment_data =

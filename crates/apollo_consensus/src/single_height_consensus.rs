@@ -41,6 +41,7 @@ use crate::types::{
     Round,
     ValidatorId,
 };
+use crate::votes_threshold::QuorumType;
 
 /// The SHC can either update the manager of a decision or return tasks that should be run without
 /// blocking further calls to itself.
@@ -180,14 +181,13 @@ impl SingleHeightConsensus {
         is_observer: bool,
         id: ValidatorId,
         validators: Vec<ValidatorId>,
-        no_byzantine_validators: bool,
+        quroum_type: QuorumType,
         timeouts: TimeoutsConfig,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
             u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
-        let state_machine =
-            StateMachine::new(id, n_validators, is_observer, no_byzantine_validators);
+        let state_machine = StateMachine::new(id, n_validators, is_observer, quroum_type);
         Self {
             height,
             validators,

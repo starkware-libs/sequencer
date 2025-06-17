@@ -15,7 +15,6 @@ use crate::hints::vars::{Const, Ids, Scope};
 const MAX_PAGE_SIZE: usize = 3800;
 const OUTPUT_ATTRIBUTE_FACT_TOPOLOGY: &str = "gps_fact_topology";
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_tree_structure<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -54,7 +53,6 @@ pub(crate) fn set_tree_structure<'program, CHP: CommonHintProcessor<'program>>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_state_updates_start(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -104,7 +102,6 @@ pub(crate) fn set_state_updates_start(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_compressed_start(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -138,7 +135,6 @@ pub(crate) fn set_compressed_start(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_n_updates_small(
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {

@@ -44,7 +44,7 @@ pub trait TransactionProvider: Send {
     /// In validate mode ([ValidateTransactionProvider]) returns the final number of transactions
     /// in the block once it is known, or `None` if it is not known yet.
     /// Returns `None` in propose mode ([ProposeTransactionProvider]).
-    async fn get_n_txs_in_block(&self) -> Option<usize>;
+    async fn get_final_n_executed_txs(&self) -> Option<usize>;
 }
 
 #[derive(Clone)]
@@ -138,7 +138,7 @@ impl TransactionProvider for ProposeTransactionProvider {
         Ok(txs)
     }
 
-    async fn get_n_txs_in_block(&self) -> Option<usize> {
+    async fn get_final_n_executed_txs(&self) -> Option<usize> {
         None
     }
 }
@@ -190,7 +190,7 @@ impl TransactionProvider for ValidateTransactionProvider {
         Ok(buffer)
     }
 
-    async fn get_n_txs_in_block(&self) -> Option<usize> {
+    async fn get_final_n_executed_txs(&self) -> Option<usize> {
         // TODO(lior): Replace with a real implementation.
         if self.tx_receiver.is_closed() && self.tx_receiver.is_empty() {
             Some(self.n_txs_in_block)

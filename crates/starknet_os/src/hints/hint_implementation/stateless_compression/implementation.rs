@@ -15,7 +15,6 @@ use crate::hints::hint_implementation::stateless_compression::utils::TOTAL_N_BUC
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Ids, Scope};
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn dictionary_from_bucket(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let initial_dict: HashMap<MaybeRelocatable, MaybeRelocatable> = (0..TOTAL_N_BUCKETS)
         .map(|bucket_index| (Felt::from(bucket_index).into(), Felt::ZERO.into()))
@@ -24,7 +23,6 @@ pub(crate) fn dictionary_from_bucket(HintArgs { exec_scopes, .. }: HintArgs<'_>)
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn get_prev_offset(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -39,7 +37,6 @@ pub(crate) fn get_prev_offset(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn compression_hint(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -59,7 +56,6 @@ pub(crate) fn compression_hint(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_decompressed_dst(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {

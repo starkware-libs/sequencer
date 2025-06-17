@@ -14,7 +14,7 @@ pub enum StarknetOsError {
     #[error(transparent)]
     RunnerError(#[from] RunnerError),
     #[error(transparent)]
-    VmException(#[from] VmException),
+    VmException(#[from] Box<VmException>),
     #[error(transparent)]
     VirtualMachineError(#[from] VirtualMachineError),
 }

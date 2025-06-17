@@ -270,7 +270,6 @@ macro_rules! all_hints_enum {
         }
 
         impl HintEnum for AllHints {
-            #[allow(clippy::result_large_err)]
             fn from_str(hint_str: &str) -> Result<Self, OsHintError> {
                 #[cfg(any(test, feature = "testing"))]
                 {
