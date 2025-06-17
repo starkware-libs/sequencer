@@ -95,6 +95,14 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
 
+    let signature_manager = match config.components.signature_manager.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            Some(create_signature_manager())
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+    };
+
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let batcher_client =
@@ -105,6 +113,9 @@ pub async fn create_node_components(
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
+            let signature_manager_client = clients
+                .get_signature_manager_shared_client()
+                .expect("Signature Manager Client should be available");
             let l1_gas_price_client = clients
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price shared client should be available");
@@ -113,6 +124,7 @@ pub async fn create_node_components(
                 batcher_client,
                 state_sync_client,
                 class_manager_client,
+                signature_manager_client,
                 l1_gas_price_client,
             ))
         }
@@ -365,14 +377,6 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             Some(create_sierra_compiler(config.compiler_config.clone()))
-        }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
-    };
-
-    let signature_manager = match config.components.signature_manager.execution_mode {
-        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(create_signature_manager())
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
