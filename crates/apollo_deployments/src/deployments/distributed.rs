@@ -172,7 +172,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => Some(Toleration::ApolloCoreService),
@@ -215,7 +214,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => Some(BATCHER_STORAGE),
@@ -244,7 +242,6 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => false,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => true,

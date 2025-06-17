@@ -94,7 +94,6 @@ pub(crate) fn get_environment_ingress_internal(environment: &Environment) -> boo
     match environment {
         Environment::Testing => true,
         Environment::SepoliaIntegration
-        | Environment::TestingEnvTwo
         | Environment::TestingEnvThree
         | Environment::StressTest => false,
         _ => unimplemented!(),
