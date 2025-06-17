@@ -13,7 +13,7 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
-const SEPOLIA_INTEGRATION_NODE_IDS: [usize; 4] = [0, 1, 2, 3];
+const SEPOLIA_INTEGRATION_NODE_IDS: [usize; 3] = [0, 1, 2];
 const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "integration-sepolia.starknet.io";
 const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "starknet.io";

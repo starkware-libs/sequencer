@@ -13,12 +13,13 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
-const TESTING_ENV_3_NODE_IDS: [(usize, P2PCommunicationType); 5] = [
+// TODO(Tsabary): note this env has configs for 4 despite needing only 3. Delete when we're done
+// with it.
+const TESTING_ENV_3_NODE_IDS: [(usize, P2PCommunicationType); 4] = [
     (0, P2PCommunicationType::Internal),
     (1, P2PCommunicationType::Internal),
     (2, P2PCommunicationType::Internal),
-    (3, P2PCommunicationType::Internal),
-    (4, P2PCommunicationType::External),
+    (3, P2PCommunicationType::External),
 ];
 const TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io";
