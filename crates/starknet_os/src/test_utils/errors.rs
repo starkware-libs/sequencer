@@ -23,11 +23,11 @@ pub enum Cairo0EntryPointRunnerError {
     #[error(transparent)]
     Program(#[from] ProgramError),
     #[error(transparent)]
-    ProgramSerde(serde_json::Error),
+    ProgramSerde(#[from] serde_json::Error),
     #[error(transparent)]
     BuiltinMismatchError(#[from] BuiltinMismatchError),
     #[error(transparent)]
-    RunCairoEndpoint(CairoRunError),
+    RunCairoEndpoint(#[from] Box<CairoRunError>),
     #[error(transparent)]
     LoadReturnValue(#[from] LoadReturnValueError),
 }
