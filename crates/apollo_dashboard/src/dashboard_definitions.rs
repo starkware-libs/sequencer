@@ -1,14 +1,6 @@
 use crate::dashboard::{Dashboard, Row};
 use crate::panels::batcher::{get_batcher_infra_row, get_batcher_row};
-use crate::panels::class_manager::{
-    PANEL_CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
-    PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
-    PANEL_CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
-    PANEL_CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-    PANEL_CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
-    PANEL_CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
-    PANEL_CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
-};
+use crate::panels::class_manager::get_class_manager_infra_row;
 use crate::panels::consensus::{get_consensus_p2p_row, get_consensus_row};
 use crate::panels::gateway::{get_gateway_infra_row, get_gateway_row};
 use crate::panels::http_server::PANEL_ADDED_TRANSACTIONS_TOTAL;
@@ -57,21 +49,6 @@ mod dashboard_definitions_test;
 // TODO(Tsabary): this file should be managed by this crate, hence should be moved here to a
 // resources folder.
 pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
-
-fn get_class_manager_infra_row() -> Row {
-    Row::new(
-        "Class Manager Infra",
-        vec![
-            PANEL_CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
-            PANEL_CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
-            PANEL_CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
-            PANEL_CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
-            PANEL_CLASS_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
-            PANEL_CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
-            PANEL_CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
-        ],
-    )
-}
 
 fn get_l1_provider_infra_row() -> Row {
     Row::new(
