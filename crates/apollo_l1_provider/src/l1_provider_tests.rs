@@ -702,7 +702,7 @@ fn get_txs_excludes_cancellation_requested_and_returns_non_cancellation_requeste
         .with_config(config)
         .with_clock(clock)
         .with_txs([tx_2.clone()])
-        .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
+        .with_timed_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
 
@@ -723,7 +723,7 @@ fn get_txs_excludes_transaction_after_cancellation_expiry() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
         .with_clock(clock)
-        .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
+        .with_timed_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
 
@@ -744,7 +744,7 @@ fn validate_tx_cancellation_requested_not_expired_returns_validated() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
         .with_clock(clock)
-        .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
+        .with_timed_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
 
@@ -766,7 +766,7 @@ fn validate_tx_cancellation_requested_expired_returns_cancelled() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
         .with_clock(clock)
-        .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
+        .with_timed_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
 
@@ -791,7 +791,7 @@ fn validate_tx_cancellation_requested_validated_then_expired_returns_cancelled()
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
         .with_clock(clock.clone())
-        .with_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
+        .with_timed_cancel_requested_txs([(tx_1.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
 
@@ -823,7 +823,7 @@ fn commit_block_commits_cancellation_requested_tx_not_expired() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_config(config)
         .with_clock(clock)
-        .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
+        .with_timed_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
         .build_into_l1_provider();
 
     // Test.
@@ -849,7 +849,7 @@ fn commit_block_commits_cancellation_requested_expired_and_fully_cancelled() {
         .with_config(config)
         .with_clock(clock)
         // Both txs are passed cancellation request already, but still not in `Cancelled` state.
-        .with_cancel_requested_txs([
+        .with_timed_cancel_requested_txs([
             (tx_1.clone(), cancellation_expired),
             (tx_2.clone(), cancellation_expired),
         ])
@@ -888,7 +888,7 @@ fn commit_block_commits_mixed_normal_and_cancellation_requested() {
         .with_config(config)
         .with_clock(clock)
         .with_txs([tx_normal.clone()])
-        .with_cancel_requested_txs([(tx_cancel.clone(), cancellation_request_timestamp)])
+        .with_timed_cancel_requested_txs([(tx_cancel.clone(), cancellation_request_timestamp)])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
 
@@ -927,7 +927,7 @@ fn add_events_tx_and_cancel_same_call_not_expired() {
     l1_provider.add_events(events.into()).unwrap();
     let expected = L1ProviderContentBuilder::new()
         .with_config(config)
-        .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
+        .with_timed_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
         .build();
     expected.assert_eq(&l1_provider);
 }
@@ -958,7 +958,7 @@ fn add_events_tx_then_cancel_separate_calls_not_expired() {
         .unwrap();
     let expected = L1ProviderContentBuilder::new()
         .with_txs([])
-        .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
+        .with_timed_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
         .build();
     expected.assert_eq(&l1_provider);
 }
@@ -992,7 +992,7 @@ fn add_events_tx_and_cancel_same_call_expired() {
 
     let expected = L1ProviderContentBuilder::new()
         .with_txs([])
-        .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
+        .with_timed_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp)])
         .build();
     expected.assert_eq(&l1_provider);
 }
@@ -1006,7 +1006,7 @@ fn add_events_only_cancel_event_unknown_tx() {
     // Test.
     l1_provider.add_events(vec![cancellation_event(unknown_tx_hash, 0.into())]).unwrap();
     let expected_empty =
-        L1ProviderContentBuilder::new().with_txs([]).with_cancel_requested_txs([]).build();
+        L1ProviderContentBuilder::new().with_txs([]).with_timed_cancel_requested_txs([]).build();
     expected_empty.assert_eq(&l1_provider);
 }
 
@@ -1031,7 +1031,7 @@ fn add_events_double_cancellation_only_first_counted() {
         .unwrap();
     // Only first cancellation counts.
     let expected = L1ProviderContentBuilder::new()
-        .with_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp_first)])
+        .with_timed_cancel_requested_txs([(tx.clone(), cancellation_request_timestamp_first)])
         .build();
     expected.assert_eq(&l1_provider);
 }

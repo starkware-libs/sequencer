@@ -159,7 +159,7 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn with_cancel_requested_txs(
+    pub fn with_timed_cancel_requested_txs(
         mut self,
         cancel_requested: impl IntoIterator<Item = (L1HandlerTransaction, u64)>,
     ) -> Self {
