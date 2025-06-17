@@ -285,7 +285,8 @@ fn get_consensus_conflicting_votes() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
+        // TODO(matan): Increase severity once slashing is supported.
+        severity: AlertSeverity::WorkingHours,
     }
 }
 

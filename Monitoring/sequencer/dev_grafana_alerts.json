@@ -214,7 +214,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p4"
     },
     {
       "name": "consensus_decisions_reached_by_consensus_ratio",
