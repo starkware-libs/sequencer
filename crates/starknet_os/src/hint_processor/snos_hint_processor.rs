@@ -109,7 +109,7 @@ impl<'a, S: StateReader> ExecutionHelpersManager<'a, S> {
 
 pub struct SnosHintProcessor<'a, S: StateReader> {
     // The program being run. The hint processor does not require ownership.
-    pub(crate) os_program: &'a Program,
+    pub(crate) program: &'a Program,
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
     pub syscall_hint_processor: SyscallHintProcessor,
@@ -166,7 +166,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             })
             .collect::<Result<_, _>>()?;
         Ok(Self {
-            os_program,
+            program: os_program,
             execution_helpers_manager: ExecutionHelpersManager::new(execution_helpers),
             os_hints_config,
             syscall_hint_processor,
@@ -230,7 +230,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
                 CairoStruct::ExecutionInfo,
                 vm,
                 nested_fields,
-                self.os_program,
+                self.program,
             )?)?
             .into_owned())
     }
@@ -273,7 +273,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
 
 impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
     fn get_program(&self) -> &'program Program {
-        self.os_program
+        self.program
     }
 
     fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers> {

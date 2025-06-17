@@ -259,7 +259,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
             should_exclude_l1_data_gas,
             should_replace_to_v1,
             vm,
-            syscall_handler.os_program,
+            syscall_handler.program,
         )?;
         Ok(GetExecutionInfoResponse { execution_info_ptr })
     }
@@ -349,10 +349,10 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         let segment_start =
             self.syscall_hint_processor.sha256_segment.expect("SHA256 segment must be set in OS.");
         let entries_offset =
-            get_size_of_cairo_struct(CairoStruct::Sha256ProcessBlock, self.os_program)?
+            get_size_of_cairo_struct(CairoStruct::Sha256ProcessBlock, self.program)?
                 * self.syscall_hint_processor.sha256_block_count;
         let out_state_offset =
-            get_field_offset(CairoStruct::Sha256ProcessBlock, "out_state", self.os_program)?;
+            get_field_offset(CairoStruct::Sha256ProcessBlock, "out_state", self.program)?;
         let total_offset = entries_offset + out_state_offset;
         let state_start = (segment_start + total_offset)?;
         vm.load_data(state_start, state)?;
