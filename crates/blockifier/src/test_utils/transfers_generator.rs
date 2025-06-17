@@ -192,7 +192,7 @@ impl TransfersGenerator {
             );
 
             let results = executor.add_txs_and_wait(&txs);
-            let block_summary = executor.close_block(None).unwrap();
+            let block_summary = executor.close_block(results.len()).unwrap();
 
             drop(executor);
             Arc::try_unwrap(worker_pool)
