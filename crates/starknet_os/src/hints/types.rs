@@ -11,7 +11,6 @@ use crate::hints::error::OsHintError;
 /// Hint enum maps between a (python) hint string in the cairo OS program under cairo-lang to a
 /// matching enum variant defined in the crate.
 pub trait HintEnum {
-    #[allow(clippy::result_large_err)]
     fn from_str(hint_str: &str) -> Result<Self, OsHintError>
     where
         Self: Sized;
