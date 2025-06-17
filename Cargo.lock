@@ -1171,7 +1171,6 @@ dependencies = [
  "apollo_metrics",
  "apollo_state_sync_metrics",
  "blockifier",
- "const_format",
  "indexmap 2.9.0",
  "serde",
  "serde_json",

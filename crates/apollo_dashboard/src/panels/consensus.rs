@@ -44,7 +44,6 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
     LABEL_CENDE_FAILURE_REASON,
 };
-use const_format::formatcp;
 
 use crate::dashboard::{Panel, PanelType, Row};
 
@@ -58,7 +57,7 @@ fn get_panel_consensus_round_avg() -> Panel {
     Panel::new(
         "Average consensus round",
         "Average consensus round (10m)",
-        formatcp!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name_with_filter()),
+        vec![format!("avg_over_time({}[10m])", CONSENSUS_ROUND.get_name_with_filter())],
         PanelType::Graph,
     )
 }
@@ -123,11 +122,11 @@ fn get_panel_consensus_timeouts_by_type() -> Panel {
     Panel::new(
         CONSENSUS_TIMEOUTS.get_name(),
         CONSENSUS_TIMEOUTS.get_description(),
-        formatcp!(
+        vec![format!(
             "sum  by ({}) ({})",
             LABEL_NAME_TIMEOUT_REASON,
             CONSENSUS_TIMEOUTS.get_name_with_filter()
-        ),
+        )],
         PanelType::Graph,
     )
 }
@@ -162,20 +161,10 @@ fn get_panel_cende_last_prepared_blob_block_number() -> Panel {
     Panel::from_gauge(CENDE_LAST_PREPARED_BLOB_BLOCK_NUMBER, PanelType::Graph)
 }
 fn get_panel_cende_prepare_blob_for_next_height_latency() -> Panel {
-    Panel::new(
-        CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name(),
-        CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_description(),
-        CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY.get_name_with_filter(),
-        PanelType::Graph,
-    )
+    Panel::from_hist(CENDE_PREPARE_BLOB_FOR_NEXT_HEIGHT_LATENCY, PanelType::Graph)
 }
 fn get_panel_cende_write_prev_height_blob_latency() -> Panel {
-    Panel::new(
-        CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name(),
-        CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_description(),
-        CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter(),
-        PanelType::Graph,
-    )
+    Panel::from_hist(CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, PanelType::Graph)
 }
 fn get_panel_cende_write_blob_success() -> Panel {
     Panel::from_counter(CENDE_WRITE_BLOB_SUCCESS, PanelType::Graph)
@@ -184,11 +173,11 @@ fn get_panel_cende_write_blob_failure() -> Panel {
     Panel::new(
         CENDE_WRITE_BLOB_FAILURE.get_name(),
         CENDE_WRITE_BLOB_FAILURE.get_description(),
-        formatcp!(
+        vec![format!(
             "sum  by ({}) ({})",
             LABEL_CENDE_FAILURE_REASON,
             CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()
-        ),
+        )],
         PanelType::Graph,
     )
 }
