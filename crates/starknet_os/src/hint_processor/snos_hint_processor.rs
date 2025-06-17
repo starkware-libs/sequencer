@@ -284,10 +284,9 @@ impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcess
     ) -> VmHintExtensionResult {
         match hint {
             AllHints::StatelessHint(_) | AllHints::CommonHint(_) => {
-                let hint_str = hint.to_str();
                 unreachable!(
                     "Stateless and common hints should be handled in execute_hint_extensive \
-                     function; got {hint_str}."
+                     function; got {hint:?}."
                 );
             }
             AllHints::OsHint(os_hint) => {

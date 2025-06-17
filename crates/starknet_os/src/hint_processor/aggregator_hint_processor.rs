@@ -47,6 +47,7 @@ impl HintProcessorLogic for AggregatorHintProcessor<'_> {
 
 impl<'program> CommonHintProcessor<'program> for AggregatorHintProcessor<'program> {
     impl_common_hint_processor_getters!();
+
     fn execute_cairo0_unique_hint(
         &mut self,
         hint: &AllHints,
@@ -55,10 +56,9 @@ impl<'program> CommonHintProcessor<'program> for AggregatorHintProcessor<'progra
     ) -> VmHintExtensionResult {
         match hint {
             AllHints::StatelessHint(_) | AllHints::CommonHint(_) => {
-                let hint_str = hint.to_str();
                 unreachable!(
                     "Stateless and common hints should be handled in execute_hint_extensive \
-                     function; got {hint_str}."
+                     function; got {hint:?}."
                 );
             }
             AllHints::AggregatorHint(aggregator_hint) => {
@@ -67,8 +67,7 @@ impl<'program> CommonHintProcessor<'program> for AggregatorHintProcessor<'progra
             AllHints::OsHint(_)
             | AllHints::DeprecatedSyscallHint(_)
             | AllHints::HintExtension(_) => {
-                let hint_str = hint.to_str();
-                panic!("Aggregator received OS hint: {hint_str}");
+                panic!("Aggregator received OS hint: {hint:?}");
             }
             #[cfg(any(test, feature = "testing"))]
             AllHints::TestHint => {
