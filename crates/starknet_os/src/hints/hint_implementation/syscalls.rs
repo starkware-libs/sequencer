@@ -56,8 +56,7 @@ use crate::syscall_handler_utils::SyscallHandlerType;
 macro_rules! create_syscall_func {
     ($($name:ident),+) => {
         $(
-            #[allow(clippy::result_large_err)]
-            pub(crate) fn $name<S: StateReader>(
+                        pub(crate) fn $name<S: StateReader>(
                 hint_processor: & mut SnosHintProcessor<'_, S>,
                 HintArgs {
                     vm,
@@ -81,10 +80,10 @@ macro_rules! create_syscall_func {
                 let expected_selector = paste! { DeprecatedSyscallSelector::[<$name:camel>] };
                 if syscall_selector != expected_selector {
                     return Err(
-                        DeprecatedSyscallExecutionError::BadSyscallSelector {
+                        Box::new(DeprecatedSyscallExecutionError::BadSyscallSelector {
                             expected_selector,
                             actual_selector: syscall_selector,
-                        }.into()
+                        }).into()
                     );
                 }
                 syscall_hint_processor.set_syscall_ptr(syscall_ptr);
@@ -122,7 +121,6 @@ create_syscall_func!(
     storage_write
 );
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_syscall_ptr<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,

@@ -19,7 +19,6 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -35,7 +34,6 @@ pub(crate) fn load_deprecated_class_facts<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_>,
@@ -60,7 +58,6 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     )?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn load_deprecated_class<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,

@@ -19,7 +19,6 @@ macro_rules! define_hint_enum_base {
         }
 
         impl HintEnum for $enum_name {
-            #[allow(clippy::result_large_err)]
             fn from_str(hint_str: &str) -> Result<Self, OsHintError> {
                 match hint_str {
                     $($hint_str => Ok(Self::$hint_name),)+
@@ -47,8 +46,7 @@ macro_rules! define_hint_enum_helper {
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
         impl $enum_name {
-            #[allow(clippy::result_large_err)]
-            pub(crate) fn execute_hint<'program, CHP: CommonHintProcessor<'program>>(
+                        pub(crate) fn execute_hint<'program, CHP: CommonHintProcessor<'program>>(
                 &self,
                 $hp_arg: &mut CHP,
                 hint_args: HintArgs<'_>
@@ -94,8 +92,7 @@ macro_rules! define_hint_enum {
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
         impl $enum_name {
-            #[allow(clippy::result_large_err)]
-            pub fn execute_hint<S: StateReader>(
+                        pub fn execute_hint<S: StateReader>(
                 &self,
                 hint_processor: &mut SnosHintProcessor<'_, S>,
                 hint_args: HintArgs<'_>
@@ -123,7 +120,6 @@ macro_rules! define_hint_extension_enum {
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
         impl $enum_name {
-            #[allow(clippy::result_large_err)]
             pub fn execute_hint_extensive<S: StateReader>(
                 &self,
                 hint_processor: &mut SnosHintProcessor<'_, S>,

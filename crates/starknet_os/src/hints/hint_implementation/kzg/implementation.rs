@@ -17,7 +17,6 @@ use crate::hints::hint_implementation::kzg::utils::{
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids};
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn store_da_segment<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
@@ -81,7 +80,6 @@ pub(crate) fn store_da_segment<'program, CHP: CommonHintProcessor<'program>>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn write_split_result(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
