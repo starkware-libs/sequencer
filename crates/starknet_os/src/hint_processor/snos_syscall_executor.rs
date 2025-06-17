@@ -23,6 +23,7 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertSegment,
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
@@ -360,6 +361,10 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         // Increment the block count for the next call.
         self.syscall_hint_processor.sha256_block_count += 1;
         Ok(state_start)
+    }
+
+    fn revert_segment(&self) -> RevertSegment {
+        RevertSegment::Temporary
     }
 }
 
