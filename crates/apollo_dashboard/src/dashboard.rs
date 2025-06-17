@@ -33,6 +33,12 @@ impl Panel {
         exprs: Vec<String>,
         panel_type: PanelType,
     ) -> Self {
+        assert!(
+            exprs.len() <= 26,
+            "Too many expressions ({} > 26) in panel '{}'. Each must have a unique refId A–Z.",
+            exprs.len(),
+            name
+        );
         Self { name, description, exprs, panel_type }
     }
 
@@ -74,8 +80,7 @@ impl Serialize for Panel {
         state.serialize_field("title", &self.name)?;
         state.serialize_field("description", &self.description)?;
         state.serialize_field("type", &self.panel_type)?;
-        // TODO(Tsabary): currently supporting only a single expression per panel.
-        state.serialize_field("expr", &self.exprs[0])?;
+        state.serialize_field("exprs", &self.exprs)?;
 
         // Append an empty dictionary `{}` at the end
         let empty_map: HashMap<String, String> = HashMap::new();

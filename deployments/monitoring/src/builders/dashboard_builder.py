@@ -9,18 +9,27 @@ from common.helpers import get_logger
 
 
 def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position: int) -> dict:
+    exprs = panel["exprs"]
+    assert len(exprs) <= 26, (
+        f"Too many expressions in panel '{panel.get('title', '')}': "
+        f"{len(exprs)} expressions provided, max is 26.\nExpressions:\n"
+        + "\n".join(f"{i + 1}. {expr}" for i, expr in enumerate(exprs))
+    )
+    targets = [
+        {
+            "expr": expr,
+            "refId": chr(65 + i),  # 'A' to 'Z'
+        }
+        for i, expr in enumerate(exprs)
+    ]
+
     grafana_panel = {
         "id": panel_id,
         "type": panel["type"],
         "title": panel["title"],
         "description": panel.get("description", ""),
         "gridPos": {"h": 6, "w": 12, "x": x_position, "y": y_position},
-        "targets": [
-            {
-                "expr": panel["expr"] if isinstance(panel["expr"], str) else None,
-                "refId": chr(65 + panel_id % 26),
-            }
-        ],
+        "targets": targets,
         "fieldConfig": {
             "defaults": {
                 "unit": "none",
