@@ -16,38 +16,49 @@ use apollo_l1_gas_price::metrics::{
 
 use crate::dashboard::{Panel, PanelType, Row};
 
-const PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::Graph);
-const PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::Graph);
-const PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::Graph);
-const PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
-const PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::Graph);
-const PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH: Panel =
-    Panel::from_gauge(L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::Graph);
-const PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
-    Panel::from_hist(L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
+fn get_panel_l1_gas_price_provider_local_msgs_received() -> Panel {
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::Graph)
+}
+fn get_panel_l1_gas_price_provider_local_msgs_processed() -> Panel {
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::Graph)
+}
+fn get_panel_l1_gas_price_provider_remote_msgs_received() -> Panel {
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::Graph)
+}
+fn get_panel_l1_gas_price_provider_remote_valid_msgs_received() -> Panel {
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph)
+}
+fn get_panel_l1_gas_price_provider_remote_msgs_processed() -> Panel {
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::Graph)
+}
+fn get_panel_l1_gas_price_provider_local_queue_depth() -> Panel {
+    Panel::from_gauge(L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::Graph)
+}
+fn get_panel_l1_gas_price_provider_remote_client_send_attempts() -> Panel {
+    Panel::from_hist(L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph)
+}
 
-const PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, PanelType::Stat);
-const PANEL_L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT: Panel =
-    Panel::from_counter(L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::Stat);
-const PANEL_L1_GAS_PRICE_SCRAPER_REORG_DETECTED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_SCRAPER_REORG_DETECTED, PanelType::Stat);
-const PANEL_ETH_TO_STRK_ERROR_COUNT: Panel =
-    Panel::from_counter(ETH_TO_STRK_ERROR_COUNT, PanelType::Stat);
+fn get_panel_l1_gas_price_provider_insufficient_history() -> Panel {
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, PanelType::Stat)
+}
+fn get_panel_l1_gas_price_scraper_baselayer_error_count() -> Panel {
+    Panel::from_counter(L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::Stat)
+}
+fn get_panel_l1_gas_price_scraper_reorg_detected() -> Panel {
+    Panel::from_counter(L1_GAS_PRICE_SCRAPER_REORG_DETECTED, PanelType::Stat)
+}
+fn get_panel_eth_to_strk_error_count() -> Panel {
+    Panel::from_counter(ETH_TO_STRK_ERROR_COUNT, PanelType::Stat)
+}
 
 pub(crate) fn get_l1_gas_price_row() -> Row {
     Row::new(
         "L1 Gas Price",
         vec![
-            PANEL_ETH_TO_STRK_ERROR_COUNT,
-            PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
-            PANEL_L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
-            PANEL_L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
+            get_panel_eth_to_strk_error_count(),
+            get_panel_l1_gas_price_provider_insufficient_history(),
+            get_panel_l1_gas_price_scraper_baselayer_error_count(),
+            get_panel_l1_gas_price_scraper_reorg_detected(),
         ],
     )
 }
@@ -56,13 +67,13 @@ pub(crate) fn get_l1_gas_price_infra_row() -> Row {
     Row::new(
         "L1 Gas Price Infra",
         vec![
-            PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
-            PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
-            PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
-            PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
-            PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
-            PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
-            PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+            get_panel_l1_gas_price_provider_local_msgs_received(),
+            get_panel_l1_gas_price_provider_local_msgs_processed(),
+            get_panel_l1_gas_price_provider_local_queue_depth(),
+            get_panel_l1_gas_price_provider_remote_msgs_received(),
+            get_panel_l1_gas_price_provider_remote_valid_msgs_received(),
+            get_panel_l1_gas_price_provider_remote_msgs_processed(),
+            get_panel_l1_gas_price_provider_remote_client_send_attempts(),
         ],
     )
 }
