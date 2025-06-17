@@ -405,8 +405,8 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         let block_inputs = vec![os_block_input];
         let state_inputs = vec![os_state_input.unwrap_or_default()];
         let os_hints_config = os_hints_config.unwrap_or_default();
-        let syscall_handler = SyscallHintProcessor::new();
-        let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::new();
+        let syscall_handler = SyscallHintProcessor::default();
+        let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::default();
 
         SnosHintProcessor::new(
             os_program,
@@ -425,6 +425,7 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
 /// Default implementation (required for the VM to use the type as a hint processor).
 impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
+#[derive(Default)]
 pub struct SyscallHintProcessor {
     // Sha256 segment related fields.
     pub(crate) sha256_segment: Option<Relocatable>,
@@ -437,20 +438,7 @@ pub struct SyscallHintProcessor {
     pub(crate) secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,
 }
 
-// TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
-#[allow(clippy::new_without_default)]
 impl SyscallHintProcessor {
-    pub fn new() -> Self {
-        Self {
-            sha256_segment: None,
-            syscall_ptr: None,
-            secp256k1_hint_processor: SecpHintProcessor::default(),
-            secp256r1_hint_processor: SecpHintProcessor::default(),
-            syscall_usage: SyscallUsageMap::new(),
-            sha256_block_count: 0,
-        }
-    }
-
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
         self.syscall_ptr = Some(syscall_ptr);
     }
@@ -478,18 +466,13 @@ impl SyscallHintProcessor {
     }
 }
 
+#[derive(Default)]
 pub struct DeprecatedSyscallHintProcessor {
     pub(crate) syscall_ptr: Option<Relocatable>,
     pub(crate) syscalls_usage: SyscallUsageMap,
 }
 
-// TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
-#[allow(clippy::new_without_default)]
 impl DeprecatedSyscallHintProcessor {
-    pub fn new() -> Self {
-        Self { syscall_ptr: None, syscalls_usage: SyscallUsageMap::new() }
-    }
-
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
         self.syscall_ptr = Some(syscall_ptr);
     }
