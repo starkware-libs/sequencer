@@ -49,6 +49,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertSegment,
     SendMessageToL1Request,
     SendMessageToL1Response,
     Sha256ProcessBlockRequest,
@@ -68,6 +69,8 @@ pub trait SyscallExecutor {
     fn read_next_syscall_selector(&mut self, vm: &mut VirtualMachine) -> Result<Felt, Self::Error> {
         Ok(felt_from_ptr(vm, self.get_mut_syscall_ptr()).map_err(SyscallExecutorBaseError::from)?)
     }
+
+    fn revert_segment(&self) -> RevertSegment;
 
     fn gas_costs(&self) -> &GasCosts;
 
