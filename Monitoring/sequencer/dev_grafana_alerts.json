@@ -733,7 +733,7 @@
       "name": "native_compilation_error",
       "title": "Native compilation alert",
       "ruleGroup": "batcher",
-      "expr": "increase(native_compilation_error[1m])",
+      "expr": "increase(native_compilation_error[1h])",
       "conditions": [
         {
           "evaluator": {

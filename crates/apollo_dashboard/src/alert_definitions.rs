@@ -548,7 +548,7 @@ fn get_native_compilation_error_increase() -> Alert {
         name: "native_compilation_error",
         title: "Native compilation alert",
         alert_group: AlertGroup::Batcher,
-        expr: format!("increase({}[1m])", NATIVE_COMPILATION_ERROR.get_name()),
+        expr: format!("increase({}[1h])", NATIVE_COMPILATION_ERROR.get_name()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
