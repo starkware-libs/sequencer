@@ -418,7 +418,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     .send(ProposalPart::BlockInfo(block_info.clone()))
                     .await
                     .expect("Failed to send block info");
-                let mut n_executed_txs = 0;
+                let mut n_executed_txs: usize = 0;
                 for batch in txs.iter() {
                     let transactions = futures::future::join_all(batch.iter().map(|tx| {
                         transaction_converter
@@ -778,7 +778,7 @@ impl SequencerConsensusContext {
 
 async fn validate_proposal(mut args: ProposalValidateArguments) {
     let mut content = Vec::new();
-    let mut n_executed_txs: Option<u64> = None;
+    let mut final_n_executed_txs: Option<usize> = None;
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
@@ -842,7 +842,7 @@ async fn validate_proposal(mut args: ProposalValidateArguments) {
                     args.deps.batcher.as_ref(),
                     proposal_part,
                     &mut content,
-                    &mut n_executed_txs,
+                    &mut final_n_executed_txs,
                     args.deps.transaction_converter.clone(),
                 ).await {
                     HandledProposalPart::Finished(built_block, received_fin) => {
@@ -1037,14 +1037,14 @@ async fn handle_proposal_part(
     batcher: &dyn BatcherClient,
     proposal_part: Option<ProposalPart>,
     content: &mut Vec<Vec<InternalConsensusTransaction>>,
-    n_executed_txs: &mut Option<u64>,
+    final_n_executed_txs: &mut Option<usize>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
         None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
         Some(ProposalPart::Fin(fin)) => {
             info!("Received fin={fin:?}");
-            let Some(executed_txs_count) = *n_executed_txs else {
+            let Some(final_n_executed_txs_nonopt) = *final_n_executed_txs else {
                 return HandledProposalPart::Failed(
                     "Received Fin without executed transaction count".to_string(),
                 );
@@ -1052,7 +1052,7 @@ async fn handle_proposal_part(
             // Output this along with the ID from batcher, to compare them.
             let input = SendProposalContentInput {
                 proposal_id,
-                content: SendProposalContent::Finish(executed_txs_count),
+                content: SendProposalContent::Finish(final_n_executed_txs_nonopt),
             };
             let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
                 panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
@@ -1067,17 +1067,17 @@ async fn handle_proposal_part(
             info!(
                 network_block_id = ?fin.proposal_commitment,
                 ?batcher_block_id,
-                executed_txs_count,
+                final_n_executed_txs_nonopt,
                 "Finished validating proposal."
             );
-            if executed_txs_count == 0 {
+            if final_n_executed_txs_nonopt == 0 {
                 warn!("Validated an empty proposal.");
             }
             HandledProposalPart::Finished(batcher_block_id, fin)
         }
         Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
             debug!("Received transaction batch with {} txs", txs.len());
-            if n_executed_txs.is_some() {
+            if final_n_executed_txs.is_some() {
                 return HandledProposalPart::Failed(
                     "Received transactions after executed transaction count".to_string(),
                 );
@@ -1117,13 +1117,19 @@ async fn handle_proposal_part(
         }
         Some(ProposalPart::ExecutedTransactionCount(executed_txs_count)) => {
             debug!("Received executed transaction count: {executed_txs_count}");
-            if n_executed_txs.is_some() {
+            if final_n_executed_txs.is_some() {
                 return HandledProposalPart::Failed(
                     "Received executed transaction count more than once".to_string(),
                 );
             }
-            *n_executed_txs = Some(executed_txs_count);
-            *content = truncate_to_executed_txs(content, executed_txs_count);
+            let executed_txs_count_usize_res: Result<usize, _> = executed_txs_count.try_into();
+            let Ok(executed_txs_count_usize) = executed_txs_count_usize_res else {
+                return HandledProposalPart::Failed(
+                    "Number of executed transactions should fit in usize".to_string(),
+                );
+            };
+            *final_n_executed_txs = Some(executed_txs_count_usize);
+            *content = truncate_to_executed_txs(content, executed_txs_count_usize);
 
             HandledProposalPart::Continue
         }
