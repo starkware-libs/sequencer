@@ -49,8 +49,8 @@ pub fn run_os<S: StateReader>(
     let end = cairo_runner.initialize(allow_missing_builtins)?;
 
     // Create syscall handlers.
-    let syscall_handler = SyscallHintProcessor::new();
-    let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::new();
+    let syscall_handler = SyscallHintProcessor::default();
+    let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::default();
 
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
