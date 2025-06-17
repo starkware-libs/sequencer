@@ -13,7 +13,6 @@ use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::types::ConsensusError;
 use apollo_consensus_orchestrator::cende::CendeAmbassador;
 use apollo_consensus_orchestrator::sequencer_consensus_context::{
-    DefaultClock,
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
 };
@@ -27,6 +26,7 @@ use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
+use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
 use futures::channel::mpsc;
 use starknet_api::block::BlockNumber;
@@ -161,7 +161,7 @@ impl ConsensusManager {
                     self.config.eth_to_strk_oracle_config.clone(),
                 )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
-                clock: Arc::new(DefaultClock::default()),
+                clock: Arc::new(DefaultClock),
                 outbound_proposal_sender: outbound_internal_sender,
                 vote_broadcast_client: votes_broadcast_channels.broadcast_topic_client.clone(),
             },
@@ -178,6 +178,7 @@ impl ConsensusManager {
             self.config.consensus_config.startup_delay,
             self.config.consensus_config.timeouts.clone(),
             self.config.consensus_config.sync_retry_interval,
+            self.config.assume_no_malicious_validators,
             votes_broadcast_channels.into(),
             inbound_internal_receiver,
         );

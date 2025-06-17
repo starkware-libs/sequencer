@@ -374,7 +374,7 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             worker_pool.join();
         }
 
-        let tx_execution_results = worker_executor.extract_execution_outputs(0, chunk.len());
+        let tx_execution_results = worker_executor.extract_execution_outputs(0);
         let n_committed_txs = tx_execution_results.len();
 
         let block_state_after_commit =

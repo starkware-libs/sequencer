@@ -64,27 +64,17 @@
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
   },
-  "batcher_config.block_builder_config.execute_config.concurrency_config.chunk_size": {
-    "description": "The size of the transaction chunk executed in parallel.",
-    "privacy": "Public",
-    "value": 0
-  },
-  "batcher_config.block_builder_config.execute_config.concurrency_config.enabled": {
-    "description": "Enables concurrency of transaction execution.",
-    "privacy": "Public",
-    "value": false
-  },
-  "batcher_config.block_builder_config.execute_config.concurrency_config.n_workers": {
+  "batcher_config.block_builder_config.execute_config.n_workers": {
     "description": "Number of parallel transaction execution workers.",
     "privacy": "Public",
-    "value": 0
+    "value": 1
   },
   "batcher_config.block_builder_config.execute_config.stack_size": {
     "description": "The thread stack size (proportional to the maximal gas of a transaction).",
     "privacy": "Public",
     "value": 62914560
   },
-  "batcher_config.block_builder_config.tx_chunk_size": {
+  "batcher_config.block_builder_config.n_concurrent_txs": {
     "description": "Number of transactions in each request from the tx_provider.",
     "privacy": "Public",
     "value": 100
@@ -203,6 +193,21 @@
     "description": "The maximum number of items to include in a single get_proposal_content response.",
     "privacy": "Public",
     "value": 100
+  },
+  "batcher_config.pre_confirmed_block_writer_config.channel_buffer_capacity": {
+    "description": "The capacity of the channel buffer for receiving pre-confirmed transactions.",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "batcher_config.pre_confirmed_block_writer_config.write_block_interval_millis": {
+    "description": "Time interval (ms) between writing pre-confirmed blocks. Writes occur only when block data changes.",
+    "privacy": "Public",
+    "value": 50
+  },
+  "batcher_config.pre_confirmed_cende_config.recorder_url": {
+    "description": "The URL of the Pythonic cende_recorder",
+    "pointer_target": "recorder_url",
+    "privacy": "Private"
   },
   "batcher_config.storage.db_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -864,6 +869,11 @@
     "privacy": "Public",
     "value": "localhost"
   },
+  "consensus_manager_config.assume_no_malicious_validators": {
+    "description": "Assumes all validators are honest. If true, uses 1/2 votes to get quorum. Use with caution!",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.broadcast_buffer_size": {
     "description": "The buffer size for the broadcast channel.",
     "privacy": "Public",
@@ -1328,6 +1338,16 @@
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": true
+  },
+  "l1_provider_config.l1_handler_cancellation_timelock_seconds": {
+    "description": "How long to allow a transaction requested for cancellation to be validated against (proposals are banned upon receiving a cancellation request).",
+    "privacy": "Public",
+    "value": 0.0
+  },
+  "l1_provider_config.new_l1_handler_cooldown_seconds": {
+    "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately).",
+    "privacy": "Public",
+    "value": 0.0
   },
   "l1_provider_config.provider_startup_height_override": {
     "description": "Override height at which the provider should start",

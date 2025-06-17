@@ -14,13 +14,17 @@ use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderClient, PriceInf
 use async_trait::async_trait;
 use papyrus_base_layer::{BaseLayerContract, L1BlockHeader, L1BlockNumber};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockTimestamp, GasPrice};
+use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use thiserror::Error;
 use tracing::{error, info, warn};
 use validator::Validate;
 
-use crate::metrics::{register_scraper_metrics, L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT};
+use crate::metrics::{
+    register_scraper_metrics,
+    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
+};
 
 #[cfg(test)]
 #[path = "l1_gas_price_scraper_test.rs"]
@@ -139,6 +143,10 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
 
     /// Run the scraper, starting from the given L1 `block_number`, indefinitely.
     pub async fn run(&mut self, mut block_number: L1BlockNumber) -> L1GasPriceScraperResult<(), B> {
+        self.l1_gas_price_provider
+            .initialize()
+            .await
+            .map_err(L1GasPriceScraperError::GasPriceClientError)?;
         loop {
             block_number = self.update_prices(block_number).await?;
             tokio::time::sleep(self.config.polling_interval).await;
@@ -162,7 +170,7 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                     return Ok(block_number);
                 }
             };
-            let timestamp = BlockTimestamp(header.timestamp);
+            let timestamp = header.timestamp;
             let price_info = PriceInfo {
                 base_fee_per_gas: GasPrice(header.base_fee_per_gas),
                 blob_fee: GasPrice(header.blob_fee),
@@ -190,6 +198,7 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         };
 
         if new_header.parent_hash != last_header.hash {
+            L1_GAS_PRICE_SCRAPER_REORG_DETECTED.increment(1);
             return Err(L1GasPriceScraperError::L1ReorgDetected {
                 reason: format!(
                     "Last processed L1 block hash, {}, for block number {}, is different from the \

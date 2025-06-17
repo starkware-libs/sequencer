@@ -605,7 +605,7 @@ impl<
         STATE_SYNC_COMPILED_CLASS_MARKER.set_lossy(compiled_class_marker.0);
 
         // Info the user on syncing the block once all the data is stored.
-        info!("Added block {} with hash {:#064x}.", block_number, block_hash.0);
+        info!("SYNC_NEW_BLOCK: Added block {} with hash {:#064x}.", block_number, block_hash.0);
 
         Ok(())
     }

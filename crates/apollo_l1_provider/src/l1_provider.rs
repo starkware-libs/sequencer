@@ -13,6 +13,7 @@ use apollo_l1_provider_types::{
     ValidationStatus,
 };
 use apollo_state_sync_types::communication::SharedStateSyncClient;
+use apollo_time::time::{Clock, DefaultClock};
 use indexmap::IndexSet;
 use starknet_api::block::BlockNumber;
 use starknet_api::executable_transaction::L1HandlerTransaction;
@@ -29,14 +30,16 @@ pub mod l1_provider_tests;
 
 // TODO(Gilad): optimistic proposer support, will add later to keep things simple, but the design
 // here is compatible with it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct L1Provider {
+    pub config: L1ProviderConfig,
     /// Represents the L2 block height being built.
     pub current_height: BlockNumber,
     pub tx_manager: TransactionManager,
     // TODO(Gilad): consider transitioning to a generic phantom state once the infra is stabilized
     // and we see how well it handles consuming the L1Provider when moving between states.
     pub state: ProviderState,
+    pub clock: Arc<dyn Clock>,
 }
 
 impl L1Provider {
@@ -77,7 +80,7 @@ impl L1Provider {
 
         match self.state {
             ProviderState::Propose => {
-                let txs = self.tx_manager.get_txs(n_txs);
+                let txs = self.tx_manager.get_txs(n_txs, self.clock.unix_now());
                 info!(
                     "Returned {} out of {} transactions, ready for sequencing.",
                     txs.len(),
@@ -106,7 +109,9 @@ impl L1Provider {
     ) -> L1ProviderResult<ValidationStatus> {
         self.validate_height(height)?;
         match self.state {
-            ProviderState::Validate => Ok(self.tx_manager.validate_tx(tx_hash)),
+            ProviderState::Validate => {
+                Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
+            }
             ProviderState::Propose => Err(L1ProviderError::ValidateTransactionConsensusBug),
             ProviderState::Pending | ProviderState::Bootstrap(_) => {
                 Err(L1ProviderError::OutOfSessionValidate)
@@ -133,6 +138,94 @@ impl L1Provider {
 
         self.state = self.state.transition_to_pending();
         Ok(())
+    }
+
+    #[instrument(skip_all, err)]
+    pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
+        info!("Adding {} l1 events", events.len());
+        trace!("Adding events: {events:?}");
+
+        for event in events {
+            match event {
+                Event::L1HandlerTransaction { l1_handler_tx, timestamp } => {
+                    let tx_hash = l1_handler_tx.tx_hash;
+                    let successfully_inserted = self.tx_manager.add_tx(l1_handler_tx, timestamp);
+                    if !successfully_inserted {
+                        debug!(
+                            "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
+                             known or committed."
+                        );
+                    }
+                }
+                Event::TransactionCancellationStarted {
+                    tx_hash,
+                    cancellation_request_timestamp,
+                } => {
+                    if !self.tx_manager.exists(tx_hash) {
+                        warn!(
+                            "Dropping cancellation request for old L1 handler transaction \
+                             {tx_hash}: not in the provider and will never be scraped at this \
+                             point."
+                        );
+                        continue;
+                    }
+
+                    self.tx_manager
+                        .request_cancellation(tx_hash, cancellation_request_timestamp)
+                        .inspect(|previous_request_timestamp| {
+                            // Re-requesting a cancellation is meaningful for the L1 timelock, but
+                            // for the l2 timelock we only consider the first cancellation
+                            // relevant.
+                            info!(
+                                "Dropping duplicated cancellation request for {tx_hash} at \
+                                 {cancellation_request_timestamp}, previous request block \
+                                 timestamp still stands: {previous_request_timestamp}"
+                            );
+                        });
+                }
+                _ => return Err(L1ProviderError::unsupported_l1_event(event)),
+            }
+        }
+        Ok(())
+    }
+
+    pub fn get_l1_provider_snapshot(&self) -> L1ProviderResult<L1ProviderSnapshot> {
+        let txs_snapshot = self.tx_manager.snapshot();
+        Ok(L1ProviderSnapshot {
+            uncommitted_transactions: txs_snapshot.uncommitted,
+            uncommitted_staged_transactions: txs_snapshot.uncommitted_staged,
+            rejected_transactions: txs_snapshot.rejected,
+            rejected_staged_transactions: txs_snapshot.rejected_staged,
+            committed_transactions: txs_snapshot.committed,
+            l1_provider_state: self.state.as_str().to_string(),
+            current_height: self.current_height,
+        })
+    }
+
+    fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
+        if height != self.current_height {
+            return Err(L1ProviderError::UnexpectedHeight {
+                expected_height: self.current_height,
+                got: height,
+            });
+        }
+        Ok(())
+    }
+
+    fn apply_commit_block(
+        &mut self,
+        consumed_txs: IndexSet<TransactionHash>,
+        rejected_txs: IndexSet<TransactionHash>,
+    ) {
+        let (rejected_and_consumed, committed_txs): (Vec<_>, Vec<_>) =
+            consumed_txs.iter().copied().partition(|tx| rejected_txs.contains(tx));
+        self.tx_manager.commit_txs(&committed_txs, &rejected_and_consumed);
+
+        self.current_height = self.current_height.unchecked_next();
     }
 
     /// Try to apply commit_block backlog, and if all caught up, drop bootstrapping state.
@@ -214,67 +307,13 @@ impl L1Provider {
 
         Ok(())
     }
+}
 
-    #[instrument(skip_all, err)]
-    pub fn add_events(&mut self, events: Vec<Event>) -> L1ProviderResult<()> {
-        if self.state.uninitialized() {
-            return Err(L1ProviderError::Uninitialized);
-        }
-
-        info!("Adding {} l1 events", events.len());
-        trace!("Adding events: {events:?}");
-
-        for event in events {
-            match event {
-                Event::L1HandlerTransaction(l1_handler_tx) => {
-                    let tx_hash = l1_handler_tx.tx_hash;
-                    let successfully_inserted = self.tx_manager.add_tx(l1_handler_tx);
-                    if !successfully_inserted {
-                        debug!(
-                            "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
-                             known or committed."
-                        );
-                    }
-                }
-                _ => return Err(L1ProviderError::unsupported_l1_event(event)),
-            }
-        }
-        Ok(())
-    }
-
-    fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
-        if height != self.current_height {
-            return Err(L1ProviderError::UnexpectedHeight {
-                expected_height: self.current_height,
-                got: height,
-            });
-        }
-        Ok(())
-    }
-
-    fn apply_commit_block(
-        &mut self,
-        consumed_txs: IndexSet<TransactionHash>,
-        rejected_txs: IndexSet<TransactionHash>,
-    ) {
-        let (rejected_and_consumed, committed_txs): (Vec<_>, Vec<_>) =
-            consumed_txs.iter().copied().partition(|tx| rejected_txs.contains(tx));
-        self.tx_manager.commit_txs(&committed_txs, &rejected_and_consumed);
-
-        self.current_height = self.current_height.unchecked_next();
-    }
-
-    pub fn get_l1_provider_snapshot(&self) -> L1ProviderResult<L1ProviderSnapshot> {
-        let txs_snapshot = self.tx_manager.snapshot();
-        Ok(L1ProviderSnapshot {
-            uncommitted_transactions: txs_snapshot.uncommitted,
-            uncommitted_staged_transactions: txs_snapshot.uncommitted_staged,
-            rejected_transactions: txs_snapshot.rejected,
-            rejected_staged_transactions: txs_snapshot.rejected_staged,
-            committed_transactions: txs_snapshot.committed,
-            l1_provider_state: self.state.as_str().to_string(),
-            current_height: self.current_height,
-        })
+impl PartialEq for L1Provider {
+    fn eq(&self, other: &Self) -> bool {
+        self.current_height == other.current_height
+            && self.tx_manager == other.tx_manager
+            && self.state == other.state
     }
 }
 
@@ -329,10 +368,11 @@ impl L1ProviderBuilder {
                 );
             })
             .or(self.startup_height)
+            // TODO(Gilad): remove expect message below once we support LogStateUpdate in Anvil.
             .expect(
-                "Starting height must set either dynamically from the scraper's last known \
-                 LogStateUpdate, set as the batcher height when in dummy mode, or overridden \
-                 explicitly through the config",
+                "Starting height for l1 provider not given. If using Anvil then set manually via \
+                 `provider_startup_height_override` in the config. If not using Anvil, then the \
+                 scraper had issues communicating with the starknet contract on L1.",
             );
 
         let catchup_height = self
@@ -360,8 +400,13 @@ impl L1ProviderBuilder {
 
         L1Provider {
             current_height: l1_provider_startup_height,
-            tx_manager: TransactionManager::default(),
+            tx_manager: TransactionManager::new(
+                self.config.new_l1_handler_cooldown_seconds,
+                self.config.l1_handler_cancellation_timelock_seconds,
+            ),
             state: ProviderState::Bootstrap(bootstrapper),
+            config: self.config,
+            clock: Arc::new(DefaultClock),
         }
     }
 }

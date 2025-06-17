@@ -16,7 +16,6 @@ use starknet_api::test_utils::invoke::{internal_invoke_tx, InvokeTxArgs};
 use starknet_api::tx_hash;
 
 use crate::transaction_provider::{
-    NextTxs,
     ProposeTransactionProvider,
     TransactionProvider,
     TransactionProviderError,
@@ -72,11 +71,11 @@ impl MockDependencies {
     }
 
     fn validate_tx_provider(self) -> ValidateTransactionProvider {
-        ValidateTransactionProvider {
-            tx_receiver: self.tx_receiver,
-            l1_provider_client: Arc::new(self.l1_provider_client),
-            height: HEIGHT,
-        }
+        ValidateTransactionProvider::new(
+            self.tx_receiver,
+            Arc::new(self.l1_provider_client),
+            HEIGHT,
+        )
     }
 }
 
@@ -125,11 +124,11 @@ async fn fill_max_l1_handler(mut mock_dependencies: MockDependencies) {
     let mut tx_provider = mock_dependencies.propose_tx_provider();
 
     let txs = tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
-    let data = assert_matches!(txs, NextTxs::Txs(txs) if txs.len() == MAX_TXS_PER_FETCH => txs);
+    let data = assert_matches!(txs, txs if txs.len() == MAX_TXS_PER_FETCH => txs);
     assert!(data.iter().all(|tx| matches!(tx, InternalConsensusTransaction::L1Handler(_))));
 
     let txs = tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
-    let data = assert_matches!(txs, NextTxs::Txs(txs) if txs.len() == MAX_TXS_PER_FETCH => txs);
+    let data = assert_matches!(txs, txs if txs.len() == MAX_TXS_PER_FETCH => txs);
     assert!(
         data[..n_l1handler_left]
             .iter()
@@ -142,7 +141,7 @@ async fn fill_max_l1_handler(mut mock_dependencies: MockDependencies) {
     );
 
     let txs = tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
-    let data = assert_matches!(txs, NextTxs::Txs(txs) if txs.len() == MAX_TXS_PER_FETCH => txs);
+    let data = assert_matches!(txs, txs if txs.len() == MAX_TXS_PER_FETCH => txs);
     assert!(data.iter().all(|tx| matches!(tx, InternalConsensusTransaction::RpcTransaction(_))));
 }
 
@@ -164,7 +163,7 @@ async fn no_more_l1_handler(mut mock_dependencies: MockDependencies) {
     let mut tx_provider = mock_dependencies.propose_tx_provider();
 
     let txs = tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
-    let data = assert_matches!(txs, NextTxs::Txs(txs) if txs.len() == MAX_TXS_PER_FETCH => txs);
+    let data = assert_matches!(txs, txs if txs.len() == MAX_TXS_PER_FETCH => txs);
     assert!(
         data[..NUM_L1_HANDLER_TXS_IN_PROVIDER]
             .iter()
@@ -177,7 +176,7 @@ async fn no_more_l1_handler(mut mock_dependencies: MockDependencies) {
     );
 
     let txs = tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
-    let data = assert_matches!(txs, NextTxs::Txs(txs) if txs.len() == MAX_TXS_PER_FETCH => txs);
+    let data = assert_matches!(txs, txs if txs.len() == MAX_TXS_PER_FETCH => txs);
     assert!(data.iter().all(|tx| matches!(tx, InternalConsensusTransaction::RpcTransaction(_))));
 }
 
@@ -197,7 +196,7 @@ async fn validate_flow(mut mock_dependencies: MockDependencies) {
     let mut validate_tx_provider = mock_dependencies.validate_tx_provider();
 
     let txs = validate_tx_provider.get_txs(MAX_TXS_PER_FETCH).await.unwrap();
-    let data = assert_matches!(txs, NextTxs::Txs(txs) => txs);
+    let data = assert_matches!(txs, txs => txs);
     assert_eq!(data.len(), 2);
     assert!(matches!(data[0], InternalConsensusTransaction::L1Handler(_)));
     assert!(matches!(data[1], InternalConsensusTransaction::RpcTransaction(_)));

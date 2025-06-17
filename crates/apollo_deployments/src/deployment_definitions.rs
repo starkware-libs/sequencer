@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
+use const_format::formatcp;
 use serde_json::{Map, Value};
 use starknet_api::block::BlockNumber;
 use strum_macros::{Display, EnumString};
@@ -23,8 +24,9 @@ mod testing;
 mod testing_env_2;
 mod testing_env_3;
 
-pub(crate) const BASE_APP_CONFIG_PATH: &str = "config/sequencer/base_app_config.json";
-pub(crate) const CONFIG_BASE_DIR: &str = "config/sequencer/";
+pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
+pub(crate) const BASE_APP_CONFIG_PATH: &str =
+    formatcp!("{}{}", CONFIG_BASE_DIR, "base_app_config.json");
 const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
 
 type DeploymentFn = fn() -> Vec<Deployment>;

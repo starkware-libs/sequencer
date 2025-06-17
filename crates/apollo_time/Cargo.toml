@@ -1,0 +1,21 @@
+[package]
+name = "apollo_time"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[features]
+testing = ["mockall"]
+
+[dependencies]
+chrono.workspace = true
+mockall = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["time"] }
+
+
+[dev-dependencies]
+mockall.workspace = true
+
+[lints]
+workspace = true

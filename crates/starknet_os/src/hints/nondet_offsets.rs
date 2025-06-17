@@ -4,7 +4,7 @@ use std::sync::LazyLock;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 
-use crate::hints::enum_definition::{AllHints, OsHint};
+use crate::hints::enum_definition::{AllHints, OsHint, StatelessHint};
 use crate::hints::error::{OsHintError, OsHintResult};
 
 #[cfg(test)]
@@ -21,7 +21,7 @@ pub(crate) static NONDET_FP_OFFSETS: LazyLock<HashMap<AllHints, usize>> = LazyLo
     HashMap::from([
         (AllHints::OsHint(OsHint::OsInputTransactions), 12),
         (AllHints::OsHint(OsHint::ReadAliasFromKey), 0),
-        (AllHints::OsHint(OsHint::SegmentsAddTemp), 7),
+        (AllHints::StatelessHint(StatelessHint::SegmentsAddTemp), 7),
         (AllHints::OsHint(OsHint::SetFpPlus4ToTxNonce), 4),
         (AllHints::OsHint(OsHint::GetBlocksNumber), 0),
         (AllHints::OsHint(OsHint::TxAccountDeploymentDataLen), 4),

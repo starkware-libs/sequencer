@@ -17,7 +17,8 @@ use crate::hints::vars::Ids;
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn os_logger_enter_syscall_prepare_exit_syscall<S: StateReader>(
-    HintArgs { ap_tracking, ids_data, hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ap_tracking, ids_data, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let is_deprecated = true;
     log_enter_syscall_helper(
@@ -32,7 +33,8 @@ pub(crate) fn os_logger_enter_syscall_prepare_exit_syscall<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn os_logger_exit_syscall<S: StateReader>(
-    HintArgs { ap_tracking, ids_data, hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ap_tracking, ids_data, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let execution_helper =
         hint_processor.execution_helpers_manager.get_mut_current_execution_helper()?;
@@ -52,7 +54,8 @@ pub(crate) fn os_logger_exit_syscall<S: StateReader>(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn log_enter_syscall<S: StateReader>(
-    HintArgs { ap_tracking, ids_data, hint_processor, vm, .. }: HintArgs<'_, '_, S>,
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ap_tracking, ids_data, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let is_deprecated = false;
     log_enter_syscall_helper(
