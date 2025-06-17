@@ -44,7 +44,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{TransactionHash, TransactionOffsetInBlock};
 use thiserror::Error;
 use tokio::sync::{Mutex, MutexGuard};
 use tracing::{debug, error, info, trace, warn};
@@ -520,7 +520,7 @@ async fn collect_execution_results_and_stream_txs(
                 if let Some(pre_confirmed_tx_sender) = pre_confirmed_tx_sender {
                     let tx_receipt = StarknetClientTransactionReceipt::from((
                         tx_hash,
-                        tx_index,
+                        TransactionOffsetInBlock(tx_index),
                         // TODO(noamsp): Consider using tx_execution_info and moving the line that
                         // consumes it below this (if it doesn't change functionality).
                         &execution_data.execution_infos[&tx_hash],

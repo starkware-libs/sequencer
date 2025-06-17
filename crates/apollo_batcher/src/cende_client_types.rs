@@ -202,8 +202,7 @@ pub struct StarknetClientTransactionReceipt {
 impl
     From<(
         TransactionHash,
-        // TODO(Arni): change the type of this parameter to TransactionOffsetInBlock
-        usize,
+        TransactionOffsetInBlock,
         &TransactionExecutionInfo,
         Option<starknet_api::transaction::L1HandlerTransaction>,
     )> for StarknetClientTransactionReceipt
@@ -211,7 +210,7 @@ impl
     fn from(
         (tx_hash, tx_index, tx_execution_info, l1_handler): (
             TransactionHash,
-            usize,
+            TransactionOffsetInBlock,
             &TransactionExecutionInfo,
             Option<starknet_api::transaction::L1HandlerTransaction>,
         ),
@@ -230,7 +229,7 @@ impl
             tx_execution_info.revert_error.as_ref().map(|revert_error| revert_error.to_string());
 
         Self {
-            transaction_index: TransactionOffsetInBlock(tx_index),
+            transaction_index: tx_index,
             transaction_hash: tx_hash,
             // TODO(Arni): Fill this up. This is relevant only for L1 handler transactions.
             l1_to_l2_consumed_message: l1_handler.map(L1ToL2Message::from),
