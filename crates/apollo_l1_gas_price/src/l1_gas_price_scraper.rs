@@ -157,10 +157,26 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     /// Returns the next `block_number` to be scraped.
     async fn update_prices(
         &mut self,
-        mut block_number: L1BlockNumber,
+        start_block_number: L1BlockNumber,
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
-        info!("Scraping gas prices starting from block {block_number}");
+        let Some(last_block_number) = self
+            .base_layer
+            .latest_l1_block_number(self.config.finality)
+            .await
+            .map_err(L1GasPriceScraperError::BaseLayerError)?
+        else {
+            // Not enough blocks under current finality. Try again later.
+            return Ok(start_block_number);
+        };
+        info!(
+            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
+        );
+        let mut block_number = start_block_number;
         loop {
+            if block_number > last_block_number {
+                // No more blocks to scrape.
+                return Ok(block_number);
+            }
             let header = match self.base_layer.get_block_header(block_number).await {
                 Ok(Some(header)) => header,
                 Ok(None) => return Ok(block_number),
