@@ -26,25 +26,25 @@ use const_format::formatcp;
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_mempool_local_msgs_received() -> Panel {
-    Panel::from_counter(MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_mempool_local_msgs_processed() -> Panel {
-    Panel::from_counter(MEMPOOL_LOCAL_MSGS_PROCESSED, PanelType::Graph)
+    Panel::from_counter(MEMPOOL_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_mempool_remote_msgs_received() -> Panel {
-    Panel::from_counter(MEMPOOL_REMOTE_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(MEMPOOL_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_mempool_remote_valid_msgs_received() -> Panel {
-    Panel::from_counter(MEMPOOL_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(MEMPOOL_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_mempool_remote_msgs_processed() -> Panel {
-    Panel::from_counter(MEMPOOL_REMOTE_MSGS_PROCESSED, PanelType::Graph)
+    Panel::from_counter(MEMPOOL_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_mempool_local_queue_depth() -> Panel {
-    Panel::from_gauge(MEMPOOL_LOCAL_QUEUE_DEPTH, PanelType::Graph)
+    Panel::from_gauge(MEMPOOL_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
 }
 fn get_panel_mempool_remote_client_send_attempts() -> Panel {
-    Panel::from_hist(MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph)
+    Panel::from_hist(MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 fn get_panel_mempool_transactions_received() -> Panel {
     Panel::new(
@@ -66,7 +66,7 @@ fn get_panel_mempool_transactions_received_rate() -> Panel {
             "sum(rate({}[20m])) or vector(0)",
             MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter()
         ),
-        PanelType::Graph,
+        PanelType::TimeSeries,
     )
 }
 fn get_panel_mempool_transactions_committed() -> Panel {
@@ -89,7 +89,7 @@ fn get_panel_mempool_pool_size() -> Panel {
         MEMPOOL_POOL_SIZE.get_name(),
         "The average size of the pool",
         formatcp!("avg_over_time({}[2m])", MEMPOOL_POOL_SIZE.get_name_with_filter()),
-        PanelType::Graph,
+        PanelType::TimeSeries,
     )
 }
 fn get_panel_mempool_priority_queue_size() -> Panel {
@@ -97,7 +97,7 @@ fn get_panel_mempool_priority_queue_size() -> Panel {
         MEMPOOL_PRIORITY_QUEUE_SIZE.get_name(),
         "The average size of the priority queue",
         formatcp!("avg_over_time({}[2m])", MEMPOOL_PRIORITY_QUEUE_SIZE.get_name_with_filter()),
-        PanelType::Graph,
+        PanelType::TimeSeries,
     )
 }
 fn get_panel_mempool_pending_queue_size() -> Panel {
@@ -105,7 +105,7 @@ fn get_panel_mempool_pending_queue_size() -> Panel {
         MEMPOOL_PENDING_QUEUE_SIZE.get_name(),
         "The average size of the pending queue",
         formatcp!("avg_over_time({}[2m])", MEMPOOL_PENDING_QUEUE_SIZE.get_name_with_filter()),
-        PanelType::Graph,
+        PanelType::TimeSeries,
     )
 }
 fn get_panel_mempool_total_size_in_bytes() -> Panel {
@@ -113,7 +113,7 @@ fn get_panel_mempool_total_size_in_bytes() -> Panel {
         MEMPOOL_TOTAL_SIZE_BYTES.get_name(),
         "The average total transaction size in bytes over time in the mempool",
         formatcp!("avg_over_time({}[2m])", MEMPOOL_TOTAL_SIZE_BYTES.get_name_with_filter()),
-        PanelType::Graph,
+        PanelType::TimeSeries,
     )
 }
 fn get_panel_mempool_get_txs_size() -> Panel {
@@ -121,7 +121,7 @@ fn get_panel_mempool_get_txs_size() -> Panel {
         MEMPOOL_GET_TXS_SIZE.get_name(),
         "The average size of the get_txs",
         formatcp!("avg_over_time({}[2m])", MEMPOOL_GET_TXS_SIZE.get_name_with_filter()),
-        PanelType::Graph,
+        PanelType::TimeSeries,
     )
 }
 fn get_panel_mempool_delayed_declares_size() -> Panel {
@@ -129,7 +129,7 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
         MEMPOOL_DELAYED_DECLARES_SIZE.get_name(),
         "The average number of delayed declare transactions",
         formatcp!("avg_over_time({}[2m])", MEMPOOL_DELAYED_DECLARES_SIZE.get_name_with_filter()),
-        PanelType::Graph,
+        PanelType::TimeSeries,
     )
 }
 fn get_panel_mempool_transaction_time_spent() -> Panel {
@@ -138,7 +138,7 @@ fn get_panel_mempool_transaction_time_spent() -> Panel {
         TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_name(),
         TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_description(),
         TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_name_with_filter(),
-        PanelType::Graph,
+        PanelType::TimeSeries,
     )
 }
 

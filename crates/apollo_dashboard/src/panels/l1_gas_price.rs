@@ -17,19 +17,19 @@ use apollo_l1_gas_price::metrics::{
 use crate::dashboard::{Panel, PanelType, Row};
 
 const PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::Graph);
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries);
 const PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::Graph);
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries);
 const PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::Graph);
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries);
 const PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries);
 const PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED: Panel =
-    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::Graph);
+    Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries);
 const PANEL_L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH: Panel =
-    Panel::from_gauge(L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::Graph);
+    Panel::from_gauge(L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries);
 const PANEL_L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
-    Panel::from_hist(L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
+    Panel::from_hist(L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries);
 
 const PANEL_L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY: Panel =
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, PanelType::Stat);

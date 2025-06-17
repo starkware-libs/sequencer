@@ -32,19 +32,19 @@ const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_TYPE: Panel = Panel::new(
 );
 
 const PANEL_GATEWAY_LOCAL_MSGS_RECEIVED: Panel =
-    Panel::from_counter(GATEWAY_LOCAL_MSGS_RECEIVED, PanelType::Graph);
+    Panel::from_counter(GATEWAY_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries);
 const PANEL_GATEWAY_LOCAL_MSGS_PROCESSED: Panel =
-    Panel::from_counter(GATEWAY_LOCAL_MSGS_PROCESSED, PanelType::Graph);
+    Panel::from_counter(GATEWAY_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries);
 const PANEL_GATEWAY_REMOTE_MSGS_RECEIVED: Panel =
-    Panel::from_counter(GATEWAY_REMOTE_MSGS_RECEIVED, PanelType::Graph);
+    Panel::from_counter(GATEWAY_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries);
 const PANEL_GATEWAY_REMOTE_VALID_MSGS_RECEIVED: Panel =
-    Panel::from_counter(GATEWAY_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
+    Panel::from_counter(GATEWAY_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries);
 const PANEL_GATEWAY_REMOTE_MSGS_PROCESSED: Panel =
-    Panel::from_counter(GATEWAY_REMOTE_MSGS_PROCESSED, PanelType::Graph);
+    Panel::from_counter(GATEWAY_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries);
 const PANEL_GATEWAY_LOCAL_QUEUE_DEPTH: Panel =
-    Panel::from_gauge(GATEWAY_LOCAL_QUEUE_DEPTH, PanelType::Graph);
+    Panel::from_gauge(GATEWAY_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries);
 const PANEL_GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
-    Panel::from_hist(GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
+    Panel::from_hist(GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries);
 
 const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_BY_SOURCE: Panel = Panel::new(
     GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
@@ -64,7 +64,7 @@ const PANEL_GATEWAY_TRANSACTIONS_RECEIVED_RATE: Panel = Panel::new(
         "sum(rate({}[20m])) or vector(0)",
         GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
     ),
-    PanelType::Graph,
+    PanelType::TimeSeries,
 );
 
 const PANEL_GATEWAY_ADD_TX_LATENCY: Panel = Panel::new(
@@ -72,7 +72,7 @@ const PANEL_GATEWAY_ADD_TX_LATENCY: Panel = Panel::new(
     GATEWAY_ADD_TX_LATENCY.get_description(),
     // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
     GATEWAY_ADD_TX_LATENCY.get_name_with_filter(),
-    PanelType::Graph,
+    PanelType::TimeSeries,
 );
 
 const PANEL_GATEWAY_VALIDATE_TX_LATENCY: Panel = Panel::new(
@@ -80,7 +80,7 @@ const PANEL_GATEWAY_VALIDATE_TX_LATENCY: Panel = Panel::new(
     GATEWAY_VALIDATE_TX_LATENCY.get_description(),
     // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
     GATEWAY_VALIDATE_TX_LATENCY.get_name_with_filter(),
-    PanelType::Graph,
+    PanelType::TimeSeries,
 );
 
 const PANEL_GATEWAY_TRANSACTIONS_FAILED: Panel = Panel::new(

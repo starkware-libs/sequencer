@@ -21,7 +21,7 @@ const PANEL_BLOCKIFIER_STATE_READER_CLASS_CACHE_MISS_RATIO: Panel = Panel::new(
         CLASS_CACHE_HITS.get_name_with_filter(),
         STATE_READER_METRIC_RATE_DURATION
     ),
-    PanelType::Graph,
+    PanelType::TimeSeries,
 );
 
 const PANEL_BLOCKIFIER_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::new(
@@ -36,7 +36,7 @@ const PANEL_BLOCKIFIER_STATE_READER_NATIVE_CLASS_RETURNED_RATIO: Panel = Panel::
         CLASS_CACHE_MISSES.get_name_with_filter(),
         STATE_READER_METRIC_RATE_DURATION,
     ),
-    PanelType::Graph,
+    PanelType::TimeSeries,
 );
 
 pub(crate) const PANEL_NATIVE_COMPILATION_ERROR: Panel =
