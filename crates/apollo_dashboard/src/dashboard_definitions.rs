@@ -20,9 +20,7 @@ use crate::panels::state_sync::{
 #[path = "dashboard_definitions_test.rs"]
 mod dashboard_definitions_test;
 
-// TODO(Tsabary): this file should be managed by this crate, hence should be moved here to a
-// resources folder.
-pub const DEV_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana.json";
+pub const DEV_JSON_PATH: &str = "crates/apollo_dashboard/resources/dev_grafana.json";
 
 pub fn get_apollo_dashboard() -> Dashboard {
     Dashboard::new(
