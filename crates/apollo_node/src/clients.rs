@@ -39,6 +39,7 @@ use apollo_infra::metrics::{
     MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
     MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
     SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    SIGNATURE_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
     STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
 };
 use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
@@ -58,6 +59,13 @@ use apollo_mempool_types::communication::{
     MempoolResponse,
     RemoteMempoolClient,
     SharedMempoolClient,
+};
+use apollo_signature_manager_types::{
+    LocalSignatureManagerClient,
+    RemoteSignatureManagerClient,
+    SharedSignatureManagerClient,
+    SignatureManagerRequest,
+    SignatureManagerResponse,
 };
 use apollo_state_sync_types::communication::{
     LocalStateSyncClient,
@@ -82,6 +90,7 @@ pub struct SequencerNodeClients {
     mempool_p2p_propagator_client:
         Client<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>,
     sierra_compiler_client: Client<SierraCompilerRequest, SierraCompilerResponse>,
+    signature_manager_client: Client<SignatureManagerRequest, SignatureManagerResponse>,
     state_sync_client: Client<StateSyncRequest, StateSyncResponse>,
 }
 
@@ -209,6 +218,16 @@ impl SequencerNodeClients {
 
     pub fn get_sierra_compiler_shared_client(&self) -> Option<SharedSierraCompilerClient> {
         get_shared_client!(self, sierra_compiler_client)
+    }
+
+    pub fn get_signature_manager_local_client(
+        &self,
+    ) -> Option<LocalComponentClient<SignatureManagerRequest, SignatureManagerResponse>> {
+        self.signature_manager_client.get_local_client()
+    }
+
+    pub fn get_signature_manager_shared_client(&self) -> Option<SharedSignatureManagerClient> {
+        get_shared_client!(self, signature_manager_client)
     }
 
     pub fn get_state_sync_local_client(
@@ -392,6 +411,19 @@ pub fn create_node_clients(
         sierra_compiler_remote_metrics
     );
 
+    let signature_manager_remote_metrics =
+        RemoteClientMetrics::new(&SIGNATURE_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS);
+    let signature_manager_client = create_client!(
+        &config.components.signature_manager.execution_mode,
+        LocalSignatureManagerClient,
+        RemoteSignatureManagerClient,
+        channels.take_signature_manager_tx(),
+        &config.components.signature_manager.remote_client_config,
+        &config.components.signature_manager.url,
+        config.components.signature_manager.port,
+        signature_manager_remote_metrics
+    );
+
     let state_sync_remote_metrics =
         RemoteClientMetrics::new(&STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS);
     let state_sync_client = create_client!(
@@ -414,6 +446,7 @@ pub fn create_node_clients(
         mempool_client,
         mempool_p2p_propagator_client,
         sierra_compiler_client,
+        signature_manager_client,
         state_sync_client,
     }
 }
