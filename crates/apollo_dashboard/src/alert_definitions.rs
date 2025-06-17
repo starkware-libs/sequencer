@@ -255,6 +255,26 @@ fn get_consensus_l1_gas_price_provider_failure() -> Alert {
     }
 }
 
+fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
+    Alert {
+        name: "consensus_l1_gas_price_provider_failure_once",
+        title: "Consensus L1 gas price provider failure once",
+        alert_group: AlertGroup::Consensus,
+        expr: format!(
+            "increase({}[1h])",
+            CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::Informational,
+    }
+}
+
 fn get_consensus_round_above_zero() -> Alert {
     Alert {
         name: "consensus_round_above_zero",
@@ -625,6 +645,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_decisions_reached_by_consensus_ratio(),
         get_consensus_inbound_stream_evicted_alert(),
         get_consensus_l1_gas_price_provider_failure(),
+        get_consensus_l1_gas_price_provider_failure_once(),
         get_consensus_round_above_zero(),
         get_consensus_round_high_avg(),
         get_consensus_validate_proposal_failed_alert(),
