@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use apollo_infra::component_client::ClientError;
-use apollo_infra::component_definitions::ComponentClient;
+use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
+use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
 use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
@@ -16,7 +16,14 @@ pub type KeyStoreResult<T> = Result<T, KeyStoreError>;
 pub type SignatureManagerResult<T> = Result<T, SignatureManagerError>;
 pub type SignatureManagerClientResult<T> = Result<T, SignatureManagerClientError>;
 
+pub type LocalSignatureManagerClient =
+    LocalComponentClient<SignatureManagerRequest, SignatureManagerResponse>;
+pub type RemoteSignatureManagerClient =
+    RemoteComponentClient<SignatureManagerRequest, SignatureManagerResponse>;
+
 pub type SharedSignatureManagerClient = Arc<dyn SignatureManagerClient>;
+pub type SignatureManagerRequestAndResponseSender =
+    ComponentRequestAndResponseSender<SignatureManagerRequest, SignatureManagerResponse>;
 
 /// A read-only key store that contains exactly one key.
 #[async_trait]
