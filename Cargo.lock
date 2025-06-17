@@ -1043,6 +1043,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_storage",
  "apollo_test_utils",
+ "apollo_time",
  "async-trait",
  "clap",
  "enum-as-inner",
