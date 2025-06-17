@@ -1,5 +1,6 @@
 use std::any::type_name;
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -157,10 +158,16 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     /// Returns the next `block_number` to be scraped.
     async fn update_prices(
         &mut self,
-        mut block_number: L1BlockNumber,
+        start_block_number: L1BlockNumber,
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
-        info!("Scraping gas prices starting from block {block_number}");
-        loop {
+        let Some(last_block_number) = self.latest_l1_block_number().await? else {
+            // Not enough blocks under current finality. Try again later.
+            return Ok(start_block_number);
+        };
+        info!(
+            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
+        );
+        for block_number in start_block_number..=last_block_number {
             let header = match self.base_layer.get_block_header(block_number).await {
                 Ok(Some(header)) => header,
                 Ok(None) => return Ok(block_number),
@@ -184,9 +191,8 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                 .add_price_info(GasPriceData { block_number, timestamp, price_info })
                 .await
                 .map_err(L1GasPriceScraperError::GasPriceClientError)?;
-
-            block_number += 1;
         }
+        Ok(last_block_number)
     }
     async fn assert_no_l1_reorgs(
         &self,
@@ -212,12 +218,19 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
 
         Ok(())
     }
+
+    async fn latest_l1_block_number(&self) -> L1GasPriceScraperResult<Option<L1BlockNumber>, B> {
+        self.base_layer
+            .latest_l1_block_number(self.config.finality)
+            .await
+            .map_err(L1GasPriceScraperError::BaseLayerError)
+    }
 }
 
 #[async_trait]
 impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1GasPriceScraper<B>
 where
-    B::Error: Send,
+    B::Error: Send + Debug,
 {
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
@@ -225,12 +238,12 @@ where
         let start_from = match self.config.starting_block {
             Some(block) => block,
             None => {
-                let latest = self
-                    .base_layer
-                    .latest_l1_block_number(self.config.finality)
-                    .await
-                    .expect("Failed to get the latest L1 block number")
-                    .expect("Failed to get the latest L1 block number");
+                let Ok(Some(latest)) = self.latest_l1_block_number().await else {
+                    panic!(
+                        "Not enough blocks under current finality. Cannot start L1 gas price \
+                         scraper component."
+                    );
+                };
                 // If no starting block is provided, the default is to start from
                 // startup_num_blocks_multiplier * number_of_blocks_for_mean before the tip of L1.
                 // Note that for new chains this subtraction may be negative,
