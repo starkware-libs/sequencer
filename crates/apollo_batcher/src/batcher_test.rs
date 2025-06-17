@@ -674,7 +674,7 @@ async fn propose_block_full_flow() {
         GetProposalContentResponse {
             content: GetProposalContent::Finished {
                 id: proposal_commitment(),
-                n_executed_txs: TEMP_N_EXECUTED_TXS
+                final_n_executed_txs: TEMP_N_EXECUTED_TXS
             }
         }
     );
