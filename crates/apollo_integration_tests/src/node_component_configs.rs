@@ -1,6 +1,12 @@
 use apollo_deployments::deployment_definitions::Environment;
-use apollo_deployments::deployments::distributed::DistributedNodeServiceName;
-use apollo_deployments::deployments::hybrid::HybridNodeServiceName;
+use apollo_deployments::deployments::distributed::{
+    DistributedNodeServiceName,
+    DISTRIBUTED_NODE_REQUIRED_PORTS_NUM,
+};
+use apollo_deployments::deployments::hybrid::{
+    HybridNodeServiceName,
+    HYBRID_NODE_REQUIRED_PORTS_NUM,
+};
 use apollo_deployments::service::{DeploymentName, ServiceName};
 use apollo_infra_utils::test_utils::AvailablePortsGenerator;
 use apollo_node::config::component_config::{set_urls_to_localhost, ComponentConfig};
@@ -86,15 +92,9 @@ pub fn create_distributed_component_configs(
         .next()
         .expect("Failed to get an AvailablePorts instance for distributed node configs");
 
-    // TODO(Tsabary): the following implicitly assumes there are sufficiently many ports
-    // available in the [`available_ports`] instance to support the deployment configuration. If
-    // the test breaks due to port binding conflicts then it might be required to revisit this
-    // assumption.
-
-    let base_port = available_ports.get_next_port();
-
-    let services_component_config = DeploymentName::DistributedNode
-        .get_component_configs(Some(base_port), &Environment::Testing);
+    let ports = available_ports.get_next_ports(DISTRIBUTED_NODE_REQUIRED_PORTS_NUM);
+    let services_component_config =
+        DeploymentName::DistributedNode.get_component_configs(Some(ports), &Environment::Testing);
 
     let mut component_configs: Vec<ComponentConfig> =
         services_component_config.values().cloned().collect();
@@ -126,15 +126,9 @@ pub fn create_hybrid_component_configs(
         .next()
         .expect("Failed to get an AvailablePorts instance for distributed node configs");
 
-    // TODO(Tsabary): the following implicitly assumes there are sufficiently many ports
-    // available in the [`available_ports`] instance to support the deployment configuration. If
-    // the test breaks due to port binding conflicts then it might be required to revisit this
-    // assumption.
-
-    let base_port = available_ports.get_next_port();
-
+    let ports = available_ports.get_next_ports(HYBRID_NODE_REQUIRED_PORTS_NUM);
     let services_component_config =
-        DeploymentName::HybridNode.get_component_configs(Some(base_port), &Environment::Testing);
+        DeploymentName::HybridNode.get_component_configs(Some(ports), &Environment::Testing);
 
     let mut component_configs: Vec<ComponentConfig> =
         services_component_config.values().cloned().collect();
