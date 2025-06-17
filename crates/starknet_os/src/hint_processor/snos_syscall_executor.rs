@@ -5,6 +5,7 @@ use blockifier::execution::syscalls::hint_processor::{ENTRYPOINT_FAILED_ERROR, I
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
 use blockifier::execution::syscalls::vm_syscall_utils::{
+    handle_failure,
     CallContractRequest,
     CallContractResponse,
     DeployRequest,
@@ -23,6 +24,7 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertData,
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
@@ -70,7 +72,7 @@ pub enum SnosSyscallError {
     #[error(transparent)]
     Memory(#[from] MemoryError),
     #[error("Syscall revert.")]
-    Revert { error_data: Vec<Felt> },
+    Revert(RevertData),
     #[error(transparent)]
     SyscallExecutorBase(#[from] SyscallExecutorBaseError),
     #[error(transparent)]
@@ -93,7 +95,7 @@ impl TryExtractRevert for SnosSyscallError {
             Self::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
-            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            Self::Revert(revert_data) => SelfOrRevert::Revert(revert_data),
             Self::ExecutionHelper(_)
             | Self::Math(_)
             | Self::InvalidResourceBounds(_)
@@ -102,8 +104,8 @@ impl TryExtractRevert for SnosSyscallError {
         }
     }
 
-    fn as_revert(error_data: Vec<Felt>) -> Self {
-        SyscallExecutorBaseError::Revert { error_data }.into()
+    fn as_revert(revert_data: RevertData) -> Self {
+        SyscallExecutorBaseError::Revert(revert_data).into()
     }
 }
 
@@ -143,9 +145,8 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         remaining_gas: &mut u64,
     ) -> Result<CallContractResponse, Self::Error> {
         if request.function_selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
-            return Err(Self::Error::Revert {
-                error_data: vec![Felt::from_hex_unchecked(INVALID_ARGUMENT)],
-            });
+            let revert_data = handle_failure(vm, Felt::from_hex_unchecked(INVALID_ARGUMENT))?;
+            return Err(Self::Error::Revert(revert_data));
         }
         call_contract_helper(vm, syscall_handler, remaining_gas)
     }
@@ -172,9 +173,11 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         let retdata_base = vm.add_temporary_segment();
         vm.load_data(retdata_base, &retdata).map_err(SyscallExecutorBaseError::from)?;
         if execution.failed {
-            return Err(Self::Error::from(SyscallExecutorBaseError::Revert {
-                error_data: execution.retdata.0.clone(),
-            }));
+            // Write the revert error to a temporary segment.
+            let retdata_segment_start = vm.add_temporary_segment();
+            let retdata_segment_end = vm.load_data(retdata_segment_start, &retdata)?;
+            let revert_data = RevertData { start: retdata_segment_start, end: retdata_segment_end };
+            return Err(Self::Error::from(SyscallExecutorBaseError::Revert(revert_data)));
         };
         Ok(DeployResponse {
             contract_address: deployed_contract_address,
@@ -202,6 +205,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         let block_number = request.block_number;
         let execution_helper = syscall_handler.get_mut_current_execution_helper()?;
         let diff = execution_helper.os_block_input.block_info.block_number.0 - block_number.0;
+        // TODO(Nimrod): Replace the assert with returning a revert error.
         assert!(diff >= STORED_BLOCK_HASH_BUFFER, "Block number out of range {diff}.");
         let block_hash = execution_helper
             .tx_execution_iter
@@ -282,9 +286,8 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         remaining_gas: &mut u64,
     ) -> Result<MetaTxV0Response, Self::Error> {
         if request.entry_point_selector != selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
-            return Err(Self::Error::Revert {
-                error_data: vec![Felt::from_hex_unchecked(INVALID_ARGUMENT)],
-            });
+            let revert_data = handle_failure(vm, Felt::from_hex_unchecked(INVALID_ARGUMENT))?;
+            return Err(Self::Error::Revert(revert_data));
         }
         call_contract_helper(vm, syscall_handler, remaining_gas)
     }
@@ -444,7 +447,12 @@ fn call_contract_helper(
     if next_call_execution.failed {
         let mut retdata = retdata.clone();
         retdata.push(revert_error_code);
-        return Err(SnosSyscallError::Revert { error_data: retdata });
+        let retdata: Vec<MaybeRelocatable> = retdata.into_iter().map(Into::into).collect();
+        // Write the revert error to a temporary segment.
+        let retdata_segment_start = vm.add_temporary_segment();
+        let retdata_segment_end = vm.load_data(retdata_segment_start, &retdata)?;
+        let revert_data = RevertData { start: retdata_segment_start, end: retdata_segment_end };
+        return Err(SnosSyscallError::Revert(revert_data));
     };
 
     Ok(CallContractResponse { segment: write_to_temp_segment(retdata, vm)? })

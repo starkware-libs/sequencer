@@ -61,7 +61,7 @@ where
         request: SecpGetPointFromXRequest,
     ) -> SyscallBaseResult<SecpGetPointFromXResponse> {
         self.conditionally_initialize_points_segment_base(vm);
-        let affine = crate::execution::secp::get_point_from_x(request.x, request.y_parity)?;
+        let affine = crate::execution::secp::get_point_from_x(request.x, request.y_parity, vm)?;
         Ok(SecpGetPointFromXResponse {
             optional_ec_point_ptr: affine
                 .map(|ec_point| self.allocate_point(ec_point))
@@ -87,7 +87,7 @@ where
         request: SecpNewRequest,
     ) -> SyscallBaseResult<SecpNewResponse> {
         self.conditionally_initialize_points_segment_base(vm);
-        let affine = new_affine::<Curve>(request.x, request.y)?;
+        let affine = new_affine::<Curve>(request.x, request.y, vm)?;
 
         Ok(SecpNewResponse {
             optional_ec_point_ptr: affine

@@ -183,6 +183,7 @@ pub trait SyscallExecutor {
             syscall_handler.gas_costs().syscalls.keccak_round.base_syscall_cost(),
             data_u64,
             remaining_gas,
+            vm,
         )?;
 
         // For the keccak system call we want to count the number of rounds rather than the number

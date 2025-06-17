@@ -1,19 +1,21 @@
 use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ff::{BigInteger, PrimeField, Zero};
+use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::syscalls::hint_processor::INVALID_ARGUMENT;
-use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
+use crate::execution::syscalls::vm_syscall_utils::{handle_failure, SyscallExecutorBaseError};
 
 #[allow(clippy::result_large_err)]
 pub fn get_point_from_x<Curve: SWCurveConfig>(
     x: num_bigint::BigUint,
     y_parity: bool,
+    vm: &mut VirtualMachine,
 ) -> Result<Option<Affine<Curve>>, SyscallExecutorBaseError>
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
 {
-    modulus_bound_check::<Curve>(&[&x])?;
+    modulus_bound_check::<Curve>(&[&x], vm)?;
 
     let x = x.into();
     let maybe_ec_point = Affine::<Curve>::get_ys_from_x_unchecked(x)
@@ -31,11 +33,12 @@ where
 pub fn new_affine<Curve: SWCurveConfig>(
     x: num_bigint::BigUint,
     y: num_bigint::BigUint,
+    vm: &mut VirtualMachine,
 ) -> Result<Option<Affine<Curve>>, SyscallExecutorBaseError>
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
 {
-    modulus_bound_check::<Curve>(&[&x, &y])?;
+    modulus_bound_check::<Curve>(&[&x, &y], vm)?;
 
     Ok(maybe_affine(x.into(), y.into()))
 }
@@ -43,6 +46,7 @@ where
 #[allow(clippy::result_large_err)]
 fn modulus_bound_check<Curve: SWCurveConfig>(
     bounds: &[&num_bigint::BigUint],
+    vm: &mut VirtualMachine,
 ) -> Result<(), SyscallExecutorBaseError>
 where
     Curve::BaseField: PrimeField, // constraint for get_point_by_id
@@ -50,9 +54,8 @@ where
     let modulus = Curve::BaseField::MODULUS.into();
 
     if bounds.iter().any(|p| **p >= modulus) {
-        return Err(SyscallExecutorBaseError::Revert {
-            error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
-        });
+        let revert_data = handle_failure(vm, Felt::from_hex(INVALID_ARGUMENT).unwrap())?;
+        return Err(SyscallExecutorBaseError::Revert(revert_data));
     }
 
     Ok(())

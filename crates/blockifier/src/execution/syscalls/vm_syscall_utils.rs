@@ -99,7 +99,7 @@ impl<T: SyscallRequest> SyscallRequest for SyscallRequestWrapper<T> {
 
 pub enum SyscallResponseWrapper<T: SyscallResponse> {
     Success { gas_counter: u64, response: T },
-    Failure { gas_counter: u64, error_data: Vec<Felt> },
+    Failure { gas_counter: u64, revert_data: RevertData },
 }
 impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
     #[allow(clippy::result_large_err)]
@@ -111,21 +111,14 @@ impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
                 write_felt(vm, ptr, Felt::ZERO)?;
                 response.write(vm, ptr)
             }
-            Self::Failure { gas_counter, error_data } => {
+            Self::Failure { gas_counter, revert_data } => {
                 write_felt(vm, ptr, Felt::from(gas_counter))?;
                 // 1 to indicate failure.
                 write_felt(vm, ptr, Felt::ONE)?;
 
-                // Write the error data to a new memory segment.
-                let revert_reason_start = vm.add_memory_segment();
-                let revert_reason_end = vm.load_data(
-                    revert_reason_start,
-                    &error_data.into_iter().map(Into::into).collect::<Vec<MaybeRelocatable>>(),
-                )?;
-
                 // Write the start and end pointers of the error data.
-                write_maybe_relocatable(vm, ptr, revert_reason_start)?;
-                write_maybe_relocatable(vm, ptr, revert_reason_end)?;
+                write_maybe_relocatable(vm, ptr, revert_data.start)?;
+                write_maybe_relocatable(vm, ptr, revert_data.end)?;
                 Ok(())
             }
         }
@@ -708,8 +701,9 @@ where
         //  Out of gas failure.
         let out_of_gas_error =
             Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutorBaseError::from)?;
+        let revert_data = handle_failure(vm, out_of_gas_error)?;
         let response: SyscallResponseWrapper<Response> =
-            SyscallResponseWrapper::Failure { gas_counter, error_data: vec![out_of_gas_error] };
+            SyscallResponseWrapper::Failure { gas_counter, revert_data };
         response.write(vm, syscall_executor.get_mut_syscall_ptr())?;
 
         return Ok(());
@@ -736,8 +730,8 @@ where
     let response = match original_response {
         Ok(response) => SyscallResponseWrapper::Success { gas_counter: remaining_gas, response },
         Err(error) => match error.try_extract_revert() {
-            SelfOrRevert::Revert(data) => {
-                SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
+            SelfOrRevert::Revert(revert_data) => {
+                SyscallResponseWrapper::Failure { gas_counter: remaining_gas, revert_data }
             }
             SelfOrRevert::Original(err) => return Err(err),
         },
@@ -775,7 +769,7 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
 
 pub enum SelfOrRevert<T> {
     Original(T),
-    Revert(Vec<Felt>),
+    Revert(RevertData),
 }
 
 impl<T> SelfOrRevert<T> {
@@ -795,7 +789,7 @@ pub trait TryExtractRevert {
     where
         Self: Sized;
 
-    fn as_revert(error_data: Vec<Felt>) -> Self;
+    fn as_revert(revert_data: RevertData) -> Self;
 
     fn from_self_or_revert(self_or_revert: SelfOrRevert<Self>) -> Self
     where
@@ -835,7 +829,7 @@ pub enum SyscallExecutorBaseError {
     #[error(transparent)]
     VirtualMachine(#[from] VirtualMachineError),
     #[error("Syscall revert.")]
-    Revert { error_data: Vec<Felt> },
+    Revert(RevertData),
 }
 
 pub type SyscallBaseResult<T> = Result<T, SyscallExecutorBaseError>;
@@ -854,12 +848,29 @@ impl TryExtractRevert for SyscallExecutorBaseError {
         Self: Sized,
     {
         match self {
-            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            Self::Revert(revert_data) => SelfOrRevert::Revert(revert_data),
             _ => SelfOrRevert::Original(self),
         }
     }
 
-    fn as_revert(error_data: Vec<Felt>) -> Self {
-        Self::Revert { error_data }
+    fn as_revert(revert_data: RevertData) -> Self {
+        Self::Revert(revert_data)
     }
+}
+
+#[derive(Debug)]
+pub struct RevertData {
+    pub start: Relocatable,
+    pub end: Relocatable,
+}
+
+/// Initializes a memory segment and writes the revert data to it.
+pub fn handle_failure(
+    vm: &mut VirtualMachine,
+    error_code: Felt,
+) -> Result<RevertData, SyscallExecutorBaseError> {
+    let error = vec![MaybeRelocatable::from(error_code)];
+    let revert_start = vm.add_memory_segment();
+    let revert_end = vm.load_data(revert_start, &error)?;
+    Ok(RevertData { start: revert_start, end: revert_end })
 }
