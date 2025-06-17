@@ -69,6 +69,7 @@ define_metrics!(
         MetricHistogram { MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS, "mempool_remote_client_send_attempts", "Required number of remote connection attempts made by a mempool remote client"},
         MetricHistogram { MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS, "mempool_p2p_propagator_remote_client_send_attempts", "Required number of remote connection attempts made by a mempool p2p remote client"},
         MetricHistogram { SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS, "sierra_compiler_remote_client_send_attempts", "Required number of remote connection attempts made by a sierra compiler remote client"},
+        MetricHistogram { SIGNATURE_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS, "signature_manager_remote_client_send_attempts", "Required number of remote connection attempts made by a signature manager remote client"},
         MetricHistogram { STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS, "state_sync_remote_client_send_attempts", "Required number of remote connection attempts made by a state sync remote client"},
     },
 );
