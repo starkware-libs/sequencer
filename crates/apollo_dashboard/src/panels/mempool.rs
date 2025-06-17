@@ -21,7 +21,6 @@ use apollo_mempool::metrics::{
     MEMPOOL_TRANSACTIONS_RECEIVED,
     TRANSACTION_TIME_SPENT_IN_MEMPOOL,
 };
-use const_format::formatcp;
 
 use crate::dashboard::{Panel, PanelType, Row};
 
@@ -50,11 +49,11 @@ fn get_panel_mempool_transactions_received() -> Panel {
     Panel::new(
         MEMPOOL_TRANSACTIONS_RECEIVED.get_name(),
         MEMPOOL_TRANSACTIONS_RECEIVED.get_description(),
-        formatcp!(
+        vec![format!(
             "sum  by ({}) ({})",
             MEMPOOL_LABEL_NAME_TX_TYPE,
             MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter()
-        ),
+        )],
         PanelType::Stat,
     )
 }
@@ -62,10 +61,10 @@ fn get_panel_mempool_transactions_received_rate() -> Panel {
     Panel::new(
         "mempool_transactions_received_rate (TPS)",
         "The rate of transactions received by the mempool during the last 20 minutes",
-        formatcp!(
+        vec![format!(
             "sum(rate({}[20m])) or vector(0)",
             MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter()
-        ),
+        )],
         PanelType::Graph,
     )
 }
@@ -76,11 +75,11 @@ fn get_panel_mempool_transactions_dropped() -> Panel {
     Panel::new(
         MEMPOOL_TRANSACTIONS_DROPPED.get_name(),
         MEMPOOL_TRANSACTIONS_DROPPED.get_description(),
-        formatcp!(
+        vec![format!(
             "sum  by ({}) ({})",
             LABEL_NAME_DROP_REASON,
             MEMPOOL_TRANSACTIONS_DROPPED.get_name_with_filter()
-        ),
+        )],
         PanelType::Stat,
     )
 }
@@ -88,7 +87,7 @@ fn get_panel_mempool_pool_size() -> Panel {
     Panel::new(
         MEMPOOL_POOL_SIZE.get_name(),
         "The average size of the pool",
-        formatcp!("avg_over_time({}[2m])", MEMPOOL_POOL_SIZE.get_name_with_filter()),
+        vec![format!("avg_over_time({}[2m])", MEMPOOL_POOL_SIZE.get_name_with_filter())],
         PanelType::Graph,
     )
 }
@@ -96,7 +95,7 @@ fn get_panel_mempool_priority_queue_size() -> Panel {
     Panel::new(
         MEMPOOL_PRIORITY_QUEUE_SIZE.get_name(),
         "The average size of the priority queue",
-        formatcp!("avg_over_time({}[2m])", MEMPOOL_PRIORITY_QUEUE_SIZE.get_name_with_filter()),
+        vec![format!("avg_over_time({}[2m])", MEMPOOL_PRIORITY_QUEUE_SIZE.get_name_with_filter())],
         PanelType::Graph,
     )
 }
@@ -104,7 +103,7 @@ fn get_panel_mempool_pending_queue_size() -> Panel {
     Panel::new(
         MEMPOOL_PENDING_QUEUE_SIZE.get_name(),
         "The average size of the pending queue",
-        formatcp!("avg_over_time({}[2m])", MEMPOOL_PENDING_QUEUE_SIZE.get_name_with_filter()),
+        vec![format!("avg_over_time({}[2m])", MEMPOOL_PENDING_QUEUE_SIZE.get_name_with_filter())],
         PanelType::Graph,
     )
 }
@@ -112,7 +111,7 @@ fn get_panel_mempool_total_size_in_bytes() -> Panel {
     Panel::new(
         MEMPOOL_TOTAL_SIZE_BYTES.get_name(),
         "The average total transaction size in bytes over time in the mempool",
-        formatcp!("avg_over_time({}[2m])", MEMPOOL_TOTAL_SIZE_BYTES.get_name_with_filter()),
+        vec![format!("avg_over_time({}[2m])", MEMPOOL_TOTAL_SIZE_BYTES.get_name_with_filter())],
         PanelType::Graph,
     )
 }
@@ -120,7 +119,7 @@ fn get_panel_mempool_get_txs_size() -> Panel {
     Panel::new(
         MEMPOOL_GET_TXS_SIZE.get_name(),
         "The average size of the get_txs",
-        formatcp!("avg_over_time({}[2m])", MEMPOOL_GET_TXS_SIZE.get_name_with_filter()),
+        vec![format!("avg_over_time({}[2m])", MEMPOOL_GET_TXS_SIZE.get_name_with_filter())],
         PanelType::Graph,
     )
 }
@@ -128,18 +127,16 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
     Panel::new(
         MEMPOOL_DELAYED_DECLARES_SIZE.get_name(),
         "The average number of delayed declare transactions",
-        formatcp!("avg_over_time({}[2m])", MEMPOOL_DELAYED_DECLARES_SIZE.get_name_with_filter()),
+        vec![format!(
+            "avg_over_time({}[2m])",
+            MEMPOOL_DELAYED_DECLARES_SIZE.get_name_with_filter()
+        )],
         PanelType::Graph,
     )
 }
 fn get_panel_mempool_transaction_time_spent() -> Panel {
     // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
-    Panel::new(
-        TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_name(),
-        TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_description(),
-        TRANSACTION_TIME_SPENT_IN_MEMPOOL.get_name_with_filter(),
-        PanelType::Graph,
-    )
+    Panel::from_hist(TRANSACTION_TIME_SPENT_IN_MEMPOOL, PanelType::Graph)
 }
 
 pub(crate) fn get_mempool_row() -> Row {
