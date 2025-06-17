@@ -117,7 +117,7 @@ impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
                 write_felt(vm, ptr, Felt::ONE)?;
 
                 // Write the error data to a new memory segment.
-                let revert_reason_start = vm.add_memory_segment();
+                let revert_reason_start = vm.add_temporary_segment();
                 let revert_reason_end = vm.load_data(
                     revert_reason_start,
                     &error_data.into_iter().map(Into::into).collect::<Vec<MaybeRelocatable>>(),
