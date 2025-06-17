@@ -15,7 +15,6 @@ use crate::hint_processor::snos_hint_processor::{
 use crate::io::os_input::{OsHints, StarknetOsInput};
 use crate::io::os_output::{get_run_output, StarknetOsRunnerOutput};
 
-#[allow(clippy::result_large_err)]
 pub fn run_os<S: StateReader>(
     layout: LayoutName,
     OsHints {
@@ -68,7 +67,7 @@ pub fn run_os<S: StateReader>(
     // Run the Cairo VM.
     cairo_runner
         .run_until_pc(end, &mut snos_hint_processor)
-        .map_err(|err| VmException::from_vm_error(&cairo_runner, err))?;
+        .map_err(|err| Box::new(VmException::from_vm_error(&cairo_runner, err)))?;
 
     // End the Cairo VM run.
     let disable_finalize_all = false;
@@ -106,7 +105,6 @@ pub fn run_os<S: StateReader>(
 
 /// Run the OS with a "stateless" state reader - panics if the state is accessed for data that was
 /// not pre-loaded as part of the input.
-#[allow(clippy::result_large_err)]
 pub fn run_os_stateless(
     layout: LayoutName,
     os_hints: OsHints,
