@@ -791,6 +791,22 @@
         "extra_params": {}
       }
     ],
+    "L1 Provider": [
+      {
+        "title": "l1_message_scraper_baselayer_error_count",
+        "description": "Number of times the L1 message scraper encountered an error while scraping the base layer",
+        "type": "graph",
+        "expr": "l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_message_scraper_reorg_detected",
+        "description": "Number of times the L1 message scraper detected a reorganization in the base layer",
+        "type": "graph",
+        "expr": "l1_message_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      }
+    ],
     "L1 Gas Price Infra": [
       {
         "title": "l1_gas_price_provider_local_msgs_received",
@@ -839,6 +855,36 @@
         "description": "Required number of remote connection attempts made by a L1 gas price provider remote client",
         "type": "graph",
         "expr": "l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      }
+    ],
+    "L1 Gas Price": [
+      {
+        "title": "eth_to_strk_error_count",
+        "description": "Number of times the query to the Eth to Strk oracle failed due to an error or timeout",
+        "type": "stat",
+        "expr": "eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_insufficient_history",
+        "description": "Number of times the L1 gas price provider calculated an average with too few blocks",
+        "type": "stat",
+        "expr": "l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_scraper_baselayer_error_count",
+        "description": "Number of times the L1 gas price scraper encountered an error while scraping the base layer",
+        "type": "stat",
+        "expr": "l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_scraper_reorg_detected",
+        "description": "Number of times the L1 gas price scraper detected a reorganization in the base layer",
+        "type": "stat",
+        "expr": "l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
         "extra_params": {}
       }
     ],

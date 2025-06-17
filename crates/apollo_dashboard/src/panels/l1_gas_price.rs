@@ -40,10 +40,7 @@ const PANEL_L1_GAS_PRICE_SCRAPER_REORG_DETECTED: Panel =
 const PANEL_ETH_TO_STRK_ERROR_COUNT: Panel =
     Panel::from_counter(ETH_TO_STRK_ERROR_COUNT, PanelType::Stat);
 
-// TODO(MatanM/GuyN): add l1 gas price row to the dashboard when relevant, and delete the
-// annotation.
-#[allow(dead_code)]
-fn get_l1_gas_price_row() -> Row {
+pub(crate) fn get_l1_gas_price_row() -> Row {
     Row::new(
         "L1 Gas Price",
         vec![
