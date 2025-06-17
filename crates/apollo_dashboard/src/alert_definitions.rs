@@ -91,7 +91,7 @@ fn get_consensus_build_proposal_failed_once_alert() -> Alert {
         name: "consensus_build_proposal_failed_once",
         title: "Consensus build proposal failed once",
         alert_group: AlertGroup::Consensus,
-        expr: format!("increase({}[1m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+        expr: format!("increase({}[5m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -223,7 +223,7 @@ fn get_cende_write_blob_failure_once_alert() -> Alert {
         name: "cende_write_blob_failure_once",
         title: "Cende write blob failure once",
         alert_group: AlertGroup::Consensus,
-        expr: format!("increase({}[1h])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
+        expr: format!("increase({}[5m])", CENDE_WRITE_BLOB_FAILURE.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
