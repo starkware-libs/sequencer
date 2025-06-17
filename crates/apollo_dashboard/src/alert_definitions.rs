@@ -91,7 +91,7 @@ fn get_consensus_build_proposal_failed_once_alert() -> Alert {
         name: "consensus_build_proposal_failed_once",
         title: "Consensus build proposal failed once",
         alert_group: AlertGroup::Consensus,
-        expr: format!("increase({}[1m])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
+        expr: format!("increase({}[1h])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
