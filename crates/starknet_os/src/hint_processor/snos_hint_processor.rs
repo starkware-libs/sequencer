@@ -133,7 +133,6 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
 
 impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     #[allow(clippy::too_many_arguments)]
-    #[allow(clippy::result_large_err)]
     pub fn new(
         os_program: &'a Program,
         os_hints_config: OsHintsConfig,
@@ -393,7 +392,6 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
 
 #[cfg(any(test, feature = "testing"))]
 impl<'a> SnosHintProcessor<'a, DictStateReader> {
-    #[allow(clippy::result_large_err)]
     pub fn new_for_testing(
         state_reader: Option<DictStateReader>,
         os_program: &'a Program,
