@@ -9,6 +9,9 @@ use serde::{Serialize, Serializer};
 #[path = "dashboard_test.rs"]
 mod dashboard_test;
 
+const HISTOGRAM_QUANTILES: &[f64] = &[0.50, 0.95];
+const HISTOGRAM_TIME_RANGE: &str = "5m";
+
 /// Grafana panel types.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub enum PanelType {
@@ -68,7 +71,17 @@ impl Panel {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            vec![metric.get_name_with_filter().to_string()],
+            HISTOGRAM_QUANTILES
+                .iter()
+                .map(|q| {
+                    format!(
+                        "histogram_quantile({:.2}, sum(rate({}[{}])) by (le))",
+                        q,
+                        metric.get_name_with_filter(),
+                        HISTOGRAM_TIME_RANGE
+                    )
+                })
+                .collect(),
             panel_type,
         )
     }

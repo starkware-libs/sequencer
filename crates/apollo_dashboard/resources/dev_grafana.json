@@ -305,7 +305,8 @@
         "description": "The time it takes to prepare the blob for the next height, i.e create the blob object.",
         "type": "graph",
         "exprs": [
-          "cende_prepare_blob_for_next_height_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(cende_prepare_blob_for_next_height_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(cende_prepare_blob_for_next_height_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
@@ -314,7 +315,8 @@
         "description": "Be careful with this metric, if the blob was already written by another request, the latency is much lower since writing to Aerospike is not needed.",
         "type": "graph",
         "exprs": [
-          "cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
@@ -464,7 +466,8 @@
         "description": "The number of transactions in batches broadcast by the mempool p2p component",
         "type": "stat",
         "exprs": [
-          "apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -587,7 +590,8 @@
         "description": "Latency of gateway add_tx function in secs",
         "type": "graph",
         "exprs": [
-          "gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
@@ -596,7 +600,8 @@
         "description": "Latency of gateway validate function in secs",
         "type": "graph",
         "exprs": [
-          "gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(gateway_validate_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
@@ -715,7 +720,8 @@
         "description": "The time (secs) that a transaction spent in the mempool",
         "type": "graph",
         "exprs": [
-          "mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -809,7 +815,8 @@
         "description": "Required number of remote connection attempts made by a batcher remote client",
         "type": "graph",
         "exprs": [
-          "batcher_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(batcher_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(batcher_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -874,7 +881,8 @@
         "description": "Required number of remote connection attempts made by a gateway remote client",
         "type": "graph",
         "exprs": [
-          "gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -939,7 +947,8 @@
         "description": "Required number of remote connection attempts made by a class manager remote client",
         "type": "graph",
         "exprs": [
-          "class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1004,7 +1013,8 @@
         "description": "Required number of remote connection attempts made by a L1 provider remote client",
         "type": "graph",
         "exprs": [
-          "l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1089,7 +1099,8 @@
         "description": "Required number of remote connection attempts made by a L1 gas price provider remote client",
         "type": "graph",
         "exprs": [
-          "l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1192,7 +1203,8 @@
         "description": "Required number of remote connection attempts made by a mempool remote client",
         "type": "graph",
         "exprs": [
-          "mempool_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(mempool_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(mempool_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1257,7 +1269,8 @@
         "description": "Required number of remote connection attempts made by a mempool p2p remote client",
         "type": "graph",
         "exprs": [
-          "mempool_p2p_propagator_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(mempool_p2p_propagator_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(mempool_p2p_propagator_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1322,7 +1335,8 @@
         "description": "Required number of remote connection attempts made by a sierra compiler remote client",
         "type": "graph",
         "exprs": [
-          "sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1398,7 +1412,8 @@
         "description": "Required number of remote connection attempts made by a state sync remote client",
         "type": "graph",
         "exprs": [
-          "state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
