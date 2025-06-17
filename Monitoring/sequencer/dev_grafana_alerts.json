@@ -703,6 +703,33 @@
       "severity": "p5"
     },
     {
+      "name": "preconfirmed_block_not_written",
+      "title": "Preconfirmed block not written",
+      "ruleGroup": "batcher",
+      "expr": "changes(batcher_preconfirmed_block_written{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1s",
+      "intervalSec": 10,
+      "severity": "p3"
+    },
+    {
       "name": "state_sync_lag",
       "title": "State sync lag",
       "ruleGroup": "state_sync",

@@ -1,4 +1,8 @@
-use apollo_batcher::metrics::{BATCHED_TRANSACTIONS, LAST_BATCHED_BLOCK};
+use apollo_batcher::metrics::{
+    BATCHED_TRANSACTIONS,
+    LAST_BATCHED_BLOCK,
+    PRECONFIRMED_BLOCK_WRITTEN,
+};
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
@@ -562,6 +566,23 @@ fn get_last_batched_block_stuck_alert() -> Alert {
     }
 }
 
+fn get_preconfirmed_block_not_written_alert() -> Alert {
+    Alert {
+        name: "preconfirmed_block_not_written",
+        title: "Preconfirmed block not written",
+        alert_group: AlertGroup::Batcher,
+        expr: format!("changes({}[5m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: "1s",
+        evaluation_interval_sec: 10,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
 pub fn get_apollo_alerts() -> Alerts {
     Alerts::new(vec![
         get_batched_transactions_stuck_alert(),
@@ -590,6 +611,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_mempool_get_txs_size_drop_alert(),
         get_mempool_pool_size_increase_alert(),
         get_native_compilation_error_increase_alert(),
+        get_preconfirmed_block_not_written_alert(),
         get_state_sync_lag_alert(),
         get_state_sync_stuck_alert(),
     ])
