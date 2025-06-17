@@ -1,4 +1,4 @@
-use apollo_batcher::metrics::{BATCHED_TRANSACTIONS, LAST_BATCHED_BLOCK};
+use apollo_batcher::metrics::BATCHED_TRANSACTIONS;
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
@@ -595,23 +595,6 @@ fn get_batched_transactions_stuck() -> Alert {
     }
 }
 
-fn get_last_batched_block_stuck() -> Alert {
-    Alert {
-        name: "last_batched_block_stuck",
-        title: "Last batched block stuck",
-        alert_group: AlertGroup::Batcher,
-        expr: format!("changes({}[5m])", LAST_BATCHED_BLOCK.get_name_with_filter()),
-        conditions: &[AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
-    }
-}
-
 pub fn get_apollo_alerts() -> Alerts {
     Alerts::new(vec![
         get_batched_transactions_stuck(),
@@ -637,7 +620,6 @@ pub fn get_apollo_alerts() -> Alerts {
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_reorg_detected_alert(),
-        get_last_batched_block_stuck(),
         get_mempool_add_tx_idle(),
         get_mempool_get_txs_size_drop(),
         get_mempool_pool_size_increase(),
