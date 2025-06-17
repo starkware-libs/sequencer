@@ -285,7 +285,6 @@ impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcess
 
     /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
     /// mode.
-    #[allow(clippy::result_large_err)]
     fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
         if self.da_segment.is_some() {
             return Err(OsHintError::AssertionFailed {
@@ -457,7 +456,6 @@ impl SyscallHintProcessor {
         }
     }
 
-    #[allow(clippy::result_large_err)]
     pub(crate) fn get_mut_syscall_ptr(&mut self) -> Result<&mut Relocatable, OsHintError> {
         self.syscall_ptr.as_mut().ok_or(OsHintError::UnsetSyscallPtr)
     }
