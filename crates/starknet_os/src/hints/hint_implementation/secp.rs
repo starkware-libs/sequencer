@@ -47,7 +47,7 @@ pub(crate) fn read_ec_point_from_address<S: StateReader>(
         vm,
         ap_tracking,
         &["ec_point"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
     let result = if not_on_curve == Felt::ZERO {
         vm.get_relocatable(ec_point_address)?
