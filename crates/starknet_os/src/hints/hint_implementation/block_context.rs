@@ -13,7 +13,6 @@ use crate::hints::vars::Const;
 
 // Hint implementations.
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn block_number<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -23,7 +22,6 @@ pub(crate) fn block_number<S: StateReader>(
     Ok(insert_value_into_ap(vm, Felt::from(block_number.0))?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn block_timestamp<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -33,7 +31,6 @@ pub(crate) fn block_timestamp<S: StateReader>(
     Ok(insert_value_into_ap(vm, Felt::from(block_timestamp.0))?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn chain_id<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -43,7 +40,6 @@ pub(crate) fn chain_id<S: StateReader>(
     Ok(insert_value_into_ap(vm, chain_id_as_felt)?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn fee_token_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -52,7 +48,6 @@ pub(crate) fn fee_token_address<S: StateReader>(
     Ok(insert_value_into_ap(vm, strk_fee_token_address.0.key())?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn sequencer_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -62,7 +57,6 @@ pub(crate) fn sequencer_address<S: StateReader>(
     Ok(insert_value_into_ap(vm, address.0.key())?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn get_block_mapping(
     HintArgs { ids_data, constants, vm, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -70,7 +64,6 @@ pub(crate) fn get_block_mapping(
     set_state_entry(block_hash_contract_address, vm, exec_scopes, ids_data, ap_tracking)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,

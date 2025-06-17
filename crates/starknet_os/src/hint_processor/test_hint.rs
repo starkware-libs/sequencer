@@ -31,7 +31,6 @@ use crate::hints::types::HintArgs;
 ///     Ok(())
 /// }
 /// ```
-#[allow(clippy::result_large_err)]
 pub(crate) fn test_hint<S: StateReader>(
     _hint_str: &str,
     _hint_processor: &mut SnosHintProcessor<'_, S>,

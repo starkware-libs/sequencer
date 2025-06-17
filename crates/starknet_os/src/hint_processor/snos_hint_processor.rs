@@ -455,7 +455,6 @@ impl SyscallHintProcessor {
         self.syscall_ptr = Some(syscall_ptr);
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn validate_and_discard_syscall_ptr(
         &mut self,
         syscall_ptr_end: &Relocatable,

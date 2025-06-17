@@ -30,7 +30,6 @@ impl CommitmentType {
     }
 }
 
-#[allow(clippy::result_large_err)]
 fn verify_tree_height_eq_merkle_height(tree_height: Felt, merkle_height: Felt) -> OsHintResult {
     if tree_height != merkle_height {
         return Err(OsHintError::AssertionFailed {
@@ -43,7 +42,6 @@ fn verify_tree_height_eq_merkle_height(tree_height: Felt, merkle_height: Felt) -
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 fn set_preimage_for_commitments<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
@@ -69,7 +67,6 @@ fn set_preimage_for_commitments<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn compute_commitments_on_finalized_state_with_aliases(
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -78,7 +75,6 @@ pub(crate) fn compute_commitments_on_finalized_state_with_aliases(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     hint_args: HintArgs<'_>,
@@ -87,7 +83,6 @@ pub(crate) fn set_preimage_for_state_commitments<S: StateReader>(
     set_preimage_for_commitments(hint_processor, hint_args)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     hint_args: HintArgs<'_>,
@@ -96,7 +91,6 @@ pub(crate) fn set_preimage_for_class_commitments<S: StateReader>(
     set_preimage_for_commitments(hint_processor, hint_args)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, constants, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -130,7 +124,6 @@ pub(crate) fn set_preimage_for_current_commitment_info<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn guess_state_ptr<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
@@ -150,7 +143,6 @@ pub(crate) fn guess_state_ptr<S: StateReader>(
     )?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn update_state_ptr<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
@@ -167,7 +159,6 @@ pub(crate) fn update_state_ptr<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn guess_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -187,7 +178,6 @@ pub(crate) fn guess_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
     )?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn update_classes_ptr<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,

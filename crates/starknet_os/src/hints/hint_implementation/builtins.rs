@@ -18,7 +18,6 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn selected_builtins(
     HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -30,7 +29,6 @@ pub(crate) fn selected_builtins(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn select_builtin(
     HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -59,7 +57,6 @@ pub(crate) fn select_builtin(
 /// to the location specified by 'selected_encodings'.
 ///
 /// Assumption: selected builtins encoding is an ordered subset of builtin_params.
-#[allow(clippy::result_large_err)]
 pub(crate) fn update_builtin_ptrs<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
