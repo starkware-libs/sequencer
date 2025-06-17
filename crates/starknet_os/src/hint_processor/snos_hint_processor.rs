@@ -21,7 +21,7 @@ use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::Relocatable;
-use cairo_vm::vm::errors::hint_errors::{HintError, HintError as VmHintError};
+use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::ClassHash;
@@ -29,7 +29,11 @@ use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
-use crate::hint_processor::common_hint_processor::CommonHintProcessor;
+use crate::hint_processor::common_hint_processor::{
+    CommonHintProcessor,
+    VmHintExtensionResult,
+    VmHintResult,
+};
 use crate::hint_processor::execution_helper::{
     CallInfoTracker,
     ExecutionHelperError,
@@ -43,6 +47,7 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::hints::vars::CairoStruct;
+use crate::impl_common_hint_processor;
 use crate::io::os_input::{
     CachedStateInput,
     CommitmentInfo,
@@ -51,10 +56,6 @@ use crate::io::os_input::{
     OsInputError,
 };
 use crate::vm_utils::get_address_of_nested_fields_from_base_address;
-
-type VmHintResultType<T> = Result<T, VmHintError>;
-type VmHintResult = VmHintResultType<()>;
-type VmHintExtensionResult = VmHintResultType<HintExtension>;
 
 pub(crate) struct ExecutionHelpersManager<'a, S: StateReader> {
     execution_helpers: Vec<OsExecutionHelper<'a, S>>,
@@ -271,41 +272,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     }
 }
 
-impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
-    fn get_program(&self) -> &'program Program {
-        self.program
-    }
-
-    fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers> {
-        &mut self.state_update_pointers
-    }
-
-    fn _get_da_segment(&mut self) -> &mut Option<Vec<Felt>> {
-        &mut self.da_segment
-    }
-
-    /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
-    /// mode.
-    #[allow(clippy::result_large_err)]
-    fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
-        if self.da_segment.is_some() {
-            return Err(OsHintError::AssertionFailed {
-                message: "DA segment is already initialized.".to_string(),
-            });
-        }
-        self.da_segment = Some(da_segment);
-        Ok(())
-    }
-
-    fn get_serialize_data_availability_create_pages(&self) -> bool {
-        self.serialize_data_availability_create_pages
-    }
-
-    #[cfg(any(test, feature = "testing"))]
-    fn get_unused_hints(&mut self) -> &mut HashSet<AllHints> {
-        &mut self.unused_hints
-    }
-}
+impl_common_hint_processor!(SnosHintProcessor, S, StateReader);
 
 impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
     fn execute_hint(
@@ -349,9 +316,8 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
                         os_hint.execute_hint(self, hint_args)?;
                         Ok(HintExtension::default())
                     }
-                    AllHints::AggregatorHint(aggregator_hint) => {
-                        aggregator_hint.execute_hint(self, hint_args)?;
-                        Ok(HintExtension::default())
+                    AllHints::AggregatorHint(hint) => {
+                        panic!("Aggregator hints should not be used in the OS. Hint: {hint:?}");
                     }
                     AllHints::DeprecatedSyscallHint(deprecated_syscall_hint) => {
                         deprecated_syscall_hint.execute_hint(self, hint_args)?;
