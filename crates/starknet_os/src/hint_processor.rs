@@ -1,3 +1,4 @@
+pub mod aggregator_hint_processor;
 pub mod common_hint_processor;
 pub mod constants;
 pub mod execution_helper;
