@@ -36,6 +36,7 @@ use crate::metrics::{
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
+use crate::votes_threshold::QuorumType;
 
 /// Arguments for running consensus.
 #[derive(Clone, Debug)]
@@ -52,8 +53,8 @@ pub struct RunConsensusArguments {
     pub timeouts: TimeoutsConfig,
     /// The interval to wait between sync retries.
     pub sync_retry_interval: Duration,
-    /// If true, means all validators are honest/trusted. Use with caution!
-    pub no_byzantine_validators: bool,
+    /// Set to Byzantine by default. Using Honest means we trust all validators. Use with caution!
+    pub quorum_type: QuorumType,
 }
 
 /// Run consensus indefinitely.
@@ -89,7 +90,7 @@ where
     let mut manager = MultiHeightManager::new(
         run_consensus_args.validator_id,
         run_consensus_args.sync_retry_interval,
-        run_consensus_args.no_byzantine_validators,
+        run_consensus_args.quorum_type,
         run_consensus_args.timeouts,
     );
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
@@ -147,7 +148,7 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     validator_id: ValidatorId,
     future_votes: BTreeMap<u64, Vec<Vote>>,
     sync_retry_interval: Duration,
-    no_byzantine_validators: bool,
+    quorum_type: QuorumType,
     // Mapping: { Height : { Round : (Init, Receiver)}}
     cached_proposals: BTreeMap<u64, BTreeMap<u32, ProposalReceiverTuple<ContextT::ProposalPart>>>,
     timeouts: TimeoutsConfig,
@@ -158,13 +159,13 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     pub(crate) fn new(
         validator_id: ValidatorId,
         sync_retry_interval: Duration,
-        no_byzantine_validators: bool,
+        quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
     ) -> Self {
         Self {
             validator_id,
             sync_retry_interval,
-            no_byzantine_validators,
+            quorum_type,
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
             timeouts,
@@ -257,7 +258,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             is_observer,
             self.validator_id,
             validators,
-            self.no_byzantine_validators,
+            self.quorum_type,
             self.timeouts.clone(),
         );
         let mut shc_events = FuturesUnordered::new();

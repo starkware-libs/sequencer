@@ -9,6 +9,7 @@ use test_case::test_case;
 use super::Round;
 use crate::state_machine::{StateMachine, StateMachineEvent};
 use crate::types::{ProposalCommitment, ValidatorId};
+use crate::votes_threshold::QuorumType;
 
 lazy_static! {
     static ref PROPOSER_ID: ValidatorId = DEFAULT_VALIDATOR_ID.into();
@@ -30,15 +31,10 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
         total_weight: u64,
         leader_fn: LeaderFn,
         is_observer: bool,
-        no_malicious_validators: bool,
+        quorum_type: QuorumType,
     ) -> Self {
         Self {
-            state_machine: StateMachine::new(
-                id,
-                total_weight,
-                is_observer,
-                no_malicious_validators,
-            ),
+            state_machine: StateMachine::new(id, total_weight, is_observer, quorum_type),
             leader_fn,
             events: VecDeque::new(),
         }
@@ -89,7 +85,8 @@ impl<LeaderFn: Fn(Round) -> ValidatorId> TestWrapper<LeaderFn> {
 #[test_case(false; "validator")]
 fn events_arrive_in_ideal_order(is_proposer: bool) {
     let id = if is_proposer { *PROPOSER_ID } else { *VALIDATOR_ID };
-    let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, false, false);
+    let mut wrapper =
+        TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
 
     wrapper.start();
     if is_proposer {
@@ -132,7 +129,8 @@ fn events_arrive_in_ideal_order(is_proposer: bool) {
 
 #[test]
 fn validator_receives_votes_first() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, false);
+    let mut wrapper =
+        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -166,7 +164,8 @@ fn validator_receives_votes_first() {
 #[test_case(PROPOSAL_ID ; "valid_proposal")]
 #[test_case(None ; "invalid_proposal")]
 fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
-    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false, false);
+    let mut wrapper =
+        TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
 
     wrapper.start();
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, 0));
@@ -191,7 +190,8 @@ fn buffer_events_during_get_proposal(vote: Option<ProposalCommitment>) {
 
 #[test]
 fn only_send_precommit_with_prevote_quorum_and_proposal() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, false);
+    let mut wrapper =
+        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -214,7 +214,8 @@ fn only_send_precommit_with_prevote_quorum_and_proposal() {
 
 #[test]
 fn only_decide_with_prcommit_quorum_and_proposal() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, false);
+    let mut wrapper =
+        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -244,7 +245,8 @@ fn only_decide_with_prcommit_quorum_and_proposal() {
 
 #[test]
 fn advance_to_the_next_round() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, false);
+    let mut wrapper =
+        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -270,7 +272,8 @@ fn advance_to_the_next_round() {
 
 #[test]
 fn prevote_when_receiving_proposal_in_current_round() {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, false);
+    let mut wrapper =
+        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
 
     wrapper.start();
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::TimeoutPropose(ROUND));
@@ -295,7 +298,8 @@ fn prevote_when_receiving_proposal_in_current_round() {
 #[test_case(true ; "send_proposal")]
 #[test_case(false ; "send_timeout_propose")]
 fn mixed_quorum(send_proposal: bool) {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, false);
+    let mut wrapper =
+        TestWrapper::new(*VALIDATOR_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -325,7 +329,8 @@ fn mixed_quorum(send_proposal: bool) {
 
 #[test]
 fn dont_handle_enqueued_while_awaiting_get_proposal() {
-    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false, false);
+    let mut wrapper =
+        TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
 
     wrapper.start();
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
@@ -370,7 +375,8 @@ fn dont_handle_enqueued_while_awaiting_get_proposal() {
 
 #[test]
 fn return_proposal_if_locked_value_is_set() {
-    let mut wrapper = TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false, false);
+    let mut wrapper =
+        TestWrapper::new(*PROPOSER_ID, 4, |_: Round| *PROPOSER_ID, false, QuorumType::Byzantine);
 
     wrapper.start();
     assert_eq!(wrapper.next_event().unwrap(), StateMachineEvent::GetProposal(None, ROUND));
@@ -405,7 +411,7 @@ fn return_proposal_if_locked_value_is_set() {
 #[test]
 fn observer_node_reaches_decision() {
     let id = *VALIDATOR_ID;
-    let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, true, false);
+    let mut wrapper = TestWrapper::new(id, 4, |_: Round| *PROPOSER_ID, true, QuorumType::Byzantine);
 
     wrapper.start();
 
@@ -428,10 +434,11 @@ fn observer_node_reaches_decision() {
     assert!(wrapper.next_event().is_none());
 }
 
-#[test_case(false; "byzantine")]
-#[test_case(true; "honest")]
-fn number_of_required_votes(is_honest: bool) {
-    let mut wrapper = TestWrapper::new(*VALIDATOR_ID, 3, |_: Round| *PROPOSER_ID, false, is_honest);
+#[test_case(QuorumType::Byzantine; "byzantine")]
+#[test_case(QuorumType::Honest; "honest")]
+fn number_of_required_votes(quorum_type: QuorumType) {
+    let mut wrapper =
+        TestWrapper::new(*VALIDATOR_ID, 3, |_: Round| *PROPOSER_ID, false, quorum_type);
 
     wrapper.start();
     // Waiting for the proposal.
@@ -447,7 +454,7 @@ fn number_of_required_votes(is_honest: bool) {
     wrapper.send_prevote(PROPOSAL_ID, ROUND);
 
     // Byzantine quorum requires 3 votes, so we need one more vote.
-    if !is_honest {
+    if quorum_type == QuorumType::Byzantine {
         // Not enough votes for a quorum yet.
         assert!(wrapper.next_event().is_none());
 
@@ -467,7 +474,7 @@ fn number_of_required_votes(is_honest: bool) {
     wrapper.send_precommit(PROPOSAL_ID, ROUND);
 
     // Byzantine quorum requires 3 votes, so we need one more vote.
-    if !is_honest {
+    if quorum_type == QuorumType::Byzantine {
         // Not enough votes for a quorum yet.
         assert!(wrapper.next_event().is_none());
 
