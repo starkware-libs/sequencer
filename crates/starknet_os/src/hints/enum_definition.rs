@@ -5,6 +5,7 @@ use serde::Serialize;
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
 
+use crate::hint_processor::aggregator_hint_processor::AggregatorHintProcessor;
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
@@ -309,6 +310,9 @@ all_hints_enum!(
 
 define_hint_enum!(
     DeprecatedSyscallHint,
+    SnosHintProcessor<'_, S>,
+    S,
+    StateReader,
     (
         CallContract,
         call_contract,
@@ -989,6 +993,9 @@ else:
 
 define_hint_enum!(
     OsHint,
+    SnosHintProcessor<'_, S>,
+    S,
+    StateReader,
     (
         LoadClass,
         load_class,
@@ -1792,6 +1799,7 @@ block_input = next(block_input_iterator)
 
 define_hint_enum!(
     AggregatorHint,
+    AggregatorHintProcessor<'_>,
     (
         DisableDaPageCreation,
         disable_da_page_creation,
