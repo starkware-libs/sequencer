@@ -33,6 +33,16 @@ impl Panel {
         exprs: Vec<String>,
         panel_type: PanelType,
     ) -> Self {
+        // A panel assigns a unique id to each of its expressions. Conventionally, we use letters
+        // A–Z, and for simplicity, we limit the number of expressions to this range.
+        const NUM_LETTERS: u8 = b'Z' - b'A' + 1;
+        assert!(
+            exprs.len() <= NUM_LETTERS.into(),
+            "Too many expressions ({} > {}) in panel '{}'.",
+            exprs.len(),
+            NUM_LETTERS,
+            name
+        );
         Self { name, description, exprs, panel_type }
     }
 
@@ -74,8 +84,7 @@ impl Serialize for Panel {
         state.serialize_field("title", &self.name)?;
         state.serialize_field("description", &self.description)?;
         state.serialize_field("type", &self.panel_type)?;
-        // TODO(Tsabary): currently supporting only a single expression per panel.
-        state.serialize_field("expr", &self.exprs[0])?;
+        state.serialize_field("exprs", &self.exprs)?;
 
         // Append an empty dictionary `{}` at the end
         let empty_map: HashMap<String, String> = HashMap::new();
