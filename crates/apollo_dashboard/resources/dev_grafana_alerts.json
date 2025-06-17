@@ -495,7 +495,7 @@
         {
           "evaluator": {
             "params": [
-              1e-6
+              1.0
             ],
             "type": "lt"
           },
@@ -512,6 +512,60 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p2"
+    },
+    {
+      "name": "http_server_no_successful_transactions",
+      "title": "http server no successful transactions",
+      "ruleGroup": "http_server",
+      "expr": "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "http_server_no_successful_transactions",
+      "title": "http server no successful transactions",
+      "ruleGroup": "http_server",
+      "expr": "increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.5
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3"
     },
     {
       "name": "l1_gas_price_provider_insufficient_history",
