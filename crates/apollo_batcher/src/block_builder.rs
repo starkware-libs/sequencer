@@ -482,6 +482,12 @@ async fn collect_execution_results_and_stream_txs(
     );
 
     for (input_tx, result) in tx_chunk.iter().zip(results.into_iter()) {
+        let optional_l1_handler_tx =
+            if let InternalConsensusTransaction::L1Handler(l1_handler_tx) = input_tx {
+                Some(l1_handler_tx.tx.clone())
+            } else {
+                None
+            };
         let tx_hash = input_tx.tx_hash();
 
         // Insert the tx_hash into the appropriate collection if it's an L1_Handler transaction.
@@ -512,6 +518,7 @@ async fn collect_execution_results_and_stream_txs(
                         // TODO(noamsp): Consider using tx_execution_info and moving the line that
                         // consumes it below this (if it doesn't change functionality).
                         &execution_data.execution_infos[&tx_hash],
+                        optional_l1_handler_tx,
                     ));
 
                     let tx_state_diff = StarknetClientStateDiff::from(state_maps).0;
