@@ -49,10 +49,19 @@ pub(crate) fn get_aggregator_output(
 }
 
 pub(crate) fn write_da_segment(
-    _hint_processor: &mut AggregatorHintProcessor<'_>,
+    hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    todo!()
+    if let Some(da_path) = hint_processor.input.da_path.clone() {
+        let da_segment = if hint_processor.input.use_kzg_da {
+            hint_processor.get_da_segment().take()
+        } else {
+            None
+        };
+        let json = serde_json::json!(da_segment);
+        std::fs::write::<String, String>(da_path, serde_json::to_string(&json)?)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn get_full_output_from_input(
