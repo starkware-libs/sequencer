@@ -59,7 +59,6 @@ members = [
   "crates/blockifier",
   "crates/blockifier_reexecution",
   "crates/blockifier_test_utils",
-  "crates/mempool_test_utils",
   "crates/native_blockifier",
   "crates/papyrus_base_layer",
   "crates/papyrus_common",
@@ -73,6 +72,7 @@ members = [
   "crates/starknet_os",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
+  "crates/transaction_generator",
   "toml_test_utils",
   "workspace_tests",
 ]
@@ -219,7 +219,6 @@ libp2p-swarm-test = "0.3.0"
 log = "0.4"
 lru = "0.12.0"
 memmap2 = "0.8.0"
-mempool_test_utils.path = "crates/mempool_test_utils"
 metrics = "0.24.1"
 metrics-exporter-prometheus = "0.16.1"
 metrics-process = "1.0.11"
@@ -309,6 +308,7 @@ tower = "0.4.13"
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
 tracing-test = "0.2"
+transaction_generator.path = "crates/transaction_generator"
 unsigned-varint = "0.8.0"
 url = "2.5.0"
 validator = "0.12"

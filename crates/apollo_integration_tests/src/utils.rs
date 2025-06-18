@@ -49,7 +49,7 @@ use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use transaction_generator::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     L1ToL2MessageArgs,

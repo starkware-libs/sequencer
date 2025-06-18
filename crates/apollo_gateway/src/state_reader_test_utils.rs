@@ -7,12 +7,12 @@ use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use blockifier_test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::VALID_ACCOUNT_BALANCE;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Fee;
 use starknet_types_core::felt::Felt;
+use transaction_generator::starknet_api_test_utils::VALID_ACCOUNT_BALANCE;
 
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 

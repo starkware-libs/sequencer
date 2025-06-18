@@ -67,7 +67,7 @@ macro_rules! tx {
             })
     }};
     (tx_hash: $tx_hash:expr, address: $address:expr, tx_nonce: $tx_nonce:expr, tip: $tip:expr) => {{
-        use mempool_test_utils::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;
+        use transaction_generator::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;
         tx!(
             tx_hash: $tx_hash,
             address: $address,
@@ -142,7 +142,7 @@ macro_rules! add_tx_input {
         account_nonce: $account_nonce:expr,
         tip: $tip:expr
     ) => {{
-        use mempool_test_utils::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;
+        use transaction_generator::starknet_api_test_utils::VALID_L2_GAS_MAX_PRICE_PER_UNIT;
         add_tx_input!(
             tx_hash: $tx_hash,
             address: $address,

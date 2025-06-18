@@ -9,7 +9,7 @@ static CRATES_ALLOWED_TO_USE_TESTING_FEATURE: [&str; 6] = [
     "apollo_test_utils",
     "blockifier_test_utils",
     "papyrus_load_test",
-    "mempool_test_utils",
+    "transaction_generator",
     // The CLI crate exposes tests that require test utils in dependencies.
     // TODO(Dori): Consider splitting the build of the CLI crate to a test build and a production
     //   build.

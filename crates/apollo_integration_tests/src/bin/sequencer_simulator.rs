@@ -11,7 +11,7 @@ use apollo_integration_tests::utils::{
     N_TXS_IN_FIRST_BLOCK,
 };
 use clap::Parser;
-use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use transaction_generator::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use serde_json::Value;
 use tokio::time::{sleep, Duration};
 use tracing::info;

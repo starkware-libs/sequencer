@@ -47,7 +47,6 @@ clap.workspace = true
 futures.workspace = true
 hex.workspace = true
 indexmap.workspace = true
-mempool_test_utils.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 serde.workspace = true
 serde_json.workspace = true
@@ -58,6 +57,7 @@ tempfile.workspace = true
 tokio.workspace = true
 tokio-util = { workspace = true, features = ["rt"] }
 tracing.workspace = true
+transaction_generator.workspace = true
 url.workspace = true
 
 [dev-dependencies]

@@ -56,7 +56,7 @@ validator.workspace = true
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 colored.workspace = true
-mempool_test_utils.workspace = true
+transaction_generator.workspace = true
 pretty_assertions.workspace = true
 tokio-util = { workspace = true, features = ["rt"] }
 

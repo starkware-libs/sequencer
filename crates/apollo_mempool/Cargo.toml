@@ -41,7 +41,6 @@ apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
 itertools.workspace = true
-mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
@@ -50,3 +49,4 @@ rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
 tokio.workspace = true
+transaction_generator.workspace = true

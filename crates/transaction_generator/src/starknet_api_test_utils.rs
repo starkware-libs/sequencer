@@ -227,8 +227,8 @@ impl L1HandlerTransactionGenerator {
 /// ```
 /// use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 /// use blockifier_test_utils::contracts::FeatureContract;
-/// use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 /// use starknet_api::transaction::fields::ContractAddressSalt;
+/// use transaction_generator::starknet_api_test_utils::MultiAccountTransactionGenerator;
 ///
 /// let mut tx_generator = MultiAccountTransactionGenerator::new();
 /// let some_account_type =

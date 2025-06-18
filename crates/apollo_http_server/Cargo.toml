@@ -9,9 +9,9 @@ repository.workspace = true
 testing = [
   "apollo_gateway_types/testing",
   "blockifier_test_utils",
-  "mempool_test_utils",
   "reqwest",
   "starknet_api/testing",
+  "transaction_generator",
 ]
 
 [lints]
@@ -27,7 +27,6 @@ axum.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
 futures.workspace = true
 hyper.workspace = true
-mempool_test_utils = { workspace = true, optional = true }
 regex.workspace = true
 reqwest = { workspace = true, optional = true }
 serde.workspace = true
@@ -36,6 +35,7 @@ starknet_api.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt"] }
 tracing.workspace = true
+transaction_generator = { workspace = true, optional = true }
 validator.workspace = true
 
 [dev-dependencies]
@@ -46,7 +46,6 @@ base64.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 flate2.workspace = true
-mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 reqwest.workspace = true
@@ -54,3 +53,4 @@ rstest.workspace = true
 serde_json.workspace = true
 starknet-types-core.workspace = true
 tracing-test.workspace = true
+transaction_generator.workspace = true

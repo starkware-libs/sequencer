@@ -822,7 +822,6 @@ dependencies = [
  "futures",
  "indexmap 2.9.0",
  "itertools 0.12.1",
- "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "mockall",
@@ -835,6 +834,7 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
+ "transaction_generator",
  "url",
  "validator",
 ]
@@ -969,13 +969,13 @@ dependencies = [
  "assert_matches",
  "async-trait",
  "cairo-lang-starknet-classes",
- "mempool_test_utils",
  "pretty_assertions",
  "serde",
  "serde_json",
  "starknet_api",
  "thiserror 1.0.69",
  "tracing",
+ "transaction_generator",
  "validator",
 ]
 
@@ -1003,11 +1003,11 @@ dependencies = [
  "assert_matches",
  "cairo-lang-starknet-classes",
  "cairo-native",
- "mempool_test_utils",
  "rstest",
  "serde",
  "tempfile",
  "toml_test_utils",
+ "transaction_generator",
  "validator",
 ]
 
@@ -1222,7 +1222,6 @@ dependencies = [
  "criterion",
  "futures",
  "lazy_static",
- "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "mockall",
@@ -1241,6 +1240,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-test",
+ "transaction_generator",
  "validator",
 ]
 
@@ -1281,7 +1281,6 @@ dependencies = [
  "flate2",
  "futures",
  "hyper 0.14.32",
- "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "regex",
@@ -1295,6 +1294,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-test",
+ "transaction_generator",
  "validator",
 ]
 
@@ -1386,7 +1386,6 @@ dependencies = [
  "futures",
  "hex",
  "indexmap 2.9.0",
- "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "papyrus_base_layer",
@@ -1401,6 +1400,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "transaction_generator",
  "url",
 ]
 
@@ -1523,7 +1523,6 @@ dependencies = [
  "async-trait",
  "derive_more 0.99.18",
  "itertools 0.12.1",
- "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "mockall",
@@ -1536,6 +1535,7 @@ dependencies = [
  "strum_macros 0.25.3",
  "tokio",
  "tracing",
+ "transaction_generator",
  "validator",
 ]
 
@@ -1719,7 +1719,6 @@ dependencies = [
  "colored 3.0.0",
  "const_format",
  "futures",
- "mempool_test_utils",
  "papyrus_base_layer",
  "pretty_assertions",
  "rstest",
@@ -1729,6 +1728,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "transaction_generator",
  "validator",
 ]
 
@@ -8520,19 +8520,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mempool_test_utils"
-version = "0.15.0-rc.2"
-dependencies = [
- "apollo_infra_utils",
- "assert_matches",
- "blockifier_test_utils",
- "papyrus_base_layer",
- "serde_json",
- "starknet-types-core",
- "starknet_api",
-]
-
-[[package]]
 name = "metrics"
 version = "0.22.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -13079,6 +13066,19 @@ checksum = "04659ddb06c87d233c566112c1c9c5b9e98256d9af50ec3bc9c8327f873a7568"
 dependencies = [
  "quote",
  "syn 2.0.100",
+]
+
+[[package]]
+name = "transaction_generator"
+version = "0.15.0-rc.2"
+dependencies = [
+ "apollo_infra_utils",
+ "assert_matches",
+ "blockifier_test_utils",
+ "papyrus_base_layer",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
 ]
 
 [[package]]

@@ -13,7 +13,7 @@ use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
-use mempool_test_utils::starknet_api_test_utils::test_valid_resource_bounds;
+use transaction_generator::starknet_api_test_utils::test_valid_resource_bounds;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use pretty_assertions::assert_eq;
