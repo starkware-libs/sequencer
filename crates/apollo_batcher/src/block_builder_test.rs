@@ -915,6 +915,7 @@ async fn failed_l1_handler_transaction_consumed() {
         Ok((execution_info(), StateMaps::default())),
     ]);
     helper.expect_is_done(true);
+    helper.expect_successful_get_new_results(0);
 
     helper.mock_transaction_executor.expect_close_block().times(1).return_once(|_| {
         Ok(BlockExecutionSummary {
