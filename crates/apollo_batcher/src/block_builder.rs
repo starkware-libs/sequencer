@@ -267,12 +267,6 @@ impl BlockBuilder {
             }
         }
 
-        info!(
-            "Finished building block with {} out of {} transactions.",
-            self.n_executed_txs,
-            self.block_txs.len()
-        );
-
         // The final number of transactions to consider for the block.
         // Proposer: this is the number of transactions that were executed.
         // Validator: the number of transactions we got from the proposer.
@@ -285,6 +279,14 @@ impl BlockBuilder {
             );
             self.n_executed_txs
         };
+
+        info!(
+            "Finished building block. Started executing {} transactions. Finished executing {} \
+             transactions. Final number of transactions: {}.",
+            self.block_txs.len(),
+            self.n_executed_txs,
+            final_n_executed_txs_nonopt,
+        );
 
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
@@ -376,14 +378,22 @@ impl BlockBuilder {
 
         self.block_txs.extend(next_txs.iter().cloned());
 
-        let tx_convert_futures = next_txs.into_iter().map(|tx| async {
-            convert_to_executable_blockifier_tx(&self.transaction_converter, tx).await
+        let tx_convert_futures = next_txs.iter().map(|tx| async {
+            convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()).await
         });
         let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
 
         // Start the execution of the transactions on the worker pool.
         info!("Starting execution of {} transactions.", n_txs);
         lock_executor(&self.executor).add_txs_to_block(executor_input_chunk.as_slice());
+
+        if let Some(output_content_sender) = &self.output_content_sender {
+            // Send the transactions to the validators.
+            // Only reached in proposal flow.
+            for tx in next_txs.into_iter() {
+                output_content_sender.send(tx)?;
+            }
+        }
 
         Ok(AddTxsToExecutorResult::NewTxs)
     }
@@ -405,7 +415,6 @@ impl BlockBuilder {
             &self.block_txs[old_n_executed_txs..self.n_executed_txs],
             results,
             &mut self.execution_data,
-            &self.output_content_sender,
             &self.pre_confirmed_tx_sender,
         )
         .await
@@ -471,9 +480,6 @@ async fn collect_execution_results_and_stream_txs(
     tx_chunk: &[InternalConsensusTransaction],
     results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
     execution_data: &mut BlockTransactionExecutionData,
-    output_content_sender: &Option<
-        tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
-    >,
     pre_confirmed_tx_sender: &Option<PreConfirmedTxSender>,
 ) -> BlockBuilderResult<()> {
     assert!(
@@ -503,11 +509,6 @@ async fn collect_execution_results_and_stream_txs(
                 let (tx_index, duplicate_tx_hash) =
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
-
-                if let Some(output_content_sender) = output_content_sender {
-                    // Only reached in proposal flow.
-                    output_content_sender.send(input_tx.clone())?;
-                }
 
                 // Skip sending the pre confirmed executed transactions, receipts and state diffs
                 // during validation flow. In validate flow pre_confirmed_tx_sender is None.
