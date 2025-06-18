@@ -1,13 +1,17 @@
+use std::ops::{Deref, DerefMut, RangeInclusive};
+
 use apollo_l1_endpoint_monitor_types::{
     L1EndpointMonitorClientError,
     L1EndpointMonitorError,
     SharedL1EndpointMonitorClient,
 };
+use async_trait::async_trait;
+use starknet_api::block::BlockHashAndNumber;
 use tokio::sync::Mutex;
 use tracing::{error, info};
 use url::Url;
 
-use crate::BaseLayerContract;
+use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
 
 // Using interior mutability for modifiable fields in order to comply with the base layer's
 // largely immutable API.
@@ -18,11 +22,17 @@ pub struct MonitoredBaseLayer<B: BaseLayerContract + Send + Sync> {
 }
 
 impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
+    /// Returns a guard to the inner base layer, wrapped in order to hide the inner Mutex type.
+    async fn get(&self) -> Result<BaseLayerGuard<'_, B>, MonitoredBaseLayerError<B>> {
+        self.ensure_operational().await.unwrap();
+        Ok(BaseLayerGuard { inner: self.base_layer.lock().await })
+    }
+
     /// Ensures that the inner base layer remains operational (hot-swapping the inner node_url if
     /// needed), and yields the inner base layer.
     /// Note: the monitor has to do a liveness check with the l1 client here, so this has overhead
     /// of an external HTTP call.
-    async fn _ensure_operational(&self) -> Result<(), MonitoredBaseLayerError<B>> {
+    async fn ensure_operational(&self) -> Result<(), MonitoredBaseLayerError<B>> {
         let active_l1_endpoint = self.monitor.get_active_l1_endpoint().await;
         match active_l1_endpoint {
             Ok(new_node_url) if new_node_url != *self.current_node_url.lock().await => {
@@ -52,8 +62,97 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
     }
 }
 
-// TODO(Gilad): implement BaseLayerContract for MonitoredBaseLayer so it'll be a proper wrapper for
-// the inner base_layer.
+// ensure_operational and delegate to inner base layer.
+#[async_trait]
+impl<B: BaseLayerContract + Send + Sync> BaseLayerContract for MonitoredBaseLayer<B> {
+    type Error = MonitoredBaseLayerError<B>;
+
+    async fn get_proved_block_at(
+        &self,
+        l1_block: L1BlockNumber,
+    ) -> Result<BlockHashAndNumber, Self::Error> {
+        self.get()
+            .await?
+            .get_proved_block_at(l1_block)
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+
+    async fn latest_proved_block(
+        &self,
+        finality: u64,
+    ) -> Result<Option<BlockHashAndNumber>, Self::Error> {
+        self.get()
+            .await?
+            .latest_proved_block(finality)
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+
+    async fn latest_l1_block_number(
+        &self,
+        finality: u64,
+    ) -> Result<Option<L1BlockNumber>, Self::Error> {
+        self.get()
+            .await?
+            .latest_l1_block_number(finality)
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+
+    async fn latest_l1_block(
+        &self,
+        finality: u64,
+    ) -> Result<Option<L1BlockReference>, Self::Error> {
+        self.get()
+            .await?
+            .latest_l1_block(finality)
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+
+    async fn l1_block_at(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> Result<Option<L1BlockReference>, Self::Error> {
+        self.get()
+            .await?
+            .l1_block_at(block_number)
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+
+    async fn events<'a>(
+        &'a self,
+        block_range: RangeInclusive<L1BlockNumber>,
+        event_identifiers: &'a [&'a str],
+    ) -> Result<Vec<L1Event>, Self::Error> {
+        self.get()
+            .await?
+            .events(block_range, event_identifiers)
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+
+    async fn get_block_header(
+        &self,
+        block_number: L1BlockNumber,
+    ) -> Result<Option<L1BlockHeader>, Self::Error> {
+        self.get()
+            .await?
+            .get_block_header(block_number)
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+
+    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
+        self.get()
+            .await?
+            .set_provider_url(url)
+            .await
+            .map_err(|err| MonitoredBaseLayerError::BaseLayerContractError(err))
+    }
+}
 
 impl<B: BaseLayerContract + Send + Sync + std::fmt::Debug> std::fmt::Debug
     for MonitoredBaseLayer<B>
@@ -63,6 +162,23 @@ impl<B: BaseLayerContract + Send + Sync + std::fmt::Debug> std::fmt::Debug
             .field("current_node_url", &self.current_node_url)
             .field("base_layer", &self.base_layer)
             .finish_non_exhaustive()
+    }
+}
+
+pub struct BaseLayerGuard<'a, B: BaseLayerContract + Send + Sync> {
+    inner: tokio::sync::MutexGuard<'a, B>,
+}
+
+impl<B: BaseLayerContract + Send + Sync> Deref for BaseLayerGuard<'_, B> {
+    type Target = B;
+    fn deref(&self) -> &B {
+        &self.inner
+    }
+}
+
+impl<B: BaseLayerContract + Send + Sync> DerefMut for BaseLayerGuard<'_, B> {
+    fn deref_mut(&mut self) -> &mut B {
+        &mut self.inner
     }
 }
 
