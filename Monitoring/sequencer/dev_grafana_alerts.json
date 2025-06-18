@@ -814,7 +814,7 @@
       "name": "state_sync_lag",
       "title": "State sync lag",
       "ruleGroup": "state_sync",
-      "expr": "min_over_time((apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})[3m])",
+      "expr": "min_over_time((apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})[5m])",
       "conditions": [
         {
           "evaluator": {
@@ -841,7 +841,7 @@
       "name": "state_sync_stuck",
       "title": "State sync stuck",
       "ruleGroup": "state_sync",
-      "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "expr": "increase(apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
       "conditions": [
         {
           "evaluator": {
