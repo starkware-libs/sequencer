@@ -79,12 +79,13 @@ async fn scraper(
 ) -> (L1Scraper<EthereumBaseLayerContract>, Arc<FakeL1ProviderClient>) {
     let fake_client = Arc::new(FakeL1ProviderClient::default());
     let base_layer = EthereumBaseLayerContract::new(base_layer_config);
+    let l1_scraper_config = L1ScraperConfig::default();
 
     // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
     Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
 
     let scraper = L1Scraper::new(
-        L1ScraperConfig::default(),
+        l1_scraper_config,
         fake_client.clone(),
         base_layer,
         event_identifiers_to_track(),

@@ -15,6 +15,7 @@ use alloy::transports::TransportErrorKind;
 use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_l1_endpoint_monitor_types::L1EndpointMonitorError;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
@@ -26,8 +27,10 @@ use url::Url;
 use validator::Validate;
 
 use crate::eth_events::parse_event;
+use crate::monitored_base_layer::MonitoredBaseLayer;
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
 
+pub type MonitoredEthereumBaseLayer = MonitoredBaseLayer<EthereumBaseLayerContract>;
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 
 // Wraps the Starknet contract with a type that implements its interface, and is aware of its
@@ -97,7 +100,6 @@ impl EthereumBaseLayerContract {
         let current_node_url = config.node_url.clone();
         let contract =
             build_contract_instance(config.starknet_contract_address, current_node_url.clone());
-
         Self { contract, config }
     }
 }
@@ -256,6 +258,12 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             blob_fee,
         }))
     }
+
+    /// Rebuilds the provider on the new url.
+    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
+        self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
+        Ok(())
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -264,6 +272,8 @@ pub enum EthereumBaseLayerError {
     Contract(#[from] alloy::contract::Error),
     #[error("{0}")]
     FeeOutOfRange(alloy::primitives::ruint::FromUintError<u128>),
+    #[error("{0}")]
+    L1Endpoint(#[from] L1EndpointMonitorError),
     #[error("L1 provider response timed out.")]
     ProviderTimeout(#[from] Elapsed),
     #[error(transparent)]
@@ -306,7 +316,8 @@ impl SerializeConfig for EthereumBaseLayerConfig {
             ser_param(
                 "node_url",
                 &self.node_url.to_string(),
-                "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
+                "Initial ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. Maybe be replaced
+                during runtime if becomes inoperative",
                 ParamPrivacyInput::Private,
             ),
             ser_param(
@@ -327,7 +338,6 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 "The timeout (milliseconds) for a query of the L1 base layer",
                 ParamPrivacyInput::Public,
             ),
-
         ])
     }
 }
