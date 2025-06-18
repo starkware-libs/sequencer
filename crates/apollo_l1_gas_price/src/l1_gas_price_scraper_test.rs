@@ -45,6 +45,7 @@ fn setup_scraper(
     expected_number_of_blocks: usize,
 ) -> L1GasPriceScraper<MockBaseLayerContract> {
     let mut mock_contract = MockBaseLayerContract::new();
+    mock_contract.expect_latest_l1_block_number().returning(move |_| Ok(Some(end_block)));
     mock_contract.expect_get_block_header().returning(move |block_number| {
         if block_number >= end_block {
             Ok(None)
@@ -85,6 +86,7 @@ async fn run_l1_gas_price_scraper_two_blocks() {
     // Explicitly making the mocks here, so we can customize them for the test.
     let mut mock_contract = MockBaseLayerContract::new();
     // Note the order of the expectation is important! Can only scrape the first blocks first.
+    mock_contract.expect_latest_l1_block_number().returning(move |_| Ok(Some(END_BLOCK2)));
     mock_contract
         .expect_get_block_header()
         .times(usize::try_from(END_BLOCK1 - START_BLOCK + 1).unwrap())
@@ -147,6 +149,7 @@ async fn l1_reorg_gas_price_scraper_error() {
     // Explicitly making the mocks here, so we can customize them for the test.
     let mut mock_contract = MockBaseLayerContract::new();
     // Note the order of the expectation is important! Can only scrape the first blocks first.
+    mock_contract.expect_latest_l1_block_number().returning(move |_| Ok(Some(END_BLOCK2)));
     mock_contract
         .expect_get_block_header()
         .times(usize::try_from(END_BLOCK1 - START_BLOCK + 1).unwrap())
