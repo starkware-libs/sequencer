@@ -254,8 +254,7 @@ impl BlockBuilder {
             // Check if the block is full. This is only relevant in propose mode.
             // In validate mode, this is ignored and we simply wait for the proposer to send the
             // final number of transactions in the block.
-            // TODO(lior): Check !self.execution_params.is_validator before calling `is_done()`.
-            if lock_executor(&self.executor).is_done() && !self.execution_params.is_validator {
+            if !self.execution_params.is_validator && lock_executor(&self.executor).is_done() {
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
                 info!("Block is full.");
@@ -284,7 +283,7 @@ impl BlockBuilder {
 
         info!(
             "Finished building block. Started executing {} transactions. Finished executing {} \
-             transactions. Final number of transactions: {}.",
+             transactions. Final number of transactions (as set by the proposer): {}.",
             self.block_txs.len(),
             self.n_executed_txs,
             final_n_executed_txs_nonopt,
