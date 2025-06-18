@@ -29,6 +29,8 @@ pub enum L1EndpointMonitorResponse {
 
 #[derive(Debug, Clone, Error, Serialize, Deserialize, PartialEq, Eq)]
 pub enum L1EndpointMonitorError {
+    #[error("Unknown initial L1 endpoint URL not present in the config: {unknown_url}")]
+    InitializationError { unknown_url: Url },
     #[error("All L1 endpoints are non-operational")]
     NoActiveL1Endpoint,
 }
