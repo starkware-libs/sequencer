@@ -658,12 +658,13 @@ fn get_txs_timestamp_cutoff_edge_case_at_cutoff() {
     let tx_1 = l1_handler(1);
     let tx_2 = l1_handler(2);
     let tx_3 = l1_handler(3);
-    let timestamp_1 = 10;
-    let timestamp_2 = 11;
-    let timestamp_3 = 9;
-    let now = 30;
-    let cooldown = 20; // cutoff = now - cooldown = 30 - 20 = 10
-    // Only tx_3 is eligible (timestamp_3 = 9 < 10).
+    let timestamp_1 = 0;
+    let timestamp_2 = 1;
+    let timestamp_3 = 2;
+    // Only timestamp 1 is passed cooldown, meaning, only it was created more than `cooldown`
+    // seconds before `now`.
+    let now = 2;
+    let cooldown = 1;
 
     let clock = Arc::new(FakeClock::new(now));
 
@@ -683,7 +684,7 @@ fn get_txs_timestamp_cutoff_edge_case_at_cutoff() {
         .build_into_l1_provider();
 
     let result = l1_provider.get_txs(10, BlockNumber(0)).unwrap();
-    assert_eq!(result, vec![tx_3.clone()]);
+    assert_eq!(result, vec![tx_1.clone()]);
 }
 
 #[test]
