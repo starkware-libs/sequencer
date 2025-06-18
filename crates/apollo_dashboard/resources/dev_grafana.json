@@ -1329,11 +1329,11 @@
     ],
     "Compile sierra to casm": [
       {
-        "title": "compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+        "title": "compile_to_casm_compilation_duration",
         "description": "Server-side compilation to casm duration in seconds",
         "type": "timeseries",
         "exprs": [
-          "avg_over_time(compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])"
+          "compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       }
