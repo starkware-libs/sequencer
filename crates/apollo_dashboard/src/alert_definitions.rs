@@ -335,7 +335,7 @@ fn get_gateway_add_tx_latency_increase() -> Alert {
         title: "Gateway avg add_tx latency increase",
         alert_group: AlertGroup::Gateway,
         expr: format!(
-            "sum(rate({}[1m]))/sum(rate({}[1m]))",
+            "sum(rate({}[1h]))/sum(rate({}[1h]))",
             GATEWAY_ADD_TX_LATENCY.get_name_sum_with_filter(),
             GATEWAY_ADD_TX_LATENCY.get_name_count_with_filter(),
         ),
@@ -346,7 +346,7 @@ fn get_gateway_add_tx_latency_increase() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
+        severity: AlertSeverity::Informational,
     }
 }
 
