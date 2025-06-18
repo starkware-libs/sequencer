@@ -24,6 +24,56 @@
     "privacy": "Public",
     "value": 4000
   },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.add_mod": {
+    "description": "stwo add_mod gas cost.",
+    "privacy": "Public",
+    "value": 250
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.bitwise": {
+    "description": "stwo bitwise gas cost.",
+    "privacy": "Public",
+    "value": 583
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.ec_op": {
+    "description": "stwo ec_op gas cost.",
+    "privacy": "Public",
+    "value": 285950
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.ecdsa": {
+    "description": "stwo ecdsa gas cost.",
+    "privacy": "Public",
+    "value": 675904
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.keccak": {
+    "description": "stwo keccak gas cost.",
+    "privacy": "Public",
+    "value": 204283
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.mul_mod": {
+    "description": "stwo mul_mod gas cost.",
+    "privacy": "Public",
+    "value": 604
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.pedersen": {
+    "description": "stwo pedersen gas cost.",
+    "privacy": "Public",
+    "value": 4050
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.poseidon": {
+    "description": "stwo poseidon gas cost.",
+    "privacy": "Public",
+    "value": 3928
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.range_check": {
+    "description": "stwo range_check gas cost.",
+    "privacy": "Public",
+    "value": 70
+  },
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.range_check96": {
+    "description": "stwo range_check gas cost.",
+    "privacy": "Public",
+    "value": 56
+  },
   "batcher_config.block_builder_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",
