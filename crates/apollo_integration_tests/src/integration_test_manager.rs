@@ -24,7 +24,7 @@ use apollo_test_utils::send_request;
 use blockifier::context::ChainInfo;
 use futures::future::join_all;
 use futures::TryFutureExt;
-use transaction_generator::starknet_api_test_utils::{
+use transaction_generator::transaction_generator::{
     contract_class,
     AccountId,
     MultiAccountTransactionGenerator,

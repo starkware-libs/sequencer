@@ -26,7 +26,7 @@ use apollo_state_sync::config::StateSyncConfig;
 use apollo_storage::StorageConfig;
 use blockifier::context::ChainInfo;
 use futures::StreamExt;
-use transaction_generator::starknet_api_test_utils::{
+use transaction_generator::transaction_generator::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };

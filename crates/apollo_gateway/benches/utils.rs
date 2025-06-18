@@ -10,16 +10,16 @@ use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
-use transaction_generator::starknet_api_test_utils::test_valid_resource_bounds;
 use starknet_api::core::ContractAddress;
 use starknet_api::invoke_tx_args;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::test_utils::invoke::rpc_invoke_tx;
 use starknet_api::test_utils::NonceManager;
+use transaction_generator::transaction_generator::test_valid_resource_bounds;
 
 const N_TXS: usize = 100;
 
-// TODO(Arni): Use `AccountTransactionGenerator` from `starknet_api_test_utils`.
+// TODO(Arni): Use `AccountTransactionGenerator` from `transaction_generator`.
 struct TransactionGenerator {
     nonce_manager: NonceManager,
     sender_address: ContractAddress,

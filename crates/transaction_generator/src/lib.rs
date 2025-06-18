@@ -1,4 +1,4 @@
-pub mod starknet_api_test_utils;
+pub mod transaction_generator;
 
 pub const TEST_FILES_FOLDER: &str = "crates/transaction_generator/resources";
 pub const CONTRACT_CLASS_FILE: &str = "contract_class.json";

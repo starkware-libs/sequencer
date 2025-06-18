@@ -1,6 +1,6 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::{create_invoke_txs, ACCOUNT_ID_1};
-use transaction_generator::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use transaction_generator::transaction_generator::MultiAccountTransactionGenerator;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;

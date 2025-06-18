@@ -7,7 +7,7 @@ use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use axum::body::Body;
 use blockifier_test_utils::cairo_versions::CairoVersion;
 use hyper::StatusCode;
-use transaction_generator::starknet_api_test_utils::{declare_tx, deploy_account_tx, invoke_tx};
+use transaction_generator::transaction_generator::{declare_tx, deploy_account_tx, invoke_tx};
 use reqwest::{Client, Response};
 use serde::Serialize;
 use starknet_api::rpc_transaction::RpcTransaction;

@@ -45,7 +45,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
-use transaction_generator::starknet_api_test_utils::{
+use transaction_generator::transaction_generator::{
     contract_class,
     declare_tx,
     test_valid_resource_bounds,

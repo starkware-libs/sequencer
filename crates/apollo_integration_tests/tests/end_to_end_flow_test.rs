@@ -6,7 +6,7 @@ use apollo_integration_tests::utils::{
     ACCOUNT_ID_1,
     UNDEPLOYED_ACCOUNT_ID,
 };
-use transaction_generator::starknet_api_test_utils::MultiAccountTransactionGenerator;
+use transaction_generator::transaction_generator::MultiAccountTransactionGenerator;
 use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
