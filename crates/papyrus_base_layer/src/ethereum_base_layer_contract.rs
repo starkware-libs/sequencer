@@ -97,7 +97,6 @@ impl EthereumBaseLayerContract {
         let current_node_url = config.node_url.clone();
         let contract =
             build_contract_instance(config.starknet_contract_address, current_node_url.clone());
-
         Self { contract, config }
     }
 }
@@ -312,7 +311,9 @@ impl SerializeConfig for EthereumBaseLayerConfig {
             ser_param(
                 "node_url",
                 &self.node_url.to_string(),
-                "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
+                "Initial ethereum node URL. A schema to match to Infura node: \
+                 https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. \
+                 Maybe be replaced during runtime if becomes inoperative",
                 ParamPrivacyInput::Private,
             ),
             ser_param(
