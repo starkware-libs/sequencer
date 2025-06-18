@@ -22,6 +22,7 @@ use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_gateway::config::GatewayConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
+use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
@@ -176,6 +177,8 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub compiler_config: SierraCompilationConfig,
     #[validate]
+    pub l1_endpoint_monitor_config: L1EndpointMonitorConfig,
+    #[validate]
     pub l1_provider_config: L1ProviderConfig,
     #[validate]
     pub l1_gas_price_provider_config: L1GasPriceProviderConfig,
@@ -215,6 +218,10 @@ impl SerializeConfig for SequencerNodeConfig {
                 "monitoring_endpoint_config",
             ),
             prepend_sub_config_name(self.state_sync_config.dump(), "state_sync_config"),
+            prepend_sub_config_name(
+                self.l1_endpoint_monitor_config.dump(),
+                "l1_endpoint_monitor_config",
+            ),
             prepend_sub_config_name(self.l1_provider_config.dump(), "l1_provider_config"),
             prepend_sub_config_name(self.l1_scraper_config.dump(), "l1_scraper_config"),
             prepend_sub_config_name(
