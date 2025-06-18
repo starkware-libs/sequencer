@@ -20,7 +20,7 @@ concurrency:
     ${{ github.workflow }}-
     ${{ github.ref }}-
     ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
   commitlint:
@@ -55,7 +55,7 @@ jobs:
       statuses: read
     steps:
       - name: Run Merge Gatekeeper on pull request
-        if: github.event_name == 'pull_request'
+        if: github.event_name != 'merge_group'
         uses: upsidr/merge-gatekeeper@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
