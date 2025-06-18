@@ -66,7 +66,7 @@ pub enum BlockBuilderError {
     GetTransactionError(#[from] TransactionProviderError),
     #[error(transparent)]
     StreamTransactionsError(
-        #[from] tokio::sync::mpsc::error::SendError<InternalConsensusTransaction>,
+        #[from] Box<tokio::sync::mpsc::error::SendError<InternalConsensusTransaction>>,
     ),
     #[error(transparent)]
     FailOnError(FailOnErrorCause),
@@ -483,7 +483,7 @@ async fn collect_execution_results_and_stream_txs(
 
                 if let Some(output_content_sender) = output_content_sender {
                     // Only reached in proposal flow.
-                    output_content_sender.send(input_tx.clone())?;
+                    output_content_sender.send(input_tx.clone()).map_err(Box::new)?;
                 }
 
                 // Skip sending the pre confirmed executed transactions, receipts and state diffs
