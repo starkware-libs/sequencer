@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::mem;
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
 
 use apollo_l1_provider_types::{
     Event,
@@ -10,6 +11,7 @@ use apollo_l1_provider_types::{
     SessionState,
     ValidationStatus,
 };
+use apollo_time::test_utils::FakeClock;
 use apollo_time::time::{Clock, DefaultClock};
 use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
@@ -176,6 +178,28 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    /// Use to test timelocking of new l1-handler transactions, if you don't care about the actual
+    /// timestamp values. If you want to test specific timestamp values, use `with_timed_txs` and
+    /// set clock and cooldown configs manually through the setters.
+    /// Note: do not set clock/configs manually if you use this method, or you may get unexpected
+    /// results.
+    pub fn with_timelocked_txs(
+        mut self,
+        txs: impl IntoIterator<Item = L1HandlerTransaction>,
+    ) -> Self {
+        self = self.with_nonzero_timelock_setup();
+
+        let now = u64::try_from(self.clock.as_ref().unwrap().now().timestamp()).unwrap();
+        // An l1-handler is timelocked if if was created less than `cooldown` seconds ago. Since
+        // timelock is nonzero, all txs created `now` are trivially timelocked.
+        let timelocked_tx_timestamp = now;
+        let txs =
+            txs.into_iter().map(|tx| (tx, timelocked_tx_timestamp)).map(Into::into).collect_vec();
+
+        self.tx_manager_content_builder = self.tx_manager_content_builder.with_timed_txs(txs);
+        self
+    }
+
     pub fn build(self) -> L1ProviderContent {
         L1ProviderContent {
             config: self.config,
@@ -188,6 +212,19 @@ impl L1ProviderContentBuilder {
 
     pub fn build_into_l1_provider(self) -> L1Provider {
         self.build().into()
+    }
+
+    fn with_nonzero_timelock_setup(mut self) -> Self {
+        let base_timestamp = 5; // Arbitrary small base timestamp.
+        self.clock = self.clock.take().or_else(|| Some(Arc::new(FakeClock::new(base_timestamp))));
+
+        let nonzero_timelock = Duration::from_secs(1);
+        let config = self.config.unwrap_or_default();
+        self.with_config(L1ProviderConfig {
+            new_l1_handler_cooldown_seconds: nonzero_timelock,
+            l1_handler_cancellation_timelock_seconds: nonzero_timelock,
+            ..config
+        })
     }
 }
 
@@ -307,12 +344,14 @@ struct TransactionManagerContentBuilder {
 impl TransactionManagerContentBuilder {
     fn with_txs(mut self, txs: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
         let dummy_timestamp = 0;
-        self.uncommitted = Some(txs.into_iter().map(|tx| (tx, dummy_timestamp).into()).collect());
+        self.uncommitted
+            .get_or_insert_default()
+            .extend(txs.into_iter().map(|tx| (tx, dummy_timestamp).into()).collect_vec());
         self
     }
 
     fn with_timed_txs(mut self, txs: impl IntoIterator<Item = TimedL1HandlerTransaction>) -> Self {
-        self.uncommitted = Some(txs.into_iter().collect());
+        self.uncommitted.get_or_insert_default().extend(txs.into_iter().collect_vec());
         self
     }
 

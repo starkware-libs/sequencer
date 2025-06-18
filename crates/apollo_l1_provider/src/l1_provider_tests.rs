@@ -622,60 +622,33 @@ fn get_txs_identical_timestamps() {
 
 #[test]
 fn get_txs_timestamp_cutoff_some_eligible() {
+    // Setup.
     let tx_1 = l1_handler(1);
     let tx_2 = l1_handler(2);
     let tx_3 = l1_handler(3);
-    let timestamp_1 = 10;
-    let timestamp_2 = 20;
-    let timestamp_3 = 30;
-    let now = 35;
-    let cooldown = 20; // cutoff = now - cooldown = 35 - 20 = 15.
-    // Only tx_1 (timestamp_1=10) is eligible (10 < 15).
 
-    let clock = Arc::new(FakeClock::new(now));
-
-    let config = L1ProviderConfig {
-        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
-        ..Default::default()
-    };
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_config(config)
-        .with_clock(clock)
-        .with_timed_txs([
-            (tx_1.clone(), timestamp_1),
-            (tx_2.clone(), timestamp_2),
-            (tx_3.clone(), timestamp_3),
-        ])
+        .with_txs([tx_1.clone()])
+        .with_timelocked_txs([tx_2, tx_3])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
 
+    // Test.
     let result = l1_provider.get_txs(10, BlockNumber(0)).unwrap();
     assert_eq!(result, vec![tx_1.clone()]);
 }
 
 #[test]
 fn get_txs_timestamp_cutoff_none_eligible() {
+    // Setup.
     let tx_1 = l1_handler(1);
     let tx_2 = l1_handler(2);
-    let timestamp_1 = 10;
-    let timestamp_2 = 20;
-    let now = 30;
-    let cooldown = 21; // cutoff = now - cooldown = 30 - 21 = 9.
-    // No txs have timestamp < cutoff (10,20 >= 9).
-
-    let clock = Arc::new(FakeClock::new(now));
-
-    let config = L1ProviderConfig {
-        new_l1_handler_cooldown_seconds: Duration::from_secs(cooldown),
-        ..Default::default()
-    };
     let mut l1_provider = L1ProviderContentBuilder::new()
-        .with_config(config)
-        .with_clock(clock)
-        .with_timed_txs([(tx_1.clone(), timestamp_1), (tx_2.clone(), timestamp_2)])
+        .with_timelocked_txs([tx_1.clone(), tx_2.clone()])
         .with_state(ProviderState::Propose)
         .build_into_l1_provider();
 
+    // Test.
     let result = l1_provider.get_txs(10, BlockNumber(0)).unwrap();
     assert_eq!(result, vec![]);
 }
