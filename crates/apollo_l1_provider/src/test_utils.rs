@@ -94,15 +94,6 @@ impl L1ProviderContentBuilder {
     }
 
     pub fn with_config(mut self, config: L1ProviderConfig) -> Self {
-        let new_l1_handler_tx_cooldown_secs = config.new_l1_handler_cooldown_seconds;
-        let l1_handler_cancellation_timelock_seconds =
-            config.l1_handler_cancellation_timelock_seconds;
-        self.tx_manager_content_builder =
-            self.tx_manager_content_builder.with_config(TransactionManagerConfig {
-                new_l1_handler_tx_cooldown_secs,
-                l1_handler_cancellation_timelock_seconds,
-            });
-
         self.config = Some(config);
         self
     }
@@ -200,7 +191,12 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn build(self) -> L1ProviderContent {
+    pub fn build(mut self) -> L1ProviderContent {
+        if let Some(config) = self.config {
+            self.tx_manager_content_builder =
+                self.tx_manager_content_builder.with_config(config.into());
+        }
+
         L1ProviderContent {
             config: self.config,
             tx_manager_content: self.tx_manager_content_builder.build(),
