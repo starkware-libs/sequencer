@@ -189,7 +189,7 @@ async fn batcher_propose_and_commit_block(
     let mut batcher = create_batcher(mock_dependencies).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
-    batcher.await_active_proposal().await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
     batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await
 }
 
@@ -547,7 +547,7 @@ async fn send_content_to_an_invalid_proposal(
 ) {
     let mut batcher =
         create_batcher_with_active_validate_block(Err(BUILD_BLOCK_FAIL_ON_ERROR)).await;
-    batcher.await_active_proposal().await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
     let send_proposal_content_input =
         SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
@@ -757,7 +757,7 @@ async fn consecutive_proposal_generation_success() {
     // Make sure we can generate 4 consecutive proposals.
     for i in 0..2 {
         batcher.propose_block(propose_block_input(ProposalId(2 * i))).await.unwrap();
-        batcher.await_active_proposal().await;
+        batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
         batcher.validate_block(validate_block_input(ProposalId(2 * i + 1))).await.unwrap();
         let finish_proposal = SendProposalContentInput {
@@ -765,7 +765,7 @@ async fn consecutive_proposal_generation_success() {
             content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
         };
         batcher.send_proposal_content(finish_proposal).await.unwrap();
-        batcher.await_active_proposal().await;
+        batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
     }
 
     let metrics = recorder.handle().render();
@@ -800,7 +800,7 @@ async fn concurrent_proposals_generation_fail() {
         })
         .await
         .unwrap();
-    batcher.await_active_proposal().await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 2, 1, 1, 0);
@@ -845,7 +845,7 @@ async fn proposal_startup_failure_allows_new_proposals() {
         })
         .await
         .unwrap();
-    batcher.await_active_proposal().await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 2, 1, 1, 0);

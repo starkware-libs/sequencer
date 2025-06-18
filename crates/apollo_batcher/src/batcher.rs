@@ -265,6 +265,7 @@ impl Batcher {
             propose_block_input.proposal_id,
             block_builder,
             abort_signal_sender,
+            None,
             Some(pre_confirmed_block_writer),
             proposal_metrics_handle,
         )
@@ -308,9 +309,12 @@ impl Batcher {
         // A channel to send the transactions to include in the block being validated.
         let (input_tx_sender, input_tx_receiver) =
             tokio::sync::mpsc::channel(self.config.input_stream_content_buffer_size);
+        let (final_n_executed_txs_sender, final_n_executed_txs_receiver) =
+            tokio::sync::oneshot::channel();
 
         let tx_provider = ValidateTransactionProvider::new(
             input_tx_receiver,
+            final_n_executed_txs_receiver,
             self.l1_provider_client.clone(),
             validate_block_input.block_info.block_number,
         );
@@ -341,6 +345,7 @@ impl Batcher {
             validate_block_input.proposal_id,
             block_builder,
             abort_signal_sender,
+            Some(final_n_executed_txs_sender),
             None,
             proposal_metrics_handle,
         )
@@ -371,9 +376,8 @@ impl Batcher {
 
         match send_proposal_content_input.content {
             SendProposalContent::Txs(txs) => self.handle_send_txs_request(proposal_id, txs).await,
-            SendProposalContent::Finish(_) => {
-                // TODO(AlonH): Handle the number of executed transactions.
-                self.handle_finish_proposal_request(proposal_id).await
+            SendProposalContent::Finish(final_n_executed_txs) => {
+                self.handle_finish_proposal_request(proposal_id, final_n_executed_txs).await
             }
             SendProposalContent::Abort => self.handle_abort_proposal_request(proposal_id).await,
         }
@@ -420,12 +424,13 @@ impl Batcher {
     async fn handle_finish_proposal_request(
         &mut self,
         proposal_id: ProposalId,
+        final_n_executed_txs: usize,
     ) -> BatcherResult<SendProposalContentResponse> {
         debug!("Send proposal content done for {}", proposal_id);
 
         self.validate_tx_streams.remove(&proposal_id).expect("validate tx stream should exist.");
         if self.is_active(proposal_id).await {
-            self.await_active_proposal().await;
+            self.await_active_proposal(final_n_executed_txs).await?;
         }
 
         let proposal_result =
@@ -702,6 +707,7 @@ impl Batcher {
         proposal_id: ProposalId,
         mut block_builder: Box<dyn BlockBuilderTrait>,
         abort_signal_sender: tokio::sync::oneshot::Sender<()>,
+        final_n_executed_txs_sender: Option<tokio::sync::oneshot::Sender<usize>>,
         pre_confirmed_block_writer: Option<Box<dyn PreConfirmedBlockWriterTrait>>,
         mut proposal_metrics_handle: ProposalMetricsHandle,
     ) -> BatcherResult<()> {
@@ -751,8 +757,12 @@ impl Batcher {
                 })
             });
 
-        self.active_proposal_task =
-            Some(ProposalTask { abort_signal_sender, execution_join_handle, writer_join_handle });
+        self.active_proposal_task = Some(ProposalTask {
+            abort_signal_sender,
+            final_n_executed_txs_sender,
+            execution_join_handle,
+            writer_join_handle,
+        });
         Ok(())
     }
 
@@ -783,15 +793,35 @@ impl Batcher {
         }
     }
 
-    pub async fn await_active_proposal(&mut self) {
-        if let Some(ProposalTask { execution_join_handle, writer_join_handle, .. }) =
-            self.active_proposal_task.take()
+    pub async fn await_active_proposal(
+        &mut self,
+        final_n_executed_txs: usize,
+    ) -> BatcherResult<()> {
+        if let Some(ProposalTask {
+            execution_join_handle,
+            writer_join_handle,
+            final_n_executed_txs_sender,
+            ..
+        }) = self.active_proposal_task.take()
         {
+            if let Some(final_n_executed_txs_sender) = final_n_executed_txs_sender {
+                final_n_executed_txs_sender.send(final_n_executed_txs).map_err(|err| {
+                    error!(
+                        "Failed to send final_n_executed_txs ({final_n_executed_txs}) to the tx \
+                         provider: {}",
+                        err
+                    );
+                    BatcherError::InternalError
+                })?;
+            }
+
             let writer_future = writer_join_handle
                 .map(FutureExt::boxed)
                 .unwrap_or_else(|| futures::future::ready(Ok(())).boxed());
             let _ = tokio::join!(execution_join_handle, writer_future);
         }
+
+        Ok(())
     }
 
     #[instrument(skip(self), err)]
