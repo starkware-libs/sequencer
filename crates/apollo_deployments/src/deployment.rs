@@ -15,7 +15,14 @@ use serde::Serialize;
 use serde_json::{json, to_value, Value};
 
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
-use crate::service::{DeploymentName, ExternalSecret, IngressParams, Service, ServiceName};
+use crate::service::{
+    DeploymentName,
+    ExternalSecret,
+    IngressParams,
+    K8SServiceType,
+    Service,
+    ServiceName,
+};
 
 #[cfg(test)]
 pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
@@ -375,7 +382,7 @@ impl DeploymentTypeConfigOverride {
 
 // TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be
 // removed, and the p2p address should always be `External`.
-pub(crate) enum P2PCommunicationType {
+pub enum P2PCommunicationType {
     Internal,
     External,
 }
@@ -398,6 +405,10 @@ impl P2PCommunicationType {
             "/dns/{}.{}.{}/tcp/{}/p2p/{}",
             service_name, namespace, domain, port, first_node_address
         )
+    }
+
+    pub(crate) fn get_k8s_service_type(&self) -> K8SServiceType {
+        K8SServiceType::LoadBalancer
     }
 }
 
