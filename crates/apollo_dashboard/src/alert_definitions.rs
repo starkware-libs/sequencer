@@ -15,7 +15,7 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
 };
-use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
+use apollo_gateway::metrics::GATEWAY_TRANSACTIONS_RECEIVED;
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
@@ -329,26 +329,7 @@ fn get_gateway_add_tx_idle() -> Alert {
     }
 }
 
-fn get_gateway_add_tx_latency_increase() -> Alert {
-    Alert {
-        name: "gateway_add_tx_latency_increase",
-        title: "Gateway avg add_tx latency increase",
-        alert_group: AlertGroup::Gateway,
-        expr: format!(
-            "sum(rate({}[1m]))/sum(rate({}[1m]))",
-            GATEWAY_ADD_TX_LATENCY.get_name_sum_with_filter(),
-            GATEWAY_ADD_TX_LATENCY.get_name_count_with_filter(),
-        ),
-        conditions: &[AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 2.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
-    }
-}
+// TODO(shahak): add gateway latency alert
 
 fn get_mempool_add_tx_idle() -> Alert {
     Alert {
@@ -667,7 +648,6 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_round_high_avg(),
         get_consensus_validate_proposal_failed_alert(),
         get_consensus_votes_num_sent_messages_alert(),
-        get_gateway_add_tx_latency_increase(),
         get_gateway_add_tx_idle(),
         get_http_server_idle(),
         get_l1_gas_price_provider_insufficient_history_alert(),
