@@ -23,7 +23,7 @@ pub enum HttpServerRunError {
 #[derive(Error, Debug)]
 pub enum HttpServerError {
     #[error(transparent)]
-    GatewayClientError(#[from] GatewayClientError),
+    GatewayClientError(#[from] Box<GatewayClientError>),
     #[error(transparent)]
     DeserializationError(#[from] serde_json::Error),
     #[error(transparent)]
@@ -33,7 +33,7 @@ pub enum HttpServerError {
 impl IntoResponse for HttpServerError {
     fn into_response(self) -> Response {
         match self {
-            HttpServerError::GatewayClientError(e) => gw_client_err_into_response(e),
+            HttpServerError::GatewayClientError(e) => gw_client_err_into_response(*e),
             HttpServerError::DeserializationError(e) => serde_error_into_response(e),
             HttpServerError::DecompressionError(e) => compression_error_into_response(e),
         }

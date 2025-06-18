@@ -144,8 +144,8 @@ fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
             ))
         })?);
     if !SUPPORTED_TRANSACTION_VERSIONS.contains(&tx_version) {
-        return Err(HttpServerError::GatewayClientError(GatewayClientError::GatewayError(
-            GatewayError::DeprecatedGatewayError {
+        return Err(HttpServerError::GatewayClientError(Box::new(
+            GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
                 source: StarknetError {
                     code: StarknetErrorCode::KnownErrorCode(
                         KnownStarknetErrorCode::InvalidTransactionVersion,
@@ -156,7 +156,7 @@ fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
                     ),
                 },
                 p2p_message_metadata: None,
-            },
+            }),
         )));
     }
     Ok(())
@@ -170,7 +170,7 @@ async fn add_tx_inner(
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
         debug!("Error while adding transaction: {}", e);
-        HttpServerError::from(e)
+        HttpServerError::from(Box::new(e))
     });
 
     let region =
