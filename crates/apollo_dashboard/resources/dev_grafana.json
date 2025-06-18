@@ -366,6 +366,33 @@
           "http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "http_server_added_transactions_success",
+        "description": "Number of successfully added transactions",
+        "type": "timeseries",
+        "exprs": [
+          "http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "http_server_added_transactions_failure",
+        "description": "Number of faulty added transactions",
+        "type": "timeseries",
+        "exprs": [
+          "http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "http_server_added_transactions_internal_error",
+        "description": "Number of faulty added transactions failing on internal error",
+        "type": "timeseries",
+        "exprs": [
+          "http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
       }
     ],
     "State Sync": [
