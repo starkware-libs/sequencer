@@ -37,25 +37,25 @@ fn get_panel_last_batched_block() -> Panel {
 }
 
 fn get_panel_batcher_local_msgs_received() -> Panel {
-    Panel::from_counter(BATCHER_LOCAL_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(BATCHER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_batcher_local_msgs_processed() -> Panel {
-    Panel::from_counter(BATCHER_LOCAL_MSGS_PROCESSED, PanelType::Graph)
+    Panel::from_counter(BATCHER_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_batcher_remote_msgs_received() -> Panel {
-    Panel::from_counter(BATCHER_REMOTE_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(BATCHER_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_batcher_remote_valid_msgs_received() -> Panel {
-    Panel::from_counter(BATCHER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph)
+    Panel::from_counter(BATCHER_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 fn get_panel_batcher_remote_msgs_processed() -> Panel {
-    Panel::from_counter(BATCHER_REMOTE_MSGS_PROCESSED, PanelType::Graph)
+    Panel::from_counter(BATCHER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 fn get_panel_batcher_local_queue_depth() -> Panel {
-    Panel::from_gauge(BATCHER_LOCAL_QUEUE_DEPTH, PanelType::Graph)
+    Panel::from_gauge(BATCHER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
 }
 fn get_panel_batcher_remote_client_send_attempts() -> Panel {
-    Panel::from_hist(BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph)
+    Panel::from_hist(BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 
 pub(crate) fn get_batcher_row() -> Row {
