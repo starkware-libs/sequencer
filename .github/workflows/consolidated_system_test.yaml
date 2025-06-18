@@ -10,12 +10,6 @@ on:
         type: number
 
   pull_request:
-    paths:
-      - ".github/workflows/consolidated_system_test.yaml"
-      - "deployments/**"
-      - "crates/**"
-      - "crates/apollo_deployments/resources/testing/**"
-      - "scripts/system_tests/**"
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -55,7 +49,10 @@ jobs:
           echo "Checking if any system-test-triggering crates were modified..."
           OUTPUT_FILE=$(mktemp)
 
-          python ./scripts/check_system_test_trigger.py --output_file $OUTPUT_FILE --commit_id ${{ github.event.pull_request.base.sha }}
+          python ./scripts/check_test_trigger.py --output_file $OUTPUT_FILE \
+            --commit_id ${{ github.event.pull_request.base.sha }} \
+            --crate_triggers apollo_node,apollo_deployments \
+            --path_triggers ".github/workflows/consolidated_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py"
 
           should_run=$(cat "$OUTPUT_FILE")
           echo "Captured output: $should_run"
