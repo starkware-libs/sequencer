@@ -135,7 +135,8 @@ async fn all_down_fails() {
     assert_eq!(monitor.current_l1_endpoint_index, 0);
 }
 
-#[test]
-#[ignore = "Enable once we add a constructor to the monitor (soon) which asserts correct index and \
-            returns an error otherwise"]
-fn initialized_with_index_out_of_bounds() {}
+#[tokio::test]
+async fn initialize_without_urls() {
+    let result = L1EndpointMonitor::new(L1EndpointMonitorConfig::default());
+    assert_eq!(result, Err(L1EndpointMonitorError::InitializationError));
+}

@@ -29,6 +29,11 @@ pub enum L1EndpointMonitorResponse {
 
 #[derive(Debug, Clone, Error, Serialize, Deserialize, PartialEq, Eq)]
 pub enum L1EndpointMonitorError {
+    #[error(
+        "In order to initialize the L1 endpoint monitor, you must provide at least one L1 \
+         endpoint URL in the config."
+    )]
+    InitializationError,
     #[error("All L1 endpoints are non-operational")]
     NoActiveL1Endpoint,
 }
