@@ -37,7 +37,7 @@ pub enum MockError {}
 #[cfg_attr(any(feature = "testing", test), automock(type Error = MockError;))]
 #[async_trait]
 pub trait BaseLayerContract {
-    type Error: Error + PartialEq + Display + Debug;
+    type Error: Error + PartialEq + Display + Debug + Send + Sync;
 
     /// Get the latest Starknet block that is proved on the base layer at a specific L1 block
     /// number. If the number is too low, return an error.
