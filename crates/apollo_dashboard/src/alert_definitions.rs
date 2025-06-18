@@ -45,9 +45,7 @@ use crate::alerts::{
     Alerts,
 };
 
-// TODO(Tsabary): this file should be managed by this crate, hence should be moved here to a
-// resources folder.
-pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
+pub const DEV_ALERTS_JSON_PATH: &str = "crates/apollo_dashboard/resources/dev_grafana_alerts.json";
 
 const PENDING_DURATION_DEFAULT: &str = "30s";
 const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
