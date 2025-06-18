@@ -35,8 +35,6 @@ use blockifier::state::state_reader_and_contract_manager::StateReaderAndContract
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use indexmap::{IndexMap, IndexSet};
-#[cfg(test)]
-use mockall::automock;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo};
 use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
@@ -148,7 +146,7 @@ impl BlockExecutionArtifacts {
 /// The BlockBuilderTrait is responsible for building a new block from transactions provided by the
 /// tx_provider. The block building will stop at time deadline.
 /// The transactions that were added to the block will be streamed to the output_content_sender.
-#[cfg_attr(test, automock)]
+#[cfg_attr(test, mockall::automock)]
 #[async_trait]
 pub trait BlockBuilderTrait: Send {
     async fn build_block(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts>;
@@ -565,7 +563,7 @@ pub type BatcherWorkerPool =
     Arc<WorkerPool<CachedState<StateReaderAndContractManager<PapyrusReader>>>>;
 
 /// The BlockBuilderFactoryTrait is responsible for creating a new block builder.
-#[cfg_attr(test, automock)]
+#[cfg_attr(test, mockall::automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
     // TODO(noamsp): Investigate and remove this clippy warning.
     #[allow(clippy::result_large_err, clippy::too_many_arguments)]
