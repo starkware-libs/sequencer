@@ -46,6 +46,7 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
 
+#[derive(Clone)]
 pub struct Gateway {
     pub config: GatewayConfig,
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
