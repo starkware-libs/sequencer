@@ -29,17 +29,12 @@ pub(crate) static STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE: LazyLock<PathBu
     });
 
 fn enter_venv_instructions(script_type: &Cairo0Script) -> String {
-    let requirements_path = match script_type {
-        Cairo0Script::Compile | Cairo0Script::Format => format!("{PIP_REQUIREMENTS_FILE:#?}"),
-        Cairo0Script::StarknetCompileDeprecated => {
-            format!("{STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE:#?}")
-        }
-    };
     format!(
         r#"
 python3 -m venv sequencer_venv
 . sequencer_venv/bin/activate
-pip install -r {requirements_path}"#,
+pip install -r {:?}"#,
+        script_type.requirements_file_path()
     )
 }
 
@@ -61,9 +56,15 @@ impl Cairo0Script {
 
     pub fn required_version(&self) -> CairoLangVersion<'static> {
         match self {
-            Self::Compile => EXPECTED_CAIRO0_VERSION,
-            Self::Format => EXPECTED_CAIRO0_VERSION,
+            Self::Compile | Self::Format => EXPECTED_CAIRO0_VERSION,
             Self::StarknetCompileDeprecated => EXPECTED_CAIRO0_STARKNET_COMPILE_VERSION,
+        }
+    }
+
+    pub fn requirements_file_path(&self) -> &PathBuf {
+        match self {
+            Self::Compile | Self::Format => &PIP_REQUIREMENTS_FILE,
+            Self::StarknetCompileDeprecated => &STARKNET_DEPRECATED_COMPILE_REQUIREMENTS_FILE,
         }
     }
 }
