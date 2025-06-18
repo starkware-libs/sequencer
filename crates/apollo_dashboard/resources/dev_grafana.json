@@ -1011,6 +1011,15 @@
     ],
     "L1 Provider": [
       {
+        "title": "l1_message_scraper_success_count",
+        "description": "Number of times the L1 message scraper successfully scraped messages and updated the provider",
+        "type": "timeseries",
+        "exprs": [
+          "l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "l1_message_scraper_baselayer_error_count",
         "description": "Number of times the L1 message scraper encountered an error while scraping the base layer",
         "type": "timeseries",
