@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use thiserror::Error;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use validator::Validate;
 
 use crate::metrics::{
@@ -165,7 +165,7 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
             // Not enough blocks under current finality. Try again later.
             return Ok(start_block_number);
         };
-        info!(
+        debug!(
             "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
         );
         for block_number in start_block_number..=last_block_number {
