@@ -135,7 +135,12 @@ async fn all_down_fails() {
     assert_eq!(monitor.current_l1_endpoint_index, 0);
 }
 
-#[test]
-#[ignore = "Enable once we add a constructor to the monitor (soon) which asserts correct index and \
-            returns an error otherwise"]
-fn initialized_with_index_out_of_bounds() {}
+#[tokio::test]
+async fn initialized_with_unknown_url_returns_error() {
+    let some_valid_endpoint = mock_working_l1_endpoint().await;
+    let config =
+        L1EndpointMonitorConfig { ordered_l1_endpoint_urls: vec![some_valid_endpoint.url] };
+    let unknown_url = url(BAD_ENDPOINT_1);
+    let result = L1EndpointMonitor::new(config.clone(), &unknown_url);
+    assert_eq!(result, Err(L1EndpointMonitorError::InitializationError { unknown_url }));
+}

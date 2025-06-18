@@ -14,13 +14,27 @@ pub mod l1_endpoint_monitor_tests;
 // a bug in infura where the connectivity was fine, but get_block_number() failed.
 pub const HEALTH_CHECK_RPC_METHOD: &str = "eth_blockNumber";
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L1EndpointMonitor {
     pub current_l1_endpoint_index: usize,
     pub config: L1EndpointMonitorConfig,
 }
 
 impl L1EndpointMonitor {
+    pub fn new(
+        config: L1EndpointMonitorConfig,
+        initial_node_url: &Url,
+    ) -> L1EndpointMonitorResult<Self> {
+        let starting_l1_endpoint_index =
+            config.ordered_l1_endpoint_urls.iter().position(|url| url == initial_node_url).ok_or(
+                L1EndpointMonitorError::InitializationError {
+                    unknown_url: initial_node_url.clone(),
+                },
+            )?;
+
+        Ok(Self { current_l1_endpoint_index: starting_l1_endpoint_index, config })
+    }
+
     /// Returns a functional L1 endpoint, or fails if all configured endpoints are non-operational.
     /// The method cycles through the configured endpoints, starting from the currently selected one
     /// and returns the first one that is operational.
