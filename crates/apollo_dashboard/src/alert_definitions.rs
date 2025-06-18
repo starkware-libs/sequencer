@@ -24,7 +24,10 @@ use apollo_l1_gas_price::metrics::{
     L1_GAS_PRICE_SCRAPER_BASELAYER_SUCCESS_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
 };
-use apollo_l1_provider::metrics::L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT;
+use apollo_l1_provider::metrics::{
+    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_MESSAGE_SCRAPER_BASELAYER_SUCCESS_COUNT,
+};
 use apollo_mempool::metrics::{
     MEMPOOL_GET_TXS_SIZE,
     MEMPOOL_POOL_SIZE,
@@ -430,8 +433,8 @@ fn get_l1_gas_price_scraper_baselayer_success_count_alert() -> Alert {
 
 fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
     Alert {
-        name: "l1_message_scraper_baselayer_error_count",
-        title: "L1 message scraper baselayer error count",
+        name: "l1_gas_price_scraper_baselayer_error_count",
+        title: "L1 gas price scraper baselayer error count",
         alert_group: AlertGroup::L1GasPrice,
         expr: format!(
             "increase({}[5m])",
@@ -485,6 +488,26 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+    }
+}
+
+fn get_l1_message_scraper_baselayer_success_count_alert() -> Alert {
+    Alert {
+        name: "l1_gas_price_message_baselayer_success_count",
+        title: "L1 gas price message baselayer success count",
+        alert_group: AlertGroup::L1GasPrice,
+        expr: format!(
+            "increase({}[1h])",
+            L1_MESSAGE_SCRAPER_BASELAYER_SUCCESS_COUNT.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
     }
 }
 
@@ -696,6 +719,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_l1_gas_price_scraper_baselayer_success_count_alert(),
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
         get_eth_to_strk_error_count_alert(),
+        get_l1_message_scraper_baselayer_success_count_alert(),
         get_l1_message_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),
