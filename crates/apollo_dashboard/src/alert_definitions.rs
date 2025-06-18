@@ -585,7 +585,7 @@ fn get_state_sync_lag() -> Alert {
         title: "State sync lag",
         alert_group: AlertGroup::StateSync,
         expr: format!(
-            "min_over_time(({} - {})[3m])",
+            "min_over_time(({} - {})[5m])",
             CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
             STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()
         ), // Alert when the central sync is ahead of the class manager by more than 5 blocks
@@ -605,7 +605,7 @@ fn get_state_sync_stuck() -> Alert {
         name: "state_sync_stuck",
         title: "State sync stuck",
         alert_group: AlertGroup::StateSync,
-        expr: format!("increase({}[1m])", STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()), /* Alert is triggered when the class manager marker is not updated for 1m */
+        expr: format!("increase({}[5m])", STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()), /* Alert is triggered when the class manager marker is not updated for 5m */
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
