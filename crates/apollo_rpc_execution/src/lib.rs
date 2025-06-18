@@ -170,7 +170,7 @@ impl SerializeConfig for ExecutionConfig {
 pub enum ExecutionError {
     #[error("Bad declare tx: {tx:?}. error: {err:?}")]
     BadDeclareTransaction {
-        tx: DeclareTransaction,
+        tx: Box<DeclareTransaction>,
         #[source]
         err: StarknetApiError,
     },
@@ -857,7 +857,7 @@ fn to_blockifier_tx(
                 SierraVersion::DEPRECATED,
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
-                tx: DeclareTransaction::V0(declare_tx.clone()),
+                tx: DeclareTransaction::V0(declare_tx.clone()).into(),
                 err,
             })?;
 
@@ -886,7 +886,7 @@ fn to_blockifier_tx(
                 SierraVersion::DEPRECATED,
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
-                tx: DeclareTransaction::V1(declare_tx.clone()),
+                tx: DeclareTransaction::V1(declare_tx.clone()).into(),
                 err,
             })?;
             let execution_flags =
@@ -916,7 +916,7 @@ fn to_blockifier_tx(
                 sierra_version,
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
-                tx: DeclareTransaction::V2(declare_tx.clone()),
+                tx: DeclareTransaction::V2(declare_tx.clone()).into(),
                 err,
             })?;
             let execution_flags =
@@ -946,7 +946,7 @@ fn to_blockifier_tx(
                 sierra_version,
             )
             .map_err(|err| ExecutionError::BadDeclareTransaction {
-                tx: DeclareTransaction::V3(declare_tx.clone()),
+                tx: DeclareTransaction::V3(declare_tx.clone()).into(),
                 err,
             })?;
             let execution_flags =
