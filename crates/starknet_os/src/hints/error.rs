@@ -77,6 +77,10 @@ pub enum OsHintError {
     #[error("Inconsistent storage value. Actual: {actual}, expected: {expected}.")]
     InconsistentValue { actual: Felt, expected: Felt },
     #[error(transparent)]
+    IO(#[from] std::io::Error),
+    #[error(transparent)]
+    SerdeJson(#[from] serde_json::Error),
+    #[error(transparent)]
     Math(#[from] MathError),
     #[error(transparent)]
     Memory(#[from] MemoryError),
