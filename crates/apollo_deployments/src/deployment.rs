@@ -375,7 +375,7 @@ impl DeploymentTypeConfigOverride {
 
 // TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be
 // removed, and the p2p address should always be `External`.
-pub(crate) enum P2PCommunicationType {
+pub enum P2PCommunicationType {
     Internal,
     External,
 }
@@ -398,6 +398,13 @@ impl P2PCommunicationType {
             "/dns/{}.{}.{}/tcp/{}/p2p/{}",
             service_name, namespace, domain, port, first_node_address
         )
+    }
+
+    pub(crate) fn is_internal(&self) -> bool {
+        match self {
+            P2PCommunicationType::Internal => true,
+            P2PCommunicationType::External => false,
+        }
     }
 }
 

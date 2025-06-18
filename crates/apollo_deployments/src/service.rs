@@ -8,6 +8,7 @@ use serde::{Serialize, Serializer};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
+use crate::deployment::P2PCommunicationType;
 use crate::deployment_definitions::Environment;
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
@@ -39,6 +40,34 @@ pub struct Service {
 pub enum Controller {
     Deployment,
     StatefulSet,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub enum K8SServiceType {
+    ClusterIp,
+    LoadBalancer,
+    NodePort,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct K8sServiceConfig {
+    #[serde(rename = "type")]
+    k8s_service_type: K8SServiceType,
+    external_dns_name: Option<String>,
+    internal: bool,
+}
+
+impl K8sServiceConfig {
+    pub fn new(
+        external_dns_name: Option<String>,
+        p2p_communication_type: P2PCommunicationType,
+    ) -> Self {
+        Self {
+            k8s_service_type: K8SServiceType::LoadBalancer, // suitable for p2p connections.
+            external_dns_name,
+            internal: p2p_communication_type.is_internal(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
