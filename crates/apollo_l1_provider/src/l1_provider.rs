@@ -326,6 +326,7 @@ pub struct L1ProviderBuilder {
     pub state_sync_client: SharedStateSyncClient,
     startup_height: Option<BlockNumber>,
     catchup_height: Option<BlockNumber>,
+    clock: Option<Arc<dyn Clock>>,
 }
 
 impl L1ProviderBuilder {
@@ -342,6 +343,7 @@ impl L1ProviderBuilder {
             state_sync_client,
             startup_height: None,
             catchup_height: None,
+            clock: None,
         }
     }
 
@@ -352,6 +354,11 @@ impl L1ProviderBuilder {
 
     pub fn catchup_height(mut self, catchup_height: BlockNumber) -> Self {
         self.catchup_height = Some(catchup_height);
+        self
+    }
+
+    pub fn clock(mut self, clock: Arc<dyn Clock>) -> Self {
+        self.clock = Some(clock);
         self
     }
 
@@ -406,7 +413,7 @@ impl L1ProviderBuilder {
             ),
             state: ProviderState::Bootstrap(bootstrapper),
             config: self.config,
-            clock: Arc::new(DefaultClock),
+            clock: self.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
         }
     }
 }
