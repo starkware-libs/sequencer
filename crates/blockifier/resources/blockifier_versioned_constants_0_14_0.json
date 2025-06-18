@@ -124,9 +124,22 @@
             "validate_timestamp_rounding": 3600
         },
         "validated": "VALID",
-        "v1_bound_accounts_cairo0": [],
-        "v1_bound_accounts_cairo1": [],
-        "v1_bound_accounts_max_tip": "0x0",
+        "v1_bound_accounts_cairo0": [
+            "0x06d706cfbac9b8262d601c38251c5fbe0497c3a96cc91a92b08d91b61d9e70c4",
+            "0x0309c042d3729173c7f2f91a34f04d8c509c1b292d334679ef1aabf8da0899cc",
+            "0x01a7820094feaf82d53f53f214b81292d717e7bb9a92bb2488092cd306f3993f",
+            "0x033434ad846cdd5f23eb73ff09fe6fddd568284a0fb7d1be20ee482f044dabe2"
+        ],
+        "v1_bound_accounts_cairo1": [
+            "0x01a736d6ed154502257f02b1ccdf4d9d1089f80811cd6acad48e6b6a9d1f2003",
+            "0x0737ee2f87ce571a58c6c8da558ec18a07ceb64a6172d5ec46171fbc80077a48",
+            "0x05400e90f7e0ae78bd02c77cd75527280470e2fe19c54970dd79dc37a9d3645c",
+            "0x04c6d6cf894f8bc96bb9c525e6853e5483177841f7388f74a46cfda6f028c755",
+            "0x01c0bb51e2ce73dc007601a1e7725453627254016c28f118251a71bbb0507fcb",
+            "0x0251830adc3d8b4d818c2c309d71f1958308e8c745212480c26e01120c69ee49",
+            "0x0251cac7b2f45d255b83b7a06dcdef70c8a8752f00ea776517c1c2243c7a06e5"
+        ],
+        "v1_bound_accounts_max_tip": "0x746a5288000",
         "data_gas_accounts": []
     },
     "os_resources": {
@@ -153,12 +166,21 @@
                 "n_memory_holes": 0
             },
             "Deploy": {
-                "n_steps": 1132,
-                "builtin_instance_counter": {
-                    "pedersen_builtin": 7,
-                    "range_check_builtin": 18
+                "constant": {
+                    "n_steps": 1132,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 7,
+                        "range_check_builtin": 18
+                    },
+                    "n_memory_holes": 0
                 },
-                "n_memory_holes": 0
+                "calldata_factor": {
+                    "n_steps": 8,
+                    "builtin_instance_counter": {
+                        "pedersen_builtin": 1
+                    },
+                    "n_memory_holes": 0
+                }
             },
             "EmitEvent": {
                 "n_steps": 61,
