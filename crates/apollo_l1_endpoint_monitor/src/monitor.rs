@@ -1,10 +1,20 @@
+use alloy::primitives::U64;
 use alloy::providers::{Provider, ProviderBuilder};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tracing::{error, warn};
 use url::Url;
 
+#[cfg(test)]
+#[path = "l1_endpoint_monitor_tests.rs"]
+pub mod l1_endpoint_monitor_tests;
+
 type L1EndpointMonitorResult<T> = Result<T, L1EndpointMonitorError>;
+
+/// The JSON-RPC method used to check L1 endpoint health.
+// Note: is this fast enough? Alternatively, we can just check connectivity, but we already hit
+// a bug in infura where the connectivity was fine, but get_block_number() failed.
+pub const HEALTH_CHECK_RPC_METHOD: &str = "eth_blockNumber";
 
 #[derive(Debug, Clone)]
 pub struct L1EndpointMonitor {
@@ -47,13 +57,14 @@ impl L1EndpointMonitor {
         &self.config.ordered_l1_endpoint_urls[index]
     }
 
+    /// Check if the L1 endpoint is operational by sending a carefully-chosen request to it.
+    // note: Using a raw request instead of just alloy API (like `get_block_number()`) to improve
+    // high-level readability (through a dedicated const) and to improve testability.
     async fn is_operational(&self, l1_endpoint_index: usize) -> bool {
         let l1_endpoint_url = self.get_node_url(l1_endpoint_index);
         let l1_client = ProviderBuilder::new().on_http(l1_endpoint_url.clone());
-        // Is this fast enough? we can use something to just check connectivity, but a recent infura
-        // bug failed on this API even though connectivity was fine. Besides, this API is called for
-        // most of our operations anyway.
-        l1_client.get_block_number().await.is_ok()
+        // Note: response type annotation is coupled with the rpc method used.
+        l1_client.client().request_noparams::<U64>(HEALTH_CHECK_RPC_METHOD).await.is_ok()
     }
 }
 

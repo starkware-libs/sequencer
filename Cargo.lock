@@ -1408,8 +1408,10 @@ name = "apollo_l1_endpoint_monitor"
 version = "0.15.0-rc.2"
 dependencies = [
  "alloy",
+ "mockito 1.6.1",
  "serde",
  "thiserror 1.0.69",
+ "tokio",
  "tracing",
  "url",
 ]
