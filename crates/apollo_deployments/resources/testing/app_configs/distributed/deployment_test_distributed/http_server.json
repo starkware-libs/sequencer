@@ -23,7 +23,7 @@
   "components.gateway.execution_mode": "Remote",
   "components.gateway.ip": "0.0.0.0",
   "components.gateway.local_server_config.channel_buffer_size": 32,
-  "components.gateway.max_concurrency": 10,
+  "components.gateway.max_concurrency": 8,
   "components.gateway.port": 15002,
   "components.gateway.remote_client_config.idle_connections": 0,
   "components.gateway.remote_client_config.idle_timeout": 90,
