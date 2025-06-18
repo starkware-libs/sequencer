@@ -336,8 +336,8 @@ impl Mempool {
         let mut account_nonce_updates = self.remove_expired_txs();
         self.add_ready_declares();
 
-        if self.exceeds_capacity(&args.tx) && !self.try_make_space(args.tx.total_bytes()) {
-            return Err(MempoolError::MempoolFull);
+        if self.exceeds_capacity(&args.tx) {
+            self.handle_capacity_overflow(&args.tx, args.account_state.nonce)?;
         }
 
         let tx_reference = TransactionReference::new(&args.tx);
@@ -746,6 +746,25 @@ impl Mempool {
         }
 
         true
+    }
+
+    fn handle_capacity_overflow(
+        &mut self,
+        tx: &InternalRpcTransaction,
+        account_nonce: Nonce,
+    ) -> Result<(), MempoolError> {
+        let address = tx.contract_address();
+
+        let account_has_gap = self.accounts_with_gap.contains(&address);
+        let account_has_txs = self.tx_pool.contains_account(address);
+        let closes_gap = tx.nonce() == account_nonce;
+        let not_creating_gap = closes_gap || (!account_has_gap && account_has_txs);
+
+        if not_creating_gap && self.try_make_space(tx.total_bytes()) {
+            return Ok(());
+        }
+
+        Err(MempoolError::MempoolFull)
     }
 
     #[cfg(test)]
