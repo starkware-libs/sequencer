@@ -541,7 +541,7 @@ pub type BatcherWorkerPool =
 #[cfg_attr(test, automock)]
 pub trait BlockBuilderFactoryTrait: Send + Sync {
     // TODO(noamsp): Investigate and remove this clippy warning.
-    #[allow(clippy::result_large_err, clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     fn create_block_builder(
         &self,
         block_metadata: BlockMetadata,
@@ -616,7 +616,6 @@ pub struct BlockBuilderFactory {
 
 impl BlockBuilderFactory {
     // TODO(noamsp): Investigate and remove this clippy warning.
-    #[allow(clippy::result_large_err)]
     fn preprocess_and_create_transaction_executor(
         &self,
         block_metadata: BlockMetadata,

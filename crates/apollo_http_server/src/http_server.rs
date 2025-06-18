@@ -128,7 +128,6 @@ async fn add_tx(
     add_tx_inner(app_state, headers, rpc_tx).await
 }
 
-#[allow(clippy::result_large_err)]
 fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
     let tx_json_value: serde_json::Value = serde_json::from_str(tx)?;
     let tx_version_json = tx_json_value

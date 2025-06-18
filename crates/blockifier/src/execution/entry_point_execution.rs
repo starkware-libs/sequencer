@@ -93,7 +93,6 @@ impl ExecutionRunnerMode {
 }
 
 /// Executes a specific call to a contract entry point and returns its output.
-#[allow(clippy::result_large_err)]
 pub fn execute_entry_point_call(
     call: ExecutableCallEntryPoint,
     compiled_class: CompiledClassV1,
@@ -295,7 +294,6 @@ pub fn prepare_call_arguments(
     Ok(args)
 }
 /// Runs the runner from the given PC.
-#[allow(clippy::result_large_err)]
 pub fn run_entry_point(
     runner: &mut CairoRunner,
     hint_processor: &mut SyscallHintProcessor<'_>,
@@ -324,7 +322,6 @@ pub fn run_entry_point(
 
 /// Fills the holes after running the entry point.
 /// Currently only fills the holes in the rc96 segment.
-#[allow(clippy::result_large_err)]
 fn maybe_fill_holes(
     entry_point: EntryPointV1,
     runner: &mut CairoRunner,

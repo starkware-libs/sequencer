@@ -21,7 +21,6 @@ use crate::state_reader::errors::ReexecutionResult;
 pub trait ReexecutionStateReader {
     fn get_contract_class(&self, class_hash: &ClassHash) -> StateResult<StarknetContractClass>;
 
-    #[allow(clippy::result_large_err)]
     fn get_class_info(&self, class_hash: ClassHash) -> ReexecutionResult<ClassInfo> {
         match self.get_contract_class(&class_hash)? {
             StarknetContractClass::Sierra(sierra) => {
@@ -47,7 +46,6 @@ pub trait ReexecutionStateReader {
     }
 
     // TODO(Aner): extract this function out of the state reader.
-    #[allow(clippy::result_large_err)]
     fn api_txs_to_blockifier_txs_next_block(
         &self,
         txs_and_hashes: Vec<(Transaction, TransactionHash)>,
@@ -93,21 +91,17 @@ pub trait ReexecutionStateReader {
             .collect()
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_old_block_hash(&self, old_block_number: BlockNumber) -> ReexecutionResult<BlockHash>;
 }
 
 /// Trait of the functions \ queries required for reexecution.
 pub trait ConsecutiveReexecutionStateReaders<S: StateReader> {
-    #[allow(clippy::result_large_err)]
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
     ) -> ReexecutionResult<TransactionExecutor<S>>;
 
-    #[allow(clippy::result_large_err)]
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>>;
 
-    #[allow(clippy::result_large_err)]
     fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff>;
 }

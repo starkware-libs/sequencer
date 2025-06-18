@@ -32,7 +32,6 @@ use crate::shared_utils::types::PythonTestError;
 
 const REDUCED_MUL_LIMB_BOUND: i128 = 2_i128.pow(104);
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
     info!("Testing `test_bigint3_to_uint256`...");
     test_bigint3_to_uint256(input)?;
@@ -57,7 +56,6 @@ fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
     }
 }
 
-#[allow(clippy::result_large_err)]
 fn run_reduced_mul_test(input: &str, a_split: &[Felt], b_split: &[Felt]) -> OsPythonTestResult {
     let explicit_args = [
         EndpointArg::Value(ValueArg::Array(a_split.to_vec())),
@@ -83,7 +81,6 @@ fn run_reduced_mul_test(input: &str, a_split: &[Felt], b_split: &[Felt]) -> OsPy
     Ok("".to_string())
 }
 
-#[allow(clippy::result_large_err)]
 fn test_bigint3_to_uint256(input: &str) -> OsPythonTestResult {
     let mut rng = seeded_random_prng();
     let random_u256_big_uint: BigUint = rng.sample(RandomBits::new(256));
@@ -115,7 +112,6 @@ fn test_bigint3_to_uint256(input: &str) -> OsPythonTestResult {
     Ok("".to_string())
 }
 
-#[allow(clippy::result_large_err)]
 fn test_felt_to_bigint3(input: &str) -> OsPythonTestResult {
     let values: [BigInt; 9] = [
         0.into(),
@@ -152,7 +148,6 @@ fn test_felt_to_bigint3(input: &str) -> OsPythonTestResult {
     Ok("".to_string())
 }
 
-#[allow(clippy::result_large_err)]
 fn test_horner_eval(input: &str) -> OsPythonTestResult {
     let mut rng = seeded_random_prng();
     let entrypoint_runner_config = get_entrypoint_runner_config();
@@ -236,7 +231,6 @@ fn test_horner_eval(input: &str) -> OsPythonTestResult {
 }
 
 #[allow(dead_code)]
-#[allow(clippy::result_large_err)]
 fn test_reduced_mul_random(input: &str) -> OsPythonTestResult {
     // Generate a,b in (-REDUCED_MUL_LIMB_LIMIT, REDUCED_MUL_LIMB_LIMIT).
     let mut rng = seeded_random_prng();
@@ -251,7 +245,6 @@ fn test_reduced_mul_random(input: &str) -> OsPythonTestResult {
 }
 
 #[allow(dead_code)]
-#[allow(clippy::result_large_err)]
 fn test_reduced_mul_parameterized(input: &str) -> OsPythonTestResult {
     let max_value = Felt::from(REDUCED_MUL_LIMB_BOUND - 1);
     let min_value = Felt::from(-REDUCED_MUL_LIMB_BOUND + 1);
@@ -269,7 +262,6 @@ fn test_reduced_mul_parameterized(input: &str) -> OsPythonTestResult {
     Ok("".to_string())
 }
 
-#[allow(clippy::result_large_err)]
 fn test_bls_prime_value(input: &str) -> OsPythonTestResult {
     let entrypoint = None;
     let program = Program::from_bytes(input.as_bytes(), entrypoint).unwrap();

@@ -71,7 +71,6 @@ impl Transaction {
         }
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn from_api(
         tx: StarknetApiTransaction,
         tx_hash: TransactionHash,
@@ -129,7 +128,6 @@ impl TransactionInfoCreator for Transaction {
 }
 
 impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
-    #[allow(clippy::result_large_err)]
     fn execute_raw(
         &self,
         state: &mut TransactionalState<'_, U>,

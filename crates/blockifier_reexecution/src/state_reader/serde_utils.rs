@@ -99,7 +99,6 @@ pub fn deserialize_transaction_json_to_starknet_api_tx(
 }
 
 // TODO(Aner): import the following functions instead, to reduce code duplication.
-#[allow(clippy::result_large_err)]
 pub(crate) fn hashmap_from_raw<
     K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
     V: for<'de> Deserialize<'de>,
@@ -116,7 +115,6 @@ pub(crate) fn hashmap_from_raw<
     ))
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn nested_hashmap_from_raw<
     K: for<'de> Deserialize<'de> + Eq + std::hash::Hash,
     VK: for<'de> Deserialize<'de> + Eq + std::hash::Hash,

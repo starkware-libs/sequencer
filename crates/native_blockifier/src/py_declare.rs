@@ -107,7 +107,6 @@ impl TryFrom<PyDeclareTransactionV3> for DeclareTransactionV3 {
     }
 }
 
-#[allow(clippy::result_large_err)]
 pub fn py_declare(
     py_tx: &PyAny,
     py_class_info: PyClassInfo,

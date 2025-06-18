@@ -156,7 +156,6 @@ impl From<ExecutableCallEntryPoint> for CallEntryPoint {
 }
 
 impl CallEntryPoint {
-    #[allow(clippy::result_large_err)]
     pub fn execute(
         mut self,
         state: &mut dyn State,
@@ -211,7 +210,6 @@ impl CallEntryPoint {
     }
 
     /// Similar to `execute`, but returns an error if the outer call is reverted.
-    #[allow(clippy::result_large_err)]
     pub fn non_reverting_execute(
         self,
         state: &mut dyn State,
@@ -528,7 +526,6 @@ impl EntryPointExecutionContext {
     }
 }
 
-#[allow(clippy::result_large_err)]
 pub fn execute_constructor_entry_point(
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
@@ -569,7 +566,6 @@ pub fn execute_constructor_entry_point(
     })
 }
 
-#[allow(clippy::result_large_err)]
 pub fn handle_empty_constructor(
     compiled_class: RunnableCompiledClass,
     context: &mut EntryPointExecutionContext,
@@ -625,7 +621,6 @@ impl RecursionDepthGuard {
 
     // Tries to increment the current recursion depth and returns an error if the maximum depth
     // would be exceeded.
-    #[allow(clippy::result_large_err)]
     fn try_increment_and_check_depth(&mut self) -> EntryPointExecutionResult<()> {
         *self.current_depth.borrow_mut() += 1;
         if *self.current_depth.borrow() > self.max_depth {

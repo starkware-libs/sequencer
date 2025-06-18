@@ -122,7 +122,6 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
     /// Finalizes the block creation and returns [BlockExecutionSummary].
     ///
     /// Every block must be closed with either `close_block` or `abort_block`.
-    #[allow(clippy::result_large_err)]
     pub fn close_block(
         &mut self,
         n_txs_in_block: Option<usize>,

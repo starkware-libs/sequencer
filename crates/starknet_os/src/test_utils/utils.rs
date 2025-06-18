@@ -14,7 +14,6 @@ use crate::test_utils::cairo_runner::{
 };
 
 #[allow(clippy::too_many_arguments)]
-#[allow(clippy::result_large_err)]
 pub fn run_cairo_function_and_check_result(
     runner_config: &EntryPointRunnerConfig,
     program_str: &str,

@@ -33,7 +33,6 @@ impl TryFrom<String> for OsPythonTestRunner {
 
 impl PythonTestRunner for OsPythonTestRunner {
     type SpecificError = OsSpecificTestError;
-    #[allow(clippy::result_large_err)]
     async fn run(&self, input: Option<&str>) -> OsPythonTestResult {
         match self {
             Self::AliasesTest => aliases_test(Self::non_optional_input(input)?),
@@ -48,7 +47,6 @@ impl PythonTestRunner for OsPythonTestRunner {
 }
 
 /// Deserialize the input string into an `Input` struct.
-#[allow(clippy::result_large_err)]
 fn input_deserialization(input_str: &str) -> OsPythonTestResult {
     let input = serde_json::from_str::<Input>(input_str)?;
     validate_input(&input.os_hints.os_input);

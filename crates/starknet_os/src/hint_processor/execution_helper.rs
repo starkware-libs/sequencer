@@ -30,7 +30,6 @@ pub struct OsExecutionHelper<'a, S: StateReader> {
 }
 
 impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
-    #[allow(clippy::result_large_err)]
     pub fn new(
         os_block_input: &'a OsBlockInput,
         state_reader: S,
@@ -46,7 +45,6 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
         })
     }
 
-    #[allow(clippy::result_large_err)]
     fn initialize_cached_state(
         state_reader: S,
         state_input: CachedStateInput,

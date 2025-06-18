@@ -47,7 +47,6 @@ use crate::vm_utils::{
     insert_values_to_fields,
 };
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_siblings(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -64,7 +63,6 @@ pub(crate) fn set_siblings(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn is_case_right(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -84,7 +82,6 @@ pub(crate) fn is_case_right(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_bit<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -108,7 +105,6 @@ pub(crate) fn set_bit<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_ap_to_descend(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -134,7 +130,6 @@ pub(crate) fn set_ap_to_descend(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn assert_case_is_right(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let case: DecodeNodeCase = exec_scopes.get(Scope::Case.into())?;
     if case != DecodeNodeCase::Right {
@@ -143,7 +138,6 @@ pub(crate) fn assert_case_is_right(HintArgs { exec_scopes, .. }: HintArgs<'_>) -
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn write_case_not_left_to_ap(
     HintArgs { vm, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -153,7 +147,6 @@ pub(crate) fn write_case_not_left_to_ap(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn split_descend(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -167,7 +160,6 @@ pub(crate) fn split_descend(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -191,7 +183,6 @@ pub(crate) fn height_is_zero_or_len_node_preimage_is_two<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -240,7 +231,6 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn build_descent_map<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -294,7 +284,6 @@ pub(crate) fn build_descent_map<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes) -> OsHintResult {
     // No need to insert the preimage map into the scope, as we extract it directly
     // from the execution helper.
@@ -308,13 +297,11 @@ fn enter_scope_specific_node(node: UpdateTree, exec_scopes: &mut ExecutionScopes
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_node(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
     enter_scope_specific_node(node, exec_scopes)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_new_node(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -335,7 +322,6 @@ pub(crate) fn enter_scope_new_node(
     enter_scope_specific_node(new_node, exec_scopes)
 }
 
-#[allow(clippy::result_large_err)]
 fn enter_scope_next_node_bit(
     is_left: bool,
     vm: &mut VirtualMachine,
@@ -356,33 +342,28 @@ fn enter_scope_next_node_bit(
     enter_scope_specific_node(new_node, exec_scopes)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_next_node_bit_0(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     enter_scope_next_node_bit(false, vm, exec_scopes, ids_data, ap_tracking)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_next_node_bit_1(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     enter_scope_next_node_bit(true, vm, exec_scopes, ids_data, ap_tracking)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_left_child(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let left_child: UpdateTree = exec_scopes.get(Scope::LeftChild.into())?;
     enter_scope_specific_node(left_child, exec_scopes)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_right_child(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let right_child: UpdateTree = exec_scopes.get(Scope::RightChild.into())?;
     enter_scope_specific_node(right_child, exec_scopes)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_descend_edge(
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -411,7 +392,6 @@ pub(crate) fn enter_scope_descend_edge(
     enter_scope_specific_node(new_node, exec_scopes)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn load_edge<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -455,7 +435,6 @@ pub(crate) fn load_edge<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn load_bottom<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -495,7 +474,6 @@ pub(crate) fn load_bottom<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn decode_node(HintArgs { vm, exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let node: UpdateTree = exec_scopes.get(Scope::Node.into())?;
     let UpdateTree::InnerNode(inner_node) = node else {

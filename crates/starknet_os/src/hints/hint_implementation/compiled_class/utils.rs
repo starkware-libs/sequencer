@@ -234,7 +234,6 @@ impl BytecodeSegment {
 }
 
 /// Creates the bytecode segment structure from the given bytecode and bytecode segment lengths.
-#[allow(clippy::result_large_err)]
 pub(crate) fn create_bytecode_segment_structure(
     bytecode: &[Felt],
     bytecode_segment_lengths: NestedIntList,

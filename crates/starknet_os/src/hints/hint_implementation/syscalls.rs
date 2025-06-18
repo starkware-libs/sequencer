@@ -56,7 +56,6 @@ use crate::syscall_handler_utils::SyscallHandlerType;
 macro_rules! create_syscall_func {
     ($($name:ident),+) => {
         $(
-            #[allow(clippy::result_large_err)]
             pub(crate) fn $name<S: StateReader>(
                 hint_processor: & mut SnosHintProcessor<'_, S>,
                 HintArgs {
@@ -122,7 +121,6 @@ create_syscall_func!(
     storage_write
 );
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_syscall_ptr<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,

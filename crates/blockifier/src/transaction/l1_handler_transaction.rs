@@ -53,7 +53,6 @@ impl TransactionInfoCreator for L1HandlerTransaction {
 }
 
 impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
-    #[allow(clippy::result_large_err)]
     fn execute_raw(
         &self,
         state: &mut TransactionalState<'_, U>,
