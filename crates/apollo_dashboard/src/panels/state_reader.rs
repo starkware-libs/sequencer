@@ -5,7 +5,6 @@ use blockifier::metrics::{
     NATIVE_COMPILATION_ERROR,
     STATE_READER_METRIC_RATE_DURATION,
 };
-use const_format::formatcp;
 
 use crate::dashboard::{Panel, PanelType, Row};
 
@@ -15,7 +14,7 @@ fn get_panel_blockifier_state_reader_class_cache_miss_ratio() -> Panel {
         "class_cache_miss_ratio",
         "The ratio of cache misses when requesting compiled classes from the Blockifier State \
          Reader",
-        formatcp!(
+        vec![format!(
             "100 * (increase({}[{}]) / (increase({}[{}]) + increase({}[{}])))",
             CLASS_CACHE_MISSES.get_name_with_filter(),
             STATE_READER_METRIC_RATE_DURATION,
@@ -23,7 +22,7 @@ fn get_panel_blockifier_state_reader_class_cache_miss_ratio() -> Panel {
             STATE_READER_METRIC_RATE_DURATION,
             CLASS_CACHE_HITS.get_name_with_filter(),
             STATE_READER_METRIC_RATE_DURATION
-        ),
+        )],
         PanelType::Graph,
     )
 }
@@ -33,7 +32,7 @@ fn get_panel_blockifier_state_reader_native_class_returned_ratio() -> Panel {
     Panel::new(
         "native_class_returned_ratio",
         "The ratio of Native classes returned by the Blockifier State Reader",
-        formatcp!(
+        vec![format!(
             "100 * (increase({}[{}]) / (increase({}[{}]) + increase({}[{}])))",
             NATIVE_CLASS_RETURNED.get_name_with_filter(),
             STATE_READER_METRIC_RATE_DURATION,
@@ -41,7 +40,7 @@ fn get_panel_blockifier_state_reader_native_class_returned_ratio() -> Panel {
             STATE_READER_METRIC_RATE_DURATION,
             CLASS_CACHE_MISSES.get_name_with_filter(),
             STATE_READER_METRIC_RATE_DURATION,
-        ),
+        )],
         PanelType::Graph,
     )
 }

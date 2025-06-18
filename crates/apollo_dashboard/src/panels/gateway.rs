@@ -16,7 +16,6 @@ use apollo_infra::metrics::{
     GATEWAY_REMOTE_MSGS_RECEIVED,
     GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
 };
-use const_format::formatcp;
 
 use crate::dashboard::{Panel, PanelType, Row};
 
@@ -24,11 +23,11 @@ fn get_panel_gateway_transactions_received_by_type() -> Panel {
     Panel::new(
         GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
         GATEWAY_TRANSACTIONS_RECEIVED.get_description(),
-        formatcp!(
+        vec![format!(
             "sum  by ({}) ({}) ",
             GATEWAY_LABEL_NAME_TX_TYPE,
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
-        ),
+        )],
         PanelType::Stat,
     )
 }
@@ -59,11 +58,11 @@ fn get_panel_gateway_transactions_received_by_source() -> Panel {
     Panel::new(
         GATEWAY_TRANSACTIONS_RECEIVED.get_name(),
         GATEWAY_TRANSACTIONS_RECEIVED.get_description(),
-        formatcp!(
+        vec![format!(
             "sum  by ({}) ({}) ",
             LABEL_NAME_SOURCE,
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
-        ),
+        )],
         PanelType::Stat,
     )
 }
@@ -72,43 +71,31 @@ fn get_panel_gateway_transactions_received_rate() -> Panel {
     Panel::new(
         "gateway_transactions_received_rate (TPS)",
         "The rate of transactions received by the gateway during the last 20 minutes",
-        formatcp!(
+        vec![format!(
             "sum(rate({}[20m])) or vector(0)",
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
-        ),
+        )],
         PanelType::Graph,
     )
 }
 
 fn get_panel_gateway_add_tx_latency() -> Panel {
-    Panel::new(
-        GATEWAY_ADD_TX_LATENCY.get_name(),
-        GATEWAY_ADD_TX_LATENCY.get_description(),
-        // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
-        GATEWAY_ADD_TX_LATENCY.get_name_with_filter(),
-        PanelType::Graph,
-    )
+    Panel::from_hist(GATEWAY_ADD_TX_LATENCY, PanelType::Graph)
 }
 
 fn get_panel_gateway_validate_tx_latency() -> Panel {
-    Panel::new(
-        GATEWAY_VALIDATE_TX_LATENCY.get_name(),
-        GATEWAY_VALIDATE_TX_LATENCY.get_description(),
-        // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
-        GATEWAY_VALIDATE_TX_LATENCY.get_name_with_filter(),
-        PanelType::Graph,
-    )
+    Panel::from_hist(GATEWAY_VALIDATE_TX_LATENCY, PanelType::Graph)
 }
 
 fn get_panel_gateway_transactions_failed() -> Panel {
     Panel::new(
         GATEWAY_TRANSACTIONS_FAILED.get_name(),
         GATEWAY_TRANSACTIONS_FAILED.get_description(),
-        formatcp!(
+        vec![format!(
             "sum  by ({}) ({})",
             GATEWAY_LABEL_NAME_TX_TYPE,
             GATEWAY_TRANSACTIONS_FAILED.get_name_with_filter()
-        ),
+        )],
         PanelType::Stat,
     )
 }
@@ -117,11 +104,11 @@ fn get_panel_gateway_transactions_sent_to_mempool() -> Panel {
     Panel::new(
         GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name(),
         GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_description(),
-        formatcp!(
+        vec![format!(
             "sum  by ({}) ({})",
             GATEWAY_LABEL_NAME_TX_TYPE,
             GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name_with_filter()
-        ),
+        )],
         PanelType::Stat,
     )
 }

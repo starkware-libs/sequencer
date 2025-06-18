@@ -8,7 +8,6 @@ use apollo_infra::metrics::{
     SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
     SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
 };
-use const_format::formatcp;
 
 use crate::dashboard::{Panel, PanelType, Row};
 
@@ -38,7 +37,7 @@ fn get_panel_compilation_duration() -> Panel {
     Panel::new(
         COMPILATION_DURATION.get_name_with_filter(),
         COMPILATION_DURATION.get_description(),
-        formatcp!("avg_over_time({}[2m])", COMPILATION_DURATION.get_name_with_filter()),
+        vec![format!("avg_over_time({}[2m])", COMPILATION_DURATION.get_name_with_filter())],
         PanelType::Graph,
     )
 }
