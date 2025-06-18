@@ -147,6 +147,7 @@ fn get_consolidated_config(environment: &Environment) -> ComponentConfig {
         mempool_p2p: base.clone(),
         sierra_compiler: base.clone(),
         state_sync: base.clone(),
+        l1_endpoint_monitor: base.clone(),
         l1_provider: base.clone(),
         l1_gas_price_provider: base.clone(),
         consensus_manager: ActiveComponentExecutionConfig::enabled(),

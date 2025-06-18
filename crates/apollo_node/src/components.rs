@@ -6,6 +6,7 @@ use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_consensus_manager::consensus_manager::ConsensusManager;
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
+use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitor;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use apollo_l1_provider::event_identifiers_to_track;
@@ -22,6 +23,7 @@ use apollo_monitoring_endpoint::monitoring_endpoint::{
 use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use papyrus_base_layer::monitored_base_layer::MonitoredEthereumBaseLayer;
 use papyrus_base_layer::BaseLayerContract;
 use tracing::{debug, info, warn};
 
@@ -39,7 +41,8 @@ pub struct SequencerNodeComponents {
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
-    pub l1_scraper: Option<L1Scraper<EthereumBaseLayerContract>>,
+    pub l1_endpoint_monitor: Option<L1EndpointMonitor>,
+    pub l1_scraper: Option<L1Scraper<MonitoredEthereumBaseLayer>>,
     pub l1_provider: Option<L1Provider>,
     pub l1_gas_price_scraper: Option<L1GasPriceScraper<EthereumBaseLayerContract>>,
     pub l1_gas_price_provider: Option<L1GasPriceProvider>,
@@ -237,20 +240,40 @@ pub async fn create_node_components(
         }
     };
 
+    let l1_endpoint_monitor = match config.components.l1_endpoint_monitor.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
+            L1EndpointMonitor::new(
+                config.l1_endpoint_monitor_config.clone(),
+                &config.base_layer_config.node_url,
+            )
+            .unwrap(),
+        ),
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+    };
+
     let l1_scraper = match config.components.l1_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
+            let l1_endpoint_monitor_client =
+                clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let l1_scraper_config = config.l1_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
             let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config)
                 .await
                 .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
 
+            let monitored_base_layer = MonitoredEthereumBaseLayer::new(
+                base_layer,
+                l1_endpoint_monitor_client,
+                config.base_layer_config.node_url.clone(),
+            );
+
             Some(
                 L1Scraper::new(
                     l1_scraper_config,
                     l1_provider_client,
-                    base_layer,
+                    monitored_base_layer,
                     event_identifiers_to_track(),
                     l1_start_block,
                 )
@@ -275,7 +298,9 @@ pub async fn create_node_components(
             match &l1_scraper {
                 Some(l1_scraper) => {
                     let l1_scraper_start_l1_height = l1_scraper.last_l1_block_processed.number;
-                    let scraper_synced_startup_height = l1_scraper.base_layer
+                    let base_layer =
+                        EthereumBaseLayerContract::new(config.base_layer_config.clone());
+                    let scraper_synced_startup_height = base_layer
                         .get_proved_block_at(l1_scraper_start_l1_height)
                         .await
                         .map(|block| block.number)
@@ -379,6 +404,7 @@ pub async fn create_node_components(
         gateway,
         http_server,
         l1_scraper,
+        l1_endpoint_monitor,
         l1_provider,
         l1_gas_price_scraper,
         l1_gas_price_provider,
