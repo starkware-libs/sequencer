@@ -25,6 +25,7 @@ use crate::metrics::{
     register_scraper_metrics,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
+    L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
 
 #[cfg(test)]
@@ -169,7 +170,10 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         );
         for block_number in start_block_number..=last_block_number {
             let header = match self.base_layer.get_block_header(block_number).await {
-                Ok(Some(header)) => header,
+                Ok(Some(header)) => {
+                    L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.increment(1);
+                    header
+                }
                 Ok(None) => return Ok(block_number),
                 Err(e) => {
                     warn!("BaseLayerError during scraping: {e:?}");

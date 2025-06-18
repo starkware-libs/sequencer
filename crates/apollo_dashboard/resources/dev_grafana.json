@@ -1114,6 +1114,15 @@
         "extra_params": {}
       },
       {
+        "title": "l1_gas_price_scraper_success_count",
+        "description": "Number of times the L1 gas price scraper successfully scraped and updated gas prices",
+        "type": "stat",
+        "exprs": [
+          "l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "l1_gas_price_scraper_baselayer_error_count",
         "description": "Number of times the L1 gas price scraper encountered an error while scraping the base layer",
         "type": "stat",
