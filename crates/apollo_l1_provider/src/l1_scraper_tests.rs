@@ -39,7 +39,7 @@ use starknet_api::transaction::{
 
 use crate::bootstrapper::Bootstrapper;
 use crate::l1_provider::{L1Provider, L1ProviderBuilder};
-use crate::l1_scraper::{L1Scraper, L1ScraperConfig, L1ScraperError};
+use crate::l1_scraper::{fetch_start_block, L1Scraper, L1ScraperConfig, L1ScraperError};
 use crate::test_utils::FakeL1ProviderClient;
 use crate::{event_identifiers_to_track, L1ProviderConfig};
 
@@ -79,15 +79,18 @@ async fn scraper(
 ) -> (L1Scraper<EthereumBaseLayerContract>, Arc<FakeL1ProviderClient>) {
     let fake_client = Arc::new(FakeL1ProviderClient::default());
     let base_layer = EthereumBaseLayerContract::new(base_layer_config);
+    let l1_scraper_config = L1ScraperConfig::default();
 
+    let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config).await.unwrap();
     // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
     Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
 
     let scraper = L1Scraper::new(
-        L1ScraperConfig::default(),
+        l1_scraper_config,
         fake_client.clone(),
         base_layer,
         event_identifiers_to_track(),
+        l1_start_block,
     )
     .await
     .unwrap();
@@ -549,6 +552,7 @@ async fn provider_crash_should_crash_scraper(mut dummy_base_layer: MockBaseLayer
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
+        L1BlockReference::default(),
     )
     .await
     .unwrap();
@@ -584,6 +588,7 @@ async fn l1_reorg_block_hash(mut dummy_base_layer: MockBaseLayerContract) {
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
+        L1BlockReference::default(),
     )
     .await
     .unwrap();
@@ -621,6 +626,7 @@ async fn l1_reorg_block_number(mut dummy_base_layer: MockBaseLayerContract) {
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
+        L1BlockReference::default(),
     )
     .await
     .unwrap();
