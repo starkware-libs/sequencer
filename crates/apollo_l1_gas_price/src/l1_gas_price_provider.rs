@@ -9,7 +9,7 @@ use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderResult, PriceInf
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use validator::Validate;
 
 use crate::metrics::{register_provider_metrics, L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY};
@@ -123,7 +123,7 @@ impl L1GasPriceProvider {
                 });
             }
         }
-        info!("Received price sample for L1 block: {:?}", new_data);
+        debug!("Received price sample for L2 block: {:?}", new_data);
         samples.push(new_data);
         Ok(())
     }
