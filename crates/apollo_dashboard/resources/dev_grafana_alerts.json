@@ -514,6 +514,60 @@
       "severity": "p2"
     },
     {
+      "name": "http_server_idle",
+      "title": "http server idle",
+      "ruleGroup": "http_server",
+      "expr": "increase(http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.2
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "http_server_idle",
+      "title": "http server idle",
+      "ruleGroup": "http_server",
+      "expr": "increase(http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4"
+    },
+    {
       "name": "l1_gas_price_provider_insufficient_history",
       "title": "L1 gas price provider insufficient history",
       "ruleGroup": "l1_gas_price",

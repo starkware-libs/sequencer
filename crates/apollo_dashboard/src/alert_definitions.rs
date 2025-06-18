@@ -16,7 +16,7 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
 };
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
-use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
+use apollo_http_server::metrics::{ADDED_TRANSACTIONS_INTERNAL_ERROR, ADDED_TRANSACTIONS_TOTAL};
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
@@ -390,6 +390,47 @@ fn get_http_server_idle() -> Alert {
     }
 }
 
+fn get_http_server_internal_error_ratio() -> Alert {
+    Alert {
+        name: "http_server_idle",
+        title: "http server idle",
+        alert_group: AlertGroup::HttpServer,
+        expr: format!(
+            "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
+            ADDED_TRANSACTIONS_INTERNAL_ERROR.get_name_with_filter(),
+            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.2,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::Regular,
+    }
+}
+
+fn get_http_server_internal_error_once() -> Alert {
+    Alert {
+        name: "http_server_idle",
+        title: "http server idle",
+        alert_group: AlertGroup::HttpServer,
+        expr: format!(
+            "increase({}[20m]) or vector(0)",
+            ADDED_TRANSACTIONS_INTERNAL_ERROR.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::WorkingHours,
+    }
+}
+
 fn get_eth_to_strk_error_count_alert() -> Alert {
     Alert {
         name: "eth_to_strk_error_count",
@@ -670,6 +711,8 @@ pub fn get_apollo_alerts() -> Alerts {
         get_gateway_add_tx_latency_increase(),
         get_gateway_add_tx_idle(),
         get_http_server_idle(),
+        get_http_server_internal_error_ratio(),
+        get_http_server_internal_error_once(),
         get_l1_gas_price_provider_insufficient_history_alert(),
         get_l1_gas_price_reorg_detected_alert(),
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
