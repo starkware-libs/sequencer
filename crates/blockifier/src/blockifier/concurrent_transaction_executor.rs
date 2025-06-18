@@ -61,8 +61,8 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         Ok(Self { worker_executor, worker_pool: worker_pool.clone(), n_output_txs: 0 })
     }
 
-    /// Similar to [start_block], except that [pre_process_block] is not called.
-    /// Used for testing purposes.
+    /// Similar to [ConcurrentTransactionExecutor::start_block], except that [pre_process_block] is
+    /// not called. Used for testing purposes.
     #[cfg(any(feature = "testing", test))]
     pub fn new_for_testing(
         block_state: CachedState<S>,
