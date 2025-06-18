@@ -1116,6 +1116,15 @@
         "extra_params": {}
       },
       {
+        "title": "eth_to_strk_success_count",
+        "description": "Number of times the query to the Eth to Strk oracle succeeded",
+        "type": "stat",
+        "exprs": [
+          "eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "l1_gas_price_provider_insufficient_history",
         "description": "Number of times the L1 gas price provider calculated an average with too few blocks",
         "type": "stat",
