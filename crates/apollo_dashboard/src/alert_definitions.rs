@@ -23,6 +23,7 @@ use apollo_l1_gas_price::metrics::{
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
+    L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
 use apollo_l1_provider::metrics::L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT;
 use apollo_mempool::metrics::{
@@ -425,6 +426,26 @@ fn get_eth_to_strk_success_count_alert() -> Alert {
     }
 }
 
+fn get_l1_gas_price_scraper_success_count_alert() -> Alert {
+    Alert {
+        name: "l1_gas_price_scraper_success_count",
+        title: "L1 gas price scraper success count",
+        alert_group: AlertGroup::L1GasPrice,
+        expr: format!(
+            "increase({}[1h])",
+            L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
 fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
     Alert {
         name: "l1_message_scraper_baselayer_error_count",
@@ -690,6 +711,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_http_server_idle(),
         get_l1_gas_price_provider_insufficient_history_alert(),
         get_l1_gas_price_reorg_detected_alert(),
+        get_l1_gas_price_scraper_success_count_alert(),
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
         get_eth_to_strk_error_count_alert(),
         get_eth_to_strk_success_count_alert(),
