@@ -26,6 +26,7 @@ use crate::metrics::{
     register_scraper_metrics,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
+    L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
 
 #[cfg(test)]
@@ -182,7 +183,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
                     warn!("BaseLayerError during scraping: {e:?}");
                 }
-                Ok(_) => {}
+                Ok(_) => {
+                    L1_MESSAGE_SCRAPER_SUCCESS_COUNT.increment(1);
+                }
                 Err(e) => return Err(e),
             }
         }
