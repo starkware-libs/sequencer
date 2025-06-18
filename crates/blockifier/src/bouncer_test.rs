@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use assert_matches::assert_matches;
 use rstest::rstest;
@@ -125,7 +125,8 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
         state_diff_size: 20,
         sierra_gas: GasAmount(20),
     };
-    let bouncer_config = BouncerConfig { block_max_capacity };
+    // TODO(Meshi): Add builtin weights to the bouncer config once we will test the logic.
+    let bouncer_config = BouncerConfig { block_max_capacity, builtin_weights: HashMap::new() };
 
     let accumulated_weights = BouncerWeights {
         l1_gas: 10,

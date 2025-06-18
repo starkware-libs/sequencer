@@ -55,15 +55,16 @@ pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
+    pub builtin_weights: HashMap<String, usize>,
 }
 
 impl BouncerConfig {
     pub fn empty() -> Self {
-        Self { block_max_capacity: BouncerWeights::empty() }
+        Self { block_max_capacity: BouncerWeights::empty(), builtin_weights: HashMap::new() }
     }
 
     pub fn max() -> Self {
-        Self { block_max_capacity: BouncerWeights::max() }
+        Self { block_max_capacity: BouncerWeights::max(), builtin_weights: HashMap::new() }
     }
 
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
