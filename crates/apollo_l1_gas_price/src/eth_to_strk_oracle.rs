@@ -18,7 +18,11 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, info, instrument, warn};
 use url::Url;
 
-use crate::metrics::{register_eth_to_strk_metrics, ETH_TO_STRK_ERROR_COUNT};
+use crate::metrics::{
+    register_eth_to_strk_metrics,
+    ETH_TO_STRK_ERROR_COUNT,
+    ETH_TO_STRK_SUCCESS_COUNT,
+};
 
 #[cfg(test)]
 #[path = "eth_to_strk_oracle_test.rs"]
@@ -258,6 +262,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             .expect("Lock on cached prices was poisoned due to a previous panic")
             .push(quantized_timestamp, Query::Resolved(rate));
         debug!("Conversion rate for timestamp {timestamp} is {rate}");
+        ETH_TO_STRK_SUCCESS_COUNT.increment(1);
         Ok(rate)
     }
 }

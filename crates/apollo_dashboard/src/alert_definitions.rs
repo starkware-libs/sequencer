@@ -19,6 +19,7 @@ use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEI
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
+    ETH_TO_STRK_SUCCESS_COUNT,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
@@ -407,6 +408,23 @@ fn get_eth_to_strk_error_count_alert() -> Alert {
     }
 }
 
+fn get_eth_to_strk_success_count_alert() -> Alert {
+    Alert {
+        name: "eth_to_strk_success_count",
+        title: "Eth to Strk success count",
+        alert_group: AlertGroup::L1GasPrice,
+        expr: format!("increase({}[1h])", ETH_TO_STRK_SUCCESS_COUNT.get_name_with_filter()),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
 fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
     Alert {
         name: "l1_message_scraper_baselayer_error_count",
@@ -674,6 +692,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_l1_gas_price_reorg_detected_alert(),
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
         get_eth_to_strk_error_count_alert(),
+        get_eth_to_strk_success_count_alert(),
         get_l1_message_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),
