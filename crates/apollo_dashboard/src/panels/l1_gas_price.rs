@@ -13,6 +13,7 @@ use apollo_l1_gas_price::metrics::{
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
+    L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
 
 use crate::dashboard::{Panel, PanelType, Row};
@@ -42,6 +43,9 @@ fn get_panel_l1_gas_price_provider_remote_client_send_attempts() -> Panel {
 fn get_panel_l1_gas_price_provider_insufficient_history() -> Panel {
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, PanelType::Stat)
 }
+fn get_panel_l1_gas_price_scraper_success_count() -> Panel {
+    Panel::from_counter(L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT, PanelType::Stat)
+}
 fn get_panel_l1_gas_price_scraper_baselayer_error_count() -> Panel {
     Panel::from_counter(L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::Stat)
 }
@@ -62,6 +66,7 @@ pub(crate) fn get_l1_gas_price_row() -> Row {
             get_panel_eth_to_strk_error_count(),
             get_panel_eth_to_strk_success_count(),
             get_panel_l1_gas_price_provider_insufficient_history(),
+            get_panel_l1_gas_price_scraper_success_count(),
             get_panel_l1_gas_price_scraper_baselayer_error_count(),
             get_panel_l1_gas_price_scraper_reorg_detected(),
         ],
