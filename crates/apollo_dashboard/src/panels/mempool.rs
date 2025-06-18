@@ -135,7 +135,6 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
     )
 }
 fn get_panel_mempool_transaction_time_spent() -> Panel {
-    // TODO(Tsabary): revisit this panel, it used to be defined with "avg_over_time({}[2m])".
     Panel::from_hist(TRANSACTION_TIME_SPENT_IN_MEMPOOL, PanelType::TimeSeries)
 }
 

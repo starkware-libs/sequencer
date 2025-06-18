@@ -34,12 +34,7 @@ fn get_panel_sierra_compiler_remote_client_send_attempts() -> Panel {
 }
 
 fn get_panel_compilation_duration() -> Panel {
-    Panel::new(
-        COMPILATION_DURATION.get_name_with_filter(),
-        COMPILATION_DURATION.get_description(),
-        vec![format!("avg_over_time({}[2m])", COMPILATION_DURATION.get_name_with_filter())],
-        PanelType::TimeSeries,
-    )
+    Panel::from_hist(COMPILATION_DURATION, PanelType::TimeSeries)
 }
 
 pub(crate) fn get_sierra_compiler_infra_row() -> Row {
