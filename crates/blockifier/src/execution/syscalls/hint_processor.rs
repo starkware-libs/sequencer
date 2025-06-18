@@ -66,6 +66,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertData,
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
@@ -133,7 +134,7 @@ pub enum SyscallExecutionError {
 impl TryExtractRevert for SyscallExecutionError {
     fn try_extract_revert(self) -> SelfOrRevert<Self> {
         match self {
-            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            Self::Revert { error_data } => SelfOrRevert::Revert(RevertData::new_normal(error_data)),
             Self::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
@@ -141,8 +142,8 @@ impl TryExtractRevert for SyscallExecutionError {
         }
     }
 
-    fn as_revert(error_data: Vec<Felt>) -> Self {
-        Self::Revert { error_data }
+    fn as_revert(revert_data: RevertData) -> Self {
+        Self::Revert { error_data: revert_data.error_data }
     }
 }
 
