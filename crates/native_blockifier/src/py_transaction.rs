@@ -120,7 +120,6 @@ impl From<PyDataAvailabilityMode> for starknet_api::data_availability::DataAvail
 
 // Transaction creation.
 
-#[allow(clippy::result_large_err)]
 pub fn py_account_tx(
     tx: &PyAny,
     optional_py_class_info: Option<PyClassInfo>,
@@ -132,7 +131,6 @@ pub fn py_account_tx(
     Ok(account_tx)
 }
 
-#[allow(clippy::result_large_err)]
 pub fn py_tx(
     tx: &PyAny,
     optional_py_class_info: Option<PyClassInfo>,
@@ -160,7 +158,6 @@ pub fn py_tx(
     })
 }
 
-#[allow(clippy::result_large_err)]
 pub fn get_py_tx_type(tx: &PyAny) -> NativeBlockifierResult<&str> {
     Ok(tx.getattr("tx_type")?.getattr("name")?.extract()?)
 }
@@ -174,7 +171,6 @@ pub struct PyClassInfo {
 }
 
 impl PyClassInfo {
-    #[allow(clippy::result_large_err)]
     pub fn try_from(
         py_class_info: PyClassInfo,
         tx: &starknet_api::transaction::DeclareTransaction,

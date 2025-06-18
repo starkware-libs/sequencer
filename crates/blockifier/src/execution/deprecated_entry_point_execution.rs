@@ -43,7 +43,6 @@ pub const CAIRO0_BUILTINS_NAMES: [BuiltinName; 6] = [
 ];
 
 /// Executes a specific call to a contract entry point and returns its output.
-#[allow(clippy::result_large_err)]
 pub fn execute_entry_point_call(
     call: ExecutableCallEntryPoint,
     compiled_class: CompiledClassV0,
@@ -206,7 +205,6 @@ pub fn prepare_call_arguments(
 }
 
 /// Runs the runner from the given PC.
-#[allow(clippy::result_large_err)]
 pub fn run_entry_point(
     runner: &mut CairoRunner,
     hint_processor: &mut DeprecatedSyscallHintProcessor<'_>,

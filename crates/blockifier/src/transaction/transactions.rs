@@ -47,7 +47,6 @@ pub struct ExecutionFlags {
 pub trait ExecutableTransaction<U: UpdatableState>: Sized {
     /// Executes the transaction in a transactional manner
     /// (if it fails, given state does not modify).
-    #[allow(clippy::result_large_err)]
     fn execute(
         &self,
         state: &mut U,
@@ -77,7 +76,6 @@ pub trait ExecutableTransaction<U: UpdatableState>: Sized {
     /// any changes made up to the point of failure will persist in the state. To revert these
     /// changes, you should call `state.abort()`. Alternatively, consider using `execute`
     /// for automatic handling of such cases.
-    #[allow(clippy::result_large_err)]
     fn execute_raw(
         &self,
         state: &mut TransactionalState<'_, U>,
@@ -87,7 +85,6 @@ pub trait ExecutableTransaction<U: UpdatableState>: Sized {
 }
 
 pub trait Executable<S: State> {
-    #[allow(clippy::result_large_err)]
     fn run_execute(
         &self,
         state: &mut S,
@@ -98,7 +95,6 @@ pub trait Executable<S: State> {
 
 /// Intended for use in sequencer pre-execution flows, like in a gateway service.
 pub trait ValidatableTransaction {
-    #[allow(clippy::result_large_err)]
     fn validate_tx(
         &self,
         state: &mut dyn State,
@@ -108,7 +104,6 @@ pub trait ValidatableTransaction {
 }
 
 impl<S: State> Executable<S> for L1HandlerTransaction {
-    #[allow(clippy::result_large_err)]
     fn run_execute(
         &self,
         state: &mut S,
@@ -153,7 +148,6 @@ impl TransactionInfoCreatorInner for AccountTransaction {
 }
 
 impl<S: State> Executable<S> for DeclareTransaction {
-    #[allow(clippy::result_large_err)]
     fn run_execute(
         &self,
         state: &mut S,
@@ -229,7 +223,6 @@ impl TransactionInfoCreatorInner for DeclareTransaction {
 }
 
 impl<S: State> Executable<S> for DeployAccountTransaction {
-    #[allow(clippy::result_large_err)]
     fn run_execute(
         &self,
         state: &mut S,
@@ -289,7 +282,6 @@ impl TransactionInfoCreatorInner for DeployAccountTransaction {
 }
 
 impl<S: State> Executable<S> for InvokeTransaction {
-    #[allow(clippy::result_large_err)]
     fn run_execute(
         &self,
         state: &mut S,
@@ -377,7 +369,6 @@ pub fn enforce_fee(tx: &AccountTransaction, only_query: bool) -> bool {
 
 /// Attempts to declare a contract class by setting the contract class in the state with the
 /// specified class hash.
-#[allow(clippy::result_large_err)]
 fn try_declare<S: State>(
     tx: &DeclareTransaction,
     state: &mut S,

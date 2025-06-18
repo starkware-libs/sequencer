@@ -42,7 +42,6 @@ use crate::vm_utils::{
     LoadCairoObject,
 };
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn load_next_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -75,7 +74,6 @@ pub(crate) fn load_next_tx<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn load_resource_bounds<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
@@ -107,7 +105,6 @@ pub(crate) fn load_resource_bounds<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn exit_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -128,7 +125,6 @@ pub(crate) fn exit_tx<S: StateReader>(
         )?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn prepare_constructor_execution<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -182,7 +178,6 @@ pub(crate) fn prepare_constructor_execution<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn assert_transaction_hash<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -205,7 +200,6 @@ pub(crate) fn assert_transaction_hash<S: StateReader>(
     }
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_deprecated_syscall_handler(
     HintArgs { exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -217,7 +211,6 @@ pub(crate) fn enter_scope_deprecated_syscall_handler(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_scope_syscall_handler(
     HintArgs { exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -229,7 +222,6 @@ pub(crate) fn enter_scope_syscall_handler(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn get_contract_address_state_entry(
     HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -239,7 +231,6 @@ pub(crate) fn get_contract_address_state_entry(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { exec_scopes, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -259,7 +250,6 @@ pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn get_block_hash_contract_address_state_entry_and_set_new_state_entry(
     HintArgs { vm, exec_scopes, constants, ap_tracking, ids_data, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -267,7 +257,6 @@ pub(crate) fn get_block_hash_contract_address_state_entry_and_set_new_state_entr
     set_state_entry(block_hash_contract_address, vm, exec_scopes, ids_data, ap_tracking)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn check_is_deprecated<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
@@ -295,12 +284,10 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn is_deprecated(HintArgs { vm, exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     Ok(insert_value_into_ap(vm, exec_scopes.get::<Felt>(Scope::IsDeprecated.into())?)?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_syscall_scopes(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     // Unlike the Python implementation, there is no need to add `syscall_handler`,
     // `deprecated_syscall_handler`, `deprecated_class_hashes` and `execution_helper` as scope
@@ -313,7 +300,6 @@ pub(crate) fn enter_syscall_scopes(HintArgs { exec_scopes, .. }: HintArgs<'_>) -
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn end_tx<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { .. }: HintArgs<'_>,
@@ -322,7 +308,6 @@ pub(crate) fn end_tx<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn enter_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { ids_data, vm, ap_tracking, .. }: HintArgs<'_>,
@@ -354,7 +339,6 @@ pub(crate) fn enter_call<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn exit_call<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { .. }: HintArgs<'_>,
@@ -367,7 +351,6 @@ pub(crate) fn exit_call<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn contract_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -387,7 +370,6 @@ pub(crate) fn contract_address<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_calldata_len<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -398,7 +380,6 @@ pub(crate) fn tx_calldata_len<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_calldata<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -414,7 +395,6 @@ pub(crate) fn tx_calldata<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_entry_point_selector<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -434,7 +414,6 @@ pub(crate) fn tx_entry_point_selector<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_version<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -444,7 +423,6 @@ pub(crate) fn tx_version<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_tip<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -459,7 +437,6 @@ pub(crate) fn tx_tip<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_paymaster_data_len<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -474,7 +451,6 @@ pub(crate) fn tx_paymaster_data_len<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_paymaster_data<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -491,7 +467,6 @@ pub(crate) fn tx_paymaster_data<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_nonce_data_availability_mode<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -506,7 +481,6 @@ pub(crate) fn tx_nonce_data_availability_mode<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -521,7 +495,6 @@ pub(crate) fn tx_fee_data_availability_mode<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -536,7 +509,6 @@ pub(crate) fn tx_account_deployment_data_len<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn tx_account_deployment_data<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -552,7 +524,6 @@ pub(crate) fn tx_account_deployment_data<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn gen_signature_arg<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
@@ -582,7 +553,6 @@ pub(crate) fn gen_signature_arg<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn is_reverted<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -598,7 +568,6 @@ pub(crate) fn is_reverted<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn check_execution<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
@@ -665,7 +634,6 @@ pub(crate) fn check_execution<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn is_remaining_gas_lt_initial_budget(
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -676,7 +644,6 @@ pub(crate) fn is_remaining_gas_lt_initial_budget(
     Ok(insert_value_into_ap(vm, remaining_gas_lt_initial_budget)?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn check_syscall_response<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -702,7 +669,6 @@ pub(crate) fn check_syscall_response<S: StateReader>(
     compare_retdata(&actual_retdata, &expected_retdata)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn check_new_syscall_response<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
@@ -718,7 +684,6 @@ pub(crate) fn check_new_syscall_response<S: StateReader>(
     )
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn check_new_deploy_response<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
@@ -734,7 +699,6 @@ pub(crate) fn check_new_deploy_response<S: StateReader>(
     )
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn initial_ge_required_gas(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -745,7 +709,6 @@ pub(crate) fn initial_ge_required_gas(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -760,7 +723,6 @@ pub(crate) fn set_ap_to_tx_nonce<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn set_fp_plus_4_to_tx_nonce<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,
@@ -775,7 +737,6 @@ pub(crate) fn set_fp_plus_4_to_tx_nonce<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 fn write_syscall_result_helper<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
@@ -824,7 +785,6 @@ fn write_syscall_result_helper<S: StateReader>(
     set_state_entry(contract_address.key(), vm, exec_scopes, ids_data, ap_tracking)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     hint_args: HintArgs<'_>,
@@ -838,7 +798,6 @@ pub(crate) fn write_syscall_result_deprecated<S: StateReader>(
     )
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn write_syscall_result<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     hint_args: HintArgs<'_>,
@@ -852,7 +811,6 @@ pub(crate) fn write_syscall_result<S: StateReader>(
     )
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn declare_tx_fields<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
@@ -921,7 +879,6 @@ pub(crate) fn declare_tx_fields<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn write_old_block_to_storage<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
@@ -944,7 +901,6 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 fn assert_value_cached_by_reading<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -983,7 +939,6 @@ fn assert_value_cached_by_reading<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     hint_args: HintArgs<'_>,
@@ -997,7 +952,6 @@ pub(crate) fn cache_contract_storage_request_key<S: StateReader>(
     )
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
 
@@ -1012,7 +966,6 @@ pub(crate) fn cache_contract_storage_syscall_request_address<S: StateReader>(
     )
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
@@ -1044,7 +997,6 @@ pub(crate) fn get_old_block_number_and_hash<S: StateReader>(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn fetch_result(
     HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {

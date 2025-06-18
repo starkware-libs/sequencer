@@ -4,7 +4,6 @@ use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT
 use crate::execution::syscalls::syscall_base::KECCAK_FULL_RATE_IN_WORDS;
 use crate::execution::syscalls::vm_syscall_utils::{SyscallBaseResult, SyscallExecutorBaseError};
 
-#[allow(clippy::result_large_err)]
 pub fn base_keccak(
     keccak_round_cost_base_syscall_cost: u64,
     input: &[u64],

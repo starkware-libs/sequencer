@@ -31,7 +31,6 @@ pub struct PyValidator {
 impl PyValidator {
     #[new]
     #[pyo3(signature = (os_config, state_reader_proxy, next_block_info, max_nonce_for_validation_skip, py_versioned_constants_overrides))]
-    #[allow(clippy::result_large_err)]
     pub fn create(
         os_config: PyOsConfig,
         state_reader_proxy: &PyAny,
@@ -63,7 +62,6 @@ impl PyValidator {
     // Transaction Execution API.
 
     #[pyo3(signature = (tx, optional_py_class_info, deploy_account_tx_hash))]
-    #[allow(clippy::result_large_err)]
     pub fn perform_validations(
         &mut self,
         tx: &PyAny,
@@ -90,7 +88,6 @@ impl PyValidator {
     // If the DeployAccount transaction of the account was submitted but not processed yet, it
     // should be skipped for subsequent transactions for a better user experience. (they will
     // otherwise fail solely because the deploy account hasn't been processed yet).
-    #[allow(clippy::result_large_err)]
     pub fn should_run_stateful_validations(
         &mut self,
         account_tx: &AccountTransaction,

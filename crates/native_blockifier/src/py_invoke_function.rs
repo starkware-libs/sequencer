@@ -105,7 +105,6 @@ impl TryFrom<PyInvokeTransactionV3> for InvokeTransactionV3 {
     }
 }
 
-#[allow(clippy::result_large_err)]
 pub fn py_invoke_function(py_tx: &PyAny) -> NativeBlockifierResult<InvokeTransaction> {
     let version = py_attr::<PyFelt>(py_tx, "version")?.0;
     // TODO(Dori): Make TransactionVersion an enum and use match here.

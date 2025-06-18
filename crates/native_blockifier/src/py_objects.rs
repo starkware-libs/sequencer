@@ -125,7 +125,6 @@ impl TryFrom<PyBouncerConfig> for BouncerConfig {
     }
 }
 
-#[allow(clippy::result_large_err)]
 fn hash_map_into_bouncer_weights(
     mut data: HashMap<String, usize>,
 ) -> NativeBlockifierResult<BouncerWeights> {

@@ -177,7 +177,6 @@ impl TestStateReader {
 
     /// Get the block info of the current block.
     /// If l2_gas_price is not present in the block header, it will be set to 1.
-    #[allow(clippy::result_large_err)]
     pub fn get_block_info(&self) -> ReexecutionResult<BlockInfo> {
         let mut json = retry_request!(self.retry_config, || {
             self.rpc_state_reader.send_rpc_request(
@@ -204,7 +203,6 @@ impl TestStateReader {
         Ok(serde_json::from_value::<BlockHeader>(json)?.try_into()?)
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn get_starknet_version(&self) -> ReexecutionResult<StarknetVersion> {
         let raw_version: String = serde_json::from_value(
             retry_request!(self.retry_config, || {
@@ -219,7 +217,6 @@ impl TestStateReader {
     }
 
     /// Get all transaction hashes in the current block.
-    #[allow(clippy::result_large_err)]
     pub fn get_tx_hashes(&self) -> ReexecutionResult<Vec<String>> {
         let raw_tx_hashes = serde_json::from_value(
             retry_request!(self.retry_config, || {
@@ -233,7 +230,6 @@ impl TestStateReader {
         Ok(serde_json::from_value(raw_tx_hashes)?)
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn get_tx_by_hash(&self, tx_hash: &str) -> ReexecutionResult<Transaction> {
         Ok(deserialize_transaction_json_to_starknet_api_tx(retry_request!(
             self.retry_config,
@@ -246,7 +242,6 @@ impl TestStateReader {
         )?)?)
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn get_all_txs_in_block(&self) -> ReexecutionResult<Vec<(Transaction, TransactionHash)>> {
         // TODO(Aviv): Use batch request to get all txs in a block.
         self.get_tx_hashes()?
@@ -258,12 +253,10 @@ impl TestStateReader {
             .collect::<Result<_, _>>()
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn get_versioned_constants(&self) -> ReexecutionResult<&'static VersionedConstants> {
         Ok(VersionedConstants::get(&self.get_starknet_version()?)?)
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn get_block_context(&self) -> ReexecutionResult<BlockContext> {
         Ok(BlockContext::new(
             self.get_block_info()?,
@@ -273,7 +266,6 @@ impl TestStateReader {
         ))
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn get_transaction_executor(
         self,
         block_context_next_block: BlockContext,
@@ -292,7 +284,6 @@ impl TestStateReader {
         )?)
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn get_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
         let raw_statediff =
             &retry_request!(self.retry_config, || self.rpc_state_reader.send_rpc_request(
@@ -372,7 +363,6 @@ impl ReexecutionStateReader for TestStateReader {
         Ok(contract_class)
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_old_block_hash(&self, old_block_number: BlockNumber) -> ReexecutionResult<BlockHash> {
         let block_id = BlockId::Number(old_block_number);
         let params = GetBlockWithTxHashesParams { block_id };
@@ -412,7 +402,6 @@ impl ConsecutiveTestStateReaders {
         }
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn get_serializable_data_next_block(&self) -> ReexecutionResult<SerializableDataNextBlock> {
         let (transactions_next_block, declared_classes) =
             self.get_next_block_starknet_api_txs_and_declared_classes()?;
@@ -426,7 +415,6 @@ impl ConsecutiveTestStateReaders {
         })
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn get_old_block_hash(&self) -> ReexecutionResult<BlockHash> {
         self.last_block_state_reader.get_old_block_hash(BlockNumber(
             self.next_block_state_reader.get_block_context()?.block_info().block_number.0
@@ -434,7 +422,6 @@ impl ConsecutiveTestStateReaders {
         ))
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_next_block_starknet_api_txs_and_declared_classes(
         &self,
     ) -> ReexecutionResult<(Vec<(Transaction, TransactionHash)>, StarknetContractClassMapping)>
@@ -452,7 +439,6 @@ impl ConsecutiveTestStateReaders {
 }
 
 impl ConsecutiveReexecutionStateReaders<TestStateReader> for ConsecutiveTestStateReaders {
-    #[allow(clippy::result_large_err)]
     fn pre_process_and_create_executor(
         self,
         transaction_executor_config: Option<TransactionExecutorConfig>,
@@ -463,14 +449,12 @@ impl ConsecutiveReexecutionStateReaders<TestStateReader> for ConsecutiveTestStat
         )
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_next_block_txs(&self) -> ReexecutionResult<Vec<BlockifierTransaction>> {
         self.next_block_state_reader.api_txs_to_blockifier_txs_next_block(
             self.next_block_state_reader.get_all_txs_in_block()?,
         )
     }
 
-    #[allow(clippy::result_large_err)]
     fn get_next_block_state_diff(&self) -> ReexecutionResult<CommitmentStateDiff> {
         self.next_block_state_reader.get_state_diff()
     }

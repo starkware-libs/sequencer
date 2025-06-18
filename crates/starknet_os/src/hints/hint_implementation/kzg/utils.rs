@@ -146,7 +146,6 @@ pub(crate) fn polynomial_coefficients_to_kzg_commitment(
 ///    d0 + d1 * BASE + d2 * BASE**2.
 /// d2 can be in the range (-2**127, 2**127).
 // TODO(Dori): Consider using bls_split from the VM crate if and when public.
-#[allow(clippy::result_large_err)]
 pub fn split_bigint3(num: BigInt) -> Result<[Felt; 3], OsHintError> {
     let (q1, d0) = (&num / &*BASE, Felt::from(num % &*BASE));
     let (d2, d1) = (&q1 / &*BASE, Felt::from(q1 % &*BASE));

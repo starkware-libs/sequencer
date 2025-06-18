@@ -133,7 +133,6 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
 
 impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     #[allow(clippy::too_many_arguments)]
-    #[allow(clippy::result_large_err)]
     pub fn new(
         os_program: &'a Program,
         os_hints_config: OsHintsConfig,
@@ -286,7 +285,6 @@ impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcess
 
     /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
     /// mode.
-    #[allow(clippy::result_large_err)]
     fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
         if self.da_segment.is_some() {
             return Err(OsHintError::AssertionFailed {
@@ -393,7 +391,6 @@ impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
 
 #[cfg(any(test, feature = "testing"))]
 impl<'a> SnosHintProcessor<'a, DictStateReader> {
-    #[allow(clippy::result_large_err)]
     pub fn new_for_testing(
         state_reader: Option<DictStateReader>,
         os_program: &'a Program,
@@ -455,7 +452,6 @@ impl SyscallHintProcessor {
         self.syscall_ptr = Some(syscall_ptr);
     }
 
-    #[allow(clippy::result_large_err)]
     pub fn validate_and_discard_syscall_ptr(
         &mut self,
         syscall_ptr_end: &Relocatable,
@@ -472,7 +468,6 @@ impl SyscallHintProcessor {
         }
     }
 
-    #[allow(clippy::result_large_err)]
     pub(crate) fn get_mut_syscall_ptr(&mut self) -> Result<&mut Relocatable, OsHintError> {
         self.syscall_ptr.as_mut().ok_or(OsHintError::UnsetSyscallPtr)
     }

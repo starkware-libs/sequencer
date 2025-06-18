@@ -107,7 +107,6 @@ impl PythonTestRunner for CommitterPythonTestRunner {
     type SpecificError = CommitterSpecificTestError;
 
     /// Runs the test with the given arguments.
-    #[allow(clippy::result_large_err)]
     async fn run(&self, input: Option<&str>) -> CommitterPythonTestResult {
         match self {
             Self::ExampleTest => {
@@ -199,7 +198,6 @@ fn serialize_for_rust_committer_flow_test(input: HashMap<String, String>) -> Str
     )).expect("serialization failed")
 }
 
-#[allow(clippy::result_large_err)]
 fn get_or_key_not_found<'a, T: Debug>(
     map: &'a HashMap<String, T>,
     key: &'a str,
@@ -282,7 +280,6 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
         .unwrap_or_else(|error| panic!("Failed to serialize binary fact: {}", error))
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn parse_input_test(committer_input: String) -> CommitterPythonTestResult {
     Ok(create_output_to_python(parse_input(&committer_input).map_err(|err| {
         PythonTestError::SpecificError(CommitterSpecificTestError::DeserializationTestFailure(err))
@@ -464,7 +461,6 @@ pub(crate) fn test_node_db_key() -> String {
 /// DbValue pairs for u128 values in the range 0..=1000,
 /// serializes it to a JSON string using Serde,
 /// and returns the serialized JSON string or panics with an error message if serialization fails.
-#[allow(clippy::result_large_err)]
 pub(crate) fn storage_serialize_test() -> CommitterPythonTestResult {
     let mut storage = MapStorage { storage: HashMap::new() };
     for i in 0..=99_u128 {
@@ -501,7 +497,6 @@ fn python_hash_constants_compare() -> String {
 /// # Returns
 /// A `Result<String, CommitterTestError>` containing a serialized map of all nodes on
 /// success, or an error if keys are missing or parsing fails.
-#[allow(clippy::result_large_err)]
 fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult {
     // Create a storage to store the nodes.
     let mut rust_fact_storage = MapStorage { storage: HashMap::new() };
@@ -612,7 +607,6 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
 }
 
 /// Generates a dummy random filled forest and serializes it to a JSON string.
-#[allow(clippy::result_large_err)]
 pub(crate) fn filled_forest_output_test() -> CommitterPythonTestResult {
     let dummy_forest = SerializedForest(FilledForest::dummy_random(&mut rand::thread_rng(), None));
     let output = dummy_forest.forest_to_output();

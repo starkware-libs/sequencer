@@ -15,7 +15,6 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::get_address_of_nested_fields;
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn is_on_curve(
     HintArgs { exec_scopes, vm, ap_tracking, ids_data, .. }: HintArgs<'_>,
 ) -> OsHintResult {
@@ -35,7 +34,6 @@ pub(crate) fn is_on_curve(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn read_ec_point_from_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { ids_data, ap_tracking, vm, .. }: HintArgs<'_>,

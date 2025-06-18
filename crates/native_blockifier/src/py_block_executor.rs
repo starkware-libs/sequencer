@@ -110,7 +110,6 @@ impl PyBlockExecutor {
 
     /// Initializes the transaction executor for the given block.
     #[pyo3(signature = (next_block_info, old_block_number_and_hash))]
-    #[allow(clippy::result_large_err)]
     fn setup_block_execution(
         &mut self,
         next_block_info: PyBlockInfo,
@@ -142,7 +141,6 @@ impl PyBlockExecutor {
     }
 
     #[pyo3(signature = (tx, optional_py_class_info))]
-    #[allow(clippy::result_large_err)]
     pub fn execute(
         &mut self,
         tx: &PyAny,
@@ -209,7 +207,6 @@ impl PyBlockExecutor {
     }
 
     /// Returns the state diff, the stateful-compressed state diff and the block weights.
-    #[allow(clippy::result_large_err)]
     pub fn finalize(
         &mut self,
     ) -> NativeBlockifierResult<(
@@ -257,7 +254,6 @@ impl PyBlockExecutor {
         declared_class_hash_to_class,
         deprecated_declared_class_hash_to_class
     ))]
-    #[allow(clippy::result_large_err)]
     pub fn append_block(
         &mut self,
         block_id: u64,
@@ -280,14 +276,12 @@ impl PyBlockExecutor {
     /// Returns the next block number, for which block header was not yet appended.
     /// Block header stream is usually ahead of the state diff stream, so this is the indicative
     /// marker.
-    #[allow(clippy::result_large_err)]
     pub fn get_header_marker(&self) -> NativeBlockifierResult<u64> {
         self.storage.get_header_marker()
     }
 
     /// Returns the unique identifier of the given block number in bytes.
     #[pyo3(signature = (block_number))]
-    #[allow(clippy::result_large_err)]
     fn get_block_id_at_target(&self, block_number: u64) -> NativeBlockifierResult<Option<PyFelt>> {
         let optional_block_id_bytes = self.storage.get_block_id(block_number)?;
         let Some(block_id_bytes) = optional_block_id_bytes else { return Ok(None) };
@@ -307,7 +301,6 @@ impl PyBlockExecutor {
     /// If header exists without a state diff (usually the case), only the header is reverted.
     /// (this is true for every partial existence of information at tables).
     #[pyo3(signature = (block_number))]
-    #[allow(clippy::result_large_err)]
     pub fn revert_block(&mut self, block_number: u64) -> NativeBlockifierResult<()> {
         // Clear global class cache, to properly revert classes declared in the reverted block.
         self.contract_class_manager.clear();

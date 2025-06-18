@@ -475,7 +475,6 @@ fn test_simulate_validate_pre_validate_not_charge_fee(
 }
 
 // Helper function to execute a transaction that fails validation.
-#[allow(clippy::result_large_err)]
 fn execute_fail_validation(
     only_query: bool,
     validate: bool,

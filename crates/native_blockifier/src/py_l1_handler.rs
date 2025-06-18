@@ -30,7 +30,6 @@ impl TryFrom<PyL1HandlerTransaction> for starknet_api::transaction::L1HandlerTra
     }
 }
 
-#[allow(clippy::result_large_err)]
 pub fn py_l1_handler(py_tx: &PyAny) -> NativeBlockifierResult<L1HandlerTransaction> {
     let py_l1_handler_tx: PyL1HandlerTransaction = py_tx.extract()?;
     let tx = starknet_api::transaction::L1HandlerTransaction::try_from(py_l1_handler_tx)?;

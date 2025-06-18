@@ -25,7 +25,6 @@ pub trait TransactionExecutorTrait: Send {
     /// segments mapping and bouncer.
     ///
     /// Every block must be closed with either `close_block` or `abort_block`.
-    #[allow(clippy::result_large_err)]
     fn close_block(
         &mut self,
         n_txs_in_block: Option<usize>,
@@ -54,7 +53,6 @@ impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait
         ConcurrentTransactionExecutor::is_done(self)
     }
 
-    #[allow(clippy::result_large_err)]
     fn close_block(
         &mut self,
         n_txs_in_block: Option<usize>,

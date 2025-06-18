@@ -7,14 +7,12 @@ use crate::os_cli::tests::types::OsPythonTestResult;
 use crate::os_cli::tests::utils::test_cairo_function;
 
 // TODO(Amos): This test is incomplete. Add the rest of the test cases and remove this todo.
-#[allow(clippy::result_large_err)]
 pub(crate) fn aliases_test(input: &str) -> OsPythonTestResult {
     info!("Testing `test_constants`...");
     test_constants(input)?;
     Ok("".to_string())
 }
 
-#[allow(clippy::result_large_err)]
 fn test_constants(input: &str) -> OsPythonTestResult {
     let max_non_compressed_contract_address = 15;
     let alias_counter_storage_key = 0;

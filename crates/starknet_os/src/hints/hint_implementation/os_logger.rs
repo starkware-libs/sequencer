@@ -15,7 +15,6 @@ use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn os_logger_enter_syscall_prepare_exit_syscall<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { ap_tracking, ids_data, vm, .. }: HintArgs<'_>,
@@ -31,7 +30,6 @@ pub(crate) fn os_logger_enter_syscall_prepare_exit_syscall<S: StateReader>(
     )
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn os_logger_exit_syscall<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { ap_tracking, ids_data, vm, .. }: HintArgs<'_>,
@@ -52,7 +50,6 @@ pub(crate) fn os_logger_exit_syscall<S: StateReader>(
     )?)
 }
 
-#[allow(clippy::result_large_err)]
 pub(crate) fn log_enter_syscall<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { ap_tracking, ids_data, vm, .. }: HintArgs<'_>,
@@ -68,7 +65,6 @@ pub(crate) fn log_enter_syscall<S: StateReader>(
     )
 }
 
-#[allow(clippy::result_large_err)]
 fn log_enter_syscall_helper<S: StateReader>(
     execution_helper: &mut SnosHintProcessor<'_, S>,
     ids_data: &HashMap<String, HintReference>,

@@ -73,7 +73,6 @@ use crate::test_utils::utils::run_cairo_function_and_check_result;
 const COMPILED_DUMMY_FUNCTION: &str = include_str!("compiled_dummy_function.json");
 
 #[test]
-#[allow(clippy::result_large_err)]
 fn test_felt_and_pointers() -> Cairo0EntryPointRunnerResult<()> {
     // Parameters.
     let number = 2;
@@ -129,7 +128,6 @@ fn test_felt_and_pointers() -> Cairo0EntryPointRunnerResult<()> {
 }
 
 #[test]
-#[allow(clippy::result_large_err)]
 fn test_tuples_and_structs() -> Cairo0EntryPointRunnerResult<()> {
     // Parameters.
     let (first_tuple_val, second_tuple_val) = (3, 4);
@@ -185,7 +183,6 @@ fn test_tuples_and_structs() -> Cairo0EntryPointRunnerResult<()> {
 }
 
 #[test]
-#[allow(clippy::result_large_err)]
 fn test_implicit_args() -> Cairo0EntryPointRunnerResult<()> {
     let number_1 = 1;
     let number_2 = 2;

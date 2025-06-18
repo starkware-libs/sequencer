@@ -69,7 +69,6 @@ fn int_to_stark_felt(int: &PyAny) -> PyResult<Felt> {
 }
 
 // TODO(Dori): Convert to a `TryFrom` cast and put in starknet-api (In Felt).
-#[allow(clippy::result_large_err)]
 pub fn biguint_to_felt(biguint: BigUint) -> NativeBlockifierResult<Felt> {
     let biguint_hex = format!("{biguint:#x}");
     Ok(Felt::from_hex(&biguint_hex).map_err(NativeBlockifierInputError::from)?)
@@ -91,7 +90,6 @@ pub fn int_to_chain_id(int: &PyAny) -> PyResult<ChainId> {
     Ok(ChainId::Other(String::from_utf8_lossy(&biguint.to_bytes_be()).into()))
 }
 
-#[allow(clippy::result_large_err)]
 pub fn py_attr<T>(obj: &PyAny, attr: &str) -> NativeBlockifierResult<T>
 where
     T: for<'a> FromPyObject<'a>,
