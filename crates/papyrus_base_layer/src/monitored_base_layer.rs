@@ -11,7 +11,10 @@ use tokio::sync::Mutex;
 use tracing::{error, info};
 use url::Url;
 
+use crate::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
+
+pub type MonitoredEthereumBaseLayer = MonitoredBaseLayer<EthereumBaseLayerContract>;
 
 // Using interior mutability for modifiable fields in order to comply with the base layer's
 // largely immutable API.
@@ -22,6 +25,18 @@ pub struct MonitoredBaseLayer<B: BaseLayerContract + Send + Sync> {
 }
 
 impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
+    pub fn new(
+        base_layer: B,
+        l1_endpoint_monitor_client: SharedL1EndpointMonitorClient,
+        initial_node_url: Url,
+    ) -> Self {
+        MonitoredBaseLayer {
+            base_layer: Mutex::new(base_layer),
+            monitor: l1_endpoint_monitor_client,
+            current_node_url: Mutex::new(initial_node_url),
+        }
+    }
+
     /// Returns a guard to the inner base layer, wrapped in order to hide the inner Mutex type.
     async fn get(&self) -> Result<BaseLayerGuard<'_, B>, MonitoredBaseLayerError<B>> {
         self.ensure_operational().await.unwrap();

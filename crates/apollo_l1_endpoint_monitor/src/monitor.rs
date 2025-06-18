@@ -1,9 +1,15 @@
+use std::collections::BTreeMap;
+
 use alloy::primitives::U64;
 use alloy::providers::{Provider, ProviderBuilder};
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_endpoint_monitor_types::{L1EndpointMonitorError, L1EndpointMonitorResult};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 use url::Url;
+use validator::Validate;
 
 #[cfg(test)]
 #[path = "l1_endpoint_monitor_tests.rs"]
@@ -80,7 +86,32 @@ impl L1EndpointMonitor {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+impl ComponentStarter for L1EndpointMonitor {}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1EndpointMonitorConfig {
     pub ordered_l1_endpoint_urls: Vec<Url>,
+}
+
+impl Default for L1EndpointMonitorConfig {
+    fn default() -> Self {
+        Self {
+            ordered_l1_endpoint_urls: vec![
+                Url::parse("https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY").unwrap(),
+                Url::parse("https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY").unwrap(),
+            ],
+        }
+    }
+}
+
+impl SerializeConfig for L1EndpointMonitorConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "ordered_l1_endpoint_urls",
+            &self.ordered_l1_endpoint_urls,
+            "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the \
+             current one is non-operational.",
+            ParamPrivacyInput::Private,
+        )])
+    }
 }
