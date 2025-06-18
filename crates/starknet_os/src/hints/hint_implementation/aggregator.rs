@@ -5,6 +5,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::aggregator_hint_processor::AggregatorHintProcessor;
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
@@ -52,10 +53,19 @@ pub(crate) fn get_aggregator_output(
 
 #[allow(clippy::result_large_err)]
 pub(crate) fn write_da_segment(
-    _hint_processor: &mut AggregatorHintProcessor<'_>,
+    hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    todo!()
+    if let Some(da_path) = hint_processor.input.da_path.clone() {
+        let da_segment = if hint_processor.input.use_kzg_da {
+            hint_processor.get_da_segment().take()
+        } else {
+            None
+        };
+        let json = serde_json::json!(da_segment);
+        std::fs::write::<String, String>(da_path, serde_json::to_string(&json)?)?;
+    }
+    Ok(())
 }
 
 #[allow(clippy::result_large_err)]
