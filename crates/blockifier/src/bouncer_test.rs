@@ -8,7 +8,12 @@ use starknet_api::{class_hash, contract_address, storage_key};
 
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
-use crate::bouncer::{verify_tx_weights_within_max_capacity, Bouncer, BouncerWeights};
+use crate::bouncer::{
+    verify_tx_weights_within_max_capacity,
+    Bouncer,
+    BouncerWeights,
+    BuiltinWeights,
+};
 use crate::context::BlockContext;
 use crate::execution::call_info::ExecutionSummary;
 use crate::fee::resources::{ComputationResources, TransactionResources};
@@ -125,7 +130,9 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
         state_diff_size: 20,
         sierra_gas: GasAmount(20),
     };
-    let bouncer_config = BouncerConfig { block_max_capacity };
+    // TODO(Meshi): Add builtin weights to the bouncer config once we will test the logic.
+    let bouncer_config =
+        BouncerConfig { block_max_capacity, builtin_weights: BuiltinWeights::default() };
 
     let accumulated_weights = BouncerWeights {
         l1_gas: 10,

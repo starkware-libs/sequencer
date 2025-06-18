@@ -55,15 +55,22 @@ pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
+    pub builtin_weights: BuiltinWeights,
 }
 
 impl BouncerConfig {
     pub fn empty() -> Self {
-        Self { block_max_capacity: BouncerWeights::empty() }
+        Self {
+            block_max_capacity: BouncerWeights::empty(),
+            builtin_weights: BuiltinWeights::empty(),
+        }
     }
 
     pub fn max() -> Self {
-        Self { block_max_capacity: BouncerWeights::max() }
+        Self {
+            block_max_capacity: BouncerWeights::max(),
+            builtin_weights: BuiltinWeights::default(),
+        }
     }
 
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
@@ -87,7 +94,9 @@ impl BouncerConfig {
 
 impl SerializeConfig for BouncerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        append_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity")
+        let mut dump = append_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity");
+        dump.append(&mut append_sub_config_name(self.builtin_weights.dump(), "builtin_weights"));
+        dump
     }
 }
 
@@ -191,6 +200,121 @@ impl std::fmt::Display for BouncerWeights {
             self.state_diff_size,
             self.sierra_gas
         )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+pub struct BuiltinWeights {
+    pub pedersen: usize,
+    pub range_check: usize,
+    pub ecdsa: usize,
+    pub bitwise: usize,
+    pub poseidon: usize,
+    pub keccak: usize,
+    pub ec_op: usize,
+    pub mul_mod: usize,
+    pub add_mod: usize,
+    pub range_check96: usize,
+}
+
+impl BuiltinWeights {
+    pub fn empty() -> Self {
+        Self {
+            pedersen: 0,
+            range_check: 0,
+            ecdsa: 0,
+            bitwise: 0,
+            poseidon: 0,
+            keccak: 0,
+            ec_op: 0,
+            mul_mod: 0,
+            add_mod: 0,
+            range_check96: 0,
+        }
+    }
+}
+
+impl Default for BuiltinWeights {
+    fn default() -> Self {
+        Self {
+            pedersen: 4050,
+            range_check: 70,
+            ecdsa: 675904,
+            ec_op: 285950,
+            bitwise: 583,
+            keccak: 204283,
+            poseidon: 3928,
+            add_mod: 250,
+            mul_mod: 604,
+            range_check96: 56,
+        }
+    }
+}
+
+impl SerializeConfig for BuiltinWeights {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = BTreeMap::from([ser_param(
+            "pedersen",
+            &self.pedersen,
+            "stwo pedersen gas cost.",
+            ParamPrivacyInput::Public,
+        )]);
+        dump.append(&mut BTreeMap::from([ser_param(
+            "range_check",
+            &self.range_check,
+            "stwo range_check gas cost.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "range_check96",
+            &self.range_check96,
+            "stwo range_check gas cost.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "poseidon",
+            &self.poseidon,
+            "stwo poseidon gas cost.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "ecdsa",
+            &self.ecdsa,
+            "stwo ecdsa gas cost.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "ec_op",
+            &self.ec_op,
+            "stwo ec_op gas cost.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "add_mod",
+            &self.add_mod,
+            "stwo add_mod gas cost.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "mul_mod",
+            &self.mul_mod,
+            "stwo mul_mod gas cost.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "keccak",
+            &self.keccak,
+            "stwo keccak gas cost.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "bitwise",
+            &self.bitwise,
+            "stwo bitwise gas cost.",
+            ParamPrivacyInput::Public,
+        )]));
+
+        dump
     }
 }
 
