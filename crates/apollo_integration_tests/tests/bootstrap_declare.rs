@@ -1,5 +1,5 @@
 use apollo_infra_utils::test_utils::TestIdentifier;
-use transaction_generator::starknet_api_test_utils::generate_bootstrap_declare;
+use transaction_generator::transaction_generator::generate_bootstrap_declare;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::common::{end_to_end_flow, test_single_tx, TestScenario};

@@ -12,7 +12,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::Fee;
 use starknet_types_core::felt::Felt;
-use transaction_generator::starknet_api_test_utils::VALID_ACCOUNT_BALANCE;
+use transaction_generator::transaction_generator::VALID_ACCOUNT_BALANCE;
 
 use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 

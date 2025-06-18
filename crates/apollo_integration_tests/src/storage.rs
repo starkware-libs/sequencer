@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use blockifier::context::ChainInfo;
-use transaction_generator::starknet_api_test_utils::AccountTransactionGenerator;
+use transaction_generator::transaction_generator::AccountTransactionGenerator;
 
 use crate::executable_setup::NodeExecutionId;
 use crate::state_reader::{
