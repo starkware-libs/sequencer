@@ -1,5 +1,6 @@
+use std::any::Any;
 use std::collections::btree_map::IntoIter;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
@@ -7,7 +8,7 @@ use blockifier::execution::syscalls::vm_syscall_utils::{execute_next_syscall, Sy
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use cairo_lang_casm::hints::Hint as Cairo1Hint;
+use cairo_lang_casm::hints::{Hint as Cairo1Hint, StarknetHint};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
@@ -15,13 +16,10 @@ use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_def
     HintProcessorData as Cairo0Hint,
 };
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
-use cairo_vm::stdlib::any::Any;
-use cairo_vm::stdlib::boxed::Box;
-use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::Relocatable;
-use cairo_vm::vm::errors::hint_errors::HintError;
+use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::ClassHash;
@@ -47,7 +45,6 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::hint_implementation::state::CommitmentType;
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::hints::vars::CairoStruct;
-use crate::impl_common_hint_processor;
 use crate::io::os_input::{
     CachedStateInput,
     CommitmentInfo,
@@ -56,6 +53,7 @@ use crate::io::os_input::{
     OsInputError,
 };
 use crate::vm_utils::get_address_of_nested_fields_from_base_address;
+use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
 pub(crate) struct ExecutionHelpersManager<'a, S: StateReader> {
     execution_helpers: Vec<OsExecutionHelper<'a, S>>,
@@ -271,88 +269,51 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     }
 }
 
-impl_common_hint_processor!(SnosHintProcessor, S, StateReader);
-
 impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
-    fn execute_hint(
+    impl_common_hint_processor_logic!();
+}
+impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
+    impl_common_hint_processor_getters!();
+    fn execute_cairo0_unique_hint(
         &mut self,
-        _vm: &mut VirtualMachine,
-        _exec_scopes: &mut ExecutionScopes,
-        _hint_data: &Box<dyn Any>,
-        _constants: &HashMap<String, Felt>,
-    ) -> VmHintResult {
-        Ok(())
+        hint: &AllHints,
+        hint_args: HintArgs<'_>,
+        _hint_str: &str,
+    ) -> VmHintExtensionResult {
+        match hint {
+            AllHints::StatelessHint(_) | AllHints::CommonHint(_) => {
+                panic!(
+                    "Stateless and common hints should be handled in execute_hint_extensive \
+                     function."
+                );
+            }
+            AllHints::OsHint(os_hint) => {
+                os_hint.execute_hint(self, hint_args)?;
+            }
+            AllHints::AggregatorHint(aggregator_hint) => {
+                panic!("Aggregator hints should not be used in the OS. Hint: {aggregator_hint:?}");
+            }
+            AllHints::DeprecatedSyscallHint(deprecated_syscall_hint) => {
+                deprecated_syscall_hint.execute_hint(self, hint_args)?;
+            }
+            AllHints::HintExtension(hint_extension) => {
+                return Ok(hint_extension.execute_hint_extensive(self, hint_args)?);
+            }
+            #[cfg(any(test, feature = "testing"))]
+            AllHints::TestHint => {
+                test_hint(_hint_str, self, hint_args)?;
+            }
+        }
+        Ok(HintExtension::default())
     }
 
-    fn execute_hint_extensive(
+    fn execute_cairo1_unique_hint(
         &mut self,
+        hint: &StarknetHint,
         vm: &mut VirtualMachine,
-        exec_scopes: &mut ExecutionScopes,
-        hint_data: &Box<dyn Any>,
-        constants: &HashMap<String, Felt>,
     ) -> VmHintExtensionResult {
-        if let Some(hint_processor_data) = hint_data.downcast_ref::<Cairo0Hint>() {
-            // AllHints (OS hint, aggregator hint, Cairo0 syscall) or Cairo0 core hint.
-            let hint_args = HintArgs {
-                vm,
-                exec_scopes,
-                ids_data: &hint_processor_data.ids_data,
-                ap_tracking: &hint_processor_data.ap_tracking,
-                constants,
-            };
-            if let Ok(hint) = AllHints::from_str(hint_processor_data.code.as_str()) {
-                // OS hint, aggregator hint, Cairo0 syscall.
-                return match hint {
-                    AllHints::StatelessHint(stateless) => {
-                        stateless.execute_hint(self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                    AllHints::CommonHint(common_hint) => {
-                        common_hint.execute_hint(self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                    AllHints::OsHint(os_hint) => {
-                        os_hint.execute_hint(self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                    AllHints::AggregatorHint(hint) => {
-                        panic!("Aggregator hints should not be used in the OS. Hint: {hint:?}");
-                    }
-                    AllHints::DeprecatedSyscallHint(deprecated_syscall_hint) => {
-                        deprecated_syscall_hint.execute_hint(self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                    AllHints::HintExtension(hint_extension) => {
-                        Ok(hint_extension.execute_hint_extensive(self, hint_args)?)
-                    }
-                    #[cfg(any(test, feature = "testing"))]
-                    AllHints::TestHint => {
-                        test_hint(hint_processor_data.code.as_str(), self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                };
-            } else {
-                // Cairo0 core hint.
-                self.builtin_hint_processor.execute_hint(vm, exec_scopes, hint_data, constants)?;
-                return Ok(HintExtension::default());
-            }
-        }
-
-        // Cairo1 syscall or Cairo1 core hint.
-        match hint_data.downcast_ref::<Cairo1Hint>().ok_or(HintError::WrongHintData)? {
-            Cairo1Hint::Core(hint) => {
-                let no_temporary_segments = false;
-                execute_core_hint_base(vm, exec_scopes, hint, no_temporary_segments)?;
-                Ok(HintExtension::default())
-            }
-            Cairo1Hint::Starknet(hint) => {
-                execute_next_syscall(self, vm, hint)?;
-                Ok(HintExtension::default())
-            }
-            Cairo1Hint::External(_) => {
-                panic!("starknet should never accept classes with external hints!")
-            }
-        }
+        execute_next_syscall(self, vm, hint)?;
+        Ok(HintExtension::default())
     }
 }
 
