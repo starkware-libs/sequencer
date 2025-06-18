@@ -256,6 +256,8 @@ impl BlockBuilder {
             // final number of transactions in the block.
             // TODO(lior): Check !self.execution_params.is_validator before calling `is_done()`.
             if lock_executor(&self.executor).is_done() && !self.execution_params.is_validator {
+                // Call `handle_executed_txs()` once more to get the last results.
+                self.handle_executed_txs().await?;
                 info!("Block is full.");
                 FULL_BLOCKS.increment(1);
                 break;

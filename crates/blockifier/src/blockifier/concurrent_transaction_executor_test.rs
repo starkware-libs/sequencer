@@ -154,12 +154,12 @@ fn test_concurrent_transaction_executor_stream_txs() {
     tx_executor.add_txs(&txs1);
 
     // Collect the results.
-
     let mut results = vec![];
     while !tx_executor.is_done() {
         results.extend(tx_executor.get_new_results());
         std::thread::sleep(Duration::from_millis(1));
     }
+    results.extend(tx_executor.get_new_results());
 
     // Check execution results.
     assert_eq!(results.len(), 4);
