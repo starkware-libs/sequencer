@@ -6,7 +6,8 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_endpoint_monitor_types::{L1EndpointMonitorError, L1EndpointMonitorResult};
-use serde::{Deserialize, Serialize};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize};
 use tracing::{error, warn};
 use url::Url;
 use validator::Validate;
@@ -90,6 +91,7 @@ impl ComponentStarter for L1EndpointMonitor {}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1EndpointMonitorConfig {
+    #[serde(deserialize_with = "deserialize_vec_url")]
     pub ordered_l1_endpoint_urls: Vec<Url>,
 }
 
@@ -108,10 +110,34 @@ impl SerializeConfig for L1EndpointMonitorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from([ser_param(
             "ordered_l1_endpoint_urls",
-            &self.ordered_l1_endpoint_urls,
+            &serialize_slice_url(&self.ordered_l1_endpoint_urls),
             "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the \
              current one is non-operational.",
             ParamPrivacyInput::Private,
         )])
     }
+}
+
+// TODO(Tsabary): generalize these for Vec<T> serde.
+
+/// Serializes a `&[Url]` into a single space-separated string.
+fn serialize_slice_url(vector: &[Url]) -> String {
+    vector.iter().map(Url::as_str).collect::<Vec<_>>().join(" ")
+}
+
+/// Deserializes a space-separated string into a `Vec<Url>`.
+/// Returns an error if any of the substrings cannot be parsed into a valid URL.
+fn deserialize_vec_url<'de, D>(de: D) -> Result<Vec<Url>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw: String = <String as serde::Deserialize>::deserialize(de)?;
+
+    if raw.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    raw.split_whitespace()
+        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{}': {}", s, e))))
+        .collect()
 }
