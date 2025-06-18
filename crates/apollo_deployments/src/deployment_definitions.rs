@@ -92,11 +92,13 @@ pub struct EnvironmentComponentConfigModifications {
     pub remote_client_config: RemoteClientConfig,
 }
 
+
+// TODO(Tsabary): consider getting rid of this entire struct.
 impl EnvironmentComponentConfigModifications {
     pub fn testing() -> Self {
         Self {
             local_server_config: LocalServerConfig { channel_buffer_size: 32 },
-            max_concurrency: 10,
+            max_concurrency: 8,
             remote_client_config: RemoteClientConfig {
                 retries: 3,
                 idle_connections: 5,
@@ -109,7 +111,7 @@ impl EnvironmentComponentConfigModifications {
     pub fn sepolia_integration() -> Self {
         Self {
             local_server_config: LocalServerConfig { channel_buffer_size: 128 },
-            max_concurrency: 100,
+            max_concurrency: 8,
             remote_client_config: RemoteClientConfig {
                 retries: 3,
                 idle_connections: usize::MAX,
