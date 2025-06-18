@@ -51,11 +51,8 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         l1_provider_client: SharedL1ProviderClient,
         base_layer: B,
         events_identifiers_to_track: &[EventIdentifier],
+        l1_start_block: L1BlockReference,
     ) -> L1ScraperResult<Self, B> {
-        let l1_start_block = start_block_from_config(&base_layer, &config)
-            .await
-            .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
-
         Ok(Self {
             l1_provider_client,
             base_layer,
