@@ -1409,66 +1409,56 @@ async fn add_tx_tolerates_p2p_propagation_error(mempool: Mempool) {
 }
 
 #[rstest]
-fn gap_tracking_in_various_scenarios(mut mempool: Mempool) {
-    // Account 0: Contiguous nonces (0,1)
-    let tx_address_0 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
-    let next_tx_address_0 =
-        add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 1, account_nonce: 0);
+#[case::no_gap(vec![(0, false), (1, false)])]
+#[case::gap(vec![(1, true)])]
+#[case::gap_closed_by_adding_lower_nonce_tx(vec![(1, true), (0, false)])]
+fn gap_detection(mut mempool: Mempool, #[case] nonce_gap_expected_sequence: Vec<(u64, bool)>) {
+    for (nonce, expected_gap) in nonce_gap_expected_sequence {
+        let tx = add_tx_input!(tx_hash: nonce, address: "0x0", tx_nonce: nonce, account_nonce: 0);
+        add_tx(&mut mempool, &tx);
+        assert_eq!(mempool.accounts_with_gap().contains(&contract_address!("0x0")), expected_gap);
+    }
+}
 
-    // Account 1: Gap at nonce 0, will be filled by adding nonce 0
-    let gap_creating_tx_address_1 =
-        add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 1, account_nonce: 0);
-
-    // Account 2: Gap at nonce 0, will be filled by commit
-    let gap_creating_tx_address_2 =
-        add_tx_input!(tx_hash: 4, address: "0x2", tx_nonce: 1, account_nonce: 0);
-
-    // Account 3: Gap at nonce 0 after rejection
-    let tx_address_3 = add_tx_input!(tx_hash: 5, address: "0x3", tx_nonce: 0, account_nonce: 0);
-    let gap_creating_tx_address_3 =
-        add_tx_input!(tx_hash: 6, address: "0x3", tx_nonce: 1, account_nonce: 0);
-
-    // Account 4: Gap at nonce 1 after committing nonce 0
-    let tx_address_4 = add_tx_input!(tx_hash: 7, address: "0x4", tx_nonce: 0, account_nonce: 0);
-    let gap_creating_tx_address_4 =
-        add_tx_input!(tx_hash: 8, address: "0x4", tx_nonce: 2, account_nonce: 0);
-
-    for input in [
-        &tx_address_0,
-        &next_tx_address_0,
-        &gap_creating_tx_address_1,
-        &gap_creating_tx_address_2,
-        &tx_address_3,
-        &gap_creating_tx_address_3,
-        &tx_address_4,
-        &gap_creating_tx_address_4,
-    ] {
+#[rstest]
+fn gap_created_after_rejection(mut mempool: Mempool) {
+    let address = "0x0";
+    let tx_nonce_0 = add_tx_input!(tx_hash: 1, address: address, tx_nonce: 0, account_nonce: 0);
+    let tx_nonce_1 = add_tx_input!(tx_hash: 2, address: address, tx_nonce: 1, account_nonce: 0);
+    for input in [&tx_nonce_0, &tx_nonce_1] {
         add_tx(&mut mempool, input);
     }
 
-    // Verify initial gap tracking
-    let tracker = mempool.accounts_with_gap();
-    assert!(!tracker.contains(&tx_address_0.tx.contract_address()));
-    assert!(tracker.contains(&gap_creating_tx_address_1.tx.contract_address()));
-    assert!(tracker.contains(&gap_creating_tx_address_2.tx.contract_address()));
-    assert!(!tracker.contains(&tx_address_3.tx.contract_address()));
-    assert!(!tracker.contains(&tx_address_4.tx.contract_address()));
+    assert!(!mempool.accounts_with_gap().contains(&contract_address!(address)));
 
-    // Fill gap for account 1
-    let tx_fills_gap_address_1 =
-        add_tx_input!(tx_hash: 9, address: "0x1", tx_nonce: 0, account_nonce: 0);
-    add_tx(&mut mempool, &tx_fills_gap_address_1);
+    commit_block(&mut mempool, [], [tx_nonce_0.tx.tx_hash()]);
+    assert!(mempool.accounts_with_gap().contains(&contract_address!(address)));
+}
 
-    assert!(
-        !mempool.accounts_with_gap().contains(&gap_creating_tx_address_1.tx.contract_address())
-    );
+#[rstest]
+#[case::gap_resolved_after_commit(
+    vec![(1, true)],   // Add nonce 1, creating a gap.
+    (1, false)         // Commit nonce 1, resolving the gap.
+)]
+#[case::gap_created_after_commit(
+    vec![(0, false), (2, false)], // Add nonces 0 and 2, initially no gap.
+    (1, true)                     // Commit nonce 1, creating a gap.
+)]
+fn gap_after_commit(
+    mut mempool: Mempool,
+    #[case] add_tx_nonce_gap_expected_sequence: Vec<(u64, bool)>,
+    #[case] commit_block_nonce_gap_expected: (u8, bool),
+) {
+    let addr = "0x0";
+    for (nonce, expected_gap) in add_tx_nonce_gap_expected_sequence {
+        let tx = add_tx_input!(tx_hash: nonce, address: addr, tx_nonce: nonce, account_nonce: 0);
+        add_tx(&mut mempool, &tx);
+        assert_eq!(mempool.accounts_with_gap().contains(&contract_address!(addr)), expected_gap);
+    }
 
-    // Fill gap for account 2, create gap for account 3, leave gap for account 4
-    commit_block(&mut mempool, [("0x2", 1), ("0x4", 1)], [tx_address_3.tx.tx_hash()]);
-    let tracker = mempool.accounts_with_gap();
-    assert!(!tracker.contains(&gap_creating_tx_address_2.tx.contract_address()));
-    assert!(tracker.contains(&gap_creating_tx_address_3.tx.contract_address()));
-    assert!(tracker.contains(&gap_creating_tx_address_4.tx.contract_address()));
+    let (committed_nonce, gap_expected) = commit_block_nonce_gap_expected;
+    commit_block(&mut mempool, [(addr, committed_nonce)], []);
+    assert_eq!(mempool.accounts_with_gap().contains(&contract_address!(addr)), gap_expected);
 }
 
 #[rstest]
