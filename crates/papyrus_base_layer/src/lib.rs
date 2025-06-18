@@ -12,6 +12,7 @@ use starknet_api::block::{BlockHashAndNumber, BlockTimestamp};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
+use url::Url;
 
 pub mod constants;
 pub mod ethereum_base_layer_contract;
@@ -76,6 +77,8 @@ pub trait BaseLayerContract {
         &self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error>;
+
+    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error>;
 }
 
 /// Reference to an L1 block, extend as needed.
