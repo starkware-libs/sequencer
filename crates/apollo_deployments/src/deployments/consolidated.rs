@@ -8,6 +8,7 @@ use serde::Serialize;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
+use crate::deployment::{concat_service_namespace_domain, P2PCommunicationType};
 use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
 use crate::service::{
     get_ingress,
@@ -15,6 +16,7 @@ use crate::service::{
     GetComponentConfigs,
     Ingress,
     IngressParams,
+    K8sServiceConfig,
     Resource,
     Resources,
     ServiceName,

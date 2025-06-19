@@ -11,7 +11,11 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment::determine_port_numbers;
+use crate::deployment::{
+    concat_service_namespace_domain,
+    determine_port_numbers,
+    P2PCommunicationType,
+};
 use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::service::{
@@ -21,6 +25,7 @@ use crate::service::{
     GetComponentConfigs,
     Ingress,
     IngressParams,
+    K8sServiceConfig,
     Resource,
     Resources,
     ServiceName,
