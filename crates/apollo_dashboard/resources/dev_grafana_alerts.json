@@ -1030,7 +1030,7 @@
       "name": "state_sync_lag",
       "title": "State sync lag",
       "ruleGroup": "state_sync",
-      "expr": "min_over_time((apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"})[5m])",
+      "expr": "apollo_central_sync_central_block_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"} - apollo_state_sync_class_manager_marker{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
       "conditions": [
         {
           "evaluator": {
