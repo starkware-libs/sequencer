@@ -35,7 +35,6 @@ use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
 use apollo_mempool::metrics::{
-    MEMPOOL_GET_TXS_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
@@ -554,25 +553,6 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
     }
 }
 
-// The rate of add_txs is lower than the rate of transactions inserted into a block since this node
-// is not always the proposer.
-fn get_mempool_get_txs_size_drop() -> Alert {
-    Alert {
-        name: "mempool_get_txs_size_drop",
-        title: "Mempool get_txs size drop",
-        alert_group: AlertGroup::Mempool,
-        expr: format!("avg_over_time({}[20m])", MEMPOOL_GET_TXS_SIZE.get_name_with_filter()),
-        conditions: &[AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 0.01,
-            logical_op: AlertLogicalOp::And,
-        }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
-    }
-}
-
 fn get_mempool_pool_size_increase() -> Alert {
     Alert {
         name: "mempool_pool_size_increase",
@@ -887,7 +867,6 @@ pub fn get_apollo_alerts() -> Alerts {
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),
         get_mempool_evictions_count_alert(),
-        get_mempool_get_txs_size_drop(),
         get_mempool_p2p_disconnections(),
         get_mempool_p2p_peer_down(),
         get_mempool_pool_size_increase(),
