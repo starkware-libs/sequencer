@@ -1,0 +1,113 @@
+name: Main-CI-Flow
+
+on:
+  push:
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
+
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - auto_merge_enabled
+      - edited
+
+env:
+  CI: 1
+  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUSTDOCFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+# Also, create different concurrency groups for different pushed commits, on push events.
+concurrency:
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.ref }}-
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  rust:
+    runs-on: starkware-ubuntu-24.04-large
+    steps:
+      # Environment setup.
+      - uses: actions/checkout@v4
+        with:
+          # Fetch the entire history. Required to checkout the merge target commit, so the diff can
+          # be computed.
+          fetch-depth: 0
+
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+          cache: 'pip'
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - run: pip install -r scripts/requirements.txt
+
+      # Install rust components.
+      - uses: ./.github/actions/bootstrap
+        with:
+          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # TODO(Gilad): only one test needs this (base_layer_test.rs), once it migrates to
+      # anvil, remove.
+      - run: npm install -g ganache@7.4.3
+
+      - name: "Check submodules"
+        run: git submodule status
+
+      # Run code style on PR.
+      - name: "Run TODO style pull request"
+        if: github.event_name == 'pull_request'
+        run: scripts/named_todos.py --commit_id ${{ github.event.pull_request.base.sha }}
+
+
+      - name: Compile tests
+        run: cargo test --no-run --locked --all-features
+      - name: Build
+        run: | 
+          cargo build --quiet --all-features
+          cargo build -p blockifier --features transaction_serde
+          cargo build -p blockifier --features cairo_native
+          cargo build -p blockifier --features tracing
+      - name: Test
+        run: |
+          cargo test 
+          cargo test -p blockifier --features transaction_serde
+          cargo test -p blockifier --features cairo_native
+          cargo test -p blockifier --features tracing
+      - name: Test Integration test binaries
+        run: |
+           cargo run --bin integration_test_central_and_p2p_sync_flow \
+           integration_test_positive_flow \
+           integration_test_restart_flow \
+           integration_test_revert_flow
+
+      - name: Clippy
+        run: cargo clippy --all-targets --all-features  --no-deps
+      - name: Doc
+        run: cargo doc --document-private-items --no-deps 
+
+      # Run code style on push.
+      - name: "Run rustfmt"
+        # The nightly here is coupled with the one in install_rust/action.yml.
+        # If we move the install here we can use a const.
+        run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
+
+      - name: "Run taplo"
+        run: scripts/taplo.sh
+
+      - name: Run Machete (detect unused dependencies)
+        run: cargo machete
