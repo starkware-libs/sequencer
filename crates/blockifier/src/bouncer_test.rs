@@ -119,9 +119,11 @@ fn test_block_weights_has_room_n_txs(
         class_hash_to_casm_hash_computation_gas: HashMap::from([
         (class_hash!(0_u128), GasAmount(5))]),
         sierra_gas_without_casm_hash_computation: GasAmount(5),
-    }
+    },
+    casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
+    // TODO(Aviv): Use expect! to avoid magic numbers.
     let execution_summary_to_update = ExecutionSummary {
         executed_class_hashes: HashSet::from([class_hash!(1_u128), class_hash!(2_u128)]),
         visited_storage_entries: HashSet::from([
@@ -147,10 +149,12 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_gas_to_update,
         sierra_gas_without_casm_hash_computation: GasAmount(6),
     };
+    let casm_hash_computation_data_proving_gas = CasmHashComputationData::empty();
 
     let tx_weights = TxWeights {
         bouncer_weights: weights_to_update,
         casm_hash_computation_data_sierra_gas: casm_hash_computation_data_sierra_gas.clone(),
+        casm_hash_computation_data_proving_gas: casm_hash_computation_data_proving_gas.clone(),
     };
 
     let state_changes_keys_to_update =
@@ -168,6 +172,9 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     expected_bouncer
         .casm_hash_computation_data_sierra_gas
         .extend(casm_hash_computation_data_sierra_gas.clone());
+    expected_bouncer
+        .casm_hash_computation_data_proving_gas
+        .extend(casm_hash_computation_data_proving_gas.clone());
 
     assert_eq!(updated_bouncer, expected_bouncer);
 }
