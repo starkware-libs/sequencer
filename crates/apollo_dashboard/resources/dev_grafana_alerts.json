@@ -973,6 +973,33 @@
       "severity": "p2"
     },
     {
+      "name": "mempool_transactio_drop_ratio",
+      "title": "Mempool transaction drop ratio",
+      "ruleGroup": "mempool",
+      "expr": "increase(mempool_transactions_dropped{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) / clamp_min(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]), 1)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2000.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3"
+    },
+    {
       "name": "native_compilation_error",
       "title": "Native compilation alert",
       "ruleGroup": "batcher",
