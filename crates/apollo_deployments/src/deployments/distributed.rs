@@ -202,6 +202,20 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
+    fn has_p2p_interface(&self) -> bool {
+        match self {
+            DistributedNodeServiceName::ConsensusManager
+            | DistributedNodeServiceName::Mempool
+            | DistributedNodeServiceName::StateSync => true,
+            DistributedNodeServiceName::Batcher
+            | DistributedNodeServiceName::ClassManager
+            | DistributedNodeServiceName::HttpServer
+            | DistributedNodeServiceName::Gateway
+            | DistributedNodeServiceName::L1
+            | DistributedNodeServiceName::SierraCompiler => false,
+        }
+    }
+
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
             Environment::Testing => None,
