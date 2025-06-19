@@ -137,3 +137,13 @@ impl Alerts {
         Self { alerts }
     }
 }
+
+#[cfg(test)]
+impl IntoIterator for Alerts {
+    type Item = Alert;
+    type IntoIter = std::vec::IntoIter<Alert>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.alerts.into_iter()
+    }
+}

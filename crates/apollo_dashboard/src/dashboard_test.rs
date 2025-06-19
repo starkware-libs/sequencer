@@ -1,5 +1,8 @@
+use std::collections::HashSet;
+
 use apollo_infra_utils::test_utils::assert_json_eq;
 
+use crate::alert_definitions::get_apollo_alerts;
 use crate::alerts::{
     Alert,
     AlertComparisonOp,
@@ -45,4 +48,15 @@ fn serialize_alert() {
         "severity": "p1"
     });
     assert_json_eq(&serialized, &expected, "Json Comparison failed".to_string());
+}
+
+#[test]
+fn verify_unique_alert_names() {
+    let alerts = get_apollo_alerts();
+    let mut names = HashSet::new();
+    for alert in alerts.into_iter() {
+        if !names.insert(alert.name) {
+            panic!("Duplicate alert name found: {}", alert.name);
+        }
+    }
 }
