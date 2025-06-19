@@ -20,6 +20,8 @@ define_metrics!(
         MetricCounter { MEMPOOL_P2P_LOCAL_MSGS_PROCESSED, "mempool_p2p_propagator_local_msgs_processed", "Counter of messages processed by mempool p2p local server", init = 0 },
         MetricCounter { SIERRA_COMPILER_LOCAL_MSGS_RECEIVED, "sierra_compiler_local_msgs_received", "Counter of messages received by sierra compiler local server", init = 0 },
         MetricCounter { SIERRA_COMPILER_LOCAL_MSGS_PROCESSED, "sierra_compiler_local_msgs_processed", "Counter of messages processed by sierra compiler local server", init = 0 },
+        MetricCounter { SIGNATURE_MANAGER_LOCAL_MSGS_RECEIVED, "signature_manager_local_msgs_received", "Counter of messages received by signature manager local server", init = 0 },
+        MetricCounter { SIGNATURE_MANAGER_LOCAL_MSGS_PROCESSED, "signature_manager_local_msgs_processed", "Counter of messages processed by signature manager local server", init = 0 },
         MetricCounter { STATE_SYNC_LOCAL_MSGS_RECEIVED, "state_sync_local_msgs_received", "Counter of messages received by state sync local server", init = 0 },
         MetricCounter { STATE_SYNC_LOCAL_MSGS_PROCESSED, "state_sync_local_msgs_processed", "Counter of messages processed by state sync local server", init = 0 },
         // Remote server counters
@@ -47,6 +49,9 @@ define_metrics!(
         MetricCounter { SIERRA_COMPILER_REMOTE_MSGS_RECEIVED, "sierra_compiler_remote_msgs_received", "Counter of messages received by sierra compiler remote server", init = 0 },
         MetricCounter { SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED, "sierra_compiler_remote_valid_msgs_received", "Counter of valid messages received by sierra compiler remote server", init = 0 },
         MetricCounter { SIERRA_COMPILER_REMOTE_MSGS_PROCESSED, "sierra_compiler_remote_msgs_processed", "Counter of messages processed by sierra compiler remote server", init = 0 },
+        MetricCounter { SIGNATURE_MANAGER_REMOTE_MSGS_RECEIVED, "signature_manager_remote_msgs_received", "Counter of messages received by signature manager remote server", init = 0 },
+        MetricCounter { SIGNATURE_MANAGER_REMOTE_VALID_MSGS_RECEIVED, "signature_manager_remote_valid_msgs_received", "Counter of valid messages received by signature manager remote server", init = 0 },
+        MetricCounter { SIGNATURE_MANAGER_REMOTE_MSGS_PROCESSED, "signature_manager_remote_msgs_processed", "Counter of messages processed by signature manager remote server", init = 0 },
         MetricCounter { STATE_SYNC_REMOTE_MSGS_RECEIVED, "state_sync_remote_msgs_received", "Counter of messages received by state sync remote server", init = 0 },
         MetricCounter { STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED, "state_sync_remote_valid_msgs_received", "Counter of valid messages received by state sync remote server", init = 0 },
         MetricCounter { STATE_SYNC_REMOTE_MSGS_PROCESSED, "state_sync_remote_msgs_processed", "Counter of messages processed by state sync remote server", init = 0 },
@@ -59,6 +64,7 @@ define_metrics!(
         MetricGauge { MEMPOOL_LOCAL_QUEUE_DEPTH, "mempool_local_queue_depth", "The depth of the mempool's local message queue" },
         MetricGauge { MEMPOOL_P2P_LOCAL_QUEUE_DEPTH, "mempool_p2p_propagator_local_queue_depth", "The depth of the mempool p2p's local message queue" },
         MetricGauge { SIERRA_COMPILER_LOCAL_QUEUE_DEPTH, "sierra_compiler_local_queue_depth", "The depth of the sierra compiler's local message queue" },
+        MetricGauge { SIGNATURE_MANAGER_LOCAL_QUEUE_DEPTH, "signature_manager_local_queue_depth", "The depth of the signature manager's local message queue" },
         MetricGauge { STATE_SYNC_LOCAL_QUEUE_DEPTH, "state_sync_local_queue_depth", "The depth of the state sync's local message queue" },
         // Remote client metrics
         MetricHistogram { BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS, "batcher_remote_client_send_attempts", "Required number of remote connection attempts made by a batcher remote client"},
