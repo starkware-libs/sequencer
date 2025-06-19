@@ -1,12 +1,12 @@
 use apollo_infra::component_definitions::ComponentRequestHandler;
 use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
-use apollo_signature_manager_types::{KeyStore, SignatureManagerRequest, SignatureManagerResponse};
+use apollo_signature_manager_types::{SignatureManagerRequest, SignatureManagerResponse};
 use async_trait::async_trait;
 
-use crate::signature_manager::SignatureManager;
+use crate::SignatureManager;
 
-pub type LocalSignatureManagerServer<KS> = ConcurrentLocalComponentServer<
-    SignatureManager<KS>,
+pub type LocalSignatureManagerServer = ConcurrentLocalComponentServer<
+    SignatureManager,
     SignatureManagerRequest,
     SignatureManagerResponse,
 >;
@@ -14,8 +14,8 @@ pub type RemoteSignatureManagerServer =
     RemoteComponentServer<SignatureManagerRequest, SignatureManagerResponse>;
 
 #[async_trait]
-impl<KS: KeyStore> ComponentRequestHandler<SignatureManagerRequest, SignatureManagerResponse>
-    for SignatureManager<KS>
+impl ComponentRequestHandler<SignatureManagerRequest, SignatureManagerResponse>
+    for SignatureManager
 {
     async fn handle_request(
         &mut self,

@@ -1,6 +1,8 @@
 pub mod communication;
 pub mod signature_manager;
 
+use std::ops::Deref;
+
 use crate::signature_manager::{LocalKeyStore, SignatureManager as GenericSignatureManager};
 
 pub struct LocalKeyStoreSignatureManager(pub GenericSignatureManager<LocalKeyStore>);
@@ -14,6 +16,14 @@ impl LocalKeyStoreSignatureManager {
 impl Default for LocalKeyStoreSignatureManager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl Deref for LocalKeyStoreSignatureManager {
+    type Target = GenericSignatureManager<LocalKeyStore>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
