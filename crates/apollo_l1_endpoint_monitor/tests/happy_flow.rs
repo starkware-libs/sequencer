@@ -1,8 +1,5 @@
-use apollo_l1_endpoint_monitor::monitor::{
-    L1EndpointMonitor,
-    L1EndpointMonitorConfig,
-    L1EndpointMonitorError,
-};
+use apollo_l1_endpoint_monitor::monitor::{L1EndpointMonitor, L1EndpointMonitorConfig};
+use apollo_l1_endpoint_monitor_types::L1EndpointMonitorError;
 use papyrus_base_layer::test_utils::anvil;
 use url::Url;
 
