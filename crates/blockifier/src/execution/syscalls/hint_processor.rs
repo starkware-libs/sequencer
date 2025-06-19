@@ -66,6 +66,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertData,
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
@@ -127,13 +128,13 @@ pub enum SyscallExecutionError {
     #[error(transparent)]
     VirtualMachineError(#[from] VirtualMachineError),
     #[error("Syscall revert.")]
-    Revert { error_data: Vec<Felt> },
+    Revert(RevertData),
 }
 
 impl TryExtractRevert for SyscallExecutionError {
     fn try_extract_revert(self) -> SelfOrRevert<Self> {
         match self {
-            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            Self::Revert(revert_data) => SelfOrRevert::Revert(revert_data),
             Self::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
@@ -141,8 +142,8 @@ impl TryExtractRevert for SyscallExecutionError {
         }
     }
 
-    fn as_revert(error_data: Vec<Felt>) -> Self {
-        Self::Revert { error_data }
+    fn as_revert(revert_data: RevertData) -> Self {
+        Self::Revert(revert_data)
     }
 }
 
@@ -506,7 +507,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
             }
             .into());
         }
-        syscall_handler.base.maybe_block_direct_execute_call(selector)?;
+        syscall_handler.base.maybe_block_direct_execute_call(vm, selector)?;
 
         let entry_point = CallEntryPoint {
             class_hash: None,
@@ -580,11 +581,12 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
     #[allow(clippy::result_large_err)]
     fn get_block_hash(
         request: GetBlockHashRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<GetBlockHashResponse, Self::Error> {
-        let block_hash = BlockHash(syscall_handler.base.get_block_hash(request.block_number.0)?);
+        let block_hash =
+            BlockHash(syscall_handler.base.get_block_hash(vm, request.block_number.0)?);
         Ok(GetBlockHashResponse { block_hash })
     }
 
@@ -667,6 +669,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
             request.calldata,
             request.signature,
             remaining_gas,
+            vm,
         )?;
         let retdata_segment = create_retdata_segment(vm, syscall_handler, &raw_retdata)?;
 
@@ -830,7 +833,7 @@ pub fn execute_inner_call(
     syscall_handler: &mut SyscallHintProcessor<'_>,
     remaining_gas: &mut u64,
 ) -> SyscallResult<ReadOnlySegment> {
-    let raw_retdata = syscall_handler.base.execute_inner_call(call, remaining_gas)?;
+    let raw_retdata = syscall_handler.base.execute_inner_call(call, remaining_gas, vm)?;
     create_retdata_segment(vm, syscall_handler, &raw_retdata)
 }
 

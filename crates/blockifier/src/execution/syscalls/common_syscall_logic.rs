@@ -1,26 +1,32 @@
+use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
 use crate::execution::syscalls::hint_processor::{INVALID_INPUT_LENGTH_ERROR, OUT_OF_GAS_ERROR};
 use crate::execution::syscalls::syscall_base::KECCAK_FULL_RATE_IN_WORDS;
-use crate::execution::syscalls::vm_syscall_utils::{SyscallBaseResult, SyscallExecutorBaseError};
+use crate::execution::syscalls::vm_syscall_utils::{
+    handle_failure,
+    SyscallBaseResult,
+    SyscallExecutorBaseError,
+};
 
 #[allow(clippy::result_large_err)]
 pub fn base_keccak(
     keccak_round_cost_base_syscall_cost: u64,
     input: &[u64],
     remaining_gas: &mut u64,
+    vm: &mut VirtualMachine,
 ) -> SyscallBaseResult<([u64; 4], usize)> {
     let input_length = input.len();
 
     let (n_rounds, remainder) = num_integer::div_rem(input_length, KECCAK_FULL_RATE_IN_WORDS);
 
     if remainder != 0 {
-        return Err(SyscallExecutorBaseError::Revert {
-            error_data: vec![
-                Felt::from_hex(INVALID_INPUT_LENGTH_ERROR)
-                    .expect("Failed to parse INVALID_INPUT_LENGTH_ERROR hex string"),
-            ],
-        });
+        let revert_data = handle_failure(
+            vm,
+            Felt::from_hex(INVALID_INPUT_LENGTH_ERROR)
+                .expect("Failed to parse INVALID_INPUT_LENGTH_ERROR hex string"),
+        )?;
+        return Err(SyscallExecutorBaseError::Revert(revert_data));
     }
     // TODO(Ori, 1/2/2024): Write an indicative expect message explaining why the conversion
     // works.
@@ -30,8 +36,8 @@ pub fn base_keccak(
     if gas_cost > *remaining_gas {
         let out_of_gas_error =
             Felt::from_hex(OUT_OF_GAS_ERROR).expect("Failed to parse OUT_OF_GAS_ERROR hex string");
-
-        return Err(SyscallExecutorBaseError::Revert { error_data: vec![out_of_gas_error] });
+        let revert_data = handle_failure(vm, out_of_gas_error)?;
+        return Err(SyscallExecutorBaseError::Revert(revert_data));
     }
     *remaining_gas -= gas_cost;
 

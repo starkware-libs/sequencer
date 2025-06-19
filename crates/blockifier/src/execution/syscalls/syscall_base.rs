@@ -3,6 +3,8 @@ use std::collections::{hash_map, HashMap};
 use std::convert::From;
 use std::sync::Arc;
 
+use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::contract_class::EntryPointType;
@@ -52,6 +54,8 @@ use crate::execution::syscalls::hint_processor::{
 };
 use crate::execution::syscalls::vm_syscall_utils::{
     exceeds_event_size_limit,
+    handle_failure,
+    RevertData,
     SyscallBaseResult,
     SyscallExecutorBaseError,
     TryExtractRevert,
@@ -117,7 +121,11 @@ impl<'state> SyscallHandlerBase<'state> {
     }
 
     #[allow(clippy::result_large_err)]
-    pub fn get_block_hash(&mut self, requested_block_number: u64) -> SyscallResult<Felt> {
+    pub fn get_block_hash(
+        &mut self,
+        vm: &mut VirtualMachine,
+        requested_block_number: u64,
+    ) -> SyscallResult<Felt> {
         // Note: we take the actual block number (and not the rounded one for validate)
         // in any case; it is consistent with the OS implementation and safe (see `Validate` arm).
         let current_block_number = self.context.tx_context.block_context.block_info.block_number.0;
@@ -133,9 +141,8 @@ impl<'state> SyscallHandlerBase<'state> {
                         .expect(
                             "Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.",
                         );
-                    return Err(SyscallExecutionError::Revert {
-                        error_data: vec![out_of_range_error],
-                    });
+                    let revert_data = handle_failure(vm, out_of_range_error)?;
+                    return Err(SyscallExecutionError::Revert(revert_data));
                 }
                 ExecutionMode::Validate => {
                     // In this case, the transaction must be **rejected** to avoid the following
@@ -264,14 +271,14 @@ impl<'state> SyscallHandlerBase<'state> {
         calldata: Calldata,
         signature: TransactionSignature,
         remaining_gas: &mut u64,
+        vm: &mut VirtualMachine,
     ) -> SyscallResult<Vec<Felt>> {
         if self.context.execution_mode == ExecutionMode::Validate {
             self.reject_syscall_in_validate_mode("meta_tx_v0")?;
         }
         if entry_point_selector != selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
-            return Err(SyscallExecutionError::Revert {
-                error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
-            });
+            let revert_data = handle_failure(vm, Felt::from_hex(INVALID_ARGUMENT).unwrap())?;
+            return Err(SyscallExecutionError::Revert(revert_data));
         }
         let entry_point = CallEntryPoint {
             class_hash: None,
@@ -322,7 +329,7 @@ impl<'state> SyscallHandlerBase<'state> {
         });
 
         // No error should be propagated until we restore the old `tx_context`.
-        let result = self.execute_inner_call(entry_point, remaining_gas).map_err(|error| {
+        let result = self.execute_inner_call(entry_point, remaining_gas, vm).map_err(|error| {
             SyscallExecutionError::from_self_or_revert(error.try_extract_revert().map_original(
                 |error| {
                     // TODO(lior): Change to meta-tx specific error.
@@ -413,6 +420,7 @@ impl<'state> SyscallHandlerBase<'state> {
         &mut self,
         call: CallEntryPoint,
         remaining_gas: &mut u64,
+        vm: &mut VirtualMachine,
     ) -> SyscallResult<Vec<Felt>> {
         let revert_idx = self.context.revert_infos.0.len();
 
@@ -443,7 +451,11 @@ impl<'state> SyscallHandlerBase<'state> {
             raw_retdata.push(
                 Felt::from_hex(ENTRYPOINT_FAILED_ERROR).map_err(SyscallExecutionError::from)?,
             );
-            return Err(SyscallExecutionError::Revert { error_data: raw_retdata });
+            let retdata: Vec<MaybeRelocatable> = raw_retdata.into_iter().map(Into::into).collect();
+            let retdata_start = vm.add_memory_segment();
+            let retdata_end = vm.load_data(retdata_start, &retdata)?;
+            let revert_data = RevertData { start: retdata_start, end: retdata_end };
+            return Err(SyscallExecutionError::Revert(revert_data));
         }
 
         Ok(raw_retdata)
@@ -461,15 +473,15 @@ impl<'state> SyscallHandlerBase<'state> {
     #[allow(clippy::result_large_err)]
     pub(crate) fn maybe_block_direct_execute_call(
         &mut self,
+        vm: &mut VirtualMachine,
         selector: EntryPointSelector,
     ) -> SyscallResult<()> {
         let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
         if versioned_constants.block_direct_execute_call
             && selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME)
         {
-            return Err(SyscallExecutionError::Revert {
-                error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
-            });
+            let revert_data = handle_failure(vm, Felt::from_hex(INVALID_ARGUMENT).unwrap())?;
+            return Err(SyscallExecutionError::Revert(revert_data));
         }
         Ok(())
     }
