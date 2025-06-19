@@ -865,33 +865,6 @@
       "severity": "p2"
     },
     {
-      "name": "mempool_get_txs_size_drop",
-      "title": "Mempool get_txs size drop",
-      "ruleGroup": "mempool",
-      "expr": "avg_over_time(mempool_get_txs_size{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              0.01
-            ],
-            "type": "lt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p2"
-    },
-    {
       "name": "mempool_p2p_peer_down",
       "title": "Mempool p2p peer down",
       "ruleGroup": "mempool",
