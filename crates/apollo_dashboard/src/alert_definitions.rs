@@ -646,7 +646,7 @@ fn get_state_sync_lag() -> Alert {
         title: "State sync lag",
         alert_group: AlertGroup::StateSync,
         expr: format!(
-            "min_over_time(({} - {})[5m])",
+            "{} - {}",
             CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
             STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()
         ), // Alert when the central sync is ahead of the class manager by more than 5 blocks
