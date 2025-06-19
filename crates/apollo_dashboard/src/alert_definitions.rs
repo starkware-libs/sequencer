@@ -758,8 +758,8 @@ fn get_consensus_p2p_not_enough_peers_for_quorum() -> Alert {
 /// Alert if there were too many disconnections in the given timespan
 fn get_consensus_p2p_disconnections() -> Alert {
     Alert {
-        name: "consensus_p2p_peer_down",
-        title: "Consensus p2p peer down",
+        name: "consensus_p2p_disconnections",
+        title: "Consensus p2p disconnections",
         alert_group: AlertGroup::Consensus,
         expr: format!(
             // TODO(shahak): find a way to make this depend on num_validators
@@ -802,8 +802,8 @@ fn get_mempool_p2p_peer_down() -> Alert {
 /// Alert if there were too many disconnections in the given timespan
 fn get_mempool_p2p_disconnections() -> Alert {
     Alert {
-        name: "mempool_p2p_peer_down",
-        title: "Mempool p2p peer down",
+        name: "mempool_p2p_disconnections",
+        title: "Mempool p2p disconnections",
         alert_group: AlertGroup::Mempool,
         expr: format!(
             // TODO(shahak): find a way to make this depend on num_validators
