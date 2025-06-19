@@ -16,11 +16,6 @@ use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidat
 use blockifier::transaction::test_utils::calculate_class_info_for_testing;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::{
-    executable_invoke_tx as create_executable_invoke_tx,
-    VALID_L1_GAS_MAX_AMOUNT,
-    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
-};
 use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
@@ -34,6 +29,11 @@ use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::transaction::fields::Resource;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
+use transaction_generator::starknet_api_test_utils::{
+    executable_invoke_tx as create_executable_invoke_tx,
+    VALID_L1_GAS_MAX_AMOUNT,
+    VALID_L1_GAS_MAX_PRICE_PER_UNIT,
+};
 
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};

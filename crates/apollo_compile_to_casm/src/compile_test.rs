@@ -9,7 +9,7 @@ use cairo_lang_starknet_classes::allowed_libfuncs::{
     BUILTIN_AUDITED_LIBFUNCS_LIST,
 };
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
-use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
+use transaction_generator::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use pretty_assertions::assert_eq;
 use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::state::SierraContractClass;
