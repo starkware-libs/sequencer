@@ -13,6 +13,7 @@ use crate::os_cli::commands::{
     dump_program,
     dump_program_hashes,
     dump_source_files,
+    parse_and_run_aggregator,
     parse_and_run_os,
 };
 use crate::os_cli::tests::python_tests::OsPythonTestRunner;
@@ -58,6 +59,10 @@ enum Command {
         #[clap(flatten)]
         io_args: IoArgs,
     },
+    RunAggregator {
+        #[clap(flatten)]
+        io_args: IoArgs,
+    },
 }
 
 pub async fn run_os_cli(
@@ -75,11 +80,20 @@ pub async fn run_os_cli(
         Command::RunOsStateless { io_args: IoArgs { input_path, output_path } } => {
             parse_and_run_os(input_path, output_path);
         }
+        Command::RunAggregator { io_args: IoArgs { input_path, output_path } } => {
+            parse_and_run_aggregator(input_path, output_path);
+        }
     }
 }
 
 #[derive(Serialize)]
 pub(crate) struct OsCliOutput {
     pub(crate) os_output: Vec<Felt>,
+    pub unused_hints: HashSet<AllHints>,
+}
+
+#[derive(Serialize)]
+pub(crate) struct AggregatorCliOutput {
+    pub(crate) aggregator_output: Vec<Felt>,
     pub unused_hints: HashSet<AllHints>,
 }

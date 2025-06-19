@@ -30,15 +30,17 @@ use crate::hints::types::{HintArgs, HintEnum};
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
 #[allow(dead_code)]
-pub(crate) enum DataAvailability {
+#[derive(Debug)]
+pub enum DataAvailability {
     Blob(PathBuf),
     CallData,
 }
 
-pub(crate) struct AggregatorInput {
-    _bootloader_output: Vec<Felt>,
-    _full_output: bool,
-    _da: DataAvailability,
+#[derive(Debug)]
+pub struct AggregatorInput {
+    pub bootloader_output: Vec<Felt>,
+    pub full_output: bool,
+    pub da: DataAvailability,
 }
 
 pub struct AggregatorHintProcessor<'a> {
