@@ -434,6 +434,7 @@ impl Bouncer {
             tx_resources,
             &marginal_state_changes_keys,
             versioned_constants,
+            &tx_execution_summary.builtin_counters,
         )?;
 
         // Check if the transaction can fit the current block available capacity.
@@ -581,6 +582,8 @@ pub fn get_tx_weights<S: StateReader>(
     tx_resources: &TransactionResources,
     state_changes_keys: &StateChangesKeys,
     versioned_constants: &VersionedConstants,
+    // TODO(Noa): Use this argument to calculate the stwo gas cost of builtins.
+    _builtin_counters: &BuiltinCounterMap,
 ) -> TransactionExecutionResult<BouncerWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
     let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
@@ -661,6 +664,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         tx_resources,
         tx_state_changes_keys,
         versioned_constants,
+        &tx_execution_summary.builtin_counters,
     )?;
 
     bouncer_config.within_max_capacity_or_err(tx_weights)
