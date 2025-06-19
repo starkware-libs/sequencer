@@ -69,5 +69,6 @@ fn sepolia_integration_hybrid_deployment_node(
             SEPOLIA_INTEGRATION_INGRESS_DOMAIN.to_string(),
             Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
         ),
+        None,
     )
 }

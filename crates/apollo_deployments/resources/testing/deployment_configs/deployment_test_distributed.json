@@ -11,6 +11,7 @@
         "batcher.json"
       ],
       "ingress": null,
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -38,6 +39,7 @@
         "class_manager.json"
       ],
       "ingress": null,
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -65,6 +67,7 @@
         "consensus_manager.json"
       ],
       "ingress": null,
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -103,6 +106,7 @@
           }
         ]
       },
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -130,6 +134,7 @@
         "gateway.json"
       ],
       "ingress": null,
+      "k8s_service_config": null,
       "autoscale": true,
       "replicas": 1,
       "storage": null,
@@ -157,6 +162,7 @@
         "l1.json"
       ],
       "ingress": null,
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -184,6 +190,7 @@
         "mempool.json"
       ],
       "ingress": null,
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -211,6 +218,7 @@
         "sierra_compiler.json"
       ],
       "ingress": null,
+      "k8s_service_config": null,
       "autoscale": true,
       "replicas": 1,
       "storage": null,
@@ -238,6 +246,7 @@
         "state_sync.json"
       ],
       "ingress": null,
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
