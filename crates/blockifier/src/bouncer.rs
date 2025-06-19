@@ -109,10 +109,18 @@ pub struct BouncerWeights {
     pub n_events: usize,
     pub state_diff_size: usize,
     pub sierra_gas: GasAmount,
+    pub proving_gas: usize,
 }
 
 impl BouncerWeights {
-    impl_checked_ops!(l1_gas, message_segment_length, n_events, state_diff_size, sierra_gas);
+    impl_checked_ops!(
+        l1_gas,
+        message_segment_length,
+        n_events,
+        state_diff_size,
+        sierra_gas,
+        proving_gas
+    );
 
     pub fn has_room(&self, other: Self) -> bool {
         self.checked_sub(other).is_some()
@@ -125,6 +133,7 @@ impl BouncerWeights {
             state_diff_size: usize::MAX,
             n_events: usize::MAX,
             sierra_gas: GasAmount::MAX,
+            proving_gas: usize::MAX,
         }
     }
 
@@ -135,6 +144,7 @@ impl BouncerWeights {
             message_segment_length: 0,
             state_diff_size: 0,
             sierra_gas: GasAmount::ZERO,
+            proving_gas: 0,
         }
     }
 }
@@ -148,6 +158,7 @@ impl Default for BouncerWeights {
             n_events: 5000,
             state_diff_size: 4000,
             sierra_gas: GasAmount(400000000),
+            proving_gas: 2000000000,
         }
     }
 }
@@ -184,6 +195,12 @@ impl SerializeConfig for BouncerWeights {
             "An upper bound on the total sierra_gas used in a block.",
             ParamPrivacyInput::Public,
         )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "proving_gas",
+            &self.proving_gas,
+            "An upper bound on the total builtins and steps gas usage used in a block.",
+            ParamPrivacyInput::Public,
+        )]));
         dump
     }
 }
@@ -193,12 +210,13 @@ impl std::fmt::Display for BouncerWeights {
         write!(
             f,
             "BouncerWeights {{ l1_gas: {}, message_segment_length: {}, n_events: {}, \
-             state_diff_size: {}, sierra_gas: {} }}",
+             state_diff_size: {}, sierra_gas: {}, proving_gas: {} }}",
             self.l1_gas,
             self.message_segment_length,
             self.n_events,
             self.state_diff_size,
-            self.sierra_gas
+            self.sierra_gas,
+            self.proving_gas,
         )
     }
 }
@@ -553,6 +571,9 @@ pub fn get_tx_weights<S: StateReader>(
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
         sierra_gas,
+        // TODO(AvivG): This is a placeholder value. We should be able to get this from
+        // 'tx_resources'.
+        proving_gas: 0,
     })
 }
 

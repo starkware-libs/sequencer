@@ -27,6 +27,7 @@ pub const MESSAGE_SEGMENT_LENGTH: &str = "message_segment_length";
 pub const STATE_DIFF_SIZE: &str = "state_diff_size";
 pub const N_MEMORY_HOLES: &str = "n_memory_holes";
 pub const SIERRA_GAS: &str = "sierra_gas";
+pub const PROVING_GAS: &str = "proving_gas";
 
 // Casm hash calculation-related constants.
 pub const CAIRO0_ENTRY_POINT_STRUCT_SIZE: usize = 2;
