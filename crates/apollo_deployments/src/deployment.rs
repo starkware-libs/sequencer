@@ -117,7 +117,7 @@ impl Deployment {
     }
 
     pub fn application_config_values(&self) -> IndexMap<ServiceName, Value> {
-        let component_configs = self.deployment_name.get_component_configs(None, &self.environment);
+        let component_configs = self.deployment_name.get_component_configs(None);
         let mut result = IndexMap::new();
 
         let l1_provider_config = self.environment.get_l1_provider_config_modifications().as_value();

@@ -10,7 +10,7 @@ use apollo_node::config::component_execution_config::{
 use apollo_node::config::node_config::SequencerNodeConfig;
 
 use crate::deployment::FIX_BINARY_NAME;
-use crate::deployment_definitions::{Environment, DEPLOYMENTS};
+use crate::deployment_definitions::DEPLOYMENTS;
 
 /// Test that the deployment file is up to date. To update it run:
 /// cargo run --bin deployment_generator -q
@@ -69,7 +69,7 @@ fn application_config_files_exist() {
 fn l1_components_state_consistency() {
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         let deployment_name = deployment.get_deployment_name();
-        let component_configs = deployment_name.get_component_configs(None, &Environment::Testing);
+        let component_configs = deployment_name.get_component_configs(None);
 
         let l1_gas_price_provider_indicator = component_configs.values().any(|component_config| {
             component_config.l1_gas_price_provider.execution_mode
