@@ -325,6 +325,87 @@
       "severity": "p5"
     },
     {
+      "name": "consensus_p2p_peer_down",
+      "title": "Consensus p2p peer down",
+      "ruleGroup": "consensus",
+      "expr": "changes(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / 2",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4"
+    },
+    {
+      "name": "consensus_p2p_not_enough_peers_for_quorum",
+      "title": "Consensus p2p not enough peers for quorum",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "consensus_p2p_peer_down",
+      "title": "Consensus p2p peer down",
+      "ruleGroup": "consensus",
+      "expr": "max_over_time(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3"
+    },
+    {
       "name": "consensus_round_above_zero",
       "title": "Consensus round above zero",
       "ruleGroup": "consensus",
@@ -809,6 +890,60 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p2"
+    },
+    {
+      "name": "mempool_p2p_peer_down",
+      "title": "Mempool p2p peer down",
+      "ruleGroup": "mempool",
+      "expr": "changes(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / 2",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              10.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4"
+    },
+    {
+      "name": "mempool_p2p_peer_down",
+      "title": "Mempool p2p peer down",
+      "ruleGroup": "mempool",
+      "expr": "max_over_time(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3"
     },
     {
       "name": "mempool_pool_size_increase",
