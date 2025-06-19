@@ -71,5 +71,6 @@ fn testing_env_2_hybrid_deployment_node(
             TESTING_ENV_2_INGRESS_DOMAIN.to_string(),
             Some(vec![TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
         ),
+        None,
     )
 }
