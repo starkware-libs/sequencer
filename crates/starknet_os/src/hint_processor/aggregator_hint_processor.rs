@@ -31,7 +31,7 @@ pub(crate) struct AggregatorInput {
     _bootloader_output: Vec<Felt>,
     pub(crate) use_kzg_da: bool,
     pub(crate) full_output: bool,
-    _da_path: Option<String>,
+    pub(crate) da_path: Option<String>,
 }
 
 pub struct AggregatorHintProcessor<'a> {
