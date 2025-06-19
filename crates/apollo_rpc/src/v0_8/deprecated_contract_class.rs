@@ -37,7 +37,7 @@ impl TryFrom<starknet_api::deprecated_contract_class::ContractClass> for Contrac
 
         Ok(Self {
             abi,
-            program: compress_and_encode(program_value)?,
+            program: compress_and_encode(&program_value)?,
             entry_points_by_type: class.entry_points_by_type,
         })
     }
