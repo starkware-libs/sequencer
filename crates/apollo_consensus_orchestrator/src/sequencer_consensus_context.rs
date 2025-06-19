@@ -581,6 +581,8 @@ impl ConsensusContext for SequencerConsensusContext {
                 bouncer_weights: central_objects.bouncer_weights,
                 casm_hash_computation_data_sierra_gas: central_objects
                     .casm_hash_computation_data_sierra_gas,
+                casm_hash_computation_data_proving_gas: central_objects
+                    .casm_hash_computation_data_proving_gas,
                 fee_market_info: FeeMarketInfo {
                     l2_gas_consumed: l2_gas_used,
                     next_l2_gas_price: self.l2_gas_price,

@@ -237,6 +237,7 @@ impl CasmHashComputationData {
 pub struct TxWeights {
     pub bouncer_weights: BouncerWeights,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
+    pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
 }
 
 #[derive(Debug, PartialEq)]
@@ -247,6 +248,7 @@ pub struct Bouncer {
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub state_changes_keys: StateChangesKeys,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
+    pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
 
     pub bouncer_config: BouncerConfig,
     accumulated_weights: BouncerWeights,
@@ -264,6 +266,7 @@ impl Bouncer {
             bouncer_config: BouncerConfig::empty(),
             accumulated_weights: BouncerWeights::empty(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
+            casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
         }
     }
 
@@ -350,6 +353,8 @@ impl Bouncer {
             self.accumulated_weights.checked_add(tx_weights.bouncer_weights).expect(&err_msg);
         self.casm_hash_computation_data_sierra_gas
             .extend(tx_weights.casm_hash_computation_data_sierra_gas);
+        self.casm_hash_computation_data_proving_gas
+            .extend(tx_weights.casm_hash_computation_data_proving_gas);
         self.visited_storage_entries.extend(&tx_execution_summary.visited_storage_entries);
         // Note: cancelling writes (0 -> 1 -> 0) will not be removed, but it's fine since fee was
         // charged for them.
@@ -468,6 +473,8 @@ pub fn get_tx_weights<S: StateReader>(
             .collect(),
         sierra_gas_without_casm_hash_computation,
     };
+    // TODO(Aviv): compute the actual proving gas
+    let casm_hash_computation_data_proving_gas = CasmHashComputationData::empty();
     let bouncer_weights = BouncerWeights {
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
@@ -477,7 +484,11 @@ pub fn get_tx_weights<S: StateReader>(
         n_txs: 1,
     };
 
-    Ok(TxWeights { bouncer_weights, casm_hash_computation_data_sierra_gas })
+    Ok(TxWeights {
+        bouncer_weights,
+        casm_hash_computation_data_sierra_gas,
+        casm_hash_computation_data_proving_gas,
+    })
 }
 
 /// Returns a mapping from each class hash to its estimated Cairo resources for Casm hash
