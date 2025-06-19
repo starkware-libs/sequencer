@@ -2,7 +2,7 @@ use blake2s::encode_felts_to_u32s;
 use starknet_os::test_utils::errors::OsSpecificTestError;
 use starknet_types_core::felt::Felt;
 
-use crate::os_cli::commands::{validate_input, Input};
+use crate::os_cli::commands::{validate_os_input, OsCliInput};
 use crate::os_cli::tests::aliases::aliases_test;
 use crate::os_cli::tests::bls_field::test_bls_field;
 use crate::os_cli::tests::types::{OsPythonTestError, OsPythonTestResult};
@@ -50,7 +50,7 @@ impl PythonTestRunner for OsPythonTestRunner {
 /// Deserialize the input string into an `Input` struct.
 #[allow(clippy::result_large_err)]
 fn input_deserialization(input_str: &str) -> OsPythonTestResult {
-    let input = serde_json::from_str::<Input>(input_str)?;
-    validate_input(&input.os_hints.os_input);
+    let input = serde_json::from_str::<OsCliInput>(input_str)?;
+    validate_os_input(&input.os_hints.os_input);
     Ok("Deserialization successful".to_string())
 }

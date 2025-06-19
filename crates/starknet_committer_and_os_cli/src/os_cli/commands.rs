@@ -14,19 +14,27 @@ use rand_distr::num_traits::Zero;
 use serde::Deserialize;
 use starknet_api::contract_class::ContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
+use starknet_os::hint_processor::aggregator_hint_processor::AggregatorInput;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, StarknetOsInput};
-use starknet_os::io::os_output::StarknetOsRunnerOutput;
-use starknet_os::runner::run_os_stateless;
+use starknet_os::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
+use starknet_os::runner::{run_aggregator, run_os_stateless};
 use tracing::info;
 
-use crate::os_cli::run_os_cli::{OsCliOutput, ProgramToDump};
+use crate::os_cli::run_os_cli::{AggregatorCliOutput, OsCliOutput, ProgramToDump};
 use crate::shared_utils::read::{load_input, write_to_file};
 
 #[derive(Deserialize, Debug)]
 /// Input to the os runner.
-pub(crate) struct Input {
+pub(crate) struct OsCliInput {
     pub layout: LayoutName,
     pub os_hints: OsHints,
+    pub cairo_pie_zip_path: String,
+}
+#[derive(Deserialize, Debug)]
+/// Input to the aggregator runner.
+pub(crate) struct AggregatorCliInput {
+    pub layout: LayoutName,
+    pub aggregator_input: AggregatorInput,
     pub cairo_pie_zip_path: String,
 }
 
@@ -61,7 +69,7 @@ fn validate_single_input(os_block_input: &OsBlockInput) {
 }
 
 /// Validate a list of os_block_input.
-pub fn validate_input(os_input: &StarknetOsInput) {
+pub(crate) fn validate_os_input(os_input: &StarknetOsInput) {
     assert_eq!(
         os_input.os_block_inputs.len(),
         os_input.cached_state_inputs.len(),
@@ -72,9 +80,9 @@ pub fn validate_input(os_input: &StarknetOsInput) {
     }
 }
 
-pub fn parse_and_run_os(input_path: String, output_path: String) {
-    let Input { layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
-    validate_input(&os_hints.os_input);
+pub(crate) fn parse_and_run_os(input_path: String, output_path: String) {
+    let OsCliInput { layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
+    validate_os_input(&os_hints.os_input);
 
     let StarknetOsRunnerOutput { os_output, cairo_pie, unused_hints } =
         run_os_stateless(layout, os_hints)
@@ -88,8 +96,25 @@ pub fn parse_and_run_os(input_path: String, output_path: String) {
     info!("OS program ran successfully.");
 }
 
-pub(crate) fn serialize_os_runner_output(
-    output: &OsCliOutput,
+pub(crate) fn parse_and_run_aggregator(input_path: String, output_path: String) {
+    let AggregatorCliInput { layout, aggregator_input, cairo_pie_zip_path } =
+        load_input(input_path);
+    // TODO(Aner): Validate the aggregator input.
+
+    let StarknetAggregatorRunnerOutput { aggregator_output, cairo_pie, unused_hints } =
+        run_aggregator(layout, aggregator_input)
+            .unwrap_or_else(|err| panic!("Aggregator run failed. Error: {}", err));
+    serialize_aggregator_runner_output(
+        &AggregatorCliOutput { aggregator_output, unused_hints },
+        output_path,
+        &cairo_pie,
+        cairo_pie_zip_path,
+    );
+    info!("Aggregator program ran successfully.");
+}
+
+fn serialize_runner_output<T: serde::Serialize>(
+    output: &T,
     output_path: String,
     cairo_pie: &CairoPie,
     cairo_pie_zip_path: String,
@@ -99,6 +124,24 @@ pub(crate) fn serialize_os_runner_output(
     cairo_pie
         .write_zip_file(Path::new(&cairo_pie_zip_path), merge_extra_segments)
         .unwrap_or_else(|err| panic!("Failed to write cairo pie. Error: {}", err));
+}
+
+fn serialize_aggregator_runner_output(
+    output: &AggregatorCliOutput,
+    output_path: String,
+    cairo_pie: &CairoPie,
+    cairo_pie_zip_path: String,
+) {
+    serialize_runner_output(output, output_path, cairo_pie, cairo_pie_zip_path);
+}
+
+fn serialize_os_runner_output(
+    output: &OsCliOutput,
+    output_path: String,
+    cairo_pie: &CairoPie,
+    cairo_pie_zip_path: String,
+) {
+    serialize_runner_output(output, output_path, cairo_pie, cairo_pie_zip_path);
 }
 
 pub(crate) fn dump_source_files(output_path: String) {

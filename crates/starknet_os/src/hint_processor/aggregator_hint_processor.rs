@@ -27,7 +27,10 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
-pub(crate) struct AggregatorInput {
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(any(test, feature = "testing"), derive(Default))]
+#[derive(Debug)]
+pub struct AggregatorInput {
     _bootloader_output: Vec<Felt>,
     _use_kzg_da: bool,
     _full_output: bool,
