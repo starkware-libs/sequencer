@@ -19,6 +19,7 @@ pub trait Clock: Send + Sync + Debug {
 }
 
 /// Free function to sleep until a given deadline using a provided clock.
+#[cfg(feature = "tokio")]
 pub async fn sleep_until(deadline: DateTime, clock: &dyn Clock) {
     // Calculate how much time is left until the deadline.
     // If the deadline has already passed, this will be a negative duration.
