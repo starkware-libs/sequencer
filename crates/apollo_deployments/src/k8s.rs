@@ -4,7 +4,7 @@ use crate::deployment::P2PCommunicationType;
 use crate::deployment_definitions::Environment;
 
 // Controls whether external P2P communication is enabled.
-const ENABLE_EXTERNAL_P2P_COMMUNICATION: bool = false;
+const INTERNAL_ONLY_P2P_COMMUNICATION: bool = true;
 
 const INGRESS_ROUTE: &str = "/gateway";
 const INGRESS_PORT: u16 = 8080;
@@ -38,8 +38,25 @@ impl K8sServiceConfig {
         Self {
             k8s_service_type: p2p_communication_type.get_k8s_service_type(),
             external_dns_name,
-            internal: ENABLE_EXTERNAL_P2P_COMMUNICATION,
+            internal: INTERNAL_ONLY_P2P_COMMUNICATION,
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct K8sServiceConfigParams {
+    pub namespace: String,
+    pub domain: String,
+    pub p2p_communication_type: P2PCommunicationType,
+}
+
+impl K8sServiceConfigParams {
+    pub fn new(
+        namespace: String,
+        domain: String,
+        p2p_communication_type: P2PCommunicationType,
+    ) -> Self {
+        Self { namespace, domain, p2p_communication_type }
     }
 }
 

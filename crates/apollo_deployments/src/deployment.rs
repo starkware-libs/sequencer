@@ -16,7 +16,7 @@ use serde_json::{json, Value};
 
 use crate::config_override::{ConfigOverride, DeploymentTypeConfigOverride};
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
-use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType};
+use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfigParams};
 use crate::service::{DeploymentName, Service, ServiceName};
 
 #[cfg(test)]
@@ -45,6 +45,7 @@ pub struct Deployment {
 }
 
 impl Deployment {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         deployment_name: DeploymentName,
         environment: Environment,
@@ -53,6 +54,7 @@ impl Deployment {
         base_app_config_file_path: PathBuf,
         config_override: ConfigOverride,
         ingress_params: IngressParams,
+        k8s_service_config_params: Option<K8sServiceConfigParams>,
     ) -> Self {
         let service_names = deployment_name.all_service_names();
 
@@ -82,6 +84,7 @@ impl Deployment {
                     &external_secret,
                     additional_config_filenames.clone(),
                     ingress_params.clone(),
+                    k8s_service_config_params.clone(),
                 )
             })
             .collect();
@@ -236,8 +239,18 @@ impl DeploymentType {
     }
 }
 
+// Creates the service name in the format: <service_name>.<namespace>.<domain>
+pub(crate) fn build_service_namespace_domain_address(
+    service_name: &str,
+    namespace: &str,
+    domain: &str,
+) -> String {
+    format!("{}.{}.{}", service_name, namespace, domain)
+}
+
 // TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be
 // removed, and the p2p address should always be `External`.
+#[derive(Clone)]
 pub enum P2PCommunicationType {
     Internal,
     External,
@@ -257,10 +270,9 @@ impl P2PCommunicationType {
             P2PCommunicationType::External => domain,
         };
 
-        format!(
-            "/dns/{}.{}.{}/tcp/{}/p2p/{}",
-            service_name, namespace, domain, port, first_node_address
-        )
+        let service_namespace_domain =
+            build_service_namespace_domain_address(service_name, namespace, domain);
+        format!("/dns/{}/tcp/{}/p2p/{}", service_namespace_domain, port, first_node_address)
     }
 
     pub(crate) fn get_k8s_service_type(&self) -> K8SServiceType {

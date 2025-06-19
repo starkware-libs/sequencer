@@ -165,6 +165,15 @@ impl ServiceNameInner for HybridNodeServiceName {
         }
     }
 
+    fn has_p2p_interface(&self) -> bool {
+        match self {
+            HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => true,
+            HybridNodeServiceName::HttpServer
+            | HybridNodeServiceName::Gateway
+            | HybridNodeServiceName::SierraCompiler => false,
+        }
+    }
+
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
             Environment::Testing => None,

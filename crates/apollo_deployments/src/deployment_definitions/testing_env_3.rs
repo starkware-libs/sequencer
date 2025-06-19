@@ -4,7 +4,7 @@ use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, DeploymentType, P2PCommunicationType, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::deployments::hybrid::create_hybrid_instance_config_override;
-use crate::k8s::{ExternalSecret, IngressParams};
+use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
 use crate::service::DeploymentName;
 use crate::utils::format_node_id;
 
@@ -22,6 +22,8 @@ const TESTING_ENV_3_INGRESS_DOMAIN: &str = "sw-dev.io";
 const FIRST_NODE_NAMESPACE: &str = "sequencer-test-3-node-0";
 const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "sequencer-test-3-node-{}";
+// TODO(Tsabary): use `NODE_NAMESPACE_FORMAT` to generate `FIRST_NODE_NAMESPACE`.
+const NODE_NAMESPACE_FORMAT: &str = "sequencer-test-3-node-{}";
 
 pub(crate) fn testing_env_3_hybrid_deployments() -> Vec<Deployment> {
     TESTING_ENV_3_NODE_IDS
@@ -46,6 +48,7 @@ fn testing_env_3_deployment_config_override() -> DeploymentConfigOverride {
     )
 }
 
+// TODO(Tsabary): the domain `TESTING_ENV_3_INGRESS_DOMAIN` is passed multiple times, unify these.
 fn testing_env_3_hybrid_deployment_node(
     id: usize,
     deployment_type: DeploymentType,
@@ -63,7 +66,7 @@ fn testing_env_3_hybrid_deployment_node(
                 id,
                 FIRST_NODE_NAMESPACE,
                 deployment_type,
-                p2p_communication_type,
+                p2p_communication_type.clone(),
                 TESTING_ENV_3_INGRESS_DOMAIN,
             ),
         ),
@@ -71,5 +74,10 @@ fn testing_env_3_hybrid_deployment_node(
             TESTING_ENV_3_INGRESS_DOMAIN.to_string(),
             Some(vec![TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
         ),
+        Some(K8sServiceConfigParams::new(
+            format_node_id(NODE_NAMESPACE_FORMAT, id),
+            TESTING_ENV_3_INGRESS_DOMAIN.to_string(),
+            p2p_communication_type,
+        )),
     )
 }
