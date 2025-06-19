@@ -27,12 +27,20 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
+pub(crate) struct AggregatorInput {
+    _bootloader_output: Vec<Felt>,
+    _use_kzg_da: bool,
+    _full_output: bool,
+    _da_path: Option<String>,
+}
+
 pub struct AggregatorHintProcessor<'a> {
     // The program being run. The hint processor does not require ownership.
     pub(crate) program: &'a Program,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     // KZG fields.
     da_segment: Option<Vec<Felt>>,
+    _input: AggregatorInput,
     // Indicates wether to create pages or not when serializing data-availability.
     pub(crate) serialize_data_availability_create_pages: bool,
     builtin_hint_processor: BuiltinHintProcessor,
