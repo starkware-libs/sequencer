@@ -55,7 +55,7 @@ pub struct PyCasmHashComputationData {
     #[pyo3(get)]
     pub class_hash_to_casm_hash_computation_gas: HashMap<PyFelt, u64>,
     #[pyo3(get)]
-    pub sierra_gas_without_casm_hash_computation: u64,
+    pub gas_without_casm_hash_computation: u64,
 }
 
 impl From<CasmHashComputationData> for PyCasmHashComputationData {
@@ -66,9 +66,7 @@ impl From<CasmHashComputationData> for PyCasmHashComputationData {
                 .iter()
                 .map(|(class_hash, gas)| ((*class_hash).into(), gas.0))
                 .collect(),
-            sierra_gas_without_casm_hash_computation: data
-                .sierra_gas_without_casm_hash_computation
-                .0,
+            gas_without_casm_hash_computation: data.gas_without_casm_hash_computation.0,
         }
     }
 }

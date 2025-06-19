@@ -118,7 +118,7 @@ fn test_block_weights_has_room_n_txs(
     casm_hash_computation_data_sierra_gas: CasmHashComputationData{
         class_hash_to_casm_hash_computation_gas: HashMap::from([
         (class_hash!(0_u128), GasAmount(5))]),
-        sierra_gas_without_casm_hash_computation: GasAmount(5),
+        gas_without_casm_hash_computation: GasAmount(5),
     },
     casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
 })]
@@ -147,7 +147,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
 
     let casm_hash_computation_data_sierra_gas = CasmHashComputationData {
         class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_gas_to_update,
-        sierra_gas_without_casm_hash_computation: GasAmount(6),
+        gas_without_casm_hash_computation: GasAmount(6),
     };
     let casm_hash_computation_data_proving_gas = CasmHashComputationData::empty();
 
