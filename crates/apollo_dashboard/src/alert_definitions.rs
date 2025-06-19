@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use apollo_batcher::metrics::{BATCHED_TRANSACTIONS, PRECONFIRMED_BLOCK_WRITTEN};
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
@@ -822,8 +824,17 @@ fn get_mempool_p2p_disconnections() -> Alert {
     }
 }
 
+fn verify_unique_names(alerts: &[Alert]) {
+    let mut names = HashSet::new();
+    for alert in alerts.iter() {
+        if !names.insert(&alert.name) {
+            panic!("Duplicate alert name found: {}", alert.name);
+        }
+    }
+}
+
 pub fn get_apollo_alerts() -> Alerts {
-    Alerts::new(vec![
+    let alerts = vec![
         get_batched_transactions_stuck(),
         get_cende_write_blob_failure_alert(),
         get_cende_write_blob_failure_once_alert(),
@@ -864,5 +875,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_preconfirmed_block_not_written(),
         get_state_sync_lag(),
         get_state_sync_stuck(),
-    ])
+    ];
+    verify_unique_names(&alerts);
+    Alerts::new(alerts)
 }
