@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fs::read_to_string;
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
@@ -58,11 +58,15 @@ pub fn path_in_resources<P: AsRef<Path>>(file_path: P) -> PathBuf {
 }
 
 /// Reads from the directory containing the manifest at run time, same as current working directory.
-pub fn read_json_file<P: AsRef<Path>>(path_in_resource_dir: P) -> serde_json::Value {
+pub fn read_json_file<P: AsRef<Path>, T>(path_in_resource_dir: P) -> T
+where
+    T: for<'a> serde::de::Deserialize<'a>,
+{
     let path = path_in_resources(path_in_resource_dir);
-    let json_str = read_to_string(path.to_str().unwrap())
-        .unwrap_or_else(|_| panic!("Failed to read file at path: {}", path.display()));
-    serde_json::from_str(&json_str).unwrap()
+    let file =
+        File::open(&path).unwrap_or_else(|_| panic!("Failed to open file at path: {path:?}"));
+    serde_json::from_reader(file)
+        .unwrap_or_else(|_| panic!("Failed to parse JSON from file at path: {path:?}"))
 }
 
 #[derive(Deserialize, Serialize, Debug)]

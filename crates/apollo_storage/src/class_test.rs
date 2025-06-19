@@ -15,11 +15,9 @@ use crate::StorageError;
 
 #[test]
 fn append_classes_writes_correct_data() {
-    let class_json = read_json_file("class.json");
-    let expected_class: SierraContractClass = serde_json::from_value(class_json).unwrap();
-    let deprecated_class_json = read_json_file("deprecated_class.json");
+    let expected_class: SierraContractClass = read_json_file("class.json");
     let expected_deprecated_class: DeprecatedContractClass =
-        serde_json::from_value(deprecated_class_json).unwrap();
+        read_json_file("deprecated_class.json");
     let class_hash = ClassHash::default();
     let deprecated_class_hash = ClassHash(StarkHash::ONE);
 
@@ -80,9 +78,8 @@ fn append_classes_marker_mismatch() {
 
 #[test]
 fn append_deprecated_class_not_in_state_diff() {
-    let deprecated_class_json = read_json_file("deprecated_class.json");
     let expected_deprecated_class: DeprecatedContractClass =
-        serde_json::from_value(deprecated_class_json).unwrap();
+        read_json_file("deprecated_class.json");
     let deprecated_class_hash = ClassHash::default();
 
     let ((reader, mut writer), _temp_dir) = get_test_storage();

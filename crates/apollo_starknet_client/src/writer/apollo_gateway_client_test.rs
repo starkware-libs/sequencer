@@ -24,9 +24,9 @@ async fn run_add_transaction<
     let client =
         StarknetGatewayClient::new(&mockito::server_url(), NODE_VERSION, get_test_config())
             .unwrap();
-    let tx_json_value = read_json_file(resource_file_transaction_path);
+    let tx_json_value: serde_json::Value = read_json_file(resource_file_transaction_path);
     let tx = serde_json::from_value::<Transaction>(tx_json_value.clone()).unwrap();
-    let response_json_value = read_json_file(resource_file_response_path);
+    let response_json_value: serde_json::Value = read_json_file(resource_file_response_path);
     let mock_add_transaction = mock("POST", "/gateway/add_transaction")
         .match_body(Matcher::Json(tx_json_value))
         .with_status(200)
@@ -47,8 +47,7 @@ async fn test_add_transaction_succeeds<
     resource_file_response_path: &str,
     add_transaction_function: F,
 ) {
-    let response_json_value = read_json_file(resource_file_response_path);
-    let expected_response = serde_json::from_value::<Response>(response_json_value).unwrap();
+    let expected_response: Response = read_json_file(resource_file_response_path);
     assert_eq!(
         expected_response,
         run_add_transaction(
