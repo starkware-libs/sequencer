@@ -74,6 +74,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
             .component_config_pair(Some(base_port + 6), environment);
         let state_sync =
             HybridNodeServiceName::Core.component_config_pair(Some(base_port + 7), environment);
+        let signature_manager =
+            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 8), environment);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -85,6 +87,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     state_sync.local(),
                     mempool.remote(),
                     sierra_compiler.remote(),
+                    signature_manager.remote(),
                 ),
                 HybridNodeServiceName::HttpServer => {
                     get_http_server_component_config(gateway.remote())
@@ -355,6 +358,7 @@ impl HybridNodeServiceConfigPair {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn get_core_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
     class_manager_local_config: ReactiveComponentExecutionConfig,
@@ -363,6 +367,7 @@ fn get_core_component_config(
     state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
+    signature_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.batcher = batcher_local_config;
@@ -373,6 +378,7 @@ fn get_core_component_config(
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
     config.sierra_compiler = sierra_compiler_remote_config;
+    config.signature_manager = signature_manager_remote_config;
     config.state_sync = state_sync_local_config;
     config.mempool = mempool_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
