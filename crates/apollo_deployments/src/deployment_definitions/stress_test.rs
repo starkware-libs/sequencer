@@ -68,5 +68,6 @@ fn stress_test_hybrid_deployment_node(
             STRESS_TEST_INGRESS_DOMAIN.to_string(),
             Some(vec![STRESS_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
         ),
+        None,
     )
 }
