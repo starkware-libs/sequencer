@@ -63,22 +63,17 @@ impl GetComponentConfigs for HybridNodeServiceName {
 
         let ports = determine_port_numbers(ports, HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
 
-        let batcher =
-            HybridNodeServiceName::Core.component_config_pair(Some(ports[0]), environment);
+        let batcher = HybridNodeServiceName::Core.component_config_pair(ports[0], environment);
         let class_manager =
-            HybridNodeServiceName::Core.component_config_pair(Some(ports[1]), environment);
-        let gateway =
-            HybridNodeServiceName::Gateway.component_config_pair(Some(ports[2]), environment);
+            HybridNodeServiceName::Core.component_config_pair(ports[1], environment);
+        let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2], environment);
         let l1_gas_price_provider =
-            HybridNodeServiceName::Core.component_config_pair(Some(ports[3]), environment);
-        let l1_provider =
-            HybridNodeServiceName::Core.component_config_pair(Some(ports[4]), environment);
-        let mempool =
-            HybridNodeServiceName::Mempool.component_config_pair(Some(ports[5]), environment);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler
-            .component_config_pair(Some(ports[6]), environment);
-        let state_sync =
-            HybridNodeServiceName::Core.component_config_pair(Some(ports[7]), environment);
+            HybridNodeServiceName::Core.component_config_pair(ports[3], environment);
+        let l1_provider = HybridNodeServiceName::Core.component_config_pair(ports[4], environment);
+        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5], environment);
+        let sierra_compiler =
+            HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6], environment);
+        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7], environment);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -275,15 +270,15 @@ impl ServiceNameInner for HybridNodeServiceName {
 impl HybridNodeServiceName {
     /// Returns a component execution config for a component that runs locally, and accepts inbound
     /// connections from remote components.
-    pub fn component_config_for_local_service(
+    fn component_config_for_local_service(
         &self,
-        base_port: Option<u16>,
+        port: u16,
         environment: &Environment,
     ) -> ReactiveComponentExecutionConfig {
         let mut base = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            self.url(),
-            self.ip(),
-            self.port(base_port),
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
         );
         let EnvironmentComponentConfigModifications {
             local_server_config,
@@ -296,13 +291,16 @@ impl HybridNodeServiceName {
     }
 
     /// Returns a component execution config for a component that is accessed remotely.
-    pub fn component_config_for_remote_service(
+    fn component_config_for_remote_service(
         &self,
-        base_port: Option<u16>,
+        port: u16,
         environment: &Environment,
     ) -> ReactiveComponentExecutionConfig {
-        let mut base =
-            ReactiveComponentExecutionConfig::remote(self.url(), self.ip(), self.port(base_port));
+        let mut base = ReactiveComponentExecutionConfig::remote(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        );
         let EnvironmentComponentConfigModifications {
             local_server_config: _,
             max_concurrency,
@@ -329,30 +327,13 @@ impl HybridNodeServiceName {
 
     fn component_config_pair(
         &self,
-        base_port: Option<u16>,
+        port: u16,
         environment: &Environment,
     ) -> HybridNodeServiceConfigPair {
         HybridNodeServiceConfigPair {
-            local: self.component_config_for_local_service(base_port, environment),
-            remote: self.component_config_for_remote_service(base_port, environment),
+            local: self.component_config_for_local_service(port, environment),
+            remote: self.component_config_for_remote_service(port, environment),
         }
-    }
-
-    /// Url for the service.
-    fn url(&self) -> String {
-        // This must match the Kubernetes service name as defined by CDK8s.
-        let formatted_service_name = self.as_ref().replace('_', "");
-        format!("sequencer-{}-service", formatted_service_name)
-    }
-
-    /// Unique port number per service.
-    fn port(&self, base_port: Option<u16>) -> u16 {
-        base_port.unwrap_or(BASE_PORT)
-    }
-
-    /// Listening address per service.
-    fn ip(&self) -> IpAddr {
-        IpAddr::from(Ipv4Addr::UNSPECIFIED)
     }
 }
 
