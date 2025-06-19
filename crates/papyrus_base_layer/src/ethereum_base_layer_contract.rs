@@ -256,6 +256,12 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             blob_fee,
         }))
     }
+
+    /// Rebuilds the provider on the new url.
+    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
+        self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
+        Ok(())
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -327,7 +333,6 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 "The timeout (milliseconds) for a query of the L1 base layer",
                 ParamPrivacyInput::Public,
             ),
-
         ])
     }
 }

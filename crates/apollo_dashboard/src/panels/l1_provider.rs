@@ -10,35 +10,49 @@ use apollo_infra::metrics::{
 use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
+    L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
 
 use crate::dashboard::{Panel, PanelType, Row};
 
-const PANEL_L1_PROVIDER_LOCAL_MSGS_RECEIVED: Panel =
-    Panel::from_counter(L1_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::Graph);
-const PANEL_L1_PROVIDER_LOCAL_MSGS_PROCESSED: Panel =
-    Panel::from_counter(L1_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::Graph);
-const PANEL_L1_PROVIDER_REMOTE_MSGS_RECEIVED: Panel =
-    Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::Graph);
-const PANEL_L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED: Panel =
-    Panel::from_counter(L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
-const PANEL_L1_PROVIDER_REMOTE_MSGS_PROCESSED: Panel =
-    Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::Graph);
-const PANEL_L1_PROVIDER_LOCAL_QUEUE_DEPTH: Panel =
-    Panel::from_gauge(L1_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::Graph);
-const PANEL_L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
-    Panel::from_hist(L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
-const PANEL_L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT: Panel =
-    Panel::from_counter(L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::Graph);
-const PANEL_L1_MESSAGE_SCRAPER_REORG_DETECTED: Panel =
-    Panel::from_counter(L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::Graph);
+fn get_panel_l1_provider_local_msgs_received() -> Panel {
+    Panel::from_counter(L1_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
+}
+fn get_panel_l1_provider_local_msgs_processed() -> Panel {
+    Panel::from_counter(L1_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
+}
+fn get_panel_l1_provider_remote_msgs_received() -> Panel {
+    Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
+}
+fn get_panel_l1_provider_remote_valid_msgs_received() -> Panel {
+    Panel::from_counter(L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
+}
+fn get_panel_l1_provider_remote_msgs_processed() -> Panel {
+    Panel::from_counter(L1_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
+}
+fn get_panel_l1_provider_local_queue_depth() -> Panel {
+    Panel::from_gauge(L1_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+}
+fn get_panel_l1_provider_remote_client_send_attempts() -> Panel {
+    Panel::from_hist(L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
+}
+fn get_panel_l1_message_scraper_success_count() -> Panel {
+    Panel::from_counter(L1_MESSAGE_SCRAPER_SUCCESS_COUNT, PanelType::TimeSeries)
+}
+fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
+    Panel::from_counter(L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT, PanelType::TimeSeries)
+}
+fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
+    Panel::from_counter(L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::TimeSeries)
+}
 
 pub(crate) fn get_l1_provider_row() -> Row {
     Row::new(
         "L1 Provider",
         vec![
-            PANEL_L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
-            PANEL_L1_MESSAGE_SCRAPER_REORG_DETECTED,
+            get_panel_l1_message_scraper_success_count(),
+            get_panel_l1_message_scraper_baselayer_error_count(),
+            get_panel_l1_message_scraper_reorg_detected(),
         ],
     )
 }
@@ -47,13 +61,13 @@ pub(crate) fn get_l1_provider_infra_row() -> Row {
     Row::new(
         "L1 Provider Infra",
         vec![
-            PANEL_L1_PROVIDER_LOCAL_MSGS_RECEIVED,
-            PANEL_L1_PROVIDER_LOCAL_MSGS_PROCESSED,
-            PANEL_L1_PROVIDER_LOCAL_QUEUE_DEPTH,
-            PANEL_L1_PROVIDER_REMOTE_MSGS_RECEIVED,
-            PANEL_L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
-            PANEL_L1_PROVIDER_REMOTE_MSGS_PROCESSED,
-            PANEL_L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+            get_panel_l1_provider_local_msgs_received(),
+            get_panel_l1_provider_local_msgs_processed(),
+            get_panel_l1_provider_local_queue_depth(),
+            get_panel_l1_provider_remote_msgs_received(),
+            get_panel_l1_provider_remote_valid_msgs_received(),
+            get_panel_l1_provider_remote_msgs_processed(),
+            get_panel_l1_provider_remote_client_send_attempts(),
         ],
     )
 }

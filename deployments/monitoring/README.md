@@ -27,7 +27,7 @@ To force build (useful to enforce applying changes in docker file settings):
 - Sequencer Node Simulator
 - Dummy Cende Recorder
 - Prometheus
-- Grafana (Using: [dev_grafana.json](../../Monitoring/sequencer/dev_grafana.json) dashboard.)
+- Grafana (Using: [dev_grafana.json](../../crates/apollo_dashboard/resources/dev_grafana.json) dashboard.)
 
 Once the node starts emitting logs, one can ctrl+c to move the run to the background.
 

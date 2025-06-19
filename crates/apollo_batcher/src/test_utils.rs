@@ -24,6 +24,7 @@ use crate::block_builder::{
 use crate::transaction_provider::TransactionProvider;
 
 pub const EXECUTION_INFO_LEN: usize = 10;
+pub const DUMMY_FINAL_N_EXECUTED_TXS: usize = 12;
 
 // A fake block builder for validate flow, that fetches transactions from the transaction provider
 // until it is exhausted.
@@ -144,7 +145,7 @@ impl BlockExecutionArtifacts {
             bouncer_weights: BouncerWeights::empty(),
             l2_gas_used: GasAmount::default(),
             casm_hash_computation_data: CasmHashComputationData::empty(),
-            final_n_executed_txs: 12,
+            final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
         }
     }
 }

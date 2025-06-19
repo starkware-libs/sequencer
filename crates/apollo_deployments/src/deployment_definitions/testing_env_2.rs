@@ -13,7 +13,7 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
-const TESTING_ENV_2_NODE_IDS: [usize; 4] = [0, 1, 2, 3];
+const TESTING_ENV_2_NODE_IDS: [usize; 3] = [0, 1, 2];
 const TESTING_ENV_2_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io";
 const TESTING_ENV_2_INGRESS_DOMAIN: &str = "sw-dev.io";

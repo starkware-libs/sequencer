@@ -10,18 +10,14 @@ on:
         type: number
 
   pull_request:
-    paths:
-      - ".github/workflows/consolidated_system_test.yaml"
-      - "deployments/**"
-      - "crates/**"
-      - "crates/apollo_deployments/resources/testing/**"
-      - "scripts/system_tests/**"
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/testing/deployment_configs/deployment_test_consolidated.json
   namespace: sequencer-consolidated-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
   cluster_name: consolidated-system-test
+  crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
+  path_triggers: ".github/workflows/consolidated_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py"
 
 permissions:
   contents: read
@@ -55,7 +51,10 @@ jobs:
           echo "Checking if any system-test-triggering crates were modified..."
           OUTPUT_FILE=$(mktemp)
 
-          python ./scripts/check_system_test_trigger.py --output_file $OUTPUT_FILE --commit_id ${{ github.event.pull_request.base.sha }}
+          python ./scripts/check_test_trigger.py --output_file $OUTPUT_FILE \
+            --commit_id ${{ github.event.pull_request.base.sha }} \
+            --crate_triggers ${{ env.crate_triggers }} \
+            --path_triggers ${{ env.path_triggers }}
 
           should_run=$(cat "$OUTPUT_FILE")
           echo "Captured output: $should_run"

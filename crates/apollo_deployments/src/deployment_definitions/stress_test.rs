@@ -13,7 +13,7 @@ use crate::deployment::{
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
 
-const STRESS_TEST_NODE_IDS: [usize; 4] = [0, 1, 2, 3];
+const STRESS_TEST_NODE_IDS: [usize; 3] = [0, 1, 2];
 const STRESS_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "apollo-stresstest-dev.sw-dev.io";
 const STRESS_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
 const FIRST_NODE_NAMESPACE: &str = "apollo-stresstest-dev-0";

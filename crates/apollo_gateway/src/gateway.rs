@@ -46,14 +46,15 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
 
+#[derive(Clone)]
 pub struct Gateway {
-    pub config: GatewayConfig,
+    pub config: Arc<GatewayConfig>,
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
     pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
-    pub transaction_converter: TransactionConverter,
-    pub chain_info: ChainInfo,
+    pub transaction_converter: Arc<TransactionConverter>,
+    pub chain_info: Arc<ChainInfo>,
 }
 
 impl Gateway {
@@ -64,7 +65,7 @@ impl Gateway {
         transaction_converter: TransactionConverter,
     ) -> Self {
         Self {
-            config: config.clone(),
+            config: Arc::new(config.clone()),
             stateless_tx_validator: Arc::new(StatelessTransactionValidator {
                 config: config.stateless_tx_validator_config.clone(),
             }),
@@ -73,8 +74,8 @@ impl Gateway {
             }),
             state_reader_factory,
             mempool_client,
-            chain_info: config.chain_info.clone(),
-            transaction_converter,
+            chain_info: Arc::new(config.chain_info.clone()),
+            transaction_converter: Arc::new(transaction_converter),
         }
     }
 
@@ -140,9 +141,9 @@ struct ProcessTxBlockingTask {
     stateful_tx_validator: Arc<StatefulTransactionValidator>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
-    chain_info: ChainInfo,
+    chain_info: Arc<ChainInfo>,
     tx: RpcTransaction,
-    transaction_converter: TransactionConverter,
+    transaction_converter: Arc<TransactionConverter>,
     runtime: tokio::runtime::Handle,
 }
 

@@ -1,5 +1,6 @@
 use blockifier::state::state_api::StateReader;
 
+use crate::hint_processor::aggregator_hint_processor::AggregatorHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::OsHintResult;
 use crate::hints::types::HintArgs;
@@ -34,6 +35,15 @@ use crate::hints::types::HintArgs;
 pub(crate) fn test_hint<S: StateReader>(
     _hint_str: &str,
     _hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { .. }: HintArgs<'_>,
+) -> OsHintResult {
+    Ok(())
+}
+
+/// Same as [test_hint], but for the aggregator program.
+pub(crate) fn test_aggregator_hint(
+    _hint_str: &str,
+    _hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
     Ok(())

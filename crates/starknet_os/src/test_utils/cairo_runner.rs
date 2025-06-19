@@ -158,7 +158,6 @@ impl Default for EntryPointRunnerConfig {
 
 /// Performs basic validations on the cairo arg. Assumes the arg is not a builtin.
 /// A successful result from this function does NOT guarantee that the arguments are valid.
-#[allow(clippy::result_large_err)]
 fn perform_basic_validations_on_endpoint_arg(
     index: usize,
     expected_arg: &Member,
@@ -187,7 +186,6 @@ fn perform_basic_validations_on_endpoint_arg(
 
 /// Performs basic validations on the explicit arguments. A successful result from this function
 /// does NOT guarantee that the arguments are valid.
-#[allow(clippy::result_large_err)]
 fn perform_basic_validations_on_explicit_args(
     explicit_args: &[EndpointArg],
     program: &Program,
@@ -226,7 +224,6 @@ fn get_builtin_or_non(arg_name: &str) -> Option<BuiltinName> {
 
 /// Performs basic validations on the implicit arguments. A successful result from this function
 /// does NOT guarantee that the arguments are valid.
-#[allow(clippy::result_large_err)]
 fn perform_basic_validations_on_implicit_args(
     implicit_args: &[ImplicitArg],
     program: &Program,
@@ -279,7 +276,6 @@ fn perform_basic_validations_on_implicit_args(
     Ok(())
 }
 
-#[allow(clippy::result_large_err)]
 fn extract_builtins_from_implicit_args(
     implicit_args: &[ImplicitArg],
 ) -> Cairo0EntryPointRunnerResult<Vec<BuiltinName>> {
@@ -304,7 +300,6 @@ fn extract_builtins_from_implicit_args(
 // This is a hack to inject the entrypoint's builtins into the program.
 // TODO(Amos): Add builtins properly once the VM allows loading an entrypoint's builtins.
 // In addition, pass program as struct and add hint processor as param.
-#[allow(clippy::result_large_err)]
 fn inject_builtins(
     program_str: &str,
     implicit_args: &[ImplicitArg],
@@ -557,7 +552,6 @@ fn get_return_values(
 /// Hint locals are added to the outermost exec scope.
 /// If the endpoint used builtins, the respective returned (implicit) arg is the builtin instance
 /// usage, unless the builtin is the output builtin, in which case the arg is the output.
-#[allow(clippy::result_large_err)]
 pub fn run_cairo_0_entry_point(
     runner_config: &EntryPointRunnerConfig,
     program_str: &str,
@@ -633,7 +627,7 @@ pub fn run_cairo_0_entry_point(
             program_segment_size,
             &mut hint_processor,
         )
-        .map_err(Cairo0EntryPointRunnerError::RunCairoEndpoint)?;
+        .map_err(Box::new)?;
     info!("Successfully finished running entrypoint {}", entrypoint);
     let (implicit_return_values, explicit_return_values) =
         get_return_values(implicit_args, expected_explicit_return_values, &cairo_runner.vm)?;

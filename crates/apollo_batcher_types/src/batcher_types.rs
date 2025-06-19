@@ -87,7 +87,8 @@ pub struct SendProposalContentInput {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SendProposalContent {
     Txs(Vec<InternalConsensusTransaction>),
-    Finish(usize), // The number of executed transactions.
+    /// Contains the final number of transactions in the block.
+    Finish(usize),
     Abort,
 }
 

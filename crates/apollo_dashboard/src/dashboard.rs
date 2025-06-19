@@ -9,56 +9,78 @@ use serde::{Serialize, Serializer};
 #[path = "dashboard_test.rs"]
 mod dashboard_test;
 
+const HISTOGRAM_QUANTILES: &[f64] = &[0.50, 0.95];
+const HISTOGRAM_TIME_RANGE: &str = "5m";
+
 /// Grafana panel types.
 #[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
 pub enum PanelType {
-    #[serde(rename = "graph")]
-    Graph,
-    #[serde(rename = "stat")]
     Stat,
+    TimeSeries,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Panel {
     name: &'static str,
     description: &'static str,
-    expr: &'static str,
+    exprs: Vec<String>,
     panel_type: PanelType,
 }
 
 impl Panel {
-    pub const fn new(
+    pub fn new(
         name: &'static str,
         description: &'static str,
-        expr: &'static str,
+        exprs: Vec<String>,
         panel_type: PanelType,
     ) -> Self {
-        Self { name, description, expr, panel_type }
+        // A panel assigns a unique id to each of its expressions. Conventionally, we use letters
+        // A–Z, and for simplicity, we limit the number of expressions to this range.
+        const NUM_LETTERS: u8 = b'Z' - b'A' + 1;
+        assert!(
+            exprs.len() <= NUM_LETTERS.into(),
+            "Too many expressions ({} > {}) in panel '{}'.",
+            exprs.len(),
+            NUM_LETTERS,
+            name
+        );
+        Self { name, description, exprs, panel_type }
     }
 
-    pub const fn from_counter(metric: MetricCounter, panel_type: PanelType) -> Self {
+    pub fn from_counter(metric: MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            metric.get_name_with_filter(),
+            vec![metric.get_name_with_filter().to_string()],
             panel_type,
         )
     }
 
-    pub const fn from_gauge(metric: MetricGauge, panel_type: PanelType) -> Self {
+    pub fn from_gauge(metric: MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            metric.get_name_with_filter(),
+            vec![metric.get_name_with_filter().to_string()],
             panel_type,
         )
     }
 
-    pub const fn from_hist(metric: MetricHistogram, panel_type: PanelType) -> Self {
+    pub fn from_hist(metric: MetricHistogram, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
-            metric.get_name_with_filter(),
+            HISTOGRAM_QUANTILES
+                .iter()
+                .map(|q| {
+                    format!(
+                        "histogram_quantile({:.2}, sum(rate({}[{}])) by (le))",
+                        q,
+                        metric.get_name_with_filter(),
+                        HISTOGRAM_TIME_RANGE
+                    )
+                })
+                .collect(),
             panel_type,
         )
     }
@@ -74,7 +96,7 @@ impl Serialize for Panel {
         state.serialize_field("title", &self.name)?;
         state.serialize_field("description", &self.description)?;
         state.serialize_field("type", &self.panel_type)?;
-        state.serialize_field("expr", &self.expr)?;
+        state.serialize_field("exprs", &self.exprs)?;
 
         // Append an empty dictionary `{}` at the end
         let empty_map: HashMap<String, String> = HashMap::new();

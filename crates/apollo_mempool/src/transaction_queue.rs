@@ -99,13 +99,16 @@ impl TransactionQueue {
 
     /// Removes the given transactions from the queue.
     /// If a transaction is not found, it is ignored.
-    pub fn remove_txs(&mut self, txs: &[TransactionReference]) {
+    pub fn remove_txs(&mut self, txs: &[TransactionReference]) -> Vec<TransactionReference> {
+        let mut removed_txs = Vec::new();
         for tx in txs {
             let queued_tx = self.address_to_tx.get(&tx.address);
             if queued_tx.is_some_and(|queued_tx| queued_tx.tx_hash == tx.tx_hash) {
                 self.remove(tx.address);
+                removed_txs.push(*tx);
             };
         }
+        removed_txs
     }
 
     pub fn has_ready_txs(&self) -> bool {

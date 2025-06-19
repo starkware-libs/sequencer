@@ -33,6 +33,7 @@ fn load_and_process_service_config_files() {
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         for service_config_paths in deployment.get_config_file_paths().into_iter() {
             let config_file_args: Vec<String> = service_config_paths
+                .clone()
                 .into_iter()
                 .flat_map(|path| vec![CONFIG_FILE_ARG.to_string(), path])
                 .collect();
@@ -40,7 +41,16 @@ fn load_and_process_service_config_files() {
             let mut config_load_command: Vec<String> = vec!["command_name_placeholder".to_string()];
             config_load_command.extend(config_file_args);
             let load_result = SequencerNodeConfig::load_and_process(config_load_command);
-            assert!(load_result.is_ok());
+
+            load_result.unwrap_or_else(|err| {
+                panic!(
+                    "Loading deployment in path {:?} with application config files {:?}\nResulted \
+                     in error: {}",
+                    deployment.deployment_file_path(),
+                    service_config_paths,
+                    err
+                );
+            });
         }
     }
 }

@@ -20,6 +20,7 @@ define_metrics!(
         MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", init = 0 },
 
         MetricCounter { FULL_BLOCKS, "batcher_full_blocks", "Counter of blocks closed on full capacity", init = 0 },
+        MetricCounter { PRECONFIRMED_BLOCK_WRITTEN, "batcher_preconfirmed_block_written", "Counter of preconfirmed blocks written to storage", init = 0 },
     },
 );
 
@@ -41,6 +42,7 @@ pub fn register_metrics(storage_height: BlockNumber) {
     SYNCED_TRANSACTIONS.register();
 
     FULL_BLOCKS.register();
+    PRECONFIRMED_BLOCK_WRITTEN.register();
 }
 
 /// A handle to update the proposal metrics when the proposal is created and dropped.

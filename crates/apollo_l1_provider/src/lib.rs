@@ -28,6 +28,7 @@ use starknet_api::block::BlockNumber;
 use validator::Validate;
 
 use crate::bootstrapper::Bootstrapper;
+use crate::transaction_manager::TransactionManagerConfig;
 
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -111,6 +112,16 @@ pub struct L1ProviderConfig {
     pub l1_handler_cancellation_timelock_seconds: Duration,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub new_l1_handler_cooldown_seconds: Duration,
+}
+
+impl From<L1ProviderConfig> for TransactionManagerConfig {
+    fn from(config: L1ProviderConfig) -> Self {
+        TransactionManagerConfig {
+            new_l1_handler_tx_cooldown_secs: config.new_l1_handler_cooldown_seconds,
+            l1_handler_cancellation_timelock_seconds: config
+                .l1_handler_cancellation_timelock_seconds,
+        }
+    }
 }
 
 impl SerializeConfig for L1ProviderConfig {

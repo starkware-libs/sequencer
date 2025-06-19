@@ -1,12 +1,13 @@
 use apollo_gateway_types::communication::{GatewayRequest, GatewayResponse};
 use apollo_gateway_types::errors::GatewayError;
 use apollo_infra::component_definitions::ComponentRequestHandler;
-use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
 use async_trait::async_trait;
 
 use crate::gateway::Gateway;
 
-pub type LocalGatewayServer = LocalComponentServer<Gateway, GatewayRequest, GatewayResponse>;
+pub type LocalGatewayServer =
+    ConcurrentLocalComponentServer<Gateway, GatewayRequest, GatewayResponse>;
 pub type RemoteGatewayServer = RemoteComponentServer<GatewayRequest, GatewayResponse>;
 
 #[async_trait]

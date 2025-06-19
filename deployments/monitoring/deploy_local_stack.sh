@@ -40,8 +40,8 @@ fi
 if [ "$MONITORING_ENABLED" == true ]; then
   pip install -r "${monitoring_dir}"/src/requirements.txt
   python "${monitoring_dir}"/src/main.py \
-    --dev-dashboards-file "${monitoring_dir}"/../../Monitoring/sequencer/dev_grafana.json \
-    --dev-alerts-file "${monitoring_dir}"/../../Monitoring/sequencer/dev_grafana_alerts.json \
+    --dev-dashboards-file "${monitoring_dir}"/../../crates/apollo_dashboard/resources/dev_grafana.json \
+    --dev-alerts-file "${monitoring_dir}"/../../crates/apollo_dashboard/resources/dev_grafana_alerts.json \
     --out-dir /tmp/grafana_builder \
     --env dev
 fi

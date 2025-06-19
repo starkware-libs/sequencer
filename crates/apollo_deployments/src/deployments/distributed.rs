@@ -11,6 +11,7 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
+use crate::deployment::determine_port_numbers;
 use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::service::{
@@ -27,8 +28,9 @@ use crate::service::{
     Toleration,
 };
 
-const BASE_PORT: u16 = 15000; // TODO(Tsabary): arbitrary port, need to resolve.
+pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 8;
 
+const BASE_PORT: u16 = 15000; // TODO(Tsabary): arbitrary port, need to resolve.
 const BATCHER_STORAGE: usize = 500;
 const CLASS_MANAGER_STORAGE: usize = 500;
 const STATE_SYNC_STORAGE: usize = 500;
@@ -58,31 +60,31 @@ impl From<DistributedNodeServiceName> for ServiceName {
 
 impl GetComponentConfigs for DistributedNodeServiceName {
     fn get_component_configs(
-        base_port: Option<u16>,
+        ports: Option<Vec<u16>>,
         environment: &Environment,
     ) -> IndexMap<ServiceName, ComponentConfig> {
         // TODO(Tsabary): change this function to take a slice of port numbers at the exact expected
         // length.
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
 
-        let base_port = base_port.unwrap_or(BASE_PORT);
+        let ports = determine_port_numbers(ports, DISTRIBUTED_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
 
         let batcher =
-            DistributedNodeServiceName::Batcher.component_config_pair(Some(base_port), environment);
+            DistributedNodeServiceName::Batcher.component_config_pair(Some(ports[0]), environment);
         let class_manager = DistributedNodeServiceName::ClassManager
-            .component_config_pair(Some(base_port + 1), environment);
-        let gateway = DistributedNodeServiceName::Gateway
-            .component_config_pair(Some(base_port + 2), environment);
+            .component_config_pair(Some(ports[1]), environment);
+        let gateway =
+            DistributedNodeServiceName::Gateway.component_config_pair(Some(ports[2]), environment);
         let l1_gas_price_provider =
-            DistributedNodeServiceName::L1.component_config_pair(Some(base_port + 3), environment);
+            DistributedNodeServiceName::L1.component_config_pair(Some(ports[3]), environment);
         let l1_provider =
-            DistributedNodeServiceName::L1.component_config_pair(Some(base_port + 4), environment);
-        let mempool = DistributedNodeServiceName::Mempool
-            .component_config_pair(Some(base_port + 5), environment);
+            DistributedNodeServiceName::L1.component_config_pair(Some(ports[4]), environment);
+        let mempool =
+            DistributedNodeServiceName::Mempool.component_config_pair(Some(ports[5]), environment);
         let sierra_compiler = DistributedNodeServiceName::SierraCompiler
-            .component_config_pair(Some(base_port + 6), environment);
+            .component_config_pair(Some(ports[6]), environment);
         let state_sync = DistributedNodeServiceName::StateSync
-            .component_config_pair(Some(base_port + 7), environment);
+            .component_config_pair(Some(ports[7]), environment);
 
         for inner_service_name in DistributedNodeServiceName::iter() {
             let component_config = match inner_service_name {

@@ -1171,7 +1171,6 @@ dependencies = [
  "apollo_metrics",
  "apollo_state_sync_metrics",
  "blockifier",
- "const_format",
  "indexmap 2.9.0",
  "serde",
  "serde_json",
@@ -1409,9 +1408,25 @@ name = "apollo_l1_endpoint_monitor"
 version = "0.15.0-rc.2"
 dependencies = [
  "alloy",
+ "apollo_l1_endpoint_monitor_types",
+ "mockito 1.6.1",
+ "papyrus_base_layer",
  "serde",
- "thiserror 1.0.69",
+ "tokio",
  "tracing",
+ "url",
+]
+
+[[package]]
+name = "apollo_l1_endpoint_monitor_types"
+version = "0.15.0-rc.2"
+dependencies = [
+ "apollo_infra",
+ "async-trait",
+ "mockall",
+ "serde",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
  "url",
 ]
 
@@ -1519,15 +1534,18 @@ dependencies = [
  "apollo_network",
  "apollo_network_types",
  "apollo_test_utils",
+ "apollo_time",
  "assert_matches",
  "async-trait",
  "derive_more 0.99.18",
+ "indexmap 2.9.0",
  "itertools 0.12.1",
  "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "mockall",
  "pretty_assertions",
+ "rand 0.8.5",
  "rstest",
  "serde",
  "starknet-types-core",
@@ -9374,6 +9392,7 @@ version = "0.15.0-rc.2"
 dependencies = [
  "alloy",
  "apollo_config",
+ "apollo_l1_endpoint_monitor_types",
  "assert_matches",
  "async-trait",
  "colored 3.0.0",

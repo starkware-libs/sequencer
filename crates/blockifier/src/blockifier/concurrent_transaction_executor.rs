@@ -61,7 +61,7 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         Ok(Self { worker_executor, worker_pool: worker_pool.clone(), n_output_txs: 0 })
     }
 
-    /// Similar to [start_block], except that [pre_process_block] is not called.
+    /// Similar to [Self::start_block], except that [pre_process_block] is not called.
     /// Used for testing purposes.
     #[cfg(any(feature = "testing", test))]
     pub fn new_for_testing(
@@ -108,7 +108,6 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let (from_tx, to_tx) = self.worker_executor.add_txs(txs);
-        // TODO(lior): Remove this check once tx streaming is supported.
         assert_eq!(
             from_tx, self.n_output_txs,
             "Can't add transaction after a partial result from an early run. Returned {} out of \

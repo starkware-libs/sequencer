@@ -342,7 +342,6 @@ fn create_local_servers(
         communication.take_batcher_rx(),
         batcher_metrics
     );
-
     let class_manager_metrics = LocalServerMetrics::new(
         &CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
         &CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
@@ -356,20 +355,19 @@ fn create_local_servers(
         class_manager_metrics,
         config.components.class_manager.max_concurrency
     );
-
     let gateway_metrics = LocalServerMetrics::new(
         &GATEWAY_LOCAL_MSGS_RECEIVED,
         &GATEWAY_LOCAL_MSGS_PROCESSED,
         &GATEWAY_LOCAL_QUEUE_DEPTH,
     );
     let gateway_server = create_local_server!(
-        REGULAR_LOCAL_SERVER,
+        CONCURRENT_LOCAL_SERVER,
         &config.components.gateway.execution_mode,
         &mut components.gateway,
         communication.take_gateway_rx(),
-        gateway_metrics
+        gateway_metrics,
+        config.components.gateway.max_concurrency
     );
-
     let l1_provider_metrics = LocalServerMetrics::new(
         &L1_PROVIDER_LOCAL_MSGS_RECEIVED,
         &L1_PROVIDER_LOCAL_MSGS_PROCESSED,
@@ -406,7 +404,6 @@ fn create_local_servers(
         communication.take_mempool_rx(),
         mempool_metrics
     );
-
     let mempool_p2p_metrics = LocalServerMetrics::new(
         &MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
         &MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
@@ -419,7 +416,6 @@ fn create_local_servers(
         communication.take_mempool_p2p_propagator_rx(),
         mempool_p2p_metrics
     );
-
     let sierra_compiler_metrics = LocalServerMetrics::new(
         &SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
         &SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
@@ -433,7 +429,6 @@ fn create_local_servers(
         sierra_compiler_metrics,
         config.components.sierra_compiler.max_concurrency
     );
-
     let state_sync_metrics = LocalServerMetrics::new(
         &STATE_SYNC_LOCAL_MSGS_RECEIVED,
         &STATE_SYNC_LOCAL_MSGS_PROCESSED,

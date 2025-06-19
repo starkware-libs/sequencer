@@ -1,4 +1,4 @@
-use apollo_batcher::metrics::BATCHED_TRANSACTIONS;
+use apollo_batcher::metrics::{BATCHED_TRANSACTIONS, PRECONFIRMED_BLOCK_WRITTEN};
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
     CONSENSUS_BUILD_PROPOSAL_FAILED,
@@ -9,7 +9,10 @@ use apollo_consensus::metrics::{
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
 };
-use apollo_consensus_manager::metrics::CONSENSUS_VOTES_NUM_SENT_MESSAGES;
+use apollo_consensus_manager::metrics::{
+    CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_VOTES_NUM_SENT_MESSAGES,
+};
 use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_BLOB_FAILURE,
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
@@ -18,16 +21,23 @@ use apollo_consensus_orchestrator::metrics::{
 use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_TOTAL;
 use apollo_l1_gas_price::metrics::{
+    ETH_TO_STRK_ERROR_COUNT,
+    ETH_TO_STRK_SUCCESS_COUNT,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
+    L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
-use apollo_l1_provider::metrics::L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT;
+use apollo_l1_provider::metrics::{
+    L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
+    L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
+};
 use apollo_mempool::metrics::{
     MEMPOOL_GET_TXS_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
+use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
@@ -44,9 +54,7 @@ use crate::alerts::{
     Alerts,
 };
 
-// TODO(Tsabary): this file should be managed by this crate, hence should be moved here to a
-// resources folder.
-pub const DEV_ALERTS_JSON_PATH: &str = "Monitoring/sequencer/dev_grafana_alerts.json";
+pub const DEV_ALERTS_JSON_PATH: &str = "crates/apollo_dashboard/resources/dev_grafana_alerts.json";
 
 const PENDING_DURATION_DEFAULT: &str = "30s";
 const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
@@ -391,10 +399,64 @@ fn get_http_server_idle() -> Alert {
     }
 }
 
+fn get_eth_to_strk_error_count_alert() -> Alert {
+    Alert {
+        name: "eth_to_strk_error_count",
+        title: "Eth to Strk error count",
+        alert_group: AlertGroup::L1GasPrice,
+        expr: format!("increase({}[1h])", ETH_TO_STRK_ERROR_COUNT.get_name_with_filter()),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 10.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: "1m",
+        evaluation_interval_sec: 20,
+        severity: AlertSeverity::Informational,
+    }
+}
+
+fn get_eth_to_strk_success_count_alert() -> Alert {
+    Alert {
+        name: "eth_to_strk_success_count",
+        title: "Eth to Strk success count",
+        alert_group: AlertGroup::L1GasPrice,
+        expr: format!("increase({}[1h])", ETH_TO_STRK_SUCCESS_COUNT.get_name_with_filter()),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
+fn get_l1_gas_price_scraper_success_count_alert() -> Alert {
+    Alert {
+        name: "l1_gas_price_scraper_success_count",
+        title: "L1 gas price scraper success count",
+        alert_group: AlertGroup::L1GasPrice,
+        expr: format!(
+            "increase({}[1h])",
+            L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
 fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
     Alert {
-        name: "l1_message_scraper_baselayer_error_count",
-        title: "L1 message scraper baselayer error count",
+        name: "l1_gas_price_scraper_baselayer_error_count",
+        title: "L1 gas price scraper baselayer error count",
         alert_group: AlertGroup::L1GasPrice,
         expr: format!(
             "increase({}[5m])",
@@ -448,6 +510,23 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+    }
+}
+
+fn get_l1_message_scraper_no_successes_alert() -> Alert {
+    Alert {
+        name: "l1_message_no_successes",
+        title: "L1 message no successes",
+        alert_group: AlertGroup::L1GasPrice,
+        expr: format!("increase({}[20m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::Regular,
     }
 }
 
@@ -549,7 +628,7 @@ fn get_native_compilation_error_increase() -> Alert {
         name: "native_compilation_error",
         title: "Native compilation alert",
         alert_group: AlertGroup::Batcher,
-        expr: format!("increase({}[1m])", NATIVE_COMPILATION_ERROR.get_name()),
+        expr: format!("increase({}[1h])", NATIVE_COMPILATION_ERROR.get_name()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -567,7 +646,7 @@ fn get_state_sync_lag() -> Alert {
         title: "State sync lag",
         alert_group: AlertGroup::StateSync,
         expr: format!(
-            "min_over_time(({} - {})[3m])",
+            "min_over_time(({} - {})[5m])",
             CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.get_name_with_filter(),
             STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()
         ), // Alert when the central sync is ahead of the class manager by more than 5 blocks
@@ -587,7 +666,7 @@ fn get_state_sync_stuck() -> Alert {
         name: "state_sync_stuck",
         title: "State sync stuck",
         alert_group: AlertGroup::StateSync,
-        expr: format!("increase({}[1m])", STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()), /* Alert is triggered when the class manager marker is not updated for 1m */
+        expr: format!("increase({}[5m])", STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()), /* Alert is triggered when the class manager marker is not updated for 5m */
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
@@ -616,6 +695,133 @@ fn get_batched_transactions_stuck() -> Alert {
     }
 }
 
+fn get_preconfirmed_block_not_written() -> Alert {
+    Alert {
+        name: "preconfirmed_block_not_written",
+        title: "Preconfirmed block not written",
+        alert_group: AlertGroup::Batcher,
+        expr: format!("increase({}[1h])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
+fn get_consensus_p2p_peer_down() -> Alert {
+    Alert {
+        name: "consensus_p2p_peer_down",
+        title: "Consensus p2p peer down",
+        alert_group: AlertGroup::Consensus,
+        expr: format!(
+            "max_over_time({}[1h])",
+            CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            // TODO(shahak): find a way to make this depend on num_validators
+            comparison_value: 2.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
+fn get_consensus_p2p_not_enough_peers_for_quorum() -> Alert {
+    Alert {
+        name: "consensus_p2p_not_enough_peers_for_quorum",
+        title: "Consensus p2p not enough peers for quorum",
+        alert_group: AlertGroup::Consensus,
+        expr: format!(
+            "max_over_time({}[5m])",
+            CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            // TODO(shahak): find a way to make this depend on num_validators and
+            // assume_no_malicious_validators
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::Regular,
+    }
+}
+
+/// Alert if there were too many disconnections in the given timespan
+fn get_consensus_p2p_disconnections() -> Alert {
+    Alert {
+        name: "consensus_p2p_peer_down",
+        title: "Consensus p2p peer down",
+        alert_group: AlertGroup::Consensus,
+        expr: format!(
+            // TODO(shahak): find a way to make this depend on num_validators
+            // Dividing by two since this counts both disconnections and reconnections
+            "changes({}[1h]) / 2",
+            CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 10.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::WorkingHours,
+    }
+}
+
+fn get_mempool_p2p_peer_down() -> Alert {
+    Alert {
+        name: "mempool_p2p_peer_down",
+        title: "Mempool p2p peer down",
+        alert_group: AlertGroup::Mempool,
+        expr: format!(
+            "max_over_time({}[1h])",
+            MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            // TODO(shahak): find a way to make this depend on num_validators
+            comparison_value: 2.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
+/// Alert if there were too many disconnections in the given timespan
+fn get_mempool_p2p_disconnections() -> Alert {
+    Alert {
+        name: "mempool_p2p_peer_down",
+        title: "Mempool p2p peer down",
+        alert_group: AlertGroup::Mempool,
+        expr: format!(
+            // TODO(shahak): find a way to make this depend on num_validators
+            // Dividing by two since this counts both disconnections and reconnections
+            "changes({}[1h]) / 2",
+            MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 10.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::WorkingHours,
+    }
+}
+
 pub fn get_apollo_alerts() -> Alerts {
     Alerts::new(vec![
         get_batched_transactions_stuck(),
@@ -630,6 +836,9 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_inbound_stream_evicted_alert(),
         get_consensus_l1_gas_price_provider_failure(),
         get_consensus_l1_gas_price_provider_failure_once(),
+        get_consensus_p2p_disconnections(),
+        get_consensus_p2p_not_enough_peers_for_quorum(),
+        get_consensus_p2p_peer_down(),
         get_consensus_round_above_zero(),
         get_consensus_round_high_avg(),
         get_consensus_validate_proposal_failed_alert(),
@@ -639,13 +848,20 @@ pub fn get_apollo_alerts() -> Alerts {
         get_http_server_idle(),
         get_l1_gas_price_provider_insufficient_history_alert(),
         get_l1_gas_price_reorg_detected_alert(),
+        get_l1_gas_price_scraper_success_count_alert(),
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
+        get_eth_to_strk_error_count_alert(),
+        get_eth_to_strk_success_count_alert(),
+        get_l1_message_scraper_no_successes_alert(),
         get_l1_message_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),
         get_mempool_get_txs_size_drop(),
+        get_mempool_p2p_disconnections(),
+        get_mempool_p2p_peer_down(),
         get_mempool_pool_size_increase(),
         get_native_compilation_error_increase(),
+        get_preconfirmed_block_not_written(),
         get_state_sync_lag(),
         get_state_sync_stuck(),
     ])

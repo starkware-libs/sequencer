@@ -11,6 +11,7 @@ use apollo_mempool_types::communication::{
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{CommitBlockArgs, MempoolResult, MempoolSnapshot};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
+use apollo_time::time::DefaultClock;
 use async_trait::async_trait;
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
@@ -20,7 +21,6 @@ use tracing::warn;
 use crate::config::MempoolConfig;
 use crate::mempool::Mempool;
 use crate::metrics::register_metrics;
-use crate::utils::InstantClock;
 
 pub type LocalMempoolServer =
     LocalComponentServer<MempoolCommunicationWrapper, MempoolRequest, MempoolResponse>;
@@ -31,7 +31,7 @@ pub fn create_mempool(
     mempool_p2p_propagator_client: SharedMempoolP2pPropagatorClient,
 ) -> MempoolCommunicationWrapper {
     MempoolCommunicationWrapper::new(
-        Mempool::new(config, Arc::new(InstantClock)),
+        Mempool::new(config, Arc::new(DefaultClock)),
         mempool_p2p_propagator_client,
     )
 }

@@ -5,6 +5,7 @@ use serde::Serialize;
 #[cfg(any(test, feature = "testing"))]
 use strum::IntoEnumIterator;
 
+use crate::hint_processor::aggregator_hint_processor::AggregatorHintProcessor;
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
@@ -309,6 +310,9 @@ all_hints_enum!(
 
 define_hint_enum!(
     DeprecatedSyscallHint,
+    SnosHintProcessor<'_, S>,
+    S,
+    StateReader,
     (
         CallContract,
         call_contract,
@@ -870,7 +874,6 @@ memory[ap] = 1 if case != 'both' else 0"#
         log_remaining_blocks,
         indoc! {r#"print(f"execute_blocks: {ids.n_blocks} blocks remaining.")"#}
     ),
-    // Aggregator (stateless) Hints:
     (
         AllocateSegmentsForMessages,
         allocate_segments_for_messages,
@@ -985,10 +988,18 @@ else:
         ids.squashed_storage_ptr_end.address_,
     )"
     ),
+    (
+        SetStateUpdatePointersToNone,
+        set_state_update_pointers_to_none,
+        r#"state_update_pointers = None"#
+    )
 );
 
 define_hint_enum!(
     OsHint,
+    SnosHintProcessor<'_, S>,
+    S,
+    StateReader,
     (
         LoadClass,
         load_class,
@@ -1792,6 +1803,7 @@ block_input = next(block_input_iterator)
 
 define_hint_enum!(
     AggregatorHint,
+    AggregatorHintProcessor<'_>,
     (
         DisableDaPageCreation,
         disable_da_page_creation,
@@ -1853,11 +1865,6 @@ if da_path is not None:
         get_use_kzg_da_from_input,
         r#"memory[ap] = to_felt_or_relocatable(program_input["use_kzg_da"])"#
     ),
-    (
-        SetStateUpdatePointersToNone,
-        set_state_update_pointers_to_none,
-        r#"state_update_pointers = None"#
-    )
 );
 
 define_hint_extension_enum!(
