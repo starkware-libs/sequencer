@@ -8,6 +8,7 @@ use starknet_api::block::BlockNumber;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
+use crate::deployment_definitions::cluster_testing::cluster_testing_hybrid_deployments;
 use crate::deployment_definitions::sepolia_integration::sepolia_integration_hybrid_deployments;
 use crate::deployment_definitions::stress_test::stress_test_hybrid_deployments;
 use crate::deployment_definitions::testing::system_test_deployments;
@@ -23,6 +24,7 @@ mod stress_test;
 mod testing;
 mod testing_env_2;
 mod testing_env_3;
+mod cluster_testing;
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
 pub(crate) const BASE_APP_CONFIG_PATH: &str =
@@ -37,6 +39,7 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
     testing_env_2_hybrid_deployments,
     testing_env_3_hybrid_deployments,
     stress_test_hybrid_deployments,
+    cluster_testing_hybrid_deployments,
 ];
 
 #[derive(EnumString, Clone, Display, PartialEq, Debug)]
