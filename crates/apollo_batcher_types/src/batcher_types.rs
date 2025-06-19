@@ -103,7 +103,7 @@ pub struct CentralObjects {
     pub execution_infos: Vec<TransactionExecutionInfo>,
     pub bouncer_weights: BouncerWeights,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
-    pub casm_hash_computation_data: CasmHashComputationData,
+    pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
