@@ -865,6 +865,33 @@
       "severity": "p2"
     },
     {
+      "name": "mempool_evictions_count",
+      "title": "Mempool evictions count",
+      "ruleGroup": "mempool",
+      "expr": "mempool_evictions_count",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "0m",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
       "name": "mempool_get_txs_size_drop",
       "title": "Mempool get_txs size drop",
       "ruleGroup": "mempool",

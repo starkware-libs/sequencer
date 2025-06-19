@@ -13,6 +13,7 @@ use apollo_mempool_types::mempool_types::{AccountState, AddTransactionArgs};
 use apollo_metrics::metrics::HistogramValue;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_test_utils::{get_rng, GetTestInstance};
+use indexmap::IndexMap;
 use mempool_test_utils::starknet_api_test_utils::test_valid_resource_bounds;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
@@ -1149,6 +1150,8 @@ fn metrics_correctness() {
     //    invoke_4  |    3    | Duplicate hash
     //    invoke_5  |    4    | Staged
     //    invoke_6  |    5    | Pending queue
+    //    invoke_7  |    8    | Evicted
+    //    invoke_8  |    9    | Pending queue
     //    declare_1 |    6    | Priority queue
     //    declare_2 |    7    | Delayed declare
 
@@ -1197,24 +1200,46 @@ fn metrics_correctness() {
     // tx should be invoke_5, since it is in the priority queue and has the highest tip.)
     mempool.get_txs(1).unwrap();
 
+    // Add an evictable transaction (one with a gap).
+    let invoke_7 = add_tx_input!(tx_hash: 8, address: "0x7", tx_nonce: 1, account_nonce: 0);
+    add_tx(&mut mempool, &invoke_7);
+
+    // Set capacity to trigger eviction on next tx addition.
+    let capacity = mempool.tx_pool.size_in_bytes();
+    mempool.config.capacity_in_bytes = capacity;
+    let invoke_8 = add_tx_input!(tx_hash: 9, address: "0x8", tx_nonce: 0, account_nonce: 0);
+    add_tx(&mut mempool, &invoke_8);
+
     let expected_metrics = MempoolMetrics {
-        txs_received_invoke: 6,
+        txs_received_invoke: 8,
         txs_received_declare: 2,
         txs_received_deploy_account: 0,
         txs_committed: 1,
         txs_dropped_expired: 1,
         txs_dropped_failed_add_tx_checks: 1,
         txs_dropped_rejected: 1,
-        pool_size: 3,
-        priority_queue_size: 1,
+        pool_size: 4,
+        priority_queue_size: 2,
         pending_queue_size: 1,
         get_txs_size: 1,
         delayed_declares_size: 1,
-        total_size_in_bytes: 1552,
+        total_size_in_bytes: 1952,
+        evictions_count: 1,
         transaction_time_spent_in_mempool: HistogramValue {
             sum: 65.0,
-            count: 3,
-            ..Default::default()
+            count: 4,
+            histogram: IndexMap::from([
+                ("0", 0.0),
+                ("0.5", 0.0),
+                ("0.9", 0.0),
+                ("0.95", 0.0),
+                ("0.99", 0.0),
+                ("0.999", 0.0),
+                ("1", 65.0),
+            ])
+            .into_iter()
+            .map(|(k, v)| (k.to_string(), v))
+            .collect::<IndexMap<_, _>>(),
         },
     };
     expected_metrics.verify_metrics(&recorder);
