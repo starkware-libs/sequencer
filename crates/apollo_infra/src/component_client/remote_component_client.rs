@@ -21,9 +21,9 @@ use crate::metrics::RemoteClientMetrics;
 use crate::serde_utils::SerdeWrapper;
 
 const DEFAULT_RETRIES: usize = 50;
-const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
-const DEFAULT_IDLE_TIMEOUT: u64 = 90;
-const DEFAULT_RETRY_INTERVAL: u64 = 3;
+const DEFAULT_IDLE_CONNECTIONS: usize = 10;
+const DEFAULT_IDLE_TIMEOUT: u64 = 1;
+const DEFAULT_RETRY_INTERVAL: u64 = 1;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RemoteClientConfig {

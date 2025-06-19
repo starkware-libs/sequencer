@@ -15,7 +15,7 @@ const DEFAULT_URL: &str = "localhost";
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
 const DEFAULT_INVALID_PORT: u16 = 0;
 
-pub const MAX_CONCURRENCY: usize = 10;
+pub const MAX_CONCURRENCY: usize = 8;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReactiveComponentExecutionMode {
