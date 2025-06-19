@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
 use starknet_api::execution_resources::GasAmount;
@@ -8,6 +7,7 @@ use starknet_api::transaction::L2ToL1Payload;
 use starknet_api::{class_hash, contract_address, storage_key};
 use starknet_types_core::felt::Felt;
 
+use crate::bouncer::BuiltinCounterMap;
 use crate::execution::call_info::{
     CallExecution,
     CallInfo,
@@ -30,6 +30,8 @@ pub struct TestExecutionSummary {
     pub class_hash: ClassHash,
     pub storage_address: ContractAddress,
     pub storage_key: StorageKey,
+    pub builtin_counters: BuiltinCounterMap,
+    pub inner_builtin_counters: BuiltinCounterMap,
 }
 
 impl TestExecutionSummary {
@@ -48,6 +50,14 @@ impl TestExecutionSummary {
             class_hash,
             storage_address: contract_address!(storage_address),
             storage_key: storage_key!(storage_key),
+            builtin_counters: BuiltinCounterMap::from_iter([
+                (BuiltinName::pedersen, 1),
+                (BuiltinName::bitwise, 2),
+            ]),
+            inner_builtin_counters: BuiltinCounterMap::from_iter([
+                (BuiltinName::poseidon, 1),
+                (BuiltinName::bitwise, 5),
+            ]),
         }
     }
 
@@ -73,6 +83,8 @@ impl TestExecutionSummary {
                 ..Default::default()
             },
             accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
+            inner_calls: vec![inner_call_info(&self.inner_builtin_counters)],
+            builtin_counters: self.builtin_counters.clone(),
             ..Default::default()
         }
     }
@@ -85,6 +97,13 @@ fn shared_call_info() -> CallInfo {
     }
 }
 
+fn inner_call_info(builtin_counters: &BuiltinCounterMap) -> CallInfo {
+    CallInfo {
+        call: CallEntryPoint { class_hash: Some(class_hash!("0x1")), ..Default::default() },
+        builtin_counters: builtin_counters.clone(),
+        ..Default::default()
+    }
+}
 fn call_info_with_x_events(n_events: usize, n_inner_calls: usize) -> CallInfo {
     CallInfo {
         execution: CallExecution {
@@ -233,7 +252,11 @@ fn test_summarize(
             total_event_data_size: 0,
         },
         // TODO(Meshi): Change it to a rlevant value for this test.
-        builtin_counters: HashMap::new(),
+        builtin_counters: BuiltinCounterMap::from_iter([
+            (BuiltinName::pedersen, 3),
+            (BuiltinName::poseidon, 3),
+            (BuiltinName::bitwise, 21),
+        ]),
     };
 
     // Call the summarize method.
