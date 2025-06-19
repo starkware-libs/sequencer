@@ -526,7 +526,8 @@ impl<
         deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
     ) -> StateSyncResult {
         // TODO(dan): verifications - verify state diff against stored header.
-        debug!("Storing state diff. StateDiff data: {state_diff:#?}");
+        debug!("Storing state diff.");
+        trace!("StateDiff data: {state_diff:#?}");
 
         // TODO(shahak): split the state diff stream to 2 separate streams for blocks and for
         // classes.
