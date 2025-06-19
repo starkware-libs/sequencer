@@ -209,7 +209,7 @@ impl std::fmt::Display for BouncerWeights {
 #[derive(Debug, PartialEq, Default, Clone, Deserialize, Serialize)]
 pub struct CasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
-    pub sierra_gas_without_casm_hash_computation: GasAmount,
+    pub gas_without_casm_hash_computation: GasAmount,
 }
 
 impl CasmHashComputationData {
@@ -220,15 +220,14 @@ impl CasmHashComputationData {
     pub fn extend(&mut self, other: CasmHashComputationData) {
         self.class_hash_to_casm_hash_computation_gas
             .extend(other.class_hash_to_casm_hash_computation_gas);
-        self.sierra_gas_without_casm_hash_computation = self
-            .sierra_gas_without_casm_hash_computation
-            .checked_add(other.sierra_gas_without_casm_hash_computation)
+        self.gas_without_casm_hash_computation = self
+            .gas_without_casm_hash_computation
+            .checked_add(other.gas_without_casm_hash_computation)
             .unwrap_or_else(|| {
                 panic!(
                     "Addition overflow while adding sierra gas. current gas: {}, try to add
                  gas: {}.",
-                    self.sierra_gas_without_casm_hash_computation,
-                    other.sierra_gas_without_casm_hash_computation
+                    self.gas_without_casm_hash_computation, other.gas_without_casm_hash_computation
                 )
             });
     }
@@ -439,7 +438,7 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources = &patrticia_update_resources + &tx_resources.computation.vm_resources;
     let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
-    let sierra_gas_without_casm_hash_computation =
+    let gas_without_casm_hash_computation =
         sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
             panic!(
                 "Addition overflow while adding sierra gas. current gas: {}, try to add
@@ -454,13 +453,13 @@ pub fn get_tx_weights<S: StateReader>(
         .fold(ExecutionResources::default(), |acc, resources| &acc + resources);
     let total_casm_hash_computation_gas =
         vm_resources_to_sierra_gas(total_casm_hash_computation_resources, versioned_constants);
-    let sierra_gas = sierra_gas_without_casm_hash_computation
+    let sierra_gas = gas_without_casm_hash_computation
         .checked_add(total_casm_hash_computation_gas)
         .unwrap_or_else(|| {
             panic!(
                 "Addition overflow while adding sierra gas. current gas: {}, try to add
                  gas: {}.",
-                sierra_gas_without_casm_hash_computation, total_casm_hash_computation_gas
+                gas_without_casm_hash_computation, total_casm_hash_computation_gas
             )
         });
     let casm_hash_computation_data_sierra_gas = CasmHashComputationData {
@@ -471,7 +470,7 @@ pub fn get_tx_weights<S: StateReader>(
                 (class_hash, gas)
             })
             .collect(),
-        sierra_gas_without_casm_hash_computation,
+        gas_without_casm_hash_computation,
     };
     // TODO(Aviv): compute the actual proving gas
     let casm_hash_computation_data_proving_gas = CasmHashComputationData::empty();
