@@ -478,6 +478,23 @@ fn vm_resources_to_sierra_gas(
         })
 }
 
+/// Computes the steps gas by subtracting the builtins' contribution from the Sierra gas.
+pub fn sierra_gas_to_steps_gas(
+    sierra_gas: GasAmount,
+    versioned_constants: &VersionedConstants,
+    builtin_counters: BuiltinCounterMap,
+) -> GasAmount {
+    let builtins_gas_cost = builtins_to_sierra_gas(&builtin_counters, versioned_constants);
+
+    sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
+        panic!(
+            "Invalid gas subtraction: builtins gas exceeds total sierra gas. Sierra gas: {:?}, \
+             Builtins gas: {:?}, Builtins: {:?}",
+            sierra_gas, builtins_gas_cost, builtin_counters
+        )
+    })
+}
+
 pub fn builtins_to_sierra_gas(
     builtin_counts: &BuiltinCounterMap,
     versioned_constants: &VersionedConstants,
