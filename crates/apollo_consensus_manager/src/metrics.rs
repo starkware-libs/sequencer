@@ -1,7 +1,7 @@
 use apollo_metrics::define_metrics;
 
 define_metrics!(
-    Consensus => {
+    ConsensusManager => {
         // topic agnostic metrics
         MetricGauge { CONSENSUS_NUM_CONNECTED_PEERS, "apollo_consensus_num_connected_peers", "The number of connected peers to the consensus p2p component" },
         MetricGauge { CONSENSUS_NUM_BLACKLISTED_PEERS, "apollo_consensus_num_blacklisted_peers", "The number of currently blacklisted peers by the consensus component" },

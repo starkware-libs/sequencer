@@ -1157,6 +1157,7 @@ name = "apollo_dashboard"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_batcher",
+ "apollo_class_manager",
  "apollo_compile_to_casm",
  "apollo_consensus",
  "apollo_consensus_manager",

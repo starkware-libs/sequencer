@@ -6,7 +6,12 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = ["apollo_batcher_types/testing", "pretty_assertions", "starknet_api/testing"]
+testing = [
+    "apollo_batcher_types/testing",
+    "apollo_time/testing",
+    "pretty_assertions",
+    "starknet_api/testing",
+]
 
 [dependencies]
 apollo_batcher_types.workspace = true
