@@ -175,15 +175,28 @@ impl L1ProviderContentBuilder {
     ) -> Self {
         self = self.with_nonzero_timelock_setup();
 
-        let now = u64::try_from(self.clock.as_ref().unwrap().now().timestamp()).unwrap();
+        let now = self.clock.as_ref().unwrap().unix_now();
         let cancellation_request_timestamp = now;
-        let cancel_requested = cancel_requested
-            .into_iter()
-            .map(|tx| (tx, cancellation_request_timestamp))
-            .map(Into::into);
-        self.tx_manager_content_builder =
-            self.tx_manager_content_builder.with_cancel_requested_txs(cancel_requested);
-        self
+        let cancel_requested =
+            cancel_requested.into_iter().map(|tx| (tx, cancellation_request_timestamp));
+        self.with_timed_cancel_requested_txs(cancel_requested)
+    }
+
+    pub fn with_cancelled_txs(
+        mut self,
+        cancelled: impl IntoIterator<Item = L1HandlerTransaction>,
+    ) -> Self {
+        self = self.with_nonzero_timelock_setup();
+
+        let now = self.clock.as_ref().unwrap().unix_now();
+        let cancellation_timelock =
+            self.config.unwrap().l1_handler_cancellation_timelock_seconds.as_secs();
+        // If a tx's timestamp is OLDER than the timelock, then it's timeout is expired and it's
+        // considered fully cancelled on L2.
+        let cancellation_expired = now - (cancellation_timelock + 1);
+        let cancelled = cancelled.into_iter().map(|tx| (tx, cancellation_expired));
+
+        self.with_timed_cancel_requested_txs(cancelled)
     }
 
     /// Use to test timelocking of new l1-handler transactions, if you don't care about the actual
@@ -197,7 +210,7 @@ impl L1ProviderContentBuilder {
     ) -> Self {
         self = self.with_nonzero_timelock_setup();
 
-        let now = u64::try_from(self.clock.as_ref().unwrap().now().timestamp()).unwrap();
+        let now = self.clock.as_ref().unwrap().unix_now();
         // An l1-handler is timelocked if if was created less than `cooldown` seconds ago. Since
         // timelock is nonzero, all txs created `now` are trivially timelocked.
         let timelocked_tx_timestamp = now;
