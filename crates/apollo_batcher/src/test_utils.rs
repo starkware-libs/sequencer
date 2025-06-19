@@ -145,6 +145,7 @@ impl BlockExecutionArtifacts {
             bouncer_weights: BouncerWeights::empty(),
             l2_gas_used: GasAmount::default(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
+            casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
             final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
         }
     }
