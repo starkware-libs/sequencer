@@ -8,10 +8,14 @@ use serde::{Serialize, Serializer};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
+use crate::deployment::P2PCommunicationType;
 use crate::deployment_definitions::Environment;
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
+
+// Controls whether external P2P communication is enabled.
+const ENABLE_EXTERNAL_P2P_COMMUNICATION: bool = false;
 
 const INGRESS_ROUTE: &str = "/gateway";
 const INGRESS_PORT: u16 = 8080;
@@ -39,6 +43,34 @@ pub struct Service {
 pub enum Controller {
     Deployment,
     StatefulSet,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+pub enum K8SServiceType {
+    ClusterIp,
+    LoadBalancer,
+    NodePort,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct K8sServiceConfig {
+    #[serde(rename = "type")]
+    k8s_service_type: K8SServiceType,
+    external_dns_name: Option<String>,
+    internal: bool,
+}
+
+impl K8sServiceConfig {
+    pub fn new(
+        external_dns_name: Option<String>,
+        p2p_communication_type: P2PCommunicationType,
+    ) -> Self {
+        Self {
+            k8s_service_type: p2p_communication_type.get_k8s_service_type(),
+            external_dns_name,
+            internal: ENABLE_EXTERNAL_P2P_COMMUNICATION,
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
