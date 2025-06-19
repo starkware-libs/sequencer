@@ -833,6 +833,23 @@ fn verify_unique_names(alerts: &[Alert]) {
     }
 }
 
+fn get_mempool_evictions_count_alert() -> Alert {
+    Alert {
+        name: "mempool_evictions_count",
+        title: "Mempool evictions count",
+        alert_group: AlertGroup::Mempool,
+        expr: "mempool_evictions_count".to_string(),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::Regular,
+    }
+}
+
 pub fn get_apollo_alerts() -> Alerts {
     let alerts = vec![
         get_batched_transactions_stuck(),
@@ -867,6 +884,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_l1_message_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),
+        get_mempool_evictions_count_alert(),
         get_mempool_get_txs_size_drop(),
         get_mempool_p2p_disconnections(),
         get_mempool_p2p_peer_down(),
