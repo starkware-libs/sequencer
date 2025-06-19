@@ -509,12 +509,12 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
     }
 }
 
-fn get_l1_message_scraper_success_count_alert() -> Alert {
+fn get_l1_message_scraper_no_successes_alert() -> Alert {
     Alert {
-        name: "l1_gas_price_message_success_count",
-        title: "L1 gas price message success count",
+        name: "l1_message_no_successes",
+        title: "L1 message no successes",
         alert_group: AlertGroup::L1GasPrice,
-        expr: format!("increase({}[1h])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
+        expr: format!("increase({}[20m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
@@ -522,7 +522,7 @@ fn get_l1_message_scraper_success_count_alert() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::DayOnly,
+        severity: AlertSeverity::Regular,
     }
 }
 
@@ -735,7 +735,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
         get_eth_to_strk_error_count_alert(),
         get_eth_to_strk_success_count_alert(),
-        get_l1_message_scraper_success_count_alert(),
+        get_l1_message_scraper_no_successes_alert(),
         get_l1_message_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),

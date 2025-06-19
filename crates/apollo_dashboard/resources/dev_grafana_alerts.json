@@ -676,10 +676,10 @@
       "severity": "p3"
     },
     {
-      "name": "l1_gas_price_message_success_count",
-      "title": "L1 gas price message success count",
+      "name": "l1_message_no_successes",
+      "title": "L1 message no successes",
       "ruleGroup": "l1_gas_price",
-      "expr": "increase(l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
       "conditions": [
         {
           "evaluator": {
@@ -700,7 +700,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3"
+      "severity": "p2"
     },
     {
       "name": "l1_message_scraper_baselayer_error_count",
