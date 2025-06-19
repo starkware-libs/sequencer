@@ -1,3 +1,5 @@
+// TODO: Remove this. Do not submit.
+pub mod authentication;
 /// This crate is responsible for sending messages to a given peer and responding to them according
 /// to the [`Starknet p2p specs`]
 ///
