@@ -600,6 +600,8 @@ impl Batcher {
                 compressed_state_diff: block_execution_artifacts.compressed_state_diff,
                 casm_hash_computation_data_sierra_gas: block_execution_artifacts
                     .casm_hash_computation_data_sierra_gas,
+                casm_hash_computation_data_proving_gas: block_execution_artifacts
+                    .casm_hash_computation_data_proving_gas,
             },
         })
     }
