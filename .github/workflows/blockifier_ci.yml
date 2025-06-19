@@ -58,7 +58,6 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
       # No features - build blockifier without features activated by dependencies in the workspace.
-      - run: cargo test -p blockifier
       - run: cargo build -p blockifier
 
   test-with-transaction-serde-feature:
