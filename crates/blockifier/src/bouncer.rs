@@ -251,6 +251,41 @@ impl BuiltinWeights {
             range_check96: 0,
         }
     }
+
+    // TODO(Meshi): Consider code sharing with the builtins_to_sierra_gas function.
+    pub fn calc_gas_from_builtin_counter(&self, builtin_counts: &BuiltinCounterMap) -> GasAmount {
+        let builtin_gas = builtin_counts.iter().fold(0_usize, |accumulated_gas, (name, &count)| {
+            let builtin_weight = self.builtin_weight(name);
+            builtin_weight
+                .checked_mul(count)
+                .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Overflow while converting builtin counters to gas.\nBuiltin: {name}, \
+                         Weight: {builtin_weight}, Count: {count}, Accumulated gas: \
+                         {accumulated_gas}"
+                    )
+                })
+        });
+
+        GasAmount(u64_from_usize(builtin_gas))
+    }
+
+    pub fn builtin_weight(&self, builtin_name: &BuiltinName) -> usize {
+        match builtin_name {
+            BuiltinName::pedersen => self.pedersen,
+            BuiltinName::range_check => self.range_check,
+            BuiltinName::ecdsa => self.ecdsa,
+            BuiltinName::bitwise => self.bitwise,
+            BuiltinName::poseidon => self.poseidon,
+            BuiltinName::keccak => self.keccak,
+            BuiltinName::ec_op => self.ec_op,
+            BuiltinName::mul_mod => self.mul_mod,
+            BuiltinName::add_mod => self.add_mod,
+            BuiltinName::range_check96 => self.range_check96,
+            _ => panic!("Builtin name {builtin_name} is not supported in the bouncer weights."),
+        }
+    }
 }
 
 impl Default for BuiltinWeights {
