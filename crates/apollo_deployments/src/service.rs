@@ -379,17 +379,12 @@ impl DeploymentName {
     pub fn get_component_configs(
         &self,
         ports: Option<Vec<u16>>,
-        environment: &Environment,
     ) -> IndexMap<ServiceName, ComponentConfig> {
         match self {
             // TODO(Tsabary): avoid this code duplication.
-            Self::ConsolidatedNode => {
-                ConsolidatedNodeServiceName::get_component_configs(ports, environment)
-            }
-            Self::HybridNode => HybridNodeServiceName::get_component_configs(ports, environment),
-            Self::DistributedNode => {
-                DistributedNodeServiceName::get_component_configs(ports, environment)
-            }
+            Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(ports),
+            Self::HybridNode => HybridNodeServiceName::get_component_configs(ports),
+            Self::DistributedNode => DistributedNodeServiceName::get_component_configs(ports),
         }
     }
 }
@@ -397,10 +392,7 @@ impl DeploymentName {
 pub trait GetComponentConfigs {
     // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
     // integration test relies on indices rather than service names.
-    fn get_component_configs(
-        ports: Option<Vec<u16>>,
-        environment: &Environment,
-    ) -> IndexMap<ServiceName, ComponentConfig>;
+    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<ServiceName, ComponentConfig>;
 }
 
 impl Serialize for ServiceName {

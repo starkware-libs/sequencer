@@ -7,7 +7,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-pub(crate) const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
+pub(crate) const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)); // Equivalent to `Ipv4Addr::UNSPECIFIED`.
 pub(crate) const DEFAULT_PORT: u16 = 8082;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]

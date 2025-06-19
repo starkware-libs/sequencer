@@ -8,7 +8,7 @@ use serde::Serialize;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
+use crate::deployment_definitions::Environment;
 use crate::service::{
     get_ingress,
     Controller,
@@ -37,14 +37,11 @@ impl From<ConsolidatedNodeServiceName> for ServiceName {
 }
 
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
-    fn get_component_configs(
-        _ports: Option<Vec<u16>>,
-        environment: &Environment,
-    ) -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(_ports: Option<Vec<u16>>) -> IndexMap<ServiceName, ComponentConfig> {
         let mut component_config_map = IndexMap::new();
         component_config_map.insert(
             ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
-            get_consolidated_config(environment),
+            get_consolidated_config(),
         );
         component_config_map
     }
@@ -129,15 +126,8 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
     }
 }
 
-fn get_consolidated_config(environment: &Environment) -> ComponentConfig {
-    let mut base = ReactiveComponentExecutionConfig::local_with_remote_disabled();
-    let EnvironmentComponentConfigModifications {
-        local_server_config,
-        max_concurrency,
-        remote_client_config: _,
-    } = environment.get_component_config_modifications();
-    base.local_server_config = local_server_config;
-    base.max_concurrency = max_concurrency;
+fn get_consolidated_config() -> ComponentConfig {
+    let base = ReactiveComponentExecutionConfig::local_with_remote_disabled();
 
     ComponentConfig {
         batcher: base.clone(),
