@@ -22,6 +22,7 @@ use apollo_gateway::config::{
 };
 use apollo_http_server::test_utils::create_http_server_config;
 use apollo_infra_utils::test_utils::AvailablePorts;
+use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::eth_to_strk_oracle::{EthToStrkOracleConfig, ETH_TO_STRK_QUANTIZATION};
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
@@ -189,6 +190,11 @@ pub fn create_node_config(
         provider_startup_height_override: Some(BlockNumber(1)),
         ..Default::default()
     };
+    let l1_endpoint_monitor_config = L1EndpointMonitorConfig {
+        // This is the Anvil URL, initialized at the callsite.
+        // TODO(Gilad): make this explicit in the Anvil refactor.
+        ordered_l1_endpoint_urls: vec![base_layer_config.node_url.clone()],
+    };
     let override_gas_price_threshold_check = allow_bootstrap_txs;
     let mempool_config = create_mempool_config(override_gas_price_threshold_check);
     let l1_gas_price_provider_config = L1GasPriceProviderConfig {
@@ -247,6 +253,7 @@ pub fn create_node_config(
             components: component_config,
             l1_scraper_config,
             l1_provider_config,
+            l1_endpoint_monitor_config,
             l1_gas_price_provider_config,
             ..Default::default()
         },

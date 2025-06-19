@@ -28,7 +28,7 @@ use crate::service::{
     Toleration,
 };
 
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 8;
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 
@@ -70,10 +70,12 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let l1_gas_price_provider =
             HybridNodeServiceName::Core.component_config_pair(ports[3], environment);
         let l1_provider = HybridNodeServiceName::Core.component_config_pair(ports[4], environment);
-        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5], environment);
+        let l1_endpoint_monitor =
+            HybridNodeServiceName::Core.component_config_pair(ports[5], environment);
+        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[6], environment);
         let sierra_compiler =
-            HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6], environment);
-        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7], environment);
+            HybridNodeServiceName::SierraCompiler.component_config_pair(ports[7], environment);
+        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[8], environment);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -82,6 +84,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     class_manager.local(),
                     l1_gas_price_provider.local(),
                     l1_provider.local(),
+                    l1_endpoint_monitor.local(),
                     state_sync.local(),
                     mempool.remote(),
                     sierra_compiler.remote(),
@@ -355,11 +358,13 @@ impl HybridNodeServiceConfigPair {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn get_core_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
     class_manager_local_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
     l1_provider_local_config: ReactiveComponentExecutionConfig,
+    l1_endpoint_monitor_local_config: ReactiveComponentExecutionConfig,
     state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
@@ -372,6 +377,7 @@ fn get_core_component_config(
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
+    config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
     config.sierra_compiler = sierra_compiler_remote_config;
     config.state_sync = state_sync_local_config;
     config.mempool = mempool_remote_config;
