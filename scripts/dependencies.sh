@@ -6,21 +6,7 @@ set -e
 
 function install_essential_deps_linux() {
     $SUDO bash -c '
-        apt update && apt install -y \
-            ca-certificates \
-            curl \
-            git \
-            gnupg \
-            jq \
-            libssl-dev \
-            lsb-release \
-            pkg-config \
-            ripgrep \
-            software-properties-common \
-            zstd \
-            wget \
-            lld
-  '
+        apt update && apt install -y lld'
 }
 
 function setup_llvm_deps() {
@@ -50,9 +36,8 @@ function setup_llvm_deps() {
 
 function main() {
     [ "$(uname)" = "Linux" ] && install_essential_deps_linux
-    setup_llvm_deps
+    # setup_llvm_deps
     echo "LLVM dependencies installed successfully."
 }
 
 main "$@"
-
