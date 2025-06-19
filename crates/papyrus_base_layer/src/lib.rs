@@ -15,6 +15,7 @@ use starknet_api::transaction::L1HandlerTransaction;
 
 pub mod constants;
 pub mod ethereum_base_layer_contract;
+pub mod monitored_base_layer;
 
 pub(crate) mod eth_events;
 
