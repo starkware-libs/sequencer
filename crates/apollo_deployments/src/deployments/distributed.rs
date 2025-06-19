@@ -81,6 +81,8 @@ impl GetComponentConfigs for DistributedNodeServiceName {
             .component_config_pair(Some(base_port + 6), environment);
         let state_sync = DistributedNodeServiceName::StateSync
             .component_config_pair(Some(base_port + 7), environment);
+        let signature_manager = DistributedNodeServiceName::ConsensusManager
+            .component_config_pair(Some(base_port + 8), environment);
 
         for inner_service_name in DistributedNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -100,6 +102,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                         class_manager.remote(),
                         l1_gas_price_provider.remote(),
                         state_sync.remote(),
+                        signature_manager.remote(),
                     )
                 }
                 DistributedNodeServiceName::HttpServer => {
@@ -431,6 +434,7 @@ fn get_consensus_manager_component_config(
     class_manager_remote_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
+    signature_manager_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
     let mut config = ComponentConfig::disabled();
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
@@ -439,6 +443,7 @@ fn get_consensus_manager_component_config(
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config.signature_manager = signature_manager_remote_config;
     config
 }
 
