@@ -105,7 +105,7 @@ pub struct BlockExecutionArtifacts {
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
-    pub casm_hash_computation_data: CasmHashComputationData,
+    pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     // The number of transactions executed by the proposer out of the transactions that were sent.
     // This value includes rejected transactions.
     pub final_n_executed_txs: usize,
@@ -301,7 +301,7 @@ impl BlockBuilder {
             state_diff,
             compressed_state_diff,
             bouncer_weights,
-            casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas,
         } = block_summary;
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
@@ -319,7 +319,7 @@ impl BlockBuilder {
             compressed_state_diff,
             bouncer_weights,
             l2_gas_used,
-            casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas,
             final_n_executed_txs: final_n_executed_txs_nonopt,
         })
     }
