@@ -387,32 +387,31 @@ pub fn finalize_execution(
 
     let call_result = get_call_result(&runner, &syscall_handler, &tracked_resource)?;
 
-    let vm_resources_without_inner_calls = match tracked_resource {
-        TrackedResource::CairoSteps => {
-            // Take into account the resources of the current call, without inner calls.
-            // Has to happen after marking holes in segments as accessed.
-            let mut vm_resources_without_inner_calls = runner
-                .get_execution_resources()
-                .map_err(VirtualMachineError::RunnerError)?
-                .filter_unused_builtins();
-            let versioned_constants = syscall_handler.base.context.versioned_constants();
-            if versioned_constants.segment_arena_cells {
-                vm_resources_without_inner_calls
-                    .builtin_instance_counter
-                    .get_mut(&BuiltinName::segment_arena)
-                    .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
-            }
-            // Take into account the syscall resources of the current call.
-            vm_resources_without_inner_calls += &versioned_constants
-                .get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
-            vm_resources_without_inner_calls
-        }
-        TrackedResource::SierraGas => ExecutionResources::default(),
+    // Take into account the resources of the current call, without inner calls.
+    // Has to happen after marking holes in segments as accessed.
+    let mut vm_resources_without_inner_calls = runner
+        .get_execution_resources()
+        .map_err(VirtualMachineError::RunnerError)?
+        .filter_unused_builtins();
+    let versioned_constants = syscall_handler.base.context.versioned_constants();
+    if versioned_constants.segment_arena_cells {
+        vm_resources_without_inner_calls
+            .builtin_instance_counter
+            .get_mut(&BuiltinName::segment_arena)
+            .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
+    }
+    // Take into account the syscall resources of the current call.
+    vm_resources_without_inner_calls +=
+        &versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
+
+    let tracked_vm_resources_without_inner_calls = match tracked_resource {
+        TrackedResource::CairoSteps => &vm_resources_without_inner_calls,
+        TrackedResource::SierraGas => &ExecutionResources::default(),
     };
 
     syscall_handler.finalize();
 
-    let vm_resources = &vm_resources_without_inner_calls
+    let vm_resources = tracked_vm_resources_without_inner_calls
         + &CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
     let syscall_handler_base = syscall_handler.base;
     Ok(CallInfo {
@@ -431,6 +430,7 @@ pub fn finalize_execution(
         accessed_storage_keys: syscall_handler_base.accessed_keys,
         read_class_hash_values: syscall_handler_base.read_class_hash_values,
         accessed_contract_addresses: syscall_handler_base.accessed_contract_addresses,
+        builtin_counters: vm_resources_without_inner_calls.builtin_instance_counter,
     })
 }
 

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::utils::BuiltinCosts;
 
@@ -102,5 +104,7 @@ fn create_callinfo(
         accessed_contract_addresses: syscall_handler.base.accessed_contract_addresses,
         read_class_hash_values: syscall_handler.base.read_class_hash_values,
         tracked_resource: TrackedResource::SierraGas,
+        // TODO(Noa): Use non-trivial values once native supports builtins counting.
+        builtin_counters: HashMap::default(),
     })
 }
