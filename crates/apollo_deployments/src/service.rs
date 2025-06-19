@@ -308,6 +308,11 @@ impl ServiceName {
         // TODO(Tsabary): implement anti-affinity logic.
         self.as_inner().get_anti_affinity(environment)
     }
+
+    // Kubernetes service name as defined by CDK8s.
+    pub fn k8s_service_name(&self) -> String {
+        self.as_inner().k8s_service_name()
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -330,6 +335,12 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_replicas(&self, environment: &Environment) -> usize;
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool;
+
+    // Kubernetes service name as defined by CDK8s.
+    fn k8s_service_name(&self) -> String {
+        let formatted_service_name = self.to_string().replace('_', "");
+        format!("sequencer-{}-service", formatted_service_name)
+    }
 }
 
 impl DeploymentName {
