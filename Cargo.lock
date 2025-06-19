@@ -1409,6 +1409,7 @@ version = "0.15.0-rc.2"
 dependencies = [
  "alloy",
  "mockito 1.6.1",
+ "papyrus_base_layer",
  "serde",
  "thiserror 1.0.69",
  "tokio",
