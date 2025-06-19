@@ -32,6 +32,37 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+
+  changes-filter:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      blockifier: ${{ steps.filter.outputs.blockifier }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            blockifier:
+              - '.github/actions/bootstrap/action.yml'
+              - '.github/workflows/main.yml'
+              - '.github/workflows/upload_artifacts_workflow.yml'
+              - 'build_native_in_docker.sh'
+              - 'Cargo.lock'
+              - 'Cargo.toml'
+              - 'crates/blockifier/**'
+              - 'crates/blockifier_test_utils/**'
+              - 'crates/native_blockifier/**'
+              - 'crates/apollo_sierra_multicompile/build.rs'
+              - 'scripts/build_native_blockifier.sh'
+              - 'scripts/dependencies.sh'
+              - 'scripts/install_build_tools.sh'
+              - 'scripts/sequencer-ci.Dockerfile'
+
+
+
   code_style:
     runs-on: starkware-ubuntu-24.04-medium
     steps:
@@ -100,6 +131,8 @@ jobs:
       - name: Run Machete (detect unused dependencies)
         run: cargo machete
 
+
+
   run-workspace-tests:
     runs-on: starkware-ubuntu-24.04-medium
     steps:
@@ -111,6 +144,7 @@ jobs:
 
   run-tests:
     runs-on: starkware-ubuntu-24.04-large
+    needs: changes-filter
     steps:
       - uses: actions/checkout@v4
         with:
@@ -150,6 +184,28 @@ jobs:
           scripts/run_tests.py --command test
         env:
           SEED: 0
+          
+      - name: Blockifier build
+        if: needs.changes-filter.outputs.blockifier == 'true'
+        run: cargo build -p blockifier
+
+      - name: Blockifier - transaction_serde
+        if: needs.changes-filter.outputs.blockifier == 'true'
+        run: |
+          cargo test -p blockifier --features transaction_serde &&
+          cargo build -p blockifier --features transaction_serde
+
+      - name: Blockifier - cairo_native
+        if: needs.changes-filter.outputs.blockifier == 'true'
+        run: |
+          cargo test -p blockifier --features cairo_native &&
+          cargo build -p blockifier --features cairo_native
+
+      - name: Blockifier - tracing
+        if: needs.changes-filter.outputs.blockifier == 'true'
+        run: |
+          cargo test -p blockifier --features tracing &&
+          cargo build -p blockifier --features tracing
 
   run-integration-tests:
     runs-on: starkware-ubuntu-24.04-large
