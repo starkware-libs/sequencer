@@ -67,10 +67,6 @@ jobs:
           cargo update -w --locked
           git diff --exit-code Cargo.lock
 
-      # Make sure no submodules are out of date or missing.
-      - name: "Check submodules"
-        run: git submodule status
-
       # Run code style on PR.
       - name: "Run TODO style pull request"
         if: github.event_name == 'pull_request'
