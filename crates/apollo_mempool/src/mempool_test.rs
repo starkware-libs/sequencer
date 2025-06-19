@@ -1599,6 +1599,64 @@ fn returns_error_when_no_evictable_accounts() {
 }
 
 #[rstest]
+#[case::tx_follows_gap("0x0")] // Adding a tx after a gap.
+#[case::first_tx_creates_gap("0x1")] // Adding a tx that creates a gap.
+fn rejects_tx_that_creates_or_follows_gap_when_mempool_is_full(#[case] addr: &str) {
+    let tx1 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    let mut mempool = Mempool::new(
+        MempoolConfig { capacity_in_bytes: tx1.tx.total_bytes(), ..Default::default() },
+        Arc::new(FakeClock::default()),
+    );
+
+    add_tx(&mut mempool, &tx1);
+
+    let tx2 = add_tx_input!(tx_hash: 2, address: addr, tx_nonce: 2, account_nonce: 0);
+    add_tx_expect_error(&mut mempool, &tx2, MempoolError::MempoolFull);
+}
+
+#[rstest]
+fn accepts_tx_that_closes_gap() {
+    // Insert a transaction that creates a gap and fills the Mempool.
+    let tx_creating_gap = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    let mut mempool = Mempool::new(
+        MempoolConfig { capacity_in_bytes: tx_creating_gap.tx.total_bytes(), ..Default::default() },
+        Arc::new(FakeClock::default()),
+    );
+    add_tx(&mut mempool, &tx_creating_gap);
+    assert!(mempool.accounts_with_gap().contains(&contract_address!("0x0")));
+
+    let tx_resolving_gap = add_tx_input!(tx_hash: 2, address: "0x0", tx_nonce: 0, account_nonce: 0);
+    // Insert a transaction that closes the gap and triggers eviction.
+    add_tx(&mut mempool, &tx_resolving_gap);
+    assert!(mempool.tx_pool.get_by_tx_hash(tx_resolving_gap.tx.tx_hash()).is_ok());
+    assert!(mempool.tx_pool.get_by_tx_hash(tx_creating_gap.tx.tx_hash()).is_err());
+}
+
+#[rstest]
+fn accepts_tx_for_active_account_without_gap() {
+    let evictable_tx = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 1, account_nonce: 0);
+    let initial_tx = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0);
+    let new_tx = add_tx_input!(tx_hash: 3, address: "0x1", tx_nonce: 1, account_nonce: 0);
+
+    // Set Mempool capacity to fit only two transactions.
+    let capacity = evictable_tx.tx.total_bytes() + initial_tx.tx.total_bytes();
+    let mut mempool = Mempool::new(
+        MempoolConfig { capacity_in_bytes: capacity, ..Default::default() },
+        Arc::new(FakeClock::default()),
+    );
+
+    // Fill the Mempool.
+    add_tx(&mut mempool, &initial_tx);
+    add_tx(&mut mempool, &evictable_tx);
+
+    // Add another tx from an active, gap-free account (should trigger eviction).
+    add_tx(&mut mempool, &new_tx);
+
+    // Confirm eviction occurred.
+    assert!(mempool.tx_pool.get_by_tx_hash(evictable_tx.tx.tx_hash()).is_err());
+}
+
+#[rstest]
 #[case::insufficient_eviction_space(20, false)]
 #[case::sufficient_eviction_space(8, true)]
 fn rejects_or_accepts_tx_based_on_freed_space(
