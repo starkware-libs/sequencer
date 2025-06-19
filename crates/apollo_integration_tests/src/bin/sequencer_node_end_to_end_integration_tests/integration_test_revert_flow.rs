@@ -32,12 +32,16 @@ async fn main() {
     const MAX_ATTEMPTS: usize = 50;
     const AWAIT_REVERT_TIMEOUT_DURATION: Duration = Duration::from_secs(15);
 
+    /// The number of sender accounts to use in the test.
+    const SENDER_ACCOUNTS: usize = 2;
+
     // Get the sequencer configurations.
     let mut integration_test_manager = IntegrationTestManager::new(
         N_CONSOLIDATED_SEQUENCERS,
         N_DISTRIBUTED_SEQUENCERS,
         None,
         TestIdentifier::RevertFlowIntegrationTest,
+        SENDER_ACCOUNTS,
     )
     .await;
 
