@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import sys
 from typing import List, Tuple
@@ -18,6 +19,14 @@ def load_services(deployment_config_path: str) -> List[Tuple[str, str]]:
         (svc["name"], svc["controller"])
         for svc in deployment_config.get("services", [])
     ]
+
+
+def list_all_files(data_dir: str) -> None:
+    print(f"📂 Listing all files in {data_dir}...")
+    for root, _, files in os.walk(data_dir):
+        for file in files:
+            file_path = os.path.join(root, file)
+            print(f"📄 {file_path}")
 
 
 def copy_state(pod_name: str, data_dir: str) -> None:
@@ -121,6 +130,7 @@ def main(deployment_config_path: str, data_dir: str) -> None:
 
         print(f"{service_name} pod found - {pod_name}")
 
+        list_all_files(data_dir)
         copy_state(pod_name=pod_name, data_dir=data_dir)
         delete_pod(pod_name=pod_name)
 
@@ -130,6 +140,23 @@ def main(deployment_config_path: str, data_dir: str) -> None:
     for controller, resource_name in resources_to_wait_for:
         wait_for_resource(controller=controller, name=resource_name)
         print(f"✅ {controller}/{resource_name} is ready!")
+        try:
+            result = run(
+                ["kubectl", "exec", pod_name, "--", "find", "/data", "-type", "f"],
+                capture_output=True,
+            )
+            files = result.stdout.strip()
+            if not files:
+                print(f"❌ Verification failed: /data is empty in pod {pod_name}")
+                sys.exit(1)
+            else:
+                print(
+                    f"✅ Verification successful: /data in pod {pod_name} contains files:"
+                )
+                print(files)
+        except subprocess.CalledProcessError as e:
+            print(f"❌ Failed to verify copied data in pod {pod_name}: {e}")
+            sys.exit(1)
 
     print("\n✅ All services are ready!")
 
