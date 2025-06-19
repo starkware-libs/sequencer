@@ -325,8 +325,8 @@
       "severity": "p5"
     },
     {
-      "name": "consensus_p2p_peer_down",
-      "title": "Consensus p2p peer down",
+      "name": "consensus_p2p_disconnections",
+      "title": "Consensus p2p disconnections",
       "ruleGroup": "consensus",
       "expr": "changes(apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / 2",
       "conditions": [
@@ -892,8 +892,8 @@
       "severity": "p2"
     },
     {
-      "name": "mempool_p2p_peer_down",
-      "title": "Mempool p2p peer down",
+      "name": "mempool_p2p_disconnections",
+      "title": "Mempool p2p disconnections",
       "ruleGroup": "mempool",
       "expr": "changes(apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / 2",
       "conditions": [
