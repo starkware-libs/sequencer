@@ -47,6 +47,7 @@ fn test_library_call(runnable_version: RunnableCairo1) {
         CallExecution {
             retdata: retdata![felt!(91_u16)],
             gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
+            cairo_native: runnable_version.is_cairo_native(),
             ..Default::default()
         }
     );
@@ -85,6 +86,7 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
                 felt!("0x454e545259504f494e545f4641494c4544")
             ]),
             gas_consumed: 105050,
+            cairo_native: runnable_version.is_cairo_native(),
             failed: true,
             ..Default::default()
         }
@@ -159,6 +161,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
             gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+            cairo_native: runnable_version.is_cairo_native(),
             ..CallExecution::default()
         },
         tracked_resource,
@@ -175,6 +178,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
             gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
+            cairo_native: runnable_version.is_cairo_native(),
             ..CallExecution::default()
         },
         inner_calls: vec![nested_storage_call_info],
@@ -190,6 +194,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         execution: CallExecution {
             retdata: retdata![felt!(value)],
             gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+            cairo_native: runnable_version.is_cairo_native(),
             ..CallExecution::default()
         },
         storage_read_values: vec![felt!(value)],
@@ -207,6 +212,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         execution: CallExecution {
             retdata: retdata![felt!(value)],
             gas_consumed: main_gas_consumed,
+            cairo_native: runnable_version.is_cairo_native(),
             ..CallExecution::default()
         },
         inner_calls: vec![library_call_info, storage_call_info],

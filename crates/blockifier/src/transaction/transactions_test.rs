@@ -216,6 +216,7 @@ fn expected_validate_call_info(
         CairoVersion::Cairo0 => Retdata::default(),
         CairoVersion::Cairo1(_) => retdata!(*constants::VALIDATE_RETDATA),
     };
+    let cairo_native = cairo_version.is_cairo_native();
     // Extra range checks in regular (invoke) validate call, due to calldata passed as array.
     let n_range_checks = match cairo_version {
         CairoVersion::Cairo0 => {
@@ -286,7 +287,7 @@ fn expected_validate_call_info(
         },
         // The account contract we use for testing has trivial `validate` functions.
         resources: vm_resources,
-        execution: CallExecution { retdata, gas_consumed, ..Default::default() },
+        execution: CallExecution { retdata, gas_consumed, cairo_native, ..Default::default() },
         tracked_resource,
         builtin_counters: HashMap::from([(BuiltinName::range_check, n_range_checks)])
             .into_iter()
@@ -500,6 +501,7 @@ fn test_invoke_tx(
     let test_contract_address = test_contract.get_instance_address(0);
     let account_contract_address = account_contract.get_instance_address(0);
     let calldata = create_trivial_calldata(test_contract_address);
+    let cairo_native = account_cairo_version.is_cairo_native();
     let invoke_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_contract_address,
         calldata: Calldata(Arc::clone(&calldata.0)),
@@ -583,7 +585,10 @@ fn test_invoke_tx(
     let expected_return_result_retdata = Retdata(expected_return_result_calldata);
     let expected_inner_calls = vec![CallInfo {
         call: expected_return_result_call,
-        execution: CallExecution::from_retdata(expected_return_result_retdata.clone()),
+        execution: CallExecution {
+            retdata: expected_return_result_retdata.clone(),
+            ..Default::default()
+        },
         resources: expected_inner_call_vm_resources.clone(),
         ..Default::default()
     }];
@@ -610,6 +615,7 @@ fn test_invoke_tx(
         execution: CallExecution {
             retdata: Retdata(expected_return_result_retdata.0),
             gas_consumed: expected_arguments.execute_gas_consumed,
+            cairo_native,
             ..Default::default()
         },
         resources: expected_arguments.resources,

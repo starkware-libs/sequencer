@@ -44,6 +44,7 @@ fn test_out_of_gas(runnable_version: RunnableCairo1) {
             gas_consumed: constants::REQUIRED_GAS_GET_BLOCK_HASH_TEST
                 - syscall_required_gas
                 - redeposit_gas,
+            cairo_native: runnable_version.is_cairo_native(),
             failed: true,
             ..Default::default()
         }
