@@ -115,7 +115,7 @@ fn test_block_weights_has_room_n_txs(
         sierra_gas: GasAmount(10),
         n_txs: 1,
     },
-    casm_hash_computation_data: CasmHashComputationData{
+    casm_hash_computation_data_sierra_gas: CasmHashComputationData{
         class_hash_to_casm_hash_computation_gas: HashMap::from([
         (class_hash!(0_u128), GasAmount(5))]),
         sierra_gas_without_casm_hash_computation: GasAmount(5),
@@ -143,14 +143,14 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     let class_hash_to_casm_hash_computation_gas_to_update =
         HashMap::from([(class_hash!(1_u128), GasAmount(1)), (class_hash!(2_u128), GasAmount(2))]);
 
-    let casm_hash_computation_data = CasmHashComputationData {
+    let casm_hash_computation_data_sierra_gas = CasmHashComputationData {
         class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_gas_to_update,
         sierra_gas_without_casm_hash_computation: GasAmount(6),
     };
 
     let tx_weights = TxWeights {
         bouncer_weights: weights_to_update,
-        casm_hash_computation_data: casm_hash_computation_data.clone(),
+        casm_hash_computation_data_sierra_gas: casm_hash_computation_data_sierra_gas.clone(),
     };
 
     let state_changes_keys_to_update =
@@ -165,7 +165,9 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         .extend(&execution_summary_to_update.visited_storage_entries);
     expected_bouncer.state_changes_keys.extend(&state_changes_keys_to_update);
     expected_bouncer.accumulated_weights += weights_to_update;
-    expected_bouncer.casm_hash_computation_data.extend(casm_hash_computation_data.clone());
+    expected_bouncer
+        .casm_hash_computation_data_sierra_gas
+        .extend(casm_hash_computation_data_sierra_gas.clone());
 
     assert_eq!(updated_bouncer, expected_bouncer);
 }
