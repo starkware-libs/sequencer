@@ -68,6 +68,12 @@ use apollo_infra::metrics::{
     SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
     SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
     SIERRA_COMPILER_REMOTE_VALID_MSGS_RECEIVED,
+    SIGNATURE_MANAGER_LOCAL_MSGS_PROCESSED,
+    SIGNATURE_MANAGER_LOCAL_MSGS_RECEIVED,
+    SIGNATURE_MANAGER_LOCAL_QUEUE_DEPTH,
+    SIGNATURE_MANAGER_REMOTE_MSGS_PROCESSED,
+    SIGNATURE_MANAGER_REMOTE_MSGS_RECEIVED,
+    SIGNATURE_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
     STATE_SYNC_LOCAL_MSGS_PROCESSED,
     STATE_SYNC_LOCAL_MSGS_RECEIVED,
     STATE_SYNC_LOCAL_QUEUE_DEPTH,
@@ -92,6 +98,10 @@ use apollo_mempool_p2p::propagator::{
 };
 use apollo_mempool_p2p::runner::MempoolP2pRunnerServer;
 use apollo_monitoring_endpoint::communication::MonitoringEndpointServer;
+use apollo_signature_manager::communication::{
+    LocalSignatureManagerServer,
+    RemoteSignatureManagerServer,
+};
 use apollo_state_sync::runner::StateSyncRunnerServer;
 use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
 use futures::stream::FuturesUnordered;
@@ -118,6 +128,7 @@ struct LocalServers {
     pub(crate) mempool: Option<Box<LocalMempoolServer>>,
     pub(crate) mempool_p2p_propagator: Option<Box<LocalMempoolP2pPropagatorServer>>,
     pub(crate) sierra_compiler: Option<Box<LocalSierraCompilerServer>>,
+    pub(crate) signature_manager: Option<Box<LocalSignatureManagerServer>>,
     pub(crate) state_sync: Option<Box<LocalStateSyncServer>>,
 }
 
@@ -144,6 +155,7 @@ pub struct RemoteServers {
     pub mempool: Option<Box<RemoteMempoolServer>>,
     pub mempool_p2p_propagator: Option<Box<RemoteMempoolP2pPropagatorServer>>,
     pub sierra_compiler: Option<Box<RemoteSierraCompilerServer>>,
+    pub signature_manager: Option<Box<RemoteSignatureManagerServer>>,
     pub state_sync: Option<Box<RemoteStateSyncServer>>,
 }
 
@@ -447,6 +459,20 @@ fn create_local_servers(
         state_sync_metrics
     );
 
+    let signature_manager_metrics = LocalServerMetrics::new(
+        &SIGNATURE_MANAGER_LOCAL_MSGS_RECEIVED,
+        &SIGNATURE_MANAGER_LOCAL_MSGS_PROCESSED,
+        &SIGNATURE_MANAGER_LOCAL_QUEUE_DEPTH,
+    );
+    let signature_manager_server = create_local_server!(
+        CONCURRENT_LOCAL_SERVER,
+        &config.components.signature_manager.execution_mode,
+        &mut components.signature_manager,
+        communication.take_signature_manager_rx(),
+        signature_manager_metrics,
+        config.components.signature_manager.max_concurrency
+    );
+
     LocalServers {
         batcher: batcher_server,
         class_manager: class_manager_server,
@@ -456,6 +482,7 @@ fn create_local_servers(
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
         sierra_compiler: sierra_compiler_server,
+        signature_manager: signature_manager_server,
         state_sync: state_sync_server,
     }
 }
@@ -481,6 +508,7 @@ impl LocalServers {
             server_future_and_label(self.mempool, "Local Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Local Mempool P2p Propagator"),
             server_future_and_label(self.sierra_compiler, "Concurrent Local Sierra Compiler"),
+            server_future_and_label(self.signature_manager, "Concurrent Local Signature Manager"),
             server_future_and_label(self.state_sync, "Local State Sync"),
         ])
         .await
@@ -603,6 +631,20 @@ pub fn create_remote_servers(
         sierra_compiler_metrics
     );
 
+    let signature_manager_metrics = RemoteServerMetrics::new(
+        &SIGNATURE_MANAGER_REMOTE_MSGS_RECEIVED,
+        &SIGNATURE_MANAGER_REMOTE_VALID_MSGS_RECEIVED,
+        &SIGNATURE_MANAGER_REMOTE_MSGS_PROCESSED,
+    );
+    let signature_manager_server = create_remote_server!(
+        &config.components.signature_manager.execution_mode,
+        || { clients.get_signature_manager_local_client() },
+        config.components.signature_manager.ip,
+        config.components.signature_manager.port,
+        config.components.signature_manager.max_concurrency,
+        signature_manager_metrics
+    );
+
     let state_sync_metrics = RemoteServerMetrics::new(
         &STATE_SYNC_REMOTE_MSGS_RECEIVED,
         &STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED,
@@ -626,6 +668,7 @@ pub fn create_remote_servers(
         mempool: mempool_server,
         mempool_p2p_propagator: mempool_p2p_propagator_server,
         sierra_compiler: sierra_compiler_server,
+        signature_manager: signature_manager_server,
         state_sync: state_sync_server,
     }
 }
@@ -641,6 +684,7 @@ impl RemoteServers {
             server_future_and_label(self.mempool, "Remote Mempool"),
             server_future_and_label(self.mempool_p2p_propagator, "Remote Mempool P2p Propagator"),
             server_future_and_label(self.sierra_compiler, "Remote Sierra Compiler"),
+            server_future_and_label(self.signature_manager, "Remote Signature Manager"),
             server_future_and_label(self.state_sync, "Remote State Sync"),
         ])
         .await

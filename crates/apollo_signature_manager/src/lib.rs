@@ -3,8 +3,12 @@ pub mod signature_manager;
 
 use std::ops::Deref;
 
+use apollo_infra::component_definitions::ComponentStarter;
+use async_trait::async_trait;
+
 use crate::signature_manager::{LocalKeyStore, SignatureManager as GenericSignatureManager};
 
+#[derive(Clone, Debug)]
 pub struct LocalKeyStoreSignatureManager(pub GenericSignatureManager<LocalKeyStore>);
 
 impl LocalKeyStoreSignatureManager {
@@ -34,3 +38,6 @@ pub use LocalKeyStoreSignatureManager as SignatureManager;
 pub fn create_signature_manager() -> SignatureManager {
     SignatureManager::new()
 }
+
+#[async_trait]
+impl ComponentStarter for SignatureManager {}
