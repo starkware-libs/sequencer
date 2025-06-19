@@ -18,6 +18,14 @@ pub struct StarknetOsRunnerOutput {
     pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
 }
 
+pub struct StarknetAggregatorRunnerOutput {
+    // TODO(Aner): Define a struct for the output.
+    pub aggregator_output: Vec<Felt>,
+    pub cairo_pie: CairoPie,
+    #[cfg(any(test, feature = "testing"))]
+    pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
+}
+
 // Retrieve the output ptr data of a finalized run as a vec of felts.
 pub fn get_run_output(vm: &VirtualMachine) -> Result<Vec<Felt>, StarknetOsError> {
     let (output_base, output_size) = get_output_info(vm)?;
