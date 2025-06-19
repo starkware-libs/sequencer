@@ -169,6 +169,23 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    pub fn with_cancel_requested_txs(
+        mut self,
+        cancel_requested: impl IntoIterator<Item = L1HandlerTransaction>,
+    ) -> Self {
+        self = self.with_nonzero_timelock_setup();
+
+        let now = u64::try_from(self.clock.as_ref().unwrap().now().timestamp()).unwrap();
+        let cancellation_request_timestamp = now;
+        let cancel_requested = cancel_requested
+            .into_iter()
+            .map(|tx| (tx, cancellation_request_timestamp))
+            .map(Into::into);
+        self.tx_manager_content_builder =
+            self.tx_manager_content_builder.with_cancel_requested_txs(cancel_requested);
+        self
+    }
+
     /// Use to test timelocking of new l1-handler transactions, if you don't care about the actual
     /// timestamp values. If you want to test specific timestamp values, use `with_timed_txs` and
     /// set clock and cooldown configs manually through the setters.
