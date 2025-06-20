@@ -17,9 +17,12 @@ pub enum CompressionError {
 }
 
 /// Compress the value using gzip with the default compression level and encode it in base64.
-pub fn compress_and_encode(value: serde_json::Value) -> Result<String, std::io::Error> {
+pub fn compress_and_encode<T>(value: &T) -> Result<String, std::io::Error>
+where
+    T: ?Sized + serde::Serialize,
+{
     let mut compressor = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
-    serde_json::to_writer(&mut compressor, &value)?;
+    serde_json::to_writer(&mut compressor, value)?;
     let compressed_data = compressor.finish()?;
     Ok(base64::encode(compressed_data))
 }

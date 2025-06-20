@@ -137,12 +137,8 @@ impl TryFrom<protobuf::Cairo0Class> for deprecated_contract_class::ContractClass
 
 impl From<deprecated_contract_class::ContractClass> for protobuf::Cairo0Class {
     fn from(value: deprecated_contract_class::ContractClass) -> Self {
-        // TODO(Shahak): remove expects and handle results properly
-        let serialized_program = serde_json::to_value(&value.program)
-            .expect("Failed to serialize Cairo 0 program to serde_json::Value");
-
         // TODO(Shahak): consider storing the encoded program
-        let encoded_program = compress_and_encode(serialized_program)
+        let encoded_program = compress_and_encode(&value.program)
             .expect("Failed to compress and encode serialized Cairo 0 program");
 
         // TODO(Shahak): remove expects and handle results properly

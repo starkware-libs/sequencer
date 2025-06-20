@@ -142,9 +142,9 @@ impl TryFrom<BroadcastedDeclareTransaction> for client_transaction::DeclareTrans
             BroadcastedDeclareTransaction::V2(declare_v2) => {
                 Ok(Self::DeclareV2(client_transaction::DeclareV2Transaction {
                     contract_class: client_transaction::ContractClass {
-                        compressed_sierra_program: compress_and_encode(serde_json::to_value(
+                        compressed_sierra_program: compress_and_encode(
                             &declare_v2.contract_class.sierra_program,
-                        )?)?,
+                        )?,
                         contract_class_version: declare_v2.contract_class.contract_class_version,
                         entry_points_by_type: declare_v2
                             .contract_class
@@ -164,9 +164,9 @@ impl TryFrom<BroadcastedDeclareTransaction> for client_transaction::DeclareTrans
             BroadcastedDeclareTransaction::V3(declare_v3) => {
                 Ok(Self::DeclareV3(client_transaction::DeclareV3Transaction {
                     contract_class: client_transaction::ContractClass {
-                        compressed_sierra_program: compress_and_encode(serde_json::to_value(
+                        compressed_sierra_program: compress_and_encode(
                             &declare_v3.contract_class.sierra_program,
-                        )?)?,
+                        )?,
                         contract_class_version: declare_v3.contract_class.contract_class_version,
                         entry_points_by_type: declare_v3
                             .contract_class

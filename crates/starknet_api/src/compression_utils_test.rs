@@ -6,9 +6,9 @@ use crate::test_utils::read_json_file;
 
 #[test]
 fn compress_and_encode_hardcoded_value() {
-    let sierra_program = read_json_file("sierra_program.json");
+    let value = compress_and_encode(&read_json_file::<_, serde_json::Value>("sierra_program.json"))
+        .unwrap();
     let expected_value: String = read_json_file("sierra_program_base64.json");
-    let value = compress_and_encode(sierra_program).unwrap();
     assert_eq!(value, expected_value);
 }
 

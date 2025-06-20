@@ -297,8 +297,7 @@ impl TryFrom<SierraContractClass> for DeprecatedGatewaySierraContractClass {
     type Error = CompressionError;
 
     fn try_from(sierra_contract_class: SierraContractClass) -> Result<Self, Self::Error> {
-        let sierra_program =
-            compress_and_encode(serde_json::to_value(sierra_contract_class.sierra_program)?)?;
+        let sierra_program = compress_and_encode(&sierra_contract_class.sierra_program)?;
         Ok(DeprecatedGatewaySierraContractClass {
             sierra_program,
             contract_class_version: sierra_contract_class.contract_class_version,
