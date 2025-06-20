@@ -1182,7 +1182,6 @@ name = "apollo_deployments"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_config",
- "apollo_infra",
  "apollo_infra_utils",
  "apollo_node",
  "apollo_protobuf",

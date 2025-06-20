@@ -1,7 +1,5 @@
 use std::path::PathBuf;
 
-use apollo_infra::component_client::RemoteClientConfig;
-use apollo_infra::component_server::LocalServerConfig;
 use const_format::formatcp;
 use serde_json::{Map, Value};
 use starknet_api::block::BlockNumber;
@@ -59,19 +57,6 @@ impl Environment {
         PathBuf::from(CONFIG_BASE_DIR).join(self.to_string()).join(APP_CONFIGS_DIR_NAME)
     }
 
-    pub fn get_component_config_modifications(&self) -> EnvironmentComponentConfigModifications {
-        match self {
-            Environment::Testing => EnvironmentComponentConfigModifications::testing(),
-            Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree
-            | Environment::StressTest => {
-                EnvironmentComponentConfigModifications::sepolia_integration()
-            }
-            _ => unimplemented!("This env is not implemented yet"),
-        }
-    }
-
     pub fn get_l1_provider_config_modifications(&self) -> EnvironmentL1ProviderConfigModifications {
         match self {
             Environment::Testing => EnvironmentL1ProviderConfigModifications::testing(),
@@ -82,41 +67,6 @@ impl Environment {
                 EnvironmentL1ProviderConfigModifications::sepolia_integration()
             }
             _ => unimplemented!("This env is not implemented yet"),
-        }
-    }
-}
-
-pub struct EnvironmentComponentConfigModifications {
-    pub local_server_config: LocalServerConfig,
-    pub max_concurrency: usize,
-    pub remote_client_config: RemoteClientConfig,
-}
-
-// TODO(Tsabary): consider getting rid of this entire struct.
-impl EnvironmentComponentConfigModifications {
-    pub fn testing() -> Self {
-        Self {
-            local_server_config: LocalServerConfig { channel_buffer_size: 32 },
-            max_concurrency: 8,
-            remote_client_config: RemoteClientConfig {
-                retries: 3,
-                idle_connections: 5,
-                idle_timeout: 90,
-                retry_interval: 3,
-            },
-        }
-    }
-
-    pub fn sepolia_integration() -> Self {
-        Self {
-            local_server_config: LocalServerConfig { channel_buffer_size: 128 },
-            max_concurrency: 8,
-            remote_client_config: RemoteClientConfig {
-                retries: 3,
-                idle_connections: usize::MAX,
-                idle_timeout: 1,
-                retry_interval: 1,
-            },
         }
     }
 }

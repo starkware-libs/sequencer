@@ -1,4 +1,3 @@
-use apollo_deployments::deployment_definitions::Environment;
 use apollo_deployments::deployments::distributed::{
     DistributedNodeServiceName,
     DISTRIBUTED_NODE_REQUIRED_PORTS_NUM,
@@ -74,10 +73,7 @@ impl IntoIterator for NodeComponentConfigs {
 pub fn create_consolidated_component_configs() -> NodeComponentConfigs {
     // All components are in executable index 0.
     NodeComponentConfigs::new(
-        DeploymentName::ConsolidatedNode
-            .get_component_configs(None, &Environment::Testing)
-            .into_values()
-            .collect(),
+        DeploymentName::ConsolidatedNode.get_component_configs(None).into_values().collect(),
         0,
         0,
         0,
@@ -94,7 +90,7 @@ pub fn create_distributed_component_configs(
 
     let ports = available_ports.get_next_ports(DISTRIBUTED_NODE_REQUIRED_PORTS_NUM);
     let services_component_config =
-        DeploymentName::DistributedNode.get_component_configs(Some(ports), &Environment::Testing);
+        DeploymentName::DistributedNode.get_component_configs(Some(ports));
 
     let mut component_configs: Vec<ComponentConfig> =
         services_component_config.values().cloned().collect();
@@ -127,8 +123,7 @@ pub fn create_hybrid_component_configs(
         .expect("Failed to get an AvailablePorts instance for distributed node configs");
 
     let ports = available_ports.get_next_ports(HYBRID_NODE_REQUIRED_PORTS_NUM);
-    let services_component_config =
-        DeploymentName::HybridNode.get_component_configs(Some(ports), &Environment::Testing);
+    let services_component_config = DeploymentName::HybridNode.get_component_configs(Some(ports));
 
     let mut component_configs: Vec<ComponentConfig> =
         services_component_config.values().cloned().collect();
