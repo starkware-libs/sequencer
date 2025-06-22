@@ -14,20 +14,20 @@
     "privacy": "Public",
     "value": 5000
   },
+  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
+    "description": "An upper bound on the total builtins and steps gas usage used in a block.",
+    "privacy": "Public",
+    "value": 2000000000
+  },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
     "privacy": "Public",
-    "value": 400000000
+    "value": 4000000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": {
     "description": "An upper bound on the total state diff size in a block.",
     "privacy": "Public",
     "value": 4000
-  },
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
-    "description": "An upper bound on the total builtins and steps gas usage used in a block.",
-    "privacy": "Public",
-    "value": 2000000000
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.add_mod": {
     "description": "Add_mod gas weight.",

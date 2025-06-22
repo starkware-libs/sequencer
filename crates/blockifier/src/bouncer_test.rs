@@ -29,7 +29,7 @@ fn test_block_weights_has_room() {
         n_events: 10,
         state_diff_size: 10,
         sierra_gas: GasAmount(10),
-        proving_gas: 10,
+        proving_gas: GasAmount(10),
     };
 
     let bouncer_weights = BouncerWeights {
@@ -38,7 +38,7 @@ fn test_block_weights_has_room() {
         n_events: 2,
         state_diff_size: 7,
         sierra_gas: GasAmount(7),
-        proving_gas: 5,
+        proving_gas: GasAmount(5),
     };
 
     assert!(max_bouncer_weights.has_room(bouncer_weights));
@@ -49,7 +49,7 @@ fn test_block_weights_has_room() {
         n_events: 5,
         state_diff_size: 5,
         sierra_gas: GasAmount(15),
-        proving_gas: 5,
+        proving_gas: GasAmount(5),
     };
 
     // Only the `sierra_gas` field exceeds the max here;
@@ -75,7 +75,7 @@ fn test_block_weights_has_room() {
         n_events: 10,
         state_diff_size: 10,
         sierra_gas: GasAmount(10),
-        proving_gas: 10,
+        proving_gas: GasAmount(10),
     },
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
@@ -94,7 +94,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         n_events: 1,
         state_diff_size: 2,
         sierra_gas: GasAmount(9),
-        proving_gas: 5,
+        proving_gas: GasAmount(5),
     };
 
     let state_changes_keys_to_update =
@@ -137,7 +137,7 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
         n_events: 20,
         state_diff_size: 20,
         sierra_gas: GasAmount(20),
-        proving_gas: 20,
+        proving_gas: GasAmount(20),
     };
     let bouncer_config =
         BouncerConfig { block_max_capacity, builtin_weights: BuiltinWeights::default() };
@@ -148,7 +148,7 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
         n_events: 10,
         state_diff_size: 10,
         sierra_gas: GasAmount(10),
-        proving_gas: 10,
+        proving_gas: GasAmount(10),
     };
 
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
