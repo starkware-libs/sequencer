@@ -93,6 +93,8 @@ pub(crate) enum ValidateProposalError {
     L1GasPriceProvider(#[from] L1GasPriceClientError),
     #[error("Block info conversion error: {0}")]
     BlockInfoConversion(#[from] StarknetApiError),
+    #[error("Invalid BlockInfo. {0}")]
+    InvalidBlockInfo(String),
     #[error("Validation timed out.")]
     ValidationTimeout,
     #[error("Proposal interrupted.")]
@@ -132,8 +134,7 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
             return;
         }
     };
-
-    if !is_block_info_valid(
+    if is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
         args.deps.eth_to_strk_oracle_client,
@@ -142,6 +143,7 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
         &args.gas_price_params,
     )
     .await
+    .is_err()
     {
         return;
     }
@@ -234,19 +236,41 @@ async fn is_block_info_valid(
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: &GasPriceParams,
-) -> bool {
+) -> ValidateProposalResult<()> {
     let now: u64 = clock.unix_now();
     let last_block_timestamp =
         block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
-    if !(block_info_proposed.height == block_info_validation.height
-        && block_info_proposed.timestamp >= last_block_timestamp
-        // Check timestamp isn't in the future (allowing for clock disagreement).
-        && block_info_proposed.timestamp <= now + block_info_validation.block_timestamp_window_seconds
-        && block_info_proposed.l1_da_mode == block_info_validation.l1_da_mode
-        && block_info_proposed.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
-    {
-        warn!("Invalid BlockInfo. local_timestamp={now}");
-        return false;
+    if block_info_proposed.height != block_info_validation.height {
+        return Err(ValidateProposalError::InvalidBlockInfo(format!(
+            "Height mismatch: expected={}, proposed={}",
+            block_info_validation.height, block_info_proposed.height
+        )));
+    }
+    if block_info_proposed.timestamp < last_block_timestamp {
+        return Err(ValidateProposalError::InvalidBlockInfo(format!(
+            "Timestamp is too old: last_block_timestamp={}, proposed={}",
+            last_block_timestamp, block_info_proposed.timestamp
+        )));
+    }
+    if block_info_proposed.timestamp > now + block_info_validation.block_timestamp_window_seconds {
+        return Err(ValidateProposalError::InvalidBlockInfo(format!(
+            "Timestamp is in the future: now={}, block_timestamp_window_seconds={}, proposed={}",
+            now,
+            block_info_validation.block_timestamp_window_seconds,
+            block_info_proposed.timestamp
+        )));
+    }
+    if block_info_proposed.l1_da_mode != block_info_validation.l1_da_mode {
+        return Err(ValidateProposalError::InvalidBlockInfo(format!(
+            "L1 DA mode mismatch: expected={:?}, proposed={:?}",
+            block_info_validation.l1_da_mode, block_info_proposed.l1_da_mode
+        )));
+    }
+    if block_info_proposed.l2_gas_price_fri != block_info_validation.l2_gas_price_fri {
+        return Err(ValidateProposalError::InvalidBlockInfo(format!(
+            "L2 gas price FRI mismatch: expected={}, proposed={}",
+            block_info_validation.l2_gas_price_fri, block_info_proposed.l2_gas_price_fri
+        )));
     }
     let (eth_to_fri_rate, l1_gas_prices) = get_oracle_rate_and_prices(
         eth_to_strk_oracle_client,
@@ -260,24 +284,14 @@ async fn is_block_info_valid(
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
     debug!("L1 price info: {l1_gas_prices:?}");
 
-    // TODO(guyn): when is_block_info_valid is refactored to return a Result, propagate these
-    // errors.
-    let Ok(l1_gas_price_fri) = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate) else {
-        return false;
-    };
-    let Ok(l1_data_gas_price_fri) = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate) else {
-        return false;
-    };
-    let Ok(l1_gas_price_fri_proposed) =
-        block_info_proposed.l1_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate)
-    else {
-        return false;
-    };
-    let Ok(l1_data_gas_price_fri_proposed) =
-        block_info_proposed.l1_data_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate)
-    else {
-        return false;
-    };
+    let l1_gas_price_fri = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate)?;
+    let l1_data_gas_price_fri = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate)?;
+    let l1_gas_price_fri_proposed =
+        block_info_proposed.l1_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate)?;
+    let l1_data_gas_price_fri_proposed = block_info_proposed
+        .l1_data_gas_price_wei
+        .wei_to_fri(block_info_proposed.eth_to_fri_rate)?;
+
     if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
         && within_margin(
             l1_data_gas_price_fri_proposed,
@@ -285,15 +299,15 @@ async fn is_block_info_valid(
             l1_gas_price_margin_percent,
         ))
     {
-        warn!(
-            %l1_gas_price_fri_proposed,
-            %l1_gas_price_fri,
-            %l1_data_gas_price_fri_proposed,
-            %l1_data_gas_price_fri,
-            %l1_gas_price_margin_percent,
-            "Invalid L1 gas price proposed.",
-        );
-        return false;
+        return Err(ValidateProposalError::InvalidBlockInfo(format!(
+            "L1 gas price mismatch: expected L1 gas price FRI={}, proposed={}, expected L1 data \
+             gas price FRI={}, proposed={}, l1_gas_price_margin_percent={}",
+            l1_gas_price_fri,
+            l1_gas_price_fri_proposed,
+            l1_data_gas_price_fri,
+            l1_data_gas_price_fri_proposed,
+            l1_gas_price_margin_percent
+        )));
     }
     if l1_gas_price_fri_proposed != l1_gas_price_fri {
         CONSENSUS_L1_GAS_MISMATCH.increment(1);
@@ -301,7 +315,7 @@ async fn is_block_info_valid(
     if l1_data_gas_price_fri_proposed != l1_data_gas_price_fri {
         CONSENSUS_L1_DATA_GAS_MISMATCH.increment(1);
     }
-    true
+    Ok(())
 }
 
 fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> bool {
