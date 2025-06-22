@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use blockifier::context::BlockContext;
 use blockifier::execution::call_info::Retdata;
 use blockifier::state::cached_state::CachedState;
+use blockifier::state::state_api::StateReader;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::initial_test_state::test_state;
 use blockifier::test_utils::BALANCE;
@@ -59,14 +60,16 @@ fn set_stakers(state: &mut State, block_context: &Context, stakers: &[Staker]) {
     stakers_as_felts.insert(0, Felt::from(stakers.len()));
 
     // Invoke the set_stakers function on the mock staking contract.
+    let account_address = ACCOUNT_CONTRACT.get_instance_address(0);
     let invoke_args = invoke_tx_args! {
-        sender_address: ACCOUNT_CONTRACT.get_instance_address(0),
+        sender_address: account_address,
         calldata: create_calldata(
             STAKING_CONTRACT.get_instance_address(0),
             "set_stakers",
             &stakers_as_felts,
         ),
         resource_bounds: default_all_resource_bounds(),
+        nonce: state.get_nonce_at(account_address).unwrap(),
     };
     let account_tx = invoke_tx_with_default_flags(invoke_args);
     assert!(account_tx.execute(state, block_context).is_ok());
@@ -84,13 +87,56 @@ fn set_stakers(state: &mut State, block_context: &Context, stakers: &[Staker]) {
 fn get_committee_success(mut state: State, block_context: Context, #[case] stakers: Vec<Staker>) {
     set_stakers(&mut state, &block_context, &stakers);
 
-    let committee_manager = CommitteeManager::new(CommitteeManagerConfig {
+    let mut committee_manager = CommitteeManager::new(CommitteeManagerConfig {
         staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
+        max_cached_epochs: 10,
     });
 
     let committee = committee_manager.get_committee(1, state, block_context).unwrap();
 
-    assert_eq!(committee, stakers);
+    assert_eq!(*committee, stakers);
+}
+
+#[rstest]
+fn get_committee_cache(mut state: State, block_context: Context) {
+    let staker_1 = Staker {
+        address: contract_address!("0x1"),
+        weight: StakingWeight(1000),
+        public_key: Felt::ONE,
+    };
+    let staker_2 = Staker {
+        address: contract_address!("0x2"),
+        weight: StakingWeight(2000),
+        public_key: Felt::TWO,
+    };
+
+    let mut committee_manager = CommitteeManager::new(CommitteeManagerConfig {
+        staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
+        max_cached_epochs: 1,
+    });
+
+    // Case 1: Get committee for epoch 1. Cache miss – staker_1 fetched from contract.
+    set_stakers(&mut state, &block_context, vec![staker_1.clone()].as_slice());
+    let committee =
+        committee_manager.get_committee(1, state.clone(), block_context.clone()).unwrap();
+    assert_eq!(*committee, vec![staker_1.clone()]);
+
+    // Case 2: Query epoch 1 again. Cache hit – staker_1 returned from cache despite contract
+    // change.
+    set_stakers(&mut state, &block_context, vec![staker_2.clone()].as_slice());
+    let committee =
+        committee_manager.get_committee(1, state.clone(), block_context.clone()).unwrap();
+    assert_eq!(*committee, vec![staker_1]);
+
+    // Case 3: Get committee for epoch 2. Cache miss – staker_2 fetched from updated contract state.
+    let committee =
+        committee_manager.get_committee(2, state.clone(), block_context.clone()).unwrap();
+    assert_eq!(*committee, vec![staker_2.clone()]);
+
+    // Case 4: Query epoch 1 again. Cache miss due to the cache being full - staker_2 now fetched
+    // from contract.
+    let committee = committee_manager.get_committee(1, state, block_context).unwrap();
+    assert_eq!(*committee, vec![staker_2]);
 }
 
 // --- TryFrom tests for Staker and ArrayRetdata ---
