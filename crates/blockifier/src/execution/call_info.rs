@@ -307,7 +307,6 @@ impl CallInfo {
         }
     }
 
-
     pub fn summarize_many_builtins<'a>(
         call_infos: impl Iterator<Item = &'a CallInfo>,
     ) -> BuiltinCounterMap {
