@@ -704,13 +704,16 @@ impl SequencerConsensusContext {
                     batcher_timeout_margin,
                     valid_proposals,
                     content_receiver,
-                    fin_sender,
                     gas_price_params,
                     cancel_token: cancel_token_clone,
                 })
                 .await
                 {
                     Ok(proposal_commitment) => {
+                        if fin_sender.send(proposal_commitment).is_err() {
+                            // Consensus may exit early (e.g. sync).
+                            warn!("Failed to send proposal content ids");
+                        }
                         info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.",);
                     }
                     Err(e) => {
