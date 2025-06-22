@@ -1,14 +1,14 @@
 {
-  "application_config_subdir": "crates/apollo_deployments/resources/testing/app_configs/consolidated/deployment_test_consolidated/",
+  "application_config_subdir": "crates/apollo_deployments/resources/",
   "services": [
     {
       "name": "Node",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "node.json"
+        "base_app_config.json",
+        "testing/app_configs/consolidated/deployment_test_consolidated/deployment_config_override.json",
+        "testing/app_configs/consolidated/deployment_test_consolidated/instance_config_override.json",
+        "services/consolidated/node.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
