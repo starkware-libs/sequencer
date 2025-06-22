@@ -8,7 +8,10 @@ use apollo_batcher_types::batcher_types::{
     ProposeBlockInput,
 };
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
-use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
+use apollo_class_manager_types::transaction_converter::{
+    TransactionConverterError,
+    TransactionConverterTrait,
+};
 use apollo_consensus::types::{ProposalCommitment, Round};
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
@@ -71,6 +74,14 @@ pub(crate) enum BuildProposalError {
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
+    #[error("Proposal interrupted.")]
+    Interrupted,
+    #[error(transparent)]
+    SendError(#[from] mpsc::SendError),
+    #[error("Writing blob to Aerospike failed. {0}")]
+    CendeWriteError(String),
+    #[error("Failed to convert transactions: {0}")]
+    TransactionConverterError(#[from] TransactionConverterError),
 }
 
 // Handles building a new proposal without blocking consensus:
@@ -92,7 +103,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         .await
         .expect("Failed to send block info");
 
-    let Some((proposal_commitment, content)) = get_proposal_content(
+    let Ok((proposal_commitment, content)) = get_proposal_content(
         args.proposal_id,
         args.deps.batcher.as_ref(),
         args.proposal_sender,
@@ -168,24 +179,18 @@ pub(crate) async fn get_proposal_content(
     cende_write_success: AbortOnDropHandle<bool>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     cancel_token: CancellationToken,
-) -> Option<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
+) -> BuildProposalResult<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
     let mut content = Vec::new();
     loop {
         if cancel_token.is_cancelled() {
             warn!("Proposal interrupted during building.");
-            return None;
+            return Err(BuildProposalError::Interrupted);
         }
         // We currently want one part of the node failing to cause all components to fail. If this
         // changes, we can simply return None and consider this as a failed proposal which consensus
         // should support.
-        let response = batcher.get_proposal_content(GetProposalContentInput { proposal_id }).await;
-        let response = match response {
-            Ok(resp) => resp,
-            Err(e) => {
-                error!("Failed to get proposal content. {e:?}");
-                return None;
-            }
-        };
+        let response =
+            batcher.get_proposal_content(GetProposalContentInput { proposal_id }).await?;
 
         match response.content {
             GetProposalContent::Txs(txs) => {
@@ -201,14 +206,7 @@ pub(crate) async fn get_proposal_content(
                 }))
                 .await
                 .into_iter()
-                .collect::<Result<Vec<_>, _>>();
-                let transactions = match transactions {
-                    Ok(txs) => txs,
-                    Err(e) => {
-                        error!("Failed to convert transactions. {e:?}");
-                        return None;
-                    }
-                };
+                .collect::<Result<Vec<_>, _>>()?;
 
                 trace!(?transactions, "Sending transaction batch with {} txs.", transactions.len());
                 proposal_sender
@@ -237,15 +235,17 @@ pub(crate) async fn get_proposal_content(
                     }
                     Some(Ok(false)) => {
                         warn!("Writing blob to Aerospike failed.");
-                        return None;
+                        return Err(BuildProposalError::CendeWriteError("".to_string()));
                     }
                     Some(Err(e)) => {
                         warn!("Writing blob to Aerospike failed. Error: {e:?}");
-                        return None;
+                        return Err(BuildProposalError::CendeWriteError(e.to_string()));
                     }
                     None => {
                         warn!("Writing blob to Aerospike didn't return in time.");
-                        return None;
+                        return Err(BuildProposalError::CendeWriteError(
+                            "didn't return in time".to_string(),
+                        ));
                     }
                 }
 
@@ -262,7 +262,7 @@ pub(crate) async fn get_proposal_content(
                     .send(ProposalPart::Fin(fin))
                     .await
                     .expect("Failed to broadcast proposal fin");
-                return Some((proposal_commitment, content));
+                return Ok((proposal_commitment, content));
             }
         }
     }
