@@ -785,8 +785,6 @@ pub fn get_tx_weights<S: StateReader>(
     add_maps(&mut builtin_counters_without_casm_hash_computation, tx_builtin_counters);
     // The transaction builtin counters does not include the transaction overhead ('additional')
     // resources.
-    // TODO(AvivG): Builtins from `fee_transfer_call_info` are counted twice - in `os_vm_resources`
-    // and again in `tx_builtin_counters`. Remove the duplication.
     add_maps(
         &mut builtin_counters_without_casm_hash_computation,
         &tx_resources.computation.os_vm_resources.prover_builtins(),

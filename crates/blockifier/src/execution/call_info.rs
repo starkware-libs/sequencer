@@ -164,6 +164,25 @@ impl ExecutionSummary {
             })
         })
     }
+
+    pub fn remove_fee_builtins(&mut self, fee_info: &CallInfo) {
+        for (builtin, fee_count) in &fee_info.builtin_counters {
+            let total_count = self.builtin_counters.get_mut(builtin).unwrap_or_else(|| {
+                panic!(
+                    "builtin `{:?}` from fee transfer info is missing in the execution summary.",
+                    builtin
+                )
+            });
+
+            *total_count = total_count.checked_sub(*fee_count).unwrap_or_else(|| {
+                panic!(
+                    "fee transfer builtin count exceed total. Builtin: {:?}, fee count: {}, \
+                     summary count: {}",
+                    builtin, fee_count, total_count
+                )
+            });
+        }
+    }
 }
 
 /// L2 resources counted for fee charge.

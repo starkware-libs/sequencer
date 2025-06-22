@@ -214,8 +214,21 @@ impl TransactionExecutionInfo {
 
     /// Returns a summary of transaction execution, including executed class hashes, visited storage
     /// entries, L2-to-L1_payload_lengths, and the number of emitted events.
-    pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
+    fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
         CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
+    }
+
+    pub fn summarize_no_fee_builtins(
+        &self,
+        versioned_constants: &VersionedConstants,
+    ) -> ExecutionSummary {
+        let mut summary = self.summarize(versioned_constants);
+
+        if let Some(fee_info) = &self.fee_transfer_call_info {
+            summary.remove_fee_builtins(fee_info);
+        };
+
+        summary
     }
 }
 pub trait ExecutionResourcesTraits {
