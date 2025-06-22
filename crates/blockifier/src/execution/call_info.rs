@@ -12,10 +12,11 @@ use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
+use crate::bouncer::BuiltinCounterMap;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
-use crate::utils::u64_from_usize;
+use crate::utils::{add_counters, u64_from_usize};
 use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -100,6 +101,7 @@ pub struct ExecutionSummary {
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub l2_to_l1_payload_lengths: Vec<usize>,
     pub event_summary: EventSummary,
+    pub builtin_counters: BuiltinCounterMap,
 }
 
 impl Add for ExecutionSummary {
@@ -110,6 +112,7 @@ impl Add for ExecutionSummary {
         self.executed_class_hashes.extend(other.executed_class_hashes);
         self.visited_storage_entries.extend(other.visited_storage_entries);
         self.l2_to_l1_payload_lengths.extend(other.l2_to_l1_payload_lengths);
+        add_counters(&mut self.builtin_counters, &other.builtin_counters);
         self.event_summary += other.event_summary;
         self
     }
@@ -239,6 +242,7 @@ impl CallInfo {
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
         let mut event_summary = EventSummary::default();
         let mut l2_to_l1_payload_lengths = Vec::new();
+        let mut builtin_counters = BuiltinCounterMap::new();
 
         for call_info in self.iter() {
             // Class hashes.
@@ -261,6 +265,8 @@ impl CallInfo {
                     .iter()
                     .map(|message| message.message.payload.0.len()),
             );
+
+            add_counters(&mut builtin_counters, &call_info.builtin_counters);
 
             // Events: all event resources in the execution tree, unless executing a 0.13.1 block.
             if !versioned_constants.ignore_inner_event_resources {
@@ -285,6 +291,7 @@ impl CallInfo {
             visited_storage_entries,
             l2_to_l1_payload_lengths,
             event_summary,
+            builtin_counters,
         }
     }
 
