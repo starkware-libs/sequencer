@@ -209,6 +209,12 @@ impl TransactionExecutionInfo {
             .chain(self.fee_transfer_call_info.iter())
     }
 
+    /// Returns call infos excluding fee transfer (to avoid double-counting in bouncer
+    /// calculations).
+    pub fn non_optional_call_infos_without_fee_transfer(&self) -> impl Iterator<Item = &CallInfo> {
+        self.validate_call_info.iter().chain(self.execute_call_info.iter())
+    }
+
     pub fn is_reverted(&self) -> bool {
         self.revert_error.is_some()
     }
@@ -220,10 +226,15 @@ impl TransactionExecutionInfo {
     }
 
     pub fn summarize_builtins(&self) -> BuiltinCounterMap {
-        self.non_optional_call_infos().fold(BuiltinCounterMap::new(), |mut acc, call_info| {
-            add_maps(&mut acc, &call_info.builtin_counters);
-            acc
-        })
+        // Remove fee transfer builtins to avoid double-counting in `get_tx_weights`
+        // in bouncer.rs (already included in os_vm_resources).
+        self.non_optional_call_infos_without_fee_transfer().fold(
+            BuiltinCounterMap::new(),
+            |mut acc, call_info| {
+                add_maps(&mut acc, &call_info.builtin_counters);
+                acc
+            },
+        )
     }
 }
 pub trait ExecutionResourcesTraits {
