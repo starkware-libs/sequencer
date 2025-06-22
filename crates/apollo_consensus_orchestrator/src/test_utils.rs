@@ -178,7 +178,6 @@ impl TestDeps {
         );
         self.batcher
             .expect_start_height()
-            .times(1)
             .withf(move |input| input.height == block_number)
             .return_const(Ok(()));
         let proposal_id_clone = Arc::clone(&proposal_id);
