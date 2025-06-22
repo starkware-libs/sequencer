@@ -21,7 +21,7 @@ use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
-use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
 use sqmr::Bytes;
 use tracing::{debug, error, trace, warn};
@@ -702,8 +702,7 @@ impl NetworkManager {
             reported_peer_ids_buffer_size,
         } = config;
 
-        // TODO(shahak): Add quic transport.
-        let listen_address_str = format!("/ip4/0.0.0.0/tcp/{port}");
+        let listen_address_str = format!("/ip4/127.0.0.1/udp/{port}/quic-v1");
         let listen_address = Multiaddr::from_str(&listen_address_str)
             .unwrap_or_else(|_| panic!("Unable to parse address {listen_address_str}"));
         debug!("Creating swarm with listen address: {listen_address:?}");
@@ -715,25 +714,24 @@ impl NetworkManager {
             None => Keypair::generate_ed25519(),
         };
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
-        .with_tokio()
-        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
-        .expect("Error building TCP transport")
-        .with_dns()
-        .expect("Error building DNS transport")
-        // TODO(Shahak): quic transpot does not work (failure appears in the command line when running in debug mode)
-        // .with_quic()
-        .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
-                key.clone(),
-                bootstrap_peer_multiaddr,
-                sqmr::Config { session_timeout },
-                chain_id,
-                node_version,
-                discovery_config,
-                peer_manager_config,
-            ))
-        .expect("Error while building the swarm")
-        .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
-        .build();
+            .with_tokio()
+            .with_quic()
+            .with_dns()
+            .expect("Error building DNS transport")
+            .with_behaviour(|key| {
+                mixed_behaviour::MixedBehaviour::new(
+                    key.clone(),
+                    bootstrap_peer_multiaddr,
+                    sqmr::Config { session_timeout },
+                    chain_id,
+                    node_version,
+                    discovery_config,
+                    peer_manager_config,
+                )
+            })
+            .expect("Error while building the swarm")
+            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
+            .build();
 
         swarm
             .listen_on(listen_address.clone())

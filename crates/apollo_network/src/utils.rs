@@ -109,6 +109,7 @@ pub fn is_localhost(address: &Multiaddr) -> bool {
 pub fn make_tcp_multiaddr(ip: Ipv4Addr, port: u16, peer_id: PeerId) -> Multiaddr {
     Multiaddr::empty()
         .with(Protocol::Ip4(ip))
-        .with(Protocol::Tcp(port))
+        .with(Protocol::Udp(port))
+        .with(Protocol::QuicV1)
         .with(Protocol::P2p(peer_id))
 }
