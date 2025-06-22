@@ -514,33 +514,6 @@
       "severity": "p5"
     },
     {
-      "name": "gateway_add_tx_latency_increase",
-      "title": "Gateway avg add_tx latency increase",
-      "ruleGroup": "gateway",
-      "expr": "sum(rate(gateway_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m]))/sum(rate(gateway_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m]))",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              2.0
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p2"
-    },
-    {
       "name": "gateway_add_tx_idle",
       "title": "Gateway add_tx idle",
       "ruleGroup": "gateway",
