@@ -1,32 +1,136 @@
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
+    ProposalId,
 };
 use apollo_batcher_types::communication::BatcherClientError;
 use apollo_class_manager_types::transaction_converter::{
     MockTransactionConverterTrait,
     TransactionConverterError,
 };
+use apollo_consensus::types::Round;
 use apollo_infra::component_client::ClientError;
+use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, ProposalPart};
 use apollo_state_sync_types::communication::StateSyncClientError;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
-use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::ClassHash;
+use futures::channel::mpsc;
+use num_rational::Ratio;
+use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
+use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::data_availability::L1DataAvailabilityMode;
+use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 
-use crate::build_proposal::{build_proposal, BuildProposalError};
+use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
+use crate::config::ContextConfig;
+use crate::orchestrator_versioned_constants::VersionedConstants;
+use crate::sequencer_consensus_context::BuiltProposals;
 use crate::test_utils::{
-    create_proposal_build_arguments,
+    create_test_and_network_deps,
+    TestDeps,
+    CHANNEL_SIZE,
     INTERNAL_TX_BATCH,
     STATE_DIFF_COMMITMENT,
+    TIMEOUT,
 };
+use crate::utils::{GasPriceParams, StreamSender};
+
+struct TestProposalBuildArguments {
+    pub deps: TestDeps,
+    pub batcher_timeout: Duration,
+    pub proposal_init: ProposalInit,
+    pub l1_da_mode: L1DataAvailabilityMode,
+    pub stream_sender: StreamSender,
+    pub gas_price_params: GasPriceParams,
+    pub valid_proposals: Arc<Mutex<BuiltProposals>>,
+    pub proposal_id: ProposalId,
+    pub cende_write_success: AbortOnDropHandle<bool>,
+    pub l2_gas_price: GasPrice,
+    pub builder_address: ContractAddress,
+    pub cancel_token: CancellationToken,
+    pub previous_block_info: Option<ConsensusBlockInfo>,
+    pub proposal_round: Round,
+}
+
+impl From<TestProposalBuildArguments> for ProposalBuildArguments {
+    fn from(args: TestProposalBuildArguments) -> Self {
+        ProposalBuildArguments {
+            deps: args.deps.into(),
+            batcher_timeout: args.batcher_timeout,
+            proposal_init: args.proposal_init,
+            l1_da_mode: args.l1_da_mode,
+            stream_sender: args.stream_sender,
+            gas_price_params: args.gas_price_params,
+            valid_proposals: args.valid_proposals,
+            proposal_id: args.proposal_id,
+            cende_write_success: args.cende_write_success,
+            l2_gas_price: args.l2_gas_price,
+            builder_address: args.builder_address,
+            cancel_token: args.cancel_token,
+            previous_block_info: args.previous_block_info,
+            proposal_round: args.proposal_round,
+        }
+    }
+}
+
+fn create_proposal_build_arguments() -> (TestProposalBuildArguments, mpsc::Receiver<ProposalPart>) {
+    let (mut deps, _) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let batcher_timeout = TIMEOUT;
+    let proposal_init = ProposalInit::default();
+    let l1_da_mode = L1DataAvailabilityMode::Calldata;
+    let (proposal_sender, proposal_receiver) = mpsc::channel::<ProposalPart>(CHANNEL_SIZE);
+    let stream_sender = StreamSender { proposal_sender };
+    let context_config = ContextConfig::default();
+
+    let gas_price_params = GasPriceParams {
+        min_l1_gas_price_wei: GasPrice(context_config.min_l1_gas_price_wei),
+        max_l1_gas_price_wei: GasPrice(context_config.max_l1_gas_price_wei),
+        min_l1_data_gas_price_wei: GasPrice(context_config.min_l1_data_gas_price_wei),
+        max_l1_data_gas_price_wei: GasPrice(context_config.max_l1_data_gas_price_wei),
+        l1_data_gas_price_multiplier: Ratio::new(
+            context_config.l1_data_gas_price_multiplier_ppt,
+            1000,
+        ),
+        l1_gas_tip_wei: GasPrice(context_config.l1_gas_tip_wei),
+    };
+    let valid_proposals = Arc::new(Mutex::new(BuiltProposals::new()));
+    let proposal_id = ProposalId(1);
+    let cende_write_success = AbortOnDropHandle::new(tokio::spawn(async { true }));
+    let l2_gas_price = VersionedConstants::latest_constants().min_gas_price;
+    let builder_address = ContractAddress::default();
+    let cancel_token = CancellationToken::new();
+    let previous_block_info = None;
+    let proposal_round = 0;
+
+    (
+        TestProposalBuildArguments {
+            deps,
+            batcher_timeout,
+            proposal_init,
+            l1_da_mode,
+            stream_sender,
+            gas_price_params,
+            valid_proposals,
+            proposal_id,
+            cende_write_success,
+            l2_gas_price,
+            builder_address,
+            cancel_token,
+            previous_block_info,
+            proposal_round,
+        },
+        proposal_receiver,
+    )
+}
 
 #[tokio::test]
 async fn build_proposal_succeed() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
@@ -46,7 +150,7 @@ async fn build_proposal_succeed() {
 
 #[tokio::test]
 async fn state_sync_client_error() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
     // Setup state sync client to return an error.
@@ -60,7 +164,7 @@ async fn state_sync_client_error() {
 
 #[tokio::test]
 async fn state_sync_not_ready_error() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
     // Setup state sync client to return None, indicating that the state sync is not ready.
@@ -72,7 +176,7 @@ async fn state_sync_not_ready_error() {
 
 #[tokio::test]
 async fn propose_block_fail() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return an error on propose_block.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| {
         Err(BatcherClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
@@ -84,7 +188,7 @@ async fn propose_block_fail() {
 
 #[tokio::test]
 async fn get_proposal_content_fail() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return an error on get_proposal_content.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
@@ -97,7 +201,7 @@ async fn get_proposal_content_fail() {
 
 #[tokio::test]
 async fn interrupt_proposal() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return Ok on propose_block.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     // Interrupt the proposal.
@@ -109,7 +213,7 @@ async fn interrupt_proposal() {
 
 #[tokio::test]
 async fn convert_internal_consensus_tx_to_consensus_tx_fail() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return Ok on propose_block and TX from get_proposal_content.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().times(1).returning(|_| {
@@ -130,7 +234,7 @@ async fn convert_internal_consensus_tx_to_consensus_tx_fail() {
 
 #[tokio::test]
 async fn cende_fail() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return Ok on propose_block and Finished from get_proposal_content.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().times(1).returning(|_| {
