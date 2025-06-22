@@ -125,6 +125,12 @@ fn hash_map_into_bouncer_weights(
     );
     let proving_gas = data.remove(constants::PROVING_GAS).expect("proving_gas must be present");
 
+    assert!(
+        data.is_empty(),
+        "Unexpected keys in bouncer config 'full_total_weights': {:?}",
+        data.keys()
+    );
+
     Ok(BouncerWeights {
         l1_gas,
         message_segment_length,
