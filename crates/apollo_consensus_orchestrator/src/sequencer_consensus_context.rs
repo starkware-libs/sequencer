@@ -699,7 +699,7 @@ impl SequencerConsensusContext {
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
         let handle = tokio::spawn(
             async move {
-                validate_proposal(ProposalValidateArguments {
+                match validate_proposal(ProposalValidateArguments {
                     deps,
                     block_info_validation,
                     proposal_id,
@@ -712,6 +712,14 @@ impl SequencerConsensusContext {
                     cancel_token: cancel_token_clone,
                 })
                 .await
+                {
+                    Ok(proposal_commitment) => {
+                        info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.",);
+                    }
+                    Err(e) => {
+                        warn!("Proposal failed. Error: {e:?}");
+                    }
+                }
             }
             .instrument(
                 error_span!("consensus_validate_proposal", %proposal_id, round=self.current_round),
