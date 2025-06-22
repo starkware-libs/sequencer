@@ -1,16 +1,11 @@
 use std::path::PathBuf;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
-use crate::deployment::{
-    create_hybrid_instance_config_override,
-    format_node_id,
-    Deployment,
-    DeploymentType,
-    P2PCommunicationType,
-    PragmaDomain,
-};
+use crate::deployment::{Deployment, DeploymentType, P2PCommunicationType, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
+use crate::deployments::hybrid::create_hybrid_instance_config_override;
 use crate::service::{DeploymentName, ExternalSecret, IngressParams};
+use crate::utils::format_node_id;
 
 // TODO(Tsabary): note this env has configs for 4 despite needing only 3. Delete when we're done
 // with it.
