@@ -38,10 +38,13 @@ pub(crate) fn get_os_output_for_inner_blocks(
 }
 
 pub(crate) fn get_aggregator_output(
-    _hint_processor: &mut AggregatorHintProcessor<'_>,
+    hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    todo!()
+    // This impl differes from the python one, as we don't need to support an input of
+    // polynomial_coefficients_to_kzg_commitment function anymore.
+    hint_processor.serialize_data_availability_create_pages = true;
+    Ok(())
 }
 
 pub(crate) fn write_da_segment(
