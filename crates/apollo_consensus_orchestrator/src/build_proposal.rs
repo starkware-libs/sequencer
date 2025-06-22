@@ -27,7 +27,6 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::StateSyncClientError;
 use apollo_time::time::{Clock, DateTime};
-use futures::channel::{mpsc, oneshot};
 use starknet_api::block::{BlockHash, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -53,7 +52,6 @@ pub(crate) struct ProposalBuildArguments {
     pub proposal_init: ProposalInit,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub stream_sender: StreamSender,
-    pub fin_sender: oneshot::Sender<ProposalCommitment>,
     pub gas_price_params: GasPriceParams,
     pub valid_proposals: Arc<Mutex<BuiltProposals>>,
     pub proposal_id: ProposalId,
@@ -75,14 +73,15 @@ pub(crate) enum BuildProposalError {
     StateSyncClientError(#[from] StateSyncClientError),
     #[error("State sync is not ready: {0}")]
     StateSyncNotReady(String),
+    // Consensus may exit early (e.g. sync).
+    #[error("Failed to send commitment to consensus: {0}")]
+    SendError(ProposalCommitment),
     #[error("EthToStrkOracle error: {0}")]
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
     #[error("Proposal interrupted.")]
     Interrupted,
-    #[error(transparent)]
-    SendError(#[from] mpsc::SendError),
     #[error("Writing blob to Aerospike failed. {0}")]
     CendeWriteError(String),
     #[error("Failed to convert transactions: {0}")]
@@ -126,10 +125,6 @@ pub(crate) async fn build_proposal(
         content,
         &args.proposal_id,
     );
-    if args.fin_sender.send(proposal_commitment).is_err() {
-        // Consensus may exit early (e.g. sync).
-        warn!("Failed to send proposal content id");
-    }
     Ok(proposal_commitment)
 }
 
