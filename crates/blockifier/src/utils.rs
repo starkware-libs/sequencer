@@ -87,21 +87,21 @@ pub fn get_gas_cost_from_vm_resources(
         + total_builtin_gas_cost
 }
 
-/// Adds the values from `other` into `target` for matching keys, or inserts them if the key is
-/// missing. Useful for merging counters or aggregating values in a map.
-pub fn add_counters<K, V>(target: &mut HashMap<K, V>, other: &HashMap<K, V>)
+/// Adds values from `source` into `dest` by key.
+/// - If a key exists in both maps, the values are combined using `CheckedAdd`.
+/// - If a key exists only in `source`, it is inserted into `dest`
+pub fn add_maps<K, V>(dest: &mut HashMap<K, V>, source: &HashMap<K, V>)
 where
     K: Clone + Eq + std::hash::Hash,
     V: Clone + num_traits::CheckedAdd + std::fmt::Debug,
 {
-    for (key, value) in other.iter() {
-        target
-            .entry(key.clone())
+    for (key, value) in source {
+        dest.entry(key.clone())
             .and_modify(|existing| {
-                *existing = existing.checked_add(&value.clone()).unwrap_or_else(|| {
+                *existing = existing.checked_add(value).unwrap_or_else(|| {
                     panic!("add counters: overflow when adding {:?} to {:?}", value, existing)
                 });
             })
-            .or_insert(value.clone());
+            .or_insert_with(|| value.clone());
     }
 }

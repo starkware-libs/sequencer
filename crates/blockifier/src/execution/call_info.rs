@@ -16,7 +16,7 @@ use crate::bouncer::BuiltinCounterMap;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
-use crate::utils::{add_counters, u64_from_usize};
+use crate::utils::{add_maps, u64_from_usize};
 use crate::versioned_constants::VersionedConstants;
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
@@ -112,7 +112,7 @@ impl Add for ExecutionSummary {
         self.executed_class_hashes.extend(other.executed_class_hashes);
         self.visited_storage_entries.extend(other.visited_storage_entries);
         self.l2_to_l1_payload_lengths.extend(other.l2_to_l1_payload_lengths);
-        add_counters(&mut self.builtin_counters, &other.builtin_counters);
+        add_maps(&mut self.builtin_counters, &other.builtin_counters);
         self.event_summary += other.event_summary;
         self
     }
@@ -266,7 +266,7 @@ impl CallInfo {
                     .map(|message| message.message.payload.0.len()),
             );
 
-            add_counters(&mut builtin_counters, &call_info.builtin_counters);
+            add_maps(&mut builtin_counters, &call_info.builtin_counters);
 
             // Events: all event resources in the execution tree, unless executing a 0.13.1 block.
             if !versioned_constants.ignore_inner_event_resources {
