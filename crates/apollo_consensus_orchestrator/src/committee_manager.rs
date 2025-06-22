@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use blockifier::context::BlockContext;
@@ -6,7 +7,6 @@ use blockifier::execution::entry_point::call_view_entry_point;
 use blockifier::execution::errors::EntryPointExecutionError;
 use blockifier::state::state_api::StateReader;
 use starknet_api::core::ContractAddress;
-use starknet_api::felt;
 use starknet_api::staking::StakingWeight;
 use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
@@ -18,8 +18,34 @@ const GET_STAKERS_ENTRY_POINT: &str = "get_stakers";
 #[path = "committee_manager_test.rs"]
 mod committee_manager_test;
 
+// Holds committee data for the highest known epochs, limited in size by `capacity``.
+struct CommitteeDataCache {
+    // The maximum number of epochs to cache.
+    capacity: usize,
+    // A map of epoch to the epoch's data.
+    cache: BTreeMap<u64, Vec<Staker>>,
+}
+
+impl CommitteeDataCache {
+    pub fn new(capacity: usize) -> Self {
+        Self { capacity, cache: BTreeMap::new() }
+    }
+
+    pub fn get(&self, epoch: u64) -> Option<&Vec<Staker>> {
+        self.cache.get(&epoch)
+    }
+
+    pub fn insert(&mut self, epoch: u64, data: Vec<Staker>) {
+        if self.cache.len() == self.capacity {
+            self.cache.pop_first();
+        }
+        self.cache.insert(epoch, data);
+    }
+}
+
 pub struct CommitteeManagerConfig {
     pub staking_contract_address: ContractAddress,
+    pub max_cached_epochs: usize,
 }
 
 // Responsible for fetching and storing the committee at a given epoch.
@@ -27,6 +53,7 @@ pub struct CommitteeManagerConfig {
 // the consensus at a given epoch, responsible for proposing blocks and voting on them.
 pub struct CommitteeManager {
     config: CommitteeManagerConfig,
+    committee_data_cache: CommitteeDataCache,
 }
 
 #[derive(Debug, Error)]
@@ -54,31 +81,40 @@ pub type CommitteeManagerResult<T> = Result<T, CommitteeManagerError>;
 
 impl CommitteeManager {
     pub fn new(config: CommitteeManagerConfig) -> Self {
-        Self { config }
+        Self { committee_data_cache: CommitteeDataCache::new(config.max_cached_epochs), config }
     }
 
     // Returns a list of the committee members at the given epoch.
     // The state's most recent block should be provided in the block_context.
     pub fn get_committee(
-        &self,
+        &mut self,
         epoch: u64,
         state_reader: impl StateReader,
         block_context: Arc<BlockContext>,
     ) -> CommitteeManagerResult<Vec<Staker>> {
+        if let Some(committee_data) = self.committee_data_cache.get(epoch) {
+            return Ok(committee_data.clone());
+        }
+
         let call_info = call_view_entry_point(
             state_reader,
             block_context,
             self.config.staking_contract_address,
             GET_STAKERS_ENTRY_POINT,
-            Calldata(vec![felt!(epoch)].into()),
+            Calldata(vec![Felt::from(epoch)].into()),
         )?;
 
         let stakers = Staker::from_retdata_many(call_info.execution.retdata)?;
+
+        // TODO(Dafna): choose the committee.
+
+        self.committee_data_cache.insert(epoch, stakers.clone());
+
         Ok(stakers)
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Staker {
     // A contract address of the staker, to which rewards are sent.
     pub address: ContractAddress,
