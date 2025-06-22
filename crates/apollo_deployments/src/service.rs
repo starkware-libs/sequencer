@@ -243,17 +243,17 @@ pub(crate) trait ServiceNameInner: Display {
 }
 
 impl DeploymentName {
+    pub fn get_folder_name(&self) -> &'static str {
+        match self {
+            Self::ConsolidatedNode => "consolidated/",
+            Self::HybridNode => "hybrid/",
+            Self::DistributedNode => "distributed/",
+        }
+    }
+
     pub fn add_path_suffix(&self, path: PathBuf, instance_name: &str) -> PathBuf {
-        let deployment_name_dir = match self {
-            // TODO(Tsabary): find a way to avoid this code duplication.
-            // Trailing backslash needed to mitigate deployment test issues.
-            Self::ConsolidatedNode => path.join("consolidated/"),
-            Self::HybridNode => path.join("hybrid/"),
-            Self::DistributedNode => path.join("distributed/"),
-        };
-        println!("Deployment name dir: {:?}", deployment_name_dir);
+        let deployment_name_dir = path.join(self.get_folder_name());
         let deployment_with_instance = deployment_name_dir.join(instance_name);
-        println!("Deployment with instance: {:?}", deployment_with_instance);
 
         let s = deployment_with_instance.to_string_lossy();
         let modified = if s.ends_with('/') { s.into_owned() } else { format!("{}/", s) };
