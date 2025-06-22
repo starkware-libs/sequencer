@@ -354,7 +354,7 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.batcher.local_server_config.channel_buffer_size": {
+  "components.batcher.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 128
@@ -404,7 +404,7 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.class_manager.local_server_config.channel_buffer_size": {
+  "components.class_manager.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 128
@@ -459,7 +459,7 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.gateway.local_server_config.channel_buffer_size": {
+  "components.gateway.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 128
@@ -514,7 +514,7 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.l1_endpoint_monitor.local_server_config.channel_buffer_size": {
+  "components.l1_endpoint_monitor.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 128
@@ -564,7 +564,7 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.l1_gas_price_provider.local_server_config.channel_buffer_size": {
+  "components.l1_gas_price_provider.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 128
@@ -619,7 +619,7 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.l1_provider.local_server_config.channel_buffer_size": {
+  "components.l1_provider.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 128
@@ -674,7 +674,7 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.mempool.local_server_config.channel_buffer_size": {
+  "components.mempool.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 128
@@ -724,7 +724,7 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.mempool_p2p.local_server_config.channel_buffer_size": {
+  "components.mempool_p2p.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 128
@@ -779,7 +779,7 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.sierra_compiler.local_server_config.channel_buffer_size": {
+  "components.sierra_compiler.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 128
@@ -829,7 +829,7 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.state_sync.local_server_config.channel_buffer_size": {
+  "components.state_sync.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
     "value": 128

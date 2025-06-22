@@ -16,22 +16,23 @@ use crate::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
-    DEFAULT_CHANNEL_BUFFER_SIZE,
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::LocalServerMetrics;
 
+const DEFAULT_CHANNEL_CAPACITY: usize = 128;
+
 // The communication configuration of the local component.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct LocalServerConfig {
-    pub channel_buffer_size: usize,
+    pub channel_capacity: usize,
 }
 
 impl SerializeConfig for LocalServerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([ser_param(
-            "channel_buffer_size",
-            &self.channel_buffer_size,
+            "channel_capacity",
+            &self.channel_capacity,
             "The communication channel buffer size.",
             ParamPrivacyInput::Public,
         )])
@@ -40,7 +41,7 @@ impl SerializeConfig for LocalServerConfig {
 
 impl Default for LocalServerConfig {
     fn default() -> Self {
-        Self { channel_buffer_size: DEFAULT_CHANNEL_BUFFER_SIZE }
+        Self { channel_capacity: DEFAULT_CHANNEL_CAPACITY }
     }
 }
 

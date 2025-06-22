@@ -11,8 +11,6 @@ use tracing::{error, info};
 use crate::component_client::ClientResult;
 
 pub(crate) const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
-// TODO(Tsabary): rename and remove to `DEFAULT_CHANNEL_BUFFER_SIZE` to its used location.
-pub(crate) const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 128;
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
