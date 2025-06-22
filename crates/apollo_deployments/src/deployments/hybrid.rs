@@ -141,7 +141,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
             Environment::StressTest => match self {
-                HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
+                HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
                 HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
@@ -208,7 +208,7 @@ impl ServiceNameInner for HybridNodeServiceName {
             },
             Environment::StressTest => match self {
                 HybridNodeServiceName::Core => {
-                    Resources::new(Resource::new(2, 4), Resource::new(25, 215))
+                    Resources::new(Resource::new(50, 200), Resource::new(50, 220))
                 }
                 HybridNodeServiceName::HttpServer => {
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8))
