@@ -3,7 +3,7 @@ use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{EnumIter, IntoStaticStr};
 
 define_metrics!(
-    Consensus => {
+    ConsensusOrchestrator => {
         MetricGauge { CONSENSUS_NUM_BATCHES_IN_PROPOSAL, "consensus_num_batches_in_proposal", "The number of transaction batches in a valid proposal received" },
         MetricGauge { CONSENSUS_NUM_TXS_IN_PROPOSAL, "consensus_num_txs_in_proposal", "The total number of individual transactions in a valid proposal received" },
         MetricCounter { CONSENSUS_L1_GAS_MISMATCH, "consensus_l1_gas_mismatch", "The number of times the L1 gas in a proposal does not match the value expected by this validator", init = 0 },
