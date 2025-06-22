@@ -19,7 +19,7 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
-use crate::utils::{u64_from_usize, usize_from_u64};
+use crate::utils::{add_maps, u64_from_usize, usize_from_u64};
 use crate::versioned_constants::VersionedConstants;
 
 #[cfg(test)]
@@ -435,6 +435,7 @@ impl Bouncer {
             &marginal_state_changes_keys,
             versioned_constants,
             &tx_execution_summary.builtin_counters,
+            &self.bouncer_config.builtin_weights,
         )?;
 
         // Check if the transaction can fit the current block available capacity.
@@ -536,9 +537,9 @@ fn vm_resources_to_sierra_gas(
 pub fn sierra_gas_to_steps_gas(
     sierra_gas: GasAmount,
     versioned_constants: &VersionedConstants,
-    builtin_counters: BuiltinCounterMap,
+    builtin_counters: &BuiltinCounterMap,
 ) -> GasAmount {
-    let builtins_gas_cost = builtins_to_sierra_gas(&builtin_counters, versioned_constants);
+    let builtins_gas_cost = builtins_to_sierra_gas(builtin_counters, versioned_constants);
 
     sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
         panic!(
@@ -574,7 +575,8 @@ pub fn builtins_to_sierra_gas(
 
     GasAmount(total_gas)
 }
-
+// TODO(Noa):Fix.
+#[allow(clippy::too_many_arguments)]
 pub fn get_tx_weights<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
@@ -582,12 +584,13 @@ pub fn get_tx_weights<S: StateReader>(
     tx_resources: &TransactionResources,
     state_changes_keys: &StateChangesKeys,
     versioned_constants: &VersionedConstants,
-    // TODO(Noa): Use this argument to calculate the stwo gas cost of builtins.
-    _builtin_counters: &BuiltinCounterMap,
+    tx_builtin_counters: &BuiltinCounterMap,
+    builtin_weights: &BuiltinWeights,
 ) -> TransactionExecutionResult<BouncerWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
     let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
+
     let mut additional_os_resources =
         get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
     additional_os_resources += &get_particia_update_resources(n_visited_storage_entries);
@@ -603,15 +606,27 @@ pub fn get_tx_weights<S: StateReader>(
         )
     });
 
+    let mut total_builtin_counters = additional_os_resources.prover_builtins();
+    add_maps(&mut total_builtin_counters, tx_builtin_counters);
+
+    let steps_proving_gas =
+        sierra_gas_to_steps_gas(sierra_gas, versioned_constants, &total_builtin_counters);
+    let builtins_gas = builtin_weights.calc_gas_from_builtin_counter(&total_builtin_counters);
+    let proving_gas = steps_proving_gas.checked_add(builtins_gas).unwrap_or_else(|| {
+        panic!(
+            "Addition overflow while calculating the proving gas. steps gas: {}, builtins as gas: \
+             {}.",
+            steps_proving_gas, builtins_gas
+        )
+    });
+
     Ok(BouncerWeights {
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
         sierra_gas,
-        // TODO(AvivG): This is a placeholder value. We should be able to get this from
-        // 'tx_resources'.
-        proving_gas: GasAmount::ZERO,
+        proving_gas,
     })
 }
 
@@ -665,6 +680,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         tx_state_changes_keys,
         versioned_constants,
         &tx_execution_summary.builtin_counters,
+        &bouncer_config.builtin_weights,
     )?;
 
     bouncer_config.within_max_capacity_or_err(tx_weights)

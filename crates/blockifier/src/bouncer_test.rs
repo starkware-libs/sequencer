@@ -176,7 +176,8 @@ fn test_bouncer_try_update(#[case] added_gas: GasAmount, #[case] scenario: &'sta
         &block_context.versioned_constants,
     )
     .map_err(TransactionExecutorError::TransactionExecutionError);
-    let expected_weights = BouncerWeights { sierra_gas: added_gas, ..BouncerWeights::empty() };
+    let expected_weights =
+        BouncerWeights { sierra_gas: added_gas, proving_gas: added_gas, ..BouncerWeights::empty() };
 
     if result.is_ok() {
         // Try to update the bouncer.
