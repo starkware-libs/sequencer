@@ -1,11 +1,15 @@
 use std::path::Path;
 
 use apollo_infra_utils::dumping::serialize_to_file;
+#[cfg(test)]
+use apollo_infra_utils::dumping::serialize_to_file_test;
 use serde::Serialize;
 use serde_json::to_value;
 use starknet_api::block::BlockNumber;
 
 use crate::deployment::PragmaDomain;
+#[cfg(test)]
+use crate::deployment::FIX_BINARY_NAME;
 
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
 const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
@@ -13,7 +17,7 @@ const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
 const PRAGMA_URL_TEMPLATE: &str =
     "https://api.{}.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median";
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct ConfigOverride {
     deployment_config_override: DeploymentConfigOverride,
     instance_config_override: InstanceConfigOverride,
@@ -27,21 +31,93 @@ impl ConfigOverride {
         Self { deployment_config_override, instance_config_override }
     }
 
-    pub fn create(&self, application_config_subdir: &Path) -> Vec<String> {
-        serialize_to_file(
-            to_value(&self.deployment_config_override).unwrap(),
-            application_config_subdir.join(DEPLOYMENT_FILE_NAME).to_str().unwrap(),
+    fn config_files(
+        &self,
+        application_config_subdir: &Path,
+        create: bool,
+    ) -> ConfigOverrideWithPaths {
+        let deployment_path = application_config_subdir.join(DEPLOYMENT_FILE_NAME);
+        let instance_path = application_config_subdir.join(INSTANCE_FILE_NAME);
+
+        if create {
+            serialize_to_file(
+                to_value(&self.deployment_config_override).unwrap(),
+                deployment_path.to_str().unwrap(),
+            );
+
+            serialize_to_file(
+                to_value(&self.instance_config_override).unwrap(),
+                instance_path.to_str().unwrap(),
+            );
+        }
+
+        ConfigOverrideWithPaths {
+            #[cfg(test)]
+            deployment_config_override: self.deployment_config_override.clone(),
+            deployment_path: deployment_path.to_string_lossy().into_owned(),
+            #[cfg(test)]
+            instance_config_override: self.instance_config_override.clone(),
+            instance_path: instance_path.to_string_lossy().into_owned(),
+        }
+    }
+
+    pub fn get_config_file_paths(&self, application_config_subdir: &Path) -> Vec<String> {
+        let ConfigOverrideWithPaths {
+            #[cfg(test)]
+                deployment_config_override: _,
+            deployment_path,
+            #[cfg(test)]
+                instance_config_override: _,
+            instance_path,
+        } = self.config_files(application_config_subdir, false);
+        vec![deployment_path, instance_path]
+    }
+
+    pub fn dump_config_files(&self, application_config_subdir: &Path) -> Vec<String> {
+        let ConfigOverrideWithPaths {
+            #[cfg(test)]
+                deployment_config_override: _,
+            deployment_path,
+            #[cfg(test)]
+                instance_config_override: _,
+            instance_path,
+        } = self.config_files(application_config_subdir, true);
+        vec![deployment_path, instance_path]
+    }
+
+    #[cfg(test)]
+    pub fn test_dump_config_files(&self, application_config_subdir: &Path) {
+        let ConfigOverrideWithPaths {
+            deployment_config_override,
+            deployment_path,
+            instance_config_override,
+            instance_path,
+        } = self.config_files(application_config_subdir, false);
+
+        serialize_to_file_test(
+            to_value(deployment_config_override).unwrap(),
+            &deployment_path,
+            FIX_BINARY_NAME,
         );
 
-        serialize_to_file(
-            to_value(&self.instance_config_override).unwrap(),
-            application_config_subdir.join(INSTANCE_FILE_NAME).to_str().unwrap(),
+        serialize_to_file_test(
+            to_value(instance_config_override).unwrap(),
+            &instance_path,
+            FIX_BINARY_NAME,
         );
-        vec![DEPLOYMENT_FILE_NAME.to_string(), INSTANCE_FILE_NAME.to_string()]
     }
 }
 
-#[derive(Debug, Serialize)]
+struct ConfigOverrideWithPaths {
+    #[cfg(test)]
+    deployment_config_override: DeploymentConfigOverride,
+    deployment_path: String,
+    #[cfg(test)]
+    instance_config_override: InstanceConfigOverride,
+    instance_path: String,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct DeploymentConfigOverride {
     #[serde(rename = "base_layer_config.starknet_contract_address")]
     starknet_contract_address: String,
@@ -92,7 +168,7 @@ impl DeploymentConfigOverride {
 
 // TODO(Tsabary): re-verify all config diffs.
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct InstanceConfigOverride {
     #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr")]
     consensus_bootstrap_peer_multiaddr: String,
