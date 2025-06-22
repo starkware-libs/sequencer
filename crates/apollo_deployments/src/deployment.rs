@@ -16,14 +16,8 @@ use serde_json::{json, Value};
 
 use crate::config_override::{ConfigOverride, DeploymentTypeConfigOverride};
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
-use crate::service::{
-    DeploymentName,
-    ExternalSecret,
-    IngressParams,
-    K8SServiceType,
-    Service,
-    ServiceName,
-};
+use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType};
+use crate::service::{DeploymentName, Service, ServiceName};
 
 #[cfg(test)]
 pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
