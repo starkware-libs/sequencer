@@ -3,6 +3,8 @@
   "chain_id": "SN_GOERLI",
   "consensus_manager_config.eth_to_strk_oracle_config.base_url": "https://api.devnet.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median",
   "eth_fee_token_address": "0x497d1c054cec40f64454b45deecdc83e0c7f7b961c63531eae03748abd95350",
+  "l1_provider_config.provider_startup_height_override": 0,
+  "l1_provider_config.provider_startup_height_override.#is_none": true,
   "starknet_url": "http://feeder-gateway.starknet-0-14-0-stress-test:9713/",
   "strk_fee_token_address": "0x4fa9355c504fa2de263bd7920644b5e48794fe1450ec2a6526518ad77d6a567"
 }
