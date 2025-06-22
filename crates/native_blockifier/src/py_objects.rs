@@ -123,7 +123,12 @@ fn hash_map_into_bouncer_weights(
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
-    let proving_gas = data.remove(constants::PROVING_GAS).expect("proving_gas must be present");
+    let proving_gas = GasAmount(
+        data.remove(constants::PROVING_GAS)
+            .expect("proving_gas must be present")
+            .try_into()
+            .unwrap_or_else(|err| panic!("Failed to convert 'proving_gas' into GasAmount: {err}.")),
+    );
 
     Ok(BouncerWeights {
         l1_gas,

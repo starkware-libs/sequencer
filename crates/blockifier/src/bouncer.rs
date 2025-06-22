@@ -109,7 +109,7 @@ pub struct BouncerWeights {
     pub n_events: usize,
     pub state_diff_size: usize,
     pub sierra_gas: GasAmount,
-    pub proving_gas: usize,
+    pub proving_gas: GasAmount,
 }
 
 impl BouncerWeights {
@@ -133,7 +133,7 @@ impl BouncerWeights {
             state_diff_size: usize::MAX,
             n_events: usize::MAX,
             sierra_gas: GasAmount::MAX,
-            proving_gas: usize::MAX,
+            proving_gas: GasAmount::MAX,
         }
     }
 
@@ -144,7 +144,7 @@ impl BouncerWeights {
             message_segment_length: 0,
             state_diff_size: 0,
             sierra_gas: GasAmount::ZERO,
-            proving_gas: 0,
+            proving_gas: GasAmount::ZERO,
         }
     }
 }
@@ -157,8 +157,8 @@ impl Default for BouncerWeights {
             message_segment_length: 3700,
             n_events: 5000,
             state_diff_size: 4000,
-            sierra_gas: GasAmount(400000000),
-            proving_gas: 2000000000,
+            sierra_gas: GasAmount(4000000000),
+            proving_gas: GasAmount(2000000000),
         }
     }
 }
@@ -608,7 +608,7 @@ pub fn get_tx_weights<S: StateReader>(
         sierra_gas,
         // TODO(AvivG): This is a placeholder value. We should be able to get this from
         // 'tx_resources'.
-        proving_gas: 0,
+        proving_gas: GasAmount::ZERO,
     })
 }
 
