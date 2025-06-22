@@ -1151,6 +1151,8 @@ fn metrics_correctness() {
     //    invoke_6  |    5    | Pending queue
     //    declare_1 |    6    | Priority queue
     //    declare_2 |    7    | Delayed declare
+    //    invoke_7  |    8    | Evicted
+    //    invoke_8  |    9    | Pending queue
 
     let invoke_1 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
     let invoke_2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0);
@@ -1165,6 +1167,8 @@ fn metrics_correctness() {
     let declare_2 = declare_add_tx_input(
         declare_tx_args!(resource_bounds: test_valid_resource_bounds(), sender_address: contract_address!("0x6"), tx_hash: tx_hash!(7)),
     );
+    let invoke_7 = add_tx_input!(tx_hash: 8, address: "0x7", tx_nonce: 1, account_nonce: 0);
+    let invoke_8 = add_tx_input!(tx_hash: 9, address: "0x8", tx_nonce: 0, account_nonce: 0);
 
     // Add invoke_1 and advance the clock so that it will be expired.
     add_tx(&mut mempool, &invoke_1);
@@ -1197,23 +1201,32 @@ fn metrics_correctness() {
     // tx should be invoke_5, since it is in the priority queue and has the highest tip.)
     mempool.get_txs(1).unwrap();
 
+    // Add an evictable transaction (one with a gap).
+    add_tx(&mut mempool, &invoke_7);
+
+    // Set capacity to trigger eviction on next tx addition.
+    let capacity = mempool.tx_pool.size_in_bytes();
+    mempool.config.capacity_in_bytes = capacity;
+    add_tx(&mut mempool, &invoke_8);
+
     let expected_metrics = MempoolMetrics {
-        txs_received_invoke: 6,
+        txs_received_invoke: 8,
         txs_received_declare: 2,
         txs_received_deploy_account: 0,
         txs_committed: 1,
         txs_dropped_expired: 1,
         txs_dropped_failed_add_tx_checks: 1,
         txs_dropped_rejected: 1,
-        pool_size: 3,
-        priority_queue_size: 1,
+        pool_size: 4,
+        priority_queue_size: 2,
         pending_queue_size: 1,
         get_txs_size: 1,
         delayed_declares_size: 1,
-        total_size_in_bytes: 1552,
+        total_size_in_bytes: 1952,
+        evictions_count: 1,
         transaction_time_spent_in_mempool: HistogramValue {
             sum: 65.0,
-            count: 3,
+            count: 4,
             ..Default::default()
         },
     };
