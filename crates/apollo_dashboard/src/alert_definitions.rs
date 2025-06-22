@@ -21,7 +21,12 @@ use apollo_consensus_orchestrator::metrics::{
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
 };
 use apollo_gateway::metrics::GATEWAY_TRANSACTIONS_RECEIVED;
-use apollo_http_server::metrics::{ADDED_TRANSACTIONS_INTERNAL_ERROR, ADDED_TRANSACTIONS_TOTAL};
+use apollo_http_server::metrics::{
+    ADDED_TRANSACTIONS_FAILURE,
+    ADDED_TRANSACTIONS_INTERNAL_ERROR,
+    ADDED_TRANSACTIONS_SUCCESS,
+    ADDED_TRANSACTIONS_TOTAL,
+};
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
     ETH_TO_STRK_SUCCESS_COUNT,
@@ -373,7 +378,7 @@ fn get_http_server_idle() -> Alert {
         ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 0.000001,
+            comparison_value: 1.0,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
@@ -469,6 +474,47 @@ fn get_l1_gas_price_scraper_success_count_alert() -> Alert {
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
+fn get_http_server_no_successful_transactions() -> Alert {
+    Alert {
+        name: "http_server_no_successful_transactions",
+        title: "http server no successful transactions",
+        alert_group: AlertGroup::HttpServer,
+        expr: format!(
+            "increase({}[1h]) or vector(0)",
+            ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::Regular,
+    }
+}
+
+fn get_http_server_high_transaction_failure_ratio() -> Alert {
+    Alert {
+        name: "http_server_high_transaction_failure_ratio",
+        title: "http server high transaction failure ratio",
+        alert_group: AlertGroup::HttpServer,
+        expr: format!(
+            "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
+            ADDED_TRANSACTIONS_FAILURE.get_name_with_filter(),
+            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.5,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
@@ -897,8 +943,10 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_votes_num_sent_messages_alert(),
         get_gateway_add_tx_idle(),
         get_http_server_idle(),
+        get_http_server_high_transaction_failure_ratio(),
         get_http_server_internal_error_ratio(),
         get_http_server_internal_error_once(),
+        get_http_server_no_successful_transactions(),
         get_l1_gas_price_provider_insufficient_history_alert(),
         get_l1_gas_price_reorg_detected_alert(),
         get_l1_gas_price_scraper_success_count_alert(),
