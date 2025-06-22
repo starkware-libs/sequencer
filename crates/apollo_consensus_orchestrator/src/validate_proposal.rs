@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "validate_proposal_test.rs"]
+mod validate_proposal_test;
+
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -96,19 +100,26 @@ pub(crate) enum ValidateProposalError {
     ProposalInterrupted,
     #[error("Got an invalid proposal part. {0}")]
     InvalidProposalPart(String),
+    #[error("Proposal part failed validation: {0}")]
+    ProposalPartFailed(String),
+    #[error("proposal_id built from content received does not match fin.")]
+    ProposalFinMismatch,
     #[error("Invalid BlockInfo. {0}")]
     InvalidBlockInfo(String),
+    #[error("Cannot calculate deadline. Timeout: {timeout:?}, now: {now:?}")]
+    CannotCalculateDeadline { timeout: Duration, now: DateTime },
 }
 
-pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
+pub(crate) async fn validate_proposal(
+    mut args: ProposalValidateArguments,
+) -> ValidateProposalResult<ProposalCommitment> {
     let mut content = Vec::new();
     let mut final_n_executed_txs: Option<usize> = None;
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
     else {
-        warn!("Cannot calculate deadline. Timeout: {:?}, now: {:?}", args.timeout, now);
-        return;
+        return Err(ValidateProposalError::CannotCalculateDeadline { timeout: args.timeout, now });
     };
 
     let block_info = match await_second_proposal_part(
@@ -125,13 +136,13 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
                 // Consensus may exit early (e.g. sync).
                 warn!("Failed to send proposal content ids");
             }
-            return;
+            return Ok(proposal_commitment);
         }
-        Err(_) => {
-            return;
+        Err(err) => {
+            return Err(err);
         }
     };
-    if is_block_info_valid(
+    is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
         args.deps.eth_to_strk_oracle_client,
@@ -139,12 +150,9 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.deps.l1_gas_price_provider,
         &args.gas_price_params,
     )
-    .await
-    .is_err()
-    {
-        return;
-    }
-    if let Err(e) = initiate_validation(
+    .await?;
+
+    initiate_validation(
         args.deps.batcher.as_ref(),
         args.deps.state_sync_client,
         block_info.clone(),
@@ -152,23 +160,18 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.timeout + args.batcher_timeout_margin,
         args.deps.clock.as_ref(),
     )
-    .await
-    {
-        error!("Failed to initiate proposal validation. {e:?}");
-        return;
-    }
+    .await?;
+
     // Validating the rest of the proposal parts.
     let (built_block, received_fin) = loop {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
-                warn!("Proposal interrupted during validation.");
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                return;
+                return Err(ValidateProposalError::ProposalInterrupted);
             }
             _ = sleep_until(deadline, args.deps.clock.as_ref()) => {
-                warn!("Validation timed out.");
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                return;
+                return Err(ValidateProposalError::ValidationTimeout);
             }
             proposal_part = args.content_receiver.next() => {
                 match handle_proposal_part(
@@ -184,14 +187,14 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
                     }
                     HandledProposalPart::Continue => {continue;}
                     HandledProposalPart::Invalid => {
-                        warn!("Invalid proposal.");
                         // No need to abort since the Batcher is the source of this info.
-                        return;
+                        return Err(ValidateProposalError::InvalidProposalPart(
+                            "".to_string(),
+                        ));
                     }
                     HandledProposalPart::Failed(fail_reason) => {
-                        warn!("Failed to handle proposal part. {fail_reason}");
                         batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                        return;
+                        return Err(ValidateProposalError::ProposalPartFailed(fail_reason));
                     }
                 }
             }
@@ -215,14 +218,14 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
-        warn!("proposal_id built from content received does not match fin.");
-        return;
+        return Err(ValidateProposalError::ProposalFinMismatch);
     }
 
     if args.fin_sender.send(built_block).is_err() {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content ids");
     }
+    Ok(built_block)
 }
 
 #[instrument(level = "warn", skip_all, fields(?block_info_validation, ?block_info_proposed))]
@@ -307,11 +310,9 @@ async fn await_second_proposal_part(
 ) -> ValidateProposalResult<SecondProposalPart> {
     tokio::select! {
         _ = cancel_token.cancelled() => {
-            warn!("Proposal interrupted");
             Err(ValidateProposalError::ProposalInterrupted)
         }
         _ = sleep_until(deadline, clock) => {
-            warn!("Validation timed out.");
             Err(ValidateProposalError::ValidationTimeout)
         }
         proposal_part = content_receiver.next() => {
@@ -324,9 +325,8 @@ async fn await_second_proposal_part(
                     Ok(SecondProposalPart::Fin(ProposalFin { proposal_commitment }))
                 }
                 x => {
-                    warn!("Invalid second proposal part: {x:?}");
                     Err(ValidateProposalError::InvalidProposalPart(
-                        format!("Expected BlockInfo or Fin, got: {x:?}"),
+                        format!("Expected BlockInfo or Fin as second proposal part, got: {x:?}"),
                     ))
                 }
             }
