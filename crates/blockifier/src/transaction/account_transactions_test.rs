@@ -1713,7 +1713,7 @@ fn test_count_actual_storage_changes(
     assert_eq!(expected_storage_updates_2, state_changes_2.state_maps.storage);
     assert_eq!(state_changes_count_2, expected_state_changes_count_2);
 
-    // Transfer transaction: transfer 1 ETH to recepient.
+    // Transfer transaction: transfer 1 ETH to recipient.
     let mut state = TransactionalState::create_transactional(&mut state);
     let account_tx = invoke_tx_with_default_flags(InvokeTxArgs {
         nonce: nonce_manager.next(account_address),
@@ -1732,7 +1732,7 @@ fn test_count_actual_storage_changes(
 
     expected_sequencer_total_fee += Felt::from(fee_transfer.0);
     expected_sequencer_fee_update.1 = expected_sequencer_total_fee;
-    account_balance -= fee_transfer.0 + 1; // Reduce the fee and the transfered amount (1).
+    account_balance -= fee_transfer.0 + 1; // Reduce the fee and the transferred amount (1).
     let account_balance_storage_change =
         ((fee_token_address, account_fee_token_var_address), felt!(account_balance));
 
