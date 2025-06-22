@@ -71,6 +71,11 @@ enum HandledProposalPart {
     Failed(String),
 }
 
+enum SecondProposalPart {
+    BlockInfo(ConsensusBlockInfo),
+    Fin(ProposalFin),
+}
+
 type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 
 #[derive(Debug, thiserror::Error)]
@@ -85,6 +90,12 @@ pub(crate) enum ValidateProposalError {
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
+    #[error("Validation timed out.")]
+    ValidationTimeout,
+    #[error("Proposal interrupted.")]
+    ProposalInterrupted,
+    #[error("Got an invalid proposal part. {0}")]
+    InvalidProposalPart(String),
 }
 
 pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
@@ -98,17 +109,27 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
         return;
     };
 
-    let Some((block_info, fin_sender)) = await_second_proposal_part(
+    let block_info = match await_second_proposal_part(
         &args.cancel_token,
         deadline,
         &mut args.content_receiver,
-        args.fin_sender,
         args.deps.clock.as_ref(),
     )
     .await
-    else {
-        return;
+    {
+        Ok(SecondProposalPart::BlockInfo(block_info)) => block_info,
+        Ok(SecondProposalPart::Fin(ProposalFin { proposal_commitment })) => {
+            if args.fin_sender.send(proposal_commitment).is_err() {
+                // Consensus may exit early (e.g. sync).
+                warn!("Failed to send proposal content ids");
+            }
+            return;
+        }
+        Err(_) => {
+            return;
+        }
     };
+
     if !is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
@@ -196,7 +217,7 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
         return;
     }
 
-    if fin_sender.send(built_block).is_err() {
+    if args.fin_sender.send(built_block).is_err() {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content ids");
     }
@@ -280,37 +301,31 @@ async fn await_second_proposal_part(
     cancel_token: &CancellationToken,
     deadline: DateTime,
     content_receiver: &mut mpsc::Receiver<ProposalPart>,
-    fin_sender: oneshot::Sender<ProposalCommitment>,
     clock: &dyn Clock,
-) -> Option<(ConsensusBlockInfo, oneshot::Sender<ProposalCommitment>)> {
+) -> ValidateProposalResult<SecondProposalPart> {
     tokio::select! {
         _ = cancel_token.cancelled() => {
             warn!("Proposal interrupted");
-            None
+            Err(ValidateProposalError::ProposalInterrupted)
         }
         _ = sleep_until(deadline, clock) => {
             warn!("Validation timed out.");
-            None
+            Err(ValidateProposalError::ValidationTimeout)
         }
         proposal_part = content_receiver.next() => {
             match proposal_part {
                 Some(ProposalPart::BlockInfo(block_info)) => {
-                    Some((block_info, fin_sender))
+                    Ok(SecondProposalPart::BlockInfo(block_info))
                 }
                 Some(ProposalPart::Fin(ProposalFin { proposal_commitment })) => {
                     warn!("Received an empty proposal.");
-                    if fin_sender
-                        .send(proposal_commitment)
-                        .is_err()
-                    {
-                        // Consensus may exit early (e.g. sync).
-                        warn!("Failed to send proposal content ids");
-                    }
-                    None
+                    Ok(SecondProposalPart::Fin(ProposalFin { proposal_commitment }))
                 }
                 x => {
                     warn!("Invalid second proposal part: {x:?}");
-                    None
+                    Err(ValidateProposalError::InvalidProposalPart(
+                        format!("Expected BlockInfo or Fin, got: {x:?}"),
+                    ))
                 }
             }
         }
