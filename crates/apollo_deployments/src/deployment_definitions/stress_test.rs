@@ -4,7 +4,8 @@ use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, DeploymentType, P2PCommunicationType, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::deployments::hybrid::create_hybrid_instance_config_override;
-use crate::service::{DeploymentName, ExternalSecret, IngressParams};
+use crate::k8s::{ExternalSecret, IngressParams};
+use crate::service::DeploymentName;
 use crate::utils::format_node_id;
 
 const STRESS_TEST_NODE_IDS: [usize; 3] = [0, 1, 2];
