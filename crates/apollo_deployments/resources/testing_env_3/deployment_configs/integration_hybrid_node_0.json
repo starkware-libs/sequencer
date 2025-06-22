@@ -1,14 +1,14 @@
 {
-  "application_config_subdir": "crates/apollo_deployments/resources/testing_env_3/app_configs/hybrid/integration_hybrid_node_0/",
+  "application_config_subdir": "crates/apollo_deployments/resources/",
   "services": [
     {
       "name": "Core",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "core.json"
+        "base_app_config.json",
+        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
+        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "services/hybrid/core.json"
       ],
       "ingress": null,
       "k8s_service_config": {
@@ -39,10 +39,10 @@
       "name": "HttpServer",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "http_server.json"
+        "base_app_config.json",
+        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
+        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "services/hybrid/http_server.json"
       ],
       "ingress": {
         "domain": "sw-dev.io",
@@ -82,10 +82,10 @@
       "name": "Gateway",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "gateway.json"
+        "base_app_config.json",
+        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
+        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "services/hybrid/gateway.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
@@ -112,10 +112,10 @@
       "name": "Mempool",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "mempool.json"
+        "base_app_config.json",
+        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
+        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "services/hybrid/mempool.json"
       ],
       "ingress": null,
       "k8s_service_config": {
@@ -146,10 +146,10 @@
       "name": "SierraCompiler",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "sierra_compiler.json"
+        "base_app_config.json",
+        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
+        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
