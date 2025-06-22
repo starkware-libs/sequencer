@@ -8,12 +8,13 @@ use apollo_batcher_types::batcher_types::{
     SendProposalContentInput,
     ValidateBlockInput,
 };
-use apollo_batcher_types::communication::BatcherClient;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::ProposalCommitment;
+use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
-use apollo_state_sync_types::communication::StateSyncClient;
+use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_time::time::{sleep_until, Clock, DateTime};
 use futures::channel::{mpsc, oneshot};
 use futures::StreamExt;
@@ -31,11 +32,7 @@ use crate::metrics::{
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::{
-    BuiltProposals,
-    ProposalResult,
-    SequencerConsensusContextDeps,
-};
+use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
@@ -72,6 +69,22 @@ enum HandledProposalPart {
     Invalid,
     Finished(ProposalCommitment, ProposalFin),
     Failed(String),
+}
+
+type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum ValidateProposalError {
+    #[error("Batcher error: {0}")]
+    Batcher(#[from] BatcherClientError),
+    #[error("State sync client error: {0}")]
+    StateSyncClientError(#[from] StateSyncClientError),
+    #[error("State sync is not ready: {0}")]
+    StateSyncNotReady(String),
+    #[error("EthToStrkOracle error: {0}")]
+    EthToStrkOracle(#[from] EthToStrkOracleClientError),
+    #[error("L1GasPriceProvider error: {0}")]
+    L1GasPriceProvider(#[from] L1GasPriceClientError),
 }
 
 pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
@@ -311,7 +324,7 @@ async fn initiate_validation(
     proposal_id: ProposalId,
     timeout_plus_margin: Duration,
     clock: &dyn Clock,
-) -> ProposalResult<()> {
+) -> ValidateProposalResult<()> {
     let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
         .expect("Can't convert timeout to chrono::Duration");
 
