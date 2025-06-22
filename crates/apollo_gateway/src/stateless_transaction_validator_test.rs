@@ -38,6 +38,7 @@ static MAX_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new
 static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValidatorConfig> =
     LazyLock::new(|| StatelessTransactionValidatorConfig {
         validate_non_zero_resource_bounds: false,
+        min_gas_price: 0,
         max_calldata_length: 1,
         max_signature_length: 1,
         max_contract_bytecode_size: 100000,
