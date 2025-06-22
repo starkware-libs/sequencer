@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
@@ -35,6 +35,13 @@ pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str, fix_binary
 }
 
 pub fn serialize_to_file<T: Serialize>(data: T, file_path: &str) {
+    // Ensure the parent directory exists
+    if let Some(parent) = PathBuf::from(file_path).parent() {
+        create_dir_all(parent).unwrap_or_else(|err| {
+            panic!("Failed to create directory for {}: {}", file_path, err);
+        });
+    }
+
     // Create file writer.
     let file = File::create(file_path)
         .unwrap_or_else(|err| panic!("Failed generating data file: {:?}: {}", file_path, err));
