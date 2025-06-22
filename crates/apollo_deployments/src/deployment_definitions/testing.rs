@@ -57,6 +57,7 @@ fn system_test_distributed_deployment() -> Deployment {
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
+        None,
     )
 }
 
@@ -69,6 +70,7 @@ fn system_test_hybrid_deployment() -> Deployment {
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
+        None,
     )
 }
 
@@ -81,5 +83,6 @@ fn system_test_consolidated_deployment() -> Deployment {
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
+        None,
     )
 }

@@ -8,11 +8,21 @@ use serde::{Serialize, Serializer};
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
+use crate::deployment::build_service_namespace_domain_address;
 use crate::deployment_definitions::Environment;
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
-use crate::k8s::{Controller, ExternalSecret, Ingress, IngressParams, Resources, Toleration};
+use crate::k8s::{
+    Controller,
+    ExternalSecret,
+    Ingress,
+    IngressParams,
+    K8sServiceConfig,
+    K8sServiceConfigParams,
+    Resources,
+    Toleration,
+};
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
@@ -22,6 +32,7 @@ pub struct Service {
     controller: Controller,
     config_paths: Vec<String>,
     ingress: Option<Ingress>,
+    k8s_service_config: Option<K8sServiceConfig>,
     autoscale: bool,
     replicas: usize,
     storage: Option<usize>,
@@ -41,7 +52,7 @@ impl Service {
         external_secret: Option<ExternalSecret>,
         config_filenames: Vec<String>,
         ingress_params: IngressParams,
-        // TODO(Tsabary): consider if including the environment is necessary.
+        k8s_service_config_params: Option<K8sServiceConfigParams>,
         environment: Environment,
     ) -> Self {
         // Configs are loaded by order such that a config may override previous ones.
@@ -56,6 +67,7 @@ impl Service {
         let autoscale = service_name.get_autoscale();
         let toleration = service_name.get_toleration(&environment);
         let ingress = service_name.get_ingress(&environment, ingress_params);
+        let k8s_service_config = service_name.get_k8s_service_config(k8s_service_config_params);
         let storage = service_name.get_storage(&environment);
         let resources = service_name.get_resources(&environment);
         let replicas = service_name.get_replicas(&environment);
@@ -65,12 +77,14 @@ impl Service {
             config_paths,
             controller,
             ingress,
+            k8s_service_config,
             autoscale,
             replicas,
             storage,
             toleration,
             resources,
             external_secret,
+            // TODO(Tsabary): consider removing `environment` from the `Service` struct.
             environment,
             anti_affinity,
         }
@@ -106,12 +120,14 @@ impl ServiceName {
         external_secret: &Option<ExternalSecret>,
         additional_config_filenames: Vec<String>,
         ingress_params: IngressParams,
+        k8s_service_config_params: Option<K8sServiceConfigParams>,
     ) -> Service {
         Service::new(
             Into::<ServiceName>::into(*self),
             external_secret.clone(),
             additional_config_filenames,
             ingress_params.clone(),
+            k8s_service_config_params,
             environment.clone(),
         )
     }
@@ -142,6 +158,13 @@ impl ServiceName {
         ingress_params: IngressParams,
     ) -> Option<Ingress> {
         self.as_inner().get_ingress(environment, ingress_params)
+    }
+
+    pub fn get_k8s_service_config(
+        &self,
+        k8s_service_config_params: Option<K8sServiceConfigParams>,
+    ) -> Option<K8sServiceConfig> {
+        self.as_inner().get_k8s_service_config(k8s_service_config_params)
     }
 
     pub fn get_storage(&self, environment: &Environment) -> Option<usize> {
@@ -179,6 +202,30 @@ pub(crate) trait ServiceNameInner: Display {
         environment: &Environment,
         ingress_params: IngressParams,
     ) -> Option<Ingress>;
+
+    fn get_k8s_service_config(
+        &self,
+        k8s_service_config_params: Option<K8sServiceConfigParams>,
+    ) -> Option<K8sServiceConfig> {
+        if self.has_p2p_interface() {
+            if let Some(K8sServiceConfigParams { namespace, domain, p2p_communication_type }) =
+                k8s_service_config_params
+            {
+                let service_namespace_domain = build_service_namespace_domain_address(
+                    &self.k8s_service_name(),
+                    &namespace,
+                    &domain,
+                );
+                return Some(K8sServiceConfig::new(
+                    Some(service_namespace_domain),
+                    p2p_communication_type,
+                ));
+            }
+        }
+        None
+    }
+
+    fn has_p2p_interface(&self) -> bool;
 
     fn get_storage(&self, environment: &Environment) -> Option<usize>;
 

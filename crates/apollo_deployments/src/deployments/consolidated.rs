@@ -86,6 +86,10 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         }
     }
 
+    fn has_p2p_interface(&self) -> bool {
+        true
+    }
+
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
             Environment::Testing => None,
