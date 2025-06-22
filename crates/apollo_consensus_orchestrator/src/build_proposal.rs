@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "build_proposal_test.rs"]
+mod build_proposal_test;
+
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -66,7 +70,7 @@ type BuildProposalResult<T> = Result<T, BuildProposalError>;
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum BuildProposalError {
     #[error("Batcher error: {0}")]
-    Batcher(#[from] BatcherClientError),
+    Batcher(String, BatcherClientError),
     #[error("State sync client error: {0}")]
     StateSyncClientError(#[from] StateSyncClientError),
     #[error("State sync is not ready: {0}")]
@@ -86,16 +90,11 @@ pub(crate) enum BuildProposalError {
 }
 
 // Handles building a new proposal without blocking consensus:
-pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
+pub(crate) async fn build_proposal(
+    mut args: ProposalBuildArguments,
+) -> BuildProposalResult<ProposalCommitment> {
     let batcher_deadline = args.deps.clock.now() + args.batcher_timeout;
-    let block_info = initiate_build(&args).await;
-    let block_info = match block_info {
-        Ok(info) => info,
-        Err(e) => {
-            error!("Failed to initiate proposal build. {e:?}");
-            return;
-        }
-    };
+    let block_info = initiate_build(&args).await?;
     args.stream_sender
         .send(ProposalPart::Init(args.proposal_init))
         .await
@@ -105,7 +104,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         .await
         .expect("Failed to send block info");
 
-    let Ok((proposal_commitment, content)) = get_proposal_content(
+    let (proposal_commitment, content) = get_proposal_content(
         args.proposal_id,
         args.deps.batcher.as_ref(),
         args.stream_sender,
@@ -115,10 +114,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         args.deps.clock,
         batcher_deadline,
     )
-    .await
-    else {
-        return;
-    };
+    .await?;
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
@@ -134,6 +130,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content id");
     }
+    Ok(proposal_commitment)
 }
 
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
@@ -170,7 +167,12 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         proposal_round: args.proposal_round,
     };
     debug!("Initiating build proposal: {build_proposal_input:?}");
-    args.deps.batcher.propose_block(build_proposal_input).await?;
+    args.deps.batcher.propose_block(build_proposal_input.clone()).await.map_err(|err| {
+        BuildProposalError::Batcher(
+            format!("Failed to initiate build proposal {build_proposal_input:?}."),
+            err,
+        )
+    })?;
     Ok(block_info)
 }
 /// 1. Receive chunks of content from the batcher.
@@ -179,7 +181,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
 // TODO(guyn): consider passing a ref to BuildProposalArguments instead of all the fields
 // separately.
 #[allow(clippy::too_many_arguments)]
-pub(crate) async fn get_proposal_content(
+async fn get_proposal_content(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
     mut stream_sender: StreamSender,
@@ -192,14 +194,20 @@ pub(crate) async fn get_proposal_content(
     let mut content = Vec::new();
     loop {
         if cancel_token.is_cancelled() {
-            warn!("Proposal interrupted during building.");
             return Err(BuildProposalError::Interrupted);
         }
         // We currently want one part of the node failing to cause all components to fail. If this
         // changes, we can simply return None and consider this as a failed proposal which consensus
         // should support.
-        let response =
-            batcher.get_proposal_content(GetProposalContentInput { proposal_id }).await?;
+        let response = batcher
+            .get_proposal_content(GetProposalContentInput { proposal_id })
+            .await
+            .map_err(|err| {
+                BuildProposalError::Batcher(
+                    format!("Failed to get proposal content for proposal_id {proposal_id}."),
+                    err,
+                )
+            })?;
 
         match response.content {
             GetProposalContent::Txs(txs) => {
@@ -245,20 +253,19 @@ pub(crate) async fn get_proposal_content(
                     .max(Duration::from_millis(1)); // Ensure we wait at least 1 ms to avoid immediate timeout. 
                 match tokio::time::timeout(remaining, cende_write_success).await {
                     Err(_) => {
-                        warn!("Cende write timed out.");
                         return Err(BuildProposalError::CendeWriteError(
-                            "didn't return in time".to_string(),
+                            "Writing blob to Aerospike didn't return in time.".to_string(),
                         ));
                     }
                     Ok(Ok(true)) => {
                         info!("Writing blob to Aerospike completed successfully.");
                     }
                     Ok(Ok(false)) => {
-                        warn!("Writing blob to Aerospike failed.");
-                        return Err(BuildProposalError::CendeWriteError("".to_string()));
+                        return Err(BuildProposalError::CendeWriteError(
+                            "Writing blob to Aerospike failed.".to_string(),
+                        ));
                     }
                     Ok(Err(e)) => {
-                        warn!("Writing blob to Aerospike failed. Error: {e:?}");
                         return Err(BuildProposalError::CendeWriteError(e.to_string()));
                     }
                 }
