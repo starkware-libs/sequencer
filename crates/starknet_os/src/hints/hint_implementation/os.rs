@@ -8,7 +8,11 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_types_core::felt::Felt;
 
-use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
+use crate::hint_processor::snos_hint_processor::{
+    DeprecatedSyscallHintProcessor,
+    SnosHintProcessor,
+    SyscallHintProcessor,
+};
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
@@ -131,7 +135,8 @@ pub(crate) fn create_block_additional_hints<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    // TODO(Nimrod): Verify hint implementation once syscall handlers are per block.
     hint_processor.execution_helpers_manager.increment_current_helper_index();
+    hint_processor.syscall_hint_processor = SyscallHintProcessor::default();
+    hint_processor.deprecated_syscall_hint_processor = DeprecatedSyscallHintProcessor::default();
     Ok(())
 }
