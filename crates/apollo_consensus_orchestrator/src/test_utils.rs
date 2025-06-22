@@ -1,11 +1,12 @@
 use std::future::ready;
-use std::sync::{Arc, LazyLock, OnceLock};
+use std::sync::{Arc, LazyLock, Mutex, OnceLock};
 use std::time::Duration;
 
 use apollo_batcher_types::batcher_types::{
     GetProposalContent,
     GetProposalContentResponse,
     ProposalCommitment,
+    ProposalId,
     ProposalStatus,
     ProposeBlockInput,
     SendProposalContent,
@@ -31,32 +32,45 @@ use apollo_network::network_manager::test_utils::{
     TestSubscriberChannels,
 };
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
-use apollo_protobuf::consensus::{ConsensusBlockInfo, HeightAndRound, ProposalPart, Vote};
+use apollo_protobuf::consensus::{
+    ConsensusBlockInfo,
+    HeightAndRound,
+    ProposalInit,
+    ProposalPart,
+    Vote,
+};
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::time::{Clock, DefaultClock};
 use futures::channel::mpsc;
 use futures::executor::block_on;
+use num_rational::Ratio;
 use starknet_api::block::{
+    BlockHash,
     BlockNumber,
     GasPrice,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
 use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
-use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
+use starknet_api::core::{ChainId, ContractAddress, Nonce, StateDiffCommitment};
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::felt;
 use starknet_api::hash::PoseidonHash;
 use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
 use starknet_types_core::felt::Felt;
+use tokio_util::sync::CancellationToken;
+use tokio_util::task::AbortOnDropHandle;
 
+use crate::build_proposal::ProposalBuildArguments;
 use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
+    BuiltProposals,
     SequencerConsensusContext,
     SequencerConsensusContextDeps,
 };
+use crate::utils::{GasPriceParams, StreamSender};
 
 pub(crate) const TIMEOUT: Duration = Duration::from_millis(1200);
 pub(crate) const CHANNEL_SIZE: usize = 5000;
@@ -310,4 +324,62 @@ pub(crate) fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
 pub(crate) struct NetworkDependencies {
     _vote_network: BroadcastNetworkMock<Vote>,
     pub outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
+}
+
+pub(crate) fn create_proposal_build_arguments() -> (
+    ProposalBuildArguments,
+    mpsc::Receiver<ProposalPart>,
+    futures::channel::oneshot::Receiver<BlockHash>,
+) {
+    let (mut deps, _) = create_test_and_network_deps();
+    deps.setup_default_expectations();
+    let batcher_timeout = Duration::from_secs(10);
+    let proposal_init = ProposalInit::default();
+    let l1_da_mode = L1DataAvailabilityMode::Calldata;
+    let (proposal_sender, proposal_receiver) = mpsc::channel::<ProposalPart>(CHANNEL_SIZE);
+    let stream_sender = StreamSender { proposal_sender };
+    let (fin_sender, fin_receiver) = futures::channel::oneshot::channel::<BlockHash>();
+    let context_config = ContextConfig::default();
+
+    let gas_price_params = GasPriceParams {
+        min_l1_gas_price_wei: GasPrice(context_config.min_l1_gas_price_wei),
+        max_l1_gas_price_wei: GasPrice(context_config.max_l1_gas_price_wei),
+        min_l1_data_gas_price_wei: GasPrice(context_config.min_l1_data_gas_price_wei),
+        max_l1_data_gas_price_wei: GasPrice(context_config.max_l1_data_gas_price_wei),
+        l1_data_gas_price_multiplier: Ratio::new(
+            context_config.l1_data_gas_price_multiplier_ppt,
+            1000,
+        ),
+        l1_gas_tip_wei: GasPrice(context_config.l1_gas_tip_wei),
+    };
+    let valid_proposals = Arc::new(Mutex::new(BuiltProposals::new()));
+    let proposal_id = ProposalId(1);
+    let cende_write_success = AbortOnDropHandle::new(tokio::spawn(async { true }));
+    let l2_gas_price = VersionedConstants::latest_constants().min_gas_price;
+    let builder_address = ContractAddress::default();
+    let cancel_token = CancellationToken::new();
+    let previous_block_info = None;
+    let proposal_round = 0;
+
+    (
+        ProposalBuildArguments {
+            deps: deps.into(),
+            batcher_timeout,
+            proposal_init,
+            l1_da_mode,
+            stream_sender,
+            fin_sender,
+            gas_price_params,
+            valid_proposals,
+            proposal_id,
+            cende_write_success,
+            l2_gas_price,
+            builder_address,
+            cancel_token,
+            previous_block_info,
+            proposal_round,
+        },
+        proposal_receiver,
+        fin_receiver,
+    )
 }

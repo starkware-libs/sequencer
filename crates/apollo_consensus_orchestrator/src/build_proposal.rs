@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "build_proposal_test.rs"]
+mod build_proposal_test;
+
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -86,15 +90,10 @@ pub(crate) enum BuildProposalError {
 }
 
 // Handles building a new proposal without blocking consensus:
-pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
-    let block_info = initiate_build(&args).await;
-    let block_info = match block_info {
-        Ok(info) => info,
-        Err(e) => {
-            error!("Failed to initiate proposal build. {e:?}");
-            return;
-        }
-    };
+pub(crate) async fn build_proposal(
+    mut args: ProposalBuildArguments,
+) -> BuildProposalResult<ProposalCommitment> {
+    let block_info = initiate_build(&args).await?;
     args.stream_sender
         .send(ProposalPart::Init(args.proposal_init))
         .await
@@ -104,7 +103,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         .await
         .expect("Failed to send block info");
 
-    let Ok((proposal_commitment, content)) = get_proposal_content(
+    let (proposal_commitment, content) = get_proposal_content(
         args.proposal_id,
         args.deps.batcher.as_ref(),
         args.stream_sender,
@@ -112,10 +111,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         args.deps.transaction_converter,
         args.cancel_token,
     )
-    .await
-    else {
-        return;
-    };
+    .await?;
 
     // Update valid_proposals before sending fin to avoid a race condition
     // with `repropose` being called before `valid_proposals` is updated.
@@ -131,6 +127,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         // Consensus may exit early (e.g. sync).
         warn!("Failed to send proposal content id");
     }
+    Ok(proposal_commitment)
 }
 
 async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
@@ -173,7 +170,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
 /// 1. Receive chunks of content from the batcher.
 /// 2. Forward these to the stream handler to be streamed out to the network.
 /// 3. Once finished, receive the commitment from the batcher.
-pub(crate) async fn get_proposal_content(
+async fn get_proposal_content(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
     mut stream_sender: StreamSender,
@@ -184,7 +181,6 @@ pub(crate) async fn get_proposal_content(
     let mut content = Vec::new();
     loop {
         if cancel_token.is_cancelled() {
-            warn!("Proposal interrupted during building.");
             return Err(BuildProposalError::Interrupted);
         }
         // We currently want one part of the node failing to cause all components to fail. If this
@@ -235,17 +231,16 @@ pub(crate) async fn get_proposal_content(
                         info!("Writing blob to Aerospike completed successfully.");
                     }
                     Some(Ok(false)) => {
-                        warn!("Writing blob to Aerospike failed.");
-                        return Err(BuildProposalError::CendeWriteError("".to_string()));
+                        return Err(BuildProposalError::CendeWriteError(
+                            "write_prev_height_blob failed".to_string(),
+                        ));
                     }
                     Some(Err(e)) => {
-                        warn!("Writing blob to Aerospike failed. Error: {e:?}");
                         return Err(BuildProposalError::CendeWriteError(e.to_string()));
                     }
                     None => {
-                        warn!("Writing blob to Aerospike didn't return in time.");
                         return Err(BuildProposalError::CendeWriteError(
-                            "didn't return in time".to_string(),
+                            "write_prev_height_blob didn't return in time".to_string(),
                         ));
                     }
                 }
