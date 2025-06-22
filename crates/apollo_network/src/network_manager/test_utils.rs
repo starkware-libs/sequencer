@@ -168,7 +168,8 @@ pub fn create_connected_network_configs(mut ports: Vec<u16>) -> Vec<NetworkConfi
             bootstrap_peer_multiaddr: Some(vec![
                 Multiaddr::empty()
                     .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
-                    .with(Protocol::Tcp(port0))
+                    .with(Protocol::Udp(port0))
+                    .with(Protocol::QuicV1)
                     .with(Protocol::P2p(PeerId::from_public_key(&public_key0))),
             ]),
             ..Default::default()

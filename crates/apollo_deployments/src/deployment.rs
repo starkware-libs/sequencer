@@ -395,7 +395,7 @@ impl P2PCommunicationType {
         };
 
         format!(
-            "/dns/{}.{}.{}/tcp/{}/p2p/{}",
+            "/dns/{}.{}.{}/udp/{}/quic-v1/p2p/{}",
             service_name, namespace, domain, port, first_node_address
         )
     }

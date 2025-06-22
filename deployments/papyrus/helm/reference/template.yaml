@@ -64,7 +64,7 @@ spec:
   ports:
   - name: p2p
     port: 10000
-    protocol: TCP
+    protocol: UDP
     targetPort: p2p
 ---
 # Source: papyrus/templates/service.yaml
