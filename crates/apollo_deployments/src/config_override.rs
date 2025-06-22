@@ -1,11 +1,15 @@
 use std::path::Path;
 
 use apollo_infra_utils::dumping::serialize_to_file;
+#[cfg(test)]
+use apollo_infra_utils::dumping::serialize_to_file_test;
 use serde::Serialize;
 use serde_json::to_value;
 use starknet_api::block::BlockNumber;
 
 use crate::deployment::PragmaDomain;
+#[cfg(test)]
+use crate::deployment::FIX_BINARY_NAME;
 
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
 const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
@@ -13,7 +17,7 @@ const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
 const PRAGMA_URL_TEMPLATE: &str =
     "https://api.{}.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median";
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct ConfigOverride {
     deployment_config_override: DeploymentConfigOverride,
     instance_config_override: InstanceConfigOverride,
@@ -27,21 +31,64 @@ impl ConfigOverride {
         Self { deployment_config_override, instance_config_override }
     }
 
-    pub fn create(&self, application_config_subdir: &Path) -> Vec<String> {
-        serialize_to_file(
-            to_value(&self.deployment_config_override).unwrap(),
-            application_config_subdir.join(DEPLOYMENT_FILE_NAME).to_str().unwrap(),
+    fn config_files(
+        &self,
+        application_config_subdir: &Path,
+        create: bool,
+    ) -> ((String, DeploymentConfigOverride), (String, InstanceConfigOverride)) {
+        let deployment_path = application_config_subdir.join(DEPLOYMENT_FILE_NAME);
+        let instance_path = application_config_subdir.join(INSTANCE_FILE_NAME);
+
+        if create {
+            serialize_to_file(
+                to_value(&self.deployment_config_override).unwrap(),
+                deployment_path.to_str().unwrap(),
+            );
+
+            serialize_to_file(
+                to_value(&self.instance_config_override).unwrap(),
+                instance_path.to_str().unwrap(),
+            );
+        }
+
+        (
+            (
+                deployment_path.to_string_lossy().into_owned(),
+                self.deployment_config_override.clone(),
+            ),
+            (instance_path.to_string_lossy().into_owned(), self.instance_config_override.clone()),
+        )
+    }
+
+    pub fn get_config_file_paths(&self, application_config_subdir: &Path) -> Vec<String> {
+        let config_files = self.config_files(application_config_subdir, false);
+        vec![config_files.0.0, config_files.1.0]
+    }
+
+    pub fn dump_config_files(&self, application_config_subdir: &Path) -> Vec<String> {
+        let config_files = self.config_files(application_config_subdir, true);
+        vec![config_files.0.0, config_files.1.0]
+    }
+
+    #[cfg(test)]
+    pub fn test_dump_config_files(&self, application_config_subdir: &Path) {
+        let config_files = self.config_files(application_config_subdir, false);
+
+        serialize_to_file_test(
+            to_value(config_files.0.1).unwrap(),
+            &config_files.0.0,
+            FIX_BINARY_NAME,
         );
 
-        serialize_to_file(
-            to_value(&self.instance_config_override).unwrap(),
-            application_config_subdir.join(INSTANCE_FILE_NAME).to_str().unwrap(),
+        serialize_to_file_test(
+            to_value(config_files.1.1).unwrap(),
+            &config_files.1.0,
+            FIX_BINARY_NAME,
         );
-        vec![DEPLOYMENT_FILE_NAME.to_string(), INSTANCE_FILE_NAME.to_string()]
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct DeploymentConfigOverride {
     #[serde(rename = "base_layer_config.starknet_contract_address")]
     starknet_contract_address: String,
@@ -92,7 +139,7 @@ impl DeploymentConfigOverride {
 
 // TODO(Tsabary): re-verify all config diffs.
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct InstanceConfigOverride {
     #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr")]
     consensus_bootstrap_peer_multiaddr: String,
@@ -139,7 +186,7 @@ impl InstanceConfigOverride {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Clone, PartialEq)]
 pub struct DeploymentTypeConfigOverride {
     #[serde(rename = "l1_scraper_config.startup_rewind_time_seconds")]
     l1_scraper_config_startup_rewind_time_seconds: u64,
