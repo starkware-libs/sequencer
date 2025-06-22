@@ -1,6 +1,6 @@
 {
   "base_layer_config.node_url": {
-    "description": "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
+    "description": "Initial ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. May be be replaced during runtime if becomes inoperative",
     "privacy": "Private",
     "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E"
   },
@@ -503,6 +503,56 @@
     "description": "The component execution mode.",
     "privacy": "Public",
     "value": "Enabled"
+  },
+  "components.l1_endpoint_monitor.execution_mode": {
+    "description": "The component execution mode.",
+    "privacy": "Public",
+    "value": "LocalExecutionWithRemoteDisabled"
+  },
+  "components.l1_endpoint_monitor.ip": {
+    "description": "Binding address of the remote component server.",
+    "privacy": "Public",
+    "value": "0.0.0.0"
+  },
+  "components.l1_endpoint_monitor.local_server_config.channel_buffer_size": {
+    "description": "The communication channel buffer size.",
+    "privacy": "Public",
+    "value": 128
+  },
+  "components.l1_endpoint_monitor.max_concurrency": {
+    "description": "The maximum number of concurrent requests handling.",
+    "privacy": "Public",
+    "value": 8
+  },
+  "components.l1_endpoint_monitor.port": {
+    "description": "Listening port of the remote component server.",
+    "privacy": "Public",
+    "value": 0
+  },
+  "components.l1_endpoint_monitor.remote_client_config.idle_connections": {
+    "description": "The maximum number of idle connections to keep alive.",
+    "privacy": "Public",
+    "value": 10
+  },
+  "components.l1_endpoint_monitor.remote_client_config.idle_timeout": {
+    "description": "The duration in seconds to keep an idle connection open before closing.",
+    "privacy": "Public",
+    "value": 30
+  },
+  "components.l1_endpoint_monitor.remote_client_config.retries": {
+    "description": "The max number of retries for sending a message.",
+    "privacy": "Public",
+    "value": 150
+  },
+  "components.l1_endpoint_monitor.remote_client_config.retry_interval": {
+    "description": "The duration in seconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.l1_endpoint_monitor.url": {
+    "description": "URL of the remote component server.",
+    "privacy": "Public",
+    "value": "localhost"
   },
   "components.l1_gas_price_provider.execution_mode": {
     "description": "The component execution mode.",
@@ -1228,6 +1278,11 @@
     "description": "The http server port.",
     "privacy": "Public",
     "value": 8080
+  },
+  "l1_endpoint_monitor_config.ordered_l1_endpoint_urls": {
+    "description": "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the current one is non-operational.",
+    "privacy": "Private",
+    "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY"
   },
   "l1_gas_price_provider_config.lag_margin_seconds": {
     "description": "Difference between the time of the block from L1 used to calculate the gas price and the time of the L2 block this price is used in",

@@ -27,7 +27,7 @@ use crate::service::{
     Toleration,
 };
 
-pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 8;
+pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 9;
 
 const BASE_PORT: u16 = 15000; // TODO(Tsabary): arbitrary port, need to resolve.
 const BATCHER_STORAGE: usize = 500;
@@ -67,10 +67,11 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         let gateway = DistributedNodeServiceName::Gateway.component_config_pair(ports[2]);
         let l1_gas_price_provider = DistributedNodeServiceName::L1.component_config_pair(ports[3]);
         let l1_provider = DistributedNodeServiceName::L1.component_config_pair(ports[4]);
-        let mempool = DistributedNodeServiceName::Mempool.component_config_pair(ports[5]);
+        let l1_endpoint_monitor = DistributedNodeServiceName::L1.component_config_pair(ports[5]);
+        let mempool = DistributedNodeServiceName::Mempool.component_config_pair(ports[6]);
         let sierra_compiler =
-            DistributedNodeServiceName::SierraCompiler.component_config_pair(ports[6]);
-        let state_sync = DistributedNodeServiceName::StateSync.component_config_pair(ports[7]);
+            DistributedNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
+        let state_sync = DistributedNodeServiceName::StateSync.component_config_pair(ports[8]);
 
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
         for inner_service_name in DistributedNodeServiceName::iter() {
@@ -105,6 +106,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                 DistributedNodeServiceName::L1 => get_l1_component_config(
                     l1_gas_price_provider.local(),
                     l1_provider.local(),
+                    l1_endpoint_monitor.local(),
                     state_sync.remote(),
                     batcher.remote(),
                 ),
@@ -418,6 +420,7 @@ fn get_http_server_component_config(
 fn get_l1_component_config(
     l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
     l1_provider_local_config: ReactiveComponentExecutionConfig,
+    l1_endpoint_monitor_local_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
     batcher_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -427,6 +430,7 @@ fn get_l1_component_config(
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
+    config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config.batcher = batcher_remote_config;
