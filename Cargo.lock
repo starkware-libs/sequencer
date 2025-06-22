@@ -1108,6 +1108,7 @@ dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_consensus",
+ "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
