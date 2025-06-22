@@ -1453,6 +1453,7 @@ dependencies = [
  "mockito 1.6.1",
  "papyrus_base_layer",
  "reqwest 0.11.27",
+ "rstest",
  "serde",
  "serde_json",
  "starknet_api",
