@@ -44,7 +44,7 @@ pub struct SequencerNodeComponents {
     pub l1_endpoint_monitor: Option<L1EndpointMonitor>,
     pub l1_scraper: Option<L1Scraper<MonitoredEthereumBaseLayer>>,
     pub l1_provider: Option<L1Provider>,
-    pub l1_gas_price_scraper: Option<L1GasPriceScraper<EthereumBaseLayerContract>>,
+    pub l1_gas_price_scraper: Option<L1GasPriceScraper<MonitoredEthereumBaseLayer>>,
     pub l1_gas_price_provider: Option<L1GasPriceProvider>,
     pub mempool: Option<MempoolCommunicationWrapper>,
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
@@ -377,13 +377,20 @@ pub async fn create_node_components(
             let l1_gas_price_client = clients
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price client should be available");
+            let l1_endpoint_monitor_client =
+                clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let l1_gas_price_scraper_config = config.l1_gas_price_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
+            let monitored_base_layer = MonitoredEthereumBaseLayer::new(
+                base_layer,
+                l1_endpoint_monitor_client,
+                config.base_layer_config.node_url.clone(),
+            );
 
             Some(L1GasPriceScraper::new(
                 l1_gas_price_scraper_config,
                 l1_gas_price_client,
-                base_layer,
+                monitored_base_layer,
             ))
         }
         ActiveComponentExecutionMode::Disabled => None,
