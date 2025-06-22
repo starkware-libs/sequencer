@@ -38,6 +38,7 @@ fn testing_env_2_deployment_config_override() -> DeploymentConfigOverride {
         "https://fgw-sn-test-sepolia-2-sepolia.gateway-proxy.sw-dev.io",
         "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
         PragmaDomain::Dev,
+        None,
     )
 }
 

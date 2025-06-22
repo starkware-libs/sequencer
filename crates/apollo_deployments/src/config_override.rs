@@ -3,6 +3,7 @@ use std::path::Path;
 use apollo_infra_utils::dumping::serialize_to_file;
 use serde::Serialize;
 use serde_json::to_value;
+use starknet_api::block::BlockNumber;
 
 use crate::deployment::PragmaDomain;
 
@@ -50,6 +51,10 @@ pub struct DeploymentConfigOverride {
     strk_fee_token_address: String,
     #[serde(rename = "consensus_manager_config.eth_to_strk_oracle_config.base_url")]
     consensus_manager_config_eth_to_strk_oracle_config_base_url: String,
+    #[serde(rename = "l1_provider_config.provider_startup_height_override")]
+    l1_provider_config_provider_startup_height_override: u64,
+    #[serde(rename = "l1_provider_config.provider_startup_height_override.#is_none")]
+    l1_provider_config_provider_startup_height_override_is_none: bool,
 }
 
 impl DeploymentConfigOverride {
@@ -60,16 +65,26 @@ impl DeploymentConfigOverride {
         starknet_url: impl ToString,
         strk_fee_token_address: impl ToString,
         pragma_domain: PragmaDomain,
+        l1_startup_height_override: Option<BlockNumber>,
     ) -> Self {
+        let (
+            l1_provider_config_provider_startup_height_override,
+            l1_provider_config_provider_startup_height_override_is_none,
+        ) = match l1_startup_height_override {
+            Some(block_number) => (block_number.0, false),
+            None => (0, true),
+        };
+
         Self {
             starknet_contract_address: starknet_contract_address.to_string(),
             chain_id: chain_id.to_string(),
             eth_fee_token_address: eth_fee_token_address.to_string(),
             starknet_url: starknet_url.to_string(),
             strk_fee_token_address: strk_fee_token_address.to_string(),
-            // TODO(Tsabary): use `format!` instead.
             consensus_manager_config_eth_to_strk_oracle_config_base_url: PRAGMA_URL_TEMPLATE
                 .replace("{}", &pragma_domain.to_string()),
+            l1_provider_config_provider_startup_height_override,
+            l1_provider_config_provider_startup_height_override_is_none,
         }
     }
 }

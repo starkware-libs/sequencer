@@ -110,25 +110,14 @@ impl Deployment {
         let component_configs = self.deployment_name.get_component_configs(None);
         let mut result = IndexMap::new();
 
-        let l1_provider_config = self.environment.get_l1_provider_config_modifications().as_value();
-
         for (service, component_config) in component_configs.into_iter() {
             // Component configs, determined by the service.
 
             let component_config_serialization_wrapper: ComponentConfigsSerializationWrapper =
                 component_config.into();
 
-            let mut flattened_component_config_map =
+            let flattened_component_config_map =
                 config_to_preset(&json!(component_config_serialization_wrapper.dump()));
-
-            // Unify maps of component configs and L1 provider configs.
-            // TODO(Tsabary): l1 provider config should be dumped in a different file
-            if let (Value::Object(obj1), Value::Object(obj2)) =
-                (&mut flattened_component_config_map, l1_provider_config.clone())
-            {
-                obj1.extend(obj2);
-            }
-
             result.insert(service, flattened_component_config_map);
         }
 

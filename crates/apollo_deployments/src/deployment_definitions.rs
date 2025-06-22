@@ -1,8 +1,6 @@
 use std::path::PathBuf;
 
 use const_format::formatcp;
-use serde_json::{Map, Value};
-use starknet_api::block::BlockNumber;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
@@ -55,58 +53,5 @@ pub enum Environment {
 impl Environment {
     pub fn application_config_dir_path(&self) -> PathBuf {
         PathBuf::from(CONFIG_BASE_DIR).join(self.to_string()).join(APP_CONFIGS_DIR_NAME)
-    }
-
-    pub fn get_l1_provider_config_modifications(&self) -> EnvironmentL1ProviderConfigModifications {
-        match self {
-            Environment::Testing => EnvironmentL1ProviderConfigModifications::testing(),
-            Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree
-            | Environment::StressTest => {
-                EnvironmentL1ProviderConfigModifications::sepolia_integration()
-            }
-            _ => unimplemented!("This env is not implemented yet"),
-        }
-    }
-}
-
-pub struct EnvironmentL1ProviderConfigModifications {
-    pub l1_provider_config_provider_startup_height_override: Option<BlockNumber>,
-}
-
-impl EnvironmentL1ProviderConfigModifications {
-    pub fn testing() -> Self {
-        Self { l1_provider_config_provider_startup_height_override: Some(BlockNumber(1)) }
-    }
-
-    pub fn sepolia_integration() -> Self {
-        Self { l1_provider_config_provider_startup_height_override: None }
-    }
-
-    pub fn as_value(&self) -> Value {
-        let mut result = Map::new();
-        match self.l1_provider_config_provider_startup_height_override {
-            Some(block_number) => {
-                let block_number_value = Value::Number(serde_json::Number::from(block_number.0));
-                result.insert(
-                    "l1_provider_config.provider_startup_height_override".to_string(),
-                    block_number_value,
-                );
-                let is_none_value = Value::Bool(false);
-                result.insert(
-                    "l1_provider_config.provider_startup_height_override.#is_none".to_string(),
-                    is_none_value,
-                );
-            }
-            None => {
-                let is_none_value = Value::Bool(true);
-                result.insert(
-                    "l1_provider_config.provider_startup_height_override.#is_none".to_string(),
-                    is_none_value,
-                );
-            }
-        }
-        Value::Object(result)
     }
 }

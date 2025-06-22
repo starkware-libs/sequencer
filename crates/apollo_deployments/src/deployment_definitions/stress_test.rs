@@ -35,6 +35,7 @@ fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
         "http://feeder-gateway.starknet-0-14-0-stress-test:9713/",
         "0x4fa9355c504fa2de263bd7920644b5e48794fe1450ec2a6526518ad77d6a567",
         PragmaDomain::Dev,
+        None,
     )
 }
 
