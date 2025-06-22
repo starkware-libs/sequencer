@@ -42,11 +42,10 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::MockStateSyncClient;
 use apollo_time::time::{Clock, DefaultClock};
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::executor::block_on;
 use num_rational::Ratio;
 use starknet_api::block::{
-    BlockHash,
     BlockNumber,
     GasPrice,
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
@@ -333,7 +332,6 @@ pub(crate) struct TestProposalBuildArguments {
     pub proposal_init: ProposalInit,
     pub l1_da_mode: L1DataAvailabilityMode,
     pub stream_sender: StreamSender,
-    pub fin_sender: oneshot::Sender<BlockHash>,
     pub gas_price_params: GasPriceParams,
     pub valid_proposals: Arc<Mutex<BuiltProposals>>,
     pub proposal_id: ProposalId,
@@ -353,7 +351,6 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
             proposal_init: args.proposal_init,
             l1_da_mode: args.l1_da_mode,
             stream_sender: args.stream_sender,
-            fin_sender: args.fin_sender,
             gas_price_params: args.gas_price_params,
             valid_proposals: args.valid_proposals,
             proposal_id: args.proposal_id,
@@ -367,11 +364,8 @@ impl From<TestProposalBuildArguments> for ProposalBuildArguments {
     }
 }
 
-pub(crate) fn create_proposal_build_arguments() -> (
-    TestProposalBuildArguments,
-    mpsc::Receiver<ProposalPart>,
-    futures::channel::oneshot::Receiver<BlockHash>,
-) {
+pub(crate) fn create_proposal_build_arguments()
+-> (TestProposalBuildArguments, mpsc::Receiver<ProposalPart>) {
     let (mut deps, _) = create_test_and_network_deps();
     deps.setup_default_expectations();
     let batcher_timeout = Duration::from_secs(10);
@@ -379,7 +373,6 @@ pub(crate) fn create_proposal_build_arguments() -> (
     let l1_da_mode = L1DataAvailabilityMode::Calldata;
     let (proposal_sender, proposal_receiver) = mpsc::channel::<ProposalPart>(CHANNEL_SIZE);
     let stream_sender = StreamSender { proposal_sender };
-    let (fin_sender, fin_receiver) = futures::channel::oneshot::channel::<BlockHash>();
     let context_config = ContextConfig::default();
 
     let gas_price_params = GasPriceParams {
@@ -409,7 +402,6 @@ pub(crate) fn create_proposal_build_arguments() -> (
             proposal_init,
             l1_da_mode,
             stream_sender,
-            fin_sender,
             gas_price_params,
             valid_proposals,
             proposal_id,
@@ -421,6 +413,5 @@ pub(crate) fn create_proposal_build_arguments() -> (
             proposal_round,
         },
         proposal_receiver,
-        fin_receiver,
     )
 }

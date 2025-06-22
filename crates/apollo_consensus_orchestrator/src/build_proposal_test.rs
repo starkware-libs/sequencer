@@ -26,7 +26,7 @@ use crate::test_utils::{
 
 #[tokio::test]
 async fn build_proposal_succeed() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
@@ -46,7 +46,7 @@ async fn build_proposal_succeed() {
 
 #[tokio::test]
 async fn state_sync_client_error() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
     // Setup state sync client to return an error.
@@ -60,7 +60,7 @@ async fn state_sync_client_error() {
 
 #[tokio::test]
 async fn state_sync_not_ready_error() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
     // Setup state sync client to return None, indicating that the state sync is not ready.
@@ -72,7 +72,7 @@ async fn state_sync_not_ready_error() {
 
 #[tokio::test]
 async fn propose_block_fail() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return an error on propose_block.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| {
         Err(BatcherClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
@@ -84,7 +84,7 @@ async fn propose_block_fail() {
 
 #[tokio::test]
 async fn get_proposal_content_fail() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return an error on get_proposal_content.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().returning(|_| {
@@ -97,7 +97,7 @@ async fn get_proposal_content_fail() {
 
 #[tokio::test]
 async fn interrupt_proposal() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return Ok on propose_block.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     // Interrupt the proposal.
@@ -109,7 +109,7 @@ async fn interrupt_proposal() {
 
 #[tokio::test]
 async fn convert_internal_consensus_tx_to_consensus_tx_fail() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return Ok on propose_block and TX from get_proposal_content.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().times(1).returning(|_| {
@@ -130,7 +130,7 @@ async fn convert_internal_consensus_tx_to_consensus_tx_fail() {
 
 #[tokio::test]
 async fn cende_fail() {
-    let (mut proposal_args, _proposal_receiver, _fin_receiver) = create_proposal_build_arguments();
+    let (mut proposal_args, _proposal_receiver) = create_proposal_build_arguments();
     // Setup batcher to return Ok on propose_block and Finished from get_proposal_content.
     proposal_args.deps.batcher.expect_propose_block().returning(|_| Ok(()));
     proposal_args.deps.batcher.expect_get_proposal_content().times(1).returning(|_| {

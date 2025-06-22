@@ -260,7 +260,6 @@ impl ConsensusContext for SequencerConsensusContext {
             proposal_init,
             l1_da_mode: self.l1_da_mode,
             stream_sender,
-            fin_sender,
             gas_price_params,
             valid_proposals: Arc::clone(&self.valid_proposals),
             proposal_id,
@@ -276,6 +275,10 @@ impl ConsensusContext for SequencerConsensusContext {
                 match build_proposal(args).await {
                     Ok(proposal_commitment) => {
                         info!(?proposal_id, ?proposal_commitment, "Proposal built successfully.");
+                        if fin_sender.send(proposal_commitment).is_err() {
+                            // Consensus may exit early (e.g. sync).
+                            warn!("Failed to send proposal content id");
+                        }
                     }
                     Err(e) => {
                         error!("Failed to build proposal. Error: {e:?}");
