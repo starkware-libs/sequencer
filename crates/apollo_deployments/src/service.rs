@@ -1,15 +1,24 @@
 use std::fmt::Display;
 use std::iter::once;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use apollo_config::dumping::SerializeConfig;
+use apollo_infra_utils::dumping::serialize_to_file;
+#[cfg(test)]
+use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node::config::component_config::ComponentConfig;
+use apollo_node::config::config_utils::config_to_preset;
 use indexmap::IndexMap;
 use serde::{Serialize, Serializer};
+use serde_json::json;
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::deployment::build_service_namespace_domain_address;
-use crate::deployment_definitions::Environment;
+use crate::deployment::{
+    build_service_namespace_domain_address,
+    ComponentConfigsSerializationWrapper,
+};
+use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
@@ -23,6 +32,8 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+
+const SERVICES_DIR_NAME: &str = "services/";
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
@@ -49,6 +60,7 @@ impl Service {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         service_name: ServiceName,
+        deployment_name: &DeploymentName,
         external_secret: Option<ExternalSecret>,
         config_filenames: Vec<String>,
         ingress_params: IngressParams,
@@ -56,11 +68,26 @@ impl Service {
         environment: Environment,
     ) -> Self {
         // Configs are loaded by order such that a config may override previous ones.
-        // We first list the base config, and then follow with the overrides.
+        // We first list the base config, and then follow with the overrides, and finally, the
+        // service config file.
+
+        // TODO(Tsabary): the deployment override file can be in a higher directory.
+        // TODO(Tsabary): delete redundant directories in the path.
+        // TODO(Tsabary): reduce visibility of relevant functions and consts.
+
+        let service_file_path = deployment_name.get_service_file_path(&service_name);
+
         let config_paths = config_filenames
             .iter()
             .cloned()
-            .chain(once(service_name.get_config_file_path()))
+            .chain(once(service_file_path))
+            .map(|p| {
+                // Strip the parent dir prefix.
+                Path::new(&p)
+                    .strip_prefix(CONFIG_BASE_DIR)
+                    .map(|stripped| stripped.to_string_lossy().into_owned())
+                    .expect("Failed to strip mutual prefix")
+            })
             .collect();
 
         let controller = service_name.get_controller();
@@ -108,7 +135,7 @@ pub enum ServiceName {
 }
 
 impl ServiceName {
-    pub fn get_config_file_path(&self) -> String {
+    fn get_config_file_path(&self) -> String {
         let mut name = self.as_inner().to_string();
         name.push_str(".json");
         name
@@ -124,6 +151,7 @@ impl ServiceName {
     ) -> Service {
         Service::new(
             Into::<ServiceName>::into(*self),
+            &DeploymentName::from(*self),
             external_secret.clone(),
             additional_config_filenames,
             ingress_params.clone(),
@@ -284,6 +312,42 @@ impl DeploymentName {
             Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(ports),
             Self::HybridNode => HybridNodeServiceName::get_component_configs(ports),
             Self::DistributedNode => DistributedNodeServiceName::get_component_configs(ports),
+        }
+    }
+
+    pub fn get_service_file_path(&self, service_name: &ServiceName) -> String {
+        PathBuf::from(CONFIG_BASE_DIR)
+            .join(SERVICES_DIR_NAME)
+            .join(self.get_folder_name())
+            .join(service_name.get_config_file_path())
+            .to_string_lossy()
+            .to_string()
+    }
+
+    pub fn dump_service_component_configs(&self, ports: Option<Vec<u16>>) {
+        let component_configs = self.get_component_configs(ports);
+        for (service_name, config) in component_configs {
+            let file_path = self.get_service_file_path(&service_name);
+            let component_config_serialization_wrapper =
+                ComponentConfigsSerializationWrapper::from(config);
+            let flattened_component_config_map =
+                config_to_preset(&json!(component_config_serialization_wrapper.dump()));
+            serialize_to_file(&flattened_component_config_map, &file_path);
+        }
+    }
+
+    #[cfg(test)]
+    pub fn test_dump_service_component_configs(&self, ports: Option<Vec<u16>>) {
+        let component_configs = self.get_component_configs(ports);
+        for (service_name, config) in component_configs {
+            use crate::deployment::FIX_BINARY_NAME;
+
+            let file_path = self.get_service_file_path(&service_name);
+            let component_config_serialization_wrapper =
+                ComponentConfigsSerializationWrapper::from(config);
+            let flattened_component_config_map =
+                config_to_preset(&json!(component_config_serialization_wrapper.dump()));
+            serialize_to_file_test(&flattened_component_config_map, &file_path, FIX_BINARY_NAME);
         }
     }
 }

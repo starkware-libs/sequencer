@@ -1,14 +1,14 @@
 {
-  "application_config_subdir": "crates/apollo_deployments/resources/testing/app_configs/distributed/deployment_test_distributed/",
+  "application_config_subdir": "crates/apollo_deployments/resources/",
   "services": [
     {
       "name": "Batcher",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "batcher.json"
+        "base_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributed/deployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributed/instance_config_override.json",
+        "services/distributed/batcher.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
@@ -33,10 +33,10 @@
       "name": "ClassManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "class_manager.json"
+        "base_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributed/deployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributed/instance_config_override.json",
+        "services/distributed/class_manager.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
@@ -61,10 +61,10 @@
       "name": "ConsensusManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "consensus_manager.json"
+        "base_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributed/deployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributed/instance_config_override.json",
+        "services/distributed/consensus_manager.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
@@ -89,10 +89,10 @@
       "name": "HttpServer",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "http_server.json"
+        "base_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributed/deployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributed/instance_config_override.json",
+        "services/distributed/http_server.json"
       ],
       "ingress": {
         "domain": "sw-dev.io",
@@ -128,10 +128,10 @@
       "name": "Gateway",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "gateway.json"
+        "base_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributed/deployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributed/instance_config_override.json",
+        "services/distributed/gateway.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
@@ -156,10 +156,10 @@
       "name": "L1",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "l1.json"
+        "base_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributed/deployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributed/instance_config_override.json",
+        "services/distributed/l1.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
@@ -184,10 +184,10 @@
       "name": "Mempool",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "mempool.json"
+        "base_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributed/deployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributed/instance_config_override.json",
+        "services/distributed/mempool.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
@@ -212,10 +212,10 @@
       "name": "SierraCompiler",
       "controller": "Deployment",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "sierra_compiler.json"
+        "base_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributed/deployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributed/instance_config_override.json",
+        "services/distributed/sierra_compiler.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
@@ -240,10 +240,10 @@
       "name": "StateSync",
       "controller": "StatefulSet",
       "config_paths": [
-        "../../../../base_app_config.json",
-        "deployment_config_override.json",
-        "instance_config_override.json",
-        "state_sync.json"
+        "base_app_config.json",
+        "testing/app_configs/distributed/deployment_test_distributed/deployment_config_override.json",
+        "testing/app_configs/distributed/deployment_test_distributed/instance_config_override.json",
+        "services/distributed/state_sync.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
