@@ -1,4 +1,8 @@
 {
+  "recorder_url": "http://dummy-recorder-service.dummy-recorder.svc.cluster.local",
+  "base_layer_config.node_url": "http://anvil-service.anvil.svc.cluster.local:8545",
+  "l1_endpoint_monitor_config.ordered_l1_endpoint_urls": "http://anvil-service.anvil.svc.cluster.local:8545",
+  "consensus_manager_config.eth_to_strk_oracle_config.base_url": "http://dummy-eth2strk-oracle-service.dummy-eth2strk-oracle.svc.cluster.local/eth_to_strk_oracle?timestamp=",
   "consensus_manager_config.network_config.bootstrap_peer_multiaddr": "",
   "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none": true,
   "consensus_manager_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
