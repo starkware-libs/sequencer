@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
+use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{
     create_hybrid_instance_config_override,
     format_node_id,
-    ConfigOverride,
     Deployment,
-    DeploymentConfigOverride,
     DeploymentType,
     P2PCommunicationType,
     PragmaDomain,
