@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use cairo_lang_casm::hints::{Hint as Cairo1Hint, StarknetHint};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
@@ -27,11 +29,16 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
+#[allow(dead_code)]
+pub(crate) enum DataAvailability {
+    Blob(PathBuf),
+    CallData,
+}
+
 pub(crate) struct AggregatorInput {
     _bootloader_output: Vec<Felt>,
-    _use_kzg_da: bool,
     _full_output: bool,
-    _da_path: Option<String>,
+    _da: DataAvailability,
 }
 
 pub struct AggregatorHintProcessor<'a> {
