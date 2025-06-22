@@ -26,8 +26,9 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use tracing::{info, warn};
 
+use crate::build_proposal::BuildProposalError;
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
-use crate::sequencer_consensus_context::BuildProposalError;
+use crate::validate_proposal::ValidateProposalError;
 
 pub(crate) struct StreamSender {
     pub proposal_sender: mpsc::Sender<ProposalPart>,
@@ -61,6 +62,15 @@ impl From<StateSyncError> for BuildProposalError {
         match e {
             StateSyncError::NotReady(e) => BuildProposalError::StateSyncNotReady(e),
             StateSyncError::ClientError(e) => BuildProposalError::StateSyncClientError(e),
+        }
+    }
+}
+
+impl From<StateSyncError> for ValidateProposalError {
+    fn from(e: StateSyncError) -> Self {
+        match e {
+            StateSyncError::NotReady(e) => ValidateProposalError::StateSyncNotReady(e),
+            StateSyncError::ClientError(e) => ValidateProposalError::StateSyncClientError(e),
         }
     }
 }
