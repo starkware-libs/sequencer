@@ -22,7 +22,12 @@ use starknet_api::transaction::{
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::execution::call_info::{BuiltinCounterMap, CallInfo, SummaryWithBuiltins};
+use crate::execution::call_info::{
+    BuiltinCounterMap,
+    CallInfo,
+    ExecutionSummary,
+    SummaryWithBuiltins,
+};
 use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
@@ -208,6 +213,11 @@ impl TransactionExecutionInfo {
             .chain(self.fee_transfer_call_info.iter())
     }
 
+    /// Returns call infos excluding fee transfer (to avoid double-counting in bouncer calculations)
+    pub fn call_infos_without_fee_transfer(&self) -> impl Iterator<Item = &CallInfo> {
+        self.validate_call_info.iter().chain(self.execute_call_info.iter())
+    }
+
     pub fn is_reverted(&self) -> bool {
         self.revert_error.is_some()
     }
@@ -222,7 +232,9 @@ impl TransactionExecutionInfo {
     }
 
     pub fn summarize_builtins(&self) -> BuiltinCounterMap {
-        CallInfo::summarize_many_builtins(self.non_optional_call_infos())
+        // Remove fee transfer builtins to avoid double-counting in `get_tx_weights`
+        // in bouncer.rs (already included in os_vm_resources).
+        CallInfo::summarize_many_builtins(self.call_infos_without_fee_transfer())
     }
 }
 pub trait ExecutionResourcesTraits {
