@@ -371,7 +371,7 @@ expression: dumped_default_config
     "privacy": "Public"
   },
   "network.port": {
-    "description": "The port that the node listens on for incoming tcp connections.",
+    "description": "The port that the node listens on for incoming udp connections for quic.",
     "value": {
       "$serde_json::private::Number": "10000"
     },
