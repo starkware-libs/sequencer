@@ -69,7 +69,12 @@ use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::utils::{convert_to_sn_api_block_info, GasPriceParams, StreamSender};
-use crate::validate_proposal::{validate_proposal, BlockInfoValidation, ProposalValidateArguments};
+use crate::validate_proposal::{
+    validate_proposal,
+    BlockInfoValidation,
+    ProposalValidateArguments,
+    ValidateProposalError,
+};
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
@@ -713,7 +718,7 @@ impl SequencerConsensusContext {
         info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
         let handle = tokio::spawn(
             async move {
-                match validate_proposal(ProposalValidateArguments {
+                let args = ProposalValidateArguments {
                     deps,
                     block_info_validation,
                     proposal_id,
@@ -721,14 +726,12 @@ impl SequencerConsensusContext {
                     batcher_timeout_margin,
                     valid_proposals,
                     content_receiver,
-                    fin_sender,
                     gas_price_params,
                     cancel_token: cancel_token_clone,
-                })
-                .await
-                {
+                };
+                match validate_and_send(args, fin_sender).await {
                     Ok(proposal_commitment) => {
-                        info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.",);
+                        info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.");
                     }
                     Err(e) => {
                         warn!("Proposal failed. Error: {e:?}");
@@ -748,4 +751,15 @@ impl SequencerConsensusContext {
             handle.await.expect("Proposal task failed");
         }
     }
+}
+
+async fn validate_and_send(
+    args: ProposalValidateArguments,
+    fin_sender: oneshot::Sender<ProposalCommitment>,
+) -> Result<ProposalCommitment, ValidateProposalError> {
+    let proposal_commitment = validate_proposal(args).await?;
+    fin_sender
+        .send(proposal_commitment)
+        .map_err(|_| ValidateProposalError::SendError(proposal_commitment))?;
+    Ok(proposal_commitment)
 }

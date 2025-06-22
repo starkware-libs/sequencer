@@ -13,7 +13,7 @@ use apollo_batcher_types::communication::BatcherClientError;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{ProposalFin, ProposalPart, TransactionBatch};
 use assert_matches::assert_matches;
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::SinkExt;
 use num_rational::Ratio;
 use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
@@ -50,7 +50,6 @@ struct TestProposalValidateArguments {
     pub batcher_timeout_margin: Duration,
     pub valid_proposals: Arc<Mutex<BuiltProposals>>,
     pub content_receiver: mpsc::Receiver<ProposalPart>,
-    pub fin_sender: oneshot::Sender<BlockHash>,
     pub gas_price_params: GasPriceParams,
     pub cancel_token: CancellationToken,
 }
@@ -65,7 +64,6 @@ impl From<TestProposalValidateArguments> for ProposalValidateArguments {
             batcher_timeout_margin: args.batcher_timeout_margin,
             valid_proposals: args.valid_proposals,
             content_receiver: args.content_receiver,
-            fin_sender: args.fin_sender,
             gas_price_params: args.gas_price_params,
             cancel_token: args.cancel_token,
         }
@@ -73,7 +71,7 @@ impl From<TestProposalValidateArguments> for ProposalValidateArguments {
 }
 
 fn create_proposal_validate_arguments()
--> (TestProposalValidateArguments, mpsc::Sender<ProposalPart>, oneshot::Receiver<BlockHash>) {
+-> (TestProposalValidateArguments, mpsc::Sender<ProposalPart>) {
     let (mut deps, _) = create_test_and_network_deps();
     deps.setup_default_expectations();
     let block_info_validation = BlockInfoValidation {
@@ -88,7 +86,6 @@ fn create_proposal_validate_arguments()
     let batcher_timeout_margin = TIMEOUT;
     let valid_proposals = Arc::new(Mutex::new(BuiltProposals::new()));
     let (content_sender, content_receiver) = mpsc::channel(CHANNEL_SIZE);
-    let (fin_sender, fin_receiver) = oneshot::channel();
     let context_config = ContextConfig::default();
     let gas_price_params = GasPriceParams {
         min_l1_gas_price_wei: GasPrice(context_config.min_l1_gas_price_wei),
@@ -112,18 +109,16 @@ fn create_proposal_validate_arguments()
             batcher_timeout_margin,
             valid_proposals,
             content_receiver,
-            fin_sender,
             gas_price_params,
             cancel_token,
         },
         content_sender,
-        fin_receiver,
     )
 }
 
 #[tokio::test]
 async fn validate_empty_proposal() {
-    let (proposal_args, mut content_sender, _fin_receiver) = create_proposal_validate_arguments();
+    let (proposal_args, mut content_sender) = create_proposal_validate_arguments();
     // Send an empty proposal.
     content_sender
         .send(ProposalPart::Fin(ProposalFin { proposal_commitment: BlockHash::default() }))
@@ -136,8 +131,7 @@ async fn validate_empty_proposal() {
 
 #[tokio::test]
 async fn validate_proposal_success() {
-    let (mut proposal_args, mut content_sender, _fin_receiver) =
-        create_proposal_validate_arguments();
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     let n_executed = 1;
     // Setup deps to validate the block.
     proposal_args.deps.setup_deps_for_validate(BlockNumber(0), n_executed);
@@ -164,7 +158,7 @@ async fn validate_proposal_success() {
 
 #[tokio::test]
 async fn interrupt_proposal() {
-    let (proposal_args, _content_sender, _fin_receiver) = create_proposal_validate_arguments();
+    let (proposal_args, _content_sender) = create_proposal_validate_arguments();
     // Interrupt the proposal.
     proposal_args.cancel_token.cancel();
 
@@ -174,7 +168,7 @@ async fn interrupt_proposal() {
 
 #[tokio::test]
 async fn validation_timeout() {
-    let (mut proposal_args, _content_sender, _fin_receiver) = create_proposal_validate_arguments();
+    let (mut proposal_args, _content_sender) = create_proposal_validate_arguments();
     // Set a very short timeout to trigger a timeout error.
     proposal_args.timeout = Duration::from_micros(1);
 
@@ -184,7 +178,7 @@ async fn validation_timeout() {
 
 #[tokio::test]
 async fn invalid_second_proposal_part() {
-    let (proposal_args, mut content_sender, _fin_receiver) = create_proposal_validate_arguments();
+    let (proposal_args, mut content_sender) = create_proposal_validate_arguments();
     // Send an invalid proposal part (not BlockInfo or Fin).
     content_sender.send(ProposalPart::ExecutedTransactionCount(0)).await.unwrap();
 
@@ -194,7 +188,7 @@ async fn invalid_second_proposal_part() {
 
 #[tokio::test]
 async fn invalid_block_info() {
-    let (proposal_args, mut content_sender, _fin_receiver) = create_proposal_validate_arguments();
+    let (proposal_args, mut content_sender) = create_proposal_validate_arguments();
 
     let mut block_info = block_info(BlockNumber(0));
     block_info.l2_gas_price_fri =
@@ -207,8 +201,7 @@ async fn invalid_block_info() {
 
 #[tokio::test]
 async fn validate_block_fail() {
-    let (mut proposal_args, mut content_sender, _fin_receiver) =
-        create_proposal_validate_arguments();
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     // Setup batcher to return an error when validating the block.
     proposal_args.deps.batcher.expect_validate_block().returning(|_| {
         Err(BatcherClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
@@ -224,8 +217,7 @@ async fn validate_block_fail() {
 
 #[tokio::test]
 async fn send_executed_transaction_count_more_than_once() {
-    let (mut proposal_args, mut content_sender, _fin_receiver) =
-        create_proposal_validate_arguments();
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     // Setup batcher to validate the block.
     proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
     // Batcher aborts the proposal.
@@ -252,8 +244,7 @@ async fn send_executed_transaction_count_more_than_once() {
 
 #[tokio::test]
 async fn receive_fin_without_executed_transaction_count() {
-    let (mut proposal_args, mut content_sender, _fin_receiver) =
-        create_proposal_validate_arguments();
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     // Setup batcher to validate the block.
     proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
     // Batcher aborts the proposal.
@@ -282,8 +273,7 @@ async fn receive_fin_without_executed_transaction_count() {
 
 #[tokio::test]
 async fn receive_txs_after_executed_transaction_count() {
-    let (mut proposal_args, mut content_sender, _fin_receiver) =
-        create_proposal_validate_arguments();
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     // Setup batcher to validate the block.
     proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
     // Batcher aborts the proposal.
@@ -313,8 +303,7 @@ async fn receive_txs_after_executed_transaction_count() {
 
 #[tokio::test]
 async fn proposal_fin_mismatch() {
-    let (mut proposal_args, mut content_sender, _fin_receiver) =
-        create_proposal_validate_arguments();
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     let n_executed = 0;
     // Setup batcher to validate the block.
     proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
@@ -355,8 +344,7 @@ async fn proposal_fin_mismatch() {
 
 #[tokio::test]
 async fn batcher_returns_invalid_proposal() {
-    let (mut proposal_args, mut content_sender, _fin_receiver) =
-        create_proposal_validate_arguments();
+    let (mut proposal_args, mut content_sender) = create_proposal_validate_arguments();
     let n_executed = 0;
     // Setup batcher to validate the block.
     proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
