@@ -14,19 +14,17 @@ use crate::config_override::InstanceConfigOverride;
 use crate::deployment::{DeploymentType, P2PCommunicationType};
 use crate::deployment_definitions::Environment;
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
-use crate::service::{
+use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
     Controller,
-    GetComponentConfigs,
     Ingress,
     IngressParams,
     Resource,
     Resources,
-    ServiceName,
-    ServiceNameInner,
     Toleration,
 };
+use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
 use crate::utils::{determine_port_numbers, get_secret_key, get_validator_id};
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;

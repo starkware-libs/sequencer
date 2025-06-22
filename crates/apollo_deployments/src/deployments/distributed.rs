@@ -12,19 +12,17 @@ use strum_macros::{AsRefStr, EnumIter};
 
 use crate::deployment_definitions::Environment;
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
-use crate::service::{
+use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
     Controller,
-    GetComponentConfigs,
     Ingress,
     IngressParams,
     Resource,
     Resources,
-    ServiceName,
-    ServiceNameInner,
     Toleration,
 };
+use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
 use crate::utils::determine_port_numbers;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 9;
