@@ -167,7 +167,10 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     type Error = DeprecatedSnosSyscallError;
 
     fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector) {
-        self.deprecated_syscall_hint_processor
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Current execution helper must be set.");
+        current_execution_helper
+            .deprecated_syscall_hint_processor
             .syscalls_usage
             .entry(*selector)
             .or_default()
@@ -176,6 +179,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
 
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> Result<(), Self::Error> {
         let expected_ptr = self
+            .get_current_execution_helper()?
             .deprecated_syscall_hint_processor
             .syscall_ptr
             .expect("Syscall must be set at this point.");
@@ -189,7 +193,10 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
-        self.deprecated_syscall_hint_processor
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Current execution helper must be set.");
+        current_execution_helper
+            .deprecated_syscall_hint_processor
             .syscall_ptr
             .as_mut()
             .expect("Syscall pointer must be set when executing syscall.")

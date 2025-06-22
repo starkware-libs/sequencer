@@ -7,11 +7,7 @@ use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
-use crate::hint_processor::snos_hint_processor::{
-    DeprecatedSyscallHintProcessor,
-    SnosHintProcessor,
-    SyscallHintProcessor,
-};
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::io::os_input::{OsHints, StarknetOsInput};
 use crate::io::os_output::{get_run_output, StarknetOsRunnerOutput};
 
@@ -47,10 +43,6 @@ pub fn run_os<S: StateReader>(
     // Init the Cairo VM.
     let end = cairo_runner.initialize(allow_missing_builtins)?;
 
-    // Create syscall handlers.
-    let syscall_handler = SyscallHintProcessor::default();
-    let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::default();
-
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         &OS_PROGRAM,
@@ -60,8 +52,6 @@ pub fn run_os<S: StateReader>(
         deprecated_compiled_classes,
         compiled_classes,
         state_readers,
-        syscall_handler,
-        deprecated_syscall_handler,
     )?;
 
     // Run the Cairo VM.
