@@ -10,7 +10,6 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment::determine_port_numbers;
 use crate::deployment_definitions::Environment;
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::service::{
@@ -26,6 +25,7 @@ use crate::service::{
     ServiceNameInner,
     Toleration,
 };
+use crate::utils::determine_port_numbers;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 8;
 

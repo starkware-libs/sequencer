@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
 use std::path::{Path, PathBuf};
 
@@ -14,11 +14,7 @@ use indexmap::IndexMap;
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use crate::config_override::{
-    ConfigOverride,
-    DeploymentTypeConfigOverride,
-    InstanceConfigOverride,
-};
+use crate::config_override::{ConfigOverride, DeploymentTypeConfigOverride};
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::service::{
     DeploymentName,
@@ -33,8 +29,6 @@ use crate::service::{
 pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
 
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
-
-const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
 
 const BOOTSTRAP_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS: u64 = 28800; // 8 hours
 const BOOTSTRAP_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 100_000; // 100k seconds ~ 27.7 hours
@@ -205,10 +199,6 @@ impl Deployment {
 // TODO(Tsabary): delete duplicates from the base app config, and add a test that there are no
 // conflicts between all the override config entries and the values in the base app config.
 
-pub(crate) fn format_node_id(base_format: &str, id: usize) -> String {
-    base_format.replace("{}", &id.to_string())
-}
-
 /// Represents the domain of the pragma directive in the configuration.
 pub enum PragmaDomain {
     Dev,
@@ -231,7 +221,7 @@ pub(crate) enum DeploymentType {
 }
 
 impl DeploymentType {
-    fn validator_id_offset(&self) -> usize {
+    pub(crate) fn validator_id_offset(&self) -> usize {
         match self {
             DeploymentType::Bootstrap => 1,
             DeploymentType::Operational => DEFAULT_VALIDATOR_ID.try_into().unwrap(),
@@ -260,7 +250,7 @@ pub enum P2PCommunicationType {
 }
 
 impl P2PCommunicationType {
-    fn get_p2p_address(
+    pub(crate) fn get_p2p_address(
         &self,
         service_name: &str,
         namespace: &str,
@@ -282,75 +272,6 @@ impl P2PCommunicationType {
     pub(crate) fn get_k8s_service_type(&self) -> K8SServiceType {
         K8SServiceType::LoadBalancer
     }
-}
-
-pub(crate) fn create_hybrid_instance_config_override(
-    id: usize,
-    namespace: &'static str,
-    deployment_type: DeploymentType,
-    p2p_communication_type: P2PCommunicationType,
-    domain: &str,
-) -> InstanceConfigOverride {
-    assert!(id < MAX_NODE_ID, "Node id {} exceeds the number of nodes {}", id, MAX_NODE_ID);
-
-    // TODO(Tsabary): these should be derived from the hybrid deployment module, and used
-    // consistently throughout the code.
-
-    // This node address uses that the first node secret key is
-    // "0x0101010101010101010101010101010101010101010101010101010101010101".
-    // TODO(Tsabary): test to enforce the above assumption.
-    const FIRST_NODE_ADDRESS: &str = "12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5";
-    const CORE_SERVICE_NAME: &str = "sequencer-core-service";
-    const CORE_SERVICE_PORT: u16 = 53080;
-
-    const MEMPOOL_SERVICE_NAME: &str = "sequencer-mempool-service";
-    const MEMPOOL_SERVICE_PORT: u16 = 53200;
-
-    let deployment_type_config_override = deployment_type.get_deployment_type_config_override();
-
-    if id == 0 {
-        InstanceConfigOverride::new(
-            "",
-            true,
-            get_secret_key(id),
-            "",
-            true,
-            get_secret_key(id),
-            get_validator_id(id, deployment_type),
-            deployment_type_config_override,
-        )
-    } else {
-        InstanceConfigOverride::new(
-            p2p_communication_type.get_p2p_address(
-                CORE_SERVICE_NAME,
-                namespace,
-                domain,
-                CORE_SERVICE_PORT,
-                FIRST_NODE_ADDRESS,
-            ),
-            false,
-            get_secret_key(id),
-            p2p_communication_type.get_p2p_address(
-                MEMPOOL_SERVICE_NAME,
-                namespace,
-                domain,
-                MEMPOOL_SERVICE_PORT,
-                FIRST_NODE_ADDRESS,
-            ),
-            false,
-            get_secret_key(id),
-            get_validator_id(id, deployment_type),
-            deployment_type_config_override,
-        )
-    }
-}
-
-fn get_secret_key(id: usize) -> String {
-    format!("0x010101010101010101010101010101010101010101010101010101010101010{}", id + 1)
-}
-
-fn get_validator_id(id: usize, deployment_type: DeploymentType) -> String {
-    format!("0x{:x}", id + deployment_type.validator_id_offset())
 }
 
 fn relative_up_path(from: &Path, to: &Path) -> PathBuf {
@@ -392,32 +313,5 @@ impl From<ComponentConfig> for ComponentConfigsSerializationWrapper {
 impl SerializeConfig for ComponentConfigsSerializationWrapper {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         prepend_sub_config_name(self.components.dump(), "components")
-    }
-}
-
-// TODO(Tsabary): create a utils module for this function, and move it there.
-/// Returns a validated or generated vector of port numbers of length `n`.
-/// If `ports` is `Some`, asserts it has length `n` and all unique values.
-/// If `None`, generates a sequence of `n` values starting from `start`.
-pub(crate) fn determine_port_numbers(
-    ports: Option<Vec<u16>>,
-    required_ports_num: usize,
-    base_port_for_generation: u16,
-) -> Vec<u16> {
-    match ports {
-        Some(v) => {
-            assert!(
-                v.len() == required_ports_num,
-                "Expected vector of length {}, got {}",
-                required_ports_num,
-                v.len()
-            );
-
-            let unique: HashSet<_> = v.iter().cloned().collect();
-            assert!(unique.len() == v.len(), "Vector contains duplicate values: {:?}", v);
-
-            v
-        }
-        None => (base_port_for_generation..).take(required_ports_num).collect(),
     }
 }

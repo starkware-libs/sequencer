@@ -10,7 +10,8 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment::determine_port_numbers;
+use crate::config_override::InstanceConfigOverride;
+use crate::deployment::{DeploymentType, P2PCommunicationType};
 use crate::deployment_definitions::Environment;
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::service::{
@@ -26,12 +27,13 @@ use crate::service::{
     ServiceNameInner,
     Toleration,
 };
+use crate::utils::{determine_port_numbers, get_secret_key, get_validator_id};
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 8;
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
-
 const CORE_STORAGE: usize = 1000;
+const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -384,4 +386,65 @@ fn get_http_server_component_config(
     config.gateway = gateway_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
+}
+
+pub(crate) fn create_hybrid_instance_config_override(
+    id: usize,
+    namespace: &'static str,
+    deployment_type: DeploymentType,
+    p2p_communication_type: P2PCommunicationType,
+    domain: &str,
+) -> InstanceConfigOverride {
+    assert!(id < MAX_NODE_ID, "Node id {} exceeds the number of nodes {}", id, MAX_NODE_ID);
+
+    // TODO(Tsabary): these should be derived from the hybrid deployment module, and used
+    // consistently throughout the code.
+
+    // This node address uses that the first node secret key is
+    // "0x0101010101010101010101010101010101010101010101010101010101010101".
+    // TODO(Tsabary): test to enforce the above assumption.
+    const FIRST_NODE_ADDRESS: &str = "12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5";
+    const CORE_SERVICE_NAME: &str = "sequencer-core-service";
+    const CORE_SERVICE_PORT: u16 = 53080;
+
+    const MEMPOOL_SERVICE_NAME: &str = "sequencer-mempool-service";
+    const MEMPOOL_SERVICE_PORT: u16 = 53200;
+
+    let deployment_type_config_override = deployment_type.get_deployment_type_config_override();
+
+    if id == 0 {
+        InstanceConfigOverride::new(
+            "",
+            true,
+            get_secret_key(id),
+            "",
+            true,
+            get_secret_key(id),
+            get_validator_id(id, deployment_type),
+            deployment_type_config_override,
+        )
+    } else {
+        InstanceConfigOverride::new(
+            p2p_communication_type.get_p2p_address(
+                CORE_SERVICE_NAME,
+                namespace,
+                domain,
+                CORE_SERVICE_PORT,
+                FIRST_NODE_ADDRESS,
+            ),
+            false,
+            get_secret_key(id),
+            p2p_communication_type.get_p2p_address(
+                MEMPOOL_SERVICE_NAME,
+                namespace,
+                domain,
+                MEMPOOL_SERVICE_PORT,
+                FIRST_NODE_ADDRESS,
+            ),
+            false,
+            get_secret_key(id),
+            get_validator_id(id, deployment_type),
+            deployment_type_config_override,
+        )
+    }
 }
