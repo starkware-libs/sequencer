@@ -595,7 +595,7 @@ pub fn get_tx_weights<S: StateReader>(
         get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
     additional_os_resources += &get_particia_update_resources(n_visited_storage_entries);
 
-    let vm_resources = &additional_os_resources + &tx_resources.computation.vm_resources;
+    let vm_resources = &additional_os_resources + &tx_resources.computation.total_vm_resources();
     let sierra_gas = tx_resources.computation.sierra_gas;
     let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
     let sierra_gas = sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {

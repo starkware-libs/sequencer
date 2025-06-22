@@ -382,16 +382,17 @@ fn get_expected_cairo_resources(
     tx_type: TransactionType,
     starknet_resources: &StarknetResources,
     call_infos: Vec<&Option<CallInfo>>,
-) -> ExecutionResources {
-    let mut expected_cairo_resources =
+) -> (ExecutionResources, ExecutionResources) {
+    let expected_os_cairo_resources =
         versioned_constants.get_additional_os_tx_resources(tx_type, starknet_resources, false);
+    let mut expected_tx_cairo_resources = ExecutionResources::default();
     for call_info in call_infos {
         if let Some(call_info) = &call_info {
-            expected_cairo_resources += &call_info.resources
+            expected_tx_cairo_resources += &call_info.resources
         };
     }
 
-    expected_cairo_resources
+    (expected_tx_cairo_resources, expected_os_cairo_resources)
 }
 
 /// Given the fee result of a single account transaction, verifies the final balances of the account
@@ -637,7 +638,7 @@ fn test_invoke_tx(
 
     let da_gas = starknet_resources.state.da_gas_vector(use_kzg_da);
 
-    let expected_cairo_resources = get_expected_cairo_resources(
+    let (expected_tx_cairo_resources, expected_os_cairo_resources) = get_expected_cairo_resources(
         versioned_constants,
         TransactionType::InvokeFunction,
         &starknet_resources,
@@ -647,14 +648,15 @@ fn test_invoke_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            vm_resources: expected_cairo_resources,
+            tx_vm_resources: expected_tx_cairo_resources,
+            os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_validate_gas_for_fee + expected_execute_gas_for_fee,
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.computation.vm_resources,
+        &mut expected_actual_resources.computation.os_vm_resources,
         &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
@@ -1667,7 +1669,7 @@ fn test_declare_tx(
     };
 
     let da_gas = starknet_resources.state.da_gas_vector(use_kzg_da);
-    let expected_cairo_resources = get_expected_cairo_resources(
+    let (expected_tx_cairo_resources, expected_os_cairo_resources) = get_expected_cairo_resources(
         versioned_constants,
         TransactionType::Declare,
         &starknet_resources,
@@ -1693,14 +1695,15 @@ fn test_declare_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            vm_resources: expected_cairo_resources,
+            tx_vm_resources: expected_tx_cairo_resources,
+            os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_gas_consumed,
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.computation.vm_resources,
+        &mut expected_actual_resources.computation.os_vm_resources,
         &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
@@ -1928,7 +1931,7 @@ fn test_deploy_account_tx(
         ..StateChangesCount::default()
     };
     let da_gas = get_da_gas_cost(&state_changes_count, use_kzg_da);
-    let expected_cairo_resources = get_expected_cairo_resources(
+    let (expected_tx_cairo_resources, expected_os_cairo_resources) = get_expected_cairo_resources(
         &block_context.versioned_constants,
         TransactionType::DeployAccount,
         &starknet_resources,
@@ -1938,14 +1941,15 @@ fn test_deploy_account_tx(
     let mut actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            vm_resources: expected_cairo_resources,
+            tx_vm_resources: expected_tx_cairo_resources,
+            os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_gas_consumed.into(),
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut actual_resources.computation.vm_resources,
+        &mut actual_resources.computation.os_vm_resources,
         &state_changes_count,
         versioned_constants,
         use_kzg_da,
@@ -2502,7 +2506,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         ..StateChangesCount::default()
     };
 
-    let mut expected_execution_resources = ExecutionResources {
+    let mut expected_os_execution_resources = ExecutionResources {
         builtin_instance_counter: HashMap::from([
             (BuiltinName::pedersen, 11 + payload_size),
             (
@@ -2516,7 +2520,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_execution_resources,
+        &mut expected_os_execution_resources,
         &state_changes_count,
         versioned_constants,
         use_kzg_da,
@@ -2526,7 +2530,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let expected_tx_resources = TransactionResources {
         starknet_resources: actual_execution_info.receipt.resources.starknet_resources.clone(),
         computation: ComputationResources {
-            vm_resources: expected_execution_resources,
+            os_vm_resources: expected_os_execution_resources,
             sierra_gas: gas_consumed,
             ..Default::default()
         },
