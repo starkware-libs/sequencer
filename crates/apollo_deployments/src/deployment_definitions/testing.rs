@@ -1,13 +1,7 @@
 use std::path::PathBuf;
 
-use crate::deployment::{
-    ConfigOverride,
-    Deployment,
-    DeploymentConfigOverride,
-    DeploymentType,
-    InstanceConfigOverride,
-    PragmaDomain,
-};
+use crate::config_override::{ConfigOverride, DeploymentConfigOverride, InstanceConfigOverride};
+use crate::deployment::{Deployment, DeploymentType, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::service::{DeploymentName, IngressParams};
 
