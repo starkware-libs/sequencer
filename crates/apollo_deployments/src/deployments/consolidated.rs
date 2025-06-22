@@ -9,18 +9,16 @@ use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
 use crate::deployment_definitions::Environment;
-use crate::service::{
+use crate::k8s::{
     get_ingress,
     Controller,
-    GetComponentConfigs,
     Ingress,
     IngressParams,
     Resource,
     Resources,
-    ServiceName,
-    ServiceNameInner,
     Toleration,
 };
+use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
 
 const NODE_STORAGE: usize = 1000;
 
