@@ -37,8 +37,8 @@ pub(crate) enum DataAvailability {
 
 pub(crate) struct AggregatorInput {
     _bootloader_output: Vec<Felt>,
-    _full_output: bool,
-    _da: DataAvailability,
+    pub(crate) full_output: bool,
+    pub(crate) da: DataAvailability,
 }
 
 pub struct AggregatorHintProcessor<'a> {
@@ -47,7 +47,7 @@ pub struct AggregatorHintProcessor<'a> {
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     // KZG fields.
     da_segment: Option<Vec<Felt>>,
-    _input: AggregatorInput,
+    pub(crate) input: AggregatorInput,
     // Indicates wether to create pages or not when serializing data-availability.
     pub(crate) serialize_data_availability_create_pages: bool,
     builtin_hint_processor: BuiltinHintProcessor,
