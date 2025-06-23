@@ -542,11 +542,14 @@ pub fn sierra_gas_to_steps_gas(
     let builtins_gas_cost = builtins_to_sierra_gas(builtin_counters, versioned_constants);
 
     sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
-        panic!(
-            "Invalid gas subtraction: builtins gas exceeds total sierra gas. Sierra gas: {:?}, \
-             Builtins gas: {:?}, Builtins: {:?}",
-            sierra_gas, builtins_gas_cost, builtin_counters
-        )
+        log::debug!(
+            "Sierra gas underflow: builtins gas exceeds total. Sierra gas: {:?}, Builtins gas: \
+             {:?}, Builtins: {:?}",
+            sierra_gas,
+            builtins_gas_cost,
+            builtin_counters
+        );
+        GasAmount::ZERO
     })
 }
 
