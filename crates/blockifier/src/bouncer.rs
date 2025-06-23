@@ -612,6 +612,8 @@ pub fn get_tx_weights<S: StateReader>(
     });
 
     let mut total_builtin_counters = additional_os_resources.prover_builtins();
+    // TODO(AvivG): Builtins from `fee_transfer_call_info` are counted twice - in `os_vm_resources`
+    // and again in `tx_builtin_counters`. Remove the duplication.
     add_maps(
         &mut total_builtin_counters,
         &tx_resources.computation.os_vm_resources.prover_builtins(),
