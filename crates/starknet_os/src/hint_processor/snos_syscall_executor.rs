@@ -115,12 +115,22 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         &self.versioned_constants().os_constants.gas_costs
     }
 
-    fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
-        &mut self.syscall_hint_processor.secp256k1_hint_processor
+    fn get_secpk1_hint_processor_and_base(
+        &mut self,
+    ) -> (&mut SecpHintProcessor<ark_secp256k1::Config>, &mut Option<Relocatable>) {
+        (
+            &mut self.syscall_hint_processor.secp256k1_hint_processor,
+            &mut self.syscall_hint_processor.secp_points_segment_base,
+        )
     }
 
-    fn get_secpr1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256r1::Config> {
-        &mut self.syscall_hint_processor.secp256r1_hint_processor
+    fn get_secpr1_hint_processor_and_base(
+        &mut self,
+    ) -> (&mut SecpHintProcessor<ark_secp256r1::Config>, &mut Option<Relocatable>) {
+        (
+            &mut self.syscall_hint_processor.secp256r1_hint_processor,
+            &mut self.syscall_hint_processor.secp_points_segment_base,
+        )
     }
 
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize) {

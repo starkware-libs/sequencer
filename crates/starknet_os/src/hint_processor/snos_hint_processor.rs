@@ -363,6 +363,7 @@ pub struct SyscallHintProcessor {
     // Secp hint processors.
     pub(crate) secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
     pub(crate) secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,
+    pub(crate) secp_points_segment_base: Option<Relocatable>,
 }
 
 impl SyscallHintProcessor {

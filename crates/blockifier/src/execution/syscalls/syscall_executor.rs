@@ -77,9 +77,13 @@ pub trait SyscallExecutor {
         vm: &mut VirtualMachine,
     ) -> Result<Relocatable, Self::Error>;
 
-    fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config>;
+    fn get_secpk1_hint_processor_and_base(
+        &mut self,
+    ) -> (&mut SecpHintProcessor<ark_secp256k1::Config>, &mut Option<Relocatable>);
 
-    fn get_secpr1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256r1::Config>;
+    fn get_secpr1_hint_processor_and_base(
+        &mut self,
+    ) -> (&mut SecpHintProcessor<ark_secp256r1::Config>, &mut Option<Relocatable>);
 
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize);
 
@@ -273,7 +277,10 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpAddResponse, Self::Error> {
-        Ok(syscall_handler.get_secpk1_hint_processor().secp_add(request, vm)?)
+        let (secp_processor, optional_secp_segment_base) =
+            syscall_handler.get_secpk1_hint_processor_and_base();
+        let secp_segment_base = optional_secp_segment_base.expect("Secp segment must be set.");
+        Ok(secp_processor.secp_add(request, vm, secp_segment_base)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -283,7 +290,9 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpGetPointFromXResponse, Self::Error> {
-        Ok(syscall_handler.get_secpk1_hint_processor().secp_get_point_from_x(vm, request)?)
+        let (secp_processor, optional_secp_segment_base) =
+            syscall_handler.get_secpk1_hint_processor_and_base();
+        Ok(secp_processor.secp_get_point_from_x(vm, request, optional_secp_segment_base)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -293,7 +302,10 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpGetXyResponse, Self::Error> {
-        Ok(syscall_handler.get_secpk1_hint_processor().secp_get_xy(request)?)
+        let (secp_processor, optional_secp_segment_base) =
+            syscall_handler.get_secpk1_hint_processor_and_base();
+        let secp_segment_base = optional_secp_segment_base.expect("Secp segment must be set.");
+        Ok(secp_processor.secp_get_xy(request, secp_segment_base)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -303,7 +315,10 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpMulResponse, Self::Error> {
-        Ok(syscall_handler.get_secpk1_hint_processor().secp_mul(request, vm)?)
+        let (secp_processor, optional_secp_segment_base) =
+            syscall_handler.get_secpk1_hint_processor_and_base();
+        let secp_segment_base = optional_secp_segment_base.expect("Secp segment must be set.");
+        Ok(secp_processor.secp_mul(request, vm, secp_segment_base)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -313,7 +328,9 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpNewResponse, Self::Error> {
-        Ok(syscall_handler.get_secpk1_hint_processor().secp_new(vm, request)?)
+        let (secp_processor, optional_secp_segment_base) =
+            syscall_handler.get_secpk1_hint_processor_and_base();
+        Ok(secp_processor.secp_new(vm, request, optional_secp_segment_base)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -323,7 +340,10 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpAddResponse, Self::Error> {
-        Ok(syscall_handler.get_secpr1_hint_processor().secp_add(request, vm)?)
+        let (secp_processor, optional_secp_segment_base) =
+            syscall_handler.get_secpr1_hint_processor_and_base();
+        let secp_segment_base = optional_secp_segment_base.expect("Secp segment must be set.");
+        Ok(secp_processor.secp_add(request, vm, secp_segment_base)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -333,7 +353,9 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpGetPointFromXResponse, Self::Error> {
-        Ok(syscall_handler.get_secpr1_hint_processor().secp_get_point_from_x(vm, request)?)
+        let (secp_processor, optional_secp_segment_base) =
+            syscall_handler.get_secpr1_hint_processor_and_base();
+        Ok(secp_processor.secp_get_point_from_x(vm, request, optional_secp_segment_base)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -343,7 +365,10 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpGetXyResponse, Self::Error> {
-        Ok(syscall_handler.get_secpr1_hint_processor().secp_get_xy(request)?)
+        let (secp_processor, optional_secp_segment_base) =
+            syscall_handler.get_secpr1_hint_processor_and_base();
+        let secp_segment_base = optional_secp_segment_base.expect("Secp segment must be set.");
+        Ok(secp_processor.secp_get_xy(request, secp_segment_base)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -353,7 +378,10 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpMulResponse, Self::Error> {
-        Ok(syscall_handler.get_secpr1_hint_processor().secp_mul(request, vm)?)
+        let (secp_processor, optional_secp_segment_base) =
+            syscall_handler.get_secpr1_hint_processor_and_base();
+        let secp_segment_base = optional_secp_segment_base.expect("Secp segment must be set.");
+        Ok(secp_processor.secp_mul(request, vm, secp_segment_base)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -363,7 +391,9 @@ pub trait SyscallExecutor {
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<Secp256r1NewResponse, Self::Error> {
-        Ok(syscall_handler.get_secpr1_hint_processor().secp_new(vm, request)?)
+        let (secp_processor, optional_secp_segment_base) =
+            syscall_handler.get_secpr1_hint_processor_and_base();
+        Ok(secp_processor.secp_new(vm, request, optional_secp_segment_base)?)
     }
 
     #[allow(clippy::result_large_err)]
