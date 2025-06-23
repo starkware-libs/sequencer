@@ -269,11 +269,11 @@ pub trait SyscallExecutor {
     #[allow(clippy::result_large_err)]
     fn secp256k1_add(
         request: SecpAddRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpAddResponse, Self::Error> {
-        Ok(syscall_handler.get_secpk1_hint_processor().secp_add(request)?)
+        Ok(syscall_handler.get_secpk1_hint_processor().secp_add(request, vm)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -299,11 +299,11 @@ pub trait SyscallExecutor {
     #[allow(clippy::result_large_err)]
     fn secp256k1_mul(
         request: SecpMulRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpMulResponse, Self::Error> {
-        Ok(syscall_handler.get_secpk1_hint_processor().secp_mul(request)?)
+        Ok(syscall_handler.get_secpk1_hint_processor().secp_mul(request, vm)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -319,11 +319,11 @@ pub trait SyscallExecutor {
     #[allow(clippy::result_large_err)]
     fn secp256r1_add(
         request: SecpAddRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpAddResponse, Self::Error> {
-        Ok(syscall_handler.get_secpr1_hint_processor().secp_add(request)?)
+        Ok(syscall_handler.get_secpr1_hint_processor().secp_add(request, vm)?)
     }
 
     #[allow(clippy::result_large_err)]
@@ -349,11 +349,11 @@ pub trait SyscallExecutor {
     #[allow(clippy::result_large_err)]
     fn secp256r1_mul(
         request: SecpMulRequest,
-        _vm: &mut VirtualMachine,
+        vm: &mut VirtualMachine,
         syscall_handler: &mut Self,
         _remaining_gas: &mut u64,
     ) -> Result<SecpMulResponse, Self::Error> {
-        Ok(syscall_handler.get_secpr1_hint_processor().secp_mul(request)?)
+        Ok(syscall_handler.get_secpr1_hint_processor().secp_mul(request, vm)?)
     }
 
     #[allow(clippy::result_large_err)]
