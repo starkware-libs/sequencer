@@ -305,6 +305,7 @@ impl BlockBuilder {
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
         } = block_summary;
+        info!("Block weights: {:?}", bouncer_weights);
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
             // Remove the transactions that were executed, but eventually not included in the block.
