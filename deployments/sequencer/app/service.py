@@ -70,10 +70,10 @@ class ServiceApp(Construct):
             "service",
             metadata=k8s.ObjectMeta(
                 labels=self.labels,
-                annotations={},
+                annotations=self._get_service_anotations(),
             ),
             spec=k8s.ServiceSpec(
-                type=const.K8SServiceType.CLUSTER_IP,
+                type=self._get_service_type(),
                 ports=self._get_service_ports(),
                 selector=self.labels,
             ),
@@ -357,6 +357,35 @@ class ServiceApp(Construct):
             )
             for attr in self._get_ports_subset_keys_from_config()
         ]
+
+    def _get_service_anotations(self) -> typing.Dict[str, str]:
+        annotations = {}
+        if self.service_topology.k8s_service_config is None:
+            return annotations
+        if (
+            self.service_topology.k8s_service_config.get("internal") is True
+            and self._get_service_type() == const.K8SServiceType.LOAD_BALANCER
+        ):
+            annotations.update({"cloud.google.com/load-balancer-type": "Internal"})
+        if self.service_topology.k8s_service_config.get("external_dns_name"):
+            annotations.update(
+                {
+                    "external-dns.alpha.kubernetes.io/hostname": self.service_topology.k8s_service_config[
+                        "external_dns_name"
+                    ]
+                }
+            )
+        return annotations
+
+    def _get_service_type(self) -> const.K8SServiceType:
+        if self.service_topology.k8s_service_config is None:
+            return const.K8SServiceType.CLUSTER_IP
+        if self.service_topology.k8s_service_config.get("type") == "LoadBalancer":
+            return const.K8SServiceType.LOAD_BALANCER
+        elif self.service_topology.k8s_service_config.get("type") == "NodePort":
+            return const.K8SServiceType.NODE_PORT
+        else:
+            return const.K8SServiceType.CLUSTER_IP
 
     def _get_http_probe(
         self,
