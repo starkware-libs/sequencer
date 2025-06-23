@@ -12,7 +12,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
     TransactionExecutorResult,
 };
-use crate::execution::call_info::ExecutionSummary;
+use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
@@ -49,8 +49,6 @@ macro_rules! impl_checked_ops {
         }
     };
 }
-
-pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
@@ -253,20 +251,24 @@ impl BuiltinWeights {
     }
 
     // TODO(Meshi): Consider code sharing with the builtins_to_sierra_gas function.
-    pub fn calc_gas_from_builtin_counter(&self, builtin_counts: &BuiltinCounterMap) -> GasAmount {
-        let builtin_gas = builtin_counts.iter().fold(0_usize, |accumulated_gas, (name, &count)| {
-            let builtin_weight = self.builtin_weight(name);
-            builtin_weight
-                .checked_mul(count)
-                .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
-                .unwrap_or_else(|| {
-                    panic!(
-                        "Overflow while converting builtin counters to gas.\nBuiltin: {name}, \
-                         Weight: {builtin_weight}, Count: {count}, Accumulated gas: \
-                         {accumulated_gas}"
-                    )
-                })
-        });
+    pub fn calc_gas_from_builtin_counters(
+        &self,
+        builtin_counters: &BuiltinCounterMap,
+    ) -> GasAmount {
+        let builtin_gas =
+            builtin_counters.iter().fold(0_usize, |accumulated_gas, (name, &count)| {
+                let builtin_weight = self.builtin_weight(name);
+                builtin_weight
+                    .checked_mul(count)
+                    .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Overflow while converting builtin counters to gas.\nBuiltin: {name}, \
+                             Weight: {builtin_weight}, Count: {count}, Accumulated gas: \
+                             {accumulated_gas}"
+                        )
+                    })
+            });
 
         GasAmount(u64_from_usize(builtin_gas))
     }
@@ -551,25 +553,25 @@ pub fn sierra_gas_to_steps_gas(
 }
 
 pub fn builtins_to_sierra_gas(
-    builtin_counts: &BuiltinCounterMap,
+    builtin_counters: &BuiltinCounterMap,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
     let gas_costs = &versioned_constants.os_constants.gas_costs.builtins;
 
-    let total_gas = builtin_counts
+    let total_gas = builtin_counters
         .iter()
         .try_fold(0u64, |accumulated_gas, (&builtin, &count)| {
             let builtin_gas_cost = gas_costs
                 .get_builtin_gas_cost(&builtin)
                 .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
-            let builtin_count_u64 = u64_from_usize(count);
-            let builtin_total_cost = builtin_count_u64.checked_mul(builtin_gas_cost)?;
+            let builtin_counters_u64 = u64_from_usize(count);
+            let builtin_total_cost = builtin_counters_u64.checked_mul(builtin_gas_cost)?;
             accumulated_gas.checked_add(builtin_total_cost)
         })
         .unwrap_or_else(|| {
             panic!(
                 "Overflow occurred while converting built-in resources to gas. Builtins: {:?}",
-                builtin_counts
+                builtin_counters
             )
         });
 
@@ -615,7 +617,7 @@ pub fn get_tx_weights<S: StateReader>(
 
     let steps_proving_gas =
         sierra_gas_to_steps_gas(sierra_gas, versioned_constants, &total_builtin_counters);
-    let builtins_gas = builtin_weights.calc_gas_from_builtin_counter(&total_builtin_counters);
+    let builtins_gas = builtin_weights.calc_gas_from_builtin_counters(&total_builtin_counters);
     let proving_gas = steps_proving_gas.checked_add(builtins_gas).unwrap_or_else(|| {
         panic!(
             "Addition overflow while calculating the proving gas. steps gas: {}, builtins as gas: \
