@@ -13,24 +13,12 @@ use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
-<<<<<<< HEAD
 use crate::blockifier_versioned_constants::VersionedConstants;
-||||||| 787b8bea3
-=======
 use crate::bouncer::BuiltinCounterMap;
->>>>>>> origin/main-v0.13.6
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
-<<<<<<< HEAD
-use crate::utils::u64_from_usize;
-||||||| 787b8bea3
-use crate::utils::u64_from_usize;
-use crate::versioned_constants::VersionedConstants;
-=======
 use crate::utils::{add_maps, u64_from_usize};
-use crate::versioned_constants::VersionedConstants;
->>>>>>> origin/main-v0.13.6
 
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Debug, Default, Eq, PartialEq, Serialize)]
@@ -153,7 +141,8 @@ impl ExecutionSummary {
         use crate::fee::resources::{ComputationResources, MessageResources};
 
         let computation_resources = ComputationResources {
-            vm_resources: self.charged_resources.vm_resources,
+            tx_vm_resources: self.charged_resources.tx_vm_resources,
+            os_vm_resources: self.charged_resources.os_vm_resources,
             n_reverted_steps: 0,
             sierra_gas: self.charged_resources.gas_consumed,
             reverted_sierra_gas: 0u64.into(),
@@ -240,22 +229,10 @@ pub struct CallInfo {
     pub tracked_resource: TrackedResource,
 
     // Additional information gathered during execution.
-<<<<<<< HEAD
     pub storage_access_tracker: StorageAccessTracker,
-||||||| 787b8bea3
-    pub storage_read_values: Vec<Felt>,
-    pub accessed_storage_keys: HashSet<StorageKey>,
-    pub read_class_hash_values: Vec<ClassHash>,
-    pub accessed_contract_addresses: HashSet<ContractAddress>,
-=======
-    pub storage_read_values: Vec<Felt>,
-    pub accessed_storage_keys: HashSet<StorageKey>,
-    pub read_class_hash_values: Vec<ClassHash>,
-    pub accessed_contract_addresses: HashSet<ContractAddress>,
     // Tracks how many times each builtin was called during execution (excluding inner calls).
     // Used by the bouncer to decide when to close a block.
     pub builtin_counters: HashMap<BuiltinName, usize>,
->>>>>>> origin/main-v0.13.6
 }
 
 impl CallInfo {

@@ -155,20 +155,12 @@ fn test_nested_library_call() {
         call: nested_storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
         resources: storage_entry_point_resources.clone(),
-<<<<<<< HEAD
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![felt!(value + 1)],
             accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
             ..Default::default()
         },
-||||||| 787b8bea3
-        storage_read_values: vec![felt!(value + 1)],
-        accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
-=======
-        storage_read_values: vec![felt!(value + 1)],
-        accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
         builtin_counters: HashMap::from([(BuiltinName::range_check, 2)]),
->>>>>>> origin/main-v0.13.6
         ..Default::default()
     };
     let mut library_call_resources =
@@ -184,27 +176,19 @@ fn test_nested_library_call() {
         execution: CallExecution::from_retdata(retdata![felt!(value + 1)]),
         resources: library_call_resources.clone(),
         inner_calls: vec![nested_storage_call_info],
-        builtin_counters: HashMap::from([(BuiltinName::range_check, 16)]),
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 19)]),
         ..Default::default()
     };
     let storage_call_info = CallInfo {
         call: storage_entry_point,
         execution: CallExecution::from_retdata(retdata![felt!(value)]),
         resources: storage_entry_point_resources.clone(),
-<<<<<<< HEAD
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![felt!(value)],
             accessed_storage_keys: HashSet::from([storage_key!(key)]),
             ..Default::default()
         },
-||||||| 787b8bea3
-        storage_read_values: vec![felt!(value)],
-        accessed_storage_keys: HashSet::from([storage_key!(key)]),
-=======
-        storage_read_values: vec![felt!(value)],
-        accessed_storage_keys: HashSet::from([storage_key!(key)]),
         builtin_counters: HashMap::from([(BuiltinName::range_check, 2)]),
->>>>>>> origin/main-v0.13.6
         ..Default::default()
     };
 
@@ -222,7 +206,7 @@ fn test_nested_library_call() {
         execution: CallExecution::from_retdata(retdata![felt!(0_u8)]),
         resources: main_call_resources,
         inner_calls: vec![library_call_info, storage_call_info],
-        builtin_counters: HashMap::from([(BuiltinName::range_check, 31)]),
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 37)]),
         ..Default::default()
     };
 
@@ -318,20 +302,12 @@ fn test_call_contract() {
             n_memory_holes: 0,
             builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 2)]),
         },
-<<<<<<< HEAD
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![value],
             accessed_storage_keys: HashSet::from([storage_key!(key_int)]),
             ..Default::default()
         },
-||||||| 787b8bea3
-        storage_read_values: vec![value],
-        accessed_storage_keys: HashSet::from([storage_key!(key_int)]),
-=======
-        storage_read_values: vec![value],
-        accessed_storage_keys: HashSet::from([storage_key!(key_int)]),
         builtin_counters: HashMap::from([(BuiltinName::range_check, 2)]),
->>>>>>> origin/main-v0.13.6
         ..Default::default()
     };
     let expected_call_info = CallInfo {
@@ -349,7 +325,7 @@ fn test_call_contract() {
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
             },
-        builtin_counters: HashMap::from([(BuiltinName::range_check, 16)]),
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 19)]),
         ..Default::default()
     };
 

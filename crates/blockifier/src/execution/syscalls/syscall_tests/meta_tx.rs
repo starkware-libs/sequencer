@@ -184,17 +184,33 @@ fn test_meta_tx_v0(
         "#]]
         .assert_debug_eq(&DeterministicExecutionResources::from(&call_info.resources));
     } else {
-        expect![[r#"
+        if runnable_version.is_cairo_native() {
+            expect![[r#"
             CallExecution {
                 retdata: Retdata(
                     [],
                 ),
                 events: [],
                 l2_to_l1_messages: [],
+                cairo_native: true,
                 failed: false,
                 gas_consumed: 523890,
             }
         "#]]
+        } else {
+            expect![[r#"
+            CallExecution {
+                retdata: Retdata(
+                    [],
+                ),
+                events: [],
+                l2_to_l1_messages: [],
+                cairo_native: false,
+                failed: false,
+                gas_consumed: 523890,
+            }
+        "#]]
+        }
         .assert_debug_eq(&call_info.execution);
         assert_eq!(call_info.resources, ExecutionResources::default());
     }

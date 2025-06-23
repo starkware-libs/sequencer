@@ -4,5 +4,6 @@
     "n_events": 2,
     "state_diff_size": 45,
     "sierra_gas": 10,
-    "n_txs": 2
+    "n_txs": 2,
+    "proving_gas": 11
 }

@@ -30,13 +30,7 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
-<<<<<<< HEAD
-||||||| 787b8bea3
-use crate::versioned_constants::GasCosts;
-=======
 use crate::transaction::objects::ExecutionResourcesTraits;
-use crate::versioned_constants::GasCosts;
->>>>>>> origin/main-v0.13.6
 
 #[cfg(test)]
 #[path = "entry_point_execution_test.rs"]
@@ -454,20 +448,8 @@ pub fn finalize_execution(
         inner_calls: syscall_handler_base.inner_calls,
         tracked_resource,
         resources: vm_resources,
-<<<<<<< HEAD
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
-||||||| 787b8bea3
-        storage_read_values: syscall_handler_base.read_values,
-        accessed_storage_keys: syscall_handler_base.accessed_keys,
-        read_class_hash_values: syscall_handler_base.read_class_hash_values,
-        accessed_contract_addresses: syscall_handler_base.accessed_contract_addresses,
-=======
-        storage_read_values: syscall_handler_base.read_values,
-        accessed_storage_keys: syscall_handler_base.accessed_keys,
-        read_class_hash_values: syscall_handler_base.read_class_hash_values,
-        accessed_contract_addresses: syscall_handler_base.accessed_contract_addresses,
         builtin_counters: vm_resources_without_inner_calls.prover_builtins(),
->>>>>>> origin/main-v0.13.6
     })
 }
 

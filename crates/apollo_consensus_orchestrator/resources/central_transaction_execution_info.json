@@ -1,7 +1,7 @@
 {
   "actual_fee": "0x26fe9d250e000",
   "actual_resources": {
-    "n_steps": 7,
+    "n_steps": 4,
     "pedersen_builtin": 4,
     "range_check_builtin": 31
   },
@@ -58,6 +58,7 @@
           "order": 1
         }
       ],
+      "cairo_native": false,
       "retdata": [
         "0x56414c4944"
       ]
@@ -111,6 +112,7 @@
               "order": 1
             }
           ],
+          "cairo_native": false,
           "retdata": [
             "0x56414c4944"
           ]
@@ -146,7 +148,8 @@
           ]
         },
         "tracked_resource": "SierraGas",
-        "inner_calls": []
+        "inner_calls": [],
+        "builtin_counters": {}
       }
     ],
     "resources": {
@@ -179,7 +182,8 @@
         100
       ]
     },
-    "tracked_resource": "SierraGas"
+    "tracked_resource": "SierraGas",
+    "builtin_counters": {}
   },
   "fee_transfer_call_info": {
     "call": {
@@ -229,6 +233,7 @@
           "order": 1
         }
       ],
+      "cairo_native": false,
       "retdata": [
         "0x56414c4944"
       ]
@@ -282,6 +287,7 @@
               "order": 1
             }
           ],
+          "cairo_native": false,
           "retdata": [
             "0x56414c4944"
           ]
@@ -317,7 +323,8 @@
           ]
         },
         "tracked_resource": "SierraGas",
-        "inner_calls": []
+        "inner_calls": [],
+        "builtin_counters": {}
       }
     ],
     "resources": {
@@ -350,7 +357,8 @@
         100
       ]
     },
-    "tracked_resource": "SierraGas"
+    "tracked_resource": "SierraGas",
+    "builtin_counters": {}
   },
   "revert_error": null,
   "total_gas": {
@@ -406,6 +414,7 @@
           "order": 1
         }
       ],
+      "cairo_native": false,
       "retdata": [
         "0x56414c4944"
       ]
@@ -459,6 +468,7 @@
               "order": 1
             }
           ],
+          "cairo_native": false,
           "retdata": [
             "0x56414c4944"
           ]
@@ -494,7 +504,8 @@
           ]
         },
         "tracked_resource": "SierraGas",
-        "inner_calls": []
+        "inner_calls": [],
+        "builtin_counters": {}
       }
     ],
     "resources": {
@@ -527,6 +538,7 @@
         100
       ]
     },
-    "tracked_resource": "SierraGas"
+    "tracked_resource": "SierraGas",
+    "builtin_counters": {}
   }
 }

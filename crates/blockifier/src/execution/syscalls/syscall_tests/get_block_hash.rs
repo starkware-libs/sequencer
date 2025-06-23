@@ -55,7 +55,6 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-<<<<<<< HEAD
     let call_info = entry_point_call.clone().execute_directly(&mut state).unwrap();
 
     assert_eq!(call_info.storage_access_tracker.accessed_blocks.len(), 1);
@@ -64,29 +63,14 @@ fn positive_flow(runnable_version: RunnableCairo1) {
             .storage_access_tracker
             .accessed_blocks
             .contains(&BlockNumber(block_number.try_into().unwrap()))
-||||||| 787b8bea3
-    assert_eq!(
-        entry_point_call.clone().execute_directly(&mut state).unwrap().execution,
-        CallExecution {
-            gas_consumed: REQUIRED_GAS_GET_BLOCK_HASH_TEST,
-            ..CallExecution::from_retdata(retdata![block_hash])
-        }
-=======
-    assert_eq!(
-        entry_point_call.clone().execute_directly(&mut state).unwrap().execution,
-        CallExecution {
-            gas_consumed: REQUIRED_GAS_GET_BLOCK_HASH_TEST,
-            cairo_native: runnable_version.is_cairo_native(),
-            ..CallExecution::from_retdata(retdata![block_hash])
-        }
->>>>>>> origin/main-v0.13.6
     );
     assert_eq!(
         call_info.storage_access_tracker.read_block_hash_values,
         vec![BlockHash(block_hash)]
     );
 
-    expect![[r#"
+    if runnable_version.is_cairo_native() {
+        expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [
@@ -95,10 +79,27 @@ fn positive_flow(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: true,
             failed: false,
             gas_consumed: 15220,
         }
     "#]]
+    } else {
+        expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [
+                    0x42,
+                ],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            cairo_native: false,
+            failed: false,
+            gas_consumed: 15220,
+        }
+    "#]]
+    }
     .assert_debug_eq(&call_info.execution);
     assert_eq!(call_info.execution.retdata, retdata![block_hash]);
 }

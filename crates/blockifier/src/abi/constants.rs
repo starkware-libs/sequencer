@@ -27,12 +27,8 @@ pub const MESSAGE_SEGMENT_LENGTH: &str = "message_segment_length";
 pub const STATE_DIFF_SIZE: &str = "state_diff_size";
 pub const N_MEMORY_HOLES: &str = "n_memory_holes";
 pub const SIERRA_GAS: &str = "sierra_gas";
-<<<<<<< HEAD
 pub const N_TXS: &str = "n_txs";
-||||||| 787b8bea3
-=======
 pub const PROVING_GAS: &str = "proving_gas";
->>>>>>> origin/main-v0.13.6
 
 // Casm hash calculation-related constants.
 pub const CAIRO0_ENTRY_POINT_STRUCT_SIZE: usize = 2;
