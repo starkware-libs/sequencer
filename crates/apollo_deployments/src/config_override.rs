@@ -138,7 +138,6 @@ impl DeploymentConfigOverride {
             eth_fee_token_address: eth_fee_token_address.to_string(),
             starknet_url: starknet_url.to_string(),
             strk_fee_token_address: strk_fee_token_address.to_string(),
-            // TODO(Tsabary): use `format!` instead.
             consensus_manager_config_eth_to_strk_oracle_config_base_url: PRAGMA_URL_TEMPLATE
                 .replace("{}", &pragma_domain.to_string()),
             l1_provider_config_provider_startup_height_override,
@@ -146,8 +145,6 @@ impl DeploymentConfigOverride {
         }
     }
 }
-
-// TODO(Tsabary): re-verify all config diffs.
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct InstanceConfigOverride {
@@ -169,22 +166,28 @@ pub struct InstanceConfigOverride {
 }
 
 impl InstanceConfigOverride {
-    // TODO(Tsabary): reduce number of args.
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        consensus_bootstrap_peer_multiaddr: impl ToString,
-        consensus_bootstrap_peer_multiaddr_is_none: bool,
+        consensus_bootstrap_peer_multiaddr: Option<String>,
         consensus_secret_key: impl ToString,
-        mempool_bootstrap_peer_multiaddr: impl ToString,
-        mempool_bootstrap_peer_multiaddr_is_none: bool,
+        mempool_bootstrap_peer_multiaddr: Option<String>,
         mempool_secret_key: impl ToString,
         validator_id: impl ToString,
     ) -> Self {
+        let (consensus_bootstrap_peer_multiaddr, consensus_bootstrap_peer_multiaddr_is_none) =
+            match consensus_bootstrap_peer_multiaddr {
+                Some(addr) => (addr, false),
+                None => ("".to_string(), true),
+            };
+        let (mempool_bootstrap_peer_multiaddr, mempool_bootstrap_peer_multiaddr_is_none) =
+            match mempool_bootstrap_peer_multiaddr {
+                Some(addr) => (addr, false),
+                None => ("".to_string(), true),
+            };
         Self {
-            consensus_bootstrap_peer_multiaddr: consensus_bootstrap_peer_multiaddr.to_string(),
+            consensus_bootstrap_peer_multiaddr,
             consensus_bootstrap_peer_multiaddr_is_none,
             consensus_secret_key: consensus_secret_key.to_string(),
-            mempool_bootstrap_peer_multiaddr: mempool_bootstrap_peer_multiaddr.to_string(),
+            mempool_bootstrap_peer_multiaddr,
             mempool_bootstrap_peer_multiaddr_is_none,
             mempool_secret_key: mempool_secret_key.to_string(),
             validator_id: validator_id.to_string(),

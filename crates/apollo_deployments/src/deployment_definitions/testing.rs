@@ -32,11 +32,9 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
 
 fn testing_instance_config_override() -> InstanceConfigOverride {
     InstanceConfigOverride::new(
-        "",
-        true,
+        None,
         "0x0101010101010101010101010101010101010101010101010101010101010101",
-        "",
-        true,
+        None,
         "0x0101010101010101010101010101010101010101010101010101010101010101",
         "0x64",
     )
