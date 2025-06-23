@@ -17,8 +17,10 @@ use crate::test_utils::assert_json_eq;
 #[cfg(any(feature = "testing", test))]
 pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str, fix_binary_name: &str) {
     let file_path = resolve_project_relative_path("").unwrap().join(file_path);
-    let loaded_data: Value = from_reader(File::open(file_path).unwrap()).unwrap();
-
+    let file = File::open(&file_path).unwrap_or_else(|err| {
+        panic!("Failed to open file '{}': {}", file_path.display(), err);
+    });
+    let loaded_data: Value = from_reader(file).unwrap();
     let serialized_data =
         to_value(&data).expect("Should have been able to serialize the data to JSON");
 
