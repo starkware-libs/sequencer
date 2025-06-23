@@ -14,7 +14,7 @@ use indexmap::IndexMap;
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use crate::config_override::{ConfigOverride, DeploymentTypeConfigOverride};
+use crate::config_override::ConfigOverride;
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfigParams};
 use crate::service::{DeploymentName, Service, ServiceName};
@@ -23,12 +23,6 @@ use crate::service::{DeploymentName, Service, ServiceName};
 pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
 
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
-
-const BOOTSTRAP_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS: u64 = 28800; // 8 hours
-const BOOTSTRAP_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 100_000; // 100k seconds ~ 27.7 hours
-
-const OPERATIONAL_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS: u64 = 3600; // 1 hour
-const OPERATIONAL_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 300; // 300 seconds ~ 5 minutes
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Deployment {
@@ -211,19 +205,6 @@ impl DeploymentType {
         match self {
             DeploymentType::Bootstrap => 1,
             DeploymentType::Operational => DEFAULT_VALIDATOR_ID.try_into().unwrap(),
-        }
-    }
-
-    pub(crate) fn get_deployment_type_config_override(&self) -> DeploymentTypeConfigOverride {
-        match self {
-            DeploymentType::Bootstrap => DeploymentTypeConfigOverride::new(
-                BOOTSTRAP_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS,
-                BOOTSTRAP_MEMPOOL_CONFIG_TRANSACTION_TTL,
-            ),
-            DeploymentType::Operational => DeploymentTypeConfigOverride::new(
-                OPERATIONAL_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS,
-                OPERATIONAL_MEMPOOL_CONFIG_TRANSACTION_TTL,
-            ),
         }
     }
 }
