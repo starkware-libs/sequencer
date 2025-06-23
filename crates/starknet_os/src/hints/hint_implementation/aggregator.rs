@@ -52,10 +52,15 @@ pub(crate) fn get_aggregator_output(
 }
 
 pub(crate) fn write_da_segment(
-    _hint_processor: &mut AggregatorHintProcessor<'_>,
+    hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    todo!()
+    if let DataAvailability::Blob(da_file_path) = hint_processor.input.da.clone() {
+        let da_segment = hint_processor.get_da_segment();
+
+        std::fs::write(da_file_path, serde_json::to_string(&da_segment)?)?;
+    }
+    Ok(())
 }
 
 pub(crate) fn get_full_output_from_input(
