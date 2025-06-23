@@ -4,6 +4,11 @@ import os
 import sys
 from pathlib import Path
 
+# TODO(Nadin): Add auto-generation of secrets.json in the appropriate location and ensure it’s
+# included in the app config.
+# TODO(Nadin): extract the path to secrets.json from the deployment config.
+SECRETS_JSON_PATH = "crates/apollo_deployments/resources/testing_secrets.json"
+
 
 def load_json(path):
     with open(path, "r", encoding="utf-8") as f:
@@ -15,13 +20,24 @@ def save_json(data, path):
         json.dump(data, f, indent=2)
 
 
-def main(deployment_config_path: str, secrets_json_str: str):
-
+def main(deployment_config_path: str):
     deployment_config = load_json(deployment_config_path)
 
     # Get application config subdirectory
     config_dir = deployment_config["application_config_subdir"]
     config_dir_path = Path(os.environ["GITHUB_WORKSPACE"]) / config_dir
+
+    # Load secrets.json from the config directory
+    secrets_path = Path(SECRETS_JSON_PATH)
+    if not secrets_path.is_file():
+        print(f"❌ secrets.json not found at {secrets_path}")
+        sys.exit(1)
+
+    try:
+        secrets = load_json(secrets_path)
+    except json.JSONDecodeError as e:
+        print(f"❌ Failed to decode secrets.json: {e}")
+        sys.exit(1)
 
     # Flatten all config file paths
     services = deployment_config.get("services", [])
@@ -34,13 +50,6 @@ def main(deployment_config_path: str, secrets_json_str: str):
             )
             continue
         config_files.extend(cfgs)
-
-    # Load the secrets JSON
-    try:
-        secrets = json.loads(secrets_json_str)
-    except json.JSONDecodeError as e:
-        print(f"❌ Failed to decode secrets JSON: {e}")
-        sys.exit(1)
 
     # Inject secrets into each config
     for cfg_file in config_files:
@@ -68,7 +77,7 @@ def main(deployment_config_path: str, secrets_json_str: str):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Inject secrets into JSON config files based on deployment config."
+        description="Inject secrets from secrets.json into config files based on deployment config."
     )
     parser.add_argument(
         "--deployment_config_path",
@@ -76,12 +85,5 @@ if __name__ == "__main__":
         required=True,
         help="Path to the deployment config JSON file",
     )
-    parser.add_argument(
-        "--secrets_json",
-        required=True,
-        help="Secrets as a JSON string or environment variable name prefixed with ENV:",
-    )
-
     args = parser.parse_args()
-
-    main(args.deployment_config_path, args.secrets_json)
+    main(args.deployment_config_path)

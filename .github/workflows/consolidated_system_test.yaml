@@ -240,7 +240,7 @@ jobs:
       # TODO(Nadin): move the config definition out of the GitHub Actions secret section, since it no longer contains sensitive values.
       - name: Inject Config Secrets
         run: |
-          python ./scripts/system_tests/config_secrets_injector.py --deployment_config_path ${{ env.deployment_config_path }} --secrets_json '${{ vars.SEQUENCER_CONFIG_JSON }}'
+          python ./scripts/system_tests/config_secrets_injector.py --deployment_config_path ${{ env.deployment_config_path }}
 
       - name: Generate k8s manifests
         working-directory: deployments/sequencer
