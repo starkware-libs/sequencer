@@ -513,7 +513,7 @@ fn memory_holes_to_gas(
     vm_resource_to_gas_amount(n_memory_holes, gas_per_memory_hole, "memory_holes")
 }
 
-fn vm_resources_to_sierra_gas(
+pub fn vm_resources_to_sierra_gas(
     resources: ExecutionResources,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
