@@ -1,8 +1,13 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
+<<<<<<< HEAD
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect;
+||||||| 787b8bea3
+=======
+use cairo_vm::types::builtin_name::BuiltinName;
+>>>>>>> origin/main-v0.13.6
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::{calldata, felt, storage_key};
@@ -44,6 +49,7 @@ fn test_library_call(runnable_version: RunnableCairo1) {
     let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
     expect![[r#"
         CallExecution {
+<<<<<<< HEAD
             retdata: Retdata(
                 [
                     0x5b,
@@ -53,6 +59,16 @@ fn test_library_call(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 127470,
+||||||| 787b8bea3
+            retdata: retdata![felt!(91_u16)],
+            gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
+            ..Default::default()
+=======
+            retdata: retdata![felt!(91_u16)],
+            gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
+            cairo_native: runnable_version.is_cairo_native(),
+            ..Default::default()
+>>>>>>> origin/main-v0.13.6
         }
     "#]]
     .assert_debug_eq(&execution);
@@ -84,6 +100,7 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
 
     expect![[r#"
         CallExecution {
+<<<<<<< HEAD
             retdata: Retdata(
                 [
                     0x7820213d2079,
@@ -92,6 +109,24 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+||||||| 787b8bea3
+            retdata: Retdata(vec![
+                // 'x != y'.
+                felt!("0x7820213d2079"),
+                // 'ENTRYPOINT_FAILED'.
+                felt!("0x454e545259504f494e545f4641494c4544")
+            ]),
+            gas_consumed: 105050,
+=======
+            retdata: Retdata(vec![
+                // 'x != y'.
+                felt!("0x7820213d2079"),
+                // 'ENTRYPOINT_FAILED'.
+                felt!("0x454e545259504f494e545f4641494c4544")
+            ]),
+            gas_consumed: 105050,
+            cairo_native: runnable_version.is_cairo_native(),
+>>>>>>> origin/main-v0.13.6
             failed: true,
             gas_consumed: 111020,
         }
@@ -189,15 +224,33 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         call: nested_storage_entry_point,
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
+<<<<<<< HEAD
             gas_consumed: 0, // Tested via expect![] macro.
+||||||| 787b8bea3
+            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+=======
+            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+            cairo_native: runnable_version.is_cairo_native(),
+>>>>>>> origin/main-v0.13.6
             ..CallExecution::default()
         },
         tracked_resource,
+<<<<<<< HEAD
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![felt!(value + 1)],
             accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
             ..Default::default()
         },
+||||||| 787b8bea3
+        storage_read_values: vec![felt!(value + 1)],
+        accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
+=======
+        storage_read_values: vec![felt!(value + 1)],
+        accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
+        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
+            .then(|| HashMap::from([(BuiltinName::range_check, 7)]))
+            .unwrap_or_default(),
+>>>>>>> origin/main-v0.13.6
         ..Default::default()
     };
 
@@ -208,11 +261,21 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         call: library_entry_point,
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
+<<<<<<< HEAD
             gas_consumed: 0, // Tested via expect![] macro.
+||||||| 787b8bea3
+            gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
+=======
+            gas_consumed: REQUIRED_GAS_LIBRARY_CALL_TEST,
+            cairo_native: runnable_version.is_cairo_native(),
+>>>>>>> origin/main-v0.13.6
             ..CallExecution::default()
         },
         inner_calls: vec![nested_storage_call_info],
         tracked_resource,
+        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
+            .then(|| HashMap::from([(BuiltinName::range_check, 23)]))
+            .unwrap_or_default(),
         ..Default::default()
     };
 
@@ -223,7 +286,14 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         call: storage_entry_point,
         execution: CallExecution {
             retdata: retdata![felt!(value)],
+<<<<<<< HEAD
             gas_consumed: 0, // Tested via expect![] macro.
+||||||| 787b8bea3
+            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+=======
+            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
+            cairo_native: runnable_version.is_cairo_native(),
+>>>>>>> origin/main-v0.13.6
             ..CallExecution::default()
         },
         storage_access_tracker: StorageAccessTracker {
@@ -232,6 +302,9 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             ..Default::default()
         },
         tracked_resource,
+        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
+            .then(|| HashMap::from([(BuiltinName::range_check, 7)]))
+            .unwrap_or_default(),
         ..Default::default()
     };
 
@@ -242,11 +315,21 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         call: main_entry_point.clone(),
         execution: CallExecution {
             retdata: retdata![felt!(value)],
+<<<<<<< HEAD
             gas_consumed: 0, // Tested via expect![] macro.
+||||||| 787b8bea3
+            gas_consumed: main_gas_consumed,
+=======
+            gas_consumed: main_gas_consumed,
+            cairo_native: runnable_version.is_cairo_native(),
+>>>>>>> origin/main-v0.13.6
             ..CallExecution::default()
         },
         inner_calls: vec![library_call_info, storage_call_info],
         tracked_resource,
+        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
+            .then(|| HashMap::from([(BuiltinName::range_check, 35)]))
+            .unwrap_or_default(),
         ..Default::default()
     };
 

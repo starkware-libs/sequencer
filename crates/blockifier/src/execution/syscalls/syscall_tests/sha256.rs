@@ -25,6 +25,7 @@ fn test_sha256(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
+<<<<<<< HEAD
     let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
     expect![[r#"
         CallExecution {
@@ -39,4 +40,19 @@ fn test_sha256(runnable_version: RunnableCairo1) {
     "#]]
     .assert_debug_eq(&execution);
     pretty_assertions::assert_eq!(execution.retdata, retdata![]);
+||||||| 787b8bea3
+    pretty_assertions::assert_eq!(
+        entry_point_call.execute_directly(&mut state).unwrap().execution,
+        CallExecution { gas_consumed: 870855, ..CallExecution::from_retdata(retdata![]) }
+    );
+=======
+    pretty_assertions::assert_eq!(
+        entry_point_call.execute_directly(&mut state).unwrap().execution,
+        CallExecution {
+            gas_consumed: 870855,
+            cairo_native: runnable_version.is_cairo_native(),
+            ..CallExecution::from_retdata(retdata![])
+        }
+    );
+>>>>>>> origin/main-v0.13.6
 }

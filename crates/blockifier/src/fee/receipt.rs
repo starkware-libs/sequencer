@@ -75,18 +75,21 @@ impl TransactionReceipt {
 
         // Transaction overhead ('additional') resources are computed in VM resources no matter what
         // the tracked resources of the transaction are.
-        let total_vm_resources = (&charged_resources.vm_resources
-            + &tx_context.block_context.versioned_constants.get_additional_os_tx_resources(
+        let os_vm_resources = tx_context
+            .block_context
+            .versioned_constants
+            .get_additional_os_tx_resources(
                 tx_type,
                 &starknet_resources,
                 tx_context.block_context.block_info.use_kzg_da,
-            ))
+            )
             .filter_unused_builtins();
 
         let tx_resources = TransactionResources {
             starknet_resources,
             computation: ComputationResources {
-                vm_resources: total_vm_resources,
+                tx_vm_resources: charged_resources.vm_resources.filter_unused_builtins(),
+                os_vm_resources,
                 n_reverted_steps: reverted_steps,
                 sierra_gas: charged_resources.gas_consumed,
                 reverted_sierra_gas,

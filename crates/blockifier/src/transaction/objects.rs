@@ -229,11 +229,6 @@ pub trait ExecutionResourcesTraits {
 impl ExecutionResourcesTraits for ExecutionResources {
     fn total_n_steps(&self) -> usize {
         self.n_steps
-            // Memory holes are slightly cheaper than actual steps, but we count them as such
-            // for simplicity.
-            // TODO(AvivG): Compute memory_holes gas accurately while maintaining backward compatibility.
-            // Define memory_holes_gas version_constants as 100 gas (1 step) for previous versions.
-            + self.n_memory_holes
             // The "segment arena" builtin is not part of the prover (not in any proof layout);
             // It is transformed into regular steps by the OS program - each instance requires
             // approximately 10 steps.

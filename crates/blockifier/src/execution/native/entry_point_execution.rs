@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use cairo_native::execution_result::ContractExecutionResult;
 use cairo_native::utils::BuiltinCosts;
 
@@ -93,6 +95,7 @@ fn create_callinfo(
         execution: CallExecution {
             retdata: Retdata(call_result.return_values),
             events: syscall_handler.base.events,
+            cairo_native: true,
             l2_to_l1_messages: syscall_handler.base.l2_to_l1_messages,
             failed: call_result.failure_flag,
             gas_consumed,
@@ -101,5 +104,7 @@ fn create_callinfo(
         inner_calls: syscall_handler.base.inner_calls,
         storage_access_tracker: syscall_handler.base.storage_access_tracker,
         tracked_resource: TrackedResource::SierraGas,
+        // TODO(Noa): Use non-trivial values once native supports builtins counting.
+        builtin_counters: HashMap::default(),
     })
 }

@@ -96,7 +96,10 @@ pub fn get_vm_resources_cost(
         // Step costs and usage.
         .chain(vec![(
             vm_resource_fee_costs.n_steps,
-            vm_resource_usage.total_n_steps() + n_reverted_steps,
+            // TODO(AvivG): Compute memory_holes gas accurately while maintaining backward compatibility
+            // Memory holes are slightly cheaper than actual steps, but we count them as such
+            // for simplicity.
+            vm_resource_usage.total_n_steps() + vm_resource_usage.n_memory_holes + n_reverted_steps,
         )])
         .map(|(cost, usage)| (cost * u64_from_usize(usage)).ceil().to_integer())
         .fold(0, u64::max).into();

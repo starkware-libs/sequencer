@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use num_rational::Ratio;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
@@ -381,15 +382,20 @@ fn test_gas_computation_regression_test(
     );
 
     // Test VM resources.
-    let mut vm_resources = get_vm_resource_usage();
-    vm_resources.n_memory_holes = 2;
+    let mut tx_vm_resources = get_vm_resource_usage();
+    tx_vm_resources.n_memory_holes = 2;
     let n_reverted_steps = 15;
     let (sierra_gas, reverted_sierra_gas) = match gas_vector_computation_mode {
         GasVectorComputationMode::NoL2Gas => (GasAmount(0), GasAmount(0)),
         GasVectorComputationMode::All => (GasAmount(13), GasAmount(7)),
     };
-    let computation_resources =
-        ComputationResources { vm_resources, n_reverted_steps, sierra_gas, reverted_sierra_gas };
+    let computation_resources = ComputationResources {
+        tx_vm_resources,
+        os_vm_resources: ExecutionResources::default(),
+        n_reverted_steps,
+        sierra_gas,
+        reverted_sierra_gas,
+    };
     let actual_computation_resources_gas_vector =
         computation_resources.to_gas_vector(&versioned_constants, &gas_vector_computation_mode);
     let expected_computation_resources_gas_vector = match gas_vector_computation_mode {

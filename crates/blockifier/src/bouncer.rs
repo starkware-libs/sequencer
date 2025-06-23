@@ -20,7 +20,15 @@ use crate::state::cached_state::{StateChangesKeys, StorageEntry};
 use crate::state::state_api::StateReader;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::{ExecutionResourcesTraits, TransactionExecutionResult};
+<<<<<<< HEAD
 use crate::utils::{u64_from_usize, usize_from_u64};
+||||||| 787b8bea3
+use crate::utils::{u64_from_usize, usize_from_u64};
+use crate::versioned_constants::VersionedConstants;
+=======
+use crate::utils::{add_maps, u64_from_usize, usize_from_u64};
+use crate::versioned_constants::VersionedConstants;
+>>>>>>> origin/main-v0.13.6
 
 #[cfg(test)]
 #[path = "bouncer_test.rs"]
@@ -55,15 +63,22 @@ pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
+    pub builtin_weights: BuiltinWeights,
 }
 
 impl BouncerConfig {
     pub fn empty() -> Self {
-        Self { block_max_capacity: BouncerWeights::empty() }
+        Self {
+            block_max_capacity: BouncerWeights::empty(),
+            builtin_weights: BuiltinWeights::empty(),
+        }
     }
 
     pub fn max() -> Self {
-        Self { block_max_capacity: BouncerWeights::max() }
+        Self {
+            block_max_capacity: BouncerWeights::max(),
+            builtin_weights: BuiltinWeights::default(),
+        }
     }
 
     pub fn has_room(&self, weights: BouncerWeights) -> bool {
@@ -88,7 +103,15 @@ impl BouncerConfig {
 
 impl SerializeConfig for BouncerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+<<<<<<< HEAD
         prepend_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity")
+||||||| 787b8bea3
+        append_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity")
+=======
+        let mut dump = append_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity");
+        dump.append(&mut append_sub_config_name(self.builtin_weights.dump(), "builtin_weights"));
+        dump
+>>>>>>> origin/main-v0.13.6
     }
 }
 
@@ -101,11 +124,29 @@ pub struct BouncerWeights {
     pub n_events: usize,
     pub state_diff_size: usize,
     pub sierra_gas: GasAmount,
+<<<<<<< HEAD
     pub n_txs: usize,
+||||||| 787b8bea3
+=======
+    pub proving_gas: GasAmount,
+>>>>>>> origin/main-v0.13.6
 }
 
 impl BouncerWeights {
+<<<<<<< HEAD
     impl_checked_ops!(l1_gas, message_segment_length, n_events, state_diff_size, sierra_gas, n_txs);
+||||||| 787b8bea3
+    impl_checked_ops!(l1_gas, message_segment_length, n_events, state_diff_size, sierra_gas);
+=======
+    impl_checked_ops!(
+        l1_gas,
+        message_segment_length,
+        n_events,
+        state_diff_size,
+        sierra_gas,
+        proving_gas
+    );
+>>>>>>> origin/main-v0.13.6
 
     pub fn has_room(&self, other: Self) -> bool {
         self.checked_sub(other).is_some()
@@ -118,7 +159,12 @@ impl BouncerWeights {
             n_events: usize::MAX,
             state_diff_size: usize::MAX,
             sierra_gas: GasAmount::MAX,
+<<<<<<< HEAD
             n_txs: usize::MAX,
+||||||| 787b8bea3
+=======
+            proving_gas: GasAmount::MAX,
+>>>>>>> origin/main-v0.13.6
         }
     }
 
@@ -129,7 +175,12 @@ impl BouncerWeights {
             n_events: 0,
             state_diff_size: 0,
             sierra_gas: GasAmount::ZERO,
+<<<<<<< HEAD
             n_txs: 0,
+||||||| 787b8bea3
+=======
+            proving_gas: GasAmount::ZERO,
+>>>>>>> origin/main-v0.13.6
         }
     }
 }
@@ -142,8 +193,15 @@ impl Default for BouncerWeights {
             message_segment_length: 3700,
             n_events: 5000,
             state_diff_size: 4000,
+<<<<<<< HEAD
             sierra_gas: GasAmount(400000000),
             n_txs: 600,
+||||||| 787b8bea3
+            sierra_gas: GasAmount(400000000),
+=======
+            sierra_gas: GasAmount(4000000000),
+            proving_gas: GasAmount(2000000000),
+>>>>>>> origin/main-v0.13.6
         }
     }
 }
@@ -180,12 +238,22 @@ impl SerializeConfig for BouncerWeights {
             "An upper bound on the total sierra_gas used in a block.",
             ParamPrivacyInput::Public,
         )]));
+<<<<<<< HEAD
         dump.append(&mut BTreeMap::from([ser_param(
             "n_txs",
             &self.n_txs,
             "An upper bound on the total number of transactions in a block.",
             ParamPrivacyInput::Public,
         )]));
+||||||| 787b8bea3
+=======
+        dump.append(&mut BTreeMap::from([ser_param(
+            "proving_gas",
+            &self.proving_gas,
+            "An upper bound on the total builtins and steps gas usage used in a block.",
+            ParamPrivacyInput::Public,
+        )]));
+>>>>>>> origin/main-v0.13.6
         dump
     }
 }
@@ -195,17 +263,31 @@ impl std::fmt::Display for BouncerWeights {
         write!(
             f,
             "BouncerWeights {{ l1_gas: {}, message_segment_length: {}, n_events: {}, \
+<<<<<<< HEAD
              state_diff_size: {}, sierra_gas: {}, n_txs: {} }}",
+||||||| 787b8bea3
+             state_diff_size: {}, sierra_gas: {} }}",
+=======
+             state_diff_size: {}, sierra_gas: {}, proving_gas: {} }}",
+>>>>>>> origin/main-v0.13.6
             self.l1_gas,
             self.message_segment_length,
             self.n_events,
             self.state_diff_size,
+<<<<<<< HEAD
             self.sierra_gas,
             self.n_txs
+||||||| 787b8bea3
+            self.sierra_gas
+=======
+            self.sierra_gas,
+            self.proving_gas,
+>>>>>>> origin/main-v0.13.6
         )
     }
 }
 
+<<<<<<< HEAD
 #[derive(Debug, PartialEq, Default, Clone, Deserialize, Serialize)]
 pub struct CasmHashComputationData {
     pub class_hash_to_casm_hash_computation_gas: HashMap<ClassHash, GasAmount>,
@@ -239,6 +321,160 @@ pub struct TxWeights {
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
 }
 
+||||||| 787b8bea3
+=======
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+// TODO(Meshi): Consider code sharing with the BuiltinGasCosts struct.
+pub struct BuiltinWeights {
+    pub pedersen: usize,
+    pub range_check: usize,
+    pub ecdsa: usize,
+    pub bitwise: usize,
+    pub poseidon: usize,
+    pub keccak: usize,
+    pub ec_op: usize,
+    pub mul_mod: usize,
+    pub add_mod: usize,
+    pub range_check96: usize,
+}
+
+impl BuiltinWeights {
+    pub fn empty() -> Self {
+        Self {
+            pedersen: 0,
+            range_check: 0,
+            ecdsa: 0,
+            bitwise: 0,
+            poseidon: 0,
+            keccak: 0,
+            ec_op: 0,
+            mul_mod: 0,
+            add_mod: 0,
+            range_check96: 0,
+        }
+    }
+
+    // TODO(Meshi): Consider code sharing with the builtins_to_sierra_gas function.
+    pub fn calc_gas_from_builtin_counter(&self, builtin_counts: &BuiltinCounterMap) -> GasAmount {
+        let builtin_gas = builtin_counts.iter().fold(0_usize, |accumulated_gas, (name, &count)| {
+            let builtin_weight = self.builtin_weight(name);
+            builtin_weight
+                .checked_mul(count)
+                .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
+                .unwrap_or_else(|| {
+                    panic!(
+                        "Overflow while converting builtin counters to gas.\nBuiltin: {name}, \
+                         Weight: {builtin_weight}, Count: {count}, Accumulated gas: \
+                         {accumulated_gas}"
+                    )
+                })
+        });
+
+        GasAmount(u64_from_usize(builtin_gas))
+    }
+
+    pub fn builtin_weight(&self, builtin_name: &BuiltinName) -> usize {
+        match builtin_name {
+            BuiltinName::pedersen => self.pedersen,
+            BuiltinName::range_check => self.range_check,
+            BuiltinName::ecdsa => self.ecdsa,
+            BuiltinName::bitwise => self.bitwise,
+            BuiltinName::poseidon => self.poseidon,
+            BuiltinName::keccak => self.keccak,
+            BuiltinName::ec_op => self.ec_op,
+            BuiltinName::mul_mod => self.mul_mod,
+            BuiltinName::add_mod => self.add_mod,
+            BuiltinName::range_check96 => self.range_check96,
+            _ => panic!("Builtin name {builtin_name} is not supported in the bouncer weights."),
+        }
+    }
+}
+
+impl Default for BuiltinWeights {
+    fn default() -> Self {
+        Self {
+            pedersen: 4050,
+            range_check: 70,
+            ecdsa: 675904,
+            ec_op: 285950,
+            bitwise: 583,
+            keccak: 204283,
+            poseidon: 3928,
+            add_mod: 250,
+            mul_mod: 604,
+            range_check96: 56,
+        }
+    }
+}
+
+impl SerializeConfig for BuiltinWeights {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump = BTreeMap::from([ser_param(
+            "pedersen",
+            &self.pedersen,
+            "Pedersen gas weight.",
+            ParamPrivacyInput::Public,
+        )]);
+        dump.append(&mut BTreeMap::from([ser_param(
+            "range_check",
+            &self.range_check,
+            "Range_check gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "range_check96",
+            &self.range_check96,
+            "range_check96 gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "poseidon",
+            &self.poseidon,
+            "Poseidon gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "ecdsa",
+            &self.ecdsa,
+            "Ecdsa gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "ec_op",
+            &self.ec_op,
+            "Ec_op gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "add_mod",
+            &self.add_mod,
+            "Add_mod gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "mul_mod",
+            &self.mul_mod,
+            "Mul_mod gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "keccak",
+            &self.keccak,
+            "Keccak gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
+        dump.append(&mut BTreeMap::from([ser_param(
+            "bitwise",
+            &self.bitwise,
+            "Bitwise gas weight.",
+            ParamPrivacyInput::Public,
+        )]));
+
+        dump
+    }
+}
+
+>>>>>>> origin/main-v0.13.6
 #[derive(Debug, PartialEq)]
 #[cfg_attr(test, derive(Clone))]
 pub struct Bouncer {
@@ -311,6 +547,8 @@ impl Bouncer {
             tx_resources,
             &marginal_state_changes_keys,
             versioned_constants,
+            &tx_execution_summary.builtin_counters,
+            &self.bouncer_config.builtin_weights,
         )?;
         let tx_bouncer_weights = tx_weights.bouncer_weights;
 
@@ -366,16 +604,30 @@ impl Bouncer {
     }
 }
 
-fn n_steps_to_sierra_gas(n_steps: usize, versioned_constants: &VersionedConstants) -> GasAmount {
-    let n_steps_u64 = u64_from_usize(n_steps);
-    let gas_per_step = versioned_constants.os_constants.gas_costs.base.step_gas_cost;
-    let n_steps_gas_cost = n_steps_u64.checked_mul(gas_per_step).unwrap_or_else(|| {
+/// Converts 'amount' of resource units into Sierra gas, given a per-unit rate.
+fn vm_resource_to_gas_amount(amount: usize, gas_per_unit: u64, name: &str) -> GasAmount {
+    let amount_u64 = u64_from_usize(amount);
+    let gas = amount_u64.checked_mul(gas_per_unit).unwrap_or_else(|| {
         panic!(
-            "Multiplication overflow while converting steps to gas. steps: {}, gas per step: {}.",
-            n_steps, gas_per_step
+            "Multiplication overflow converting {name} to gas. units: {}, gas per unit: {}.",
+            amount_u64, gas_per_unit
         )
     });
-    GasAmount(n_steps_gas_cost)
+
+    GasAmount(gas)
+}
+
+fn n_steps_to_gas(n_steps: usize, versioned_constants: &VersionedConstants) -> GasAmount {
+    let gas_per_step = versioned_constants.os_constants.gas_costs.base.step_gas_cost;
+    vm_resource_to_gas_amount(n_steps, gas_per_step, "steps")
+}
+
+fn memory_holes_to_gas(
+    n_memory_holes: usize,
+    versioned_constants: &VersionedConstants,
+) -> GasAmount {
+    let gas_per_memory_hole = versioned_constants.os_constants.gas_costs.base.memory_hole_gas_cost;
+    vm_resource_to_gas_amount(n_memory_holes, gas_per_memory_hole, "memory_holes")
 }
 
 fn vm_resources_to_sierra_gas(
@@ -384,12 +636,35 @@ fn vm_resources_to_sierra_gas(
 ) -> GasAmount {
     let builtins_gas_cost =
         builtins_to_sierra_gas(&resources.prover_builtins(), versioned_constants);
-    let n_steps_gas_cost = n_steps_to_sierra_gas(resources.total_n_steps(), versioned_constants);
-    n_steps_gas_cost.checked_add(builtins_gas_cost).unwrap_or_else(|| {
+    let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
+    let n_memory_holes_gas_cost =
+        memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
+
+    n_steps_gas_cost
+        .checked_add(n_memory_holes_gas_cost)
+        .and_then(|sum| sum.checked_add(builtins_gas_cost))
+        .unwrap_or_else(|| {
+            panic!(
+                "Addition overflow while converting vm resources to gas. steps gas: {}, memory \
+                 holes gas: {}, builtins gas: {}.",
+                n_steps_gas_cost, builtins_gas_cost, n_memory_holes_gas_cost
+            )
+        })
+}
+
+/// Computes the steps gas by subtracting the builtins' contribution from the Sierra gas.
+pub fn sierra_gas_to_steps_gas(
+    sierra_gas: GasAmount,
+    versioned_constants: &VersionedConstants,
+    builtin_counters: &BuiltinCounterMap,
+) -> GasAmount {
+    let builtins_gas_cost = builtins_to_sierra_gas(builtin_counters, versioned_constants);
+
+    sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
         panic!(
-            "Addition overflow while converting vm resources to gas. steps gas: {}, builtins gas: \
-             {}.",
-            n_steps_gas_cost, builtins_gas_cost
+            "Invalid gas subtraction: builtins gas exceeds total sierra gas. Sierra gas: {:?}, \
+             Builtins gas: {:?}, Builtins: {:?}",
+            sierra_gas, builtins_gas_cost, builtin_counters
         )
     })
 }
@@ -419,8 +694,15 @@ pub fn builtins_to_sierra_gas(
 
     GasAmount(total_gas)
 }
+<<<<<<< HEAD
 
 #[allow(clippy::result_large_err)]
+||||||| 787b8bea3
+
+=======
+// TODO(Noa):Fix.
+#[allow(clippy::too_many_arguments)]
+>>>>>>> origin/main-v0.13.6
 pub fn get_tx_weights<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
@@ -428,15 +710,43 @@ pub fn get_tx_weights<S: StateReader>(
     tx_resources: &TransactionResources,
     state_changes_keys: &StateChangesKeys,
     versioned_constants: &VersionedConstants,
+<<<<<<< HEAD
 ) -> TransactionExecutionResult<TxWeights> {
+||||||| 787b8bea3
+) -> TransactionExecutionResult<BouncerWeights> {
+=======
+    tx_builtin_counters: &BuiltinCounterMap,
+    builtin_weights: &BuiltinWeights,
+) -> TransactionExecutionResult<BouncerWeights> {
+>>>>>>> origin/main-v0.13.6
     let message_resources = &tx_resources.starknet_resources.messages;
     let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
+<<<<<<< HEAD
+||||||| 787b8bea3
+    let mut additional_os_resources =
+        get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
+    additional_os_resources += &get_particia_update_resources(n_visited_storage_entries);
+=======
 
+    let mut additional_os_resources =
+        get_casm_hash_calculation_resources(state_reader, executed_class_hashes)?;
+    additional_os_resources += &get_particia_update_resources(n_visited_storage_entries);
+>>>>>>> origin/main-v0.13.6
+
+<<<<<<< HEAD
     let patrticia_update_resources = get_particia_update_resources(n_visited_storage_entries);
 
     let vm_resources = &patrticia_update_resources + &tx_resources.computation.vm_resources;
+||||||| 787b8bea3
+    let vm_resources = &additional_os_resources + &tx_resources.computation.vm_resources;
+    let sierra_gas = tx_resources.computation.sierra_gas;
+=======
+    let vm_resources = &additional_os_resources + &tx_resources.computation.total_vm_resources();
+    let sierra_gas = tx_resources.computation.sierra_gas;
+>>>>>>> origin/main-v0.13.6
     let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
+<<<<<<< HEAD
     let sierra_gas = tx_resources.computation.sierra_gas;
     let gas_without_casm_hash_computation =
         sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
@@ -475,11 +785,47 @@ pub fn get_tx_weights<S: StateReader>(
     // TODO(Aviv): compute the actual proving gas
     let casm_hash_computation_data_proving_gas = CasmHashComputationData::empty();
     let bouncer_weights = BouncerWeights {
+||||||| 787b8bea3
+    let sierra_gas = sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
+        panic!(
+            "Addition overflow while converting vm resources to gas. current gas: {}, vm as gas: \
+             {}.",
+            sierra_gas, vm_resources_gas
+        )
+    });
+
+    Ok(BouncerWeights {
+=======
+    let sierra_gas = sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
+        panic!(
+            "Addition overflow while converting vm resources to gas. current gas: {}, vm as gas: \
+             {}.",
+            sierra_gas, vm_resources_gas
+        )
+    });
+
+    let mut total_builtin_counters = additional_os_resources.prover_builtins();
+    add_maps(&mut total_builtin_counters, tx_builtin_counters);
+
+    let steps_proving_gas =
+        sierra_gas_to_steps_gas(sierra_gas, versioned_constants, &total_builtin_counters);
+    let builtins_gas = builtin_weights.calc_gas_from_builtin_counter(&total_builtin_counters);
+    let proving_gas = steps_proving_gas.checked_add(builtins_gas).unwrap_or_else(|| {
+        panic!(
+            "Addition overflow while calculating the proving gas. steps gas: {}, builtins as gas: \
+             {}.",
+            steps_proving_gas, builtins_gas
+        )
+    });
+
+    Ok(BouncerWeights {
+>>>>>>> origin/main-v0.13.6
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
         sierra_gas,
+<<<<<<< HEAD
         n_txs: 1,
     };
 
@@ -487,6 +833,10 @@ pub fn get_tx_weights<S: StateReader>(
         bouncer_weights,
         casm_hash_computation_data_sierra_gas,
         casm_hash_computation_data_proving_gas,
+||||||| 787b8bea3
+=======
+        proving_gas,
+>>>>>>> origin/main-v0.13.6
     })
 }
 
@@ -540,8 +890,16 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         tx_resources,
         tx_state_changes_keys,
         versioned_constants,
+<<<<<<< HEAD
     )?
     .bouncer_weights;
+||||||| 787b8bea3
+    )?;
+=======
+        &tx_execution_summary.builtin_counters,
+        &bouncer_config.builtin_weights,
+    )?;
+>>>>>>> origin/main-v0.13.6
 
     bouncer_config.within_max_capacity_or_err(tx_weights)
 }

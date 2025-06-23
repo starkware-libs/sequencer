@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
 use starknet_api::execution_resources::GasAmount;
@@ -234,6 +236,8 @@ fn test_summarize(
             total_event_keys: 0,
             total_event_data_size: 0,
         },
+        // TODO(Meshi): Change it to a relevant value for this test.
+        builtin_counters: HashMap::new(),
     };
 
     // Call the summarize method.
