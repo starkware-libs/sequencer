@@ -63,6 +63,7 @@ async fn latest_proved_block_ethereum() {
         BlockHashAndNumber { number: BlockNumber(300), hash: BlockHash(felt!("0x300")) };
 
     type Scenario = (u64, Option<BlockHashAndNumber>);
+    // Test.
     let scenarios: Vec<Scenario> = vec![
         (0, Some(third_sn_state_update)),
         (5, Some(third_sn_state_update)),
