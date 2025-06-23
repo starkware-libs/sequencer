@@ -422,8 +422,6 @@ pub(crate) fn create_hybrid_instance_config_override(
     const MEMPOOL_SERVICE_NAME: &str = "sequencer-mempool-service";
     const MEMPOOL_SERVICE_PORT: u16 = 53200;
 
-    let deployment_type_config_override = deployment_type.get_deployment_type_config_override();
-
     if id == 0 {
         InstanceConfigOverride::new(
             "",
@@ -433,7 +431,6 @@ pub(crate) fn create_hybrid_instance_config_override(
             true,
             get_secret_key(id),
             get_validator_id(id, deployment_type),
-            deployment_type_config_override,
         )
     } else {
         InstanceConfigOverride::new(
@@ -456,7 +453,6 @@ pub(crate) fn create_hybrid_instance_config_override(
             false,
             get_secret_key(id),
             get_validator_id(id, deployment_type),
-            deployment_type_config_override,
         )
     }
 }

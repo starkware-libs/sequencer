@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use starknet_api::block::BlockNumber;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride, InstanceConfigOverride};
-use crate::deployment::{Deployment, DeploymentType, PragmaDomain};
+use crate::deployment::{Deployment, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::k8s::IngressParams;
 use crate::service::DeploymentName;
@@ -39,7 +39,6 @@ fn testing_instance_config_override() -> InstanceConfigOverride {
         true,
         "0x0101010101010101010101010101010101010101010101010101010101010101",
         "0x64",
-        DeploymentType::Operational.get_deployment_type_config_override(),
     )
 }
 

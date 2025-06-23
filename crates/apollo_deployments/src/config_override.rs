@@ -109,8 +109,6 @@ pub struct InstanceConfigOverride {
     #[serde(rename = "mempool_p2p_config.network_config.secret_key")]
     mempool_secret_key: String,
     validator_id: String,
-    #[serde(flatten)]
-    deployment_type_config_override: DeploymentTypeConfigOverride,
 }
 
 impl InstanceConfigOverride {
@@ -124,7 +122,6 @@ impl InstanceConfigOverride {
         mempool_bootstrap_peer_multiaddr_is_none: bool,
         mempool_secret_key: impl ToString,
         validator_id: impl ToString,
-        deployment_type_config_override: DeploymentTypeConfigOverride,
     ) -> Self {
         Self {
             consensus_bootstrap_peer_multiaddr: consensus_bootstrap_peer_multiaddr.to_string(),
@@ -134,24 +131,6 @@ impl InstanceConfigOverride {
             mempool_bootstrap_peer_multiaddr_is_none,
             mempool_secret_key: mempool_secret_key.to_string(),
             validator_id: validator_id.to_string(),
-            deployment_type_config_override,
         }
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub struct DeploymentTypeConfigOverride {
-    #[serde(rename = "l1_scraper_config.startup_rewind_time_seconds")]
-    l1_scraper_config_startup_rewind_time_seconds: u64,
-    #[serde(rename = "mempool_config.transaction_ttl")]
-    mempool_config_transaction_ttl: u64,
-}
-
-impl DeploymentTypeConfigOverride {
-    pub fn new(
-        l1_scraper_config_startup_rewind_time_seconds: u64,
-        mempool_config_transaction_ttl: u64,
-    ) -> Self {
-        Self { l1_scraper_config_startup_rewind_time_seconds, mempool_config_transaction_ttl }
     }
 }
