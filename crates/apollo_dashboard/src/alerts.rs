@@ -1,12 +1,28 @@
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
+/// Alerts to be configured in the dashboard.
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub enum AlertSeverity {
+pub struct Alerts {
+    alerts: Vec<Alert>,
+}
+
+impl Alerts {
+    pub(crate) const fn new(alerts: Vec<Alert>) -> Self {
+        Self { alerts }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub(crate) enum AlertSeverity {
     // Critical issues that demand immediate attention. These are high-impact incidents that
     // affect the system's availability.
     #[serde(rename = "p1")]
-    SOS,
+    // TODO(Tsabary): currently the `Sos` variant is used only in tests, and removing the
+    // `#[cfg(test)]` attribute results in a compilation error. When needed in non-test setup,
+    // remove the attribute.
+    #[cfg(test)]
+    Sos,
     // Standard alerts for production issues that require attention around the clock but are not
     // as time-sensitive as SOS alerts.
     #[serde(rename = "p2")]
@@ -26,7 +42,7 @@ pub enum AlertSeverity {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub enum AlertComparisonOp {
+pub(crate) enum AlertComparisonOp {
     #[serde(rename = "gt")]
     GreaterThan,
     #[serde(rename = "lt")]
@@ -35,22 +51,24 @@ pub enum AlertComparisonOp {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AlertLogicalOp {
+pub(crate) enum AlertLogicalOp {
     And,
+    // TODO(Tsabary): remove the `allow(dead_code)` once this variant is used.
+    #[allow(dead_code)]
     Or,
 }
 
 /// Defines the condition to trigger the alert.
 #[derive(Clone, Debug, PartialEq)]
-pub struct AlertCondition {
+pub(crate) struct AlertCondition {
     // The comparison operator to use when comparing the expression to the value.
-    pub comparison_op: AlertComparisonOp,
+    pub(crate) comparison_op: AlertComparisonOp,
     // The value to compare the expression to.
-    pub comparison_value: f64,
+    pub(crate) comparison_value: f64,
     // The logical operator between this condition and other conditions.
     // TODO(Yael): Consider moving this field to the be one per alert to avoid ambiguity when
     // trying to use a combination of `and` and `or` operators.
-    pub logical_op: AlertLogicalOp,
+    pub(crate) logical_op: AlertLogicalOp,
 }
 
 impl Serialize for AlertCondition {
@@ -91,7 +109,7 @@ impl Serialize for AlertCondition {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AlertGroup {
+pub(crate) enum AlertGroup {
     Batcher,
     Consensus,
     Gateway,
@@ -104,36 +122,24 @@ pub enum AlertGroup {
 
 /// Describes the properties of an alert defined in grafana.
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct Alert {
+pub(crate) struct Alert {
     // The name of the alert.
-    pub name: &'static str,
+    pub(crate) name: &'static str,
     // The title that will be displayed.
-    pub title: &'static str,
+    pub(crate) title: &'static str,
     // The group that the alert will be displayed under.
     #[serde(rename = "ruleGroup")]
-    pub alert_group: AlertGroup,
+    pub(crate) alert_group: AlertGroup,
     // The expression to evaluate for the alert.
-    pub expr: String,
+    pub(crate) expr: String,
     // The conditions that must be met for the alert to be triggered.
-    pub conditions: &'static [AlertCondition],
+    pub(crate) conditions: &'static [AlertCondition],
     // The time duration for which the alert conditions must be true before an alert is triggered.
     #[serde(rename = "for")]
-    pub pending_duration: &'static str,
+    pub(crate) pending_duration: &'static str,
     // The interval in sec between evaluations of the alert.
     #[serde(rename = "intervalSec")]
-    pub evaluation_interval_sec: u64,
+    pub(crate) evaluation_interval_sec: u64,
     // The severity level of the alert.
-    pub severity: AlertSeverity,
-}
-
-/// Description of the alerts to be configured in the dashboard.
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct Alerts {
-    alerts: Vec<Alert>,
-}
-
-impl Alerts {
-    pub const fn new(alerts: Vec<Alert>) -> Self {
-        Self { alerts }
-    }
+    pub(crate) severity: AlertSeverity,
 }

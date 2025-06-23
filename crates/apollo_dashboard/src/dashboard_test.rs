@@ -23,7 +23,7 @@ fn serialize_alert() {
         }],
         pending_duration: "5m",
         evaluation_interval_sec: 20,
-        severity: AlertSeverity::SOS,
+        severity: AlertSeverity::Sos,
     };
 
     let serialized = serde_json::to_value(&alert).unwrap();
