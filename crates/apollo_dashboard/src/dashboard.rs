@@ -12,16 +12,45 @@ mod dashboard_test;
 const HISTOGRAM_QUANTILES: &[f64] = &[0.50, 0.95];
 const HISTOGRAM_TIME_RANGE: &str = "5m";
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct Dashboard {
+    name: &'static str,
+    rows: Vec<Row>,
+}
+
+impl Dashboard {
+    pub(crate) fn new(name: &'static str, rows: Vec<Row>) -> Self {
+        Self { name, rows }
+    }
+}
+
+// Custom Serialize implementation for Dashboard.
+impl Serialize for Dashboard {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(1))?;
+        let mut row_map = IndexMap::new();
+        for row in &self.rows {
+            row_map.insert(row.name, &row.panels);
+        }
+
+        map.serialize_entry(self.name, &row_map)?;
+        map.end()
+    }
+}
+
 /// Grafana panel types.
 #[derive(Clone, Debug, Serialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum PanelType {
+pub(crate) enum PanelType {
     Stat,
     TimeSeries,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Panel {
+pub(crate) struct Panel {
     name: &'static str,
     description: &'static str,
     exprs: Vec<String>,
@@ -29,7 +58,7 @@ pub struct Panel {
 }
 
 impl Panel {
-    pub fn new(
+    pub(crate) fn new(
         name: &'static str,
         description: &'static str,
         exprs: Vec<String>,
@@ -48,7 +77,7 @@ impl Panel {
         Self { name, description, exprs, panel_type }
     }
 
-    pub fn from_counter(metric: MetricCounter, panel_type: PanelType) -> Self {
+    pub(crate) fn from_counter(metric: MetricCounter, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -57,7 +86,7 @@ impl Panel {
         )
     }
 
-    pub fn from_gauge(metric: MetricGauge, panel_type: PanelType) -> Self {
+    pub(crate) fn from_gauge(metric: MetricGauge, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -66,7 +95,7 @@ impl Panel {
         )
     }
 
-    pub fn from_hist(metric: MetricHistogram, panel_type: PanelType) -> Self {
+    pub(crate) fn from_hist(metric: MetricHistogram, panel_type: PanelType) -> Self {
         Self::new(
             metric.get_name(),
             metric.get_description(),
@@ -107,13 +136,13 @@ impl Serialize for Panel {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Row {
+pub(crate) struct Row {
     name: &'static str,
     panels: Vec<Panel>,
 }
 
 impl Row {
-    pub const fn new(name: &'static str, panels: Vec<Panel>) -> Self {
+    pub(crate) const fn new(name: &'static str, panels: Vec<Panel>) -> Self {
         Self { name, panels }
     }
 }
@@ -126,35 +155,6 @@ impl Serialize for Row {
     {
         let mut map = serializer.serialize_map(Some(1))?;
         map.serialize_entry(self.name, &self.panels)?;
-        map.end()
-    }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Dashboard {
-    name: &'static str,
-    rows: Vec<Row>,
-}
-
-impl Dashboard {
-    pub fn new(name: &'static str, rows: Vec<Row>) -> Self {
-        Self { name, rows }
-    }
-}
-
-// Custom Serialize implementation for Dashboard.
-impl Serialize for Dashboard {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut map = serializer.serialize_map(Some(1))?;
-        let mut row_map = IndexMap::new();
-        for row in &self.rows {
-            row_map.insert(row.name, &row.panels);
-        }
-
-        map.serialize_entry(self.name, &row_map)?;
         map.end()
     }
 }
