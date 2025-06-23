@@ -30,9 +30,9 @@ fn test_storage_read_write(runnable_version: RunnableCairo1) {
     };
     let storage_address = entry_point_call.storage_address;
     let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
-    expect![[r#"
+    if runnable_version.is_cairo_native() {
+        expect![[r#"
         CallExecution {
-<<<<<<< HEAD
             retdata: Retdata(
                 [
                     0x12,
@@ -40,20 +40,27 @@ fn test_storage_read_write(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: true,
             failed: false,
             gas_consumed: 26450,
-||||||| 787b8bea3
-            retdata: retdata![value],
-            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
-            ..CallExecution::default()
-=======
-            retdata: retdata![value],
-            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
-            cairo_native: runnable_version.is_cairo_native(),
-            ..CallExecution::default()
->>>>>>> origin/main-v0.13.6
         }
     "#]]
+    } else {
+        expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [
+                    0x12,
+                ],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            cairo_native: false,
+            failed: false,
+            gas_consumed: 26450,
+        }
+    "#]]
+    }
     .assert_debug_eq(&execution);
     assert_eq!(execution.retdata, retdata![value]);
 

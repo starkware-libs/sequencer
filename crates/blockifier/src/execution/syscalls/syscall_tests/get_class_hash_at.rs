@@ -35,48 +35,37 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
     };
     let positive_call_info =
         positive_entry_point_call.clone().execute_directly(&mut state).unwrap();
-<<<<<<< HEAD
     assert!(
         positive_call_info.storage_access_tracker.accessed_contract_addresses.contains(&address)
-||||||| 787b8bea3
-    let redeposit_gas = 300;
-    assert!(positive_call_info.accessed_contract_addresses.contains(&address));
-    assert!(positive_call_info.read_class_hash_values[0] == class_hash);
-    assert_eq!(
-        positive_call_info.execution,
-        CallExecution {
-            retdata: retdata!(),
-            gas_consumed: REQUIRED_GAS_GET_CLASS_HASH_AT_TEST + redeposit_gas,
-            failed: false,
-            ..CallExecution::default()
-        }
-=======
-    let redeposit_gas = 300;
-    assert!(positive_call_info.accessed_contract_addresses.contains(&address));
-    assert!(positive_call_info.read_class_hash_values[0] == class_hash);
-    assert_eq!(
-        positive_call_info.execution,
-        CallExecution {
-            retdata: retdata!(),
-            gas_consumed: REQUIRED_GAS_GET_CLASS_HASH_AT_TEST + redeposit_gas,
-            cairo_native: runnable_version.is_cairo_native(),
-            failed: false,
-            ..CallExecution::default()
-        }
->>>>>>> origin/main-v0.13.6
     );
     assert!(positive_call_info.storage_access_tracker.read_class_hash_values[0] == class_hash);
-    expect![[r#"
+    if runnable_version.is_cairo_native() {
+        expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: true,
             failed: false,
             gas_consumed: 16460,
         }
     "#]]
+    } else {
+        expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            cairo_native: false,
+            failed: false,
+            gas_consumed: 16460,
+        }
+    "#]]
+    }
     .assert_debug_eq(&positive_call_info.execution);
     assert!(!positive_call_info.execution.failed);
     assert_eq!(positive_call_info.execution.retdata, retdata![]);
