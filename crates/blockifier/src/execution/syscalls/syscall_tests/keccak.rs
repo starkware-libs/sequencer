@@ -25,7 +25,6 @@ fn test_keccak(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-<<<<<<< HEAD
     let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
     expect![[r#"
         CallExecution {
@@ -34,25 +33,11 @@ fn test_keccak(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: runnable_version.is_cairo_native(),
             failed: false,
             gas_consumed: 236667,
         }
     "#]]
     .assert_debug_eq(&execution);
     pretty_assertions::assert_eq!(execution.retdata, retdata![]);
-||||||| 787b8bea3
-    pretty_assertions::assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 245767, ..CallExecution::from_retdata(retdata![]) }
-    );
-=======
-    pretty_assertions::assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution {
-            gas_consumed: 245767,
-            cairo_native: runnable_version.is_cairo_native(),
-            ..CallExecution::from_retdata(retdata![])
-        }
-    );
->>>>>>> origin/main-v0.13.6
 }

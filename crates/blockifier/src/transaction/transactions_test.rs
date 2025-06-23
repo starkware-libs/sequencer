@@ -423,7 +423,6 @@ fn expected_fee_transfer_call_info(
         },
         resources: Prices::FeeTransfer(account_address, *fee_type).into(),
         // We read sender and recipient balance - Uint256(BALANCE, 0) then Uint256(0, 0).
-<<<<<<< HEAD
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![felt!(BALANCE.0), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
             accessed_storage_keys: HashSet::from_iter(vec![
@@ -434,27 +433,10 @@ fn expected_fee_transfer_call_info(
             ]),
             ..Default::default()
         },
-||||||| 787b8bea3
-        storage_read_values: vec![felt!(BALANCE.0), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
-        accessed_storage_keys: HashSet::from_iter(vec![
-            sender_balance_key_low,
-            sender_balance_key_high,
-            sequencer_balance_key_low,
-            sequencer_balance_key_high,
-        ]),
-=======
-        storage_read_values: vec![felt!(BALANCE.0), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
-        accessed_storage_keys: HashSet::from_iter(vec![
-            sender_balance_key_low,
-            sender_balance_key_high,
-            sequencer_balance_key_low,
-            sequencer_balance_key_high,
-        ]),
         builtin_counters: HashMap::from([
             (BuiltinName::range_check, 31),
             (BuiltinName::pedersen, 4),
         ]),
->>>>>>> origin/main-v0.13.6
         ..Default::default()
     })
 }
@@ -2704,16 +2686,8 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let expected_tx_resources = TransactionResources {
         starknet_resources: actual_execution_info.receipt.resources.starknet_resources.clone(),
         computation: ComputationResources {
-<<<<<<< HEAD
-            vm_resources: expected_execution_resources,
-            sierra_gas: GasAmount(0), // Regression-tested explicitly.
-||||||| 787b8bea3
-            vm_resources: expected_execution_resources,
-            sierra_gas: gas_consumed,
-=======
             os_vm_resources: expected_os_execution_resources,
-            sierra_gas: gas_consumed,
->>>>>>> origin/main-v0.13.6
+            sierra_gas: GasAmount(0), // Regression-tested explicitly.
             ..Default::default()
         },
     };

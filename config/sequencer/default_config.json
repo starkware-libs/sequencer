@@ -34,20 +34,11 @@
     "privacy": "Public",
     "value": 5000
   },
-<<<<<<< HEAD
-  "batcher_config.block_builder_config.bouncer_config.block_max_capacity.n_txs": {
-    "description": "An upper bound on the total number of transactions in a block.",
-    "privacy": "Public",
-    "value": 600
-  },
-||||||| 787b8bea3
-=======
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
     "description": "An upper bound on the total builtins and steps gas usage used in a block.",
     "privacy": "Public",
     "value": 2000000000
   },
->>>>>>> origin/main-v0.13.6
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
     "privacy": "Public",

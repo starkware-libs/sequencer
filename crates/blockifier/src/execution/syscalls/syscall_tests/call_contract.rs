@@ -238,7 +238,6 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
     let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
     expect![[r#"
         CallExecution {
-<<<<<<< HEAD
             retdata: Retdata(
                 [
                     0x30,
@@ -248,16 +247,6 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 129870,
-||||||| 787b8bea3
-            retdata: retdata![felt!(48_u8)],
-            gas_consumed: REQUIRED_GAS_CALL_CONTRACT_TEST,
-            ..CallExecution::default()
-=======
-            retdata: retdata![felt!(48_u8)],
-            cairo_native: outer_contract.cairo_version().is_cairo_native(),
-            gas_consumed: REQUIRED_GAS_CALL_CONTRACT_TEST,
-            ..CallExecution::default()
->>>>>>> origin/main-v0.13.6
         }
     "#]]
     .assert_debug_eq(&execution);

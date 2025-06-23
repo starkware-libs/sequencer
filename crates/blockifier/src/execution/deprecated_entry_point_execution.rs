@@ -283,22 +283,12 @@ pub fn finalize_execution(
         inner_calls: syscall_handler.inner_calls,
         tracked_resource: TrackedResource::CairoSteps,
         resources: vm_resources,
-<<<<<<< HEAD
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: syscall_handler.read_values,
             accessed_storage_keys: syscall_handler.accessed_keys,
             ..Default::default()
         },
-||||||| 787b8bea3
-        storage_read_values: syscall_handler.read_values,
-        accessed_storage_keys: syscall_handler.accessed_keys,
-        ..Default::default()
-=======
-        storage_read_values: syscall_handler.read_values,
-        accessed_storage_keys: syscall_handler.accessed_keys,
         builtin_counters: vm_resources_without_inner_calls.prover_builtins(),
-        ..Default::default()
->>>>>>> origin/main-v0.13.6
     })
 }
 

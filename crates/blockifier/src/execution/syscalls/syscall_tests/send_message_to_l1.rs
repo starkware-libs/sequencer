@@ -48,7 +48,6 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
     let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
     expect![[r#"
         CallExecution {
-<<<<<<< HEAD
             retdata: Retdata(
                 [],
             ),
@@ -72,16 +71,8 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
             ],
             failed: false,
             gas_consumed: 26690,
-||||||| 787b8bea3
-            l2_to_l1_messages: vec![OrderedL2ToL1Message { order: 0, message }],
-            gas_consumed: 30190,
-            ..Default::default()
-=======
-            l2_to_l1_messages: vec![OrderedL2ToL1Message { order: 0, message }],
-            gas_consumed: 30190,
             cairo_native: runnable_version.is_cairo_native(),
-            ..Default::default()
->>>>>>> origin/main-v0.13.6
+
         }
     "#]]
     .assert_debug_eq(&execution);

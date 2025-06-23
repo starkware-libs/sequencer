@@ -73,7 +73,6 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         entry_point_selector: selector_from_name("test_replace_class"),
         ..trivial_external_entry_point_new(test_contract)
     };
-<<<<<<< HEAD
     expect![[r#"
         CallExecution {
             retdata: Retdata(
@@ -83,23 +82,9 @@ fn positive_flow(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 15220,
+            cairo_native: runnable_version.is_cairo_native(),
         }
     "#]]
     .assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
-||||||| 787b8bea3
-    assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 15920, ..Default::default() }
-    );
-=======
-    assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution {
-            gas_consumed: 15920,
-            cairo_native: runnable_version.is_cairo_native(),
-            ..Default::default()
-        }
-    );
->>>>>>> origin/main-v0.13.6
     assert_eq!(state.get_class_hash_at(contract_address).unwrap(), new_class_hash);
 }

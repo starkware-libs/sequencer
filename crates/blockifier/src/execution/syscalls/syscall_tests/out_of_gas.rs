@@ -41,18 +41,8 @@ fn test_out_of_gas(runnable_version: RunnableCairo1) {
         CallExecution {
             // 'Out of gas'
             retdata: retdata![felt!["0x4f7574206f6620676173"]],
-<<<<<<< HEAD
             gas_consumed: constants::REQUIRED_GAS_GET_BLOCK_HASH_TEST - syscall_required_gas,
-||||||| 787b8bea3
-            gas_consumed: constants::REQUIRED_GAS_GET_BLOCK_HASH_TEST
-                - syscall_required_gas
-                - redeposit_gas,
-=======
-            gas_consumed: constants::REQUIRED_GAS_GET_BLOCK_HASH_TEST
-                - syscall_required_gas
-                - redeposit_gas,
             cairo_native: runnable_version.is_cairo_native(),
->>>>>>> origin/main-v0.13.6
             failed: true,
             ..Default::default()
         }

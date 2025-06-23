@@ -30,7 +30,6 @@ fn no_constructor(runnable_version: RunnableCairo1) {
     let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(runnable_version));
     let class_hash = empty_contract.get_class_hash();
-    let cairo_native = runnable_version.is_cairo_native();
 
     let mut state = test_state(
         &ChainInfo::create_for_testing(),
@@ -41,7 +40,6 @@ fn no_constructor(runnable_version: RunnableCairo1) {
     let entry_point_call = create_deploy_entry_point(class_hash, &[], true, deployer_contract);
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
-<<<<<<< HEAD
     expect![[r#"
         CallExecution {
             retdata: Retdata(
@@ -51,26 +49,11 @@ fn no_constructor(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 156540,
+            cairo_native: runnable_version.is_cairo_native(),
         }
     "#]]
     .assert_debug_eq(&deploy_call.execution);
     assert_eq!(deploy_call.execution.retdata, retdata![]);
-||||||| 787b8bea3
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 154430, ..CallExecution::default() }
-    );
-=======
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution {
-            retdata: retdata![],
-            gas_consumed: 154430,
-            cairo_native,
-            ..CallExecution::default()
-        }
-    );
->>>>>>> origin/main-v0.13.6
 
     let deployed_contract_address = calculate_contract_address(
         ContractAddressSalt::default(),
@@ -118,7 +101,6 @@ fn no_constructor_nonempty_calldata(runnable_version: RunnableCairo1) {
 fn with_constructor(runnable_version: RunnableCairo1) {
     let deployer_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
     let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(deployer_contract, 1)]);
-    let cairo_native = runnable_version.is_cairo_native();
 
     let class_hash = deployer_contract.get_class_hash();
     let constructor_calldata = vec![
@@ -140,7 +122,6 @@ fn with_constructor(runnable_version: RunnableCairo1) {
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
 
-<<<<<<< HEAD
     expect![[r#"
         CallExecution {
             retdata: Retdata(
@@ -150,32 +131,16 @@ fn with_constructor(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 184620,
+            cairo_native: runnable_version.is_cairo_native(),
         }
     "#]]
     .assert_debug_eq(&deploy_call.execution);
     assert_eq!(deploy_call.execution.retdata, retdata![]);
-||||||| 787b8bea3
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution { retdata: retdata![], gas_consumed: 184610, ..CallExecution::default() }
-    );
-=======
-    assert_eq!(
-        deploy_call.execution,
-        CallExecution {
-            retdata: retdata![],
-            gas_consumed: 184610,
-            cairo_native,
-            ..CallExecution::default()
-        }
-    );
->>>>>>> origin/main-v0.13.6
 
     let constructor_call = &deploy_call.inner_calls[0];
 
     expect![[r#"
         CallExecution {
-<<<<<<< HEAD
             retdata: Retdata(
                 [
                     0x1,
@@ -185,20 +150,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 14640,
-||||||| 787b8bea3
-            // The test contract constructor returns its first argument.
-            retdata: retdata![constructor_calldata[0]],
-            // This reflects the gas cost of storage write syscall.
-            gas_consumed: 15140,
-            ..CallExecution::default()
-=======
-            // The test contract constructor returns its first argument.
-            retdata: retdata![constructor_calldata[0]],
-            // This reflects the gas cost of storage write syscall.
-            gas_consumed: 15140,
-            cairo_native,
-            ..CallExecution::default()
->>>>>>> origin/main-v0.13.6
+            cairo_native: runnable_version.is_cairo_native(),
         }
     "#]]
     .assert_debug_eq(&constructor_call.execution);

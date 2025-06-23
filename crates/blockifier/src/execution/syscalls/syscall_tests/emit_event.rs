@@ -41,7 +41,6 @@ fn positive_flow(runnable_version: RunnableCairo1) {
 
     expect![[r#"
         CallExecution {
-<<<<<<< HEAD
             retdata: Retdata(
                 [],
             ),
@@ -70,16 +69,6 @@ fn positive_flow(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 34580,
-||||||| 787b8bea3
-            events: vec![OrderedEvent { order: 0, event }],
-            gas_consumed: 41880,
-            ..Default::default()
-=======
-            events: vec![OrderedEvent { order: 0, event }],
-            gas_consumed: 41880,
-            cairo_native: runnable_version.is_cairo_native(),
-            ..Default::default()
->>>>>>> origin/main-v0.13.6
         }
     "#]]
     .assert_debug_eq(&call_info.execution);

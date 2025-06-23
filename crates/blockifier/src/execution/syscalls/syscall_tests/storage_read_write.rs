@@ -32,7 +32,6 @@ fn test_storage_read_write(runnable_version: RunnableCairo1) {
     let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
     expect![[r#"
         CallExecution {
-<<<<<<< HEAD
             retdata: Retdata(
                 [
                     0x12,
@@ -42,16 +41,7 @@ fn test_storage_read_write(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 26450,
-||||||| 787b8bea3
-            retdata: retdata![value],
-            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
-            ..CallExecution::default()
-=======
-            retdata: retdata![value],
-            gas_consumed: REQUIRED_GAS_STORAGE_READ_WRITE_TEST,
             cairo_native: runnable_version.is_cairo_native(),
-            ..CallExecution::default()
->>>>>>> origin/main-v0.13.6
         }
     "#]]
     .assert_debug_eq(&execution);

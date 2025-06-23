@@ -24,7 +24,6 @@ fn test_secp256k1(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-<<<<<<< HEAD
     let expectation = expect![[r#"
         CallExecution {
             retdata: Retdata(
@@ -34,6 +33,8 @@ fn test_secp256k1(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 16997129,
+            cairo_native: runnable_version.is_cairo_native(),
+
         }
     "#]];
     expectation.assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
@@ -62,24 +63,11 @@ fn test_secp256k1_point_from_x(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 184690,
+            cairo_native: runnable_version.is_cairo_native(),
+
         }
     "#]]
     .assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
-||||||| 787b8bea3
-    pretty_assertions::assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 17011779, ..Default::default() }
-    );
-=======
-    pretty_assertions::assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution {
-            gas_consumed: 17011779,
-            cairo_native: runnable_version.is_cairo_native(),
-            ..Default::default()
-        }
-    );
->>>>>>> origin/main-v0.13.6
 }
 
 #[cfg_attr(feature = "cairo_native",test_case(RunnableCairo1::Native; "Native"))]
@@ -96,7 +84,6 @@ fn test_secp256r1(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-<<<<<<< HEAD
     expect![[r#"
         CallExecution {
             retdata: Retdata(
@@ -106,22 +93,9 @@ fn test_secp256r1(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             failed: false,
             gas_consumed: 27569930,
+            cairo_native: runnable_version.is_cairo_native(),
+
         }
     "#]]
     .assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
-||||||| 787b8bea3
-    pretty_assertions::assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution { gas_consumed: 27571210, ..Default::default() }
-    );
-=======
-    pretty_assertions::assert_eq!(
-        entry_point_call.execute_directly(&mut state).unwrap().execution,
-        CallExecution {
-            gas_consumed: 27571210,
-            cairo_native: runnable_version.is_cairo_native(),
-            ..Default::default()
-        }
-    );
->>>>>>> origin/main-v0.13.6
 }
