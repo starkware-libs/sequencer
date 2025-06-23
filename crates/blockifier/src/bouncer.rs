@@ -293,13 +293,13 @@ impl BuiltinWeights {
 impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
-            pedersen: 4050,
+            pedersen: 8100,
             range_check: 70,
-            ecdsa: 675904,
-            ec_op: 285950,
+            ecdsa: 1333333,
+            ec_op: 571900,
             bitwise: 583,
-            keccak: 204283,
-            poseidon: 3928,
+            keccak: 408566,
+            poseidon: 8334,
             add_mod: 250,
             mul_mod: 604,
             range_check96: 56,
