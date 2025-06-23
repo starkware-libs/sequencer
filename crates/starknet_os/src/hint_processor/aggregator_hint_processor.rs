@@ -14,6 +14,7 @@ use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use serde::Deserialize;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::{
@@ -29,17 +30,17 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
-#[derive(Clone)]
-#[allow(dead_code)]
-pub(crate) enum DataAvailability {
+#[derive(Deserialize, Debug, Clone)]
+pub enum DataAvailability {
     Blob(PathBuf),
     CallData,
 }
 
-pub(crate) struct AggregatorInput {
-    _bootloader_output: Vec<Felt>,
-    pub(crate) full_output: bool,
-    pub(crate) da: DataAvailability,
+#[derive(Deserialize, Debug)]
+pub struct AggregatorInput {
+    pub bootloader_output: Vec<Felt>,
+    pub full_output: bool,
+    pub da: DataAvailability,
 }
 
 pub struct AggregatorHintProcessor<'a> {
