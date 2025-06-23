@@ -92,7 +92,7 @@ impl ThinTransactionExecutionInfo {
     }
 
     pub fn receipt_to_resources_mapping(receipt: &TransactionReceipt) -> ResourcesMapping {
-        let vm_resources = &receipt.resources.computation.vm_resources;
+        let vm_resources = &receipt.resources.computation.total_vm_resources();
         let mut resources = HashMap::from([(
             abi_constants::N_STEPS_RESOURCE.to_string(),
             // TODO(AvivG): Compute memory_holes gas accurately while maintaining backward
