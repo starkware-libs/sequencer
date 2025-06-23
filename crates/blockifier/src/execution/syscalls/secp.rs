@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ark_ec::short_weierstrass::{self, SWCurveConfig};
 use ark_ff::PrimeField;
 use cairo_vm::types::relocatable::Relocatable;
@@ -23,10 +25,13 @@ use crate::execution::syscalls::vm_syscall_utils::{
 
 const EC_POINT_SEGMENT_SIZE: usize = 6;
 
+pub struct ECPointAllocator {
+    pub points_segment_base: Option<Relocatable>,
+}
+
 #[derive(Debug, Default, Eq, PartialEq)]
 pub struct SecpHintProcessor<Curve: SWCurveConfig> {
-    points: Vec<short_weierstrass::Affine<Curve>>,
-    points_segment_base: Option<Relocatable>,
+    pub points: HashMap<Relocatable, short_weierstrass::Affine<Curve>>,
 }
 
 impl<Curve: SWCurveConfig> SecpHintProcessor<Curve>
@@ -34,7 +39,7 @@ where
     Curve::BaseField: PrimeField,
 {
     pub fn new() -> Self {
-        Self { points: Vec::default(), points_segment_base: None }
+        Self { points: HashMap::new() }
     }
 
     #[allow(clippy::result_large_err)]
@@ -42,11 +47,14 @@ where
         &mut self,
         request: SecpAddRequest,
         vm: &mut VirtualMachine,
+        points_segment_base: Relocatable,
+        id: usize,
     ) -> SyscallBaseResult<SecpAddResponse> {
         let lhs = self.get_point_by_ptr(request.lhs_ptr)?;
         let rhs = self.get_point_by_ptr(request.rhs_ptr)?;
         let result = *lhs + *rhs;
-        let ec_point_ptr = self.allocate_point(result.into(), vm)?;
+        let ec_point_ptr =
+            self.allocate_point(result.into(), vm, &mut Some(points_segment_base), id)?;
         Ok(SecpOpRespone { ec_point_ptr })
     }
 
@@ -55,10 +63,13 @@ where
         &mut self,
         request: SecpMulRequest,
         vm: &mut VirtualMachine,
+        points_segment_base: Relocatable,
+        id: usize,
     ) -> SyscallBaseResult<SecpMulResponse> {
         let ec_point = self.get_point_by_ptr(request.ec_point_ptr)?;
         let result = *ec_point * Curve::ScalarField::from(request.multiplier);
-        let ec_point_ptr = self.allocate_point(result.into(), vm)?;
+        let ec_point_ptr =
+            self.allocate_point(result.into(), vm, &mut Some(points_segment_base), id)?;
         Ok(SecpOpRespone { ec_point_ptr })
     }
 
@@ -67,9 +78,13 @@ where
         &mut self,
         vm: &mut VirtualMachine,
         request: SecpGetPointFromXRequest,
+        points_segment_base: &mut Option<Relocatable>,
+        id: usize,
     ) -> SyscallBaseResult<SecpGetPointFromXResponse> {
         let affine = crate::execution::secp::get_point_from_x(request.x, request.y_parity)?;
-        let optional_ec_point_ptr = match affine.map(|ec_point| self.allocate_point(ec_point, vm)) {
+        let optional_ec_point_ptr = match affine
+            .map(|ec_point| self.allocate_point(ec_point, vm, points_segment_base, id))
+        {
             Some(Ok(ptr)) => Some(ptr),
             Some(Err(err)) => return Err(err),
             None => None,
@@ -78,12 +93,8 @@ where
     }
 
     #[allow(clippy::result_large_err)]
-    pub fn secp_get_xy(
-        &mut self,
-        request: SecpGetXyRequest,
-    ) -> SyscallBaseResult<SecpGetXyResponse> {
+    pub fn secp_get_xy(&self, request: SecpGetXyRequest) -> SyscallBaseResult<SecpGetXyResponse> {
         let ec_point = self.get_point_by_ptr(request.ec_point_ptr)?;
-
         Ok(SecpGetXyResponse { x: ec_point.x.into(), y: ec_point.y.into() })
     }
 
@@ -92,9 +103,13 @@ where
         &mut self,
         vm: &mut VirtualMachine,
         request: SecpNewRequest,
+        points_segment_base: &mut Option<Relocatable>,
+        id: usize,
     ) -> SyscallBaseResult<SecpNewResponse> {
         let affine = new_affine::<Curve>(request.x, request.y)?;
-        let optional_ec_point_ptr = match affine.map(|ec_point| self.allocate_point(ec_point, vm)) {
+        let optional_ec_point_ptr = match affine
+            .map(|ec_point| self.allocate_point(ec_point, vm, points_segment_base, id))
+        {
             Some(Ok(ptr)) => Some(ptr),
             Some(Err(err)) => return Err(err),
             None => None,
@@ -107,22 +122,16 @@ where
         &mut self,
         ec_point: short_weierstrass::Affine<Curve>,
         vm: &mut VirtualMachine,
+        points_segment_base: &mut Option<Relocatable>,
+        id: usize,
     ) -> SyscallBaseResult<Relocatable> {
-        self.conditionally_initialize_points_segment_base(vm);
-        let points = &mut self.points;
-        let id = points.len();
-        points.push(ec_point);
-        Ok((self.get_initialized_segments_base() + EC_POINT_SEGMENT_SIZE * id)?)
-    }
-
-    fn conditionally_initialize_points_segment_base(&mut self, vm: &mut VirtualMachine) {
-        if self.points_segment_base.is_none() {
-            self.points_segment_base = Some(vm.add_memory_segment());
+        if points_segment_base.is_none() {
+            *points_segment_base = Some(vm.add_memory_segment());
         }
-    }
-
-    fn get_initialized_segments_base(&self) -> Relocatable {
-        self.points_segment_base.expect("Segments_base should be initialized at this point.")
+        let point_address = (points_segment_base.expect("Points segment base must be set.")
+            + EC_POINT_SEGMENT_SIZE * id)?;
+        self.points.insert(point_address, ec_point);
+        Ok(point_address)
     }
 
     #[allow(clippy::result_large_err)]
@@ -130,11 +139,11 @@ where
         &self,
         ec_point_ptr: Relocatable,
     ) -> SyscallBaseResult<&short_weierstrass::Affine<Curve>> {
-        let ec_point_id =
-            (ec_point_ptr - self.get_initialized_segments_base())? / EC_POINT_SEGMENT_SIZE;
-        self.points.get(ec_point_id).ok_or_else(|| SyscallExecutorBaseError::InvalidSyscallInput {
-            input: ec_point_id.into(),
-            info: "Invalid Secp point ID".to_string(),
+        self.points.get(&ec_point_ptr).ok_or_else(|| {
+            SyscallExecutorBaseError::InvalidSyscallInput {
+                input: ec_point_ptr.segment_index.into(),
+                info: "Invalid Secp point address".to_string(),
+            }
         })
     }
 }
