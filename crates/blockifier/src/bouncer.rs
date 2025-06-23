@@ -607,6 +607,10 @@ pub fn get_tx_weights<S: StateReader>(
     });
 
     let mut total_builtin_counters = additional_os_resources.prover_builtins();
+    add_maps(
+        &mut total_builtin_counters,
+        &tx_resources.computation.os_vm_resources.prover_builtins(),
+    );
     add_maps(&mut total_builtin_counters, tx_builtin_counters);
 
     let steps_proving_gas =
