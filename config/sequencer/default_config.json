@@ -42,17 +42,17 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.ec_op": {
     "description": "Ec_op gas weight.",
     "privacy": "Public",
-    "value": 285950
+    "value": 571900
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.ecdsa": {
     "description": "Ecdsa gas weight.",
     "privacy": "Public",
-    "value": 675904
+    "value": 1333333
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.keccak": {
     "description": "Keccak gas weight.",
     "privacy": "Public",
-    "value": 204283
+    "value": 408566
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.mul_mod": {
     "description": "Mul_mod gas weight.",
@@ -62,12 +62,12 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
-    "value": 4050
+    "value": 8100
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.poseidon": {
     "description": "Poseidon gas weight.",
     "privacy": "Public",
-    "value": 3928
+    "value": 8334
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.range_check": {
     "description": "Range_check gas weight.",
