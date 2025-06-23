@@ -296,7 +296,7 @@ fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> 
 
 fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> ExecutionResources {
     let receipt = &execution_info.receipt;
-    let resources = &receipt.resources.computation.vm_resources;
+    let resources = &receipt.resources.computation.total_vm_resources();
     let builtin_instance_counter = resources
         .builtin_instance_counter
         .iter()

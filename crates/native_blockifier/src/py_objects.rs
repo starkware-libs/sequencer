@@ -11,28 +11,14 @@ use blockifier::blockifier::config::{
     ContractClassManagerConfig,
     NativeClassesWhitelist,
 };
-<<<<<<< HEAD
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
-||||||| 787b8bea3
-use blockifier::bouncer::{BouncerConfig, BouncerWeights};
-=======
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinWeights};
->>>>>>> origin/main-v0.13.6
+use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinWeights, CasmHashComputationData};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 use starknet_api::core::ClassHash;
-<<<<<<< HEAD
-use starknet_api::execution_resources::GasAmount;
-||||||| 787b8bea3
-use starknet_api::execution_resources::GasAmount;
-use starknet_compile_to_native::config::SierraCompilationConfig;
-=======
 use starknet_api::execution_resources::{Builtin, GasAmount};
-use starknet_compile_to_native::config::SierraCompilationConfig;
->>>>>>> origin/main-v0.13.6
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 use crate::py_utils::PyFelt;
@@ -158,31 +144,14 @@ fn hash_map_into_bouncer_weights(
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
-<<<<<<< HEAD
     let n_txs = data.remove(constants::N_TXS).expect("n_txs must be present");
-    assert!(data.is_empty(), "Extra keys in bouncer weights: {data:?}");
-||||||| 787b8bea3
-=======
     let proving_gas = GasAmount(
         data.remove(constants::PROVING_GAS)
             .expect("proving_gas must be present")
             .try_into()
             .unwrap_or_else(|err| panic!("Failed to convert 'proving_gas' into GasAmount: {err}.")),
     );
->>>>>>> origin/main-v0.13.6
 
-<<<<<<< HEAD
-    Ok(BouncerWeights {
-        l1_gas,
-        message_segment_length,
-        state_diff_size,
-        n_events,
-        sierra_gas,
-        n_txs,
-    })
-||||||| 787b8bea3
-    Ok(BouncerWeights { l1_gas, message_segment_length, state_diff_size, n_events, sierra_gas })
-=======
     assert!(
         data.is_empty(),
         "Unexpected keys in bouncer config 'full_total_weights': {:?}",
@@ -194,11 +163,13 @@ fn hash_map_into_bouncer_weights(
         message_segment_length,
         state_diff_size,
         n_events,
+        n_txs,
         sierra_gas,
         proving_gas,
     })
 }
 
+#[allow(clippy::result_large_err)]
 fn hash_map_into_builtin_weights(
     mut data: HashMap<String, usize>,
 ) -> NativeBlockifierResult<BuiltinWeights> {
@@ -228,7 +199,6 @@ fn hash_map_into_builtin_weights(
         range_check96,
         poseidon,
     })
->>>>>>> origin/main-v0.13.6
 }
 
 #[derive(Debug, Default, FromPyObject)]

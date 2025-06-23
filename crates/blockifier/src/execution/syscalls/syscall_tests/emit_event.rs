@@ -39,9 +39,9 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         data: EventData(DATA.to_vec()),
     };
 
-    expect![[r#"
+    if runnable_version.is_cairo_native() {
+        expect![[r#"
         CallExecution {
-<<<<<<< HEAD
             retdata: Retdata(
                 [],
             ),
@@ -68,20 +68,46 @@ fn positive_flow(runnable_version: RunnableCairo1) {
                 },
             ],
             l2_to_l1_messages: [],
+            cairo_native: true,
             failed: false,
             gas_consumed: 34580,
-||||||| 787b8bea3
-            events: vec![OrderedEvent { order: 0, event }],
-            gas_consumed: 41880,
-            ..Default::default()
-=======
-            events: vec![OrderedEvent { order: 0, event }],
-            gas_consumed: 41880,
-            cairo_native: runnable_version.is_cairo_native(),
-            ..Default::default()
->>>>>>> origin/main-v0.13.6
         }
     "#]]
+    } else {
+        expect![[r#"
+            CallExecution {
+                retdata: Retdata(
+                    [],
+                ),
+                events: [
+                    OrderedEvent {
+                        order: 0,
+                        event: EventContent {
+                            keys: [
+                                EventKey(
+                                    0x2019,
+                                ),
+                                EventKey(
+                                    0x2020,
+                                ),
+                            ],
+                            data: EventData(
+                                [
+                                    0x2021,
+                                    0x2022,
+                                    0x2023,
+                                ],
+                            ),
+                        },
+                    },
+                ],
+                l2_to_l1_messages: [],
+                cairo_native: false,
+                failed: false,
+                gas_consumed: 34580,
+            }
+        "#]]
+    }
     .assert_debug_eq(&call_info.execution);
     assert_eq!(call_info.execution.events, vec![OrderedEvent { order: 0, event }]);
 }
