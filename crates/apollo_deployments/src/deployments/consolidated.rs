@@ -21,6 +21,7 @@ use crate::k8s::{
 use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
 
 const NODE_STORAGE: usize = 1000;
+const TESTING_NODE_STORAGE: usize = 1;
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -92,7 +93,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
 
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
-            Environment::Testing => None,
+            Environment::Testing => Some(TESTING_NODE_STORAGE),
             Environment::SepoliaIntegration
             | Environment::TestingEnvTwo
             | Environment::TestingEnvThree
