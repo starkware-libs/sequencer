@@ -17,6 +17,10 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::os_logger::OsLogger;
+use crate::hint_processor::snos_hint_processor::{
+    DeprecatedSyscallHintProcessor,
+    SyscallHintProcessor,
+};
 use crate::io::os_input::{CachedStateInput, OsBlockInput};
 use crate::vm_utils::VmUtilsError;
 
@@ -27,6 +31,8 @@ pub struct OsExecutionHelper<'a, S: StateReader> {
     pub(crate) os_logger: OsLogger,
     pub(crate) tx_execution_iter: TransactionExecutionIter<'a>,
     pub(crate) tx_tracker: TransactionTracker<'a>,
+    pub(crate) syscall_hint_processor: SyscallHintProcessor,
+    pub(crate) deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
 }
 
 impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
@@ -42,6 +48,8 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
             os_logger: OsLogger::new(debug_mode),
             tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
             tx_tracker: TransactionTracker::new(&os_block_input.transactions),
+            syscall_hint_processor: SyscallHintProcessor::default(),
+            deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor::default(),
         })
     }
 
@@ -86,6 +94,8 @@ impl<'a> OsExecutionHelper<'a, DictStateReader> {
             os_logger: OsLogger::new(true),
             tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
             tx_tracker: TransactionTracker::new(&os_block_input.transactions),
+            syscall_hint_processor: SyscallHintProcessor::default(),
+            deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor::default(),
         }
     }
 }
