@@ -363,6 +363,7 @@ fn expected_fee_transfer_call_info(
     account_address: ContractAddress,
     actual_fee: Fee,
     expected_fee_token_class_hash: ClassHash,
+    cairo_version: CairoVersion,
 ) -> Option<CallInfo> {
     let block_context = &tx_context.block_context;
     let fee_type = &tx_context.tx_info.fee_type();
@@ -414,14 +415,40 @@ fn expected_fee_transfer_call_info(
     let sequencer_balance_key_high = sequencer_balance_key_low
         .next_storage_key()
         .expect("Cannot get sequencer balance high key.");
+    let cairo_native = cairo_version.is_cairo_native();
+    let builtin_counters = match cairo_version {
+        CairoVersion::Cairo0 => {
+            HashMap::from([(BuiltinName::range_check, 32), (BuiltinName::pedersen, 4)])
+        }
+        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
+            HashMap::from([(BuiltinName::range_check, 38), (BuiltinName::pedersen, 4)])
+        }
+        // TODO(YonatanK): Change this once Cairo native supports builtins counters.
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Cairo1(RunnableCairo1::Native) => HashMap::default(),
+    };
+    let expected_tracked_resource = match cairo_version {
+        CairoVersion::Cairo0 => TrackedResource::CairoSteps,
+        CairoVersion::Cairo1(_) => TrackedResource::SierraGas,
+    };
+    let expected_gas_consumed = match cairo_version {
+        CairoVersion::Cairo0 => 0_u64,
+        CairoVersion::Cairo1(_) => 158310_u64,
+    };
+    let expected_resources = match cairo_version {
+        CairoVersion::Cairo0 => Prices::FeeTransfer(account_address, *fee_type).into(),
+        CairoVersion::Cairo1(_) => ExecutionResources::default(),
+    };
     Some(CallInfo {
         call: expected_fee_transfer_call,
         execution: CallExecution {
             retdata: retdata![felt!(constants::FELT_TRUE)],
             events: vec![expected_fee_transfer_event],
+            cairo_native,
+            gas_consumed: expected_gas_consumed,
             ..Default::default()
         },
-        resources: Prices::FeeTransfer(account_address, *fee_type).into(),
+        resources: expected_resources,
         // We read sender and recipient balance - Uint256(BALANCE, 0) then Uint256(0, 0).
         storage_access_tracker: StorageAccessTracker {
             storage_read_values: vec![felt!(BALANCE.0), felt!(0_u8), felt!(0_u8), felt!(0_u8)],
@@ -433,10 +460,8 @@ fn expected_fee_transfer_call_info(
             ]),
             ..Default::default()
         },
-        builtin_counters: HashMap::from([
-            (BuiltinName::range_check, 32),
-            (BuiltinName::pedersen, 4),
-        ]),
+        tracked_resource: expected_tracked_resource,
+        builtin_counters,
         ..Default::default()
     })
 }
@@ -697,7 +722,8 @@ fn test_invoke_tx(
         &tx_context,
         sender_address,
         expected_actual_fee,
-        FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
+        FeatureContract::ERC20(account_cairo_version).get_class_hash(),
+        account_cairo_version,
     );
 
     let da_gas = starknet_resources.state.da_gas_vector(use_kzg_da);
@@ -1805,7 +1831,8 @@ fn test_declare_tx(
             tx_context,
             sender_address,
             expected_actual_fee,
-            FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
+            FeatureContract::ERC20(cairo_version).get_class_hash(),
+            cairo_version,
         )
     };
 
@@ -2071,7 +2098,8 @@ fn test_deploy_account_tx(
         tx_context,
         deployed_account_address,
         expected_actual_fee,
-        FeatureContract::ERC20(CairoVersion::Cairo0).get_class_hash(),
+        FeatureContract::ERC20(cairo_version).get_class_hash(),
+        cairo_version,
     );
     let starknet_resources = actual_execution_info.receipt.resources.starknet_resources.clone();
 
