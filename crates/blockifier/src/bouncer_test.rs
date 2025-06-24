@@ -1,6 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use assert_matches::assert_matches;
+use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
@@ -121,27 +122,44 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
 }
 
 #[rstest]
-#[case::positive_flow(GasAmount(1), "ok")]
-#[case::block_full(GasAmount(11), "block_full")]
-fn test_bouncer_try_update_sierra_gas_based(
-    #[case] added_gas: GasAmount,
+#[case::sierra_gas_positive_flow(GasAmount(1), "ok")]
+#[case::sierra_gas_block_full(GasAmount(11), "sierra_gas_block_full")]
+#[case::proving_gas_positive_flow(GasAmount(0), "ok")]
+#[case::proving_gas_block_full(GasAmount(0), "proving_gas_block_full")]
+fn test_bouncer_try_update_gas_based(
+    #[case] sierra_gas: GasAmount,
     #[case] scenario: &'static str,
 ) {
     let block_context = BlockContext::create_for_account_testing();
     let state = &mut test_state(&block_context.chain_info, Fee(0), &[]);
     let mut transactional_state = TransactionalState::create_transactional(state);
 
-    // Setup the bouncer.
+    let builtin_weights = BuiltinWeights::default();
+
+    let range_check_count = 2;
+    let max_capacity_builtin_counters =
+        HashMap::from([(BuiltinName::range_check, range_check_count)]);
+    let builtin_counters = match scenario {
+        "proving_gas_block_full" => max_capacity_builtin_counters.clone(),
+        // Use a minimal or empty map.
+        "ok" | "sierra_gas_block_full" => {
+            HashMap::from([(BuiltinName::range_check, range_check_count - 1)])
+        }
+        _ => panic!("Unexpected scenario: {}", scenario),
+    };
+
+    let proving_gas_max_capacity =
+        builtin_weights.calc_gas_from_builtin_counters(&max_capacity_builtin_counters);
+
     let block_max_capacity = BouncerWeights {
         l1_gas: 20,
         message_segment_length: 20,
         n_events: 20,
         state_diff_size: 20,
         sierra_gas: GasAmount(20),
-        proving_gas: GasAmount(20),
+        proving_gas: proving_gas_max_capacity,
     };
-    let bouncer_config =
-        BouncerConfig { block_max_capacity, builtin_weights: BuiltinWeights::default() };
+    let bouncer_config = BouncerConfig { block_max_capacity, builtin_weights };
 
     let accumulated_weights = BouncerWeights {
         l1_gas: 10,
@@ -155,11 +173,9 @@ fn test_bouncer_try_update_sierra_gas_based(
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
 
     // Prepare the resources to be added to the bouncer.
-    let execution_summary = ExecutionSummary::default();
-
+    let execution_summary = ExecutionSummary { builtin_counters, ..Default::default() };
     let tx_resources = TransactionResources {
-        // Only the `sierra_gas` field is varied.
-        computation: ComputationResources { sierra_gas: added_gas, ..Default::default() },
+        computation: ComputationResources { sierra_gas, ..Default::default() },
         ..Default::default()
     };
     let tx_state_changes_keys =
@@ -175,7 +191,9 @@ fn test_bouncer_try_update_sierra_gas_based(
 
     match scenario {
         "ok" => assert_matches!(result, Ok(())),
-        "block_full" => assert_matches!(result, Err(TransactionExecutorError::BlockFull)),
+        "proving_gas_block_full" | "sierra_gas_block_full" => {
+            assert_matches!(result, Err(TransactionExecutorError::BlockFull))
+        }
         _ => panic!("Unexpected scenario: {}", scenario),
     }
 }
