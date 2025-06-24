@@ -1,4 +1,4 @@
-use blockifier_test_utils::cairo_versions::CairoVersion;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};  
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::FeeType;
@@ -9,6 +9,7 @@ use strum::IntoEnumIterator;
 
 use crate::blockifier::config::ContractClassManagerConfig;
 use crate::context::ChainInfo;
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::cached_state::CachedState;
 use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::state_reader_and_contract_manager::StateReaderAndContractManager;
@@ -33,10 +34,9 @@ pub fn fund_account(
 }
 
 /// Sets up a state reader for testing:
-/// * "Declares" a Cairo0 account and a Cairo0 ERC20 contract (class hash => class mapping set).
+/// * "Declares" a Cairo0 ERC20 contract (class hash => class mapping set).
 /// * "Deploys" two ERC20 contracts (address => class hash mapping set) at the fee token addresses
 ///   on the input block context.
-/// * Makes the Cairo0 account privileged (minter on both tokens, funded in both tokens).
 /// * "Declares" the input list of contracts.
 /// * "Deploys" the requested number of instances of each input contract.
 /// * Makes each input account contract privileged.
@@ -96,8 +96,21 @@ pub fn test_state_ex(
     initial_balances: Fee,
     contract_instances: &[(FeatureContractData, u16)],
 ) -> CachedState<DictStateReader> {
-    test_state_inner(chain_info, initial_balances, contract_instances, CairoVersion::Cairo0)
+    //Here we assume that the first contract in the list is the account contract. 
+    //TODO(YonatanK): Find a way to avoid this assumption.
+    let erc20_version = contract_instances
+        .first()
+        .map(|(contract_data, _)| match &contract_data.runnable_class {
+            RunnableCompiledClass::V0(_) => CairoVersion::Cairo0,
+            RunnableCompiledClass::V1(_) => CairoVersion::Cairo1(RunnableCairo1::Casm),
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(_) => CairoVersion::Cairo1(RunnableCairo1::Native),
+        })
+        .unwrap_or(CairoVersion::Cairo0);
+
+    test_state_inner(chain_info, initial_balances, contract_instances, erc20_version)
 }
+
 
 pub fn test_state_with_contract_manager(
     chain_info: &ChainInfo,
