@@ -144,7 +144,7 @@ impl ComponentStarter for MonitoringEndpoint {
 /// Returns prometheus metrics.
 /// In case the node doesn’t collect metrics returns an empty response with status code 405: method
 /// not allowed.
-#[instrument(level = "debug", ret, skip(prometheus_handle))]
+#[instrument(level = "trace", ret, skip(prometheus_handle))]
 // TODO(tsabary): handle the Option setup.
 async fn metrics(prometheus_handle: Option<PrometheusHandle>) -> Response {
     match prometheus_handle {
