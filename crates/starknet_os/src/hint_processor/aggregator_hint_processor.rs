@@ -36,7 +36,7 @@ pub(crate) enum DataAvailability {
     CallData,
 }
 
-pub(crate) struct AggregatorInput {
+pub struct AggregatorInput {
     _bootloader_output: Vec<Felt>,
     pub(crate) full_output: bool,
     pub(crate) da: DataAvailability,
@@ -55,6 +55,21 @@ pub struct AggregatorHintProcessor<'a> {
     // For testing, track hint coverage.
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<AllHints>,
+}
+
+impl<'a> AggregatorHintProcessor<'a> {
+    pub fn new(program: &'a Program, input: AggregatorInput) -> Self {
+        Self {
+            program,
+            state_update_pointers: None,
+            da_segment: None,
+            input,
+            serialize_data_availability_create_pages: false,
+            builtin_hint_processor: BuiltinHintProcessor::new_empty(),
+            #[cfg(any(test, feature = "testing"))]
+            unused_hints: AllHints::all_iter().collect(),
+        }
+    }
 }
 
 impl HintProcessorLogic for AggregatorHintProcessor<'_> {
