@@ -1942,7 +1942,7 @@
   "versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "privacy": "TemporaryValue",
-    "value": 6000000
+    "value": 10000000
   },
   "versioned_constants_overrides.max_n_events": {
     "description": "Maximum number of events that can be emitted from the transation.",
