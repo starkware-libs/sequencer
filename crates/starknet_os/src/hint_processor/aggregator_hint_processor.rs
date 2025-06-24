@@ -17,6 +17,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use serde::Deserialize;
 use starknet_types_core::felt::Felt;
 
+use crate::errors::StarknetOsError;
 use crate::hint_processor::common_hint_processor::{
     CommonHintProcessor,
     VmHintExtensionResult,
@@ -56,6 +57,21 @@ pub struct AggregatorHintProcessor<'a> {
     // For testing, track hint coverage.
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<AllHints>,
+}
+
+impl<'a> AggregatorHintProcessor<'a> {
+    pub fn new(program: &'a Program, input: AggregatorInput) -> Result<Self, StarknetOsError> {
+        Ok(Self {
+            program,
+            state_update_pointers: None,
+            da_segment: None,
+            input,
+            serialize_data_availability_create_pages: false,
+            builtin_hint_processor: BuiltinHintProcessor::new_empty(),
+            #[cfg(any(test, feature = "testing"))]
+            unused_hints: AllHints::all_iter().collect(),
+        })
+    }
 }
 
 impl HintProcessorLogic for AggregatorHintProcessor<'_> {
