@@ -301,6 +301,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                     .expect("Should be a valid URL"),
                     ..Default::default()
             },
+            assume_no_malicious_validators: true,
             ..Default::default()
         })
         .collect()
