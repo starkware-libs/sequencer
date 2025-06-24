@@ -17,7 +17,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
-use mempool_test_utils::starknet_api_test_utils::{
+use transaction_generator::starknet_api_test_utils::{
     AccountTransactionGenerator,
     Contract,
     VALID_ACCOUNT_BALANCE,

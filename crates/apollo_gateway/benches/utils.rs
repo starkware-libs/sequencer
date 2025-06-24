@@ -10,7 +10,7 @@ use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
-use mempool_test_utils::starknet_api_test_utils::test_valid_resource_bounds;
+use transaction_generator::starknet_api_test_utils::test_valid_resource_bounds;
 use starknet_api::core::ContractAddress;
 use starknet_api::invoke_tx_args;
 use starknet_api::rpc_transaction::RpcTransaction;

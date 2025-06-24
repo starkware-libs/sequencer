@@ -26,12 +26,6 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use mempool_test_utils::starknet_api_test_utils::{
-    contract_class,
-    declare_tx,
-    test_valid_resource_bounds,
-    VALID_ACCOUNT_BALANCE,
-};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
@@ -51,6 +45,12 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
+use transaction_generator::starknet_api_test_utils::{
+    contract_class,
+    declare_tx,
+    test_valid_resource_bounds,
+    VALID_ACCOUNT_BALANCE,
+};
 
 use crate::config::{
     GatewayConfig,

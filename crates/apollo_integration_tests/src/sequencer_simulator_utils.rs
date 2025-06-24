@@ -2,7 +2,7 @@ use std::net::{SocketAddr, ToSocketAddrs};
 
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
-use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
+use transaction_generator::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::TransactionHash;
 use tracing::info;

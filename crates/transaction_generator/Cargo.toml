@@ -1,5 +1,5 @@
 [package]
-name = "mempool_test_utils"
+name = "transaction_generator"
 version.workspace = true
 edition.workspace = true
 repository.workspace = true

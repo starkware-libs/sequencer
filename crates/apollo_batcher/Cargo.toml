@@ -53,7 +53,6 @@ blockifier = { workspace = true, features = ["testing"] }
 cairo-lang-starknet-classes.workspace = true
 chrono = { workspace = true }
 itertools.workspace = true
-mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
@@ -61,3 +60,4 @@ pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
+transaction_generator.workspace = true
