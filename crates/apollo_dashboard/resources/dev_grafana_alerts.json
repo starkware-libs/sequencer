@@ -568,6 +568,60 @@
       "severity": "p2"
     },
     {
+      "name": "gateway_avg_add_tx_latency",
+      "title": "High gateway average add_tx latency",
+      "ruleGroup": "gateway",
+      "expr": "sum(rate(gateway_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) / sum(rate(gateway_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]))",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "gateway_p95_add_tx_latency",
+      "title": "High gateway P95 add_tx latency",
+      "ruleGroup": "gateway",
+      "expr": "histogram_quantile(0.95, sum(rate(gateway_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le, instance))",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
       "name": "http_server_idle",
       "title": "http server idle",
       "ruleGroup": "http_server",
