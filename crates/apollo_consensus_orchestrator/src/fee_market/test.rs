@@ -12,7 +12,7 @@ static VERSIONED_CONSTANTS: LazyLock<&VersionedConstants> =
 #[test]
 fn test_price_calculation_snapshot() {
     // Setup: using realistic arbitrary values.
-    let init_price = GasPrice(1_000_000);
+    let init_price = GasPrice(1_000_000_000);
     let max_block_size = VERSIONED_CONSTANTS.max_block_size;
     let gas_target = max_block_size / 2;
     let high_congestion_gas_used = GasAmount(max_block_size.0 * 3 / 4);
@@ -20,8 +20,8 @@ fn test_price_calculation_snapshot() {
     let stable_congestion_gas_used = gas_target;
 
     // Fixed expected output values.
-    let increased_price = GasPrice(1000000 + 10416); // 1000000 + (1000000 * 1 / 4 * max_block_size) / (0.5 * max_block_size * 48);
-    let decreased_price = GasPrice(1000000 - 10416); // 1000000 - (1000000 * 1 / 4 * max_block_size) / (0.5 * max_block_size * 48);
+    let increased_price = GasPrice(init_price.0 + 10416666); // 1000000000 + (1000000000 * 1 / 4 * max_block_size) / (0.5 * max_block_size * 48);
+    let decreased_price = GasPrice(init_price.0 - 10416666); // 1000000000 - (1000000000 * 1 / 4 * max_block_size) / (0.5 * max_block_size * 48);
 
     // Assert.
     assert_eq!(

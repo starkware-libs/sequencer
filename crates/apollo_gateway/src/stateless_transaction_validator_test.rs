@@ -34,6 +34,7 @@ use crate::test_utils::{
     NON_EMPTY_RESOURCE_BOUNDS,
 };
 
+const MAX_GAS_PRICE: u128 = 100_000_000_u128;
 static MIN_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new(1, 1, 0));
 static MAX_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new(1, 5, usize::MAX));
 
@@ -139,7 +140,7 @@ fn test_positive_flow(
     RpcTransactionArgs {
         resource_bounds: AllResourceBounds {
             l2_gas: ResourceBounds {
-                max_price_per_unit: GasPrice(99_999_u128),
+                max_price_per_unit: GasPrice(MAX_GAS_PRICE - 1),
                 ..NON_EMPTY_RESOURCE_BOUNDS
             },
             ..Default::default()
@@ -147,8 +148,8 @@ fn test_positive_flow(
         ..Default::default()
     },
     StatelessTransactionValidatorError::MaxGasPriceTooLow {
-        gas_price: GasPrice(99_999_u128),
-        min_gas_price: 100_000_u128
+        gas_price: GasPrice(MAX_GAS_PRICE - 1),
+        min_gas_price: MAX_GAS_PRICE
     },
 )]
 fn test_invalid_resource_bounds(
@@ -159,7 +160,7 @@ fn test_invalid_resource_bounds(
 ) {
     let config = StatelessTransactionValidatorConfig {
         validate_non_zero_resource_bounds: true,
-        min_gas_price: 100_000_u128,
+        min_gas_price: MAX_GAS_PRICE,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     };
     let tx_validator = StatelessTransactionValidator { config };
