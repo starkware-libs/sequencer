@@ -1,12 +1,10 @@
 use std::collections::BTreeMap;
 use std::fmt::{Display, Formatter, Result};
-use std::path::{Path, PathBuf};
+use std::iter::once;
+use std::path::PathBuf;
 
 use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
 use apollo_config::{ParamPath, SerializedParam};
-use apollo_infra_utils::dumping::serialize_to_file;
-#[cfg(test)]
-use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::config_utils::config_to_preset;
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
@@ -14,7 +12,7 @@ use indexmap::IndexMap;
 use serde::Serialize;
 use serde_json::{json, Value};
 
-use crate::config_override::{ConfigOverride, DeploymentTypeConfigOverride};
+use crate::config_override::ConfigOverride;
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfigParams};
 use crate::service::{DeploymentName, Service, ServiceName};
@@ -24,13 +22,10 @@ pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
 
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 
-const BOOTSTRAP_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS: u64 = 28800; // 8 hours
-const BOOTSTRAP_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 100_000; // 100k seconds ~ 27.7 hours
-
-const OPERATIONAL_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS: u64 = 3600; // 1 hour
-const OPERATIONAL_MEMPOOL_CONFIG_TRANSACTION_TTL: u64 = 300; // 300 seconds ~ 5 minutes
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
+// TODO(Tsabary): almost all struct members are not serialized, causing many skip_serializing
+// attributes. Consider splitting to inner structs.
+// TODO(Tsabary): revisit derived traits, recursively remove from inner types if possible.
+#[derive(Clone, Debug, Serialize)]
 pub struct Deployment {
     application_config_subdir: PathBuf,
     #[serde(skip_serializing)]
@@ -42,6 +37,10 @@ pub struct Deployment {
     instance_name: String,
     #[serde(skip_serializing)]
     base_app_config_file_path: PathBuf,
+    #[serde(skip_serializing)]
+    config_override: ConfigOverride,
+    #[serde(skip_serializing)]
+    config_override_dir: PathBuf,
 }
 
 impl Deployment {
@@ -58,21 +57,12 @@ impl Deployment {
     ) -> Self {
         let service_names = deployment_name.all_service_names();
 
-        let application_config_subdir = deployment_name
+        let config_override_dir = deployment_name
             .add_path_suffix(environment.application_config_dir_path(), instance_name);
 
-        // TODO(Tsabary): list the mutual parent dir of the base app config and all the services'
-        // configs as the parent dir, and for each file add its specific path originating from that
-        // dir. This will enable removing the current "upward" paths.
-
-        // Reference the base app config file from the application config subdir.
-        let base_app_config_relative_path =
-            relative_up_path(&application_config_subdir, &base_app_config_file_path);
-
-        let config_override_files: Vec<String> = config_override.create(&application_config_subdir);
-
-        let additional_config_filenames: Vec<String> =
-            std::iter::once(base_app_config_relative_path.to_string_lossy().to_string())
+        let config_override_files = config_override.get_config_file_paths(&config_override_dir);
+        let config_filenames: Vec<String> =
+            once(base_app_config_file_path.to_string_lossy().to_string())
                 .chain(config_override_files)
                 .collect();
 
@@ -82,19 +72,21 @@ impl Deployment {
                 service_name.create_service(
                     &environment,
                     &external_secret,
-                    additional_config_filenames.clone(),
+                    config_filenames.clone(),
                     ingress_params.clone(),
                     k8s_service_config_params.clone(),
                 )
             })
             .collect();
         Self {
-            application_config_subdir,
+            application_config_subdir: CONFIG_BASE_DIR.into(),
             deployment_name,
             environment,
             services,
             instance_name: instance_name.to_string(),
             base_app_config_file_path,
+            config_override,
+            config_override_dir,
         }
     }
 
@@ -112,7 +104,6 @@ impl Deployment {
 
         for (service, component_config) in component_configs.into_iter() {
             // Component configs, determined by the service.
-
             let component_config_serialization_wrapper: ComponentConfigsSerializationWrapper =
                 component_config.into();
 
@@ -122,17 +113,6 @@ impl Deployment {
         }
 
         result
-    }
-
-    pub fn dump_application_config_files(&self) {
-        let app_configs = self.application_config_values();
-        for (service, value) in app_configs.into_iter() {
-            let config_path = &self.application_config_subdir.join(service.get_config_file_path());
-            serialize_to_file(
-                value,
-                config_path.to_str().expect("Should be able to convert path to string"),
-            );
-        }
     }
 
     pub fn get_config_file_paths(&self) -> Vec<Vec<String>> {
@@ -155,29 +135,13 @@ impl Deployment {
             .join(format!("{}.json", self.instance_name))
     }
 
-    #[cfg(test)]
-    pub(crate) fn assert_application_configs_exist(&self) {
-        for service in &self.services {
-            for config_path in service.get_config_paths() {
-                // Concatenate paths.
-                let full_path = &self.application_config_subdir.join(config_path);
-                // Assert existence.
-                assert!(full_path.exists(), "File does not exist: {:?}", full_path);
-            }
-        }
+    pub fn dump_config_override_files(&self) {
+        self.config_override.dump_config_files(&self.config_override_dir);
     }
 
     #[cfg(test)]
-    pub fn test_dump_application_config_files(&self) {
-        let app_configs = self.application_config_values();
-        for (service, value) in app_configs.into_iter() {
-            let config_path = &self.application_config_subdir.join(service.get_config_file_path());
-            serialize_to_file_test(
-                value,
-                config_path.to_str().expect("Should be able to convert path to string"),
-                FIX_BINARY_NAME,
-            );
-        }
+    pub fn test_dump_config_override_files(&self) {
+        self.config_override.test_dump_config_files(&self.config_override_dir);
     }
 }
 
@@ -211,19 +175,6 @@ impl DeploymentType {
         match self {
             DeploymentType::Bootstrap => 1,
             DeploymentType::Operational => DEFAULT_VALIDATOR_ID.try_into().unwrap(),
-        }
-    }
-
-    pub(crate) fn get_deployment_type_config_override(&self) -> DeploymentTypeConfigOverride {
-        match self {
-            DeploymentType::Bootstrap => DeploymentTypeConfigOverride::new(
-                BOOTSTRAP_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS,
-                BOOTSTRAP_MEMPOOL_CONFIG_TRANSACTION_TTL,
-            ),
-            DeploymentType::Operational => DeploymentTypeConfigOverride::new(
-                OPERATIONAL_L1_SCRAPER_CONFIG_STARTUP_REWIND_TIME_SECONDS,
-                OPERATIONAL_MEMPOOL_CONFIG_TRANSACTION_TTL,
-            ),
         }
     }
 }
@@ -269,33 +220,11 @@ impl P2PCommunicationType {
     }
 }
 
-fn relative_up_path(from: &Path, to: &Path) -> PathBuf {
-    // Canonicalize logically (NOT on filesystem)
-    let from_components: Vec<_> = from.components().collect();
-    let to_components: Vec<_> = to.components().collect();
-
-    // Find common prefix length
-    let common_len = from_components.iter().zip(&to_components).take_while(|(a, b)| a == b).count();
-
-    // How many directories to go up from `from` to get to common root
-    let up_levels = from_components.len() - common_len;
-
-    // Build the relative path
-    let mut result = PathBuf::new();
-    for _ in 0..up_levels {
-        result.push("..");
-    }
-    for component in &to_components[common_len..] {
-        result.push(component.as_os_str());
-    }
-
-    result
-}
-
+// TODO(Tsabary): move this to the service module once refactored out of here.
 // A helper struct for serializing the components config in the same hierarchy as of its
 // serialization as part of the entire config, i.e., by prepending "components.".
 #[derive(Clone, Debug, Default, Serialize)]
-struct ComponentConfigsSerializationWrapper {
+pub(crate) struct ComponentConfigsSerializationWrapper {
     components: ComponentConfig,
 }
 

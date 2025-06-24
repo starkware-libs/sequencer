@@ -1543,6 +1543,7 @@ dependencies = [
  "apollo_network",
  "apollo_network_types",
  "apollo_test_utils",
+ "apollo_time",
  "assert_matches",
  "async-trait",
  "derive_more 0.99.18",

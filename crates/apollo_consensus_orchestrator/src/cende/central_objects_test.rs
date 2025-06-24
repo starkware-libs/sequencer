@@ -158,8 +158,6 @@ pub const CENTRAL_TRANSACTION_EXECUTION_INFO_REVERTED_JSON_PATH: &str =
 pub const CENTRAL_BLOB_JSON_PATH: &str = "central_blob.json";
 pub const CENTRAL_CASM_HASH_COMPUTATION_DATA_JSON_PATH: &str =
     "central_casm_hash_computation_data.json";
-// TODO(Arni): Remove this test case, it is covered by CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH.
-pub const CENTRAL_TRANSACTION_RECEIPT_JSON_PATH: &str = "central_transaction_receipt.json";
 pub const CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH: &str = "central_preconfirmed_block.json";
 
 fn resource_bounds() -> AllResourceBounds {
@@ -672,98 +670,6 @@ fn event_from_serialized_fields(from_address: &str, keys: Vec<&str>, data: Vec<&
     }
 }
 
-fn starknet_client_transaction_receipt_old_receipt() -> StarknetClientTransactionReceipt {
-    StarknetClientTransactionReceipt {
-        transaction_index: TransactionOffsetInBlock(0),
-        transaction_hash: TransactionHash(felt!(
-            "0x3cc2fcd3ff82310f50a6a9113caaf890e8078569c7409c087c253ebd62d20e9"
-        )),
-        l1_to_l2_consumed_message: None,
-        l2_to_l1_messages: vec![],
-        events: vec![
-            event_from_serialized_fields(
-                "0x5c6d0020a9927edca9ddc984b97305439c0b32a1ec8d3f0eaf6291074cc9799",
-                vec![
-                    "0x1a2f334228cee715f1f0f54053bb6b5eac54fa336e0bc1aacf7516decb0471d",
-                    "0x84acd01917db02efc131e496a2d514470770d06142ac27f5c8eeae024ea1de",
-                    "0x509a3aa0d5e524412e9dfb8506ca0cd4d021119988143ce8a5ee0994dbcdd98",
-                ],
-                vec![
-                    "0x1",
-                    "0x2534",
-                    "0xd",
-                    "0xdb0db6d80db6d848049249b6902004924806d8924012224912",
-                    "0x49b690",
-                    "0x2e",
-                    "0x31",
-                    "0xf",
-                    "0x3",
-                    "0x1",
-                    "0x0",
-                    "0x1",
-                    "0x1",
-                    "0x0",
-                    "0x1",
-                    "0x0",
-                ],
-            ),
-            event_from_serialized_fields(
-                "0x4fd5df500e6c6615e4423258639f189455672bc841ba58f1c781ac7c5ff4bd8",
-                vec![
-                    "0x290118457a640990dbcdeb696bd7f53f1d7d71d19b7d566efd42da398c908d3",
-                    "0x2534",
-                    "0x0",
-                ],
-                vec![],
-            ),
-            event_from_serialized_fields(
-                "0x2c1f944a6e2bb7ca7bfc1febaf8f0b41e3a77e09b9a425f2559680c0af60c59",
-                vec![
-                    "0x1dcde06aabdbca2f80aa51392b345d7549d7757aa855f7e37f5d335ac8243b1",
-                    "0x11173fa365331d915b042386d9927b000c77461ec31e8ce5ae58cb67aac910e",
-                ],
-                vec!["0x1", "0x0"],
-            ),
-            event_from_serialized_fields(
-                "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
-                vec!["0x99cd8bde557814842a3121e8ddfd433a539b8c9f14bf31ebf108d12e6196e9"],
-                vec![
-                    "0x6bec890ba9f92e3941d0f3d1290e6a06df147131f33b1b12b5d968ea36598b2",
-                    "0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8",
-                    "0xb507bf86eea2f5",
-                    "0x0",
-                ],
-            ),
-        ],
-        execution_resources: CendeClientExecutionResources {
-            n_steps: 261040,
-            builtin_instance_counter: [
-                (Builtin::Pedersen, 70),
-                (Builtin::Poseidon, 168),
-                (Builtin::RangeCheck, 44185),
-                (Builtin::Bitwise, 134),
-                (Builtin::EcOp, 6),
-            ]
-            .into_iter()
-            .collect(),
-            n_memory_holes: 0,
-            data_availability: Some(GasVector {
-                l1_gas: 0_u64.into(),
-                l1_data_gas: 448_u64.into(),
-                l2_gas: 0_u64.into(),
-            }),
-            total_gas_consumed: Some(GasVector {
-                l1_gas: 1777_u64.into(),
-                l1_data_gas: 448_u64.into(),
-                l2_gas: 0_u64.into(),
-            }),
-        },
-        actual_fee: Fee(0xb507bf86eea2f5),
-        execution_status: TransactionExecutionStatus::Succeeded,
-        revert_error: None,
-    }
-}
-
 fn starknet_preconfiremd_block() -> CendePreConfirmedBlock {
     let metadata = CendeBlockMetadata {
         status: "PRE_CONFIRMED",
@@ -1048,10 +954,6 @@ fn starknet_preconfiremd_block() -> CendePreConfirmedBlock {
     CENTRAL_CASM_HASH_COMPUTATION_DATA_JSON_PATH
 )]
 #[case::central_blob(central_blob(), CENTRAL_BLOB_JSON_PATH)]
-#[case::starknet_client_transaction_receipt(
-    starknet_client_transaction_receipt_old_receipt(),
-    CENTRAL_TRANSACTION_RECEIPT_JSON_PATH
-)]
 #[case::starknet_preconfirmed_block(
     starknet_preconfiremd_block(),
     CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH

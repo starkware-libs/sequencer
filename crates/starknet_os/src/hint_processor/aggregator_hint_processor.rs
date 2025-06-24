@@ -29,6 +29,7 @@ use crate::hints::error::{OsHintError, OsHintResult};
 use crate::hints::types::{HintArgs, HintEnum};
 use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
+#[derive(Clone)]
 #[allow(dead_code)]
 pub(crate) enum DataAvailability {
     Blob(PathBuf),

@@ -126,6 +126,10 @@ impl TransactionRecord {
     /// CancellationStartedOnL2 to CancelledOnL2 after the timelock expires.
     pub fn update_time_based_state(&mut self, unix_now: u64, policy: TransactionRecordPolicy) {
         if let Some(requested_at) = self.cancellation_requested_at {
+            if self.committed {
+                return; // Committing overrides cancellations.
+            }
+
             let cancellation_timelock = &policy.cancellation_timelock.as_secs();
             let is_cancellation_timelock_passed =
                 unix_now >= *requested_at.saturating_add(cancellation_timelock);

@@ -40,6 +40,7 @@ use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
 use apollo_mempool::metrics::{
+    MEMPOOL_EVICTIONS_COUNT,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
@@ -928,7 +929,7 @@ fn get_mempool_evictions_count_alert() -> Alert {
         name: "mempool_evictions_count",
         title: "Mempool evictions count",
         alert_group: AlertGroup::Mempool,
-        expr: "mempool_evictions_count".to_string(),
+        expr: MEMPOOL_EVICTIONS_COUNT.get_name_with_filter().to_string(),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,

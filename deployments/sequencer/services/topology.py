@@ -12,6 +12,7 @@ class ServiceTopology:
     replicas: int
     autoscale: bool
     anti_affinity: bool
+    k8s_service_config: dict[str, typing.Union[str, bool]]
     ingress: typing.Optional[dict[any, any]]
     toleration: typing.Optional[str]
     storage: typing.Optional[int]
