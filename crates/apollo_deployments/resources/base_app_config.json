@@ -115,7 +115,7 @@
   "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": 7,
   "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": 0,
   "gateway_config.stateless_tx_validator_config.max_signature_length": 4000,
-  "gateway_config.stateless_tx_validator_config.min_gas_price": 100000,
+  "gateway_config.stateless_tx_validator_config.min_gas_price": 100000000,
   "gateway_config.stateless_tx_validator_config.min_sierra_version.major": 1,
   "gateway_config.stateless_tx_validator_config.min_sierra_version.minor": 1,
   "gateway_config.stateless_tx_validator_config.min_sierra_version.patch": 0,

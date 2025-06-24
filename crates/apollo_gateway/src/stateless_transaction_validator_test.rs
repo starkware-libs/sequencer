@@ -139,7 +139,7 @@ fn test_positive_flow(
     RpcTransactionArgs {
         resource_bounds: AllResourceBounds {
             l2_gas: ResourceBounds {
-                max_price_per_unit: GasPrice(99_999_u128),
+                max_price_per_unit: GasPrice(99_999_999_u128),
                 ..NON_EMPTY_RESOURCE_BOUNDS
             },
             ..Default::default()
@@ -147,8 +147,8 @@ fn test_positive_flow(
         ..Default::default()
     },
     StatelessTransactionValidatorError::MaxGasPriceTooLow {
-        gas_price: GasPrice(99_999_u128),
-        min_gas_price: 100_000_u128
+        gas_price: GasPrice(99_999_999_u128),
+        min_gas_price: 100_000_000_u128
     },
 )]
 fn test_invalid_resource_bounds(
@@ -159,7 +159,7 @@ fn test_invalid_resource_bounds(
 ) {
     let config = StatelessTransactionValidatorConfig {
         validate_non_zero_resource_bounds: true,
-        min_gas_price: 100_000_u128,
+        min_gas_price: 100_000_000_u128,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     };
     let tx_validator = StatelessTransactionValidator { config };
