@@ -976,7 +976,7 @@
       "name": "mempool_evictions_count",
       "title": "Mempool evictions count",
       "ruleGroup": "mempool",
-      "expr": "mempool_evictions_count",
+      "expr": "mempool_evictions_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
       "conditions": [
         {
           "evaluator": {
