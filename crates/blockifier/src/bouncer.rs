@@ -82,6 +82,10 @@ impl BouncerConfig {
         if self.block_max_capacity.has_room(weights) {
             Ok(())
         } else {
+            log::debug!(
+                "Transaction too big; transaction weights: {weights:?}, block weights: {:?}.",
+                self.block_max_capacity
+            );
             Err(TransactionExecutionError::TransactionTooLarge {
                 max_capacity: Box::new(self.block_max_capacity),
                 tx_size: Box::new(weights),
@@ -612,6 +616,13 @@ pub fn get_tx_weights<S: StateReader>(
     });
 
     let mut total_builtin_counters = additional_os_resources.prover_builtins();
+    log::debug!("Noa, os builtins: {total_builtin_counters:?}");
+    log::debug!(
+        "Noa, os_vm_resources builtins: {:?}",
+        &tx_resources.computation.os_vm_resources.prover_builtins()
+    );
+    log::debug!("Noa, tx_builtin_counters builtins: {:?}", &tx_builtin_counters);
+
     // TODO(AvivG): Builtins from `fee_transfer_call_info` are counted twice - in `os_vm_resources`
     // and again in `tx_builtin_counters`. Remove the duplication.
     add_maps(

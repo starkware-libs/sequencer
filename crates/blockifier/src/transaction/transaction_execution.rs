@@ -214,6 +214,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
             &tx_execution_info,
             concurrency_mode,
         );
+        log::debug!("Noa tx: {:?} ", &self);
         verify_tx_weights_within_max_capacity(
             state,
             &tx_execution_summary,
