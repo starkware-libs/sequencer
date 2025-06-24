@@ -197,22 +197,12 @@ pub enum P2PCommunicationType {
 }
 
 impl P2PCommunicationType {
-    pub(crate) fn get_p2p_address(
-        &self,
-        service_name: &str,
-        namespace: &str,
-        domain: &str,
-        port: u16,
-        first_node_address: &str,
-    ) -> String {
-        let domain = match self {
+    pub(crate) fn get_p2p_domain(&self, domain: &str) -> String {
+        match self {
             P2PCommunicationType::Internal => "svc.cluster.local",
             P2PCommunicationType::External => domain,
-        };
-
-        let service_namespace_domain =
-            build_service_namespace_domain_address(service_name, namespace, domain);
-        format!("/dns/{}/tcp/{}/p2p/{}", service_namespace_domain, port, first_node_address)
+        }
+        .to_string()
     }
 
     pub(crate) fn get_k8s_service_type(&self) -> K8SServiceType {

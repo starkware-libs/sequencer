@@ -1,7 +1,11 @@
 {
+  "consensus_manager_config.network_config.advertised_multiaddr": "",
+  "consensus_manager_config.network_config.advertised_multiaddr.#is_none": true,
   "consensus_manager_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-core-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53080/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
   "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none": false,
   "consensus_manager_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010103",
+  "mempool_p2p_config.network_config.advertised_multiaddr": "",
+  "mempool_p2p_config.network_config.advertised_multiaddr.#is_none": true,
   "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-mempool-service.sequencer-test-3-node-0.svc.cluster.local/tcp/53200/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
   "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none": false,
   "mempool_p2p_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010103",

@@ -10,8 +10,13 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::config_override::InstanceConfigOverride;
-use crate::deployment::{DeploymentType, P2PCommunicationType};
+use crate::addresses::{get_p2p_address, get_peer_id, SecretKey};
+use crate::config_override::{InstanceConfigOverride, NetworkConfigOverride};
+use crate::deployment::{
+    build_service_namespace_domain_address,
+    DeploymentType,
+    P2PCommunicationType,
+};
 use crate::deployment_definitions::Environment;
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
@@ -25,7 +30,7 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
-use crate::utils::{determine_port_numbers, get_secret_key, get_validator_id};
+use crate::utils::{determine_port_numbers, format_node_id, get_secret_key, get_validator_id};
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
 
@@ -401,51 +406,107 @@ fn get_http_server_component_config(
 }
 
 pub(crate) fn create_hybrid_instance_config_override(
-    id: usize,
-    namespace: &'static str,
+    node_id: usize,
+    // TODO(Tsabary): change `node_namespace_format` to be of its own type with dedicated fns
+    node_namespace_format: &str,
     deployment_type: DeploymentType,
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
-    assert!(id < MAX_NODE_ID, "Node id {} exceeds the number of nodes {}", id, MAX_NODE_ID);
+    assert!(
+        node_id < MAX_NODE_ID,
+        "Node node_id {} exceeds the number of nodes {}",
+        node_id,
+        MAX_NODE_ID
+    );
 
-    // TODO(Tsabary): these should be derived from the hybrid deployment module, and used
+    // TODO(Tsabary): these ports should be derived from the hybrid deployment module, and used
     // consistently throughout the code.
-
-    // This node address uses that the first node secret key is
-    // "0x0101010101010101010101010101010101010101010101010101010101010101".
-    // TODO(Tsabary): test to enforce the above assumption.
-    const FIRST_NODE_ADDRESS: &str = "12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5";
     const CORE_SERVICE_PORT: u16 = 53080;
     const MEMPOOL_SERVICE_PORT: u16 = 53200;
 
-    if id == 0 {
-        InstanceConfigOverride::new(
-            None,
-            get_secret_key(id),
-            None,
-            get_secret_key(id),
-            get_validator_id(id, deployment_type),
-        )
-    } else {
-        InstanceConfigOverride::new(
-            Some(p2p_communication_type.get_p2p_address(
-                &HybridNodeServiceName::Core.k8s_service_name(),
-                namespace,
-                domain,
-                CORE_SERVICE_PORT,
-                FIRST_NODE_ADDRESS,
-            )),
-            get_secret_key(id),
-            Some(p2p_communication_type.get_p2p_address(
-                &HybridNodeServiceName::Mempool.k8s_service_name(),
-                namespace,
-                domain,
-                MEMPOOL_SERVICE_PORT,
-                FIRST_NODE_ADDRESS,
-            )),
-            get_secret_key(id),
-            get_validator_id(id, deployment_type),
-        )
-    }
+    let bootstrap_node_id = 0;
+    let bootstrap_node_secret_key = get_secret_key(bootstrap_node_id);
+    let node_secret_key = get_secret_key(node_id);
+
+    let bootstrap_peer_id =
+        get_peer_id(SecretKey::try_from(bootstrap_node_secret_key.as_ref()).unwrap());
+    let node_peer_id = get_peer_id(SecretKey::try_from(node_secret_key.as_ref()).unwrap());
+
+    let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
+
+    let build_peer_address =
+        |service_name: HybridNodeServiceName, port: u16, node_id: usize, peer_id: &str| {
+            let domain = build_service_namespace_domain_address(
+                &service_name.k8s_service_name(),
+                &format_node_id(node_namespace_format, node_id),
+                &sanitized_domain,
+            );
+            Some(get_p2p_address(&domain, port, peer_id))
+        };
+
+    let (consensus_bootstrap_peer_multiaddr, mempool_bootstrap_peer_multiaddr) = match node_id {
+        0 => {
+            // First node does not have a bootstrap peer.
+            (None, None)
+        }
+        _ => {
+            // Other nodes have the first node as a bootstrap peer.
+            (
+                build_peer_address(
+                    HybridNodeServiceName::Core,
+                    CORE_SERVICE_PORT,
+                    bootstrap_node_id,
+                    &bootstrap_peer_id,
+                ),
+                build_peer_address(
+                    HybridNodeServiceName::Mempool,
+                    MEMPOOL_SERVICE_PORT,
+                    bootstrap_node_id,
+                    &bootstrap_peer_id,
+                ),
+            )
+        }
+    };
+
+    let (consensus_advertised_multiaddr, mempool_advertised_multiaddr) =
+        match p2p_communication_type {
+            P2PCommunicationType::Internal =>
+            // No advertised addresses for internal communication.
+            {
+                (None, None)
+            }
+            P2PCommunicationType::External =>
+            // Advertised addresses for external communication.
+            {
+                (
+                    build_peer_address(
+                        HybridNodeServiceName::Core,
+                        CORE_SERVICE_PORT,
+                        node_id,
+                        &node_peer_id,
+                    ),
+                    build_peer_address(
+                        HybridNodeServiceName::Mempool,
+                        MEMPOOL_SERVICE_PORT,
+                        node_id,
+                        &node_peer_id,
+                    ),
+                )
+            }
+        };
+
+    InstanceConfigOverride::new(
+        NetworkConfigOverride::new(
+            consensus_bootstrap_peer_multiaddr,
+            consensus_advertised_multiaddr,
+            &node_secret_key,
+        ),
+        NetworkConfigOverride::new(
+            mempool_bootstrap_peer_multiaddr,
+            mempool_advertised_multiaddr,
+            &node_secret_key,
+        ),
+        get_validator_id(node_id, deployment_type),
+    )
 }
