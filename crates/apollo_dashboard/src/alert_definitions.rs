@@ -20,7 +20,7 @@ use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
 };
-use apollo_gateway::metrics::GATEWAY_TRANSACTIONS_RECEIVED;
+use apollo_gateway::metrics::{GATEWAY_ADD_TX_LATENCY, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_FAILURE,
     ADDED_TRANSACTIONS_INTERNAL_ERROR,
@@ -346,7 +346,49 @@ fn get_gateway_add_tx_idle() -> Alert {
     }
 }
 
-// TODO(shahak): add gateway latency alert
+/// Triggers if the average latency of `add_tx` calls for any single gateway exceeds 2 seconds over
+/// a 1-minute window.
+fn get_gateway_avg_add_tx_latency_alert() -> Alert {
+    let sum_metric = GATEWAY_ADD_TX_LATENCY.get_name_sum_with_filter();
+    let count_metric = GATEWAY_ADD_TX_LATENCY.get_name_count_with_filter();
+
+    Alert {
+        name: "gateway_avg_add_tx_latency",
+        title: "High gateway average add_tx latency",
+        alert_group: AlertGroup::Gateway,
+        expr: format!("rate({sum_metric}[1m]) / rate({count_metric}[1m])"),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 2.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::WorkingHours,
+    }
+}
+
+/// Triggers when the slowest 5% of transactions for a specific gateway are taking longer than 2
+/// seconds over a 1-minute window.
+fn get_gateway_p95_add_tx_latency_alert() -> Alert {
+    Alert {
+        name: "gateway_p95_add_tx_latency",
+        title: "High gateway P95 add_tx latency",
+        alert_group: AlertGroup::Gateway,
+        expr: format!(
+            "histogram_quantile(0.95, sum(rate({}[1m])) by (le, instance))",
+            GATEWAY_ADD_TX_LATENCY.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 2.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::WorkingHours,
+    }
+}
 
 fn get_mempool_add_tx_idle() -> Alert {
     Alert {
@@ -984,6 +1026,8 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_validate_proposal_failed_alert(),
         get_consensus_votes_num_sent_messages_alert(),
         get_gateway_add_tx_idle(),
+        get_gateway_avg_add_tx_latency_alert(),
+        get_gateway_p95_add_tx_latency_alert(),
         get_http_server_idle(),
         get_http_server_add_tx_idle(),
         get_http_server_high_transaction_failure_ratio(),
