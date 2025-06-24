@@ -63,7 +63,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 ConsolidatedNodeServiceName::Node => Some(Toleration::ApolloCoreService),
@@ -80,7 +80,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => get_ingress(ingress_params, false),
             _ => unimplemented!(),
@@ -95,7 +95,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match environment {
             Environment::Testing => Some(TESTING_NODE_STORAGE),
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => Some(NODE_STORAGE),
             _ => unimplemented!(),
@@ -106,7 +106,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match environment {
             Environment::Testing => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
             _ => unimplemented!(),
@@ -121,7 +121,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match environment {
             Environment::Testing => false,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => true,
             _ => unimplemented!(),
