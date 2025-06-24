@@ -424,33 +424,29 @@ pub(crate) fn create_hybrid_instance_config_override(
 
     if id == 0 {
         InstanceConfigOverride::new(
-            "",
-            true,
+            None,
             get_secret_key(id),
-            "",
-            true,
+            None,
             get_secret_key(id),
             get_validator_id(id, deployment_type),
         )
     } else {
         InstanceConfigOverride::new(
-            p2p_communication_type.get_p2p_address(
+            Some(p2p_communication_type.get_p2p_address(
                 CORE_SERVICE_NAME,
                 namespace,
                 domain,
                 CORE_SERVICE_PORT,
                 FIRST_NODE_ADDRESS,
-            ),
-            false,
+            )),
             get_secret_key(id),
-            p2p_communication_type.get_p2p_address(
+            Some(p2p_communication_type.get_p2p_address(
                 MEMPOOL_SERVICE_NAME,
                 namespace,
                 domain,
                 MEMPOOL_SERVICE_PORT,
                 FIRST_NODE_ADDRESS,
-            ),
-            false,
+            )),
             get_secret_key(id),
             get_validator_id(id, deployment_type),
         )
