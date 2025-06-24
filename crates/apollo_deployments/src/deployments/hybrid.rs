@@ -416,10 +416,7 @@ pub(crate) fn create_hybrid_instance_config_override(
     // "0x0101010101010101010101010101010101010101010101010101010101010101".
     // TODO(Tsabary): test to enforce the above assumption.
     const FIRST_NODE_ADDRESS: &str = "12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5";
-    const CORE_SERVICE_NAME: &str = "sequencer-core-service";
     const CORE_SERVICE_PORT: u16 = 53080;
-
-    const MEMPOOL_SERVICE_NAME: &str = "sequencer-mempool-service";
     const MEMPOOL_SERVICE_PORT: u16 = 53200;
 
     if id == 0 {
@@ -433,7 +430,7 @@ pub(crate) fn create_hybrid_instance_config_override(
     } else {
         InstanceConfigOverride::new(
             Some(p2p_communication_type.get_p2p_address(
-                CORE_SERVICE_NAME,
+                &HybridNodeServiceName::Core.k8s_service_name(),
                 namespace,
                 domain,
                 CORE_SERVICE_PORT,
@@ -441,7 +438,7 @@ pub(crate) fn create_hybrid_instance_config_override(
             )),
             get_secret_key(id),
             Some(p2p_communication_type.get_p2p_address(
-                MEMPOOL_SERVICE_NAME,
+                &HybridNodeServiceName::Mempool.k8s_service_name(),
                 namespace,
                 domain,
                 MEMPOOL_SERVICE_PORT,
