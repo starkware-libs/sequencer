@@ -46,6 +46,8 @@ impl SerializeConfig for GatewayConfig {
 pub struct StatelessTransactionValidatorConfig {
     // If true, validates that the resource bounds are not zero.
     pub validate_non_zero_resource_bounds: bool,
+    // TODO(AlonH): Remove this field and use the one from the versioned constants.
+    pub min_gas_price: u128,
     pub max_calldata_length: usize,
     pub max_signature_length: usize,
 
@@ -60,6 +62,7 @@ impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
             validate_non_zero_resource_bounds: true,
+            min_gas_price: 100_000,
             max_calldata_length: 4000,
             max_signature_length: 4000,
             max_contract_bytecode_size: 81920,
@@ -102,6 +105,12 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
                 "max_contract_class_object_size",
                 &self.max_contract_class_object_size,
                 "Limitation of contract class object size.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "min_gas_price",
+                &self.min_gas_price,
+                "Minimum gas price for transactions.",
                 ParamPrivacyInput::Public,
             ),
         ]);
