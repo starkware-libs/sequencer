@@ -676,6 +676,8 @@ pub fn get_tx_weights<S: StateReader>(
     let total_casm_hash_computation_resources = class_hash_to_casm_hash_computation_resources
         .values()
         .fold(ExecutionResources::default(), |acc, resources| &acc + resources);
+    let total_casm_hash_computation_resources_builtins =
+        total_casm_hash_computation_resources.prover_builtins();
     let total_casm_hash_computation_gas =
         vm_resources_to_sierra_gas(total_casm_hash_computation_resources, versioned_constants);
     let sierra_gas = gas_without_casm_hash_computation
@@ -701,7 +703,7 @@ pub fn get_tx_weights<S: StateReader>(
     // Proving gas computation.
     let mut total_builtin_counters = patrticia_update_resources.prover_builtins();
     add_maps(&mut total_builtin_counters, tx_builtin_counters);
-    add_maps(&mut total_builtin_counters, &patrticia_update_resources.builtin_instance_counter);
+    add_maps(&mut total_builtin_counters, &total_casm_hash_computation_resources_builtins);
     let builtins_gas = builtin_weights.calc_gas_from_builtin_counter(&total_builtin_counters);
     let steps_proving_gas =
         sierra_gas_to_steps_gas(sierra_gas, versioned_constants, &total_builtin_counters);
