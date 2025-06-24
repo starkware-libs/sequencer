@@ -3,6 +3,7 @@ use std::vec;
 
 use assert_matches::assert_matches;
 use rstest::rstest;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{EntryPointSelector, L2_ADDRESS_UPPER_BOUND};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::EntryPointByType;
@@ -12,6 +13,7 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     PaymasterData,
+    ResourceBounds,
     TransactionSignature,
 };
 use starknet_api::{calldata, contract_address, declare_tx_args, felt, StarknetApiError};
@@ -38,6 +40,7 @@ static MAX_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new
 static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValidatorConfig> =
     LazyLock::new(|| StatelessTransactionValidatorConfig {
         validate_non_zero_resource_bounds: false,
+        min_gas_price: 0,
         max_calldata_length: 1,
         max_signature_length: 1,
         max_contract_bytecode_size: 100000,
@@ -123,24 +126,47 @@ fn test_positive_flow(
 }
 
 #[rstest]
+#[case::zero_resource_bounds(
+    RpcTransactionArgs {
+        resource_bounds: AllResourceBounds::default(),
+        ..Default::default()
+    },
+    StatelessTransactionValidatorError::ZeroResourceBounds {
+        resource_bounds: AllResourceBounds::default()
+    },
+)]
+#[case::max_l2_gas_price_below_min(
+    RpcTransactionArgs {
+        resource_bounds: AllResourceBounds {
+            l2_gas: ResourceBounds {
+                max_price_per_unit: GasPrice(99_999_u128),
+                ..NON_EMPTY_RESOURCE_BOUNDS
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    },
+    StatelessTransactionValidatorError::MaxGasPriceTooLow {
+        gas_price: GasPrice(99_999_u128),
+        min_gas_price: 100_000_u128
+    },
+)]
 fn test_invalid_resource_bounds(
+    #[case] rpc_tx_args: RpcTransactionArgs,
+    #[case] expected_error: StatelessTransactionValidatorError,
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
 ) {
     let config = StatelessTransactionValidatorConfig {
         validate_non_zero_resource_bounds: true,
+        min_gas_price: 100_000_u128,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     };
     let tx_validator = StatelessTransactionValidator { config };
 
-    let resource_bounds = AllResourceBounds::default();
-    let tx =
-        rpc_tx_for_testing(tx_type, RpcTransactionArgs { resource_bounds, ..Default::default() });
+    let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
 
-    assert_eq!(
-        tx_validator.validate(&tx).unwrap_err(),
-        StatelessTransactionValidatorError::ZeroResourceBounds { resource_bounds }
-    );
+    assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
 
 #[rstest]

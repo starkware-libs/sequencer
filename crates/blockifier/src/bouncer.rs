@@ -697,17 +697,11 @@ pub fn get_tx_weights<S: StateReader>(
             .collect(),
         gas_without_casm_hash_computation,
     };
-    let sierra_gas = sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
-        panic!(
-            "Addition overflow while converting vm resources to gas. current gas: {}, vm as gas: \
-             {}.",
-            sierra_gas, vm_resources_gas
-        )
-    });
 
     // Proving gas computation.
     let mut total_builtin_counters = patrticia_update_resources.prover_builtins();
     add_maps(&mut total_builtin_counters, tx_builtin_counters);
+    add_maps(&mut total_builtin_counters, &patrticia_update_resources.builtin_instance_counter);
     let builtins_gas = builtin_weights.calc_gas_from_builtin_counter(&total_builtin_counters);
     let steps_proving_gas =
         sierra_gas_to_steps_gas(sierra_gas, versioned_constants, &total_builtin_counters);

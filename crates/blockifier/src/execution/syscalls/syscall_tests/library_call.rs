@@ -101,6 +101,7 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
     };
     let call_info = entry_point_call.execute_directly(&mut state).unwrap();
 
+    // TODO(Meshi): refactor so there is no need for the if else.
     if runnable_version.is_cairo_native() {
         expect![[r#"
         CallExecution {

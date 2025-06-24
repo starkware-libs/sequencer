@@ -236,6 +236,7 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
     };
 
     let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    // TODO(Meshi): refactor so there is no need for the if else.
     if outer_contract.cairo_version().is_cairo_native() {
         expect![[r#"
         CallExecution {

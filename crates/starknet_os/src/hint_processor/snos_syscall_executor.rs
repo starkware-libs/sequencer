@@ -118,33 +118,48 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
     fn get_secpk1_hint_processor_and_base(
         &mut self,
     ) -> (&mut SecpHintProcessor<ark_secp256k1::Config>, &mut Option<Relocatable>) {
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Execution helper must be set.");
         (
-            &mut self.syscall_hint_processor.secp256k1_hint_processor,
-            &mut self.syscall_hint_processor.secp_points_segment_base,
+            &mut current_execution_helper.syscall_hint_processor.secp256k1_hint_processor,
+            &mut current_execution_helper.syscall_hint_processor.secp_points_segment_base,
         )
     }
 
     fn get_secpr1_hint_processor_and_base(
         &mut self,
     ) -> (&mut SecpHintProcessor<ark_secp256r1::Config>, &mut Option<Relocatable>) {
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Execution helper must be set.");
         (
-            &mut self.syscall_hint_processor.secp256r1_hint_processor,
-            &mut self.syscall_hint_processor.secp_points_segment_base,
+            &mut current_execution_helper.syscall_hint_processor.secp256r1_hint_processor,
+            &mut current_execution_helper.syscall_hint_processor.secp_points_segment_base,
         )
     }
 
     fn get_secp_id(&self) -> usize {
-        self.syscall_hint_processor.secp256k1_hint_processor.points.len()
-            + self.syscall_hint_processor.secp256r1_hint_processor.points.len()
+        let current_execution_helper =
+            self.get_current_execution_helper().expect("Execution helper must be set.");
+        current_execution_helper.syscall_hint_processor.secp256k1_hint_processor.points.len()
+            + current_execution_helper.syscall_hint_processor.secp256r1_hint_processor.points.len()
     }
 
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize) {
-        let syscall_usage = self.syscall_hint_processor.syscall_usage.entry(*selector).or_default();
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Execution helper must be set.");
+        let syscall_usage = current_execution_helper
+            .syscall_hint_processor
+            .syscall_usage
+            .entry(*selector)
+            .or_default();
         syscall_usage.call_count += count;
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
-        self.syscall_hint_processor
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Execution helper must be set.");
+        current_execution_helper
+            .syscall_hint_processor
             .get_mut_syscall_ptr()
             .expect("Syscall pointer is not initialized.")
     }
@@ -345,19 +360,20 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         state: &[MaybeRelocatable],
         vm: &mut VirtualMachine,
     ) -> Result<Relocatable, Self::Error> {
-        let segment_start =
-            self.syscall_hint_processor.sha256_segment.expect("SHA256 segment must be set in OS.");
-        let entries_offset =
-            get_size_of_cairo_struct(CairoStruct::Sha256ProcessBlock, self.program)?
-                * self.syscall_hint_processor.sha256_block_count;
+        let block_size = get_size_of_cairo_struct(CairoStruct::Sha256ProcessBlock, self.program)?;
         let out_state_offset =
             get_field_offset(CairoStruct::Sha256ProcessBlock, "out_state", self.program)?;
+        let syscall_hint_processor =
+            &mut self.get_mut_current_execution_helper()?.syscall_hint_processor;
+        let segment_start =
+            syscall_hint_processor.sha256_segment.expect("SHA256 segment must be set in OS.");
+        let entries_offset = block_size * syscall_hint_processor.sha256_block_count;
         let total_offset = entries_offset + out_state_offset;
         let state_start = (segment_start + total_offset)?;
         vm.load_data(state_start, state)?;
 
         // Increment the block count for the next call.
-        self.syscall_hint_processor.sha256_block_count += 1;
+        syscall_hint_processor.sha256_block_count += 1;
         Ok(state_start)
     }
 }

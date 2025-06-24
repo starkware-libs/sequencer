@@ -131,7 +131,6 @@ pub(crate) fn create_block_additional_hints<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    // TODO(Nimrod): Verify hint implementation once syscall handlers are per block.
     hint_processor.execution_helpers_manager.increment_current_helper_index();
     Ok(())
 }

@@ -141,7 +141,8 @@ impl ExecutionSummary {
         use crate::fee::resources::{ComputationResources, MessageResources};
 
         let computation_resources = ComputationResources {
-            vm_resources: self.charged_resources.vm_resources,
+            tx_vm_resources: self.charged_resources.vm_resources,
+            os_vm_resources: ExecutionResources::default(),
             n_reverted_steps: 0,
             sierra_gas: self.charged_resources.gas_consumed,
             reverted_sierra_gas: 0u64.into(),

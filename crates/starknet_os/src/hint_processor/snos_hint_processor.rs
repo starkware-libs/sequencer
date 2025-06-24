@@ -111,12 +111,10 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) program: &'a Program,
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
-    pub syscall_hint_processor: SyscallHintProcessor,
     pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, ContractClass>,
     pub(crate) deprecated_class_hashes: HashSet<ClassHash>,
     pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
-    pub(crate) deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
     // The type of commitment tree next in line for hashing. Used to determine which HashBuiltin
     // type is to be used.
@@ -140,8 +138,6 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
         compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
         state_readers: Vec<S>,
-        syscall_hint_processor: SyscallHintProcessor,
-        deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     ) -> Result<Self, StarknetOsError> {
         if state_readers.len() != os_block_inputs.len() {
             return Err(OsInputError::InvalidLengthOfStateReaders(
@@ -167,8 +163,6 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             program: os_program,
             execution_helpers_manager: ExecutionHelpersManager::new(execution_helpers),
             os_hints_config,
-            syscall_hint_processor,
-            deprecated_syscall_hint_processor,
             da_segment: None,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
             deprecated_class_hashes: deprecated_compiled_classes.keys().copied().collect(),
@@ -332,8 +326,6 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         let block_inputs = vec![os_block_input];
         let state_inputs = vec![os_state_input.unwrap_or_default()];
         let os_hints_config = os_hints_config.unwrap_or_default();
-        let syscall_handler = SyscallHintProcessor::default();
-        let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::default();
 
         SnosHintProcessor::new(
             os_program,
@@ -343,8 +335,6 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
             BTreeMap::new(),
             BTreeMap::new(),
             vec![state_reader],
-            syscall_handler,
-            deprecated_syscall_handler,
         )
     }
 }
