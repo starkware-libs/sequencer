@@ -1,6 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
-use std::time::Instant;
 
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AddTransactionArgs, CommitBlockArgs};
@@ -28,7 +26,6 @@ use crate::metrics::{
     MEMPOOL_TRANSACTIONS_RECEIVED,
     TRANSACTION_TIME_SPENT_IN_MEMPOOL,
 };
-use crate::utils::Clock;
 
 /// Creates an executable invoke transaction with the given field subset (the rest receive default
 /// values).
@@ -281,28 +278,6 @@ pub fn get_txs_and_assert_expected(
 ) {
     let txs = mempool.get_txs(n_txs).unwrap();
     assert_eq!(txs, expected_txs);
-}
-
-pub struct FakeClock {
-    pub now: Mutex<Instant>,
-}
-
-impl Default for FakeClock {
-    fn default() -> Self {
-        FakeClock { now: Mutex::new(Instant::now()) }
-    }
-}
-
-impl FakeClock {
-    pub fn advance(&self, duration: std::time::Duration) {
-        *self.now.lock().unwrap() += duration;
-    }
-}
-
-impl Clock for FakeClock {
-    fn now(&self) -> Instant {
-        *self.now.lock().unwrap()
-    }
 }
 
 #[derive(Default)]

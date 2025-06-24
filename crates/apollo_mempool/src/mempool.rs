@@ -1,6 +1,5 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use std::time::Instant;
 
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{
@@ -11,6 +10,7 @@ use apollo_mempool_types::mempool_types::{
     MempoolSnapshot,
     MempoolStateSnapshot,
 };
+use apollo_time::time::{Clock, DateTime};
 use indexmap::IndexSet;
 use rand::{thread_rng, Rng};
 use starknet_api::block::GasPrice;
@@ -36,7 +36,7 @@ use crate::metrics::{
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
-use crate::utils::{try_increment_nonce, Clock};
+use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
 #[path = "mempool_test.rs"]
@@ -183,7 +183,7 @@ impl MempoolState {
 
 // A queue to hold transactions that are waiting to be added to the tx pool.
 struct AddTransactionQueue {
-    elements: VecDeque<(Instant, AddTransactionArgs)>,
+    elements: VecDeque<(DateTime, AddTransactionArgs)>,
     // Keeps track of the total size of the transactions in this queue.
     size_in_bytes: u64,
 }
@@ -193,7 +193,7 @@ impl AddTransactionQueue {
         AddTransactionQueue { elements: VecDeque::new(), size_in_bytes: 0 }
     }
 
-    fn push_back(&mut self, submission_time: Instant, args: AddTransactionArgs) {
+    fn push_back(&mut self, submission_time: DateTime, args: AddTransactionArgs) {
         self.size_in_bytes = self
             .size_in_bytes
             .checked_add(args.tx.total_bytes())
@@ -201,7 +201,7 @@ impl AddTransactionQueue {
         self.elements.push_back((submission_time, args));
     }
 
-    fn pop_front(&mut self) -> Option<(Instant, AddTransactionArgs)> {
+    fn pop_front(&mut self) -> Option<(DateTime, AddTransactionArgs)> {
         let removed_element = self.elements.pop_front();
         if let Some((_, args)) = &removed_element {
             self.size_in_bytes = self
@@ -212,7 +212,7 @@ impl AddTransactionQueue {
         removed_element
     }
 
-    fn front(&self) -> Option<&(Instant, AddTransactionArgs)> {
+    fn front(&self) -> Option<&(DateTime, AddTransactionArgs)> {
         self.elements.front()
     }
 
@@ -394,7 +394,7 @@ impl Mempool {
     fn add_ready_declares(&mut self) {
         let now = self.clock.now();
         while let Some((submission_time, _args)) = self.delayed_declares.front() {
-            if now - *submission_time < self.config.declare_delay {
+            if now - self.config.declare_delay < *submission_time {
                 break;
             }
             let (_submission_time, args) =
