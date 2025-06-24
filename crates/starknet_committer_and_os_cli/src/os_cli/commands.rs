@@ -16,7 +16,7 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_os::hint_processor::aggregator_hint_processor::AggregatorInput;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, StarknetOsInput};
-use starknet_os::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
+use starknet_os::io::os_output::StarknetRunnerOutput;
 use starknet_os::runner::{run_aggregator, run_os_stateless};
 use tracing::info;
 
@@ -85,7 +85,7 @@ pub(crate) fn parse_and_run_os(input_path: String, output_path: String) {
     let OsCliInput { layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
     validate_os_input(&os_hints.os_input);
 
-    let StarknetOsRunnerOutput { os_output, cairo_pie, unused_hints } =
+    let StarknetRunnerOutput { output: os_output, cairo_pie, unused_hints } =
         run_os_stateless(layout, os_hints)
             .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
     serialize_runner_output(
@@ -102,7 +102,7 @@ pub(crate) fn parse_and_run_aggregator(input_path: String, output_path: String) 
         load_input(input_path);
     // TODO(Aner): Validate the aggregator input.
 
-    let StarknetAggregatorRunnerOutput { aggregator_output, cairo_pie, unused_hints } =
+    let StarknetRunnerOutput { output: aggregator_output, cairo_pie, unused_hints } =
         run_aggregator(layout, aggregator_input)
             .unwrap_or_else(|err| panic!("Aggregator run failed. Error: {}", err));
     serialize_runner_output(

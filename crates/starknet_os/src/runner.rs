@@ -1,4 +1,4 @@
-use apollo_starknet_os_program::OS_PROGRAM;
+use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
 use blockifier::state::state_api::StateReader;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
@@ -8,16 +8,12 @@ use cairo_vm::vm::errors::vm_exception::VmException;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 
 use crate::errors::StarknetOsError;
-use crate::hint_processor::aggregator_hint_processor::AggregatorInput;
+use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, AggregatorInput};
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::io::os_input::{OsHints, StarknetOsInput};
-use crate::io::os_output::{
-    get_run_output,
-    StarknetAggregatorRunnerOutput,
-    StarknetOsRunnerOutput,
-};
+use crate::io::os_output::{get_run_output, StarknetRunnerOutput};
 
 // TODO(Aner): replace the return type with Result<StarknetRunnerOutput,...>
 // TODO(Aner): Make generic (CommonHintProcessor trait) depend on testing flag.
@@ -25,7 +21,7 @@ fn run_runner<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
     layout: LayoutName,
     program: &Program,
     mut hint_processor: HP,
-) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
+) -> Result<StarknetRunnerOutput, StarknetOsError> {
     // Init CairoRunConfig.
     let cairo_run_config =
         CairoRunConfig { layout, relocate_mem: true, trace_enabled: true, ..Default::default() };
@@ -62,7 +58,7 @@ fn run_runner<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
     }
 
     // Prepare and check expected output.
-    let os_output = get_run_output(&cairo_runner.vm)?;
+    let output = get_run_output(&cairo_runner.vm)?;
     // TODO(Tzahi): log the output once it will have a proper struct.
     cairo_runner.vm.verify_auto_deductions().map_err(StarknetOsError::VirtualMachineError)?;
     cairo_runner
@@ -74,8 +70,8 @@ fn run_runner<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
 
     // Parse the Cairo VM output.
     let cairo_pie = cairo_runner.get_cairo_pie().map_err(StarknetOsError::RunnerError)?;
-    Ok(StarknetOsRunnerOutput {
-        os_output,
+    Ok(StarknetRunnerOutput {
+        output,
         cairo_pie,
         #[cfg(any(test, feature = "testing"))]
         unused_hints: hint_processor.get_unused_hints(),
@@ -95,7 +91,7 @@ pub fn run_os<S: StateReader>(
             },
     }: OsHints,
     state_readers: Vec<S>,
-) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
+) -> Result<StarknetRunnerOutput, StarknetOsError> {
     // Create the hint processor.
     let snos_hint_processor = SnosHintProcessor::new(
         &OS_PROGRAM,
@@ -115,7 +111,7 @@ pub fn run_os<S: StateReader>(
 pub fn run_os_stateless(
     layout: LayoutName,
     os_hints: OsHints,
-) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
+) -> Result<StarknetRunnerOutput, StarknetOsError> {
     let n_blocks = os_hints.os_input.os_block_inputs.len();
     run_os(layout, os_hints, vec![PanickingStateReader; n_blocks])
 }
@@ -123,8 +119,12 @@ pub fn run_os_stateless(
 /// Run the Aggregator.
 #[allow(clippy::result_large_err)]
 pub fn run_aggregator(
-    _layout: LayoutName,
-    _aggregator_input: AggregatorInput,
-) -> Result<StarknetAggregatorRunnerOutput, StarknetOsError> {
-    todo!()
+    layout: LayoutName,
+    aggregator_input: AggregatorInput,
+) -> Result<StarknetRunnerOutput, StarknetOsError> {
+    // Create the aggregator hint processor.
+    let aggregator_hint_processor =
+        AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
+
+    run_runner(layout, &AGGREGATOR_PROGRAM, aggregator_hint_processor)
 }
