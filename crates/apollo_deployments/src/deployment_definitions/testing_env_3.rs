@@ -65,6 +65,7 @@ fn testing_env_3_hybrid_deployment_node(
             testing_env_3_deployment_config_override(),
             create_hybrid_instance_config_override(
                 id,
+                &format_node_id(NODE_NAMESPACE_FORMAT, id),
                 FIRST_NODE_NAMESPACE,
                 deployment_type,
                 p2p_communication_type.clone(),

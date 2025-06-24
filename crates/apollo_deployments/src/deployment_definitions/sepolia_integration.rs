@@ -15,6 +15,8 @@ const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "starknet.io";
 const FIRST_NODE_NAMESPACE: &str = "apollo-sepolia-integration-0";
 const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "apollo-sepolia-integration-{}";
+// TODO(Tsabary): use `NODE_NAMESPACE_FORMAT` to generate `FIRST_NODE_NAMESPACE`.
+const NODE_NAMESPACE_FORMAT: &str = "apollo-sepolia-integration-{}";
 
 pub(crate) fn sepolia_integration_hybrid_deployments() -> Vec<Deployment> {
     SEPOLIA_INTEGRATION_NODE_IDS
@@ -55,6 +57,7 @@ fn sepolia_integration_hybrid_deployment_node(
             sepolia_integration_deployment_config_override(),
             create_hybrid_instance_config_override(
                 id,
+                &format_node_id(NODE_NAMESPACE_FORMAT, id),
                 FIRST_NODE_NAMESPACE,
                 deployment_type,
                 p2p_communication_type,

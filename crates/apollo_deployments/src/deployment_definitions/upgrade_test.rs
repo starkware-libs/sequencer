@@ -16,7 +16,7 @@ const FIRST_NODE_NAMESPACE: &str = "apollo-alpha-test-0";
 const INSTANCE_NAME_FORMAT: &str = "hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "apollo-alpha-test-{}";
 // TODO(Tsabary): use `NODE_NAMESPACE_FORMAT` to generate `FIRST_NODE_NAMESPACE`.
-const NODE_NAMESPACE_FORMAT: &str = "sequencer-test-3-node-{}";
+const NODE_NAMESPACE_FORMAT: &str = "apollo-alpha-test-{}";
 
 pub(crate) fn upgrade_test_hybrid_deployments() -> Vec<Deployment> {
     UPGRADE_TEST_NODE_IDS
@@ -59,6 +59,7 @@ fn upgrade_test_hybrid_deployment_node(
             upgrade_test_deployment_config_override(),
             create_hybrid_instance_config_override(
                 id,
+                &format_node_id(NODE_NAMESPACE_FORMAT, id),
                 FIRST_NODE_NAMESPACE,
                 deployment_type,
                 p2p_communication_type,

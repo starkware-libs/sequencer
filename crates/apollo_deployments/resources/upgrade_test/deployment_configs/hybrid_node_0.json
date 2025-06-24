@@ -13,7 +13,7 @@
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-core-service.sequencer-test-3-node-0.sw-dev.io",
+        "external_dns_name": "sequencer-core-service.apollo-alpha-test-0.sw-dev.io",
         "internal": true
       },
       "autoscale": false,
@@ -120,7 +120,7 @@
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-mempool-service.sequencer-test-3-node-0.sw-dev.io",
+        "external_dns_name": "sequencer-mempool-service.apollo-alpha-test-0.sw-dev.io",
         "internal": true
       },
       "autoscale": false,

@@ -14,6 +14,8 @@ const STRESS_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
 const FIRST_NODE_NAMESPACE: &str = "apollo-stresstest-dev-0";
 const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "apollo-stresstest-dev-{}";
+// TODO(Tsabary): use `NODE_NAMESPACE_FORMAT` to generate `FIRST_NODE_NAMESPACE`.
+const NODE_NAMESPACE_FORMAT: &str = "apollo-stresstest-dev-{}";
 
 pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
     STRESS_TEST_NODE_IDS
@@ -54,6 +56,7 @@ fn stress_test_hybrid_deployment_node(
             stress_test_deployment_config_override(),
             create_hybrid_instance_config_override(
                 id,
+                &format_node_id(NODE_NAMESPACE_FORMAT, id),
                 FIRST_NODE_NAMESPACE,
                 deployment_type,
                 p2p_communication_type,

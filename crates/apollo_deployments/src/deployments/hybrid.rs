@@ -10,8 +10,12 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::config_override::InstanceConfigOverride;
-use crate::deployment::{DeploymentType, P2PCommunicationType};
+use crate::config_override::{InstanceConfigOverride, NetworkConfigOverride};
+use crate::deployment::{
+    build_service_namespace_domain_address,
+    DeploymentType,
+    P2PCommunicationType,
+};
 use crate::deployment_definitions::Environment;
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
@@ -402,7 +406,8 @@ fn get_http_server_component_config(
 
 pub(crate) fn create_hybrid_instance_config_override(
     id: usize,
-    namespace: &'static str,
+    self_namespace: &str,
+    bootstrap_node_namespace: &str,
     deployment_type: DeploymentType,
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
@@ -419,33 +424,58 @@ pub(crate) fn create_hybrid_instance_config_override(
     const CORE_SERVICE_PORT: u16 = 53080;
     const MEMPOOL_SERVICE_PORT: u16 = 53200;
 
-    if id == 0 {
-        InstanceConfigOverride::new(
-            None,
-            get_secret_key(id),
-            None,
-            get_secret_key(id),
-            get_validator_id(id, deployment_type),
-        )
+    let (consensus_bootstrap_peer_multiaddr, mempool_bootstrap_peer_multiaddr) = if id == 0 {
+        // First node does not have a bootstrap peer.
+        (None, None)
     } else {
-        InstanceConfigOverride::new(
+        (
+            // Other nodes have the first node as a bootstrap peer.
             Some(p2p_communication_type.get_p2p_address(
                 &HybridNodeServiceName::Core.k8s_service_name(),
-                namespace,
+                bootstrap_node_namespace,
                 domain,
                 CORE_SERVICE_PORT,
                 FIRST_NODE_ADDRESS,
             )),
-            get_secret_key(id),
             Some(p2p_communication_type.get_p2p_address(
                 &HybridNodeServiceName::Mempool.k8s_service_name(),
-                namespace,
+                bootstrap_node_namespace,
                 domain,
                 MEMPOOL_SERVICE_PORT,
                 FIRST_NODE_ADDRESS,
             )),
-            get_secret_key(id),
-            get_validator_id(id, deployment_type),
         )
-    }
+    };
+
+    let (consensus_advertised_multiaddr, mempool_advertised_multiaddr) =
+        match p2p_communication_type {
+            P2PCommunicationType::Internal => (None, None),
+            P2PCommunicationType::External => (
+                Some(build_service_namespace_domain_address(
+                    &HybridNodeServiceName::Core.k8s_service_name(),
+                    self_namespace,
+                    domain,
+                )),
+                Some(build_service_namespace_domain_address(
+                    &HybridNodeServiceName::Mempool.k8s_service_name(),
+                    self_namespace,
+                    domain,
+                )),
+            ),
+        };
+    let secret_key = get_secret_key(id);
+
+    InstanceConfigOverride::new(
+        NetworkConfigOverride::new(
+            consensus_bootstrap_peer_multiaddr,
+            consensus_advertised_multiaddr,
+            &secret_key,
+        ),
+        NetworkConfigOverride::new(
+            mempool_bootstrap_peer_multiaddr,
+            mempool_advertised_multiaddr,
+            &secret_key,
+        ),
+        get_validator_id(id, deployment_type),
+    )
 }
