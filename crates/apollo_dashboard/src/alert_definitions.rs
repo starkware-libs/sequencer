@@ -368,6 +368,26 @@ fn get_mempool_add_tx_idle() -> Alert {
     }
 }
 
+fn get_http_server_add_tx_idle() -> Alert {
+    Alert {
+        name: "http_server_add_tx_idle",
+        title: "HTTP Server add_tx idle",
+        alert_group: AlertGroup::HttpServer,
+        expr: format!(
+            "increase({}[20m]) or vector(0)",
+            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 0.1,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::Regular,
+    }
+}
+
 fn get_http_server_idle() -> Alert {
     Alert {
         name: "http_server_idle",
@@ -965,6 +985,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_votes_num_sent_messages_alert(),
         get_gateway_add_tx_idle(),
         get_http_server_idle(),
+        get_http_server_add_tx_idle(),
         get_http_server_high_transaction_failure_ratio(),
         get_http_server_internal_error_ratio(),
         get_http_server_internal_error_once(),
