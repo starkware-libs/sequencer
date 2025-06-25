@@ -10,7 +10,7 @@ use starknet_api::block::BlockNumber;
 
 use crate::deployment::PragmaDomain;
 #[cfg(test)]
-use crate::deployment::FIX_BINARY_NAME;
+use crate::test_utils::FIX_BINARY_NAME;
 
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
 const INSTANCE_FILE_NAME: &str = "instance_config_override.json";

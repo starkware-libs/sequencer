@@ -16,9 +16,6 @@ use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfigParams};
 use crate::service::{DeploymentName, Service, ServiceName};
 
-#[cfg(test)]
-pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
-
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 
 #[derive(Clone, Debug, Serialize)]
