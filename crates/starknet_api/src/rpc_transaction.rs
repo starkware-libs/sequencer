@@ -15,38 +15,20 @@ use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce}
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::{EntryPoint, SierraContractClass};
 use crate::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, PaymasterData, Tip,
+    TransactionSignature, ValidResourceBounds,
 };
 use crate::transaction::{
-    CalculateContractAddress,
-    DeclareTransaction,
-    DeclareTransactionV3,
-    DeployAccountTransaction,
-    DeployAccountTransactionV3,
-    DeployTransactionTrait,
-    InvokeTransaction,
-    InvokeTransactionV3,
-    Transaction,
-    TransactionHash,
-    TransactionHasher,
-    TransactionVersion,
+    CalculateContractAddress, DeclareTransaction, DeclareTransactionV3, DeployAccountTransaction,
+    DeployAccountTransactionV3, DeployTransactionTrait, InvokeTransaction, InvokeTransactionV3,
+    Transaction, TransactionHash, TransactionHasher, TransactionVersion,
 };
 use crate::transaction_hash::{
-    get_declare_transaction_v3_hash,
-    get_deploy_account_transaction_v3_hash,
+    DeclareTransactionV3Trait, DeployAccountTransactionV3Trait, InvokeTransactionV3Trait,
+    get_declare_transaction_v3_hash, get_deploy_account_transaction_v3_hash,
     get_invoke_transaction_v3_hash,
-    DeclareTransactionV3Trait,
-    DeployAccountTransactionV3Trait,
-    InvokeTransactionV3Trait,
 };
-use crate::{impl_deploy_transaction_trait, StarknetApiError};
+use crate::{StarknetApiError, impl_deploy_transaction_trait};
 
 /// Transactions that are ready to be broadcasted to the network through RPC and are not included in
 /// a block.

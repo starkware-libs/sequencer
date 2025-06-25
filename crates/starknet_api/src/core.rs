@@ -17,7 +17,7 @@ use crate::crypto::utils::PublicKey;
 use crate::hash::{PoseidonHash, StarkHash};
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::fields::{Calldata, ContractAddressSalt};
-use crate::{impl_from_through_intermediate, StarknetApiError};
+use crate::{StarknetApiError, impl_from_through_intermediate};
 
 /// Felt.
 pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
@@ -378,7 +378,7 @@ pub struct StateDiffCommitment(pub PoseidonHash);
     PartialOrd,
     Ord,
     derive_more:: Deref,
-    SizeOf,
+    SizeOf
 )]
 #[display(fmt = "{}", "_0.to_fixed_hex_string()")]
 pub struct PatriciaKey(StarkHash);

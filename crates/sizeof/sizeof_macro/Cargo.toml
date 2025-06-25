@@ -8,11 +8,4 @@ proc-macro = true
 [dependencies]
 quote.workspace = true
 syn = { workspace = true, features = ["full"] }
-<<<<<<< HEAD
-<<<<<<< HEAD
 proc-macro2 = "1.0"
-=======
->>>>>>> 59c12cabd (starknet_api: internal implementation of sizeof)
-=======
-proc-macro2 = "1.0"
->>>>>>> 0b35377fc (starknet_api: internal implementation of sizeof)
