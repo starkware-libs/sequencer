@@ -298,7 +298,7 @@ impl BuiltinWeights {
     }
 
     // TODO(Meshi): Consider code sharing with the builtins_to_sierra_gas function.
-    pub fn calc_gas_from_builtin_counters(
+    pub fn calc_proving_gas_from_builtin_counter(
         &self,
         builtin_counters: &BuiltinCounterMap,
     ) -> GasAmount {
@@ -577,7 +577,7 @@ fn memory_holes_to_gas(
 }
 
 pub fn vm_resources_to_sierra_gas(
-    resources: ExecutionResources,
+    resources: &ExecutionResources,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
     let builtins_gas_cost =
@@ -661,44 +661,45 @@ pub fn get_tx_weights<S: StateReader>(
     let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
 
-    let patrticia_update_resources = get_particia_update_resources(n_visited_storage_entries);
-
-    let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources();
-    let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
-    let sierra_gas = tx_resources.computation.sierra_gas;
-
-    // Casm gas computation
-    let gas_without_casm_hash_computation =
-        sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
-            panic!(
-                "Addition overflow while adding sierra gas. current gas: {}, try to add
-                 gas: {}.",
-                sierra_gas, vm_resources_gas
-            )
-        });
+    // Casm hash resources.
     let class_hash_to_casm_hash_computation_resources =
         map_class_hash_to_casm_hash_computation_resources(state_reader, executed_class_hashes)?;
     let total_casm_hash_computation_resources = class_hash_to_casm_hash_computation_resources
         .values()
         .fold(ExecutionResources::default(), |acc, resources| &acc + resources);
-    let total_casm_hash_computation_resources_builtins =
-        total_casm_hash_computation_resources.prover_builtins();
-    let total_casm_hash_computation_gas =
-        vm_resources_to_sierra_gas(total_casm_hash_computation_resources, versioned_constants);
-    let sierra_gas = gas_without_casm_hash_computation
-        .checked_add(total_casm_hash_computation_gas)
+
+    // Patricia update + transaction resources.
+    let patrticia_update_resources = get_particia_update_resources(n_visited_storage_entries);
+    let vm_resources = &patrticia_update_resources + &tx_resources.computation.total_vm_resources();
+
+    // Sierra gas computation.
+    let vm_resources_sierra_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
+    let sierra_gas = tx_resources.computation.sierra_gas;
+    let gas_without_casm_hash_computation =
+        sierra_gas.checked_add(vm_resources_sierra_gas).unwrap_or_else(|| {
+            panic!(
+                "Addition overflow while adding sierra gas. current gas: {}, try to add
+                 gas: {}.",
+                sierra_gas, vm_resources_sierra_gas
+            )
+        });
+    let total_casm_hash_computation_sierra_gas =
+        vm_resources_to_sierra_gas(&total_casm_hash_computation_resources, versioned_constants);
+    let total_sierra_gas = gas_without_casm_hash_computation
+        .checked_add(total_casm_hash_computation_sierra_gas)
         .unwrap_or_else(|| {
             panic!(
                 "Addition overflow while adding sierra gas. current gas: {}, try to add
                  gas: {}.",
-                gas_without_casm_hash_computation, total_casm_hash_computation_gas
+                gas_without_casm_hash_computation, total_casm_hash_computation_sierra_gas
             )
         });
+
     let casm_hash_computation_data_sierra_gas = CasmHashComputationData {
         class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_resources
             .into_iter()
             .map(|(class_hash, resources)| {
-                let gas = vm_resources_to_sierra_gas(resources, versioned_constants);
+                let gas = vm_resources_to_sierra_gas(&resources, versioned_constants);
                 (class_hash, gas)
             })
             .collect(),
@@ -707,37 +708,43 @@ pub fn get_tx_weights<S: StateReader>(
 
     // Proving gas computation.
     let mut total_builtin_counters = patrticia_update_resources.prover_builtins();
-    add_maps(&mut total_builtin_counters, &total_casm_hash_computation_resources_builtins);
+    add_maps(&mut total_builtin_counters, tx_builtin_counters);
+    // The transaction builtin counters does not include the transaction overhead ('additional')
+    // resources.
     // TODO(AvivG): Builtins from `fee_transfer_call_info` are counted twice - in `os_vm_resources`
     // and again in `tx_builtin_counters`. Remove the duplication.
     add_maps(
         &mut total_builtin_counters,
         &tx_resources.computation.os_vm_resources.prover_builtins(),
     );
-    add_maps(&mut total_builtin_counters, tx_builtin_counters);
+    let total_casm_hash_computation_resources_builtins =
+        total_casm_hash_computation_resources.prover_builtins();
+    add_maps(&mut total_builtin_counters, &total_casm_hash_computation_resources_builtins);
+    let builtins_proving_gas =
+        builtin_weights.calc_proving_gas_from_builtin_counter(&total_builtin_counters);
     let steps_proving_gas =
-        sierra_gas_to_steps_gas(sierra_gas, versioned_constants, &total_builtin_counters);
-    let builtins_gas = builtin_weights.calc_gas_from_builtin_counters(&total_builtin_counters);
-    let proving_gas = steps_proving_gas.checked_add(builtins_gas).unwrap_or_else(|| {
-        panic!(
-            "Addition overflow while calculating the proving gas. steps gas: {}, builtins as gas: \
-             {}.",
-            steps_proving_gas, builtins_gas
-        )
-    });
+        sierra_gas_to_steps_gas(total_sierra_gas, versioned_constants, &total_builtin_counters);
+    let total_proving_gas =
+        steps_proving_gas.checked_add(builtins_proving_gas).unwrap_or_else(|| {
+            panic!(
+                "Addition overflow while calculating the proving gas. steps gas: {}, builtins as \
+                 gas: {}.",
+                steps_proving_gas, builtins_proving_gas
+            )
+        });
+
+    // TODO(Aviv): compute the actual casm proving gas
+    let casm_hash_computation_data_proving_gas = CasmHashComputationData::empty();
 
     let bouncer_weights = BouncerWeights {
         l1_gas: message_starknet_l1gas,
         message_segment_length: message_resources.message_segment_length,
         n_events: tx_resources.starknet_resources.archival_data.event_summary.n_events,
         state_diff_size: get_onchain_data_segment_length(&state_changes_keys.count()),
-        sierra_gas,
+        sierra_gas: total_sierra_gas,
         n_txs: 1,
-        proving_gas,
+        proving_gas: total_proving_gas,
     };
-
-    // TODO(Aviv): compute the actual proving gas
-    let casm_hash_computation_data_proving_gas = CasmHashComputationData::empty();
 
     Ok(TxWeights {
         bouncer_weights,
