@@ -12131,6 +12131,7 @@ dependencies = [
  "apollo_starknet_os_program",
  "assert_matches",
  "blake2s",
+ "blockifier",
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "clap",

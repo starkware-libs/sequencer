@@ -10,6 +10,7 @@ use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::io::os_input::{OsHints, StarknetOsInput};
 use crate::io::os_output::{get_run_output, StarknetOsRunnerOutput};
+use crate::metrics::OsMetrics;
 
 pub fn run_os<S: StateReader>(
     layout: LayoutName,
@@ -88,6 +89,7 @@ pub fn run_os<S: StateReader>(
     Ok(StarknetOsRunnerOutput {
         os_output,
         cairo_pie,
+        metrics: OsMetrics::new(&mut cairo_runner, &snos_hint_processor)?,
         #[cfg(any(test, feature = "testing"))]
         unused_hints: snos_hint_processor.unused_hints,
     })

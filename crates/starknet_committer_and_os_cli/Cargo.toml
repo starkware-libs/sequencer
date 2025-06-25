@@ -22,6 +22,7 @@ tempfile.workspace = true
 # it exists.
 apollo_starknet_os_program = { workspace = true, features = ["dump_source_files", "test_programs"] }
 blake2s.workspace = true
+blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-vm = { workspace = true, features = [
   "cairo-0-data-availability-hints",
