@@ -1,12 +1,13 @@
 use std::path::PathBuf;
 
+use apollo_infra_utils::template::Template;
+
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, DeploymentType, P2PCommunicationType, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::deployments::hybrid::create_hybrid_instance_config_override;
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
 use crate::service::DeploymentName;
-use crate::utils::format_node_id;
 
 // TODO(Tsabary): note this env has configs for 4 despite needing only 3. Delete when we're done
 // with it.
@@ -19,9 +20,9 @@ const TESTING_ENV_3_NODE_IDS: [(usize, P2PCommunicationType); 4] = [
 const TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io";
 const TESTING_ENV_3_INGRESS_DOMAIN: &str = "sw-dev.io";
-const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
-const SECRET_NAME_FORMAT: &str = "sequencer-test-3-node-{}";
-const NODE_NAMESPACE_FORMAT: &str = "sequencer-test-3-node-{}";
+const INSTANCE_NAME_FORMAT: Template = Template("integration_hybrid_node_{}");
+const SECRET_NAME_FORMAT: Template = Template("sequencer-test-3-node-{}");
+const NODE_NAMESPACE_FORMAT: Template = Template("sequencer-test-3-node-{}");
 
 pub(crate) fn testing_env_3_hybrid_deployments() -> Vec<Deployment> {
     TESTING_ENV_3_NODE_IDS
@@ -56,8 +57,8 @@ fn testing_env_3_hybrid_deployment_node(
     Deployment::new(
         DeploymentName::HybridNode,
         Environment::TestingEnvThree,
-        &format_node_id(INSTANCE_NAME_FORMAT, id),
-        Some(ExternalSecret::new(format_node_id(SECRET_NAME_FORMAT, id))),
+        &INSTANCE_NAME_FORMAT.format(&[&id]),
+        Some(ExternalSecret::new(SECRET_NAME_FORMAT.format(&[&id]))),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         ConfigOverride::new(
             testing_env_3_deployment_config_override(),
@@ -74,7 +75,7 @@ fn testing_env_3_hybrid_deployment_node(
             Some(vec![TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
         ),
         Some(K8sServiceConfigParams::new(
-            format_node_id(NODE_NAMESPACE_FORMAT, id),
+            NODE_NAMESPACE_FORMAT.format(&[&id]),
             TESTING_ENV_3_INGRESS_DOMAIN.to_string(),
             p2p_communication_type,
         )),
