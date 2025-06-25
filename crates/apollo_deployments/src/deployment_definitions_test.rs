@@ -22,7 +22,7 @@ fn deployment_files_are_up_to_date() {
         .expect("Couldn't set working dir.");
 
     // TODO(Tsabary): The word "deployment" is overloaded. On one hand it means the "node
-    // configuration" (e.g. hybrid), on the other it means the "k8s setups" (e.g. testing_env_2).
+    // configuration" (e.g. hybrid), on the other it means the "k8s setups" (e.g. upgrade_test).
     // Need to fix that.
     for deployment_name in DeploymentName::iter() {
         deployment_name.test_dump_service_component_configs(None);
