@@ -24,21 +24,11 @@ fn test_secp256k1(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let expectation = if runnable_version.is_cairo_native() {
-        expect![[r#"
-        CallExecution {
-            retdata: Retdata(
-                [],
-            ),
-            events: [],
-            l2_to_l1_messages: [],
-            cairo_native: true,
-            failed: false,
-            gas_consumed: 16997129,
-        }
-    "#]]
-    } else {
-        expect![[r#"
+    let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    assert_eq!(execution.cairo_native, runnable_version.is_cairo_native());
+    execution.cairo_native = false;
+
+    let expectation = expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
@@ -49,9 +39,8 @@ fn test_secp256k1(runnable_version: RunnableCairo1) {
             failed: false,
             gas_consumed: 16997129,
         }
-    "#]]
-    };
-    expectation.assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
+    "#]];
+    expectation.assert_debug_eq(&execution);
 }
 
 #[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
@@ -68,21 +57,11 @@ fn test_secp256k1_point_from_x(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    if runnable_version.is_cairo_native() {
-        expect![[r#"
-        CallExecution {
-            retdata: Retdata(
-                [],
-            ),
-            events: [],
-            l2_to_l1_messages: [],
-            cairo_native: true,
-            failed: false,
-            gas_consumed: 184690,
-        }
-    "#]]
-    } else {
-        expect![[r#"
+    let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    assert_eq!(execution.cairo_native, runnable_version.is_cairo_native());
+    execution.cairo_native = false;
+
+    expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
@@ -94,8 +73,7 @@ fn test_secp256k1_point_from_x(runnable_version: RunnableCairo1) {
             gas_consumed: 184690,
         }
     "#]]
-    }
-    .assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
+    .assert_debug_eq(&execution);
 }
 
 #[cfg_attr(feature = "cairo_native",test_case(RunnableCairo1::Native; "Native"))]
@@ -111,22 +89,11 @@ fn test_secp256r1(runnable_version: RunnableCairo1) {
         calldata,
         ..trivial_external_entry_point_new(test_contract)
     };
+    let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    assert_eq!(execution.cairo_native, runnable_version.is_cairo_native());
+    execution.cairo_native = false;
 
-    if runnable_version.is_cairo_native() {
-        expect![[r#"
-        CallExecution {
-            retdata: Retdata(
-                [],
-            ),
-            events: [],
-            l2_to_l1_messages: [],
-            cairo_native: true,
-            failed: false,
-            gas_consumed: 27569930,
-        }
-    "#]]
-    } else {
-        expect![[r#"
+    expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
@@ -138,6 +105,5 @@ fn test_secp256r1(runnable_version: RunnableCairo1) {
             gas_consumed: 27569930,
         }
     "#]]
-    }
-    .assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
+    .assert_debug_eq(&execution);
 }

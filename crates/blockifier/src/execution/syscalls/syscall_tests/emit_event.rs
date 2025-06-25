@@ -32,15 +32,16 @@ const N_EMITTED_EVENTS: [Felt; 1] = [Felt::from_hex_unchecked("0x1")];
 #[test_case(RunnableCairo1::Casm;"VM")]
 fn positive_flow(runnable_version: RunnableCairo1) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
-    let call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA)
+    let mut call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA)
         .expect("emit_events failed with valued parameters");
+    assert_eq!(call_info.execution.cairo_native, runnable_version.is_cairo_native());
+    call_info.execution.cairo_native = false;
     let event = EventContent {
         keys: KEYS.into_iter().map(EventKey).collect(),
         data: EventData(DATA.to_vec()),
     };
 
-    if runnable_version.is_cairo_native() {
-        expect![[r#"
+    expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
@@ -68,46 +69,11 @@ fn positive_flow(runnable_version: RunnableCairo1) {
                 },
             ],
             l2_to_l1_messages: [],
-            cairo_native: true,
+            cairo_native: false,
             failed: false,
             gas_consumed: 34580,
         }
     "#]]
-    } else {
-        expect![[r#"
-            CallExecution {
-                retdata: Retdata(
-                    [],
-                ),
-                events: [
-                    OrderedEvent {
-                        order: 0,
-                        event: EventContent {
-                            keys: [
-                                EventKey(
-                                    0x2019,
-                                ),
-                                EventKey(
-                                    0x2020,
-                                ),
-                            ],
-                            data: EventData(
-                                [
-                                    0x2021,
-                                    0x2022,
-                                    0x2023,
-                                ],
-                            ),
-                        },
-                    },
-                ],
-                l2_to_l1_messages: [],
-                cairo_native: false,
-                failed: false,
-                gas_consumed: 34580,
-            }
-        "#]]
-    }
     .assert_debug_eq(&call_info.execution);
     assert_eq!(call_info.execution.events, vec![OrderedEvent { order: 0, event }]);
 }
