@@ -150,7 +150,10 @@
         },
         "tracked_resource": "SierraGas",
         "inner_calls": [],
-        "builtin_counters": {}
+        "builtin_counters": {
+          "pedersen": 4,
+          "range_check": 31
+        }
       }
     ],
     "resources": {
@@ -184,7 +187,10 @@
       ]
     },
     "tracked_resource": "SierraGas",
-    "builtin_counters": {}
+    "builtin_counters": {
+      "pedersen": 4,
+      "range_check": 31
+    }
   },
   "revert_error": "Insufficient fee token balance. Fee: 1, balance: low/high 2/3.",
   "total_gas": {
@@ -331,7 +337,10 @@
         },
         "tracked_resource": "SierraGas",
         "inner_calls": [],
-        "builtin_counters": {}
+        "builtin_counters": {
+          "pedersen": 4,
+          "range_check": 31
+        }
       }
     ],
     "resources": {
@@ -365,6 +374,9 @@
       ]
     },
     "tracked_resource": "SierraGas",
-    "builtin_counters": {}
+    "builtin_counters": {
+      "pedersen": 4,
+      "range_check": 31
+    }
   }
 }

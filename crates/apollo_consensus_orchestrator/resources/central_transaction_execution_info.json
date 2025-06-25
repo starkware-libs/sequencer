@@ -149,7 +149,10 @@
         },
         "tracked_resource": "SierraGas",
         "inner_calls": [],
-        "builtin_counters": {}
+        "builtin_counters": {
+          "pedersen": 4,
+          "range_check": 31
+        }
       }
     ],
     "resources": {
@@ -183,7 +186,10 @@
       ]
     },
     "tracked_resource": "SierraGas",
-    "builtin_counters": {}
+    "builtin_counters": {
+      "pedersen": 4,
+      "range_check": 31
+    }
   },
   "fee_transfer_call_info": {
     "call": {
@@ -324,7 +330,10 @@
         },
         "tracked_resource": "SierraGas",
         "inner_calls": [],
-        "builtin_counters": {}
+        "builtin_counters": {
+          "pedersen": 4,
+          "range_check": 31
+        }
       }
     ],
     "resources": {
@@ -358,7 +367,10 @@
       ]
     },
     "tracked_resource": "SierraGas",
-    "builtin_counters": {}
+    "builtin_counters": {
+      "pedersen": 4,
+      "range_check": 31
+    }
   },
   "revert_error": null,
   "total_gas": {
@@ -505,7 +517,10 @@
         },
         "tracked_resource": "SierraGas",
         "inner_calls": [],
-        "builtin_counters": {}
+        "builtin_counters": {
+          "pedersen": 4,
+          "range_check": 31
+        }
       }
     ],
     "resources": {
@@ -539,6 +554,9 @@
       ]
     },
     "tracked_resource": "SierraGas",
-    "builtin_counters": {}
+    "builtin_counters": {
+      "pedersen": 4,
+      "range_check": 31
+    }
   }
 }
