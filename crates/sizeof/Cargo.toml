@@ -1,0 +1,19 @@
+[package]
+name = "sizeof"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "compute size of types in memory"
+
+[dependencies]
+sizeof_internal.workspace = true
+sizeof_macro.workspace = true
+starknet-types-core.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+size-of = "0.1.5"
+trybuild = "1.0.105"
