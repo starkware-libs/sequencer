@@ -33,6 +33,7 @@ use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::StarknetApiError;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, info, trace, warn};
@@ -87,6 +88,8 @@ pub(crate) enum BuildProposalError {
     CendeWriteError(String),
     #[error("Failed to convert transactions: {0}")]
     TransactionConverterError(#[from] TransactionConverterError),
+    #[error("Block info conversion error: {0}")]
+    BlockInfoConversion(#[from] StarknetApiError),
 }
 
 // Handles building a new proposal without blocking consensus:
@@ -163,7 +166,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         proposal_id: args.proposal_id,
         deadline: args.deps.clock.now() + batcher_timeout,
         retrospective_block_hash,
-        block_info: convert_to_sn_api_block_info(&block_info),
+        block_info: convert_to_sn_api_block_info(&block_info)?,
         proposal_round: args.proposal_round,
     };
     debug!("Initiating build proposal: {build_proposal_input:?}");
