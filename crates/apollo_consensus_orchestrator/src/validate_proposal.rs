@@ -32,6 +32,7 @@ use crate::metrics::{
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{
+    BuildProposalError,
     BuiltProposals,
     ProposalResult,
     SequencerConsensusContextDeps,
@@ -331,7 +332,11 @@ async fn initiate_validation(
         proposal_id,
         deadline: clock.now() + chrono_timeout,
         retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info).await?,
-        block_info: convert_to_sn_api_block_info(&block_info),
+        block_info: convert_to_sn_api_block_info(&block_info).map_err(|e| {
+            BuildProposalError::BlockInfoConversion(format!(
+                "Failed to convert block info to SN API format: {e:?}"
+            ))
+        })?,
     };
     debug!("Initiating validate proposal: input={input:?}");
     batcher.validate_block(input).await?;

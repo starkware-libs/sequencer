@@ -29,6 +29,7 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, info, trace, warn};
 
 use crate::sequencer_consensus_context::{
+    BuildProposalError,
     BuiltProposals,
     ProposalResult,
     SequencerConsensusContextDeps,
@@ -138,7 +139,11 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
         proposal_id: args.proposal_id,
         deadline: args.deps.clock.now() + batcher_timeout,
         retrospective_block_hash,
-        block_info: convert_to_sn_api_block_info(&block_info),
+        block_info: convert_to_sn_api_block_info(&block_info).map_err(|e| {
+            BuildProposalError::BlockInfoConversion(format!(
+                "Failed to convert block info to SN API format: {e:?}"
+            ))
+        })?,
         proposal_round: args.proposal_round,
     };
     debug!("Initiating build proposal: {build_proposal_input:?}");
