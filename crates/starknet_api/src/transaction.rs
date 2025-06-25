@@ -2,7 +2,7 @@ use std::sync::LazyLock;
 
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
-use size_of::SizeOf;
+use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 
 use crate::block::{BlockHash, BlockNumber};
