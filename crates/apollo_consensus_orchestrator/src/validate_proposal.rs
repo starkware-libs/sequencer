@@ -22,6 +22,7 @@ use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::StarknetApiError;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, warn};
 
@@ -85,6 +86,8 @@ pub(crate) enum ValidateProposalError {
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
+    #[error("Block info conversion error: {0}")]
+    BlockInfoConversion(#[from] StarknetApiError),
 }
 
 pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
@@ -344,7 +347,7 @@ async fn initiate_validation(
         proposal_id,
         deadline: clock.now() + chrono_timeout,
         retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info).await?,
-        block_info: convert_to_sn_api_block_info(&block_info),
+        block_info: convert_to_sn_api_block_info(&block_info)?,
     };
     debug!("Initiating validate proposal: input={input:?}");
     batcher.validate_block(input).await?;
