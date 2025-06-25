@@ -1143,6 +1143,7 @@ dependencies = [
  "serde",
  "serde_json",
  "shared_execution_objects",
+ "sizeof",
  "starknet-types-core",
  "starknet_api",
  "strum 0.25.0",
@@ -11841,6 +11842,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "sizeof"
+version = "0.15.0-rc.2"
+dependencies = [
+ "size-of",
+ "sizeof_internal",
+ "sizeof_macro",
+ "starknet-types-core",
+ "trybuild",
+]
+
+[[package]]
+name = "sizeof_internal"
+version = "0.15.0-rc.2"
+dependencies = [
+ "starknet-types-core",
+]
+
+[[package]]
+name = "sizeof_macro"
+version = "0.15.0-rc.2"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
+]
+
+[[package]]
 name = "sketches-ddsketch"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12117,7 +12145,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
- "size-of",
+ "sizeof",
  "starknet-crypto",
  "starknet-types-core",
  "strum 0.25.0",
@@ -12520,6 +12548,12 @@ name = "target-lexicon"
 version = "0.12.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
+
+[[package]]
+name = "target-triple"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ac9aa371f599d22256307c24a9d748c041e548cbf599f35d890f9d365361790"
 
 [[package]]
 name = "tblgen"
@@ -13145,6 +13179,21 @@ name = "try-lock"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
+
+[[package]]
+name = "trybuild"
+version = "1.0.105"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1c9bf9513a2f4aeef5fdac8677d7d349c79fdbcc03b9c86da6e9d254f1e43be2"
+dependencies = [
+ "glob",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "target-triple",
+ "termcolor",
+ "toml",
+]
 
 [[package]]
 name = "tungstenite"
