@@ -328,32 +328,30 @@ impl DeploymentName {
             .to_string()
     }
 
-    pub fn dump_service_component_configs(&self, ports: Option<Vec<u16>>) {
+    fn dump_component_configs_with<SerdeFn>(&self, ports: Option<Vec<u16>>, writer: SerdeFn)
+    where
+        SerdeFn: Fn(&serde_json::Value, &str),
+    {
         let component_configs = self.get_component_configs(ports);
         for (service_name, config) in component_configs {
-            let component_config_serialization_wrapper =
-                ComponentConfigsSerializationWrapper::from(config);
-            let flattened_component_config_map =
-                config_to_preset(&json!(component_config_serialization_wrapper.dump()));
+            let wrapper = ComponentConfigsSerializationWrapper::from(config);
+            let flattened = config_to_preset(&json!(wrapper.dump()));
             let file_path = self.get_service_file_path(&service_name);
-            serialize_to_file(&flattened_component_config_map, &file_path);
+            writer(&flattened, &file_path);
         }
     }
 
-    // TODO(Tsabary): consider unifying the implementations of `dump_service_component_configs` and
-    // `test_dump_service_component_configs`.
+    pub fn dump_service_component_configs(&self, ports: Option<Vec<u16>>) {
+        self.dump_component_configs_with(ports, |map, path| {
+            serialize_to_file(map, path);
+        });
+    }
+
     #[cfg(test)]
     pub fn test_dump_service_component_configs(&self, ports: Option<Vec<u16>>) {
-        let component_configs = self.get_component_configs(ports);
-        for (service_name, config) in component_configs {
-            let component_config_serialization_wrapper =
-                ComponentConfigsSerializationWrapper::from(config);
-            let flattened_component_config_map =
-                config_to_preset(&json!(component_config_serialization_wrapper.dump()));
-            let file_path = self.get_service_file_path(&service_name);
-
-            serialize_to_file_test(&flattened_component_config_map, &file_path, FIX_BINARY_NAME);
-        }
+        self.dump_component_configs_with(ports, |map, path| {
+            serialize_to_file_test(map, path, FIX_BINARY_NAME);
+        });
     }
 }
 
