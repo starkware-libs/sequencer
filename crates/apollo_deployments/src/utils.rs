@@ -6,10 +6,6 @@ use crate::deployment::DeploymentType;
 // TODO(Tsabary): delete duplicates from the base app config, and add a test that there are no
 // conflicts between all the override config entries and the values in the base app config.
 
-pub(crate) fn format_node_id(base_format: &str, id: usize) -> String {
-    base_format.replace("{}", &id.to_string())
-}
-
 pub(crate) fn get_secret_key(id: usize) -> String {
     format!("0x010101010101010101010101010101010101010101010101010101010101010{}", id + 1)
 }
