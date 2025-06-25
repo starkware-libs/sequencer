@@ -1196,6 +1196,8 @@ dependencies = [
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "tempfile",
+ "url",
 ]
 
 [[package]]
