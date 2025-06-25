@@ -1029,6 +1029,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
+ "url",
  "validator",
 ]
 
@@ -1196,6 +1197,8 @@ dependencies = [
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "tempfile",
+ "url",
 ]
 
 [[package]]
