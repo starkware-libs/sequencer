@@ -1,5 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr};
 
+use apollo_infra_utils::template::Template;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -26,7 +27,7 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
-use crate::utils::{determine_port_numbers, format_node_id, get_secret_key, get_validator_id};
+use crate::utils::{determine_port_numbers, get_secret_key, get_validator_id};
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
 
@@ -403,8 +404,7 @@ fn get_http_server_component_config(
 
 pub(crate) fn create_hybrid_instance_config_override(
     node_id: usize,
-    // TODO(Tsabary): change `node_namespace_format` to be of its own type with dedicated fns
-    node_namespace_format: &str,
+    node_namespace_format: Template,
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
@@ -434,7 +434,7 @@ pub(crate) fn create_hybrid_instance_config_override(
         |service_name: HybridNodeServiceName, port: u16, node_id: usize, peer_id: &str| {
             let domain = build_service_namespace_domain_address(
                 &service_name.k8s_service_name(),
-                &format_node_id(node_namespace_format, node_id),
+                &node_namespace_format.format(&[&node_id]),
                 &sanitized_domain,
             );
             Some(get_p2p_address(&domain, port, peer_id))
