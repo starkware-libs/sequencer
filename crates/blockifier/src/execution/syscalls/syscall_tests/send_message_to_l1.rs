@@ -46,7 +46,8 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
     let message = MessageToL1 { to_address, payload: L2ToL1Payload(payload) };
 
     let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
-    expect![[r#"
+    if runnable_version.is_cairo_native() {
+        expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
@@ -69,10 +70,41 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
                     },
                 },
             ],
+            cairo_native: true,
             failed: false,
             gas_consumed: 26690,
         }
     "#]]
+    } else {
+        expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [
+                OrderedL2ToL1Message {
+                    order: 0,
+                    message: MessageToL1 {
+                        to_address: EthAddress(
+                            0x00000000000000000000000000000000000004d2,
+                        ),
+                        payload: L2ToL1Payload(
+                            [
+                                0x7e3,
+                                0x7e4,
+                                0x7e5,
+                            ],
+                        ),
+                    },
+                },
+            ],
+            cairo_native: false,
+            failed: false,
+            gas_consumed: 26690,
+        }
+"#]]
+    }
     .assert_debug_eq(&execution);
     pretty_assertions::assert_eq!(
         execution.l2_to_l1_messages,

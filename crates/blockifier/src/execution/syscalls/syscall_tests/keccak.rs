@@ -26,17 +26,33 @@ fn test_keccak(runnable_version: RunnableCairo1) {
     };
 
     let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
-    expect![[r#"
+    if runnable_version.is_cairo_native() {
+        expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: true,
             failed: false,
             gas_consumed: 236667,
         }
     "#]]
+    } else {
+        expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            cairo_native: false,
+            failed: false,
+            gas_consumed: 236667,
+        }
+    "#]]
+    }
     .assert_debug_eq(&execution);
     pretty_assertions::assert_eq!(execution.retdata, retdata![]);
 }

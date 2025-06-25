@@ -12,13 +12,13 @@ use blockifier::blockifier::config::{
     NativeClassesWhitelist,
 };
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
+use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinWeights, CasmHashComputationData};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
 use starknet_api::core::ClassHash;
-use starknet_api::execution_resources::GasAmount;
+use starknet_api::execution_resources::{Builtin, GasAmount};
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
 use crate::py_utils::PyFelt;
@@ -110,6 +110,7 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
 #[derive(Clone, Debug, FromPyObject)]
 pub struct PyBouncerConfig {
     pub full_total_weights: HashMap<String, usize>,
+    pub builtin_weights: HashMap<String, usize>,
 }
 
 impl TryFrom<PyBouncerConfig> for BouncerConfig {
@@ -118,6 +119,9 @@ impl TryFrom<PyBouncerConfig> for BouncerConfig {
         Ok(BouncerConfig {
             block_max_capacity: hash_map_into_bouncer_weights(
                 py_bouncer_config.full_total_weights.clone(),
+            )?,
+            builtin_weights: hash_map_into_builtin_weights(
+                py_bouncer_config.builtin_weights.clone(),
             )?,
         })
     }
@@ -141,15 +145,59 @@ fn hash_map_into_bouncer_weights(
             .unwrap_or_else(|err| panic!("Failed to convert 'sierra_gas' into GasAmount: {err}.")),
     );
     let n_txs = data.remove(constants::N_TXS).expect("n_txs must be present");
-    assert!(data.is_empty(), "Extra keys in bouncer weights: {data:?}");
+    let proving_gas = GasAmount(
+        data.remove(constants::PROVING_GAS)
+            .expect("proving_gas must be present")
+            .try_into()
+            .unwrap_or_else(|err| panic!("Failed to convert 'proving_gas' into GasAmount: {err}.")),
+    );
+
+    assert!(
+        data.is_empty(),
+        "Unexpected keys in bouncer config 'full_total_weights': {:?}",
+        data.keys()
+    );
 
     Ok(BouncerWeights {
         l1_gas,
         message_segment_length,
         state_diff_size,
         n_events,
-        sierra_gas,
         n_txs,
+        sierra_gas,
+        proving_gas,
+    })
+}
+
+#[allow(clippy::result_large_err)]
+fn hash_map_into_builtin_weights(
+    mut data: HashMap<String, usize>,
+) -> NativeBlockifierResult<BuiltinWeights> {
+    let pedersen = data.remove(Builtin::Pedersen.name()).expect("pedersen must be present");
+    let range_check = data.remove(Builtin::RangeCheck.name()).expect("range_check must be present");
+    let bitwise = data.remove(Builtin::Bitwise.name()).expect("bitwise must be present");
+    let ecdsa = data.remove(Builtin::Ecdsa.name()).expect("ecdsa must be present");
+    let keccak = data.remove(Builtin::Keccak.name()).expect("keccak must be present");
+    let add_mod = data.remove(Builtin::AddMod.name()).expect("add_mod must be present");
+    let mul_mod = data.remove(Builtin::MulMod.name()).expect("mul_mod must be present");
+    let ec_op = data.remove(Builtin::EcOp.name()).expect("ec_op must be present");
+    let range_check96 =
+        data.remove(Builtin::RangeCheck96.name()).expect("range_check96 must be present");
+    let poseidon = data.remove(Builtin::Poseidon.name()).expect("poseidon must be present");
+
+    assert!(data.is_empty(), "Unexpected keys in builtin weights: {:?}", data.keys());
+
+    Ok(BuiltinWeights {
+        pedersen,
+        range_check,
+        bitwise,
+        ecdsa,
+        keccak,
+        add_mod,
+        mul_mod,
+        ec_op,
+        range_check96,
+        poseidon,
     })
 }
 

@@ -40,17 +40,33 @@ fn no_constructor(runnable_version: RunnableCairo1) {
     let entry_point_call = create_deploy_entry_point(class_hash, &[], true, deployer_contract);
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
-    expect![[r#"
+    if runnable_version.is_cairo_native() {
+        expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: true,
             failed: false,
             gas_consumed: 156540,
         }
     "#]]
+    } else {
+        expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            cairo_native: false,
+            failed: false,
+            gas_consumed: 156540,
+        }
+    "#]]
+    }
     .assert_debug_eq(&deploy_call.execution);
     assert_eq!(deploy_call.execution.retdata, retdata![]);
 
@@ -121,23 +137,40 @@ fn with_constructor(runnable_version: RunnableCairo1) {
 
     let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
 
-    expect![[r#"
+    if runnable_version.is_cairo_native() {
+        expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: true,
             failed: false,
             gas_consumed: 184620,
         }
     "#]]
+    } else {
+        expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            cairo_native: false,
+            failed: false,
+            gas_consumed: 184620,
+        }
+    "#]]
+    }
     .assert_debug_eq(&deploy_call.execution);
     assert_eq!(deploy_call.execution.retdata, retdata![]);
 
     let constructor_call = &deploy_call.inner_calls[0];
 
-    expect![[r#"
+    if runnable_version.is_cairo_native() {
+        expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [
@@ -146,10 +179,27 @@ fn with_constructor(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: true,
             failed: false,
             gas_consumed: 14640,
         }
     "#]]
+    } else {
+        expect![[r#"
+        CallExecution {
+            retdata: Retdata(
+                [
+                    0x1,
+                ],
+            ),
+            events: [],
+            l2_to_l1_messages: [],
+            cairo_native: false,
+            failed: false,
+            gas_consumed: 14640,
+        }
+    "#]]
+    }
     .assert_debug_eq(&constructor_call.execution);
     assert_eq!(constructor_call.execution.retdata, retdata![constructor_calldata[0]]);
     assert_eq!(constructor_call.call.storage_address, contract_address);

@@ -371,6 +371,7 @@ fn central_bouncer_weights() -> CentralBouncerWeights {
         state_diff_size: 45,
         sierra_gas: GasAmount(10),
         n_txs: 2,
+        proving_gas: GasAmount(11),
     }
 }
 
@@ -503,6 +504,7 @@ fn call_info() -> CallInfo {
             }],
             failed: false,
             gas_consumed: 11_690,
+            cairo_native: false,
         },
         inner_calls: Vec::new(),
         resources: execution_resources(),
@@ -515,6 +517,8 @@ fn call_info() -> CallInfo {
             read_block_hash_values: vec![BlockHash(felt!("0xdeafbee"))],
             accessed_blocks: HashSet::from([BlockNumber(100)]),
         },
+        // TODO(Meshi): insert relevant values.
+        builtin_counters: HashMap::default(),
     }
 }
 
@@ -562,7 +566,8 @@ fn transaction_execution_info() -> TransactionExecutionInfo {
                     },
                 },
                 computation: ComputationResources {
-                    vm_resources: execution_resources(),
+                    tx_vm_resources: execution_resources(),
+                    os_vm_resources: ExecutionResources::default(),
                     n_reverted_steps: 2,
                     sierra_gas: GasAmount(0x128140),
                     reverted_sierra_gas: GasAmount(0x2),

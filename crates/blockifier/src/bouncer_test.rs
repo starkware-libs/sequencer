@@ -12,6 +12,7 @@ use crate::bouncer::{
     verify_tx_weights_within_max_capacity,
     Bouncer,
     BouncerWeights,
+    BuiltinWeights,
     CasmHashComputationData,
     TxWeights,
 };
@@ -42,12 +43,13 @@ fn block_max_capacity() -> BouncerWeights {
         state_diff_size: 20,
         sierra_gas: GasAmount(20),
         n_txs: 20,
+        proving_gas: GasAmount(20),
     }
 }
 
 #[fixture]
 fn bouncer_config(block_max_capacity: BouncerWeights) -> BouncerConfig {
-    BouncerConfig { block_max_capacity }
+    BouncerConfig { block_max_capacity, builtin_weights: BuiltinWeights::default() }
 }
 
 #[rstest]
@@ -59,6 +61,7 @@ fn test_block_weights_has_room_sierra_gas(block_max_capacity: BouncerWeights) {
         state_diff_size: 7,
         sierra_gas: GasAmount(7),
         n_txs: 7,
+        proving_gas: GasAmount(5),
     };
 
     assert!(block_max_capacity.has_room(bouncer_weights));
@@ -68,8 +71,9 @@ fn test_block_weights_has_room_sierra_gas(block_max_capacity: BouncerWeights) {
         message_segment_length: 5,
         n_events: 5,
         state_diff_size: 5,
-        sierra_gas: GasAmount(25),
         n_txs: 5,
+        sierra_gas: GasAmount(25),
+        proving_gas: GasAmount(5),
     };
 
     assert!(!block_max_capacity.has_room(bouncer_weights_exceeds_max));
@@ -91,6 +95,7 @@ fn test_block_weights_has_room_n_txs(
         state_diff_size: 7,
         sierra_gas: GasAmount(7),
         n_txs,
+        proving_gas: GasAmount(7),
     };
 
     assert_eq!(block_max_capacity.has_room(bouncer_weights), has_room);
@@ -114,6 +119,7 @@ fn test_block_weights_has_room_n_txs(
         state_diff_size: 10,
         sierra_gas: GasAmount(10),
         n_txs: 1,
+        proving_gas: GasAmount(10),
     },
     casm_hash_computation_data_sierra_gas: CasmHashComputationData{
         class_hash_to_casm_hash_computation_gas: HashMap::from([
@@ -140,6 +146,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         state_diff_size: 2,
         sierra_gas: GasAmount(9),
         n_txs: 1,
+        proving_gas: GasAmount(5),
     };
 
     let class_hash_to_casm_hash_computation_gas_to_update =
@@ -179,6 +186,7 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     assert_eq!(updated_bouncer, expected_bouncer);
 }
 
+/// This parameterized test verifies `Bouncer::try_update` behavior when varying only `sierra_gas`.
 #[rstest]
 #[case::positive_flow(GasAmount(1), "ok")]
 #[case::block_full(GasAmount(11), "block_full")]
@@ -198,6 +206,7 @@ fn test_bouncer_try_update_sierra_gas(
         state_diff_size: 10,
         sierra_gas: GasAmount(10),
         n_txs: 10,
+        proving_gas: GasAmount(10),
     };
 
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
@@ -205,6 +214,7 @@ fn test_bouncer_try_update_sierra_gas(
     // Prepare the resources to be added to the bouncer.
     let execution_summary = ExecutionSummary::default();
     let tx_resources = TransactionResources {
+        // Only the `sierra_gas` field is varied.
         computation: ComputationResources { sierra_gas: added_gas, ..Default::default() },
         ..Default::default()
     };
@@ -223,8 +233,12 @@ fn test_bouncer_try_update_sierra_gas(
         &block_context.versioned_constants,
     )
     .map_err(TransactionExecutorError::TransactionExecutionError);
-    let expected_weights =
-        BouncerWeights { sierra_gas: added_gas, n_txs: 1, ..BouncerWeights::empty() };
+    let expected_weights = BouncerWeights {
+        sierra_gas: added_gas,
+        n_txs: 1,
+        proving_gas: added_gas,
+        ..BouncerWeights::empty()
+    };
 
     if result.is_ok() {
         // Try to update the bouncer.
@@ -262,6 +276,7 @@ fn test_bouncer_try_update_n_txs(
         state_diff_size: 10,
         sierra_gas: GasAmount(10),
         n_txs: 19,
+        proving_gas: GasAmount(10),
     };
 
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
