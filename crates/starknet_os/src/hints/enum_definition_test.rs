@@ -367,6 +367,34 @@ fn test_aggregator_hints_are_unique_aggregator_program_hints(
     }
 }
 
+#[rstest]
+/// If O = `OsHint` enum hints, OP = OS program hints, AP = aggregator program hints, VM = VM hints,
+/// then we verify that:
+/// O = OP \ (AP ∪ VM)
+fn test_os_hints_are_unique_os_program_hints(
+    os_hints: HashSet<String>,
+    os_program_hints: HashSet<String>,
+    aggregator_program_hints: HashSet<String>,
+    vm_hints: HashSet<String>,
+) {
+    let union_aggregator_vm: HashSet<String> =
+        aggregator_program_hints.union(&vm_hints).cloned().collect();
+    let unique_os_program_hints: HashSet<String> =
+        os_program_hints.difference(&union_aggregator_vm).cloned().collect();
+
+    if unique_os_program_hints != os_hints {
+        let missing_in_os_hints: HashSet<_> =
+            unique_os_program_hints.difference(&os_hints).cloned().collect();
+        let extra_in_os_hints: HashSet<_> =
+            os_hints.difference(&unique_os_program_hints).cloned().collect();
+        assert!(
+            false,
+            "The OS hints should contain exactly the unique OS program hints. Missing in OS \
+             hints: {missing_in_os_hints:#?}, Extra in OS hints: {extra_in_os_hints:#?}"
+        );
+    }
+}
+
 /// Tests that the deprecated syscall hint strings match the strings in compiled Cairo0 contracts.
 /// If a new deprecated syscall was added, it should be added to the `other_syscalls` function of
 /// the Cairo0 test contract.
