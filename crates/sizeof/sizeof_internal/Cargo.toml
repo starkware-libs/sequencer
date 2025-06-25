@@ -1,0 +1,7 @@
+[package]
+name = "sizeof_internal"
+edition.workspace = true
+
+[dependencies]
+starknet-types-core.workspace = true
+

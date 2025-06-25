@@ -1,0 +1,13 @@
+[package]
+name = "sizeof"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+sizeof_macro = { path = "sizeof_macro" } # Dependency on our macro crate
+sizeof_internal = { path = "sizeof_internal" } # Dependency on our internal crate
+
+[lints]
+workspace = true

@@ -7,29 +7,23 @@ use std::ops::Deref;
 
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use size_of::SizeOf;
+use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 use strum_macros::EnumIter;
 
+use crate::StarknetApiError;
 use crate::core::{
-    ContractAddress,
-    EventCommitment,
-    GlobalRoot,
-    ReceiptCommitment,
-    SequencerContractAddress,
-    SequencerPublicKey,
-    StateDiffCommitment,
-    TransactionCommitment,
+    ContractAddress, EventCommitment, GlobalRoot, ReceiptCommitment, SequencerContractAddress,
+    SequencerPublicKey, StateDiffCommitment, TransactionCommitment,
 };
-use crate::crypto::utils::{verify_message_hash_signature, CryptoError, Signature};
+use crate::crypto::utils::{CryptoError, Signature, verify_message_hash_signature};
 use crate::data_availability::L1DataAvailabilityMode;
 use crate::execution_resources::GasAmount;
 use crate::hash::StarkHash;
 use crate::serde_utils::{BytesAsHex, PrefixedBytesAsHex};
 use crate::transaction::fields::Fee;
 use crate::transaction::{Transaction, TransactionHash, TransactionOutput};
-use crate::StarknetApiError;
 
 // These prices are in WEI. If we don't set them high enough the gas price when converted
 // to FRI will be 0 (not allowed).

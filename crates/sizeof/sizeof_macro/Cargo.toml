@@ -1,0 +1,10 @@
+[package]
+name = "sizeof_macro"
+edition.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote.workspace = true
+syn = { workspace = true, features = ["full"] }
