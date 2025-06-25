@@ -25,22 +25,10 @@ fn test_sha256(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
-    if runnable_version.is_cairo_native() {
-        expect![[r#"
-        CallExecution {
-            retdata: Retdata(
-                [],
-            ),
-            events: [],
-            l2_to_l1_messages: [],
-            cairo_native: true,
-            failed: false,
-            gas_consumed: 869855,
-        }
-    "#]]
-    } else {
-        expect![[r#"
+    let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    assert_eq!(execution.cairo_native, runnable_version.is_cairo_native());
+    execution.cairo_native = false;
+    expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
@@ -52,7 +40,6 @@ fn test_sha256(runnable_version: RunnableCairo1) {
             gas_consumed: 869855,
         }
     "#]]
-    }
     .assert_debug_eq(&execution);
     pretty_assertions::assert_eq!(execution.retdata, retdata![]);
 }

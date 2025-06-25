@@ -42,24 +42,11 @@ fn test_library_call(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
-    if runnable_version.is_cairo_native() {
-        expect![[r#"
-        CallExecution {
-            retdata: Retdata(
-                [
-                    0x5b,
-                ],
-            ),
-            events: [],
-            l2_to_l1_messages: [],
-            cairo_native: true,
-            failed: false,
-            gas_consumed: 127470,
-        }
-    "#]]
-    } else {
-        expect![[r#"
+    let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    assert_eq!(execution.cairo_native, runnable_version.is_cairo_native());
+    execution.cairo_native = false;
+
+    expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [
@@ -73,7 +60,6 @@ fn test_library_call(runnable_version: RunnableCairo1) {
             gas_consumed: 127470,
         }
     "#]]
-    }
     .assert_debug_eq(&execution);
     assert_eq!(execution.retdata, retdata![value]);
 }
@@ -99,27 +85,11 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
         class_hash: Some(test_contract.get_class_hash()),
         ..trivial_external_entry_point_new(test_contract)
     };
-    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    let mut call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert_eq!(call_info.execution.cairo_native, runnable_version.is_cairo_native());
+    call_info.execution.cairo_native = false;
 
-    // TODO(Meshi): refactor so there is no need for the if else.
-    if runnable_version.is_cairo_native() {
-        expect![[r#"
-        CallExecution {
-            retdata: Retdata(
-                [
-                    0x7820213d2079,
-                    0x454e545259504f494e545f4641494c4544,
-                ],
-            ),
-            events: [],
-            l2_to_l1_messages: [],
-            cairo_native: true,
-            failed: true,
-            gas_consumed: 111020,
-        }
-    "#]]
-    } else {
-        expect![[r#"
+    expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [
@@ -134,7 +104,6 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
             gas_consumed: 111020,
         }
     "#]]
-    }
     .assert_debug_eq(&call_info.execution);
     assert!(call_info.execution.failed);
     assert_eq!(

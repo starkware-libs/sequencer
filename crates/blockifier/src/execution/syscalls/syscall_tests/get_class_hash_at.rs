@@ -33,27 +33,16 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
         entry_point_selector: selector_from_name("test_get_class_hash_at"),
         ..trivial_external_entry_point_new(test_contract)
     };
-    let positive_call_info =
+    let mut positive_call_info =
         positive_entry_point_call.clone().execute_directly(&mut state).unwrap();
     assert!(
         positive_call_info.storage_access_tracker.accessed_contract_addresses.contains(&address)
     );
     assert!(positive_call_info.storage_access_tracker.read_class_hash_values[0] == class_hash);
-    if runnable_version.is_cairo_native() {
-        expect![[r#"
-        CallExecution {
-            retdata: Retdata(
-                [],
-            ),
-            events: [],
-            l2_to_l1_messages: [],
-            cairo_native: true,
-            failed: false,
-            gas_consumed: 16460,
-        }
-    "#]]
-    } else {
-        expect![[r#"
+    assert_eq!(positive_call_info.execution.cairo_native, runnable_version.is_cairo_native());
+    positive_call_info.execution.cairo_native = false;
+
+    expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
@@ -65,7 +54,6 @@ fn test_get_class_hash_at(runnable_version: RunnableCairo1) {
             gas_consumed: 16460,
         }
     "#]]
-    }
     .assert_debug_eq(&positive_call_info.execution);
     assert!(!positive_call_info.execution.failed);
     assert_eq!(positive_call_info.execution.retdata, retdata![]);

@@ -73,21 +73,10 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         entry_point_selector: selector_from_name("test_replace_class"),
         ..trivial_external_entry_point_new(test_contract)
     };
-    if runnable_version.is_cairo_native() {
-        expect![[r#"
-        CallExecution {
-            retdata: Retdata(
-                [],
-            ),
-            events: [],
-            l2_to_l1_messages: [],
-            cairo_native: true,
-            failed: false,
-            gas_consumed: 15220,
-        }
-    "#]]
-    } else {
-        expect![[r#"
+    let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    assert_eq!(execution.cairo_native, runnable_version.is_cairo_native());
+    execution.cairo_native = false; // For comparison purposes.
+    expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [],
@@ -99,7 +88,6 @@ fn positive_flow(runnable_version: RunnableCairo1) {
             gas_consumed: 15220,
         }
     "#]]
-    }
-    .assert_debug_eq(&entry_point_call.execute_directly(&mut state).unwrap().execution);
+    .assert_debug_eq(&execution);
     assert_eq!(state.get_class_hash_at(contract_address).unwrap(), new_class_hash);
 }
