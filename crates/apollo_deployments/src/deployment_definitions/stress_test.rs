@@ -6,14 +6,14 @@ use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::deployments::hybrid::create_hybrid_instance_config_override;
 use crate::k8s::{ExternalSecret, IngressParams};
 use crate::service::DeploymentName;
-use crate::utils::format_node_id;
+use crate::utils::Template;
 
 const STRESS_TEST_NODE_IDS: [usize; 3] = [0, 1, 2];
 const STRESS_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "apollo-stresstest-dev.sw-dev.io";
 const STRESS_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
-const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
-const SECRET_NAME_FORMAT: &str = "apollo-stresstest-dev-{}";
-const NODE_NAMESPACE_FORMAT: &str = "apollo-stresstest-dev-{}";
+const INSTANCE_NAME_FORMAT: Template = Template("integration_hybrid_node_{}");
+const SECRET_NAME_FORMAT: Template = Template("apollo-stresstest-dev-{}");
+const NODE_NAMESPACE_FORMAT: Template = Template("apollo-stresstest-dev-{}");
 
 pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
     STRESS_TEST_NODE_IDS
@@ -47,8 +47,8 @@ fn stress_test_hybrid_deployment_node(
     Deployment::new(
         DeploymentName::HybridNode,
         Environment::StressTest,
-        &format_node_id(INSTANCE_NAME_FORMAT, id),
-        Some(ExternalSecret::new(format_node_id(SECRET_NAME_FORMAT, id))),
+        &INSTANCE_NAME_FORMAT.format(&[&id]),
+        Some(ExternalSecret::new(SECRET_NAME_FORMAT.format(&[&id]))),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         ConfigOverride::new(
             stress_test_deployment_config_override(),

@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::fmt::Display;
 
 use crate::deployment::DeploymentType;
 
@@ -6,8 +7,42 @@ use crate::deployment::DeploymentType;
 // TODO(Tsabary): delete duplicates from the base app config, and add a test that there are no
 // conflicts between all the override config entries and the values in the base app config.
 
-pub(crate) fn format_node_id(base_format: &str, id: usize) -> String {
-    base_format.replace("{}", &id.to_string())
+/// A simple positional template with `{}` placeholders.
+pub struct Template(pub &'static str);
+
+impl Template {
+    /// Renders the template by substituting `{}` placeholders with the provided args. Panics if the
+    /// number of `{}` in the template doesn't match the number of args provided.
+    pub fn format(&self, args: &[&dyn Display]) -> String {
+        let mut formatted = self.0.to_string();
+
+        // Count how many `{}` placeholders are in the template string.
+        let placeholder_count = formatted.matches("{}").count();
+
+        // Ensure the number of args matches the number of placeholders.
+        assert!(
+            placeholder_count == args.len(),
+            "Template {} expects {} placeholders, but got {} args",
+            self.0,
+            placeholder_count,
+            args.len()
+        );
+
+        // Replace each `{}` in order with the corresponding value.
+        for value in args {
+            // Find the index of the next `{}`.
+            if let Some(i) = formatted.find("{}") {
+                // Split the string into prefix and suffix, excluding the `{}` itself.
+                let before = &formatted[..i];
+                let after = &formatted[i + 2..];
+
+                // Replace `{}` with the actual value.
+                formatted = format!("{}{}{}", before, value, after);
+            }
+        }
+
+        formatted
+    }
 }
 
 pub(crate) fn get_secret_key(id: usize) -> String {

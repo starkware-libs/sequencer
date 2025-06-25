@@ -6,15 +6,15 @@ use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::deployments::hybrid::create_hybrid_instance_config_override;
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
 use crate::service::DeploymentName;
-use crate::utils::format_node_id;
+use crate::utils::Template;
 
 const UPGRADE_TEST_NODE_IDS: [usize; 3] = [0, 1, 2];
 const UPGRADE_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-alpha-test-upgrade.gateway-proxy.sw-dev.io";
 const UPGRADE_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
-const INSTANCE_NAME_FORMAT: &str = "hybrid_node_{}";
-const SECRET_NAME_FORMAT: &str = "apollo-alpha-test-{}";
-const NODE_NAMESPACE_FORMAT: &str = "apollo-alpha-test-{}";
+const INSTANCE_NAME_FORMAT: Template = Template("hybrid_node_{}");
+const SECRET_NAME_FORMAT: Template = Template("apollo-alpha-test-{}");
+const NODE_NAMESPACE_FORMAT: Template = Template("apollo-alpha-test-{}");
 
 pub(crate) fn upgrade_test_hybrid_deployments() -> Vec<Deployment> {
     UPGRADE_TEST_NODE_IDS
@@ -50,8 +50,8 @@ fn upgrade_test_hybrid_deployment_node(
     Deployment::new(
         DeploymentName::HybridNode,
         Environment::UpgradeTest,
-        &format_node_id(INSTANCE_NAME_FORMAT, id),
-        Some(ExternalSecret::new(format_node_id(SECRET_NAME_FORMAT, id))),
+        &INSTANCE_NAME_FORMAT.format(&[&id]),
+        Some(ExternalSecret::new(SECRET_NAME_FORMAT.format(&[&id]))),
         PathBuf::from(BASE_APP_CONFIG_PATH),
         ConfigOverride::new(
             upgrade_test_deployment_config_override(),
@@ -68,7 +68,7 @@ fn upgrade_test_hybrid_deployment_node(
             Some(vec![UPGRADE_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
         ),
         Some(K8sServiceConfigParams::new(
-            format_node_id(NODE_NAMESPACE_FORMAT, id),
+            NODE_NAMESPACE_FORMAT.format(&[&id]),
             UPGRADE_TEST_INGRESS_DOMAIN.to_string(),
             P2PCommunicationType::External,
         )),
