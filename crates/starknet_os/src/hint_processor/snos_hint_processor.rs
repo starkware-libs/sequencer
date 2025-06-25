@@ -104,6 +104,20 @@ impl<'a, S: StateReader> ExecutionHelpersManager<'a, S> {
     pub fn n_helpers(&self) -> usize {
         self.execution_helpers.len()
     }
+
+    pub(crate) fn get_syscall_usages(&self) -> Vec<SyscallUsageMap> {
+        self.execution_helpers
+            .iter()
+            .map(|helper| helper.syscall_hint_processor.syscall_usage.clone())
+            .collect()
+    }
+
+    pub(crate) fn get_deprecated_syscall_usages(&self) -> Vec<SyscallUsageMap> {
+        self.execution_helpers
+            .iter()
+            .map(|helper| helper.deprecated_syscall_hint_processor.syscalls_usage.clone())
+            .collect()
+    }
 }
 
 pub struct SnosHintProcessor<'a, S: StateReader> {

@@ -16,6 +16,7 @@ use crate::io::os_output::{
     StarknetAggregatorRunnerOutput,
     StarknetOsRunnerOutput,
 };
+use crate::metrics::OsMetrics;
 
 pub fn run_os<S: StateReader>(
     layout: LayoutName,
@@ -95,6 +96,7 @@ pub fn run_os<S: StateReader>(
         os_output,
         cairo_pie,
         da_segment: snos_hint_processor.get_da_segment().take(),
+        metrics: OsMetrics::new(&mut cairo_runner, &snos_hint_processor)?,
         #[cfg(any(test, feature = "testing"))]
         unused_hints: snos_hint_processor.unused_hints,
     })
