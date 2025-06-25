@@ -1273,6 +1273,7 @@ dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_metrics",
+ "apollo_proc_macros",
  "assert_matches",
  "axum",
  "base64 0.13.1",

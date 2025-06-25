@@ -16,6 +16,7 @@ use apollo_gateway_types::gateway_types::{
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
+use apollo_proc_macros::sequencer_latency_histogram;
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
@@ -34,6 +35,7 @@ use crate::metrics::{
     ADDED_TRANSACTIONS_INTERNAL_ERROR,
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
+    HTTP_SERVER_ADD_TX_LATENCY,
 };
 
 #[cfg(test)]
@@ -108,6 +110,7 @@ async fn add_rpc_tx(
 }
 
 #[instrument(skip(app_state))]
+#[sequencer_latency_histogram(HTTP_SERVER_ADD_TX_LATENCY, true)]
 async fn add_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
