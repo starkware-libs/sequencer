@@ -1,6 +1,6 @@
 use blockifier::blockifier::stateful_validator::StatefulValidatorError;
 use blockifier::blockifier::transaction_executor::TransactionExecutorError;
-use blockifier::bouncer::BuiltinCounterMap;
+use blockifier::execution::call_info::BuiltinCounterMap;
 use blockifier::state::errors::StateError;
 use blockifier::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
 use cairo_vm::types::errors::program_errors::ProgramError;

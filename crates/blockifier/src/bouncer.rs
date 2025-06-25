@@ -12,8 +12,14 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
     TransactionExecutorResult,
 };
+<<<<<<< HEAD
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::ExecutionSummary;
+||||||| 4711675a9
+use crate::execution::call_info::ExecutionSummary;
+=======
+use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
+>>>>>>> origin/main-v0.13.6
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
@@ -49,8 +55,6 @@ macro_rules! impl_checked_ops {
         }
     };
 }
-
-pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
@@ -165,7 +169,7 @@ impl Default for BouncerWeights {
             n_txs: 600,
             state_diff_size: 4000,
             sierra_gas: GasAmount(4000000000),
-            proving_gas: GasAmount(2000000000),
+            proving_gas: GasAmount(4000000000),
         }
     }
 }
@@ -300,20 +304,24 @@ impl BuiltinWeights {
     }
 
     // TODO(Meshi): Consider code sharing with the builtins_to_sierra_gas function.
-    pub fn calc_gas_from_builtin_counter(&self, builtin_counts: &BuiltinCounterMap) -> GasAmount {
-        let builtin_gas = builtin_counts.iter().fold(0_usize, |accumulated_gas, (name, &count)| {
-            let builtin_weight = self.builtin_weight(name);
-            builtin_weight
-                .checked_mul(count)
-                .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
-                .unwrap_or_else(|| {
-                    panic!(
-                        "Overflow while converting builtin counters to gas.\nBuiltin: {name}, \
-                         Weight: {builtin_weight}, Count: {count}, Accumulated gas: \
-                         {accumulated_gas}"
-                    )
-                })
-        });
+    pub fn calc_gas_from_builtin_counters(
+        &self,
+        builtin_counters: &BuiltinCounterMap,
+    ) -> GasAmount {
+        let builtin_gas =
+            builtin_counters.iter().fold(0_usize, |accumulated_gas, (name, &count)| {
+                let builtin_weight = self.builtin_weight(name);
+                builtin_weight
+                    .checked_mul(count)
+                    .and_then(|builtin_gas| accumulated_gas.checked_add(builtin_gas))
+                    .unwrap_or_else(|| {
+                        panic!(
+                            "Overflow while converting builtin counters to gas.\nBuiltin: {name}, \
+                             Weight: {builtin_weight}, Count: {count}, Accumulated gas: \
+                             {accumulated_gas}"
+                        )
+                    })
+            });
 
         GasAmount(u64_from_usize(builtin_gas))
     }
@@ -338,13 +346,13 @@ impl BuiltinWeights {
 impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
-            pedersen: 4050,
+            pedersen: 8100,
             range_check: 70,
-            ecdsa: 675904,
-            ec_op: 285950,
+            ecdsa: 1333333,
+            ec_op: 571900,
             bitwise: 583,
-            keccak: 204283,
-            poseidon: 3928,
+            keccak: 408566,
+            poseidon: 8334,
             add_mod: 250,
             mul_mod: 604,
             range_check96: 56,
@@ -574,7 +582,7 @@ fn memory_holes_to_gas(
     vm_resource_to_gas_amount(n_memory_holes, gas_per_memory_hole, "memory_holes")
 }
 
-fn vm_resources_to_sierra_gas(
+pub fn vm_resources_to_sierra_gas(
     resources: ExecutionResources,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
@@ -605,34 +613,37 @@ pub fn sierra_gas_to_steps_gas(
     let builtins_gas_cost = builtins_to_sierra_gas(builtin_counters, versioned_constants);
 
     sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
-        panic!(
-            "Invalid gas subtraction: builtins gas exceeds total sierra gas. Sierra gas: {:?}, \
-             Builtins gas: {:?}, Builtins: {:?}",
-            sierra_gas, builtins_gas_cost, builtin_counters
-        )
+        log::debug!(
+            "Sierra gas underflow: builtins gas exceeds total. Sierra gas: {:?}, Builtins gas: \
+             {:?}, Builtins: {:?}",
+            sierra_gas,
+            builtins_gas_cost,
+            builtin_counters
+        );
+        GasAmount::ZERO
     })
 }
 
 pub fn builtins_to_sierra_gas(
-    builtin_counts: &BuiltinCounterMap,
+    builtin_counters: &BuiltinCounterMap,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
     let gas_costs = &versioned_constants.os_constants.gas_costs.builtins;
 
-    let total_gas = builtin_counts
+    let total_gas = builtin_counters
         .iter()
         .try_fold(0u64, |accumulated_gas, (&builtin, &count)| {
             let builtin_gas_cost = gas_costs
                 .get_builtin_gas_cost(&builtin)
                 .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
-            let builtin_count_u64 = u64_from_usize(count);
-            let builtin_total_cost = builtin_count_u64.checked_mul(builtin_gas_cost)?;
+            let builtin_counters_u64 = u64_from_usize(count);
+            let builtin_total_cost = builtin_counters_u64.checked_mul(builtin_gas_cost)?;
             accumulated_gas.checked_add(builtin_total_cost)
         })
         .unwrap_or_else(|| {
             panic!(
                 "Overflow occurred while converting built-in resources to gas. Builtins: {:?}",
-                builtin_counts
+                builtin_counters
             )
         });
 
@@ -662,6 +673,7 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
 
+<<<<<<< HEAD
     // Casm gas computation
     let gas_without_casm_hash_computation =
         sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
@@ -702,11 +714,28 @@ pub fn get_tx_weights<S: StateReader>(
 
     // Proving gas computation.
     let mut total_builtin_counters = patrticia_update_resources.prover_builtins();
+||||||| 4711675a9
+    let mut total_builtin_counters = additional_os_resources.prover_builtins();
+=======
+    let mut total_builtin_counters = additional_os_resources.prover_builtins();
+    // TODO(AvivG): Builtins from `fee_transfer_call_info` are counted twice - in `os_vm_resources`
+    // and again in `tx_builtin_counters`. Remove the duplication.
+    add_maps(
+        &mut total_builtin_counters,
+        &tx_resources.computation.os_vm_resources.prover_builtins(),
+    );
+>>>>>>> origin/main-v0.13.6
     add_maps(&mut total_builtin_counters, tx_builtin_counters);
     add_maps(&mut total_builtin_counters, &total_casm_hash_computation_resources_builtins);
     let builtins_gas = builtin_weights.calc_gas_from_builtin_counter(&total_builtin_counters);
     let steps_proving_gas =
         sierra_gas_to_steps_gas(sierra_gas, versioned_constants, &total_builtin_counters);
+<<<<<<< HEAD
+||||||| 4711675a9
+    let builtins_gas = builtin_weights.calc_gas_from_builtin_counter(&total_builtin_counters);
+=======
+    let builtins_gas = builtin_weights.calc_gas_from_builtin_counters(&total_builtin_counters);
+>>>>>>> origin/main-v0.13.6
     let proving_gas = steps_proving_gas.checked_add(builtins_gas).unwrap_or_else(|| {
         panic!(
             "Addition overflow while calculating the proving gas. steps gas: {}, builtins as gas: \

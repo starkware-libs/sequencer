@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::block::{BlockInfo, FeeType};
@@ -23,8 +21,14 @@ use starknet_api::transaction::{
 };
 
 use crate::abi::constants as abi_constants;
+<<<<<<< HEAD
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::{CallInfo, ExecutionSummary};
+||||||| 4711675a9
+use crate::execution::call_info::{CallInfo, ExecutionSummary};
+=======
+use crate::execution::call_info::{BuiltinCounterMap, CallInfo, ExecutionSummary};
+>>>>>>> origin/main-v0.13.6
 use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
@@ -222,8 +226,14 @@ impl TransactionExecutionInfo {
 }
 pub trait ExecutionResourcesTraits {
     fn total_n_steps(&self) -> usize;
+<<<<<<< HEAD
     fn prover_builtins(&self) -> HashMap<BuiltinName, usize>;
     fn div_ceil(&self, rhs: usize) -> ExecutionResources;
+||||||| 4711675a9
+    fn prover_builtins(&self) -> HashMap<BuiltinName, usize>;
+=======
+    fn prover_builtins(&self) -> BuiltinCounterMap;
+>>>>>>> origin/main-v0.13.6
 }
 
 impl ExecutionResourcesTraits for ExecutionResources {
@@ -240,7 +250,7 @@ impl ExecutionResourcesTraits for ExecutionResources {
                     .unwrap_or_default()
     }
 
-    fn prover_builtins(&self) -> HashMap<BuiltinName, usize> {
+    fn prover_builtins(&self) -> BuiltinCounterMap {
         let mut builtins = self.builtin_instance_counter.clone();
 
         // See "total_n_steps" documentation.

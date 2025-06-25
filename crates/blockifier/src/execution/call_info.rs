@@ -13,8 +13,13 @@ use starknet_api::transaction::fields::GasVectorComputationMode;
 use starknet_api::transaction::{EventContent, L2ToL1Payload};
 use starknet_types_core::felt::Felt;
 
+<<<<<<< HEAD
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::BuiltinCounterMap;
+||||||| 4711675a9
+use crate::bouncer::BuiltinCounterMap;
+=======
+>>>>>>> origin/main-v0.13.6
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
 use crate::state::cached_state::StorageEntry;
@@ -95,6 +100,8 @@ impl EventSummary {
         }
     }
 }
+
+pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
@@ -232,7 +239,7 @@ pub struct CallInfo {
     pub storage_access_tracker: StorageAccessTracker,
     // Tracks how many times each builtin was called during execution (excluding inner calls).
     // Used by the bouncer to decide when to close a block.
-    pub builtin_counters: HashMap<BuiltinName, usize>,
+    pub builtin_counters: BuiltinCounterMap,
 }
 
 impl CallInfo {
