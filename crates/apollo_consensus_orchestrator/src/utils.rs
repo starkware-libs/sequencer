@@ -24,6 +24,7 @@ use starknet_api::block::{
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
+use starknet_api::StarknetApiError;
 use tracing::{info, warn};
 
 use crate::build_proposal::BuildProposalError;
@@ -148,27 +149,21 @@ fn apply_fee_transformations(price_info: &mut PriceInfo, gas_price_params: &GasP
     .clamp(gas_price_params.min_l1_data_gas_price_wei, gas_price_params.max_l1_data_gas_price_wei);
 }
 
-// TODO(guyn): this function should return a Result, then replace all unwraps with ?
 pub(crate) fn convert_to_sn_api_block_info(
     block_info: &ConsensusBlockInfo,
-) -> starknet_api::block::BlockInfo {
-    let l1_gas_price_fri = NonzeroGasPrice::new(
-        block_info.l1_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate).unwrap(),
-    )
-    .unwrap();
+) -> Result<starknet_api::block::BlockInfo, StarknetApiError> {
+    let l1_gas_price_fri =
+        NonzeroGasPrice::new(block_info.l1_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate)?)?;
     let l1_data_gas_price_fri = NonzeroGasPrice::new(
-        block_info.l1_data_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate).unwrap(),
-    )
-    .unwrap();
-    let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri).unwrap();
-    let l2_gas_price_wei = NonzeroGasPrice::new(
-        block_info.l2_gas_price_fri.fri_to_wei(block_info.eth_to_fri_rate).unwrap(),
-    )
-    .unwrap();
-    let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei).unwrap();
-    let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei).unwrap();
+        block_info.l1_data_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate)?,
+    )?;
+    let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri)?;
+    let l2_gas_price_wei =
+        NonzeroGasPrice::new(block_info.l2_gas_price_fri.fri_to_wei(block_info.eth_to_fri_rate)?)?;
+    let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei)?;
+    let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei)?;
 
-    starknet_api::block::BlockInfo {
+    Ok(starknet_api::block::BlockInfo {
         block_number: block_info.height,
         block_timestamp: BlockTimestamp(block_info.timestamp),
         sequencer_address: block_info.builder,
@@ -185,7 +180,7 @@ pub(crate) fn convert_to_sn_api_block_info(
             },
         },
         use_kzg_da: block_info.l1_da_mode == L1DataAvailabilityMode::Blob,
-    }
+    })
 }
 
 pub(crate) async fn retrospective_block_hash(

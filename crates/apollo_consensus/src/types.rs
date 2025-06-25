@@ -161,6 +161,8 @@ pub enum ConsensusError {
     // For example the state machine and SHC are out of sync.
     #[error("{0}")]
     InternalInconsistency(String),
+    #[error("Block info conversion error: {0}")]
+    BlockInfoConversion(#[from] starknet_api::StarknetApiError),
     #[error("{0}")]
     Other(String),
 }
