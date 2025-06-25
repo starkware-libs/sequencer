@@ -12,14 +12,8 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorError,
     TransactionExecutorResult,
 };
-<<<<<<< HEAD
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::execution::call_info::ExecutionSummary;
-||||||| 4711675a9
-use crate::execution::call_info::ExecutionSummary;
-=======
 use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
->>>>>>> origin/main-v0.13.6
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
@@ -673,7 +667,6 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
 
-<<<<<<< HEAD
     // Casm gas computation
     let gas_without_casm_hash_computation =
         sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
@@ -714,28 +707,17 @@ pub fn get_tx_weights<S: StateReader>(
 
     // Proving gas computation.
     let mut total_builtin_counters = patrticia_update_resources.prover_builtins();
-||||||| 4711675a9
-    let mut total_builtin_counters = additional_os_resources.prover_builtins();
-=======
-    let mut total_builtin_counters = additional_os_resources.prover_builtins();
+    add_maps(&mut total_builtin_counters, &total_casm_hash_computation_resources_builtins);
     // TODO(AvivG): Builtins from `fee_transfer_call_info` are counted twice - in `os_vm_resources`
     // and again in `tx_builtin_counters`. Remove the duplication.
     add_maps(
         &mut total_builtin_counters,
         &tx_resources.computation.os_vm_resources.prover_builtins(),
     );
->>>>>>> origin/main-v0.13.6
     add_maps(&mut total_builtin_counters, tx_builtin_counters);
-    add_maps(&mut total_builtin_counters, &total_casm_hash_computation_resources_builtins);
-    let builtins_gas = builtin_weights.calc_gas_from_builtin_counter(&total_builtin_counters);
     let steps_proving_gas =
         sierra_gas_to_steps_gas(sierra_gas, versioned_constants, &total_builtin_counters);
-<<<<<<< HEAD
-||||||| 4711675a9
-    let builtins_gas = builtin_weights.calc_gas_from_builtin_counter(&total_builtin_counters);
-=======
     let builtins_gas = builtin_weights.calc_gas_from_builtin_counters(&total_builtin_counters);
->>>>>>> origin/main-v0.13.6
     let proving_gas = steps_proving_gas.checked_add(builtins_gas).unwrap_or_else(|| {
         panic!(
             "Addition overflow while calculating the proving gas. steps gas: {}, builtins as gas: \
