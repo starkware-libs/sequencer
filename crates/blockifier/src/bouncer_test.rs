@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
 use assert_matches::assert_matches;
+use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
+use blockifier_test_utils::contracts::FeatureContract;
 use rstest::{fixture, rstest};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
@@ -9,6 +11,7 @@ use starknet_api::{class_hash, contract_address, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
+    get_tx_weights,
     verify_tx_weights_within_max_capacity,
     Bouncer,
     BouncerWeights,
@@ -17,9 +20,10 @@ use crate::bouncer::{
     TxWeights,
 };
 use crate::context::BlockContext;
-use crate::execution::call_info::ExecutionSummary;
+use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
 use crate::fee::resources::{ComputationResources, TransactionResources};
-use crate::state::cached_state::{CachedState, StateChangesKeys, TransactionalState};
+use crate::state::cached_state::{CachedState, StateChangesKeys, StateMaps, TransactionalState};
+use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::errors::TransactionExecutionError;
@@ -311,4 +315,94 @@ fn test_bouncer_try_update_n_txs(
     );
 
     assert_matches!(result, Err(TransactionExecutorError::BlockFull));
+}
+
+/// This test verifies that `get_tx_weights` returns a reasonable casm hash computation data.
+#[rstest]
+fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
+    // Set up state with declared contracts.
+    let mut state_reader = DictStateReader::default();
+    let test_contract_v0 = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let test_contract_v1 =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    state_reader.add_class(&FeatureContractData::from(test_contract_v0));
+    state_reader.add_class(&FeatureContractData::from(test_contract_v1));
+    let state = CachedState::new(state_reader);
+
+    let executed_class_hashes =
+        HashSet::from([test_contract_v0.get_class_hash(), test_contract_v1.get_class_hash()]);
+
+    // Call get_tx_weights.
+    let result = get_tx_weights(
+        &state,
+        &executed_class_hashes,
+        10, // n_visited_storage_entries
+        &TransactionResources::default(),
+        &StateMaps::default().keys(),
+        &block_context.versioned_constants,
+        &BuiltinCounterMap::default(),
+        &BuiltinWeights::default(),
+    );
+
+    let tx_weights = result.unwrap();
+
+    // Test that casm hash computation data keys equal executed class hashes
+    let sierra_keys: HashSet<_> = tx_weights
+        .casm_hash_computation_data_sierra_gas
+        .class_hash_to_casm_hash_computation_gas
+        .keys()
+        .cloned()
+        .collect();
+    let proving_keys: HashSet<_> = tx_weights
+        .casm_hash_computation_data_proving_gas
+        .class_hash_to_casm_hash_computation_gas
+        .keys()
+        .cloned()
+        .collect();
+
+    assert_eq!(
+        sierra_keys, executed_class_hashes,
+        "Sierra gas keys should match executed class hashes"
+    );
+    assert_eq!(
+        proving_keys, executed_class_hashes,
+        "Proving gas keys should match executed class hashes"
+    );
+
+    // Verify gas amounts of casm hash computation data are positive.
+    assert!(
+        tx_weights
+            .casm_hash_computation_data_sierra_gas
+            .class_hash_to_casm_hash_computation_gas
+            .values()
+            .all(|&gas| gas > GasAmount::ZERO)
+    );
+    assert!(
+        tx_weights
+            .casm_hash_computation_data_proving_gas
+            .class_hash_to_casm_hash_computation_gas
+            .values()
+            .all(|&gas| gas > GasAmount::ZERO)
+    );
+
+    // Test gas without casm hash computation is positive.
+    assert!(
+        tx_weights.casm_hash_computation_data_sierra_gas.gas_without_casm_hash_computation
+            > GasAmount::ZERO
+    );
+    assert!(
+        tx_weights.casm_hash_computation_data_proving_gas.gas_without_casm_hash_computation
+            > GasAmount::ZERO
+    );
+
+    // Test that bouncer weights are equal to casm hash computation data total gas.
+    let bouncer_weights = tx_weights.bouncer_weights;
+    assert!(
+        bouncer_weights.sierra_gas == tx_weights.casm_hash_computation_data_sierra_gas.total_gas()
+    );
+    assert!(
+        bouncer_weights.proving_gas
+            == tx_weights.casm_hash_computation_data_proving_gas.total_gas()
+    );
 }
