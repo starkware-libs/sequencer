@@ -121,20 +121,23 @@ fn apply_fee_transformations(price_info: &mut PriceInfo, gas_price_params: &GasP
     .clamp(gas_price_params.min_l1_data_gas_price_wei, gas_price_params.max_l1_data_gas_price_wei);
 }
 
+// TODO(guyn): this function should return a Result, then replace all unwraps with ?
 pub(crate) fn convert_to_sn_api_block_info(
     block_info: &ConsensusBlockInfo,
 ) -> starknet_api::block::BlockInfo {
-    let l1_gas_price_fri =
-        NonzeroGasPrice::new(block_info.l1_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate))
-            .unwrap();
+    let l1_gas_price_fri = NonzeroGasPrice::new(
+        block_info.l1_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate).unwrap(),
+    )
+    .unwrap();
     let l1_data_gas_price_fri = NonzeroGasPrice::new(
-        block_info.l1_data_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate),
+        block_info.l1_data_gas_price_wei.wei_to_fri(block_info.eth_to_fri_rate).unwrap(),
     )
     .unwrap();
     let l2_gas_price_fri = NonzeroGasPrice::new(block_info.l2_gas_price_fri).unwrap();
-    let l2_gas_price_wei =
-        NonzeroGasPrice::new(block_info.l2_gas_price_fri.fri_to_wei(block_info.eth_to_fri_rate))
-            .unwrap();
+    let l2_gas_price_wei = NonzeroGasPrice::new(
+        block_info.l2_gas_price_fri.fri_to_wei(block_info.eth_to_fri_rate).unwrap(),
+    )
+    .unwrap();
     let l1_gas_price_wei = NonzeroGasPrice::new(block_info.l1_gas_price_wei).unwrap();
     let l1_data_gas_price_wei = NonzeroGasPrice::new(block_info.l1_data_gas_price_wei).unwrap();
 
