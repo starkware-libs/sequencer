@@ -42,7 +42,7 @@
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
     "description": "An upper bound on the total builtins and steps gas usage used in a block.",
     "privacy": "Public",
-    "value": 2000000000
+    "value": 4000000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
