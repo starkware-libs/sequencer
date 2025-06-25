@@ -22,25 +22,12 @@ pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
 
 const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 
-// TODO(Tsabary): almost all struct members are not serialized, causing many skip_serializing
-// attributes. Consider splitting to inner structs.
-// TODO(Tsabary): revisit derived traits, recursively remove from inner types if possible.
 #[derive(Clone, Debug, Serialize)]
 pub struct Deployment {
     application_config_subdir: PathBuf,
-    #[serde(skip_serializing)]
-    deployment_name: DeploymentName,
-    #[serde(skip_serializing)]
-    environment: Environment,
     services: Vec<Service>,
     #[serde(skip_serializing)]
-    instance_name: String,
-    #[serde(skip_serializing)]
-    base_app_config_file_path: PathBuf,
-    #[serde(skip_serializing)]
-    config_override: ConfigOverride,
-    #[serde(skip_serializing)]
-    config_override_dir: PathBuf,
+    deployment_aux_data: DeploymentAuxData,
 }
 
 impl Deployment {
@@ -80,26 +67,29 @@ impl Deployment {
             .collect();
         Self {
             application_config_subdir: CONFIG_BASE_DIR.into(),
-            deployment_name,
-            environment,
             services,
-            instance_name: instance_name.to_string(),
-            base_app_config_file_path,
-            config_override,
-            config_override_dir,
+            deployment_aux_data: DeploymentAuxData {
+                deployment_name,
+                environment,
+                instance_name: instance_name.to_string(),
+                base_app_config_file_path,
+                config_override,
+                config_override_dir,
+            },
         }
     }
 
     pub fn get_deployment_name(&self) -> &DeploymentName {
-        &self.deployment_name
+        &self.deployment_aux_data.deployment_name
     }
 
     pub fn get_base_app_config_file_path(&self) -> PathBuf {
-        self.base_app_config_file_path.clone()
+        self.deployment_aux_data.base_app_config_file_path.clone()
     }
 
     pub fn application_config_values(&self) -> IndexMap<ServiceName, Value> {
-        let component_configs = self.deployment_name.get_component_configs(None);
+        let component_configs =
+            self.deployment_aux_data.deployment_name.get_component_configs(None);
         let mut result = IndexMap::new();
 
         for (service, component_config) in component_configs.into_iter() {
@@ -130,19 +120,33 @@ impl Deployment {
 
     pub fn deployment_file_path(&self) -> PathBuf {
         PathBuf::from(CONFIG_BASE_DIR)
-            .join(self.environment.to_string())
+            .join(self.deployment_aux_data.environment.to_string())
             .join(DEPLOYMENT_CONFIG_DIR_NAME)
-            .join(format!("{}.json", self.instance_name))
+            .join(format!("{}.json", self.deployment_aux_data.instance_name))
     }
 
     pub fn dump_config_override_files(&self) {
-        self.config_override.dump_config_files(&self.config_override_dir);
+        self.deployment_aux_data
+            .config_override
+            .dump_config_files(&self.deployment_aux_data.config_override_dir);
     }
 
     #[cfg(test)]
     pub fn test_dump_config_override_files(&self) {
-        self.config_override.test_dump_config_files(&self.config_override_dir);
+        self.deployment_aux_data
+            .config_override
+            .test_dump_config_files(&self.deployment_aux_data.config_override_dir);
     }
+}
+
+#[derive(Clone, Debug)]
+struct DeploymentAuxData {
+    deployment_name: DeploymentName,
+    environment: Environment,
+    instance_name: String,
+    base_app_config_file_path: PathBuf,
+    config_override: ConfigOverride,
+    config_override_dir: PathBuf,
 }
 
 // TODO(Tsabary): test no conflicts between config entries defined in each of the override types.
