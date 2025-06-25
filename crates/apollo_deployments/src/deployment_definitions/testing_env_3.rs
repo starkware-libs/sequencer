@@ -19,10 +19,8 @@ const TESTING_ENV_3_NODE_IDS: [(usize, P2PCommunicationType); 4] = [
 const TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io";
 const TESTING_ENV_3_INGRESS_DOMAIN: &str = "sw-dev.io";
-const FIRST_NODE_NAMESPACE: &str = "sequencer-test-3-node-0";
 const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "sequencer-test-3-node-{}";
-// TODO(Tsabary): use `NODE_NAMESPACE_FORMAT` to generate `FIRST_NODE_NAMESPACE`.
 const NODE_NAMESPACE_FORMAT: &str = "sequencer-test-3-node-{}";
 
 pub(crate) fn testing_env_3_hybrid_deployments() -> Vec<Deployment> {
@@ -65,7 +63,7 @@ fn testing_env_3_hybrid_deployment_node(
             testing_env_3_deployment_config_override(),
             create_hybrid_instance_config_override(
                 id,
-                FIRST_NODE_NAMESPACE,
+                NODE_NAMESPACE_FORMAT,
                 deployment_type,
                 p2p_communication_type.clone(),
                 TESTING_ENV_3_INGRESS_DOMAIN,

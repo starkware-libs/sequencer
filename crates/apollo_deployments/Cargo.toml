@@ -5,10 +5,8 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
-
 [lints]
 workspace = true
-
 
 [dependencies]
 apollo_config.workspace = true
@@ -16,9 +14,12 @@ apollo_infra_utils.workspace = true
 apollo_node.workspace = true
 apollo_protobuf.workspace = true
 const_format.workspace = true
+hex.workspace = true
 indexmap.workspace = true
+libp2p = { workspace = true, features = ["identify"] }
 serde.workspace = true
 serde_json.workspace = true
+serde_with.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
 strum_macros.workspace = true

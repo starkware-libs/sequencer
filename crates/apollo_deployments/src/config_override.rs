@@ -5,6 +5,7 @@ use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use serde::Serialize;
 use serde_json::to_value;
+use serde_with::with_prefix;
 use starknet_api::block::BlockNumber;
 
 use crate::deployment::PragmaDomain;
@@ -147,49 +148,70 @@ impl DeploymentConfigOverride {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct NetworkConfigOverride {
+    // Bootstrap peer address.
+    #[serde(rename = "bootstrap_peer_multiaddr")]
+    bootstrap_peer_multiaddr: String,
+    #[serde(rename = "bootstrap_peer_multiaddr.#is_none")]
+    bootstrap_peer_multiaddr_is_none: bool,
+
+    // Advertised self address.
+    #[serde(rename = "advertised_multiaddr")]
+    advertised_multiaddr: String,
+    #[serde(rename = "advertised_multiaddr.#is_none")]
+    advertised_multiaddr_is_none: bool,
+
+    // TODO(Tsabary): network secret keys should be defined as secrets.
+    secret_key: String,
+}
+
+impl NetworkConfigOverride {
+    pub fn new(
+        bootstrap_peer_multiaddr: Option<String>,
+        advertised_multiaddr: Option<String>,
+        secret_key: impl ToString,
+    ) -> Self {
+        let (bootstrap_peer_multiaddr, bootstrap_peer_multiaddr_is_none) =
+            match bootstrap_peer_multiaddr {
+                Some(addr) => (addr, false),
+                None => ("".to_string(), true),
+            };
+        let (advertised_multiaddr, advertised_multiaddr_is_none) = match advertised_multiaddr {
+            Some(addr) => (addr, false),
+            None => ("".to_string(), true),
+        };
+        Self {
+            bootstrap_peer_multiaddr,
+            bootstrap_peer_multiaddr_is_none,
+            advertised_multiaddr,
+            advertised_multiaddr_is_none,
+            secret_key: secret_key.to_string(),
+        }
+    }
+}
+
+// Serialization prefixes for the network config overrides
+with_prefix!(consensus_prefix "consensus_manager_config.network_config.");
+with_prefix!(mempool_prefix "mempool_p2p_config.network_config.");
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct InstanceConfigOverride {
-    #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr")]
-    consensus_bootstrap_peer_multiaddr: String,
-    #[serde(rename = "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none")]
-    consensus_bootstrap_peer_multiaddr_is_none: bool,
-    // TODO(Tsabary): network secret keys should be defined as secrets.
-    #[serde(rename = "consensus_manager_config.network_config.secret_key")]
-    consensus_secret_key: String,
-    #[serde(rename = "mempool_p2p_config.network_config.bootstrap_peer_multiaddr")]
-    mempool_bootstrap_peer_multiaddr: String,
-    #[serde(rename = "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none")]
-    mempool_bootstrap_peer_multiaddr_is_none: bool,
-    // TODO(Tsabary): network secret keys should be defined as secrets.
-    #[serde(rename = "mempool_p2p_config.network_config.secret_key")]
-    mempool_secret_key: String,
+    #[serde(flatten, with = "consensus_prefix")]
+    consensus_network_config_override: NetworkConfigOverride,
+    #[serde(flatten, with = "mempool_prefix")]
+    mempool_network_config_override: NetworkConfigOverride,
     validator_id: String,
 }
 
 impl InstanceConfigOverride {
     pub fn new(
-        consensus_bootstrap_peer_multiaddr: Option<String>,
-        consensus_secret_key: impl ToString,
-        mempool_bootstrap_peer_multiaddr: Option<String>,
-        mempool_secret_key: impl ToString,
+        consensus_network_config_override: NetworkConfigOverride,
+        mempool_network_config_override: NetworkConfigOverride,
         validator_id: impl ToString,
     ) -> Self {
-        let (consensus_bootstrap_peer_multiaddr, consensus_bootstrap_peer_multiaddr_is_none) =
-            match consensus_bootstrap_peer_multiaddr {
-                Some(addr) => (addr, false),
-                None => ("".to_string(), true),
-            };
-        let (mempool_bootstrap_peer_multiaddr, mempool_bootstrap_peer_multiaddr_is_none) =
-            match mempool_bootstrap_peer_multiaddr {
-                Some(addr) => (addr, false),
-                None => ("".to_string(), true),
-            };
         Self {
-            consensus_bootstrap_peer_multiaddr,
-            consensus_bootstrap_peer_multiaddr_is_none,
-            consensus_secret_key: consensus_secret_key.to_string(),
-            mempool_bootstrap_peer_multiaddr,
-            mempool_bootstrap_peer_multiaddr_is_none,
-            mempool_secret_key: mempool_secret_key.to_string(),
+            consensus_network_config_override,
+            mempool_network_config_override,
             validator_id: validator_id.to_string(),
         }
     }

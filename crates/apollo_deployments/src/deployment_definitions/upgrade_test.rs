@@ -12,11 +12,9 @@ const UPGRADE_TEST_NODE_IDS: [usize; 3] = [0, 1, 2];
 const UPGRADE_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-alpha-test-upgrade.gateway-proxy.sw-dev.io";
 const UPGRADE_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
-const FIRST_NODE_NAMESPACE: &str = "apollo-alpha-test-0";
 const INSTANCE_NAME_FORMAT: &str = "hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "apollo-alpha-test-{}";
-// TODO(Tsabary): use `NODE_NAMESPACE_FORMAT` to generate `FIRST_NODE_NAMESPACE`.
-const NODE_NAMESPACE_FORMAT: &str = "sequencer-test-3-node-{}";
+const NODE_NAMESPACE_FORMAT: &str = "apollo-alpha-test-{}";
 
 pub(crate) fn upgrade_test_hybrid_deployments() -> Vec<Deployment> {
     UPGRADE_TEST_NODE_IDS
@@ -59,7 +57,7 @@ fn upgrade_test_hybrid_deployment_node(
             upgrade_test_deployment_config_override(),
             create_hybrid_instance_config_override(
                 id,
-                FIRST_NODE_NAMESPACE,
+                NODE_NAMESPACE_FORMAT,
                 deployment_type,
                 p2p_communication_type,
                 UPGRADE_TEST_INGRESS_DOMAIN,

@@ -1,4 +1,5 @@
 // TODO(Tsabary): reduce visibility when possible.
+pub mod addresses;
 pub mod config_override;
 pub mod deployment;
 pub mod deployment_definitions;

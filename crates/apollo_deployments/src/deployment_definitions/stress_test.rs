@@ -11,9 +11,9 @@ use crate::utils::format_node_id;
 const STRESS_TEST_NODE_IDS: [usize; 3] = [0, 1, 2];
 const STRESS_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "apollo-stresstest-dev.sw-dev.io";
 const STRESS_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
-const FIRST_NODE_NAMESPACE: &str = "apollo-stresstest-dev-0";
 const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
 const SECRET_NAME_FORMAT: &str = "apollo-stresstest-dev-{}";
+const NODE_NAMESPACE_FORMAT: &str = "apollo-stresstest-dev-{}";
 
 pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
     STRESS_TEST_NODE_IDS
@@ -54,7 +54,7 @@ fn stress_test_hybrid_deployment_node(
             stress_test_deployment_config_override(),
             create_hybrid_instance_config_override(
                 id,
-                FIRST_NODE_NAMESPACE,
+                NODE_NAMESPACE_FORMAT,
                 deployment_type,
                 p2p_communication_type,
                 STRESS_TEST_INGRESS_DOMAIN,

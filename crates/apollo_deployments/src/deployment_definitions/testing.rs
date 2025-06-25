@@ -2,7 +2,12 @@ use std::path::PathBuf;
 
 use starknet_api::block::BlockNumber;
 
-use crate::config_override::{ConfigOverride, DeploymentConfigOverride, InstanceConfigOverride};
+use crate::config_override::{
+    ConfigOverride,
+    DeploymentConfigOverride,
+    InstanceConfigOverride,
+    NetworkConfigOverride,
+};
 use crate::deployment::{Deployment, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::k8s::IngressParams;
@@ -31,11 +36,11 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
 }
 
 fn testing_instance_config_override() -> InstanceConfigOverride {
+    const SECRET_KEY: &str = "0x0101010101010101010101010101010101010101010101010101010101010101";
+
     InstanceConfigOverride::new(
-        None,
-        "0x0101010101010101010101010101010101010101010101010101010101010101",
-        None,
-        "0x0101010101010101010101010101010101010101010101010101010101010101",
+        NetworkConfigOverride::new(None, None, SECRET_KEY),
+        NetworkConfigOverride::new(None, None, SECRET_KEY),
         "0x64",
     )
 }
