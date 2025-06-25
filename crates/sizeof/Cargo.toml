@@ -1,0 +1,18 @@
+[package]
+name = "sizeof"
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+publish = false
+
+[dependencies]
+sizeof_internal = { path = "sizeof_internal" } # Dependency on our internal crate
+sizeof_macro = { path = "sizeof_macro" }       # Dependency on our macro crate
+starknet-types-core.workspace = true
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+size-of = "0.1.5"
+trybuild = "1.0.105"
