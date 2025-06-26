@@ -1,7 +1,7 @@
 // TODO(shahak): add flow test
 
 use std::pin::Pin;
-use std::task::{Context, Poll};
+use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
 use assert_matches::assert_matches;
@@ -410,4 +410,14 @@ async fn does_not_dial_self() {
     let expected_bootstrap_peers_to_be_dialed = vec![(remote_peer_id, Multiaddr::empty())];
     consume_dial_events(&mut behaviour, expected_bootstrap_peers_to_be_dialed).await;
     assert_no_event(&mut behaviour);
+}
+
+#[tokio::test]
+async fn returns_pending_if_empty_bootstrap_nodes() {
+    let local_peer_id = get_peer_id(LOCAL_PEER_ID_INDEX);
+
+    let mut behaviour = BootstrappingBehaviour::new(local_peer_id, CONFIG, vec![]);
+
+    let mut cx = Context::from_waker(Waker::noop());
+    assert_matches!(behaviour.poll(&mut cx), Poll::Pending);
 }
