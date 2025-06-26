@@ -28,7 +28,7 @@ use crate::k8s::{
 use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
 use crate::utils::{determine_port_numbers, format_node_id, get_secret_key, get_validator_id};
 
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const CORE_STORAGE: usize = 1000;
@@ -58,43 +58,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
 
         let ports = determine_port_numbers(ports, HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
 
-<<<<<<< HEAD
-        let batcher =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port), environment);
-        let class_manager =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 1), environment);
-        let gateway =
-            HybridNodeServiceName::Gateway.component_config_pair(Some(base_port + 2), environment);
-        let l1_gas_price_provider =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 3), environment);
-        let l1_provider =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 4), environment);
-        let mempool =
-            HybridNodeServiceName::Mempool.component_config_pair(Some(base_port + 5), environment);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler
-            .component_config_pair(Some(base_port + 6), environment);
-        let state_sync =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 7), environment);
-        let signature_manager =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 8), environment);
-||||||| 2452f56bc
-        let batcher =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port), environment);
-        let class_manager =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 1), environment);
-        let gateway =
-            HybridNodeServiceName::Gateway.component_config_pair(Some(base_port + 2), environment);
-        let l1_gas_price_provider =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 3), environment);
-        let l1_provider =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 4), environment);
-        let mempool =
-            HybridNodeServiceName::Mempool.component_config_pair(Some(base_port + 5), environment);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler
-            .component_config_pair(Some(base_port + 6), environment);
-        let state_sync =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 7), environment);
-=======
         let batcher = HybridNodeServiceName::Core.component_config_pair(ports[0]);
         let class_manager = HybridNodeServiceName::Core.component_config_pair(ports[1]);
         let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
@@ -104,7 +67,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[6]);
         let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
         let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[8]);
->>>>>>> origin/main-v0.14.0
+        let signature_manager = HybridNodeServiceName::Core.component_config_pair(ports[9]);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {

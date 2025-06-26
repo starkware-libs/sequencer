@@ -217,29 +217,7 @@ impl PyBlockExecutor {
     }
 
     /// Returns the state diff, the stateful-compressed state diff and the block weights.
-<<<<<<< HEAD
-    pub fn finalize(
-        &mut self,
-    ) -> NativeBlockifierResult<(
-        PyStateDiff,
-        Option<PyStateDiff>,
-        Py<PyBytes>,
-        PyCasmHashComputationData,
-    )> {
-||||||| 2452f56bc
-    #[allow(clippy::result_large_err)]
-    pub fn finalize(
-        &mut self,
-    ) -> NativeBlockifierResult<(
-        PyStateDiff,
-        Option<PyStateDiff>,
-        Py<PyBytes>,
-        PyCasmHashComputationData,
-    )> {
-=======
-    #[allow(clippy::result_large_err)]
     pub fn finalize(&mut self) -> NativeBlockifierResult<FinalizeResult> {
->>>>>>> origin/main-v0.14.0
         log::debug!("Finalizing execution...");
         let BlockExecutionSummary {
             state_diff,
