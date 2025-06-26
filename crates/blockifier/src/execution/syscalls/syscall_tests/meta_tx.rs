@@ -161,7 +161,7 @@ fn test_meta_tx_v0(
         execution_mode,
     );
 
-    let call_info = match execution_mode {
+    let mut call_info = match execution_mode {
         ExecutionMode::Execute => exec_result.unwrap(),
         ExecutionMode::Validate => {
             assert!(exec_result.is_err());
@@ -184,21 +184,9 @@ fn test_meta_tx_v0(
         "#]]
         .assert_debug_eq(&DeterministicExecutionResources::from(&call_info.resources));
     } else {
-        if runnable_version.is_cairo_native() {
-            expect![[r#"
-            CallExecution {
-                retdata: Retdata(
-                    [],
-                ),
-                events: [],
-                l2_to_l1_messages: [],
-                cairo_native: true,
-                failed: false,
-                gas_consumed: 523890,
-            }
-        "#]]
-        } else {
-            expect![[r#"
+        assert_eq!(call_info.execution.cairo_native, runnable_version.is_cairo_native());
+        call_info.execution.cairo_native = false;
+        expect![[r#"
             CallExecution {
                 retdata: Retdata(
                     [],
@@ -210,7 +198,6 @@ fn test_meta_tx_v0(
                 gas_consumed: 523890,
             }
         "#]]
-        }
         .assert_debug_eq(&call_info.execution);
         assert_eq!(call_info.resources, ExecutionResources::default());
     }

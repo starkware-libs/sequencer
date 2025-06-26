@@ -235,25 +235,10 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
         ..trivial_external_entry_point_new(outer_contract)
     };
 
-    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
-    // TODO(Meshi): refactor so there is no need for the if else.
-    if outer_contract.cairo_version().is_cairo_native() {
-        expect![[r#"
-        CallExecution {
-            retdata: Retdata(
-                [
-                    0x30,
-                ],
-            ),
-            events: [],
-            l2_to_l1_messages: [],
-            cairo_native: true,
-            failed: false,
-            gas_consumed: 129870,
-        }
-    "#]]
-    } else {
-        expect![[r#"
+    let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    assert_eq!(execution.cairo_native, outer_contract.cairo_version().is_cairo_native());
+    execution.cairo_native = false; // For comparison.
+    expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [
@@ -267,7 +252,6 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
             gas_consumed: 129870,
         }
     "#]]
-    }
     .assert_debug_eq(&execution);
     assert_eq!(execution.retdata, retdata![value]);
 }

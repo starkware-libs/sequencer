@@ -29,24 +29,10 @@ fn test_storage_read_write(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
     let storage_address = entry_point_call.storage_address;
-    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
-    if runnable_version.is_cairo_native() {
-        expect![[r#"
-        CallExecution {
-            retdata: Retdata(
-                [
-                    0x12,
-                ],
-            ),
-            events: [],
-            l2_to_l1_messages: [],
-            cairo_native: true,
-            failed: false,
-            gas_consumed: 26450,
-        }
-    "#]]
-    } else {
-        expect![[r#"
+    let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    assert_eq!(execution.cairo_native, runnable_version.is_cairo_native());
+    execution.cairo_native = false;
+    expect![[r#"
         CallExecution {
             retdata: Retdata(
                 [
@@ -60,7 +46,6 @@ fn test_storage_read_write(runnable_version: RunnableCairo1) {
             gas_consumed: 26450,
         }
     "#]]
-    }
     .assert_debug_eq(&execution);
     assert_eq!(execution.retdata, retdata![value]);
 
