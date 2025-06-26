@@ -10,17 +10,11 @@ use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
 
-pub struct StarknetOsRunnerOutput {
+// TODO(Aner): add generic type for the output, so that we can use it for both the OS and the
+// aggregator runners.
+pub struct StarknetRunnerOutput {
     // TODO(Tzahi): Define a struct for the output.
-    pub os_output: Vec<Felt>,
-    pub cairo_pie: CairoPie,
-    #[cfg(any(test, feature = "testing"))]
-    pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
-}
-
-pub struct StarknetAggregatorRunnerOutput {
-    // TODO(Aner): Define a struct for the output.
-    pub aggregator_output: Vec<Felt>,
+    pub output: Vec<Felt>,
     pub cairo_pie: CairoPie,
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
