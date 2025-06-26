@@ -12,11 +12,7 @@ use strum_macros::{AsRefStr, EnumIter};
 
 use crate::addresses::{get_p2p_address, get_peer_id, SecretKey};
 use crate::config_override::{InstanceConfigOverride, NetworkConfigOverride};
-use crate::deployment::{
-    build_service_namespace_domain_address,
-    DeploymentType,
-    P2PCommunicationType,
-};
+use crate::deployment::{build_service_namespace_domain_address, P2PCommunicationType};
 use crate::deployment_definitions::Environment;
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
@@ -409,7 +405,6 @@ pub(crate) fn create_hybrid_instance_config_override(
     node_id: usize,
     // TODO(Tsabary): change `node_namespace_format` to be of its own type with dedicated fns
     node_namespace_format: &str,
-    deployment_type: DeploymentType,
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
@@ -507,6 +502,6 @@ pub(crate) fn create_hybrid_instance_config_override(
             mempool_advertised_multiaddr,
             &node_secret_key,
         ),
-        get_validator_id(node_id, deployment_type),
+        get_validator_id(node_id),
     )
 }

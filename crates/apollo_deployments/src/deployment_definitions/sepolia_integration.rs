@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
-use crate::deployment::{Deployment, DeploymentType, P2PCommunicationType, PragmaDomain};
+use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::deployments::hybrid::create_hybrid_instance_config_override;
 use crate::k8s::{ExternalSecret, IngressParams};
@@ -18,13 +18,7 @@ const NODE_NAMESPACE_FORMAT: &str = "apollo-sepolia-integration-{}";
 
 pub(crate) fn sepolia_integration_hybrid_deployments() -> Vec<Deployment> {
     SEPOLIA_INTEGRATION_NODE_IDS
-        .map(|i| {
-            sepolia_integration_hybrid_deployment_node(
-                i,
-                DeploymentType::Operational,
-                P2PCommunicationType::Internal,
-            )
-        })
+        .map(|i| sepolia_integration_hybrid_deployment_node(i, P2PCommunicationType::Internal))
         .to_vec()
 }
 
@@ -42,7 +36,6 @@ fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride 
 
 fn sepolia_integration_hybrid_deployment_node(
     id: usize,
-    deployment_type: DeploymentType,
     p2p_communication_type: P2PCommunicationType,
 ) -> Deployment {
     Deployment::new(
@@ -56,7 +49,6 @@ fn sepolia_integration_hybrid_deployment_node(
             create_hybrid_instance_config_override(
                 id,
                 NODE_NAMESPACE_FORMAT,
-                deployment_type,
                 p2p_communication_type,
                 SEPOLIA_INTEGRATION_INGRESS_DOMAIN,
             ),
