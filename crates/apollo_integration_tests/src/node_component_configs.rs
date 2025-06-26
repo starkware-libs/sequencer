@@ -6,7 +6,7 @@ use apollo_deployments::deployments::hybrid::{
     HybridNodeServiceName,
     HYBRID_NODE_REQUIRED_PORTS_NUM,
 };
-use apollo_deployments::service::{NodeType, ServiceName};
+use apollo_deployments::service::{NodeService, NodeType};
 use apollo_infra_utils::test_utils::AvailablePortsGenerator;
 use apollo_node::config::component_config::{set_urls_to_localhost, ComponentConfig};
 
@@ -100,16 +100,16 @@ pub fn create_distributed_component_configs(
     NodeComponentConfigs::new(
         component_configs,
         services_component_config
-            .get_index_of::<ServiceName>(&DistributedNodeServiceName::Batcher.into())
+            .get_index_of::<NodeService>(&DistributedNodeServiceName::Batcher.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&DistributedNodeServiceName::HttpServer.into())
+            .get_index_of::<NodeService>(&DistributedNodeServiceName::HttpServer.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&DistributedNodeServiceName::StateSync.into())
+            .get_index_of::<NodeService>(&DistributedNodeServiceName::StateSync.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&DistributedNodeServiceName::ClassManager.into())
+            .get_index_of::<NodeService>(&DistributedNodeServiceName::ClassManager.into())
             .unwrap(),
     )
 }
@@ -133,16 +133,16 @@ pub fn create_hybrid_component_configs(
     NodeComponentConfigs::new(
         component_configs,
         services_component_config
-            .get_index_of::<ServiceName>(&HybridNodeServiceName::Core.into())
+            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&HybridNodeServiceName::HttpServer.into())
+            .get_index_of::<NodeService>(&HybridNodeServiceName::HttpServer.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&HybridNodeServiceName::Core.into())
+            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&HybridNodeServiceName::Core.into())
+            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
             .unwrap(),
     )
 }

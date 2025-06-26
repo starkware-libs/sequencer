@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 use crate::config_override::ConfigOverride;
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfigParams};
-use crate::service::{NodeType, Service, ServiceName};
+use crate::service::{NodeService, NodeType, Service};
 
 #[cfg(test)]
 pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
@@ -41,7 +41,7 @@ impl Deployment {
         ingress_params: IngressParams,
         k8s_service_config_params: Option<K8sServiceConfigParams>,
     ) -> Self {
-        let service_names = node_type.all_service_names();
+        let node_services = node_type.all_service_names();
 
         let config_override_dir =
             node_type.add_path_suffix(environment.application_config_dir_path(), instance_name);
@@ -52,10 +52,10 @@ impl Deployment {
                 .chain(config_override_files)
                 .collect();
 
-        let services = service_names
+        let services = node_services
             .iter()
-            .map(|service_name| {
-                service_name.create_service(
+            .map(|node_service| {
+                node_service.create_service(
                     &environment,
                     &external_secret,
                     config_filenames.clone(),
@@ -86,7 +86,7 @@ impl Deployment {
         self.deployment_aux_data.base_app_config_file_path.clone()
     }
 
-    pub fn application_config_values(&self) -> IndexMap<ServiceName, Value> {
+    pub fn application_config_values(&self) -> IndexMap<NodeService, Value> {
         let component_configs = self.deployment_aux_data.node_type.get_component_configs(None);
         let mut result = IndexMap::new();
 
@@ -167,13 +167,13 @@ impl Display for PragmaDomain {
     }
 }
 
-// Creates the service name in the format: <service_name>.<namespace>.<domain>
+// Creates the service name in the format: <node_service>.<namespace>.<domain>
 pub(crate) fn build_service_namespace_domain_address(
-    service_name: &str,
+    node_service: &str,
     namespace: &str,
     domain: &str,
 ) -> String {
-    format!("{}.{}.{}", service_name, namespace, domain)
+    format!("{}.{}.{}", node_service, namespace, domain)
 }
 
 // TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be
