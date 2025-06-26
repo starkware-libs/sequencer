@@ -21,7 +21,7 @@ pub(crate) fn upgrade_test_hybrid_deployments() -> Vec<Deployment> {
         .map(|i| {
             upgrade_test_hybrid_deployment_node(
                 i,
-                DeploymentType::Operational,
+                DeploymentType::Bootstrap,
                 P2PCommunicationType::External,
             )
         })
