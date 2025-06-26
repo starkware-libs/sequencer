@@ -57,14 +57,9 @@ pub struct Service {
     anti_affinity: bool,
 }
 
-// TODO(Tsabary): remove clippy::too_many_arguments
-// TODO(Tsabary): the service doesn't need the deployment name, consider passing a function / just
-// the path.
 impl Service {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         service_name: ServiceName,
-        deployment_name: &DeploymentName,
         external_secret: Option<ExternalSecret>,
         config_filenames: Vec<String>,
         ingress_params: IngressParams,
@@ -79,7 +74,7 @@ impl Service {
         // TODO(Tsabary): delete redundant directories in the path.
         // TODO(Tsabary): reduce visibility of relevant functions and consts.
 
-        let service_file_path = deployment_name.get_service_file_path(&service_name);
+        let service_file_path = service_name.get_service_file_path();
 
         let config_paths = config_filenames
             .iter()
@@ -155,7 +150,6 @@ impl ServiceName {
     ) -> Service {
         Service::new(
             Into::<ServiceName>::into(*self),
-            &DeploymentName::from(*self),
             external_secret.clone(),
             config_filenames,
             ingress_params.clone(),
@@ -219,6 +213,15 @@ impl ServiceName {
     // Kubernetes service name as defined by CDK8s.
     pub fn k8s_service_name(&self) -> String {
         self.as_inner().k8s_service_name()
+    }
+
+    pub fn get_service_file_path(&self) -> String {
+        PathBuf::from(CONFIG_BASE_DIR)
+            .join(SERVICES_DIR_NAME)
+            .join(DeploymentName::from(self).get_folder_name())
+            .join(self.get_config_file_path())
+            .to_string_lossy()
+            .to_string()
     }
 }
 
@@ -319,15 +322,6 @@ impl DeploymentName {
         }
     }
 
-    pub fn get_service_file_path(&self, service_name: &ServiceName) -> String {
-        PathBuf::from(CONFIG_BASE_DIR)
-            .join(SERVICES_DIR_NAME)
-            .join(self.get_folder_name())
-            .join(service_name.get_config_file_path())
-            .to_string_lossy()
-            .to_string()
-    }
-
     fn dump_component_configs_with<SerdeFn>(&self, ports: Option<Vec<u16>>, writer: SerdeFn)
     where
         SerdeFn: Fn(&serde_json::Value, &str),
@@ -336,7 +330,7 @@ impl DeploymentName {
         for (service_name, config) in component_configs {
             let wrapper = ComponentConfigsSerializationWrapper::from(config);
             let flattened = config_to_preset(&json!(wrapper.dump()));
-            let file_path = self.get_service_file_path(&service_name);
+            let file_path = service_name.get_service_file_path();
             writer(&flattened, &file_path);
         }
     }
