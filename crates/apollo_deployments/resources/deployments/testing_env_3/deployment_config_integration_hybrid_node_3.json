@@ -6,14 +6,14 @@
       "controller": "StatefulSet",
       "config_paths": [
         "base_app_config.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_1/deployment_config_override.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_1/instance_config_override.json",
+        "deployments/testing_env_3/integration_hybrid_node_3/deployment_config_override.json",
+        "deployments/testing_env_3/integration_hybrid_node_3/instance_config_override.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-core-service.sequencer-test-3-node-1.sw-dev.io",
+        "external_dns_name": "sequencer-core-service.sequencer-test-3-node-3.sw-dev.io",
         "internal": true
       },
       "autoscale": false,
@@ -31,7 +31,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-1"
+        "gcsm_key": "sequencer-test-3-node-3"
       },
       "anti_affinity": true
     },
@@ -40,8 +40,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_1/deployment_config_override.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_1/instance_config_override.json",
+        "deployments/testing_env_3/integration_hybrid_node_3/deployment_config_override.json",
+        "deployments/testing_env_3/integration_hybrid_node_3/instance_config_override.json",
         "services/hybrid/http_server.json"
       ],
       "ingress": {
@@ -74,7 +74,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-1"
+        "gcsm_key": "sequencer-test-3-node-3"
       },
       "anti_affinity": false
     },
@@ -83,8 +83,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_1/deployment_config_override.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_1/instance_config_override.json",
+        "deployments/testing_env_3/integration_hybrid_node_3/deployment_config_override.json",
+        "deployments/testing_env_3/integration_hybrid_node_3/instance_config_override.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
@@ -104,7 +104,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-1"
+        "gcsm_key": "sequencer-test-3-node-3"
       },
       "anti_affinity": false
     },
@@ -113,14 +113,14 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_1/deployment_config_override.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_1/instance_config_override.json",
+        "deployments/testing_env_3/integration_hybrid_node_3/deployment_config_override.json",
+        "deployments/testing_env_3/integration_hybrid_node_3/instance_config_override.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-mempool-service.sequencer-test-3-node-1.sw-dev.io",
+        "external_dns_name": "sequencer-mempool-service.sequencer-test-3-node-3.sw-dev.io",
         "internal": true
       },
       "autoscale": false,
@@ -138,7 +138,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-1"
+        "gcsm_key": "sequencer-test-3-node-3"
       },
       "anti_affinity": false
     },
@@ -147,8 +147,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_1/deployment_config_override.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_1/instance_config_override.json",
+        "deployments/testing_env_3/integration_hybrid_node_3/deployment_config_override.json",
+        "deployments/testing_env_3/integration_hybrid_node_3/instance_config_override.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
@@ -168,7 +168,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-1"
+        "gcsm_key": "sequencer-test-3-node-3"
       },
       "anti_affinity": false
     }

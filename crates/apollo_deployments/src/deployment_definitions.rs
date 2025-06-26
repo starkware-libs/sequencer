@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use const_format::formatcp;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
@@ -21,9 +20,9 @@ mod testing_env_3;
 mod upgrade_test;
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
+pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
 pub(crate) const BASE_APP_CONFIG_PATH: &str =
-    formatcp!("{}{}", CONFIG_BASE_DIR, "base_app_config.json");
-const APP_CONFIGS_DIR_NAME: &str = "app_configs/";
+    "crates/apollo_deployments/resources/base_app_config.json";
 
 type DeploymentFn = fn() -> Vec<Deployment>;
 
@@ -51,7 +50,7 @@ pub enum Environment {
 }
 
 impl Environment {
-    pub fn application_config_dir_path(&self) -> PathBuf {
-        PathBuf::from(CONFIG_BASE_DIR).join(self.to_string()).join(APP_CONFIGS_DIR_NAME)
+    pub(crate) fn env_dir_path(&self) -> PathBuf {
+        PathBuf::from(CONFIG_BASE_DIR).join(DEPLOYMENT_CONFIG_DIR_NAME).join(self.to_string())
     }
 }

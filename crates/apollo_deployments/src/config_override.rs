@@ -3,6 +3,7 @@ use std::path::Path;
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
+use apollo_infra_utils::template::Template;
 use serde::Serialize;
 use serde_json::to_value;
 use serde_with::with_prefix;
@@ -15,8 +16,8 @@ use crate::test_utils::FIX_BINARY_NAME;
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
 const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
 
-const PRAGMA_URL_TEMPLATE: &str =
-    "https://api.{}.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median";
+const PRAGMA_URL_TEMPLATE: Template =
+    Template("https://api.{}.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median");
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct ConfigOverride {
@@ -32,13 +33,9 @@ impl ConfigOverride {
         Self { deployment_config_override, instance_config_override }
     }
 
-    fn config_files(
-        &self,
-        application_config_subdir: &Path,
-        create: bool,
-    ) -> ConfigOverrideWithPaths {
-        let deployment_path = application_config_subdir.join(DEPLOYMENT_FILE_NAME);
-        let instance_path = application_config_subdir.join(INSTANCE_FILE_NAME);
+    fn config_files(&self, config_override_dir: &Path, create: bool) -> ConfigOverrideWithPaths {
+        let deployment_path = config_override_dir.join(DEPLOYMENT_FILE_NAME);
+        let instance_path = config_override_dir.join(INSTANCE_FILE_NAME);
 
         if create {
             serialize_to_file(
@@ -62,19 +59,19 @@ impl ConfigOverride {
         }
     }
 
-    pub fn get_config_file_paths(&self, application_config_subdir: &Path) -> Vec<String> {
-        let config_override_with_paths = self.config_files(application_config_subdir, false);
+    pub fn get_config_file_paths(&self, config_override_dir: &Path) -> Vec<String> {
+        let config_override_with_paths = self.config_files(config_override_dir, false);
         vec![config_override_with_paths.deployment_path, config_override_with_paths.instance_path]
     }
 
-    pub fn dump_config_files(&self, application_config_subdir: &Path) -> Vec<String> {
-        let config_override_with_paths = self.config_files(application_config_subdir, true);
+    pub fn dump_config_files(&self, config_override_dir: &Path) -> Vec<String> {
+        let config_override_with_paths = self.config_files(config_override_dir, true);
         vec![config_override_with_paths.deployment_path, config_override_with_paths.instance_path]
     }
 
     #[cfg(test)]
-    pub fn test_dump_config_files(&self, application_config_subdir: &Path) {
-        let config_override_with_paths = self.config_files(application_config_subdir, false);
+    pub fn test_dump_config_files(&self, config_override_dir: &Path) {
+        let config_override_with_paths = self.config_files(config_override_dir, false);
 
         serialize_to_file_test(
             to_value(config_override_with_paths.deployment_config_override).unwrap(),
@@ -140,7 +137,7 @@ impl DeploymentConfigOverride {
             starknet_url: starknet_url.to_string(),
             strk_fee_token_address: strk_fee_token_address.to_string(),
             consensus_manager_config_eth_to_strk_oracle_config_base_url: PRAGMA_URL_TEMPLATE
-                .replace("{}", &pragma_domain.to_string()),
+                .format(&[&pragma_domain]),
             l1_provider_config_provider_startup_height_override,
             l1_provider_config_provider_startup_height_override_is_none,
         }
