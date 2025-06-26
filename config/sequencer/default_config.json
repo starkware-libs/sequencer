@@ -884,15 +884,15 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.signature_manager.local_server_config.channel_buffer_size": {
+  "components.signature_manager.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 32
+    "value": 128
   },
   "components.signature_manager.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 10
+    "value": 8
   },
   "components.signature_manager.port": {
     "description": "Listening port of the remote component server.",
@@ -902,22 +902,22 @@
   "components.signature_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
     "privacy": "Public",
-    "value": 18446744073709551615
+    "value": 10
   },
   "components.signature_manager.remote_client_config.idle_timeout": {
     "description": "The duration in seconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 90
+    "value": 30
   },
   "components.signature_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
-    "value": 50
+    "value": 150
   },
   "components.signature_manager.remote_client_config.retry_interval": {
     "description": "The duration in seconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 3
+    "value": 1
   },
   "components.signature_manager.url": {
     "description": "URL of the remote component server.",
@@ -2052,7 +2052,7 @@
   "versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "privacy": "TemporaryValue",
-    "value": 10000000
+    "value": 6000000
   },
   "versioned_constants_overrides.max_n_events": {
     "description": "Maximum number of events that can be emitted from the transation.",
