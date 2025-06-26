@@ -6,28 +6,32 @@
       "controller": "StatefulSet",
       "config_paths": [
         "base_app_config.json",
-        "stress_test/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
-        "stress_test/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/upgrade_test/hybrid_node_2/deployment_config_override.json",
+        "deployments/upgrade_test/hybrid_node_2/instance_config_override.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
-      "k8s_service_config": null,
+      "k8s_service_config": {
+        "type": "LoadBalancer",
+        "external_dns_name": "sequencer-core-service.apollo-alpha-test-2.sw-dev.io",
+        "internal": true
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": 1000,
-      "toleration": "apollo-core-service-c2-d56",
+      "toleration": "apollo-core-service",
       "resources": {
         "requests": {
-          "cpu": 50,
-          "memory": 200
+          "cpu": 2,
+          "memory": 4
         },
         "limits": {
-          "cpu": 50,
-          "memory": 220
+          "cpu": 7,
+          "memory": 14
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-stresstest-dev-0"
+        "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": true
     },
@@ -36,14 +40,14 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "stress_test/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
-        "stress_test/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/upgrade_test/hybrid_node_2/deployment_config_override.json",
+        "deployments/upgrade_test/hybrid_node_2/instance_config_override.json",
         "services/hybrid/http_server.json"
       ],
       "ingress": {
         "domain": "sw-dev.io",
         "alternative_names": [
-          "apollo-stresstest-dev.sw-dev.io"
+          "sn-alpha-test-upgrade.gateway-proxy.sw-dev.io"
         ],
         "internal": false,
         "rules": [
@@ -70,7 +74,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-stresstest-dev-0"
+        "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": false
     },
@@ -79,8 +83,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "stress_test/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
-        "stress_test/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/upgrade_test/hybrid_node_2/deployment_config_override.json",
+        "deployments/upgrade_test/hybrid_node_2/instance_config_override.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
@@ -100,7 +104,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-stresstest-dev-0"
+        "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": false
     },
@@ -109,12 +113,16 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "stress_test/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
-        "stress_test/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/upgrade_test/hybrid_node_2/deployment_config_override.json",
+        "deployments/upgrade_test/hybrid_node_2/instance_config_override.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
-      "k8s_service_config": null,
+      "k8s_service_config": {
+        "type": "LoadBalancer",
+        "external_dns_name": "sequencer-mempool-service.apollo-alpha-test-2.sw-dev.io",
+        "internal": true
+      },
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -130,7 +138,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-stresstest-dev-0"
+        "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": false
     },
@@ -139,8 +147,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "stress_test/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
-        "stress_test/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/upgrade_test/hybrid_node_2/deployment_config_override.json",
+        "deployments/upgrade_test/hybrid_node_2/instance_config_override.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
@@ -160,7 +168,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-stresstest-dev-0"
+        "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": false
     }

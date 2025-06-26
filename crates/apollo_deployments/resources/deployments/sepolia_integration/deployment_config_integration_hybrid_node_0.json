@@ -6,16 +6,12 @@
       "controller": "StatefulSet",
       "config_paths": [
         "base_app_config.json",
-        "upgrade_test/app_configs/hybrid/hybrid_node_0/deployment_config_override.json",
-        "upgrade_test/app_configs/hybrid/hybrid_node_0/instance_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
-      "k8s_service_config": {
-        "type": "LoadBalancer",
-        "external_dns_name": "sequencer-core-service.apollo-alpha-test-0.sw-dev.io",
-        "internal": true
-      },
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": 1000,
@@ -31,7 +27,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-0"
+        "gcsm_key": "apollo-sepolia-integration-0"
       },
       "anti_affinity": true
     },
@@ -40,14 +36,14 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "upgrade_test/app_configs/hybrid/hybrid_node_0/deployment_config_override.json",
-        "upgrade_test/app_configs/hybrid/hybrid_node_0/instance_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
         "services/hybrid/http_server.json"
       ],
       "ingress": {
-        "domain": "sw-dev.io",
+        "domain": "starknet.io",
         "alternative_names": [
-          "sn-alpha-test-upgrade.gateway-proxy.sw-dev.io"
+          "integration-sepolia.starknet.io"
         ],
         "internal": false,
         "rules": [
@@ -74,7 +70,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-0"
+        "gcsm_key": "apollo-sepolia-integration-0"
       },
       "anti_affinity": false
     },
@@ -83,8 +79,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "upgrade_test/app_configs/hybrid/hybrid_node_0/deployment_config_override.json",
-        "upgrade_test/app_configs/hybrid/hybrid_node_0/instance_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
@@ -104,7 +100,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-0"
+        "gcsm_key": "apollo-sepolia-integration-0"
       },
       "anti_affinity": false
     },
@@ -113,16 +109,12 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "upgrade_test/app_configs/hybrid/hybrid_node_0/deployment_config_override.json",
-        "upgrade_test/app_configs/hybrid/hybrid_node_0/instance_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
-      "k8s_service_config": {
-        "type": "LoadBalancer",
-        "external_dns_name": "sequencer-mempool-service.apollo-alpha-test-0.sw-dev.io",
-        "internal": true
-      },
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
@@ -138,7 +130,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-0"
+        "gcsm_key": "apollo-sepolia-integration-0"
       },
       "anti_affinity": false
     },
@@ -147,8 +139,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "upgrade_test/app_configs/hybrid/hybrid_node_0/deployment_config_override.json",
-        "upgrade_test/app_configs/hybrid/hybrid_node_0/instance_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
@@ -168,7 +160,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-0"
+        "gcsm_key": "apollo-sepolia-integration-0"
       },
       "anti_affinity": false
     }
