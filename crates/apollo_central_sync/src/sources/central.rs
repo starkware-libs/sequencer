@@ -7,7 +7,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
 
-use apollo_config::converters::{deserialize_optional_map, serialize_optional_map};
+use apollo_config::converters::{deserialize_optional_map, serialize_optional_map, validate_url};
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_starknet_client::reader::{
@@ -38,13 +38,15 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::StateDiff;
 use starknet_api::StarknetApiError;
 use tracing::{debug, trace};
+use validator::Validate;
 
 use self::state_update_stream::{StateUpdateStream, StateUpdateStreamConfig};
 
 type CentralResult<T> = Result<T, CentralError>;
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct CentralSourceConfig {
     pub concurrent_requests: usize,
+    #[validate(custom(function = "validate_url"))]
     pub starknet_url: String,
     #[serde(deserialize_with = "deserialize_optional_map")]
     pub http_headers: Option<HashMap<String, String>>,

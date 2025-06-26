@@ -24,12 +24,14 @@
 //! assert_eq!(loaded_config.dur.as_secs(), 1);
 //! ```
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::time::Duration;
 
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use url::Url;
+use validator::ValidationError;
 
 /// Deserializes milliseconds to duration object.
 pub fn deserialize_milliseconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
@@ -157,4 +159,14 @@ where
     raw.split_whitespace()
         .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{}': {}", s, e))))
         .collect()
+}
+
+/// Validates that the given string is a valid URL.
+pub fn validate_url(url_str: &str) -> Result<(), ValidationError> {
+    Url::parse(url_str).map_err(|e| {
+        let mut err = ValidationError::new("Failed to parse url");
+        err.message = Some(Cow::Owned(format!("Parsing error: {e}")));
+        err
+    })?;
+    Ok(())
 }
