@@ -267,9 +267,11 @@ fn test_fee_enforcement(
     if enforce_fee {
         assert_matches!(
             result,
-            Err(TransactionExecutionError::TransactionPreValidationError(
+            Err(TransactionExecutionError::TransactionPreValidationError(boxed_error))
+            if matches!(
+                *boxed_error,
                 TransactionPreValidationError::TransactionFeeError(_)
-            ))
+            )
         );
     } else {
         assert!(result.is_ok());

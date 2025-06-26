@@ -107,7 +107,7 @@ pub enum TransactionExecutionError {
     #[error(transparent)]
     TransactionFeeError(#[from] Box<TransactionFeeError>),
     #[error(transparent)]
-    TransactionPreValidationError(#[from] TransactionPreValidationError),
+    TransactionPreValidationError(#[from] Box<TransactionPreValidationError>),
     #[error(transparent)]
     TryFromIntError(#[from] std::num::TryFromIntError),
     #[error(

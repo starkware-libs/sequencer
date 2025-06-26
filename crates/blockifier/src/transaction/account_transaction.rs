@@ -799,7 +799,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         }
 
         // Nonce and fee check should be done before running user code.
-        self.perform_pre_validation_stage(state, &tx_context)?;
+        self.perform_pre_validation_stage(state, &tx_context).map_err(Box::new)?;
 
         // Run validation and execution.
         let initial_gas = tx_context.initial_sierra_gas();
