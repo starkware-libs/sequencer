@@ -43,6 +43,7 @@ apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_time = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 itertools.workspace = true
+mockall.workspace = true
 papyrus_base_layer = { workspace = true, features = ["testing"] }
 pretty_assertions.workspace = true
 rstest.workspace = true
