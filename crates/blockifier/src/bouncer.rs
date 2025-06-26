@@ -629,15 +629,16 @@ fn proving_gas_from_builtins_and_sierra_gas(
     })
 }
 
-// TODO(AvivY): Share code with `vm_resources_to_sierra_gas`.
-/// Converts vm resources to proving gas using the builtin weights.
-fn vm_resources_to_proving_gas(
+/// Generic function to convert VM resources to gas with configurable builtin gas calculation
+fn vm_resources_to_gas<F>(
     resources: &ExecutionResources,
-    builtin_weights: &BuiltinWeights,
     versioned_constants: &VersionedConstants,
-) -> GasAmount {
-    let builtins_gas_cost =
-        builtin_weights.calc_proving_gas_from_builtin_counter(&resources.prover_builtins());
+    builtin_gas_calculator: F,
+) -> GasAmount
+where
+    F: FnOnce(&BuiltinCounterMap) -> GasAmount,
+{
+    let builtins_gas_cost = builtin_gas_calculator(&resources.prover_builtins());
     let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
     let n_memory_holes_gas_cost =
         memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
@@ -654,26 +655,24 @@ fn vm_resources_to_proving_gas(
         })
 }
 
+/// Converts vm resources to proving gas using the builtin weights.
+fn vm_resources_to_proving_gas(
+    resources: &ExecutionResources,
+    builtin_weights: &BuiltinWeights,
+    versioned_constants: &VersionedConstants,
+) -> GasAmount {
+    vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
+        builtin_weights.calc_proving_gas_from_builtin_counter(builtin_counters)
+    })
+}
+
 pub fn vm_resources_to_sierra_gas(
     resources: &ExecutionResources,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    let builtins_gas_cost =
-        builtins_to_sierra_gas(&resources.prover_builtins(), versioned_constants);
-    let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
-    let n_memory_holes_gas_cost =
-        memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
-
-    n_steps_gas_cost
-        .checked_add(n_memory_holes_gas_cost)
-        .and_then(|sum| sum.checked_add(builtins_gas_cost))
-        .unwrap_or_else(|| {
-            panic!(
-                "Addition overflow while converting vm resources to gas. steps gas: {}, memory \
-                 holes gas: {}, builtins gas: {}.",
-                n_steps_gas_cost, builtins_gas_cost, n_memory_holes_gas_cost
-            )
-        })
+    vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
+        builtins_to_sierra_gas(builtin_counters, versioned_constants)
+    })
 }
 
 /// Computes the steps gas by subtracting the builtins' contribution from the Sierra gas.
