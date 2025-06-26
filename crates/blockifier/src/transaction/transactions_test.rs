@@ -2168,13 +2168,11 @@ fn test_deploy_account_tx(
     assert_matches!(
         error,
         TransactionExecutionError::ContractConstructorExecutionFailed(
-            ConstructorEntryPointExecutionError::ExecutionError {
-                error: EntryPointExecutionError::StateError(
-                    StateError::UnavailableContractAddress(_)
-                ),
-                ..
-            }
+            ConstructorEntryPointExecutionError::ExecutionError { error, .. }
         )
+        if matches!(*error, EntryPointExecutionError::StateError(
+            StateError::UnavailableContractAddress(_)
+        ))
     );
 }
 
@@ -2208,14 +2206,13 @@ fn test_fail_deploy_account_undeclared_class_hash(
     assert_matches!(
         error,
         TransactionExecutionError::ContractConstructorExecutionFailed(
-            ConstructorEntryPointExecutionError::ExecutionError {
-                error: EntryPointExecutionError::StateError(
-                    StateError::UndeclaredClassHash(class_hash)
-                ),
-                ..
-            }
+            ConstructorEntryPointExecutionError::ExecutionError { error, .. }
         )
-        if class_hash == undeclared_hash
+        if matches!(
+            *error,
+            EntryPointExecutionError::StateError(StateError::UndeclaredClassHash(class_hash))
+            if class_hash == undeclared_hash
+        )
     );
 }
 
@@ -2231,21 +2228,21 @@ fn check_native_validate_error(
             ..
         } => {
             assert!(!validate_constructor);
-            *boxed_syscall_error
+            boxed_syscall_error
         }
         TransactionExecutionError::ContractConstructorExecutionFailed(
-            ConstructorEntryPointExecutionError::ExecutionError {
-                error: EntryPointExecutionError::NativeUnrecoverableError(boxed_syscall_error),
-                ..
-            },
-        ) => {
-            assert!(validate_constructor);
-            *boxed_syscall_error
-        }
-        _ => panic!("Unexpected error: {:?}", error),
+            ConstructorEntryPointExecutionError::ExecutionError { error: boxed_error, .. },
+        ) => match *boxed_error {
+            EntryPointExecutionError::NativeUnrecoverableError(boxed_syscall_error) => {
+                assert!(validate_constructor);
+                boxed_syscall_error
+            }
+            _ => panic!("Unexpected error: {:?}", boxed_error),
+        },
+        _ => panic!("Unexpected error: {:?}", &error),
     };
     assert_matches!(
-        syscall_error,
+        *syscall_error,
         SyscallExecutionError::SyscallExecutorBase(
             SyscallExecutorBaseError::InvalidSyscallInExecutionMode { .. }
         )
