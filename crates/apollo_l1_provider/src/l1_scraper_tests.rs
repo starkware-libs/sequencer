@@ -79,25 +79,11 @@ async fn txs_happy_flow() {
     // Setup.
     let base_layer_config = ethereum_base_layer_config_for_anvil(None);
     let _anvil_server_guard = anvil_instance_from_config(&base_layer_config);
-    let fake_client = Arc::new(FakeL1ProviderClient::default());
     let base_layer = EthereumBaseLayerContract::new(base_layer_config);
-    let l1_scraper_config = L1ScraperConfig::default();
-    let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config).await.unwrap();
 
     // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
     Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
 
-    let mut scraper = L1Scraper::new(
-        l1_scraper_config,
-        fake_client.clone(),
-        base_layer.clone(),
-        event_identifiers_to_track(),
-        l1_start_block,
-    )
-    .await
-    .unwrap();
-
-    // Test.
     // Scrape multiple events.
     let l2_contract_address = "0x12";
     let l2_entry_point = "0x34";
@@ -191,7 +177,24 @@ async fn txs_happy_flow() {
         cancellation_request_timestamp: cancel_timestamp,
     };
 
-    // Assert.
+    let fake_client = Arc::new(FakeL1ProviderClient::default());
+    let l1_scraper_config = L1ScraperConfig {
+        // Start scraping far enough back to capture all of the events created before.
+        startup_rewind_time_seconds: Duration::from_secs(100),
+        ..Default::default()
+    };
+    let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config).await.unwrap();
+    let mut scraper = L1Scraper::new(
+        l1_scraper_config,
+        fake_client.clone(),
+        base_layer.clone(),
+        event_identifiers_to_track(),
+        l1_start_block,
+    )
+    .await
+    .unwrap();
+
+    // Test.
     scraper.send_events_to_l1_provider().await.unwrap();
     fake_client.assert_add_events_received_with(&[
         first_expected_log,
