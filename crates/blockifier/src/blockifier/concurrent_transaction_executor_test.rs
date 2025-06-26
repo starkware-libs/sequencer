@@ -87,14 +87,13 @@ fn test_txs(
 }
 
 #[rstest]
-#[case::zero_txs(Some(0), None)]
-#[case::one_tx(Some(1), Some(nonce!(1)))]
-#[case::two_txs(Some(2), Some(nonce!(1)))]
-#[case::three_txs(Some(3), Some(nonce!(2)))]
-#[case::four_txs(Some(4), Some(nonce!(3)))]
-#[case::no_tx_limit(None, Some(nonce!(3)))]
+#[case::zero_txs(0, None)]
+#[case::one_tx(1, Some(nonce!(1)))]
+#[case::two_txs(2, Some(nonce!(1)))]
+#[case::three_txs(3, Some(nonce!(2)))]
+#[case::four_txs(4, Some(nonce!(3)))]
 fn test_concurrent_transaction_executor(
-    #[case] n_txs_in_block: Option<usize>,
+    #[case] final_n_executed_txs: usize,
     #[case] expected_nonce: Option<Nonce>,
 ) {
     let TestData {
@@ -127,7 +126,7 @@ fn test_concurrent_transaction_executor(
     assert!(results1[0].is_ok());
 
     // Close the block.
-    let block_summary = tx_executor.close_block(n_txs_in_block).unwrap();
+    let block_summary = tx_executor.close_block(final_n_executed_txs).unwrap();
     assert_eq!(
         block_summary.state_diff.address_to_nonce.get(&account_address).cloned(),
         expected_nonce
@@ -155,12 +154,12 @@ fn test_concurrent_transaction_executor_stream_txs() {
     tx_executor.add_txs(&txs1);
 
     // Collect the results.
-
     let mut results = vec![];
     while !tx_executor.is_done() {
         results.extend(tx_executor.get_new_results());
         std::thread::sleep(Duration::from_millis(1));
     }
+    results.extend(tx_executor.get_new_results());
 
     // Check execution results.
     assert_eq!(results.len(), 4);
@@ -176,7 +175,7 @@ fn test_concurrent_transaction_executor_stream_txs() {
     assert!(results[3].is_ok());
 
     // Close the block.
-    let block_summary = tx_executor.close_block(None).unwrap();
+    let block_summary = tx_executor.close_block(results.len()).unwrap();
     assert_eq!(block_summary.state_diff.address_to_nonce[&account_address], nonce!(3_u32));
 
     // End test by calling pool.join().
@@ -206,8 +205,9 @@ fn test_concurrent_transaction_executor_deadline() {
     let results0 = tx_executor.add_txs_and_wait(&txs0);
     // Expect no results since the deadline passed.
     assert_eq!(results0.len(), 0);
+    assert_eq!(tx_executor.worker_executor.scheduler.get_n_committed_txs(), 0);
 
-    let block_summary = tx_executor.close_block(None).unwrap();
+    let block_summary = tx_executor.close_block(0).unwrap();
     assert!(block_summary.state_diff.address_to_nonce.get(&account_address).is_none());
 
     drop(tx_executor);

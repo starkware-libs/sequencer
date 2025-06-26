@@ -1,5 +1,6 @@
 use std::any::type_name;
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -17,13 +18,14 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use thiserror::Error;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 use validator::Validate;
 
 use crate::metrics::{
     register_scraper_metrics,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
+    L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
 
 #[cfg(test)]
@@ -157,10 +159,16 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     /// Returns the next `block_number` to be scraped.
     async fn update_prices(
         &mut self,
-        mut block_number: L1BlockNumber,
+        start_block_number: L1BlockNumber,
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
-        info!("Scraping gas prices starting from block {block_number}");
-        loop {
+        let Some(last_block_number) = self.latest_l1_block_number().await? else {
+            // Not enough blocks under current finality. Try again later.
+            return Ok(start_block_number);
+        };
+        debug!(
+            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
+        );
+        for block_number in start_block_number..=last_block_number {
             let header = match self.base_layer.get_block_header(block_number).await {
                 Ok(Some(header)) => header,
                 Ok(None) => return Ok(block_number),
@@ -184,9 +192,9 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                 .add_price_info(GasPriceData { block_number, timestamp, price_info })
                 .await
                 .map_err(L1GasPriceScraperError::GasPriceClientError)?;
-
-            block_number += 1;
+            L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.increment(1);
         }
+        Ok(last_block_number + 1)
     }
     async fn assert_no_l1_reorgs(
         &self,
@@ -212,10 +220,17 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
 
         Ok(())
     }
+
+    async fn latest_l1_block_number(&self) -> L1GasPriceScraperResult<Option<L1BlockNumber>, B> {
+        self.base_layer
+            .latest_l1_block_number(self.config.finality)
+            .await
+            .map_err(L1GasPriceScraperError::BaseLayerError)
+    }
 }
 
 #[async_trait]
-impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1GasPriceScraper<B>
+impl<B: BaseLayerContract + Send + Sync + Debug> ComponentStarter for L1GasPriceScraper<B>
 where
     B::Error: Send,
 {
@@ -226,11 +241,11 @@ where
             Some(block) => block,
             None => {
                 let latest = self
-                    .base_layer
-                    .latest_l1_block_number(self.config.finality)
+                    .latest_l1_block_number()
                     .await
-                    .expect("Failed to get the latest L1 block number")
-                    .expect("Failed to get the latest L1 block number");
+                    .expect("Failed to get the latest L1 block number at startup")
+                    .expect("Failed to get the latest L1 block number at startup");
+
                 // If no starting block is provided, the default is to start from
                 // startup_num_blocks_multiplier * number_of_blocks_for_mean before the tip of L1.
                 // Note that for new chains this subtraction may be negative,
@@ -241,8 +256,6 @@ where
                 )
             }
         };
-        self.run(start_from)
-            .await
-            .unwrap_or_else(|e| panic!("Failed to start L1Scraper component: {}", e))
+        self.run(start_from).await.unwrap_or_else(|e| panic!("L1 gas price scraper failed: {}", e))
     }
 }

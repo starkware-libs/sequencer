@@ -14,7 +14,7 @@ use libp2p::swarm::{
     ToSwarm,
 };
 use libp2p::{Multiaddr, PeerId};
-use tracing::info;
+use tracing::{info, warn};
 
 use crate::discovery::{RetryConfig, ToOtherBehaviourEvent};
 
@@ -69,7 +69,12 @@ impl NetworkBehaviour for BootstrappingBehaviour {
         cx: &mut Context<'_>,
     ) -> Poll<ToSwarm<Self::ToSwarm, <Self::ConnectionHandler as ConnectionHandler>::FromBehaviour>>
     {
-        self.peers.poll_next_unpin(cx).map(|e| e.unwrap())
+        if self.peers.is_empty() {
+            return Poll::Pending;
+        }
+        self.peers
+            .poll_next_unpin(cx)
+            .map(|e| e.expect("BootstrapPeerEventStream returned Poll::Ready(None) unexpectedly"))
     }
 }
 
@@ -79,6 +84,15 @@ impl BootstrappingBehaviour {
         bootstrap_dial_retry_config: RetryConfig,
         bootstrap_peers: Vec<(PeerId, Multiaddr)>,
     ) -> Self {
+        // check that IDs are unique
+        let unique_peer_ids: std::collections::HashSet<_> =
+            bootstrap_peers.iter().map(|(id, _)| id).collect();
+        assert!(
+            unique_peer_ids.len() == bootstrap_peers.len(),
+            "Bootstrap peer IDs must be unique, PeerIds: {:?}",
+            bootstrap_peers
+        );
+
         let mut peers = SelectAll::new();
         for (bootstrap_peer_id, bootstrap_peer_address) in bootstrap_peers {
             if bootstrap_peer_id == local_peer_id {
@@ -93,6 +107,13 @@ impl BootstrappingBehaviour {
                 bootstrap_peer_address,
             ));
         }
+
+        if peers.is_empty() {
+            warn!("No bootstrap peers provided, bootstrapping will not be possible");
+        } else {
+            info!("Bootstrapping with {} bootstrap peers", peers.len());
+        }
+
         Self { peers }
     }
 }

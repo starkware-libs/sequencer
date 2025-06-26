@@ -12,9 +12,11 @@ use starknet_api::block::{BlockHashAndNumber, BlockTimestamp};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
+use url::Url;
 
 pub mod constants;
 pub mod ethereum_base_layer_contract;
+pub mod monitored_base_layer;
 
 pub(crate) mod eth_events;
 
@@ -35,7 +37,7 @@ pub enum MockError {}
 #[cfg_attr(any(feature = "testing", test), automock(type Error = MockError;))]
 #[async_trait]
 pub trait BaseLayerContract {
-    type Error: Error + PartialEq + Display + Debug;
+    type Error: Error + PartialEq + Display + Debug + Send + Sync;
 
     /// Get the latest Starknet block that is proved on the base layer at a specific L1 block
     /// number. If the number is too low, return an error.
@@ -75,6 +77,8 @@ pub trait BaseLayerContract {
         &self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error>;
+
+    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error>;
 }
 
 /// Reference to an L1 block, extend as needed.

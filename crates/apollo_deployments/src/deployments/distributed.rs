@@ -10,23 +10,24 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
-use crate::service::{
+use crate::deployment_definitions::Environment;
+use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
+use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
     Controller,
-    GetComponentConfigs,
     Ingress,
     IngressParams,
     Resource,
     Resources,
-    ServiceName,
-    ServiceNameInner,
     Toleration,
 };
+use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
+use crate::utils::determine_port_numbers;
+
+pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 9;
 
 const BASE_PORT: u16 = 15000; // TODO(Tsabary): arbitrary port, need to resolve.
-
 const BATCHER_STORAGE: usize = 500;
 const CLASS_MANAGER_STORAGE: usize = 500;
 const STATE_SYNC_STORAGE: usize = 500;
@@ -55,13 +56,23 @@ impl From<DistributedNodeServiceName> for ServiceName {
 }
 
 impl GetComponentConfigs for DistributedNodeServiceName {
-    fn get_component_configs(
-        base_port: Option<u16>,
-        environment: &Environment,
-    ) -> IndexMap<ServiceName, ComponentConfig> {
-        // TODO(Tsabary): change this function to take a slice of port numbers at the exact expected
-        // length.
+    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<ServiceName, ComponentConfig> {
+        let ports = determine_port_numbers(ports, DISTRIBUTED_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+
+        let batcher = DistributedNodeServiceName::Batcher.component_config_pair(ports[0]);
+        let class_manager =
+            DistributedNodeServiceName::ClassManager.component_config_pair(ports[1]);
+        let gateway = DistributedNodeServiceName::Gateway.component_config_pair(ports[2]);
+        let l1_gas_price_provider = DistributedNodeServiceName::L1.component_config_pair(ports[3]);
+        let l1_provider = DistributedNodeServiceName::L1.component_config_pair(ports[4]);
+        let l1_endpoint_monitor = DistributedNodeServiceName::L1.component_config_pair(ports[5]);
+        let mempool = DistributedNodeServiceName::Mempool.component_config_pair(ports[6]);
+        let sierra_compiler =
+            DistributedNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
+        let state_sync = DistributedNodeServiceName::StateSync.component_config_pair(ports[8]);
+
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
+<<<<<<< HEAD
 
         let base_port = base_port.unwrap_or(BASE_PORT);
 
@@ -84,6 +95,29 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         let signature_manager = DistributedNodeServiceName::ConsensusManager
             .component_config_pair(Some(base_port + 8), environment);
 
+||||||| 2452f56bc
+
+        let base_port = base_port.unwrap_or(BASE_PORT);
+
+        let batcher =
+            DistributedNodeServiceName::Batcher.component_config_pair(Some(base_port), environment);
+        let class_manager = DistributedNodeServiceName::ClassManager
+            .component_config_pair(Some(base_port + 1), environment);
+        let gateway = DistributedNodeServiceName::Gateway
+            .component_config_pair(Some(base_port + 2), environment);
+        let l1_gas_price_provider =
+            DistributedNodeServiceName::L1.component_config_pair(Some(base_port + 3), environment);
+        let l1_provider =
+            DistributedNodeServiceName::L1.component_config_pair(Some(base_port + 4), environment);
+        let mempool = DistributedNodeServiceName::Mempool
+            .component_config_pair(Some(base_port + 5), environment);
+        let sierra_compiler = DistributedNodeServiceName::SierraCompiler
+            .component_config_pair(Some(base_port + 6), environment);
+        let state_sync = DistributedNodeServiceName::StateSync
+            .component_config_pair(Some(base_port + 7), environment);
+
+=======
+>>>>>>> origin/main-v0.14.0
         for inner_service_name in DistributedNodeServiceName::iter() {
             let component_config = match inner_service_name {
                 DistributedNodeServiceName::Batcher => get_batcher_component_config(
@@ -117,6 +151,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                 DistributedNodeServiceName::L1 => get_l1_component_config(
                     l1_gas_price_provider.local(),
                     l1_provider.local(),
+                    l1_endpoint_monitor.local(),
                     state_sync.remote(),
                     batcher.remote(),
                 ),
@@ -173,7 +208,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => Some(Toleration::ApolloCoreService),
@@ -212,11 +247,25 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
+    fn has_p2p_interface(&self) -> bool {
+        match self {
+            DistributedNodeServiceName::ConsensusManager
+            | DistributedNodeServiceName::Mempool
+            | DistributedNodeServiceName::StateSync => true,
+            DistributedNodeServiceName::Batcher
+            | DistributedNodeServiceName::ClassManager
+            | DistributedNodeServiceName::HttpServer
+            | DistributedNodeServiceName::Gateway
+            | DistributedNodeServiceName::L1
+            | DistributedNodeServiceName::SierraCompiler => false,
+        }
+    }
+
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => Some(BATCHER_STORAGE),
@@ -245,7 +294,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => false,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 DistributedNodeServiceName::Batcher => true,
@@ -269,70 +318,42 @@ impl DistributedNodeServiceName {
 
     /// Returns a component execution config for a component that runs locally, and accepts inbound
     /// connections from remote components.
-    pub fn component_config_for_local_service(
-        &self,
-        base_port: Option<u16>,
-        environment: &Environment,
-    ) -> ReactiveComponentExecutionConfig {
-        let mut base = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            self.url(),
-            self.ip(),
-            self.port(base_port),
-        );
-        let EnvironmentComponentConfigModifications {
-            local_server_config,
-            max_concurrency,
-            remote_client_config: _,
-        } = environment.get_component_config_modifications();
-        base.local_server_config = local_server_config;
-        base.max_concurrency = max_concurrency;
-        base
+    fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
+        ReactiveComponentExecutionConfig::local_with_remote_enabled(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        )
     }
 
     /// Returns a component execution config for a component that is accessed remotely.
-    pub fn component_config_for_remote_service(
-        &self,
-        base_port: Option<u16>,
-        environment: &Environment,
-    ) -> ReactiveComponentExecutionConfig {
-        let mut base =
-            ReactiveComponentExecutionConfig::remote(self.url(), self.ip(), self.port(base_port));
-        let EnvironmentComponentConfigModifications {
-            local_server_config: _,
-            max_concurrency,
-            remote_client_config,
-        } = environment.get_component_config_modifications();
-        base.remote_client_config = remote_client_config;
-        base.max_concurrency = max_concurrency;
+    fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
+        let mut base = ReactiveComponentExecutionConfig::remote(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        );
+        match self {
+            DistributedNodeServiceName::Gateway | DistributedNodeServiceName::SierraCompiler => {
+                base.remote_client_config.idle_connections =
+                    IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
+            }
+            DistributedNodeServiceName::Batcher
+            | DistributedNodeServiceName::ClassManager
+            | DistributedNodeServiceName::ConsensusManager
+            | DistributedNodeServiceName::HttpServer
+            | DistributedNodeServiceName::L1
+            | DistributedNodeServiceName::Mempool
+            | DistributedNodeServiceName::StateSync => {}
+        };
         base
     }
 
-    fn component_config_pair(
-        &self,
-        base_port: Option<u16>,
-        environment: &Environment,
-    ) -> DistributedNodeServiceConfigPair {
+    fn component_config_pair(&self, port: u16) -> DistributedNodeServiceConfigPair {
         DistributedNodeServiceConfigPair {
-            local: self.component_config_for_local_service(base_port, environment),
-            remote: self.component_config_for_remote_service(base_port, environment),
+            local: self.component_config_for_local_service(port),
+            remote: self.component_config_for_remote_service(port),
         }
-    }
-
-    /// Url for the service.
-    fn url(&self) -> String {
-        // This must match the Kubernetes service name as defined by CDK8s.
-        let formatted_service_name = self.as_ref().replace('_', "");
-        format!("sequencer-{}-service", formatted_service_name)
-    }
-
-    /// Unique port number per service.
-    fn port(&self, base_port: Option<u16>) -> u16 {
-        base_port.unwrap_or(BASE_PORT)
-    }
-
-    /// Listening address per service.
-    fn ip(&self) -> IpAddr {
-        IpAddr::from(Ipv4Addr::UNSPECIFIED)
     }
 }
 
@@ -460,6 +481,7 @@ fn get_http_server_component_config(
 fn get_l1_component_config(
     l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
     l1_provider_local_config: ReactiveComponentExecutionConfig,
+    l1_endpoint_monitor_local_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
     batcher_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -469,6 +491,7 @@ fn get_l1_component_config(
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
+    config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config.batcher = batcher_remote_config;

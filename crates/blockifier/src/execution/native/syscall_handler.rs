@@ -132,7 +132,7 @@ impl<'state> NativeSyscallHandler<'state> {
         }
 
         match error.try_extract_revert() {
-            SelfOrRevert::Revert(error_data) => error_data,
+            SelfOrRevert::Revert(revert_error) => revert_error.error_data,
             SelfOrRevert::Original(error) => {
                 assert!(
                     self.unrecoverable_error.is_none(),

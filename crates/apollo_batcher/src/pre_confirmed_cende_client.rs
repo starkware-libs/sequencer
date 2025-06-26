@@ -12,6 +12,7 @@ use tracing::{debug, error, trace, warn};
 use url::Url;
 
 use crate::cende_client_types::CendePreConfirmedBlock;
+use crate::metrics::PRECONFIRMED_BLOCK_WRITTEN;
 
 // TODO(noamsp): rename PreConfirmed.. to Preconfirmed.. throughout the codebase.
 #[derive(Debug, Error)]
@@ -118,6 +119,7 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
                 "write_pre_confirmed_block request succeeded. block_number: {block_number}, \
                  round: {round}, write_iteration: {write_iteration}, status: {response_status}",
             );
+            PRECONFIRMED_BLOCK_WRITTEN.increment(1);
             Ok(())
         } else {
             let error_msg = format!(

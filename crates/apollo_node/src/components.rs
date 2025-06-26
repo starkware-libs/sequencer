@@ -6,11 +6,12 @@ use apollo_compile_to_casm::{create_sierra_compiler, SierraCompiler};
 use apollo_consensus_manager::consensus_manager::ConsensusManager;
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
+use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitor;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_provider::{L1Provider, L1ProviderBuilder};
-use apollo_l1_provider::l1_scraper::L1Scraper;
+use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
 use apollo_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
 use apollo_mempool_p2p::create_p2p_propagator_and_runner;
 use apollo_mempool_p2p::propagator::MempoolP2pPropagator;
@@ -23,8 +24,9 @@ use apollo_signature_manager::{create_signature_manager, SignatureManager};
 use apollo_state_sync::runner::StateSyncRunner;
 use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
+use papyrus_base_layer::monitored_base_layer::MonitoredEthereumBaseLayer;
 use papyrus_base_layer::BaseLayerContract;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::clients::SequencerNodeClients;
 use crate::config::component_execution_config::{
@@ -40,9 +42,10 @@ pub struct SequencerNodeComponents {
     pub consensus_manager: Option<ConsensusManager>,
     pub gateway: Option<Gateway>,
     pub http_server: Option<HttpServer>,
-    pub l1_scraper: Option<L1Scraper<EthereumBaseLayerContract>>,
+    pub l1_endpoint_monitor: Option<L1EndpointMonitor>,
+    pub l1_scraper: Option<L1Scraper<MonitoredEthereumBaseLayer>>,
     pub l1_provider: Option<L1Provider>,
-    pub l1_gas_price_scraper: Option<L1GasPriceScraper<EthereumBaseLayerContract>>,
+    pub l1_gas_price_scraper: Option<L1GasPriceScraper<MonitoredEthereumBaseLayer>>,
     pub l1_gas_price_provider: Option<L1GasPriceProvider>,
     pub mempool: Option<MempoolCommunicationWrapper>,
     pub monitoring_endpoint: Option<MonitoringEndpoint>,
@@ -251,17 +254,42 @@ pub async fn create_node_components(
         }
     };
 
+    let l1_endpoint_monitor = match config.components.l1_endpoint_monitor.execution_mode {
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
+            L1EndpointMonitor::new(
+                config.l1_endpoint_monitor_config.clone(),
+                &config.base_layer_config.node_url,
+            )
+            .unwrap(),
+        ),
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+    };
+
     let l1_scraper = match config.components.l1_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
+            let l1_endpoint_monitor_client =
+                clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let l1_scraper_config = config.l1_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
+            let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config)
+                .await
+                .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
+
+            let monitored_base_layer = MonitoredEthereumBaseLayer::new(
+                base_layer,
+                l1_endpoint_monitor_client,
+                config.base_layer_config.node_url.clone(),
+            );
+
             Some(
                 L1Scraper::new(
                     l1_scraper_config,
                     l1_provider_client,
-                    base_layer,
+                    monitored_base_layer,
                     event_identifiers_to_track(),
+                    l1_start_block,
                 )
                 .await
                 .unwrap(),
@@ -284,7 +312,9 @@ pub async fn create_node_components(
             match &l1_scraper {
                 Some(l1_scraper) => {
                     let l1_scraper_start_l1_height = l1_scraper.last_l1_block_processed.number;
-                    let scraper_synced_startup_height = l1_scraper.base_layer
+                    let base_layer =
+                        EthereumBaseLayerContract::new(config.base_layer_config.clone());
+                    let scraper_synced_startup_height = base_layer
                         .get_proved_block_at(l1_scraper_start_l1_height)
                         .await
                         .map(|block| block.number)
@@ -292,7 +322,7 @@ pub async fn create_node_components(
                         // genesis. The former should override the height, or setup Anvil accordingly, and
                         // the latter should use the correct L1 height.
                         .inspect_err(|err|{
-                            warn!("Error while attempting to get the L2 block at the L1 height \
+                            debug!("Error while attempting to get the L2 block at the L1 height \
                             the scraper was initialized on. This is either due to running a \
                             test with faulty Anvil state, or if the scraper was initialized too \
                             far back.  Will attempt to use provider startup height override \
@@ -361,13 +391,20 @@ pub async fn create_node_components(
             let l1_gas_price_client = clients
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price client should be available");
+            let l1_endpoint_monitor_client =
+                clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let l1_gas_price_scraper_config = config.l1_gas_price_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
+            let monitored_base_layer = MonitoredEthereumBaseLayer::new(
+                base_layer,
+                l1_endpoint_monitor_client,
+                config.base_layer_config.node_url.clone(),
+            );
 
             Some(L1GasPriceScraper::new(
                 l1_gas_price_scraper_config,
                 l1_gas_price_client,
-                base_layer,
+                monitored_base_layer,
             ))
         }
         ActiveComponentExecutionMode::Disabled => None,
@@ -388,6 +425,7 @@ pub async fn create_node_components(
         gateway,
         http_server,
         l1_scraper,
+        l1_endpoint_monitor,
         l1_provider,
         l1_gas_price_scraper,
         l1_gas_price_provider,

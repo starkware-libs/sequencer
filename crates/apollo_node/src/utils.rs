@@ -16,7 +16,7 @@ pub async fn create_node_modules(
 ) -> (SequencerNodeClients, SequencerNodeServers) {
     info!("Creating node modules.");
 
-    let mut channels = create_node_channels();
+    let mut channels = create_node_channels(config);
     let clients = create_node_clients(config, &mut channels);
     let components = create_node_components(config, &clients).await;
     let servers = create_node_servers(config, &mut channels, components, &clients);

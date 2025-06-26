@@ -18,7 +18,7 @@ apollo_network.workspace = true
 apollo_proc_macros.workspace = true
 apollo_protobuf.workspace = true
 apollo_state_sync_types.workspace = true
-apollo_time.workspace = true
+apollo_time = { workspace = true, features = ["tokio"] }
 async-trait.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true
@@ -55,7 +55,7 @@ apollo_starknet_client.workspace = true
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
-apollo_time = { workspace = true, features = ["testing"] }
+apollo_time = { workspace = true, features = ["testing", "tokio"] }
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true

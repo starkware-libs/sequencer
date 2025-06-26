@@ -16,6 +16,7 @@ use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote};
 use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_time::time::{sleep_until, Clock, DefaultClock};
 use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
@@ -36,6 +37,26 @@ use crate::metrics::{
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
+use crate::votes_threshold::QuorumType;
+
+/// Arguments for running consensus.
+#[derive(Clone, Debug)]
+pub struct RunConsensusArguments {
+    /// The height at which the node may participate in consensus (if it is a validator).
+    pub start_active_height: BlockNumber,
+    /// The height at which the node begins to run consensus.
+    pub start_observe_height: BlockNumber,
+    /// The ID of this node.
+    pub validator_id: ValidatorId,
+    /// Delay before starting consensus; allowing the network to connect to peers.
+    pub consensus_delay: Duration,
+    /// The timeouts for the consensus algorithm.
+    pub timeouts: TimeoutsConfig,
+    /// The interval to wait between sync retries.
+    pub sync_retry_interval: Duration,
+    /// Set to Byzantine by default. Using Honest means we trust all validators. Use with caution!
+    pub quorum_type: QuorumType,
+}
 
 /// Run consensus indefinitely.
 ///
@@ -43,62 +64,45 @@ use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decis
 /// sync protocol, consensus silently moves on to the next height.
 ///
 /// Inputs:
+/// - `run_consensus_args`: Configuration arguments for consensus. See [`RunConsensusArguments`] for
+///   detailed documentation.
 /// - `context`: The API for consensus to reach out to the rest of the node.
-/// - `start_active_height`: The height at which the node may participate in consensus (if it is a
-///   validator).
-/// - `start_observe_height`: The height at which the node begins to run consensus.
-/// - `validator_id`: The ID of this node.
-/// - `consensus_delay`: delay before starting consensus; allowing the network to connect to peers.
-/// - `timeouts`: The timeouts for the consensus algorithm.
-/// - `sync_retry_interval`: The interval to wait between sync retries.
 /// - `vote_receiver`: The channels to receive votes from the network. These are self contained
 ///   messages.
 /// - `proposals_receiver`: The channel to receive proposals from the network. Proposals are
 ///   represented as streams (ProposalInit, Content.*, ProposalFin).
-// TODO(dvir): add test for this.
-// TODO(Asmaa): Update documentation when we update for the real sync.
 // Always print the validator ID since some tests collate multiple consensus logs in a single file.
-#[instrument(skip_all, fields(%validator_id), level = "error")]
-#[allow(missing_docs)]
-#[allow(clippy::too_many_arguments)]
+#[instrument(skip_all, fields(validator_id=%run_consensus_args.validator_id), level = "error")]
 pub async fn run_consensus<ContextT>(
+    run_consensus_args: RunConsensusArguments,
     mut context: ContextT,
-    start_active_height: BlockNumber,
-    start_observe_height: BlockNumber,
-    validator_id: ValidatorId,
-    consensus_delay: Duration,
-    timeouts: TimeoutsConfig,
-    sync_retry_interval: Duration,
-    no_byzantine_validators: bool,
     mut vote_receiver: BroadcastVoteChannel,
     mut proposals_receiver: mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
 ) -> Result<(), ConsensusError>
 where
     ContextT: ConsensusContext,
 {
-    info!(
-        "Running consensus, start_active_height={start_active_height}, \
-         start_observe_height={start_observe_height}, consensus_delay={}, timeouts={timeouts:?} \
-         no_byzantine_validators={no_byzantine_validators}",
-        consensus_delay.as_secs(),
-    );
+    info!("Running consensus, args: {:?}", run_consensus_args.clone());
     register_metrics();
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
-    tokio::time::sleep(consensus_delay).await;
-    assert!(start_observe_height <= start_active_height);
-    let mut current_height = start_observe_height;
-    let mut manager = MultiHeightManager::new(validator_id, timeouts);
+    tokio::time::sleep(run_consensus_args.consensus_delay).await;
+    assert!(run_consensus_args.start_observe_height <= run_consensus_args.start_active_height);
+    let mut current_height = run_consensus_args.start_observe_height;
+    let mut manager = MultiHeightManager::new(
+        run_consensus_args.validator_id,
+        run_consensus_args.sync_retry_interval,
+        run_consensus_args.quorum_type,
+        run_consensus_args.timeouts,
+    );
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
+        let must_observer = current_height < run_consensus_args.start_active_height;
         metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT).set(current_height.0 as f64);
-        let must_observer = current_height < start_active_height;
         match manager
             .run_height(
                 &mut context,
                 current_height,
                 must_observer,
-                sync_retry_interval,
-                no_byzantine_validators,
                 &mut vote_receiver,
                 &mut proposals_receiver,
             )
@@ -144,6 +148,8 @@ type ProposalReceiverTuple<T> = (ProposalInit, mpsc::Receiver<T>);
 struct MultiHeightManager<ContextT: ConsensusContext> {
     validator_id: ValidatorId,
     future_votes: BTreeMap<u64, Vec<Vote>>,
+    sync_retry_interval: Duration,
+    quorum_type: QuorumType,
     // Mapping: { Height : { Round : (Init, Receiver)}}
     cached_proposals: BTreeMap<u64, BTreeMap<u32, ProposalReceiverTuple<ContextT::ProposalPart>>>,
     timeouts: TimeoutsConfig,
@@ -151,9 +157,16 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Create a new consensus manager.
-    pub(crate) fn new(validator_id: ValidatorId, timeouts: TimeoutsConfig) -> Self {
+    pub(crate) fn new(
+        validator_id: ValidatorId,
+        sync_retry_interval: Duration,
+        quorum_type: QuorumType,
+        timeouts: TimeoutsConfig,
+    ) -> Self {
         Self {
             validator_id,
+            sync_retry_interval,
+            quorum_type,
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
             timeouts,
@@ -174,15 +187,12 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
     /// Inputs - see [`run_consensus`].
     /// - `must_observer`: Whether the node must observe or if it is allowed to be active (assuming
     ///   it is in the validator set).
-    #[allow(clippy::too_many_arguments)]
     #[instrument(skip_all, fields(height=%height.0), level = "error")]
     pub(crate) async fn run_height(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         must_observer: bool,
-        sync_retry_interval: Duration,
-        no_byzantine_validators: bool,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
@@ -191,8 +201,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 context,
                 height,
                 must_observer,
-                sync_retry_interval,
-                no_byzantine_validators,
                 broadcast_channels,
                 proposals_receiver,
             )
@@ -225,14 +233,11 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         Ok(res)
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn run_height_inner(
         &mut self,
         context: &mut ContextT,
         height: BlockNumber,
         must_observer: bool,
-        sync_retry_interval: Duration,
-        no_byzantine_validators: bool,
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
@@ -244,8 +249,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         let validators = context.validators(height).await;
         let is_observer = must_observer || !validators.contains(&self.validator_id);
         info!(
-            "START_HEIGHT: running consensus for height {height:?}. is_observer: {is_observer}, \
-             validators: {validators:?}"
+            "START_HEIGHT: running consensus for height {:?}. is_observer: {}, validators: {:?}",
+            height, is_observer, validators,
         );
         CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
 
@@ -254,7 +259,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             is_observer,
             self.validator_id,
             validators,
-            no_byzantine_validators,
+            self.quorum_type,
             self.timeouts.clone(),
         );
         let mut shc_events = FuturesUnordered::new();
@@ -271,7 +276,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
 
         // Loop over incoming proposals, messages, and self generated events.
-        let mut sync_poll_deadline = tokio::time::Instant::now() + sync_retry_interval;
+        let clock = DefaultClock;
+        let mut sync_poll_deadline = clock.now() + self.sync_retry_interval;
         loop {
             self.report_max_cached_block_number_metric(height);
             let shc_return = tokio::select! {
@@ -287,8 +293,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 },
                 // Using sleep_until to make sure that we won't restart the sleep due to other
                 // events occuring.
-                _ = tokio::time::sleep_until(sync_poll_deadline) => {
-                    sync_poll_deadline += sync_retry_interval;
+                _ = sleep_until(sync_poll_deadline, &clock) => {
+                    sync_poll_deadline += self.sync_retry_interval;
                     if context.try_sync(height).await {
                         return Ok(RunHeightRes::Sync);
                     }

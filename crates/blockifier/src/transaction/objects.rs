@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::block::{BlockInfo, FeeType};
@@ -24,7 +22,7 @@ use starknet_api::transaction::{
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::execution::call_info::{CallInfo, ExecutionSummary};
+use crate::execution::call_info::{BuiltinCounterMap, CallInfo, ExecutionSummary};
 use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
@@ -222,18 +220,13 @@ impl TransactionExecutionInfo {
 }
 pub trait ExecutionResourcesTraits {
     fn total_n_steps(&self) -> usize;
-    fn prover_builtins(&self) -> HashMap<BuiltinName, usize>;
+    fn prover_builtins(&self) -> BuiltinCounterMap;
     fn div_ceil(&self, rhs: usize) -> ExecutionResources;
 }
 
 impl ExecutionResourcesTraits for ExecutionResources {
     fn total_n_steps(&self) -> usize {
         self.n_steps
-            // Memory holes are slightly cheaper than actual steps, but we count them as such
-            // for simplicity.
-            // TODO(AvivG): Compute memory_holes gas accurately while maintaining backward compatibility.
-            // Define memory_holes_gas version_constants as 100 gas (1 step) for previous versions.
-            + self.n_memory_holes
             // The "segment arena" builtin is not part of the prover (not in any proof layout);
             // It is transformed into regular steps by the OS program - each instance requires
             // approximately 10 steps.
@@ -245,7 +238,7 @@ impl ExecutionResourcesTraits for ExecutionResources {
                     .unwrap_or_default()
     }
 
-    fn prover_builtins(&self) -> HashMap<BuiltinName, usize> {
+    fn prover_builtins(&self) -> BuiltinCounterMap {
         let mut builtins = self.builtin_instance_counter.clone();
 
         // See "total_n_steps" documentation.

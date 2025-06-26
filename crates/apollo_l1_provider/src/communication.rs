@@ -6,6 +6,7 @@ use apollo_infra::component_definitions::{
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer, WrapperServer};
 use apollo_l1_provider_types::{L1ProviderRequest, L1ProviderResponse};
 use async_trait::async_trait;
+use papyrus_base_layer::monitored_base_layer::MonitoredBaseLayer;
 use tracing::instrument;
 
 pub type LocalL1ProviderServer =
@@ -19,7 +20,7 @@ pub type RemoteL1ProviderClient = RemoteComponentClient<L1ProviderRequest, L1Pro
 use crate::l1_provider::L1Provider;
 use crate::l1_scraper::L1Scraper;
 
-pub type L1ScraperServer<B> = WrapperServer<L1Scraper<B>>;
+pub type L1ScraperServer<B> = WrapperServer<L1Scraper<MonitoredBaseLayer<B>>>;
 
 #[async_trait]
 impl ComponentRequestHandler<L1ProviderRequest, L1ProviderResponse> for L1Provider {

@@ -6,6 +6,7 @@ use apollo_infra::component_definitions::{
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer, WrapperServer};
 use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse};
 use async_trait::async_trait;
+use papyrus_base_layer::monitored_base_layer::MonitoredBaseLayer;
 use tracing::instrument;
 
 use crate::l1_gas_price_provider::L1GasPriceProvider;
@@ -19,7 +20,7 @@ pub type L1GasPriceRequestAndResponseSender =
 pub type LocalL1GasPriceClient = LocalComponentClient<L1GasPriceRequest, L1GasPriceResponse>;
 pub type RemoteL1GasPriceClient = RemoteComponentClient<L1GasPriceRequest, L1GasPriceResponse>;
 
-pub type L1GasPriceScraperServer<B> = WrapperServer<L1GasPriceScraper<B>>;
+pub type L1GasPriceScraperServer<B> = WrapperServer<L1GasPriceScraper<MonitoredBaseLayer<B>>>;
 
 #[async_trait]
 impl ComponentRequestHandler<L1GasPriceRequest, L1GasPriceResponse> for L1GasPriceProvider {

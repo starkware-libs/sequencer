@@ -219,6 +219,8 @@ impl PeerManager {
                         self.pending_events.push(ToSwarm::GenerateEvent(
                             ToOtherBehaviourEvent::PeerBlacklisted { peer_id },
                         ));
+                        // TODO(shahak): close the connection with the peer. Do this only when
+                        // we're not in a trusted setup.
                         peer.blacklist_peer(self.config.malicious_timeout_seconds);
                         peer.reset_misconduct_score();
                     }

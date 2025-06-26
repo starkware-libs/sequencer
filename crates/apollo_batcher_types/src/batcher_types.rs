@@ -65,7 +65,7 @@ pub struct GetProposalContentResponse {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum GetProposalContent {
     Txs(Vec<InternalConsensusTransaction>),
-    Finished { id: ProposalCommitment, n_executed_txs: u64 },
+    Finished { id: ProposalCommitment, final_n_executed_txs: usize },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -87,7 +87,8 @@ pub struct SendProposalContentInput {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum SendProposalContent {
     Txs(Vec<InternalConsensusTransaction>),
-    Finish(u64), // The number of executed transactions.
+    /// Contains the final number of transactions in the block.
+    Finish(usize),
     Abort,
 }
 
@@ -102,7 +103,8 @@ pub struct CentralObjects {
     pub execution_infos: Vec<TransactionExecutionInfo>,
     pub bouncer_weights: BouncerWeights,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
-    pub casm_hash_computation_data: CasmHashComputationData,
+    pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
+    pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]

@@ -9,7 +9,7 @@ use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderResult, PriceInf
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 use validator::Validate;
 
 use crate::metrics::{register_provider_metrics, L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY};
@@ -26,6 +26,8 @@ pub struct L1GasPriceProviderConfig {
     // Ethereum.
     pub lag_margin_seconds: u64,
     pub storage_limit: usize,
+    // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
+    pub max_time_gap_seconds: u64,
 }
 
 impl Default for L1GasPriceProviderConfig {
@@ -35,6 +37,7 @@ impl Default for L1GasPriceProviderConfig {
             number_of_blocks_for_mean: MEAN_NUMBER_OF_BLOCKS,
             lag_margin_seconds: 60,
             storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
+            max_time_gap_seconds: 900, // 15 minutes
         }
     }
 }
@@ -59,6 +62,13 @@ impl SerializeConfig for L1GasPriceProviderConfig {
                 "storage_limit",
                 &self.storage_limit,
                 "Maximum number of L1 blocks to keep cached",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "max_time_gap_seconds",
+                &self.max_time_gap_seconds,
+                "Maximum valid time gap between the requested timestamp and the last price sample \
+                 in seconds",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -123,7 +133,7 @@ impl L1GasPriceProvider {
                 });
             }
         }
-        info!("Received price sample for L1 block: {:?}", new_data);
+        debug!("Received price sample for L2 block: {:?}", new_data);
         samples.push(new_data);
         Ok(())
     }
@@ -132,6 +142,23 @@ impl L1GasPriceProvider {
         let Some(samples) = &self.price_samples_by_block else {
             return Err(L1GasPriceProviderError::NotInitializedError);
         };
+        // timestamp of the newest price sample
+        let last_timestamp = samples
+            .back()
+            .ok_or(L1GasPriceProviderError::MissingDataError {
+                timestamp: timestamp.0,
+                lag: self.config.lag_margin_seconds,
+            })?
+            .timestamp;
+
+        // Check if the prices are stale.
+        if timestamp.0 > (*last_timestamp + self.config.max_time_gap_seconds) {
+            return Err(L1GasPriceProviderError::StaleL1GasPricesError {
+                current_timestamp: timestamp.0,
+                last_valid_price_timestamp: *last_timestamp,
+            });
+        }
+
         // This index is for the last block in the mean (inclusive).
         let index_last_timestamp_rev = samples.iter().rev().position(|data| {
             data.timestamp <= timestamp.saturating_sub(&self.config.lag_margin_seconds)

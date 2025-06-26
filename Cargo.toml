@@ -26,6 +26,7 @@ members = [
   "crates/apollo_infra_utils",
   "crates/apollo_integration_tests",
   "crates/apollo_l1_endpoint_monitor",
+  "crates/apollo_l1_endpoint_monitor_types",
   "crates/apollo_l1_gas_price",
   "crates/apollo_l1_gas_price_types",
   "crates/apollo_l1_provider",
@@ -111,6 +112,7 @@ apollo_infra.path = "crates/apollo_infra"
 apollo_infra_utils = { path = "crates/apollo_infra_utils", version = "0.0.0" }
 apollo_integration_tests.path = "crates/apollo_integration_tests"
 apollo_l1_endpoint_monitor.path = "crates/apollo_l1_endpoint_monitor"
+apollo_l1_endpoint_monitor_types.path = "crates/apollo_l1_endpoint_monitor_types"
 apollo_l1_gas_price.path = "crates/apollo_l1_gas_price"
 apollo_l1_gas_price_types.path = "crates/apollo_l1_gas_price_types"
 apollo_l1_provider.path = "crates/apollo_l1_provider"
@@ -274,6 +276,7 @@ semver = "1.0.23"
 serde = "1.0.197"
 serde_json = "1.0.116"
 serde_repr = "0.1.19"
+serde_with = "3.12.0"
 serde_yaml = "0.9.16"
 sha2 = "0.10.8"
 sha3 = "0.10.8"

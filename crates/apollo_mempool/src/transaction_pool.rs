@@ -1,17 +1,22 @@
 use std::cmp::Ordering;
 use std::collections::{hash_map, BTreeMap, HashMap};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, MempoolResult};
+use apollo_time::time::{Clock, DateTime};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
 use crate::metrics::TRANSACTION_TIME_SPENT_IN_MEMPOOL;
-use crate::utils::{try_increment_nonce, Clock};
+use crate::utils::try_increment_nonce;
+
+#[cfg(test)]
+#[path = "transaction_pool_test.rs"]
+pub mod transaction_pool_test;
 
 type HashToTransaction = HashMap<TransactionHash, InternalRpcTransaction>;
 
@@ -157,12 +162,16 @@ impl TransactionPool {
         self.txs_by_account.contains(address)
     }
 
-    pub fn get_submission_time(&self, tx_hash: TransactionHash) -> MempoolResult<Instant> {
+    pub fn get_submission_time(&self, tx_hash: TransactionHash) -> MempoolResult<DateTime> {
         self.txs_by_submission_time
             .hash_to_submission_id
             .get(&tx_hash)
             .map(|submission_id| submission_id.submission_time)
             .ok_or(MempoolError::TransactionNotFound { tx_hash })
+    }
+
+    pub fn get_lowest_nonce(&self, address: ContractAddress) -> Option<Nonce> {
+        self.account_txs_sorted_by_nonce(address).next().map(|tx_ref| tx_ref.nonce)
     }
 
     fn remove_from_main_mapping(&mut self, removed_txs: &Vec<TransactionReference>) {
@@ -302,7 +311,7 @@ impl PoolSize {
 /// Uniquely identify a transaction submission.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct SubmissionID {
-    submission_time: Instant,
+    submission_time: DateTime,
     tx_hash: TransactionHash,
 }
 
@@ -351,8 +360,9 @@ impl TimedTransactionMap {
     /// Returns the removed transaction reference if it exists in the mapping.
     fn remove(&mut self, tx_hash: TransactionHash) -> Option<TransactionReference> {
         let submission_id = self.hash_to_submission_id.remove(&tx_hash)?;
-        TRANSACTION_TIME_SPENT_IN_MEMPOOL
-            .record((self.clock.now() - submission_id.submission_time).as_secs_f64());
+        TRANSACTION_TIME_SPENT_IN_MEMPOOL.record(
+            (self.clock.now() - submission_id.submission_time).to_std().unwrap().as_secs_f64(),
+        );
         self.txs_by_submission_time.remove(&submission_id)
     }
 
@@ -382,8 +392,12 @@ impl TimedTransactionMap {
                 );
                 removed_txs.push(tx);
 
-                TRANSACTION_TIME_SPENT_IN_MEMPOOL
-                    .record((self.clock.now() - submission_id.submission_time).as_secs_f64());
+                TRANSACTION_TIME_SPENT_IN_MEMPOOL.record(
+                    (self.clock.now() - submission_id.submission_time)
+                        .to_std()
+                        .unwrap()
+                        .as_secs_f64(),
+                );
             }
         }
 

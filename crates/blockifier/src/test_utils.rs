@@ -109,6 +109,13 @@ impl CompilerBasedVersion {
         ];
         VERSIONS.iter()
     }
+
+    pub fn is_cairo_native(&self) -> bool {
+        match self {
+            Self::CairoVersion(version) => version.is_cairo_native(),
+            Self::OldCairo1 => false,
+        }
+    }
 }
 
 // Storage keys.

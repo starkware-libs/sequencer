@@ -93,7 +93,7 @@ pub(crate) fn set_bit<S: StateReader>(
         vm,
         ap_tracking,
         &["path"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
     let edge_path = vm.get_integer(edge_path_addr)?.into_owned();
     let new_length: u8 = Ids::NewLength.fetch_as(vm, ids_data, ap_tracking)?;
@@ -220,7 +220,7 @@ pub(crate) fn prepare_preimage_validation_non_deterministic_hashes<S: StateReade
         hint_processor.commitment_type.hash_builtin_struct(),
         vm,
         nested_fields_and_values.as_slice(),
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
 
     // We don't support hash verification skipping and the scope variable
@@ -241,11 +241,11 @@ pub(crate) fn build_descent_map<S: StateReader>(
         get_ptr_from_var_name(Ids::UpdatePtr.into(), vm, ids_data, ap_tracking)?;
 
     let dict_access_size =
-        get_size_of_cairo_struct(CairoStruct::DictAccess, hint_processor.os_program)?;
+        get_size_of_cairo_struct(CairoStruct::DictAccess, hint_processor.program)?;
 
-    let key_offset = get_field_offset(CairoStruct::DictAccess, "key", hint_processor.os_program)?;
+    let key_offset = get_field_offset(CairoStruct::DictAccess, "key", hint_processor.program)?;
     let new_value_offset =
-        get_field_offset(CairoStruct::DictAccess, "new_value", hint_processor.os_program)?;
+        get_field_offset(CairoStruct::DictAccess, "new_value", hint_processor.program)?;
 
     let mut modifications = Vec::new();
     for i in 0..n_updates {
@@ -421,7 +421,7 @@ pub(crate) fn load_edge<S: StateReader>(
             ("path", Felt::from(&path_to_bottom.path).into()),
             ("bottom", bottom_hash.0.into()),
         ],
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
     let hash_ptr = get_ptr_from_var_name(Ids::HashPtr.into(), vm, ids_data, ap_tracking)?;
     insert_value_to_nested_field(
@@ -429,7 +429,7 @@ pub(crate) fn load_edge<S: StateReader>(
         hint_processor.commitment_type.hash_builtin_struct(),
         vm,
         &["result"],
-        hint_processor.os_program,
+        hint_processor.program,
         node.0 - Felt::from(path_to_bottom.length),
     )?;
     Ok(())
@@ -447,7 +447,7 @@ pub(crate) fn load_bottom<S: StateReader>(
             vm,
             ap_tracking,
             &["bottom"],
-            hint_processor.os_program,
+            hint_processor.program,
         )?)?
         .into_owned(),
     );
@@ -465,7 +465,7 @@ pub(crate) fn load_bottom<S: StateReader>(
         hint_processor.commitment_type.hash_builtin_struct(),
         vm,
         nested_fields_and_values.as_slice(),
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
 
     // We don't support hash verification skipping and the scope variable

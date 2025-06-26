@@ -14,7 +14,12 @@ use cairo_vm::types::program::Program;
 use starknet_api::deprecated_contract_class::ContractClass;
 use strum::IntoEnumIterator;
 
-use crate::hints::enum_definition::{AllHints, DeprecatedSyscallHint, TEST_HINT_PREFIX};
+use crate::hints::enum_definition::{
+    AggregatorHint,
+    AllHints,
+    DeprecatedSyscallHint,
+    TEST_HINT_PREFIX,
+};
 use crate::hints::types::HintEnum;
 
 static VM_HINTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
@@ -145,6 +150,18 @@ fn test_all_hints_are_used() {
         redundant_hints.is_empty(),
         "The following hints are not used in the OS or Aggregator programs: {redundant_hints:#?}. \
          Please remove them from the enum definition."
+    );
+}
+
+#[test]
+fn test_no_aggregator_hints_in_os() {
+    let aggregator_hints =
+        AggregatorHint::iter().map(|hint| hint.to_str().to_owned()).collect::<HashSet<String>>();
+    let os_program_hints = program_hints(&OS_PROGRAM);
+    let intersection = aggregator_hints.intersection(&os_program_hints).collect::<HashSet<_>>();
+    assert!(
+        intersection.is_empty(),
+        "The following Aggregator hints are found in the OS program: {intersection:#?}."
     );
 }
 

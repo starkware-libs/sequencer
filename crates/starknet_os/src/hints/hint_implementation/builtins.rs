@@ -70,7 +70,7 @@ pub(crate) fn update_builtin_ptrs<S: StateReader>(
         vm,
         ap_tracking,
         &["builtin_encodings"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
 
     let builtins_encoding = vm.get_relocatable(builtins_encoding_address)?;

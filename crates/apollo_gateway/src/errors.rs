@@ -69,6 +69,10 @@ pub enum StatelessTransactionValidatorError {
         {resource_bounds:?}."
     )]
     ZeroResourceBounds { resource_bounds: AllResourceBounds },
+    #[error(
+        "Max gas price is too low: {gas_price:?}, minimum required gas price: {min_gas_price:?}."
+    )]
+    MaxGasPriceTooLow { gas_price: GasPrice, min_gas_price: u128 },
 }
 
 impl From<StatelessTransactionValidatorError> for GatewaySpecError {
@@ -88,7 +92,8 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
             | StatelessTransactionValidatorError::NonEmptyField { .. }
             | StatelessTransactionValidatorError::SignatureTooLong { .. }
             | StatelessTransactionValidatorError::StarknetApiError(..)
-            | StatelessTransactionValidatorError::ZeroResourceBounds { .. } => {
+            | StatelessTransactionValidatorError::ZeroResourceBounds { .. }
+            | StatelessTransactionValidatorError::MaxGasPriceTooLow { .. } => {
                 GatewaySpecError::ValidationFailure { data: e.to_string() }
             }
         }
@@ -160,7 +165,8 @@ impl From<StatelessTransactionValidatorError> for StarknetError {
                     "StarknetErrorCode.STARKNET_API_ERROR".to_string(),
                 )
             }
-            StatelessTransactionValidatorError::ZeroResourceBounds { .. } => {
+            StatelessTransactionValidatorError::ZeroResourceBounds { .. }
+            | StatelessTransactionValidatorError::MaxGasPriceTooLow { .. } => {
                 StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InsufficientMaxFee)
             }
         };

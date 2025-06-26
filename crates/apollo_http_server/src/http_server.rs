@@ -31,6 +31,7 @@ use crate::errors::{HttpServerError, HttpServerRunError};
 use crate::metrics::{
     init_metrics,
     ADDED_TRANSACTIONS_FAILURE,
+    ADDED_TRANSACTIONS_INTERNAL_ERROR,
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
 };
@@ -115,7 +116,7 @@ async fn add_tx(
     ADDED_TRANSACTIONS_TOTAL.increment(1);
     validate_supported_tx_version(&tx).inspect_err(|e| {
         debug!("Error while validating transaction version: {}", e);
-        ADDED_TRANSACTIONS_FAILURE.increment(1);
+        increment_failure_metrics(e);
     })?;
     let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx).inspect_err(|e| {
         debug!("Error while parsing transaction: {}", e);
@@ -179,16 +180,17 @@ async fn add_tx_inner(
 }
 
 fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, region: &str) {
-    if let Ok(gateway_output) = add_tx_result {
-        // TODO(Arni): Reconsider the tracing level for this log.
-        info!(
-            transaction_hash = %gateway_output.transaction_hash(),
-            region = %region,
-            "Recorded transaction"
-        );
-        ADDED_TRANSACTIONS_SUCCESS.increment(1);
-    } else {
-        ADDED_TRANSACTIONS_FAILURE.increment(1);
+    match add_tx_result {
+        Ok(gateway_output) => {
+            // TODO(Arni): Reconsider the tracing level for this log.
+            info!(
+                transaction_hash = %gateway_output.transaction_hash(),
+                region = %region,
+                "Recorded transaction"
+            );
+            ADDED_TRANSACTIONS_SUCCESS.increment(1);
+        }
+        Err(err) => increment_failure_metrics(err),
     }
 }
 
@@ -204,5 +206,19 @@ impl ComponentStarter for HttpServer {
     async fn start(&mut self) {
         info!("Starting component {}.", short_type_name::<Self>());
         self.run().await.unwrap_or_else(|e| panic!("Failed to start HttpServer component: {:?}", e))
+    }
+}
+
+fn increment_failure_metrics(err: &HttpServerError) {
+    ADDED_TRANSACTIONS_FAILURE.increment(1);
+    let HttpServerError::GatewayClientError(gateway_client_error) = err else {
+        return;
+    };
+    // TODO(shahak): add unit test for ADDED_TRANSACTIONS_INTERNAL_ERROR
+    if matches!(gateway_client_error, GatewayClientError::ClientError(_))
+        || matches!(gateway_client_error, GatewayClientError::GatewayError(
+            GatewayError::DeprecatedGatewayError { source, .. }) if source.is_internal())
+    {
+        ADDED_TRANSACTIONS_INTERNAL_ERROR.increment(1);
     }
 }

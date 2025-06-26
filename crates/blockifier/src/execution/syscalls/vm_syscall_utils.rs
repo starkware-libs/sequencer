@@ -96,7 +96,7 @@ impl<T: SyscallRequest> SyscallRequest for SyscallRequestWrapper<T> {
 
 pub enum SyscallResponseWrapper<T: SyscallResponse> {
     Success { gas_counter: u64, response: T },
-    Failure { gas_counter: u64, error_data: Vec<Felt> },
+    Failure { gas_counter: u64, revert_data: RevertData },
 }
 impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
     fn write(self, vm: &mut VirtualMachine, ptr: &mut Relocatable) -> WriteResponseResult {
@@ -107,13 +107,19 @@ impl<T: SyscallResponse> SyscallResponse for SyscallResponseWrapper<T> {
                 write_felt(vm, ptr, Felt::ZERO)?;
                 response.write(vm, ptr)
             }
-            Self::Failure { gas_counter, error_data } => {
+            Self::Failure {
+                gas_counter,
+                revert_data: RevertData { error_data, use_temp_segment },
+            } => {
                 write_felt(vm, ptr, Felt::from(gas_counter))?;
                 // 1 to indicate failure.
                 write_felt(vm, ptr, Felt::ONE)?;
 
-                // Write the error data to a new memory segment.
-                let revert_reason_start = vm.add_memory_segment();
+                // Write the error data to a new memory segment depends on the segment type.
+                let revert_reason_start = match use_temp_segment {
+                    true => vm.add_temporary_segment(),
+                    false => vm.add_memory_segment(),
+                };
                 let revert_reason_end = vm.load_data(
                     revert_reason_start,
                     &error_data.into_iter().map(Into::into).collect::<Vec<MaybeRelocatable>>(),
@@ -681,8 +687,10 @@ where
         //  Out of gas failure.
         let out_of_gas_error =
             Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutorBaseError::from)?;
-        let response: SyscallResponseWrapper<Response> =
-            SyscallResponseWrapper::Failure { gas_counter, error_data: vec![out_of_gas_error] };
+        let response: SyscallResponseWrapper<Response> = SyscallResponseWrapper::Failure {
+            gas_counter,
+            revert_data: RevertData::new_normal(vec![out_of_gas_error]),
+        };
         response.write(vm, syscall_executor.get_mut_syscall_ptr())?;
 
         return Ok(());
@@ -710,7 +718,7 @@ where
         Ok(response) => SyscallResponseWrapper::Success { gas_counter: remaining_gas, response },
         Err(error) => match error.try_extract_revert() {
             SelfOrRevert::Revert(data) => {
-                SyscallResponseWrapper::Failure { gas_counter: remaining_gas, error_data: data }
+                SyscallResponseWrapper::Failure { gas_counter: remaining_gas, revert_data: data }
             }
             SelfOrRevert::Original(err) => return Err(err),
         },
@@ -748,7 +756,7 @@ pub fn execute_next_syscall<T: SyscallExecutor>(
 
 pub enum SelfOrRevert<T> {
     Original(T),
-    Revert(Vec<Felt>),
+    Revert(RevertData),
 }
 
 impl<T> SelfOrRevert<T> {
@@ -768,7 +776,7 @@ pub trait TryExtractRevert {
     where
         Self: Sized;
 
-    fn as_revert(error_data: Vec<Felt>) -> Self;
+    fn as_revert(revert_data: RevertData) -> Self;
 
     fn from_self_or_revert(self_or_revert: SelfOrRevert<Self>) -> Self
     where
@@ -827,12 +835,28 @@ impl TryExtractRevert for SyscallExecutorBaseError {
         Self: Sized,
     {
         match self {
-            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            Self::Revert { error_data } => SelfOrRevert::Revert(RevertData::new_normal(error_data)),
             _ => SelfOrRevert::Original(self),
         }
     }
 
-    fn as_revert(error_data: Vec<Felt>) -> Self {
-        Self::Revert { error_data }
+    fn as_revert(revert_data: RevertData) -> Self {
+        Self::Revert { error_data: revert_data.error_data }
+    }
+}
+
+#[derive(Debug)]
+pub struct RevertData {
+    pub error_data: Vec<Felt>,
+    use_temp_segment: bool,
+}
+
+impl RevertData {
+    pub fn new_temp(error_data: Vec<Felt>) -> Self {
+        RevertData { error_data, use_temp_segment: true }
+    }
+
+    pub fn new_normal(error_data: Vec<Felt>) -> Self {
+        RevertData { error_data, use_temp_segment: false }
     }
 }

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_mempool_types::errors::MempoolError;
+use apollo_time::test_utils::FakeClock;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
 use starknet_api::{contract_address, nonce};
@@ -8,13 +9,7 @@ use starknet_api::{contract_address, nonce};
 use crate::add_tx_input;
 use crate::config::MempoolConfig;
 use crate::mempool::Mempool;
-use crate::test_utils::{
-    add_tx,
-    add_tx_expect_error,
-    commit_block,
-    get_txs_and_assert_expected,
-    FakeClock,
-};
+use crate::test_utils::{add_tx, add_tx_expect_error, commit_block, get_txs_and_assert_expected};
 
 // Fixtures.
 

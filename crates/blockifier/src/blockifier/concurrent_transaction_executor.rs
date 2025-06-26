@@ -61,8 +61,16 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         Ok(Self { worker_executor, worker_pool: worker_pool.clone(), n_output_txs: 0 })
     }
 
+<<<<<<< HEAD
     /// Similar to [ConcurrentTransactionExecutor::start_block], except that [pre_process_block] is
     /// not called. Used for testing purposes.
+||||||| 2452f56bc
+    /// Similar to [start_block], except that [pre_process_block] is not called.
+    /// Used for testing purposes.
+=======
+    /// Similar to [Self::start_block], except that [pre_process_block] is not called.
+    /// Used for testing purposes.
+>>>>>>> origin/main-v0.14.0
     #[cfg(any(feature = "testing", test))]
     pub fn new_for_testing(
         block_state: CachedState<S>,
@@ -108,7 +116,6 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
         txs: &[Transaction],
     ) -> Vec<TransactionExecutorResult<TransactionExecutionOutput>> {
         let (from_tx, to_tx) = self.worker_executor.add_txs(txs);
-        // TODO(lior): Remove this check once tx streaming is supported.
         assert_eq!(
             from_tx, self.n_output_txs,
             "Can't add transaction after a partial result from an early run. Returned {} out of \
@@ -124,25 +131,21 @@ impl<S: StateReader + Send + 'static> ConcurrentTransactionExecutor<S> {
     /// Every block must be closed with either `close_block` or `abort_block`.
     pub fn close_block(
         &mut self,
-        n_txs_in_block: Option<usize>,
+        final_n_executed_txs: usize,
     ) -> TransactionExecutorResult<BlockExecutionSummary> {
         log::info!("Worker executor: Closing block.");
         let worker_executor = &self.worker_executor;
         worker_executor.scheduler.halt();
 
         let n_committed_txs = worker_executor.scheduler.get_n_committed_txs();
-        let n_txs = if let Some(n_txs_in_block) = n_txs_in_block {
-            assert!(
-                n_txs_in_block <= n_committed_txs,
-                "Close block requested with {n_txs_in_block} transactions, but only \
-                 {n_committed_txs} transactions were committed."
-            );
-            n_txs_in_block
-        } else {
-            n_committed_txs
-        };
+        assert!(
+            final_n_executed_txs <= n_committed_txs,
+            "Close block requested with {final_n_executed_txs} transactions, but only \
+             {n_committed_txs} transactions were committed."
+        );
 
-        let mut state_after_block = worker_executor.commit_chunk_and_recover_block_state(n_txs);
+        let mut state_after_block =
+            worker_executor.commit_chunk_and_recover_block_state(final_n_executed_txs);
         finalize_block(
             &worker_executor.bouncer,
             &mut state_after_block,

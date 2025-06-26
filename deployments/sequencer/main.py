@@ -107,6 +107,7 @@ def main():
                     config_paths=svc["config_paths"],
                 ),
                 image=image,
+                k8s_service_config=svc["k8s_service_config"],
                 controller=svc["controller"].lower(),
                 replicas=svc["replicas"],
                 autoscale=svc["autoscale"],

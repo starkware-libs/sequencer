@@ -20,10 +20,14 @@ use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCT
 use crate::metrics::RemoteClientMetrics;
 use crate::serde_utils::SerdeWrapper;
 
-const DEFAULT_RETRIES: usize = 50;
-const DEFAULT_IDLE_CONNECTIONS: usize = usize::MAX;
-const DEFAULT_IDLE_TIMEOUT: u64 = 90;
-const DEFAULT_RETRY_INTERVAL: u64 = 3;
+// TODO(Tsabary): rename all constants to better describe their purpose.
+const DEFAULT_RETRIES: usize = 150;
+const DEFAULT_IDLE_CONNECTIONS: usize = 10;
+// TODO(Tsabary): add `_SECS` suffix to the constant names and the config fields.
+const DEFAULT_IDLE_TIMEOUT: u64 = 30;
+const DEFAULT_RETRY_INTERVAL: u64 = 1;
+
+// TODO(Tsabary): consider retry delay mechanisms, e.g., exponential backoff, jitter, etc.
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RemoteClientConfig {

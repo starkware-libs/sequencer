@@ -76,7 +76,8 @@ pub(crate) struct AerospikeBlob {
     execution_infos: Vec<CentralTransactionExecutionInfo>,
     contract_classes: Vec<CentralSierraContractClassEntry>,
     compiled_classes: Vec<CentralCasmContractClassEntry>,
-    casm_hash_computation_data: CentralCasmHashComputationData,
+    casm_hash_computation_data_sierra_gas: CentralCasmHashComputationData,
+    casm_hash_computation_data_proving_gas: CentralCasmHashComputationData,
 }
 
 #[cfg_attr(test, automock)]
@@ -291,7 +292,8 @@ pub struct BlobParameters {
     pub(crate) bouncer_weights: BouncerWeights,
     pub(crate) fee_market_info: FeeMarketInfo,
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
-    pub(crate) casm_hash_computation_data: CasmHashComputationData,
+    pub(crate) casm_hash_computation_data_sierra_gas: CasmHashComputationData,
+    pub(crate) casm_hash_computation_data_proving_gas: CasmHashComputationData,
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
@@ -333,7 +335,10 @@ impl AerospikeBlob {
             execution_infos,
             contract_classes,
             compiled_classes,
-            casm_hash_computation_data: blob_parameters.casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas: blob_parameters
+                .casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas: blob_parameters
+                .casm_hash_computation_data_proving_gas,
         })
     }
 }
