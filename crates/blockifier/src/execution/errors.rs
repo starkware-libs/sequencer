@@ -121,7 +121,7 @@ pub enum ConstructorEntryPointExecutionError {
     )]
     ExecutionError {
         #[source]
-        error: EntryPointExecutionError,
+        error: Box<EntryPointExecutionError>,
         class_hash: ClassHash,
         contract_address: ContractAddress,
         constructor_selector: Option<EntryPointSelector>,
@@ -135,7 +135,7 @@ impl ConstructorEntryPointExecutionError {
         selector: Option<EntryPointSelector>,
     ) -> Self {
         Self::ExecutionError {
-            error,
+            error: Box::new(error),
             class_hash: ctor_context.class_hash,
             contract_address: ctor_context.storage_address,
             constructor_selector: selector,

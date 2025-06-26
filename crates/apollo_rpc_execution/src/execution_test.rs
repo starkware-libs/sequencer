@@ -785,7 +785,7 @@ fn blockifier_error_mapping() {
 
     let blockifier_err = BlockifierTransactionExecutionError::ContractConstructorExecutionFailed(
         ConstructorEntryPointExecutionError::ExecutionError {
-            error: child,
+            error: Box::new(child),
             class_hash,
             contract_address: storage_address,
             constructor_selector: None,

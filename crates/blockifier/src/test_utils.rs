@@ -253,7 +253,7 @@ macro_rules! check_tx_execution_error_inner {
                 TransactionExecutionError::ContractConstructorExecutionFailed(
                     ConstructorEntryPointExecutionError::ExecutionError { error, .. },
                 ) => {
-                    $crate::check_entry_point_execution_error!(&error, $expected_hint)
+                    $crate::check_entry_point_execution_error!(&*(error.as_ref()), $expected_hint)
                 }
                 _ => panic!("Unexpected structure for error: {:?}", $error),
             }
