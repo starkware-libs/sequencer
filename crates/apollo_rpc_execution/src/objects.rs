@@ -29,6 +29,7 @@ use starknet_api::core::{
     ClassHash,
     ContractAddress,
     EntryPointSelector,
+    EthAddress,
     Nonce,
     SequencerContractAddress,
 };
@@ -463,7 +464,7 @@ impl OrderedL2ToL1Message {
             order: blockifier_message.order,
             message: MessageToL1 {
                 from_address,
-                to_address: blockifier_message.message.to_address,
+                to_address: EthAddress::try_from(blockifier_message.message.to_address).unwrap(),
                 payload: blockifier_message.message.payload,
             },
         }

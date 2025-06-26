@@ -9,7 +9,7 @@ use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::block::{BlockHash, BlockNumber};
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, L1Address};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt, TransactionSignature};
@@ -404,7 +404,8 @@ impl SyscallRequest for SendMessageToL1Request {
         vm: &VirtualMachine,
         ptr: &mut Relocatable,
     ) -> SyscallBaseResult<SendMessageToL1Request> {
-        let to_address = EthAddress::try_from(felt_from_ptr(vm, ptr)?)?;
+        let felt = felt_from_ptr(vm, ptr)?;
+        let to_address = L1Address::from(felt);
         let payload = L2ToL1Payload(read_felt_array::<SyscallExecutorBaseError>(vm, ptr)?);
 
         Ok(SendMessageToL1Request { message: MessageToL1 { to_address, payload } })
