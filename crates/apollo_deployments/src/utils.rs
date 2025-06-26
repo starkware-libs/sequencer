@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use crate::deployment::DeploymentType;
+use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 
 // TODO(Tsabary): test no conflicts between config entries defined in each of the override types.
 // TODO(Tsabary): delete duplicates from the base app config, and add a test that there are no
@@ -14,8 +14,8 @@ pub(crate) fn get_secret_key(id: usize) -> String {
     format!("0x010101010101010101010101010101010101010101010101010101010101010{}", id + 1)
 }
 
-pub(crate) fn get_validator_id(id: usize, deployment_type: DeploymentType) -> String {
-    format!("0x{:x}", id + deployment_type.validator_id_offset())
+pub(crate) fn get_validator_id(id: usize) -> String {
+    format!("0x{:x}", id + usize::try_from(DEFAULT_VALIDATOR_ID).unwrap())
 }
 
 /// Returns a validated or generated vector of port numbers of length `n`.

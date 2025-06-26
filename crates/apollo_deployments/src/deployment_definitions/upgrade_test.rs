@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
-use crate::deployment::{Deployment, DeploymentType, P2PCommunicationType, PragmaDomain};
+use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::deployments::hybrid::create_hybrid_instance_config_override;
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
@@ -18,13 +18,7 @@ const NODE_NAMESPACE_FORMAT: &str = "apollo-alpha-test-{}";
 
 pub(crate) fn upgrade_test_hybrid_deployments() -> Vec<Deployment> {
     UPGRADE_TEST_NODE_IDS
-        .map(|i| {
-            upgrade_test_hybrid_deployment_node(
-                i,
-                DeploymentType::Operational,
-                P2PCommunicationType::External,
-            )
-        })
+        .map(|i| upgrade_test_hybrid_deployment_node(i, P2PCommunicationType::External))
         .to_vec()
 }
 
@@ -44,7 +38,6 @@ fn upgrade_test_deployment_config_override() -> DeploymentConfigOverride {
 
 fn upgrade_test_hybrid_deployment_node(
     id: usize,
-    deployment_type: DeploymentType,
     p2p_communication_type: P2PCommunicationType,
 ) -> Deployment {
     Deployment::new(
@@ -58,7 +51,6 @@ fn upgrade_test_hybrid_deployment_node(
             create_hybrid_instance_config_override(
                 id,
                 NODE_NAMESPACE_FORMAT,
-                deployment_type,
                 p2p_communication_type,
                 UPGRADE_TEST_INGRESS_DOMAIN,
             ),

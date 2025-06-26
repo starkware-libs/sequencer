@@ -7,7 +7,6 @@ use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
 use apollo_config::{ParamPath, SerializedParam};
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::config_utils::config_to_preset;
-use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 use indexmap::IndexMap;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -166,20 +165,6 @@ impl Display for PragmaDomain {
             PragmaDomain::Prod => "production",
         };
         write!(f, "{}", s)
-    }
-}
-
-pub(crate) enum DeploymentType {
-    Bootstrap,
-    Operational,
-}
-
-impl DeploymentType {
-    pub(crate) fn validator_id_offset(&self) -> usize {
-        match self {
-            DeploymentType::Bootstrap => 1,
-            DeploymentType::Operational => DEFAULT_VALIDATOR_ID.try_into().unwrap(),
-        }
     }
 }
 
