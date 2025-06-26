@@ -89,6 +89,7 @@ pub async fn run_os_cli(
 #[derive(Serialize)]
 pub(crate) struct OsCliOutput {
     pub(crate) os_output: Vec<Felt>,
+    pub(crate) da_segment: Option<Vec<Felt>>,
     pub unused_hints: HashSet<AllHints>,
 }
 
