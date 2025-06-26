@@ -16,7 +16,7 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     StartHeightInput,
 };
-use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
+use apollo_batcher_types::communication::BatcherClient;
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::{
     ConsensusContext,
@@ -25,7 +25,6 @@ use apollo_consensus::types::{
     Round,
     ValidatorId,
 };
-use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
@@ -38,7 +37,7 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
-use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::communication::StateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;
@@ -73,21 +72,6 @@ use crate::utils::{convert_to_sn_api_block_info, GasPriceParams, StreamSender};
 use crate::validate_proposal::{validate_proposal, BlockInfoValidation, ProposalValidateArguments};
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
-pub(crate) type ProposalResult<T> = Result<T, BuildProposalError>;
-
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum BuildProposalError {
-    #[error("Batcher error: {0}")]
-    Batcher(#[from] BatcherClientError),
-    #[error("State sync client error: {0}")]
-    StateSyncClientError(#[from] StateSyncClientError),
-    #[error("State sync is not ready: {0}")]
-    StateSyncNotReady(String),
-    #[error("EthToStrkOracle error: {0}")]
-    EthToStrkOracle(#[from] EthToStrkOracleClientError),
-    #[error("L1GasPriceProvider error: {0}")]
-    L1GasPriceProvider(#[from] L1GasPriceClientError),
-}
 
 type HeightToIdToContent = BTreeMap<
     BlockNumber,

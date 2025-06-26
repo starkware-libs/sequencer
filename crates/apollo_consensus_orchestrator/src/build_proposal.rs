@@ -7,9 +7,10 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     ProposeBlockInput,
 };
-use apollo_batcher_types::communication::BatcherClient;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::{ProposalCommitment, Round};
+use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
     ProposalFin,
@@ -17,6 +18,7 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
+use apollo_state_sync_types::communication::StateSyncClientError;
 use futures::channel::oneshot;
 use futures::FutureExt;
 use starknet_api::block::{BlockHash, GasPrice};
@@ -28,11 +30,7 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, info, trace, warn};
 
-use crate::sequencer_consensus_context::{
-    BuiltProposals,
-    ProposalResult,
-    SequencerConsensusContextDeps,
-};
+use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
@@ -58,6 +56,22 @@ pub(crate) struct ProposalBuildArguments {
     pub cancel_token: CancellationToken,
     pub previous_block_info: Option<ConsensusBlockInfo>,
     pub proposal_round: Round,
+}
+
+type BuildProposalResult<T> = Result<T, BuildProposalError>;
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum BuildProposalError {
+    #[error("Batcher error: {0}")]
+    Batcher(#[from] BatcherClientError),
+    #[error("State sync client error: {0}")]
+    StateSyncClientError(#[from] StateSyncClientError),
+    #[error("State sync is not ready: {0}")]
+    StateSyncNotReady(String),
+    #[error("EthToStrkOracle error: {0}")]
+    EthToStrkOracle(#[from] EthToStrkOracleClientError),
+    #[error("L1GasPriceProvider error: {0}")]
+    L1GasPriceProvider(#[from] L1GasPriceClientError),
 }
 
 // Handles building a new proposal without blocking consensus:
@@ -108,7 +122,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
     }
 }
 
-async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
+async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.deps.clock.unix_now();
