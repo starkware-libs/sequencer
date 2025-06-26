@@ -72,6 +72,22 @@ pub struct L1ToL2Message {
     pub nonce: L1ToL2Nonce,
 }
 
+// TODO(Arni): This code already appears somewhere else in the codebase, consider sharing it.
+impl From<starknet_api::transaction::L1HandlerTransaction> for L1ToL2Message {
+    fn from(l1_handler_transaction: starknet_api::transaction::L1HandlerTransaction) -> Self {
+        let calldata = l1_handler_transaction.calldata;
+        let from_address = calldata.0[0].try_into().expect("Failed to convert EthAddress");
+        let payload = L1ToL2Payload(calldata.0[1..].to_vec());
+        Self {
+            from_address,
+            to_address: l1_handler_transaction.contract_address,
+            selector: l1_handler_transaction.entry_point_selector,
+            payload,
+            nonce: L1ToL2Nonce(l1_handler_transaction.nonce.0),
+        }
+    }
+}
+
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct L2ToL1Message {
     pub from_address: ContractAddress,
@@ -189,10 +205,16 @@ impl
         // TODO(Arni): change the type of this parameter to TransactionOffsetInBlock
         usize,
         &TransactionExecutionInfo,
+        Option<starknet_api::transaction::L1HandlerTransaction>,
     )> for StarknetClientTransactionReceipt
 {
     fn from(
-        (tx_hash, tx_index, tx_execution_info): (TransactionHash, usize, &TransactionExecutionInfo),
+        (tx_hash, tx_index, tx_execution_info, l1_handler): (
+            TransactionHash,
+            usize,
+            &TransactionExecutionInfo,
+            Option<starknet_api::transaction::L1HandlerTransaction>,
+        ),
     ) -> Self {
         let l2_to_l1_messages = get_l2_to_l1_messages(tx_execution_info);
         let events = get_events_from_execution_info(tx_execution_info);
@@ -211,7 +233,7 @@ impl
             transaction_index: TransactionOffsetInBlock(tx_index),
             transaction_hash: tx_hash,
             // TODO(Arni): Fill this up. This is relevant only for L1 handler transactions.
-            l1_to_l2_consumed_message: None,
+            l1_to_l2_consumed_message: l1_handler.map(L1ToL2Message::from),
             l2_to_l1_messages,
             events,
             execution_resources,
@@ -274,7 +296,7 @@ fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> 
 
 fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> ExecutionResources {
     let receipt = &execution_info.receipt;
-    let resources = &receipt.resources.computation.vm_resources;
+    let resources = &receipt.resources.computation.total_vm_resources();
     let builtin_instance_counter = resources
         .builtin_instance_counter
         .iter()

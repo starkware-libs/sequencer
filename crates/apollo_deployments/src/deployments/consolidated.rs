@@ -8,21 +8,20 @@ use serde::Serialize;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
-use crate::service::{
+use crate::deployment_definitions::Environment;
+use crate::k8s::{
     get_ingress,
     Controller,
-    GetComponentConfigs,
     Ingress,
     IngressParams,
     Resource,
     Resources,
-    ServiceName,
-    ServiceNameInner,
     Toleration,
 };
+use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
 
 const NODE_STORAGE: usize = 1000;
+const TESTING_NODE_STORAGE: usize = 1;
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -37,14 +36,11 @@ impl From<ConsolidatedNodeServiceName> for ServiceName {
 }
 
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
-    fn get_component_configs(
-        _base_port: Option<u16>,
-        environment: &Environment,
-    ) -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(_ports: Option<Vec<u16>>) -> IndexMap<ServiceName, ComponentConfig> {
         let mut component_config_map = IndexMap::new();
         component_config_map.insert(
             ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
-            get_consolidated_config(environment),
+            get_consolidated_config(),
         );
         component_config_map
     }
@@ -67,7 +63,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 ConsolidatedNodeServiceName::Node => Some(Toleration::ApolloCoreService),
@@ -84,18 +80,22 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => get_ingress(ingress_params, false),
             _ => unimplemented!(),
         }
     }
 
+    fn has_p2p_interface(&self) -> bool {
+        true
+    }
+
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
-            Environment::Testing => None,
+            Environment::Testing => Some(TESTING_NODE_STORAGE),
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => Some(NODE_STORAGE),
             _ => unimplemented!(),
@@ -106,7 +106,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match environment {
             Environment::Testing => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
             _ => unimplemented!(),
@@ -121,7 +121,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         match environment {
             Environment::Testing => false,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => true,
             _ => unimplemented!(),
@@ -129,15 +129,8 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
     }
 }
 
-fn get_consolidated_config(environment: &Environment) -> ComponentConfig {
-    let mut base = ReactiveComponentExecutionConfig::local_with_remote_disabled();
-    let EnvironmentComponentConfigModifications {
-        local_server_config,
-        max_concurrency,
-        remote_client_config: _,
-    } = environment.get_component_config_modifications();
-    base.local_server_config = local_server_config;
-    base.max_concurrency = max_concurrency;
+fn get_consolidated_config() -> ComponentConfig {
+    let base = ReactiveComponentExecutionConfig::local_with_remote_disabled();
 
     ComponentConfig {
         batcher: base.clone(),
@@ -145,6 +138,7 @@ fn get_consolidated_config(environment: &Environment) -> ComponentConfig {
         consensus_manager: ActiveComponentExecutionConfig::enabled(),
         gateway: base.clone(),
         http_server: ActiveComponentExecutionConfig::enabled(),
+        l1_endpoint_monitor: base.clone(),
         l1_provider: base.clone(),
         l1_scraper: ActiveComponentExecutionConfig::enabled(),
         l1_gas_price_provider: base.clone(),

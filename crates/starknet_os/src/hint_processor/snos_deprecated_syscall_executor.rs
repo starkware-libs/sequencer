@@ -131,7 +131,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             CairoStruct::TxInfo,
             vm,
             &["version"],
-            syscall_handler.os_program,
+            syscall_handler.program,
         )?)?;
         let os_constants = &syscall_handler.versioned_constants().os_constants;
         // Check if we should return version = 1.
@@ -144,16 +144,14 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         if should_replace_to_v1 {
             // Deal with version bound accounts.
             let replaced_tx_info = vm.add_memory_segment();
-            let tx_info_size = get_size_of_cairo_struct(
-                CairoStruct::DeprecatedTxInfo,
-                syscall_handler.os_program,
-            )?;
+            let tx_info_size =
+                get_size_of_cairo_struct(CairoStruct::DeprecatedTxInfo, syscall_handler.program)?;
             let mut flattened_tx_info =
                 vm.get_continuous_range(original_tx_info_start_ptr, tx_info_size)?;
             let version_offset = get_field_offset(
                 CairoStruct::DeprecatedTxInfo,
                 "version",
-                syscall_handler.os_program,
+                syscall_handler.program,
             )?;
             // Replace the version field with 1.
             flattened_tx_info[version_offset] = TransactionVersion::ONE.0.into();
@@ -169,7 +167,10 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     type Error = DeprecatedSnosSyscallError;
 
     fn increment_syscall_count(&mut self, selector: &DeprecatedSyscallSelector) {
-        self.deprecated_syscall_hint_processor
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Current execution helper must be set.");
+        current_execution_helper
+            .deprecated_syscall_hint_processor
             .syscalls_usage
             .entry(*selector)
             .or_default()
@@ -178,6 +179,7 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
 
     fn verify_syscall_ptr(&self, actual_ptr: Relocatable) -> Result<(), Self::Error> {
         let expected_ptr = self
+            .get_current_execution_helper()?
             .deprecated_syscall_hint_processor
             .syscall_ptr
             .expect("Syscall must be set at this point.");
@@ -191,7 +193,10 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
-        self.deprecated_syscall_hint_processor
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Current execution helper must be set.");
+        current_execution_helper
+            .deprecated_syscall_hint_processor
             .syscall_ptr
             .as_mut()
             .expect("Syscall pointer must be set when executing syscall.")
@@ -323,14 +328,14 @@ impl<S: StateReader> DeprecatedSyscallExecutor for SnosHintProcessor<'_, S> {
                 CairoStruct::DeprecatedTxInfo,
                 vm,
                 &["signature"],
-                syscall_handler.os_program,
+                syscall_handler.program,
             )?)?;
         let tx_signature_len = *vm.get_integer(get_address_of_nested_fields_from_base_address(
             tx_info_start_ptr,
             CairoStruct::DeprecatedTxInfo,
             vm,
             &["signature_len"],
-            syscall_handler.os_program,
+            syscall_handler.program,
         )?)?;
         Ok(GetTxSignatureResponse {
             segment: ReadOnlySegment {

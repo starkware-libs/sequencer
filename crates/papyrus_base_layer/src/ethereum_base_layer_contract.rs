@@ -97,7 +97,6 @@ impl EthereumBaseLayerContract {
         let current_node_url = config.node_url.clone();
         let contract =
             build_contract_instance(config.starknet_contract_address, current_node_url.clone());
-
         Self { contract, config }
     }
 }
@@ -256,6 +255,12 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             blob_fee,
         }))
     }
+
+    /// Rebuilds the provider on the new url.
+    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
+        self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
+        Ok(())
+    }
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -306,7 +311,9 @@ impl SerializeConfig for EthereumBaseLayerConfig {
             ser_param(
                 "node_url",
                 &self.node_url.to_string(),
-                "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
+                "Initial ethereum node URL. A schema to match to Infura node: \
+                 https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. \
+                 May be be replaced during runtime if becomes inoperative",
                 ParamPrivacyInput::Private,
             ),
             ser_param(
@@ -327,7 +334,6 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 "The timeout (milliseconds) for a query of the L1 base layer",
                 ParamPrivacyInput::Public,
             ),
-
         ])
     }
 }

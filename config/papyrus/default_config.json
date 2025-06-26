@@ -1,6 +1,6 @@
 {
   "base_layer.node_url": {
-    "description": "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
+    "description": "Initial ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. May be be replaced during runtime if becomes inoperative",
     "privacy": "Private",
     "value": "https://mainnet.infura.io/v3/%3Cyour_api_key%3E"
   },

@@ -627,7 +627,7 @@ pub fn run_cairo_0_entry_point(
             program_segment_size,
             &mut hint_processor,
         )
-        .map_err(Cairo0EntryPointRunnerError::RunCairoEndpoint)?;
+        .map_err(Box::new)?;
     info!("Successfully finished running entrypoint {}", entrypoint);
     let (implicit_return_values, explicit_return_values) =
         get_return_values(implicit_args, expected_explicit_return_values, &cairo_runner.vm)?;

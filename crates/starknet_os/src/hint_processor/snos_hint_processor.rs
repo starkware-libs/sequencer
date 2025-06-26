@@ -1,5 +1,6 @@
+use std::any::Any;
 use std::collections::btree_map::IntoIter;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use blockifier::execution::call_info::CallExecution;
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
@@ -7,7 +8,7 @@ use blockifier::execution::syscalls::vm_syscall_utils::{execute_next_syscall, Sy
 use blockifier::state::state_api::StateReader;
 #[cfg(any(feature = "testing", test))]
 use blockifier::test_utils::dict_state_reader::DictStateReader;
-use cairo_lang_casm::hints::Hint as Cairo1Hint;
+use cairo_lang_casm::hints::{Hint as Cairo1Hint, StarknetHint};
 use cairo_lang_runner::casm_run::execute_core_hint_base;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_definition::{
@@ -15,13 +16,10 @@ use cairo_vm::hint_processor::builtin_hint_processor::builtin_hint_processor_def
     HintProcessorData as Cairo0Hint,
 };
 use cairo_vm::hint_processor::hint_processor_definition::{HintExtension, HintProcessorLogic};
-use cairo_vm::stdlib::any::Any;
-use cairo_vm::stdlib::boxed::Box;
-use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::Relocatable;
-use cairo_vm::vm::errors::hint_errors::{HintError, HintError as VmHintError};
+use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::ClassHash;
@@ -29,7 +27,11 @@ use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
-use crate::hint_processor::common_hint_processor::CommonHintProcessor;
+use crate::hint_processor::common_hint_processor::{
+    CommonHintProcessor,
+    VmHintExtensionResult,
+    VmHintResult,
+};
 use crate::hint_processor::execution_helper::{
     CallInfoTracker,
     ExecutionHelperError,
@@ -51,10 +53,7 @@ use crate::io::os_input::{
     OsInputError,
 };
 use crate::vm_utils::get_address_of_nested_fields_from_base_address;
-
-type VmHintResultType<T> = Result<T, VmHintError>;
-type VmHintResult = VmHintResultType<()>;
-type VmHintExtensionResult = VmHintResultType<HintExtension>;
+use crate::{impl_common_hint_processor_getters, impl_common_hint_processor_logic};
 
 pub(crate) struct ExecutionHelpersManager<'a, S: StateReader> {
     execution_helpers: Vec<OsExecutionHelper<'a, S>>,
@@ -109,15 +108,13 @@ impl<'a, S: StateReader> ExecutionHelpersManager<'a, S> {
 
 pub struct SnosHintProcessor<'a, S: StateReader> {
     // The program being run. The hint processor does not require ownership.
-    pub(crate) os_program: &'a Program,
+    pub(crate) program: &'a Program,
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
-    pub syscall_hint_processor: SyscallHintProcessor,
     pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, ContractClass>,
     pub(crate) deprecated_class_hashes: HashSet<ClassHash>,
     pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
-    pub(crate) deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     builtin_hint_processor: BuiltinHintProcessor,
     // The type of commitment tree next in line for hashing. Used to determine which HashBuiltin
     // type is to be used.
@@ -141,8 +138,6 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
         compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
         state_readers: Vec<S>,
-        syscall_hint_processor: SyscallHintProcessor,
-        deprecated_syscall_hint_processor: DeprecatedSyscallHintProcessor,
     ) -> Result<Self, StarknetOsError> {
         if state_readers.len() != os_block_inputs.len() {
             return Err(OsInputError::InvalidLengthOfStateReaders(
@@ -165,11 +160,9 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             })
             .collect::<Result<_, _>>()?;
         Ok(Self {
-            os_program,
+            program: os_program,
             execution_helpers_manager: ExecutionHelpersManager::new(execution_helpers),
             os_hints_config,
-            syscall_hint_processor,
-            deprecated_syscall_hint_processor,
             da_segment: None,
             builtin_hint_processor: BuiltinHintProcessor::new_empty(),
             deprecated_class_hashes: deprecated_compiled_classes.keys().copied().collect(),
@@ -229,7 +222,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
                 CairoStruct::ExecutionInfo,
                 vm,
                 nested_fields,
-                self.os_program,
+                self.program,
             )?)?
             .into_owned())
     }
@@ -270,122 +263,53 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     }
 }
 
-impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
-    fn get_program(&self) -> &'program Program {
-        self.os_program
-    }
-
-    fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers> {
-        &mut self.state_update_pointers
-    }
-
-    fn _get_da_segment(&mut self) -> &mut Option<Vec<Felt>> {
-        &mut self.da_segment
-    }
-
-    /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
-    /// mode.
-    fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
-        if self.da_segment.is_some() {
-            return Err(OsHintError::AssertionFailed {
-                message: "DA segment is already initialized.".to_string(),
-            });
-        }
-        self.da_segment = Some(da_segment);
-        Ok(())
-    }
-
-    fn get_serialize_data_availability_create_pages(&self) -> bool {
-        self.serialize_data_availability_create_pages
-    }
-
-    #[cfg(any(test, feature = "testing"))]
-    fn get_unused_hints(&mut self) -> &mut HashSet<AllHints> {
-        &mut self.unused_hints
-    }
+impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
+    impl_common_hint_processor_logic!();
 }
 
-impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
-    fn execute_hint(
+impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
+    impl_common_hint_processor_getters!();
+
+    fn execute_cairo0_unique_hint(
         &mut self,
-        _vm: &mut VirtualMachine,
-        _exec_scopes: &mut ExecutionScopes,
-        _hint_data: &Box<dyn Any>,
-        _constants: &HashMap<String, Felt>,
-    ) -> VmHintResult {
-        Ok(())
+        hint: &AllHints,
+        hint_args: HintArgs<'_>,
+        _hint_str: &str,
+    ) -> VmHintExtensionResult {
+        match hint {
+            AllHints::StatelessHint(_) | AllHints::CommonHint(_) => {
+                unreachable!(
+                    "Stateless and common hints should be handled in execute_hint_extensive \
+                     function; got {hint:?}."
+                );
+            }
+            AllHints::OsHint(os_hint) => {
+                os_hint.execute_hint(self, hint_args)?;
+            }
+            AllHints::AggregatorHint(aggregator_hint) => {
+                panic!("Aggregator hints should not be used in the OS. Hint: {aggregator_hint:?}");
+            }
+            AllHints::DeprecatedSyscallHint(deprecated_syscall_hint) => {
+                deprecated_syscall_hint.execute_hint(self, hint_args)?;
+            }
+            AllHints::HintExtension(hint_extension) => {
+                return Ok(hint_extension.execute_hint_extensive(self, hint_args)?);
+            }
+            #[cfg(any(test, feature = "testing"))]
+            AllHints::TestHint => {
+                test_hint(_hint_str, self, hint_args)?;
+            }
+        }
+        Ok(HintExtension::default())
     }
 
-    fn execute_hint_extensive(
+    fn execute_cairo1_unique_hint(
         &mut self,
+        hint: &StarknetHint,
         vm: &mut VirtualMachine,
-        exec_scopes: &mut ExecutionScopes,
-        hint_data: &Box<dyn Any>,
-        constants: &HashMap<String, Felt>,
     ) -> VmHintExtensionResult {
-        if let Some(hint_processor_data) = hint_data.downcast_ref::<Cairo0Hint>() {
-            // AllHints (OS hint, aggregator hint, Cairo0 syscall) or Cairo0 core hint.
-            let hint_args = HintArgs {
-                vm,
-                exec_scopes,
-                ids_data: &hint_processor_data.ids_data,
-                ap_tracking: &hint_processor_data.ap_tracking,
-                constants,
-            };
-            if let Ok(hint) = AllHints::from_str(hint_processor_data.code.as_str()) {
-                // OS hint, aggregator hint, Cairo0 syscall.
-                return match hint {
-                    AllHints::StatelessHint(stateless) => {
-                        stateless.execute_hint(self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                    AllHints::CommonHint(common_hint) => {
-                        common_hint.execute_hint(self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                    AllHints::OsHint(os_hint) => {
-                        os_hint.execute_hint(self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                    AllHints::AggregatorHint(aggregator_hint) => {
-                        aggregator_hint.execute_hint(self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                    AllHints::DeprecatedSyscallHint(deprecated_syscall_hint) => {
-                        deprecated_syscall_hint.execute_hint(self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                    AllHints::HintExtension(hint_extension) => {
-                        Ok(hint_extension.execute_hint_extensive(self, hint_args)?)
-                    }
-                    #[cfg(any(test, feature = "testing"))]
-                    AllHints::TestHint => {
-                        test_hint(hint_processor_data.code.as_str(), self, hint_args)?;
-                        Ok(HintExtension::default())
-                    }
-                };
-            } else {
-                // Cairo0 core hint.
-                self.builtin_hint_processor.execute_hint(vm, exec_scopes, hint_data, constants)?;
-                return Ok(HintExtension::default());
-            }
-        }
-
-        // Cairo1 syscall or Cairo1 core hint.
-        match hint_data.downcast_ref::<Cairo1Hint>().ok_or(HintError::WrongHintData)? {
-            Cairo1Hint::Core(hint) => {
-                let no_temporary_segments = false;
-                execute_core_hint_base(vm, exec_scopes, hint, no_temporary_segments)?;
-                Ok(HintExtension::default())
-            }
-            Cairo1Hint::Starknet(hint) => {
-                execute_next_syscall(self, vm, hint)?;
-                Ok(HintExtension::default())
-            }
-            Cairo1Hint::External(_) => {
-                panic!("starknet should never accept classes with external hints!")
-            }
-        }
+        execute_next_syscall(self, vm, hint)?;
+        Ok(HintExtension::default())
     }
 }
 
@@ -402,8 +326,6 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         let block_inputs = vec![os_block_input];
         let state_inputs = vec![os_state_input.unwrap_or_default()];
         let os_hints_config = os_hints_config.unwrap_or_default();
-        let syscall_handler = SyscallHintProcessor::new();
-        let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::new();
 
         SnosHintProcessor::new(
             os_program,
@@ -413,8 +335,6 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
             BTreeMap::new(),
             BTreeMap::new(),
             vec![state_reader],
-            syscall_handler,
-            deprecated_syscall_handler,
         )
     }
 }
@@ -422,6 +342,7 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
 /// Default implementation (required for the VM to use the type as a hint processor).
 impl<S: StateReader> ResourceTracker for SnosHintProcessor<'_, S> {}
 
+#[derive(Default)]
 pub struct SyscallHintProcessor {
     // Sha256 segment related fields.
     pub(crate) sha256_segment: Option<Relocatable>,
@@ -432,22 +353,10 @@ pub struct SyscallHintProcessor {
     // Secp hint processors.
     pub(crate) secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
     pub(crate) secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,
+    pub(crate) secp_points_segment_base: Option<Relocatable>,
 }
 
-// TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
-#[allow(clippy::new_without_default)]
 impl SyscallHintProcessor {
-    pub fn new() -> Self {
-        Self {
-            sha256_segment: None,
-            syscall_ptr: None,
-            secp256k1_hint_processor: SecpHintProcessor::default(),
-            secp256r1_hint_processor: SecpHintProcessor::default(),
-            syscall_usage: SyscallUsageMap::new(),
-            sha256_block_count: 0,
-        }
-    }
-
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
         self.syscall_ptr = Some(syscall_ptr);
     }
@@ -473,18 +382,13 @@ impl SyscallHintProcessor {
     }
 }
 
+#[derive(Default)]
 pub struct DeprecatedSyscallHintProcessor {
     pub(crate) syscall_ptr: Option<Relocatable>,
     pub(crate) syscalls_usage: SyscallUsageMap,
 }
 
-// TODO(Dori): remove this #[allow] after the constructor is no longer trivial.
-#[allow(clippy::new_without_default)]
 impl DeprecatedSyscallHintProcessor {
-    pub fn new() -> Self {
-        Self { syscall_ptr: None, syscalls_usage: SyscallUsageMap::new() }
-    }
-
     pub fn set_syscall_ptr(&mut self, syscall_ptr: Relocatable) {
         self.syscall_ptr = Some(syscall_ptr);
     }

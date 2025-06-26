@@ -41,6 +41,7 @@ use crate::types::{
     Round,
     ValidatorId,
 };
+use crate::votes_threshold::QuorumType;
 
 /// The SHC can either update the manager of a decision or return tasks that should be run without
 /// blocking further calls to itself.
@@ -180,14 +181,13 @@ impl SingleHeightConsensus {
         is_observer: bool,
         id: ValidatorId,
         validators: Vec<ValidatorId>,
-        no_byzantine_validators: bool,
+        quroum_type: QuorumType,
         timeouts: TimeoutsConfig,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
             u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
-        let state_machine =
-            StateMachine::new(id, n_validators, is_observer, no_byzantine_validators);
+        let state_machine = StateMachine::new(id, n_validators, is_observer, quroum_type);
         Self {
             height,
             validators,
@@ -618,14 +618,16 @@ impl SingleHeightConsensus {
                 if vote.block_hash == Some(proposal_id) { Some(vote.clone()) } else { None }
             })
             .collect();
-        let quorum_size =
-            usize::try_from(self.state_machine.quorum_size()).expect("u32 should fit in usize");
+
         // TODO(matan): Check actual weights.
-        if quorum_size > supporting_precommits.len() {
+        let vote_weight = u64::try_from(supporting_precommits.len())
+            .expect("Should have way less than u64::MAX supporting votes");
+        let total_weight = self.state_machine.total_weight();
+
+        if !self.state_machine.quorum().is_met(vote_weight, total_weight) {
             let msg = format!(
-                "Not enough supporting votes. quorum_size: {quorum_size}, num_supporting_votes: \
-                 {}. supporting_votes: {supporting_precommits:?}",
-                supporting_precommits.len(),
+                "Not enough supporting votes. num_supporting_votes: {vote_weight} out of \
+                 {total_weight}. supporting_votes: {supporting_precommits:?}",
             );
             return Err(invalid_decision(msg));
         }

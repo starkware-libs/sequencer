@@ -57,13 +57,18 @@ impl TransactionResources {
 #[cfg_attr(feature = "transaction_serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ComputationResources {
-    pub vm_resources: ExecutionResources,
+    pub tx_vm_resources: ExecutionResources,
+    pub os_vm_resources: ExecutionResources,
     pub n_reverted_steps: usize,
     pub sierra_gas: GasAmount,
     pub reverted_sierra_gas: GasAmount,
 }
 
 impl ComputationResources {
+    pub fn total_vm_resources(&self) -> ExecutionResources {
+        &self.tx_vm_resources + &self.os_vm_resources
+    }
+
     pub fn to_gas_vector(
         &self,
         versioned_constants: &VersionedConstants,
@@ -71,7 +76,7 @@ impl ComputationResources {
     ) -> GasVector {
         let vm_cost = get_vm_resources_cost(
             versioned_constants,
-            &self.vm_resources,
+            &self.total_vm_resources(),
             self.n_reverted_steps,
             computation_mode,
         );
@@ -102,7 +107,9 @@ impl ComputationResources {
     #[cfg(test)]
     pub fn total_charged_computation_units(&self, resource: TrackedResource) -> usize {
         match resource {
-            TrackedResource::CairoSteps => self.vm_resources.n_steps + self.n_reverted_steps,
+            TrackedResource::CairoSteps => {
+                self.total_vm_resources().n_steps + self.n_reverted_steps
+            }
             TrackedResource::SierraGas => {
                 usize::try_from(self.sierra_gas.0 + self.reverted_sierra_gas.0).unwrap()
             }

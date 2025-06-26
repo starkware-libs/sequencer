@@ -22,7 +22,7 @@ use crate::metrics::{
     LABEL_NAME_TIMEOUT_REASON,
 };
 use crate::types::{ProposalCommitment, Round, ValidatorId};
-use crate::votes_threshold::{VotesThreshold, ROUND_SKIP_THRESHOLD};
+use crate::votes_threshold::{QuorumType, VotesThreshold, ROUND_SKIP_THRESHOLD};
 
 /// Events which the state machine sends/receives.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -94,14 +94,14 @@ impl StateMachine {
         id: ValidatorId,
         total_weight: u64,
         is_observer: bool,
-        no_byzantine_validators: bool,
+        quorum_type: QuorumType,
     ) -> Self {
         Self {
             id,
             round: 0,
             step: Step::Propose,
             // Byzantine: 2/3 votes, Honest: 1/2 votes.
-            quorum: VotesThreshold::from_quorum_type(no_byzantine_validators),
+            quorum: VotesThreshold::from_quorum_type(quorum_type),
             // Skip round threshold is 1/3 of the total weight.
             round_skip_threshold: ROUND_SKIP_THRESHOLD,
             total_weight,
@@ -123,8 +123,12 @@ impl StateMachine {
         self.round
     }
 
-    pub fn quorum_size(&self) -> u64 {
-        self.quorum.amount_required(self.total_weight)
+    pub fn total_weight(&self) -> u64 {
+        self.total_weight
+    }
+
+    pub fn quorum(&self) -> &VotesThreshold {
+        &self.quorum
     }
 
     /// Starts the state machine, effectively calling `StartRound(0)` from the paper. This is

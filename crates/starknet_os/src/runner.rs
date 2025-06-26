@@ -6,14 +6,15 @@ use cairo_vm::vm::errors::vm_exception::VmException;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 
 use crate::errors::StarknetOsError;
+use crate::hint_processor::aggregator_hint_processor::AggregatorInput;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
-use crate::hint_processor::snos_hint_processor::{
-    DeprecatedSyscallHintProcessor,
-    SnosHintProcessor,
-    SyscallHintProcessor,
-};
+use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::io::os_input::{OsHints, StarknetOsInput};
-use crate::io::os_output::{get_run_output, StarknetOsRunnerOutput};
+use crate::io::os_output::{
+    get_run_output,
+    StarknetAggregatorRunnerOutput,
+    StarknetOsRunnerOutput,
+};
 
 pub fn run_os<S: StateReader>(
     layout: LayoutName,
@@ -47,10 +48,6 @@ pub fn run_os<S: StateReader>(
     // Init the Cairo VM.
     let end = cairo_runner.initialize(allow_missing_builtins)?;
 
-    // Create syscall handlers.
-    let syscall_handler = SyscallHintProcessor::new();
-    let deprecated_syscall_handler = DeprecatedSyscallHintProcessor::new();
-
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         &OS_PROGRAM,
@@ -60,14 +57,12 @@ pub fn run_os<S: StateReader>(
         deprecated_compiled_classes,
         compiled_classes,
         state_readers,
-        syscall_handler,
-        deprecated_syscall_handler,
     )?;
 
     // Run the Cairo VM.
     cairo_runner
         .run_until_pc(end, &mut snos_hint_processor)
-        .map_err(|err| VmException::from_vm_error(&cairo_runner, err))?;
+        .map_err(|err| Box::new(VmException::from_vm_error(&cairo_runner, err)))?;
 
     // End the Cairo VM run.
     let disable_finalize_all = false;
@@ -111,4 +106,13 @@ pub fn run_os_stateless(
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     let n_blocks = os_hints.os_input.os_block_inputs.len();
     run_os(layout, os_hints, vec![PanickingStateReader; n_blocks])
+}
+
+/// Run the Aggregator.
+#[allow(clippy::result_large_err)]
+pub fn run_aggregator(
+    _layout: LayoutName,
+    _aggregator_input: AggregatorInput,
+) -> Result<StarknetAggregatorRunnerOutput, StarknetOsError> {
+    todo!()
 }

@@ -14,6 +14,13 @@ pub struct VotesThreshold {
     denominator: u64,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub enum QuorumType {
+    #[default]
+    Byzantine,
+    Honest,
+}
+
 // Standard Tendermint consensus threshold.
 pub const BYZANTINE_QUORUM: VotesThreshold = VotesThreshold::new(2, 3);
 pub const ROUND_SKIP_THRESHOLD: VotesThreshold = VotesThreshold::new(1, 3);
@@ -28,18 +35,15 @@ impl VotesThreshold {
         Self { numerator, denominator }
     }
 
-    pub fn from_quorum_type(no_byzantine_validators: bool) -> Self {
-        if no_byzantine_validators { HONEST_QUORUM } else { BYZANTINE_QUORUM }
+    pub fn from_quorum_type(quorum_type: QuorumType) -> Self {
+        match quorum_type {
+            QuorumType::Byzantine => BYZANTINE_QUORUM,
+            QuorumType::Honest => HONEST_QUORUM,
+        }
     }
 
     pub fn is_met(&self, amount: u64, total: u64) -> bool {
         amount.checked_mul(self.denominator).expect("Numeric overflow")
             > total.checked_mul(self.numerator).expect("Numeric overflow")
-    }
-
-    // TODO(guyn): Remove this method in favor of using is_met directly.
-    pub fn amount_required(&self, total: u64) -> u64 {
-        // The +1 ensures that the required amount is strictly greater than the threshold
-        total * self.numerator / self.denominator + 1
     }
 }

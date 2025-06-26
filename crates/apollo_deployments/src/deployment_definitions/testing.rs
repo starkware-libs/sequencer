@@ -1,15 +1,17 @@
 use std::path::PathBuf;
 
-use crate::deployment::{
+use starknet_api::block::BlockNumber;
+
+use crate::config_override::{
     ConfigOverride,
-    Deployment,
     DeploymentConfigOverride,
-    DeploymentType,
     InstanceConfigOverride,
-    PragmaDomain,
+    NetworkConfigOverride,
 };
+use crate::deployment::{Deployment, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
-use crate::service::{DeploymentName, IngressParams};
+use crate::k8s::IngressParams;
+use crate::service::DeploymentName;
 
 const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
 
@@ -29,19 +31,17 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         "https://integration-sepolia.starknet.io/",
         "0x1002",
         PragmaDomain::Dev,
+        Some(BlockNumber(1)),
     )
 }
 
 fn testing_instance_config_override() -> InstanceConfigOverride {
+    const SECRET_KEY: &str = "0x0101010101010101010101010101010101010101010101010101010101010101";
+
     InstanceConfigOverride::new(
-        "",
-        true,
-        "0x0101010101010101010101010101010101010101010101010101010101010101",
-        "",
-        true,
-        "0x0101010101010101010101010101010101010101010101010101010101010101",
+        NetworkConfigOverride::new(None, None, SECRET_KEY),
+        NetworkConfigOverride::new(None, None, SECRET_KEY),
         "0x64",
-        DeploymentType::Operational.get_deployment_type_config_override(),
     )
 }
 
@@ -62,6 +62,7 @@ fn system_test_distributed_deployment() -> Deployment {
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
+        None,
     )
 }
 
@@ -74,6 +75,7 @@ fn system_test_hybrid_deployment() -> Deployment {
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
+        None,
     )
 }
 
@@ -86,5 +88,6 @@ fn system_test_consolidated_deployment() -> Deployment {
         PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
+        None,
     )
 }

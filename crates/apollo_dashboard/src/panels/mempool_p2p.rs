@@ -14,28 +14,75 @@ use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
 
-use crate::dashboard::{Panel, PanelType};
+use crate::dashboard::{Panel, PanelType, Row};
 
-pub(crate) const PANEL_MEMPOOL_P2P_NUM_CONNECTED_PEERS: Panel =
-    Panel::from_gauge(MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::Stat);
-pub(crate) const PANEL_MEMPOOL_P2P_NUM_SENT_MESSAGES: Panel =
-    Panel::from_counter(MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::Stat);
-pub(crate) const PANEL_MEMPOOL_P2P_NUM_RECEIVED_MESSAGES: Panel =
-    Panel::from_counter(MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::Stat);
-pub(crate) const PANEL_MEMPOOL_P2P_BROADCASTED_BATCH_SIZE: Panel =
-    Panel::from_hist(MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, PanelType::Stat);
+fn get_panel_mempool_p2p_num_connected_peers() -> Panel {
+    Panel::from_gauge(MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::Stat)
+}
 
-pub(crate) const PANEL_MEMPOOL_P2P_LOCAL_MSGS_RECEIVED: Panel =
-    Panel::from_counter(MEMPOOL_P2P_LOCAL_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_LOCAL_MSGS_PROCESSED: Panel =
-    Panel::from_counter(MEMPOOL_P2P_LOCAL_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_REMOTE_MSGS_RECEIVED: Panel =
-    Panel::from_counter(MEMPOOL_P2P_REMOTE_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED: Panel =
-    Panel::from_counter(MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_REMOTE_MSGS_PROCESSED: Panel =
-    Panel::from_counter(MEMPOOL_P2P_REMOTE_MSGS_PROCESSED, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_LOCAL_QUEUE_DEPTH: Panel =
-    Panel::from_gauge(MEMPOOL_P2P_LOCAL_QUEUE_DEPTH, PanelType::Graph);
-pub(crate) const PANEL_MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS: Panel =
-    Panel::from_hist(MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::Graph);
+fn get_panel_mempool_p2p_num_sent_messages() -> Panel {
+    Panel::from_counter(MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::Stat)
+}
+
+fn get_panel_mempool_p2p_num_received_messages() -> Panel {
+    Panel::from_counter(MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::Stat)
+}
+
+fn get_panel_mempool_p2p_broadcasted_batch_size() -> Panel {
+    Panel::from_hist(MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, PanelType::Stat)
+}
+
+fn get_panel_mempool_p2p_local_msgs_received() -> Panel {
+    Panel::from_counter(MEMPOOL_P2P_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
+}
+
+fn get_panel_mempool_p2p_local_msgs_processed() -> Panel {
+    Panel::from_counter(MEMPOOL_P2P_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
+}
+
+fn get_panel_mempool_p2p_remote_msgs_received() -> Panel {
+    Panel::from_counter(MEMPOOL_P2P_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
+}
+
+fn get_panel_mempool_p2p_remote_valid_msgs_received() -> Panel {
+    Panel::from_counter(MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
+}
+
+fn get_panel_mempool_p2p_remote_msgs_processed() -> Panel {
+    Panel::from_counter(MEMPOOL_P2P_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
+}
+
+fn get_panel_mempool_p2p_local_queue_depth() -> Panel {
+    Panel::from_gauge(MEMPOOL_P2P_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
+}
+
+fn get_panel_mempool_p2p_remote_client_send_attempts() -> Panel {
+    Panel::from_hist(MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
+}
+
+pub(crate) fn get_mempool_p2p_row() -> Row {
+    Row::new(
+        "MempoolP2p",
+        vec![
+            get_panel_mempool_p2p_num_connected_peers(),
+            get_panel_mempool_p2p_num_sent_messages(),
+            get_panel_mempool_p2p_num_received_messages(),
+            get_panel_mempool_p2p_broadcasted_batch_size(),
+        ],
+    )
+}
+
+pub(crate) fn get_mempool_p2p_infra_row() -> Row {
+    Row::new(
+        "MempoolP2pInfra",
+        vec![
+            get_panel_mempool_p2p_local_msgs_received(),
+            get_panel_mempool_p2p_local_msgs_processed(),
+            get_panel_mempool_p2p_local_queue_depth(),
+            get_panel_mempool_p2p_remote_msgs_received(),
+            get_panel_mempool_p2p_remote_valid_msgs_received(),
+            get_panel_mempool_p2p_remote_msgs_processed(),
+            get_panel_mempool_p2p_remote_client_send_attempts(),
+        ],
+    )
+}

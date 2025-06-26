@@ -66,6 +66,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertData,
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
@@ -133,7 +134,7 @@ pub enum SyscallExecutionError {
 impl TryExtractRevert for SyscallExecutionError {
     fn try_extract_revert(self) -> SelfOrRevert<Self> {
         match self {
-            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            Self::Revert { error_data } => SelfOrRevert::Revert(RevertData::new_normal(error_data)),
             Self::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
@@ -141,8 +142,8 @@ impl TryExtractRevert for SyscallExecutionError {
         }
     }
 
-    fn as_revert(error_data: Vec<Felt>) -> Self {
-        Self::Revert { error_data }
+    fn as_revert(revert_data: RevertData) -> Self {
+        Self::Revert { error_data: revert_data.error_data }
     }
 }
 
@@ -238,6 +239,7 @@ pub struct SyscallHintProcessor<'a> {
     // Secp hint processors.
     pub secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
     pub secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,
+    pub secp_points_segment_base: Option<Relocatable>,
 
     pub sha256_segment_end_ptr: Option<Relocatable>,
 
@@ -267,6 +269,7 @@ impl<'a> SyscallHintProcessor<'a> {
             secp256k1_hint_processor: SecpHintProcessor::new(),
             secp256r1_hint_processor: SecpHintProcessor::new(),
             sha256_segment_end_ptr: None,
+            secp_points_segment_base: None,
         }
     }
 
@@ -460,12 +463,20 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.base.context.gas_costs()
     }
 
-    fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
-        &mut self.secp256k1_hint_processor
+    fn get_secpk1_hint_processor_and_base(
+        &mut self,
+    ) -> (&mut SecpHintProcessor<ark_secp256k1::Config>, &mut Option<Relocatable>) {
+        (&mut self.secp256k1_hint_processor, &mut self.secp_points_segment_base)
     }
 
-    fn get_secpr1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256r1::Config> {
-        &mut self.secp256r1_hint_processor
+    fn get_secpr1_hint_processor_and_base(
+        &mut self,
+    ) -> (&mut SecpHintProcessor<ark_secp256r1::Config>, &mut Option<Relocatable>) {
+        (&mut self.secp256r1_hint_processor, &mut self.secp_points_segment_base)
+    }
+
+    fn get_secp_id(&self) -> usize {
+        self.secp256k1_hint_processor.points.len() + self.secp256r1_hint_processor.points.len()
     }
 
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {

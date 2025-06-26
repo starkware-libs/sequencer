@@ -10,24 +10,29 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
-use crate::service::{
+use crate::addresses::{get_p2p_address, get_peer_id, SecretKey};
+use crate::config_override::{InstanceConfigOverride, NetworkConfigOverride};
+use crate::deployment::{build_service_namespace_domain_address, P2PCommunicationType};
+use crate::deployment_definitions::Environment;
+use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
+use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
     Controller,
-    GetComponentConfigs,
     Ingress,
     IngressParams,
     Resource,
     Resources,
-    ServiceName,
-    ServiceNameInner,
     Toleration,
 };
+use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
+use crate::utils::{determine_port_numbers, format_node_id, get_secret_key, get_validator_id};
+
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
-
 const CORE_STORAGE: usize = 1000;
+const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -48,34 +53,21 @@ impl From<HybridNodeServiceName> for ServiceName {
 }
 
 impl GetComponentConfigs for HybridNodeServiceName {
-    fn get_component_configs(
-        base_port: Option<u16>,
-        environment: &Environment,
-    ) -> IndexMap<ServiceName, ComponentConfig> {
-        // TODO(Tsabary): change this function to take a slice of port numbers at the exact expected
-        // length.
+    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<ServiceName, ComponentConfig> {
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
 
-        let base_port = base_port.unwrap_or(BASE_PORT);
+        let ports = determine_port_numbers(ports, HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
 
-        let batcher =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port), environment);
-        let class_manager =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 1), environment);
-        let gateway =
-            HybridNodeServiceName::Gateway.component_config_pair(Some(base_port + 2), environment);
-        let l1_gas_price_provider =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 3), environment);
-        let l1_provider =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 4), environment);
-        let mempool =
-            HybridNodeServiceName::Mempool.component_config_pair(Some(base_port + 5), environment);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler
-            .component_config_pair(Some(base_port + 6), environment);
-        let state_sync =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 7), environment);
-        let signature_manager =
-            HybridNodeServiceName::Core.component_config_pair(Some(base_port + 8), environment);
+        let batcher = HybridNodeServiceName::Core.component_config_pair(ports[0]);
+        let class_manager = HybridNodeServiceName::Core.component_config_pair(ports[1]);
+        let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
+        let l1_gas_price_provider = HybridNodeServiceName::Core.component_config_pair(ports[3]);
+        let l1_provider = HybridNodeServiceName::Core.component_config_pair(ports[4]);
+        let l1_endpoint_monitor = HybridNodeServiceName::Core.component_config_pair(ports[5]);
+        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[6]);
+        let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
+        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[8]);
+        let signature_manager = HybridNodeServiceName::Core.component_config_pair(ports[9]);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -84,6 +76,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     class_manager.local(),
                     l1_gas_price_provider.local(),
                     l1_provider.local(),
+                    l1_endpoint_monitor.local(),
                     state_sync.local(),
                     mempool.remote(),
                     sierra_compiler.remote(),
@@ -140,7 +133,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree => match self {
                 HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
@@ -149,7 +142,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
             Environment::StressTest => match self {
-                HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
+                HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
                 HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
@@ -175,11 +168,20 @@ impl ServiceNameInner for HybridNodeServiceName {
         }
     }
 
+    fn has_p2p_interface(&self) -> bool {
+        match self {
+            HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => true,
+            HybridNodeServiceName::HttpServer
+            | HybridNodeServiceName::Gateway
+            | HybridNodeServiceName::SierraCompiler => false,
+        }
+    }
+
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => Some(CORE_STORAGE),
@@ -196,7 +198,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree => match self {
                 HybridNodeServiceName::Core => {
                     Resources::new(Resource::new(2, 4), Resource::new(7, 14))
@@ -216,7 +218,7 @@ impl ServiceNameInner for HybridNodeServiceName {
             },
             Environment::StressTest => match self {
                 HybridNodeServiceName::Core => {
-                    Resources::new(Resource::new(2, 4), Resource::new(25, 215))
+                    Resources::new(Resource::new(50, 200), Resource::new(50, 220))
                 }
                 HybridNodeServiceName::HttpServer => {
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8))
@@ -239,7 +241,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => 1,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => 1,
@@ -256,7 +258,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => false,
             Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
+            | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => true,
@@ -273,70 +275,38 @@ impl ServiceNameInner for HybridNodeServiceName {
 impl HybridNodeServiceName {
     /// Returns a component execution config for a component that runs locally, and accepts inbound
     /// connections from remote components.
-    pub fn component_config_for_local_service(
-        &self,
-        base_port: Option<u16>,
-        environment: &Environment,
-    ) -> ReactiveComponentExecutionConfig {
-        let mut base = ReactiveComponentExecutionConfig::local_with_remote_enabled(
-            self.url(),
-            self.ip(),
-            self.port(base_port),
-        );
-        let EnvironmentComponentConfigModifications {
-            local_server_config,
-            max_concurrency,
-            remote_client_config: _,
-        } = environment.get_component_config_modifications();
-        base.local_server_config = local_server_config;
-        base.max_concurrency = max_concurrency;
-        base
+    fn component_config_for_local_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
+        ReactiveComponentExecutionConfig::local_with_remote_enabled(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        )
     }
 
     /// Returns a component execution config for a component that is accessed remotely.
-    pub fn component_config_for_remote_service(
-        &self,
-        base_port: Option<u16>,
-        environment: &Environment,
-    ) -> ReactiveComponentExecutionConfig {
-        let mut base =
-            ReactiveComponentExecutionConfig::remote(self.url(), self.ip(), self.port(base_port));
-        let EnvironmentComponentConfigModifications {
-            local_server_config: _,
-            max_concurrency,
-            remote_client_config,
-        } = environment.get_component_config_modifications();
-        base.remote_client_config = remote_client_config;
-        base.max_concurrency = max_concurrency;
+    fn component_config_for_remote_service(&self, port: u16) -> ReactiveComponentExecutionConfig {
+        let mut base = ReactiveComponentExecutionConfig::remote(
+            self.k8s_service_name(),
+            IpAddr::from(Ipv4Addr::UNSPECIFIED),
+            port,
+        );
+        match self {
+            HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
+                base.remote_client_config.idle_connections =
+                    IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
+            }
+            HybridNodeServiceName::Core
+            | HybridNodeServiceName::HttpServer
+            | HybridNodeServiceName::Mempool => {}
+        };
         base
     }
 
-    fn component_config_pair(
-        &self,
-        base_port: Option<u16>,
-        environment: &Environment,
-    ) -> HybridNodeServiceConfigPair {
+    fn component_config_pair(&self, port: u16) -> HybridNodeServiceConfigPair {
         HybridNodeServiceConfigPair {
-            local: self.component_config_for_local_service(base_port, environment),
-            remote: self.component_config_for_remote_service(base_port, environment),
+            local: self.component_config_for_local_service(port),
+            remote: self.component_config_for_remote_service(port),
         }
-    }
-
-    /// Url for the service.
-    fn url(&self) -> String {
-        // This must match the Kubernetes service name as defined by CDK8s.
-        let formatted_service_name = self.as_ref().replace('_', "");
-        format!("sequencer-{}-service", formatted_service_name)
-    }
-
-    /// Unique port number per service.
-    fn port(&self, base_port: Option<u16>) -> u16 {
-        base_port.unwrap_or(BASE_PORT)
-    }
-
-    /// Listening address per service.
-    fn ip(&self) -> IpAddr {
-        IpAddr::from(Ipv4Addr::UNSPECIFIED)
     }
 }
 
@@ -364,6 +334,7 @@ fn get_core_component_config(
     class_manager_local_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
     l1_provider_local_config: ReactiveComponentExecutionConfig,
+    l1_endpoint_monitor_local_config: ReactiveComponentExecutionConfig,
     state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
@@ -377,6 +348,7 @@ fn get_core_component_config(
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
+    config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
     config.sierra_compiler = sierra_compiler_remote_config;
     config.signature_manager = signature_manager_remote_config;
     config.state_sync = state_sync_local_config;
@@ -431,4 +403,109 @@ fn get_http_server_component_config(
     config.gateway = gateway_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
+}
+
+pub(crate) fn create_hybrid_instance_config_override(
+    node_id: usize,
+    // TODO(Tsabary): change `node_namespace_format` to be of its own type with dedicated fns
+    node_namespace_format: &str,
+    p2p_communication_type: P2PCommunicationType,
+    domain: &str,
+) -> InstanceConfigOverride {
+    assert!(
+        node_id < MAX_NODE_ID,
+        "Node node_id {} exceeds the number of nodes {}",
+        node_id,
+        MAX_NODE_ID
+    );
+
+    // TODO(Tsabary): these ports should be derived from the hybrid deployment module, and used
+    // consistently throughout the code.
+    const CORE_SERVICE_PORT: u16 = 53080;
+    const MEMPOOL_SERVICE_PORT: u16 = 53200;
+
+    let bootstrap_node_id = 0;
+    let bootstrap_node_secret_key = get_secret_key(bootstrap_node_id);
+    let node_secret_key = get_secret_key(node_id);
+
+    let bootstrap_peer_id =
+        get_peer_id(SecretKey::try_from(bootstrap_node_secret_key.as_ref()).unwrap());
+    let node_peer_id = get_peer_id(SecretKey::try_from(node_secret_key.as_ref()).unwrap());
+
+    let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
+
+    let build_peer_address =
+        |service_name: HybridNodeServiceName, port: u16, node_id: usize, peer_id: &str| {
+            let domain = build_service_namespace_domain_address(
+                &service_name.k8s_service_name(),
+                &format_node_id(node_namespace_format, node_id),
+                &sanitized_domain,
+            );
+            Some(get_p2p_address(&domain, port, peer_id))
+        };
+
+    let (consensus_bootstrap_peer_multiaddr, mempool_bootstrap_peer_multiaddr) = match node_id {
+        0 => {
+            // First node does not have a bootstrap peer.
+            (None, None)
+        }
+        _ => {
+            // Other nodes have the first node as a bootstrap peer.
+            (
+                build_peer_address(
+                    HybridNodeServiceName::Core,
+                    CORE_SERVICE_PORT,
+                    bootstrap_node_id,
+                    &bootstrap_peer_id,
+                ),
+                build_peer_address(
+                    HybridNodeServiceName::Mempool,
+                    MEMPOOL_SERVICE_PORT,
+                    bootstrap_node_id,
+                    &bootstrap_peer_id,
+                ),
+            )
+        }
+    };
+
+    let (consensus_advertised_multiaddr, mempool_advertised_multiaddr) =
+        match p2p_communication_type {
+            P2PCommunicationType::Internal =>
+            // No advertised addresses for internal communication.
+            {
+                (None, None)
+            }
+            P2PCommunicationType::External =>
+            // Advertised addresses for external communication.
+            {
+                (
+                    build_peer_address(
+                        HybridNodeServiceName::Core,
+                        CORE_SERVICE_PORT,
+                        node_id,
+                        &node_peer_id,
+                    ),
+                    build_peer_address(
+                        HybridNodeServiceName::Mempool,
+                        MEMPOOL_SERVICE_PORT,
+                        node_id,
+                        &node_peer_id,
+                    ),
+                )
+            }
+        };
+
+    InstanceConfigOverride::new(
+        NetworkConfigOverride::new(
+            consensus_bootstrap_peer_multiaddr,
+            consensus_advertised_multiaddr,
+            &node_secret_key,
+        ),
+        NetworkConfigOverride::new(
+            mempool_bootstrap_peer_multiaddr,
+            mempool_advertised_multiaddr,
+            &node_secret_key,
+        ),
+        get_validator_id(node_id),
+    )
 }

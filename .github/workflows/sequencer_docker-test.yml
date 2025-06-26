@@ -10,14 +10,10 @@ on:
       - v[0-9].**
 
   pull_request:
-    paths:
-      - ".github/workflows/sequencer_docker-test.yml"
-      - "crates/**"
-      - "scripts/dependencies.sh"
-      - "scripts/install_build_tools.sh"
-      - "deployments/images/base/Dockerfile"
-      - "deployments/images/sequencer/**"
-      - "deployments/monitoring/**"
+
+env:
+  crate_triggers: "apollo_node,apollo_dashboard"
+  path_triggers: ".github/workflows/sequencer_docker-test.yml,scripts/*.py,scripts/system_tests/**/*.py"
 
 permissions:
   contents: read
@@ -27,7 +23,41 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  check-docker-test-trigger:
+    runs-on: starkware-ubuntu-24.04-small
+    outputs:
+      should_run: ${{ steps.docker_check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+          cache: "pip"
+
+      - run: pip install -r scripts/requirements.txt
+
+      - name: Check for docker-test-triggering changes
+        id: docker_check
+        run: |
+          echo "Checking if any docker-test-triggering crates were modified"
+          OUTPUT_FILE=$(mktemp)
+
+          python ./scripts/check_test_trigger.py --output_file $OUTPUT_FILE \
+            --commit_id ${{ github.event.pull_request.base.sha }} \
+            --crate_triggers ${{ env.crate_triggers }} \
+            --path_triggers ${{ env.path_triggers }}
+
+          should_run=$(cat "$OUTPUT_FILE")
+          echo "Captured output: $should_run"
+          echo "should_run=$should_run" >> $GITHUB_OUTPUT
+
   sequencer_docker_compose_test:
+    needs: check-docker-test-trigger
+    if: needs.check-docker-test-trigger.outputs.should_run == 'true'
     runs-on: starkware-ubuntu-24.04-large
     env:
       MONITORING_ENABLED: false

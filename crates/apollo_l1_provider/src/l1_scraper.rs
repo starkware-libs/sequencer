@@ -26,6 +26,7 @@ use crate::metrics::{
     register_scraper_metrics,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
+    L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
 
 #[cfg(test)]
@@ -51,28 +52,12 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         l1_provider_client: SharedL1ProviderClient,
         base_layer: B,
         events_identifiers_to_track: &[EventIdentifier],
+        l1_start_block: L1BlockReference,
     ) -> L1ScraperResult<Self, B> {
-        let latest_l1_block = get_latest_l1_block_number(config.finality, &base_layer).await?;
-        // Estimate the number of blocks in the interval, to rewind from the latest block.
-        let blocks_in_interval = config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
-        // Add 50% safety margin.
-        let safe_blocks_in_interval = blocks_in_interval + blocks_in_interval / 2;
-
-        let l1_block_number_rewind = latest_l1_block.saturating_sub(safe_blocks_in_interval);
-
-        let block_reference_rewind = base_layer
-            .l1_block_at(l1_block_number_rewind)
-            .await
-            .map_err(L1ScraperError::BaseLayerError)?
-            .expect(
-                "Rewound L1 block number is between 0 and the verified latest L1 block, so should \
-                 exist",
-            );
-
         Ok(Self {
             l1_provider_client,
             base_layer,
-            last_l1_block_processed: block_reference_rewind,
+            last_l1_block_processed: l1_start_block,
             config,
             tracked_event_identifiers: events_identifiers_to_track.to_vec(),
         })
@@ -182,7 +167,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
                     warn!("BaseLayerError during scraping: {e:?}");
                 }
-                Ok(_) => {}
+                Ok(_) => {
+                    L1_MESSAGE_SCRAPER_SUCCESS_COUNT.increment(1);
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -221,6 +208,39 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         Ok(())
     }
+}
+
+pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
+    base_layer: &B,
+    config: &L1ScraperConfig,
+) -> Result<L1BlockReference, L1ScraperError<B>> {
+    let finality = config.finality;
+    let latest_l1_block_number = base_layer
+        .latest_l1_block_number(finality)
+        .await
+        .map_err(L1ScraperError::BaseLayerError)?;
+
+    let latest_l1_block = match latest_l1_block_number {
+        Some(latest_l1_block_number) => Ok(latest_l1_block_number),
+        None => Err(L1ScraperError::finality_too_high(finality, base_layer).await),
+    }?;
+
+    // Estimate the number of blocks in the interval, to rewind from the latest block.
+    let blocks_in_interval = config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
+    // Add 50% safety margin.
+    let safe_blocks_in_interval = blocks_in_interval + blocks_in_interval / 2;
+
+    let l1_block_number_rewind = latest_l1_block.saturating_sub(safe_blocks_in_interval);
+
+    let block_reference_rewind = base_layer
+        .l1_block_at(l1_block_number_rewind)
+        .await
+        .map_err(L1ScraperError::BaseLayerError)?
+        .expect(
+            "Rewound L1 block number is between 0 and the verified latest L1 block, so should \
+             exist",
+        );
+    Ok(block_reference_rewind)
 }
 
 #[async_trait]
@@ -357,20 +377,5 @@ fn handle_client_error<B: BaseLayerContract + Send + Sync>(
             )
         }
         error => panic!("Unexpected error: {error}"),
-    }
-}
-
-async fn get_latest_l1_block_number<B: BaseLayerContract + Send + Sync>(
-    finality: u64,
-    base_layer: &B,
-) -> Result<L1BlockNumber, L1ScraperError<B>> {
-    let latest_l1_block_number = base_layer
-        .latest_l1_block_number(finality)
-        .await
-        .map_err(L1ScraperError::BaseLayerError)?;
-
-    match latest_l1_block_number {
-        Some(latest_l1_block_number) => Ok(latest_l1_block_number),
-        None => Err(L1ScraperError::finality_too_high(finality, base_layer).await),
     }
 }

@@ -1,4 +1,4 @@
-use std::fs::File;
+use std::fs::{create_dir_all, File};
 use std::io::{BufWriter, Write};
 use std::path::PathBuf;
 
@@ -17,8 +17,10 @@ use crate::test_utils::assert_json_eq;
 #[cfg(any(feature = "testing", test))]
 pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str, fix_binary_name: &str) {
     let file_path = resolve_project_relative_path("").unwrap().join(file_path);
-    let loaded_data: Value = from_reader(File::open(file_path).unwrap()).unwrap();
-
+    let file = File::open(&file_path).unwrap_or_else(|err| {
+        panic!("Failed to open file '{}': {}", file_path.display(), err);
+    });
+    let loaded_data: Value = from_reader(file).unwrap();
     let serialized_data =
         to_value(&data).expect("Should have been able to serialize the data to JSON");
 
@@ -35,6 +37,13 @@ pub fn serialize_to_file_test<T: Serialize>(data: T, file_path: &str, fix_binary
 }
 
 pub fn serialize_to_file<T: Serialize>(data: T, file_path: &str) {
+    // Ensure the parent directory exists
+    if let Some(parent) = PathBuf::from(file_path).parent() {
+        create_dir_all(parent).unwrap_or_else(|err| {
+            panic!("Failed to create directory for {}: {}", file_path, err);
+        });
+    }
+
     // Create file writer.
     let file = File::create(file_path)
         .unwrap_or_else(|err| panic!("Failed generating data file: {:?}: {}", file_path, err));

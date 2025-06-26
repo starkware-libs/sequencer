@@ -47,6 +47,16 @@ use crate::storage::{
 pub(crate) type RawTransactionExecutionResult = Vec<u8>;
 const RESULT_SERIALIZE_ERR: &str = "Failed serializing execution info.";
 
+/// Return type for the finalize method containing state diffs, bouncer weights, and CASM hash
+/// computation data.
+type FinalizeResult = (
+    PyStateDiff,
+    Option<PyStateDiff>,
+    Py<PyBytes>,
+    PyCasmHashComputationData,
+    PyCasmHashComputationData,
+);
+
 #[cfg(test)]
 #[path = "py_block_executor_test.rs"]
 mod py_block_executor_test;
@@ -207,24 +217,20 @@ impl PyBlockExecutor {
     }
 
     /// Returns the state diff, the stateful-compressed state diff and the block weights.
-    pub fn finalize(
-        &mut self,
-    ) -> NativeBlockifierResult<(
-        PyStateDiff,
-        Option<PyStateDiff>,
-        Py<PyBytes>,
-        PyCasmHashComputationData,
-    )> {
+    pub fn finalize(&mut self) -> NativeBlockifierResult<FinalizeResult> {
         log::debug!("Finalizing execution...");
         let BlockExecutionSummary {
             state_diff,
             compressed_state_diff,
             bouncer_weights,
-            casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas,
         } = self.tx_executor().finalize()?;
         let py_state_diff = PyStateDiff::from(state_diff);
         let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);
-        let py_casm_hash_computation_data = casm_hash_computation_data.into();
+        let py_casm_hash_computation_data_sierra_gas = casm_hash_computation_data_sierra_gas.into();
+        let py_casm_hash_computation_data_proving_gas =
+            casm_hash_computation_data_proving_gas.into();
 
         let serialized_block_weights =
             serde_json::to_vec(&bouncer_weights).expect("Failed serializing bouncer weights.");
@@ -237,7 +243,8 @@ impl PyBlockExecutor {
             py_state_diff,
             py_compressed_state_diff,
             raw_block_weights,
-            py_casm_hash_computation_data,
+            py_casm_hash_computation_data_sierra_gas,
+            py_casm_hash_computation_data_proving_gas,
         ))
     }
 
@@ -345,6 +352,8 @@ impl PyBlockExecutor {
                     state_diff_size: max_state_diff_size,
                     ..BouncerWeights::max()
                 },
+                // TODO(Meshi): Check what should be the values here.
+                ..BouncerConfig::max()
             },
             tx_executor_config: TransactionExecutorConfig {
                 concurrency_config: concurrency_config.into(),

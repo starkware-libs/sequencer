@@ -24,6 +24,7 @@ use crate::block_builder::{
 use crate::transaction_provider::TransactionProvider;
 
 pub const EXECUTION_INFO_LEN: usize = 10;
+pub const DUMMY_FINAL_N_EXECUTED_TXS: usize = 12;
 
 // A fake block builder for validate flow, that fetches transactions from the transaction provider
 // until it is exhausted.
@@ -42,7 +43,7 @@ impl BlockBuilderTrait for FakeValidateBlockBuilder {
         let build_block_result = self.build_block_result.take().unwrap();
 
         if build_block_result.is_ok() {
-            while self.tx_provider.get_n_txs_in_block().await.is_none() {
+            while self.tx_provider.get_final_n_executed_txs().await.is_none() {
                 self.tx_provider.get_txs(1).await.unwrap();
                 tokio::task::yield_now().await;
             }
@@ -143,7 +144,9 @@ impl BlockExecutionArtifacts {
             compressed_state_diff: Default::default(),
             bouncer_weights: BouncerWeights::empty(),
             l2_gas_used: GasAmount::default(),
-            casm_hash_computation_data: CasmHashComputationData::empty(),
+            casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
+            casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
+            final_n_executed_txs: DUMMY_FINAL_N_EXECUTED_TXS,
         }
     }
 }

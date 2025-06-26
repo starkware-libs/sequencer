@@ -45,12 +45,7 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::{contract_address, nonce, tx_hash};
 use validator::Validate;
 
-use crate::batcher::{
-    Batcher,
-    MockBatcherStorageReaderTrait,
-    MockBatcherStorageWriterTrait,
-    TEMP_N_EXECUTED_TXS,
-};
+use crate::batcher::{Batcher, MockBatcherStorageReaderTrait, MockBatcherStorageWriterTrait};
 use crate::block_builder::{
     AbortSignalSender,
     BlockBuilderConfig,
@@ -82,6 +77,7 @@ use crate::test_utils::{
     verify_indexed_execution_infos,
     FakeProposeBlockBuilder,
     FakeValidateBlockBuilder,
+    DUMMY_FINAL_N_EXECUTED_TXS,
 };
 
 const INITIAL_HEIGHT: BlockNumber = BlockNumber(3);
@@ -193,7 +189,7 @@ async fn batcher_propose_and_commit_block(
     let mut batcher = create_batcher(mock_dependencies).await;
     batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
     batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
-    batcher.await_active_proposal().await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
     batcher.decision_reached(DecisionReachedInput { proposal_id: PROPOSAL_ID }).await
 }
 
@@ -513,7 +509,7 @@ async fn validate_block_full_flow() {
 
     let finish_proposal = SendProposalContentInput {
         proposal_id: PROPOSAL_ID,
-        content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+        content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
     };
     assert_eq!(
         batcher.send_proposal_content(finish_proposal).await.unwrap(),
@@ -525,7 +521,7 @@ async fn validate_block_full_flow() {
 
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)))]
-#[case::send_finish(SendProposalContent::Finish(TEMP_N_EXECUTED_TXS))]
+#[case::send_finish(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS))]
 #[case::send_abort(SendProposalContent::Abort)]
 #[tokio::test]
 async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) {
@@ -540,7 +536,7 @@ async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) 
 #[rstest]
 #[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal)]
 #[case::send_finish(
-    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+    SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
     ProposalStatus::InvalidProposal
 )]
 #[case::send_abort(SendProposalContent::Abort, ProposalStatus::Aborted)]
@@ -551,7 +547,7 @@ async fn send_content_to_an_invalid_proposal(
 ) {
     let mut batcher =
         create_batcher_with_active_validate_block(Err(BUILD_BLOCK_FAIL_ON_ERROR)).await;
-    batcher.await_active_proposal().await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
     let send_proposal_content_input =
         SendProposalContentInput { proposal_id: PROPOSAL_ID, content };
@@ -560,19 +556,19 @@ async fn send_content_to_an_invalid_proposal(
 }
 
 #[rstest]
-#[case::send_txs_after_finish(SendProposalContent::Finish(TEMP_N_EXECUTED_TXS), SendProposalContent::Txs(test_txs(0..1)))]
+#[case::send_txs_after_finish(SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS), SendProposalContent::Txs(test_txs(0..1)))]
 #[case::send_finish_after_finish(
-    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
-    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS)
+    SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
+    SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS)
 )]
 #[case::send_abort_after_finish(
-    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+    SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
     SendProposalContent::Abort
 )]
 #[case::send_txs_after_abort(SendProposalContent::Abort, SendProposalContent::Txs(test_txs(0..1)))]
 #[case::send_finish_after_abort(
     SendProposalContent::Abort,
-    SendProposalContent::Finish(TEMP_N_EXECUTED_TXS)
+    SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS)
 )]
 #[case::send_abort_after_abort(SendProposalContent::Abort, SendProposalContent::Abort)]
 #[tokio::test]
@@ -674,7 +670,8 @@ async fn propose_block_full_flow() {
         GetProposalContentResponse {
             content: GetProposalContent::Finished {
                 id: proposal_commitment(),
-                n_executed_txs: TEMP_N_EXECUTED_TXS
+                final_n_executed_txs: BlockExecutionArtifacts::create_for_testing()
+                    .final_n_executed_txs
             }
         }
     );
@@ -760,15 +757,15 @@ async fn consecutive_proposal_generation_success() {
     // Make sure we can generate 4 consecutive proposals.
     for i in 0..2 {
         batcher.propose_block(propose_block_input(ProposalId(2 * i))).await.unwrap();
-        batcher.await_active_proposal().await;
+        batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
         batcher.validate_block(validate_block_input(ProposalId(2 * i + 1))).await.unwrap();
         let finish_proposal = SendProposalContentInput {
             proposal_id: ProposalId(2 * i + 1),
-            content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+            content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
         };
         batcher.send_proposal_content(finish_proposal).await.unwrap();
-        batcher.await_active_proposal().await;
+        batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
     }
 
     let metrics = recorder.handle().render();
@@ -799,11 +796,11 @@ async fn concurrent_proposals_generation_fail() {
     batcher
         .send_proposal_content(SendProposalContentInput {
             proposal_id: ProposalId(0),
-            content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+            content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
         })
         .await
         .unwrap();
-    batcher.await_active_proposal().await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 2, 1, 1, 0);
@@ -844,11 +841,11 @@ async fn proposal_startup_failure_allows_new_proposals() {
     batcher
         .send_proposal_content(SendProposalContentInput {
             proposal_id: ProposalId(1),
-            content: SendProposalContent::Finish(TEMP_N_EXECUTED_TXS),
+            content: SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
         })
         .await
         .unwrap();
-    batcher.await_active_proposal().await;
+    batcher.await_active_proposal(DUMMY_FINAL_N_EXECUTED_TXS).await.unwrap();
 
     let metrics = recorder.handle().render();
     assert_proposal_metrics(&metrics, 2, 1, 1, 0);

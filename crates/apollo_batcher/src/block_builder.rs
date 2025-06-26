@@ -105,7 +105,11 @@ pub struct BlockExecutionArtifacts {
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
-    pub casm_hash_computation_data: CasmHashComputationData,
+    pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
+    pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
+    // The number of transactions executed by the proposer out of the transactions that were sent.
+    // This value includes rejected transactions.
+    pub final_n_executed_txs: usize,
 }
 
 impl BlockExecutionArtifacts {
@@ -226,8 +230,8 @@ impl BlockBuilderTrait for BlockBuilder {
 
 impl BlockBuilder {
     async fn build_block_inner(&mut self) -> BlockBuilderResult<BlockExecutionArtifacts> {
-        let mut n_txs_in_block: Option<usize> = None;
-        while !self.finished_block_txs(n_txs_in_block) {
+        let mut final_n_executed_txs: Option<usize> = None;
+        while !self.finished_block_txs(final_n_executed_txs) {
             if tokio::time::Instant::now() >= self.execution_params.deadline {
                 info!("Block builder deadline reached.");
                 if self.execution_params.is_validator {
@@ -235,10 +239,10 @@ impl BlockBuilder {
                 }
                 break;
             }
-            if n_txs_in_block.is_none() {
-                if let Some(res) = self.tx_provider.get_n_txs_in_block().await {
+            if final_n_executed_txs.is_none() {
+                if let Some(res) = self.tx_provider.get_final_n_executed_txs().await {
                     info!("Received final number of transactions in block proposal: {res}.");
-                    n_txs_in_block = Some(res);
+                    final_n_executed_txs = Some(res);
                 }
             }
             if self.abort_signal_receiver.try_recv().is_ok() {
@@ -251,8 +255,9 @@ impl BlockBuilder {
             // Check if the block is full. This is only relevant in propose mode.
             // In validate mode, this is ignored and we simply wait for the proposer to send the
             // final number of transactions in the block.
-            // TODO(lior): Check !self.execution_params.is_validator before calling `is_done()`.
-            if lock_executor(&self.executor).is_done() && !self.execution_params.is_validator {
+            if !self.execution_params.is_validator && lock_executor(&self.executor).is_done() {
+                // Call `handle_executed_txs()` once more to get the last results.
+                self.handle_executed_txs().await?;
                 info!("Block is full.");
                 FULL_BLOCKS.increment(1);
                 break;
@@ -264,16 +269,31 @@ impl BlockBuilder {
             }
         }
 
+        // The final number of transactions to consider for the block.
+        // Proposer: this is the number of transactions that were executed.
+        // Validator: the number of transactions we got from the proposer.
+        let final_n_executed_txs_nonopt = if self.execution_params.is_validator {
+            final_n_executed_txs.expect("final_n_executed_txs must be set in validate mode.")
+        } else {
+            assert!(
+                final_n_executed_txs.is_none(),
+                "final_n_executed_txs must be None in propose mode."
+            );
+            self.n_executed_txs
+        };
+
         info!(
-            "Finished building block with {} out of {} transactions.",
+            "Finished building block. Started executing {} transactions. Finished executing {} \
+             transactions. Final number of transactions (as set by the proposer): {}.",
+            self.block_txs.len(),
             self.n_executed_txs,
-            self.block_txs.len()
+            final_n_executed_txs_nonopt,
         );
 
         // Move a clone of the executor into the lambda function.
         let executor = self.executor.clone();
         let block_summary = tokio::task::spawn_blocking(move || {
-            lock_executor(&executor).close_block(n_txs_in_block)
+            lock_executor(&executor).close_block(final_n_executed_txs_nonopt)
         })
         .await
         .expect("Failed to spawn blocking executor task.")?;
@@ -282,15 +302,16 @@ impl BlockBuilder {
             state_diff,
             compressed_state_diff,
             bouncer_weights,
-            casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas,
         } = block_summary;
         let mut execution_data = std::mem::take(&mut self.execution_data);
-        if let Some(n_txs_in_block) = n_txs_in_block {
+        if let Some(final_n_executed_txs) = final_n_executed_txs {
             // Remove the transactions that were executed, but eventually not included in the block.
             // This can happen if the proposer sends some transactions but closes the block before
             // including them, while the validator already executed those transactions.
             let remove_tx_hashes: Vec<TransactionHash> =
-                self.block_txs[n_txs_in_block..].iter().map(|tx| tx.tx_hash()).collect();
+                self.block_txs[final_n_executed_txs..].iter().map(|tx| tx.tx_hash()).collect();
             execution_data.remove_last_txs(&remove_tx_hashes);
         }
         let l2_gas_used = execution_data.l2_gas_used();
@@ -300,7 +321,9 @@ impl BlockBuilder {
             compressed_state_diff,
             bouncer_weights,
             l2_gas_used,
-            casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas,
+            final_n_executed_txs: final_n_executed_txs_nonopt,
         })
     }
 
@@ -311,11 +334,11 @@ impl BlockBuilder {
 
     /// Returns `true` if all the txs in the block were executed. This function always returns
     /// `false` in propose mode.
-    fn finished_block_txs(&self, n_txs_in_block: Option<usize>) -> bool {
-        if let Some(n_txs_in_block) = n_txs_in_block {
-            self.n_executed_txs >= n_txs_in_block
+    fn finished_block_txs(&self, final_n_executed_txs: Option<usize>) -> bool {
+        if let Some(final_n_executed_txs) = final_n_executed_txs {
+            self.n_executed_txs >= final_n_executed_txs
         } else {
-            // n_txs_in_block is not known yet, so the block is not finished.
+            // final_n_executed_txs is not known yet, so the block is not finished.
             false
         }
     }
@@ -359,14 +382,22 @@ impl BlockBuilder {
 
         self.block_txs.extend(next_txs.iter().cloned());
 
-        let tx_convert_futures = next_txs.into_iter().map(|tx| async {
-            convert_to_executable_blockifier_tx(&self.transaction_converter, tx).await
+        let tx_convert_futures = next_txs.iter().map(|tx| async {
+            convert_to_executable_blockifier_tx(&self.transaction_converter, tx.clone()).await
         });
         let executor_input_chunk = futures::future::try_join_all(tx_convert_futures).await?;
 
         // Start the execution of the transactions on the worker pool.
         info!("Starting execution of {} transactions.", n_txs);
         lock_executor(&self.executor).add_txs_to_block(executor_input_chunk.as_slice());
+
+        if let Some(output_content_sender) = &self.output_content_sender {
+            // Send the transactions to the validators.
+            // Only reached in proposal flow.
+            for tx in next_txs.into_iter() {
+                output_content_sender.send(tx).map_err(Box::new)?;
+            }
+        }
 
         Ok(AddTxsToExecutorResult::NewTxs)
     }
@@ -388,7 +419,6 @@ impl BlockBuilder {
             &self.block_txs[old_n_executed_txs..self.n_executed_txs],
             results,
             &mut self.execution_data,
-            &self.output_content_sender,
             &self.pre_confirmed_tx_sender,
         )
         .await
@@ -454,9 +484,6 @@ async fn collect_execution_results_and_stream_txs(
     tx_chunk: &[InternalConsensusTransaction],
     results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
     execution_data: &mut BlockTransactionExecutionData,
-    output_content_sender: &Option<
-        tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
-    >,
     pre_confirmed_tx_sender: &Option<PreConfirmedTxSender>,
 ) -> BlockBuilderResult<()> {
     assert!(
@@ -465,6 +492,12 @@ async fn collect_execution_results_and_stream_txs(
     );
 
     for (input_tx, result) in tx_chunk.iter().zip(results.into_iter()) {
+        let optional_l1_handler_tx =
+            if let InternalConsensusTransaction::L1Handler(l1_handler_tx) = input_tx {
+                Some(l1_handler_tx.tx.clone())
+            } else {
+                None
+            };
         let tx_hash = input_tx.tx_hash();
 
         // Insert the tx_hash into the appropriate collection if it's an L1_Handler transaction.
@@ -481,11 +514,6 @@ async fn collect_execution_results_and_stream_txs(
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
 
-                if let Some(output_content_sender) = output_content_sender {
-                    // Only reached in proposal flow.
-                    output_content_sender.send(input_tx.clone()).map_err(Box::new)?;
-                }
-
                 // Skip sending the pre confirmed executed transactions, receipts and state diffs
                 // during validation flow. In validate flow pre_confirmed_tx_sender is None.
                 if let Some(pre_confirmed_tx_sender) = pre_confirmed_tx_sender {
@@ -495,6 +523,7 @@ async fn collect_execution_results_and_stream_txs(
                         // TODO(noamsp): Consider using tx_execution_info and moving the line that
                         // consumes it below this (if it doesn't change functionality).
                         &execution_data.execution_infos[&tx_hash],
+                        optional_l1_handler_tx,
                     ));
 
                     let tx_state_diff = StarknetClientStateDiff::from(state_maps).0;

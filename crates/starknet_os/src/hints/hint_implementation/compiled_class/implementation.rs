@@ -71,7 +71,7 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
         vm,
         ap_tracking,
         &["hash"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
 
     let class_hash = ClassHash(*vm.get_integer(class_hash_address)?.as_ref());
@@ -186,7 +186,7 @@ pub(crate) fn load_class<S: StateReader>(
         vm,
         ap_tracking,
         &["hash"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
     let expected_hash = vm.get_integer(expected_hash_address)?;
     let computed_hash = get_integer_from_var_name(Ids::Hash.into(), vm, ids_data, ap_tracking)?;
@@ -238,7 +238,7 @@ pub(crate) fn load_class_inner<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintExtensionResult {
-    let identifier_getter = hint_processor.os_program;
+    let identifier_getter = hint_processor.program;
     let mut hint_extension = HintExtension::new();
     let mut compiled_class_facts_ptr = vm.add_memory_segment();
     // Insert n_compiled_class_facts, compiled_class_facts.

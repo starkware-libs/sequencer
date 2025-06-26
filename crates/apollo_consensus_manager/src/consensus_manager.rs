@@ -11,6 +11,7 @@ use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_consensus::stream_handler::StreamHandler;
 use apollo_consensus::types::ConsensusError;
+use apollo_consensus::votes_threshold::QuorumType;
 use apollo_consensus_orchestrator::cende::CendeAmbassador;
 use apollo_consensus_orchestrator::sequencer_consensus_context::{
     SequencerConsensusContext,
@@ -174,15 +175,23 @@ impl ConsensusManager {
         let network_task =
             tokio::spawn(network_manager.run().instrument(info_span!("[Consensus network]")));
         let stream_handler_task = tokio::spawn(stream_handler.run());
+        let quorum_type = if self.config.assume_no_malicious_validators {
+            QuorumType::Honest
+        } else {
+            QuorumType::Byzantine
+        };
+        let run_consensus_args = apollo_consensus::RunConsensusArguments {
+            start_active_height: active_height,
+            start_observe_height: observer_height,
+            validator_id: self.config.consensus_config.validator_id,
+            consensus_delay: self.config.consensus_config.startup_delay,
+            timeouts: self.config.consensus_config.timeouts.clone(),
+            sync_retry_interval: self.config.consensus_config.sync_retry_interval,
+            quorum_type,
+        };
         let consensus_fut = apollo_consensus::run_consensus(
+            run_consensus_args,
             context,
-            active_height,
-            observer_height,
-            self.config.consensus_config.validator_id,
-            self.config.consensus_config.startup_delay,
-            self.config.consensus_config.timeouts.clone(),
-            self.config.consensus_config.sync_retry_interval,
-            self.config.assume_no_malicious_validators,
             votes_broadcast_channels.into(),
             inbound_internal_receiver,
         );

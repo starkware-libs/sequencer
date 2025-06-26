@@ -1,6 +1,5 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
-use std::time::Instant;
 
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{
@@ -11,6 +10,9 @@ use apollo_mempool_types::mempool_types::{
     MempoolSnapshot,
     MempoolStateSnapshot,
 };
+use apollo_time::time::{Clock, DateTime};
+use indexmap::IndexSet;
+use rand::{thread_rng, Rng};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionWithoutTxHash};
@@ -26,6 +28,7 @@ use crate::metrics::{
     metric_set_get_txs_size,
     MempoolMetricHandle,
     MEMPOOL_DELAYED_DECLARES_SIZE,
+    MEMPOOL_EVICTIONS_COUNT,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
@@ -33,7 +36,7 @@ use crate::metrics::{
 };
 use crate::transaction_pool::TransactionPool;
 use crate::transaction_queue::TransactionQueue;
-use crate::utils::{try_increment_nonce, Clock};
+use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
 #[path = "mempool_test.rs"]
@@ -44,6 +47,7 @@ pub mod mempool_test;
 pub mod mempool_flow_tests;
 
 type AddressToNonce = HashMap<ContractAddress, Nonce>;
+type AccountsWithGap = IndexSet<ContractAddress>;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(Clone))]
@@ -179,7 +183,7 @@ impl MempoolState {
 
 // A queue to hold transactions that are waiting to be added to the tx pool.
 struct AddTransactionQueue {
-    elements: VecDeque<(Instant, AddTransactionArgs)>,
+    elements: VecDeque<(DateTime, AddTransactionArgs)>,
     // Keeps track of the total size of the transactions in this queue.
     size_in_bytes: u64,
 }
@@ -189,7 +193,7 @@ impl AddTransactionQueue {
         AddTransactionQueue { elements: VecDeque::new(), size_in_bytes: 0 }
     }
 
-    fn push_back(&mut self, submission_time: Instant, args: AddTransactionArgs) {
+    fn push_back(&mut self, submission_time: DateTime, args: AddTransactionArgs) {
         self.size_in_bytes = self
             .size_in_bytes
             .checked_add(args.tx.total_bytes())
@@ -197,7 +201,7 @@ impl AddTransactionQueue {
         self.elements.push_back((submission_time, args));
     }
 
-    fn pop_front(&mut self) -> Option<(Instant, AddTransactionArgs)> {
+    fn pop_front(&mut self) -> Option<(DateTime, AddTransactionArgs)> {
         let removed_element = self.elements.pop_front();
         if let Some((_, args)) = &removed_element {
             self.size_in_bytes = self
@@ -208,7 +212,7 @@ impl AddTransactionQueue {
         removed_element
     }
 
-    fn front(&self) -> Option<&(Instant, AddTransactionArgs)> {
+    fn front(&self) -> Option<&(DateTime, AddTransactionArgs)> {
         self.elements.front()
     }
 
@@ -237,6 +241,9 @@ pub struct Mempool {
     tx_pool: TransactionPool,
     // Transactions eligible for sequencing.
     tx_queue: TransactionQueue,
+    // Accounts whose lowest transaction nonce is greater than the account nonce, which are
+    // therefore candidates for eviction.
+    accounts_with_gap: AccountsWithGap,
     state: MempoolState,
     clock: Arc<dyn Clock>,
 }
@@ -248,6 +255,7 @@ impl Mempool {
             delayed_declares: AddTransactionQueue::new(),
             tx_pool: TransactionPool::new(clock.clone()),
             tx_queue: TransactionQueue::default(),
+            accounts_with_gap: AccountsWithGap::new(),
             state: MempoolState::new(config.committed_nonce_retention_block_count),
             clock,
         }
@@ -269,9 +277,11 @@ impl Mempool {
         let mut eligible_tx_references: Vec<TransactionReference> = Vec::with_capacity(n_txs);
         let mut n_remaining_txs = n_txs;
 
+        let mut account_nonce_updates = AddressToNonce::new();
         while n_remaining_txs > 0 && self.tx_queue.has_ready_txs() {
             let chunk = self.tx_queue.pop_ready_chunk(n_remaining_txs);
-            let valid_txs = self.prune_expired_nonqueued_txs(chunk);
+            let (valid_txs, expired_txs_updates) = self.prune_expired_nonqueued_txs(chunk);
+            account_nonce_updates.extend(expired_txs_updates);
 
             self.enqueue_next_eligible_txs(&valid_txs)?;
             n_remaining_txs -= valid_txs.len();
@@ -294,6 +304,7 @@ impl Mempool {
 
         metric_set_get_txs_size(eligible_tx_references.len());
         self.update_state_metrics();
+        self.update_accounts_with_gap(account_nonce_updates);
 
         Ok(eligible_tx_references
             .iter()
@@ -323,13 +334,11 @@ impl Mempool {
         metric_handle.count_transaction_received();
 
         // First remove old transactions from the pool.
-        self.remove_expired_txs();
+        let mut account_nonce_updates = self.remove_expired_txs();
         self.add_ready_declares();
 
         if self.exceeds_capacity(&args.tx) {
-            // TODO(Dafna): we should be evicting transactions based on some policy here, instead of
-            // just returning an error.
-            return Err(MempoolError::MempoolFull);
+            self.handle_capacity_overflow(&args.tx, args.account_state.nonce)?;
         }
 
         let tx_reference = TransactionReference::new(&args.tx);
@@ -338,6 +347,13 @@ impl Mempool {
 
         metric_handle.transaction_inserted();
 
+        // May override a removed queued nonce with the received account nonce or the account's
+        // state nonce.
+        account_nonce_updates.insert(
+            args.account_state.address,
+            self.state.resolve_nonce(args.account_state.address, args.account_state.nonce),
+        );
+
         if let InternalRpcTransactionWithoutTxHash::Declare(_) = &args.tx.tx {
             self.delayed_declares.push_back(self.clock.now(), args);
         } else {
@@ -345,6 +361,7 @@ impl Mempool {
         }
 
         self.update_state_metrics();
+        self.update_accounts_with_gap(account_nonce_updates);
         Ok(())
     }
 
@@ -377,7 +394,7 @@ impl Mempool {
     fn add_ready_declares(&mut self) {
         let now = self.clock.now();
         while let Some((submission_time, _args)) = self.delayed_declares.front() {
-            if now - *submission_time < self.config.declare_delay {
+            if now - self.config.declare_delay < *submission_time {
                 break;
             }
             let (_submission_time, args) =
@@ -398,9 +415,11 @@ impl Mempool {
             rejected_tx_hashes.len()
         );
 
+        let mut committed_nonce_updates = AddressToNonce::new();
         // Align mempool data to committed nonces.
         for (&address, &next_nonce) in &address_to_nonce {
             self.validate_commitment(address, next_nonce);
+            committed_nonce_updates.insert(address, next_nonce);
 
             // Maybe remove out-of-date transactions.
             if self
@@ -444,9 +463,14 @@ impl Mempool {
             debug!("Removed rejected transactions from mempool: {:?}", rejected_tx_hashes);
         }
         metric_count_rejected_txs(rejected_tx_hashes.len());
+        let mut account_nonce_updates = AddressToNonce::new();
         for tx_hash in rejected_tx_hashes {
             if let Ok(tx) = self.tx_pool.remove(tx_hash) {
                 self.tx_queue.remove(tx.contract_address());
+                account_nonce_updates
+                    .entry(tx.contract_address())
+                    .and_modify(|nonce| *nonce = (*nonce).min(tx.nonce()))
+                    .or_insert(tx.nonce());
             } else {
                 continue; // Transaction hash unknown to mempool, from a different node.
             };
@@ -455,7 +479,11 @@ impl Mempool {
             // TTL.
         }
 
+        // Committed nonces should overwrite rejected transactions.
+        account_nonce_updates.extend(committed_nonce_updates);
+
         self.update_state_metrics();
+        self.update_accounts_with_gap(account_nonce_updates);
     }
 
     pub fn account_tx_in_pool_or_recent_block(&self, account_address: ContractAddress) -> bool {
@@ -588,13 +616,17 @@ impl Mempool {
         incoming_value >= escalation_qualified_value
     }
 
-    fn remove_expired_txs(&mut self) {
+    fn remove_expired_txs(&mut self) -> AddressToNonce {
         let removed_txs =
             self.tx_pool.remove_txs_older_than(self.config.transaction_ttl, &self.state.staged);
-        self.tx_queue.remove_txs(&removed_txs);
+        let queued_txs = self.tx_queue.remove_txs(&removed_txs);
 
         metric_count_expired_txs(removed_txs.len());
         self.update_state_metrics();
+        queued_txs
+            .into_iter()
+            .map(|tx| (tx.address, self.state.resolve_nonce(tx.address, tx.nonce)))
+            .collect::<AddressToNonce>()
     }
 
     /// Given a chunk of transactions, removes from the pool those that are old, and returns the
@@ -603,7 +635,7 @@ impl Mempool {
     fn prune_expired_nonqueued_txs(
         &mut self,
         txs: Vec<TransactionReference>,
-    ) -> Vec<TransactionReference> {
+    ) -> (Vec<TransactionReference>, AddressToNonce) {
         // Divide the chunk into transactions that are old and no longer valid and those that
         // remain valid.
         let submission_cutoff_time = self.clock.now() - self.config.transaction_ttl;
@@ -617,13 +649,17 @@ impl Mempool {
 
         // Remove old transactions from the pool.
         metric_count_expired_txs(old_txs.len());
-        for tx in old_txs {
-            self.tx_pool
-                .remove(tx.tx_hash)
-                .expect("Transaction hash from queue must appear in pool.");
-        }
+        let account_nonce_updates: AddressToNonce = old_txs
+            .into_iter()
+            .map(|tx| {
+                self.tx_pool
+                    .remove(tx.tx_hash)
+                    .expect("Transaction hash from queue must appear in pool.");
+                (tx.address, self.state.resolve_nonce(tx.address, tx.nonce))
+            })
+            .collect();
 
-        valid_txs
+        (valid_txs, account_nonce_updates)
     }
 
     pub fn mempool_snapshot(&self) -> MempoolResult<MempoolSnapshot> {
@@ -649,6 +685,90 @@ impl Mempool {
         self.size_in_bytes() + tx.total_bytes() > self.config.capacity_in_bytes
     }
 
+    fn update_accounts_with_gap(&mut self, address_to_nonce: AddressToNonce) {
+        for (address, account_nonce) in address_to_nonce {
+            // Assumption: Future declares are not allowed — their nonce must match the account
+            // nonce, so they fill a gap if one exists.
+            if self.delayed_declares.contains(address, account_nonce) {
+                self.accounts_with_gap.swap_remove(&address);
+                continue;
+            }
+
+            // Gap exists when lowest transaction nonce is higher than account nonce.
+            let gap_exists = match self.tx_pool.get_lowest_nonce(address) {
+                Some(lowest_nonce) => account_nonce < lowest_nonce,
+                None => false, // No transactions for the account, so no gap.
+            };
+
+            // Update the eviction tracking set accordingly.
+            if gap_exists {
+                self.accounts_with_gap.insert(address);
+            } else {
+                self.accounts_with_gap.swap_remove(&address);
+            }
+        }
+    }
+
+    pub fn get_evictable_account(&self) -> Option<ContractAddress> {
+        let len = self.accounts_with_gap.len();
+        if len == 0 {
+            return None;
+        }
+        let random_index = thread_rng().gen_range(0..len);
+        self.accounts_with_gap.get_index(random_index).copied()
+    }
+
+    // Attempts to make space for a new transaction by evicting existing transactions.
+    // Returns true if enough space was freed, false otherwise.
+    pub fn try_make_space(&mut self, required_space: u64) -> bool {
+        let mut total_space_freed = 0;
+
+        while total_space_freed < required_space {
+            let Some(address) = self.get_evictable_account() else {
+                return false;
+            };
+
+            let txs: Vec<_> = self.tx_pool.account_txs_sorted_by_nonce(address).copied().collect();
+            for tx_ref in txs.iter().rev() {
+                let tx = self
+                    .tx_pool
+                    .remove(tx_ref.tx_hash)
+                    .expect("Transaction must exist in the pool.");
+                total_space_freed += tx.total_bytes();
+                MEMPOOL_EVICTIONS_COUNT.increment(1);
+                if total_space_freed >= required_space {
+                    break;
+                }
+            }
+
+            // Clean up if account is now empty.
+            if !self.tx_pool.contains_account(address) {
+                self.accounts_with_gap.swap_remove(&address);
+            }
+        }
+
+        true
+    }
+
+    fn handle_capacity_overflow(
+        &mut self,
+        tx: &InternalRpcTransaction,
+        account_nonce: Nonce,
+    ) -> Result<(), MempoolError> {
+        let address = tx.contract_address();
+
+        let account_has_gap = self.accounts_with_gap.contains(&address);
+        let account_has_txs = self.tx_pool.contains_account(address);
+        let closing_gap = tx.nonce() == account_nonce;
+        let creating_gap = (account_has_gap || !account_has_txs) && !closing_gap;
+
+        if !creating_gap && self.try_make_space(tx.total_bytes()) {
+            return Ok(());
+        }
+
+        Err(MempoolError::MempoolFull)
+    }
+
     #[cfg(test)]
     fn content(&self) -> MempoolContent {
         MempoolContent {
@@ -656,6 +776,11 @@ impl Mempool {
             priority_txs: self.tx_queue.iter_over_ready_txs().cloned().collect(),
             pending_txs: self.tx_queue.pending_txs(),
         }
+    }
+
+    #[cfg(test)]
+    fn accounts_with_gap(&self) -> &AccountsWithGap {
+        &self.accounts_with_gap
     }
 
     fn update_state_metrics(&self) {

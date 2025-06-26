@@ -11,7 +11,6 @@ use tracing::{error, info};
 use crate::component_client::ClientResult;
 
 pub(crate) const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
-pub(crate) const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {

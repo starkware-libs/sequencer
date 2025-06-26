@@ -23,7 +23,7 @@ async fn main() {
     const TOTAL_DURATION: u64 = PHASE_DURATION.as_secs() * 2 + LONG_PHASE_DURATION.as_secs() * 2;
     const TOTAL_INVOKE_TXS: u64 = TPS * TOTAL_DURATION;
     /// The number of consolidated local sequencers that participate in the test.
-    const N_CONSOLIDATED_SEQUENCERS: usize = 3;
+    const N_CONSOLIDATED_SEQUENCERS: usize = 1;
     /// The number of distributed remote sequencers that participate in the test.
     const N_DISTRIBUTED_SEQUENCERS: usize = 2;
     // The indices of the nodes that we will be shutting down.
@@ -63,7 +63,10 @@ async fn main() {
 
     let mut node_indices = integration_test_manager.get_node_indices();
 
-    info!("Running all nodes");
+    info!(
+        "Running all nodes: {N_CONSOLIDATED_SEQUENCERS} consolidated and \
+         {N_DISTRIBUTED_SEQUENCERS} distributed sequencers"
+    );
     integration_test_manager.run_nodes(node_indices.clone()).await;
 
     integration_test_manager.send_deploy_and_invoke_txs_and_verify().await;

@@ -25,6 +25,7 @@ use crate::execution::entry_point::{
 use crate::execution::errors::{PostExecutionError, PreExecutionError};
 use crate::execution::execution_utils::{read_execution_retdata, Args, ReadOnlySegments};
 use crate::state::state_api::State;
+use crate::transaction::objects::ExecutionResourcesTraits;
 
 pub struct VmExecutionContext<'a> {
     pub runner: CairoRunner,
@@ -273,6 +274,7 @@ pub fn finalize_execution(
             retdata: read_execution_retdata(&runner, retdata_size, &retdata_ptr)?,
             events: syscall_handler.events,
             l2_to_l1_messages: syscall_handler.l2_to_l1_messages,
+            cairo_native: false,
             failed: false,
             gas_consumed: 0,
         },
@@ -284,6 +286,7 @@ pub fn finalize_execution(
             accessed_storage_keys: syscall_handler.accessed_keys,
             ..Default::default()
         },
+        builtin_counters: vm_resources_without_inner_calls.prover_builtins(),
     })
 }
 

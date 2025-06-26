@@ -1043,6 +1043,7 @@ dependencies = [
  "apollo_protobuf",
  "apollo_storage",
  "apollo_test_utils",
+ "apollo_time",
  "async-trait",
  "clap",
  "enum-as-inner",
@@ -1157,6 +1158,7 @@ name = "apollo_dashboard"
 version = "0.0.0"
 dependencies = [
  "apollo_batcher",
+ "apollo_class_manager",
  "apollo_compile_to_casm",
  "apollo_consensus",
  "apollo_consensus_manager",
@@ -1172,7 +1174,6 @@ dependencies = [
  "apollo_metrics",
  "apollo_state_sync_metrics",
  "blockifier",
- "const_format",
  "indexmap 2.9.0",
  "serde",
  "serde_json",
@@ -1183,14 +1184,16 @@ name = "apollo_deployments"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
- "apollo_infra",
  "apollo_infra_utils",
  "apollo_node",
  "apollo_protobuf",
  "const_format",
+ "hex",
  "indexmap 2.9.0",
+ "libp2p",
  "serde",
  "serde_json",
+ "serde_with",
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
@@ -1364,6 +1367,7 @@ dependencies = [
  "apollo_http_server",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_endpoint_monitor",
  "apollo_l1_gas_price",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
@@ -1410,9 +1414,30 @@ name = "apollo_l1_endpoint_monitor"
 version = "0.0.0"
 dependencies = [
  "alloy",
+ "apollo_config",
+ "apollo_infra",
+ "apollo_l1_endpoint_monitor_types",
+ "async-trait",
+ "mockito 1.6.1",
+ "papyrus_base_layer",
  "serde",
- "thiserror 1.0.69",
+ "tokio",
  "tracing",
+ "url",
+ "validator",
+]
+
+[[package]]
+name = "apollo_l1_endpoint_monitor_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_infra",
+ "apollo_proc_macros",
+ "async-trait",
+ "mockall",
+ "serde",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
  "url",
 ]
 
@@ -1432,6 +1457,7 @@ dependencies = [
  "mockito 1.6.1",
  "papyrus_base_layer",
  "reqwest 0.11.27",
+ "rstest",
  "serde",
  "serde_json",
  "starknet_api",
@@ -1470,6 +1496,7 @@ dependencies = [
  "apollo_batcher_types",
  "apollo_config",
  "apollo_infra",
+ "apollo_l1_endpoint_monitor_types",
  "apollo_l1_provider_types",
  "apollo_metrics",
  "apollo_state_sync_types",
@@ -1520,15 +1547,18 @@ dependencies = [
  "apollo_network",
  "apollo_network_types",
  "apollo_test_utils",
+ "apollo_time",
  "assert_matches",
  "async-trait",
  "derive_more 0.99.18",
+ "indexmap 2.9.0",
  "itertools 0.12.1",
  "mempool_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "mockall",
  "pretty_assertions",
+ "rand 0.8.5",
  "rstest",
  "serde",
  "starknet-types-core",
@@ -1703,6 +1733,8 @@ dependencies = [
  "apollo_http_server",
  "apollo_infra",
  "apollo_infra_utils",
+ "apollo_l1_endpoint_monitor",
+ "apollo_l1_endpoint_monitor_types",
  "apollo_l1_gas_price",
  "apollo_l1_gas_price_types",
  "apollo_l1_provider",
@@ -9408,6 +9440,7 @@ version = "0.0.0"
 dependencies = [
  "alloy",
  "apollo_config",
+ "apollo_l1_endpoint_monitor_types",
  "assert_matches",
  "async-trait",
  "colored 3.0.0",

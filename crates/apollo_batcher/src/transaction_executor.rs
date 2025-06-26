@@ -27,7 +27,7 @@ pub trait TransactionExecutorTrait: Send {
     /// Every block must be closed with either `close_block` or `abort_block`.
     fn close_block(
         &mut self,
-        n_txs_in_block: Option<usize>,
+        final_n_executed_txs: usize,
     ) -> TransactionExecutorResult<BlockExecutionSummary>;
 
     /// Notifies the transaction executor that the block is aborted.
@@ -55,9 +55,9 @@ impl<S: StateReader + Send + Sync + 'static> TransactionExecutorTrait
 
     fn close_block(
         &mut self,
-        n_txs_in_block: Option<usize>,
+        final_n_executed_txs: usize,
     ) -> TransactionExecutorResult<BlockExecutionSummary> {
-        ConcurrentTransactionExecutor::close_block(self, n_txs_in_block)
+        ConcurrentTransactionExecutor::close_block(self, final_n_executed_txs)
     }
 
     fn abort_block(&mut self) {

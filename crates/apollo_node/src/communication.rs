@@ -3,6 +3,7 @@ use apollo_class_manager_types::ClassManagerRequestAndResponseSender;
 use apollo_compile_to_casm_types::SierraCompilerRequestAndResponseSender;
 use apollo_gateway_types::communication::GatewayRequestAndResponseSender;
 use apollo_infra::component_definitions::ComponentCommunication;
+use apollo_l1_endpoint_monitor::communication::L1EndpointMonitorRequestAndResponseSender;
 use apollo_l1_gas_price::communication::L1GasPriceRequestAndResponseSender;
 use apollo_l1_provider::communication::L1ProviderRequestAndResponseSender;
 use apollo_mempool_p2p_types::communication::MempoolP2pPropagatorRequestAndResponseSender;
@@ -12,10 +13,13 @@ use apollo_state_sync_types::communication::StateSyncRequestAndResponseSender;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
 
+use crate::config::node_config::SequencerNodeConfig;
+
 pub struct SequencerNodeCommunication {
     batcher_channel: ComponentCommunication<BatcherRequestAndResponseSender>,
     class_manager_channel: ComponentCommunication<ClassManagerRequestAndResponseSender>,
     gateway_channel: ComponentCommunication<GatewayRequestAndResponseSender>,
+    l1_endpoint_monitor_channel: ComponentCommunication<L1EndpointMonitorRequestAndResponseSender>,
     l1_provider_channel: ComponentCommunication<L1ProviderRequestAndResponseSender>,
     l1_gas_price_channel: ComponentCommunication<L1GasPriceRequestAndResponseSender>,
     mempool_channel: ComponentCommunication<MempoolRequestAndResponseSender>,
@@ -49,6 +53,18 @@ impl SequencerNodeCommunication {
 
     pub fn take_gateway_rx(&mut self) -> Receiver<GatewayRequestAndResponseSender> {
         self.gateway_channel.take_rx()
+    }
+
+    pub fn take_l1_endpoint_monitor_tx(
+        &mut self,
+    ) -> Sender<L1EndpointMonitorRequestAndResponseSender> {
+        self.l1_endpoint_monitor_channel.take_tx()
+    }
+
+    pub fn take_l1_endpoint_monitor_rx(
+        &mut self,
+    ) -> Receiver<L1EndpointMonitorRequestAndResponseSender> {
+        self.l1_endpoint_monitor_channel.take_rx()
     }
 
     pub fn take_l1_provider_tx(&mut self) -> Sender<L1ProviderRequestAndResponseSender> {
@@ -114,38 +130,54 @@ impl SequencerNodeCommunication {
     }
 }
 
-pub fn create_node_channels() -> SequencerNodeCommunication {
+pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommunication {
     info!("Creating node channels.");
-    const DEFAULT_INVOCATIONS_QUEUE_SIZE: usize = 32;
-    let (tx_batcher, rx_batcher) =
-        channel::<BatcherRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+    let (tx_batcher, rx_batcher) = channel::<BatcherRequestAndResponseSender>(
+        config.components.batcher.local_server_config.channel_capacity,
+    );
 
-    let (tx_class_manager, rx_class_manager) =
-        channel::<ClassManagerRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+    let (tx_class_manager, rx_class_manager) = channel::<ClassManagerRequestAndResponseSender>(
+        config.components.class_manager.local_server_config.channel_capacity,
+    );
 
-    let (tx_gateway, rx_gateway) =
-        channel::<GatewayRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+    let (tx_gateway, rx_gateway) = channel::<GatewayRequestAndResponseSender>(
+        config.components.gateway.local_server_config.channel_capacity,
+    );
 
-    let (tx_l1_provider, rx_l1_provider) =
-        channel::<L1ProviderRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+    let (tx_l1_endpoint_monitor, rx_l1_endpoint_monitor) =
+        channel::<L1EndpointMonitorRequestAndResponseSender>(
+            config.components.l1_endpoint_monitor.local_server_config.channel_capacity,
+        );
 
-    let (tx_l1_gas_price, rx_l1_gas_price) =
-        channel::<L1GasPriceRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+    let (tx_l1_provider, rx_l1_provider) = channel::<L1ProviderRequestAndResponseSender>(
+        config.components.l1_provider.local_server_config.channel_capacity,
+    );
 
-    let (tx_mempool, rx_mempool) =
-        channel::<MempoolRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+    let (tx_l1_gas_price, rx_l1_gas_price) = channel::<L1GasPriceRequestAndResponseSender>(
+        config.components.l1_gas_price_provider.local_server_config.channel_capacity,
+    );
+
+    let (tx_mempool, rx_mempool) = channel::<MempoolRequestAndResponseSender>(
+        config.components.mempool.local_server_config.channel_capacity,
+    );
 
     let (tx_mempool_p2p_propagator, rx_mempool_p2p_propagator) =
-        channel::<MempoolP2pPropagatorRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+        channel::<MempoolP2pPropagatorRequestAndResponseSender>(
+            config.components.mempool_p2p.local_server_config.channel_capacity,
+        );
 
-    let (tx_sierra_compiler, rx_sierra_compiler) =
-        channel::<SierraCompilerRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+    let (tx_sierra_compiler, rx_sierra_compiler) = channel::<SierraCompilerRequestAndResponseSender>(
+        config.components.sierra_compiler.local_server_config.channel_capacity,
+    );
 
     let (tx_signature_manager, rx_signature_manager) =
-        channel::<SignatureManagerRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+        channel::<SignatureManagerRequestAndResponseSender>(
+            config.components.state_sync.local_server_config.channel_capacity,
+        );
 
-    let (tx_state_sync, rx_state_sync) =
-        channel::<StateSyncRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+    let (tx_state_sync, rx_state_sync) = channel::<StateSyncRequestAndResponseSender>(
+        config.components.state_sync.local_server_config.channel_capacity,
+    );
 
     SequencerNodeCommunication {
         batcher_channel: ComponentCommunication::new(Some(tx_batcher), Some(rx_batcher)),
@@ -154,6 +186,10 @@ pub fn create_node_channels() -> SequencerNodeCommunication {
             Some(rx_class_manager),
         ),
         gateway_channel: ComponentCommunication::new(Some(tx_gateway), Some(rx_gateway)),
+        l1_endpoint_monitor_channel: ComponentCommunication::new(
+            Some(tx_l1_endpoint_monitor),
+            Some(rx_l1_endpoint_monitor),
+        ),
         l1_provider_channel: ComponentCommunication::new(
             Some(tx_l1_provider),
             Some(rx_l1_provider),

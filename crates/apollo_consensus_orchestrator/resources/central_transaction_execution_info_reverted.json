@@ -1,7 +1,7 @@
 {
   "actual_fee": "0x26fe9d250e000",
   "actual_resources": {
-    "n_steps": 7,
+    "n_steps": 4,
     "pedersen_builtin": 4,
     "range_check_builtin": 31
   },
@@ -59,6 +59,7 @@
           "order": 1
         }
       ],
+      "cairo_native": false,
       "retdata": [
         "0x56414c4944"
       ]
@@ -112,6 +113,7 @@
               "order": 1
             }
           ],
+          "cairo_native": false,
           "retdata": [
             "0x56414c4944"
           ]
@@ -147,7 +149,11 @@
           ]
         },
         "tracked_resource": "SierraGas",
-        "inner_calls": []
+        "inner_calls": [],
+        "builtin_counters": {
+          "pedersen": 4,
+          "range_check": 31
+        }
       }
     ],
     "resources": {
@@ -180,7 +186,11 @@
         100
       ]
     },
-    "tracked_resource": "SierraGas"
+    "tracked_resource": "SierraGas",
+    "builtin_counters": {
+      "pedersen": 4,
+      "range_check": 31
+    }
   },
   "revert_error": "Insufficient fee token balance. Fee: 1, balance: low/high 2/3.",
   "total_gas": {
@@ -236,6 +246,7 @@
           "order": 1
         }
       ],
+      "cairo_native": false,
       "retdata": [
         "0x56414c4944"
       ]
@@ -289,6 +300,7 @@
               "order": 1
             }
           ],
+          "cairo_native": false,
           "retdata": [
             "0x56414c4944"
           ]
@@ -324,7 +336,11 @@
           ]
         },
         "tracked_resource": "SierraGas",
-        "inner_calls": []
+        "inner_calls": [],
+        "builtin_counters": {
+          "pedersen": 4,
+          "range_check": 31
+        }
       }
     ],
     "resources": {
@@ -357,6 +373,10 @@
         100
       ]
     },
-    "tracked_resource": "SierraGas"
+    "tracked_resource": "SierraGas",
+    "builtin_counters": {
+      "pedersen": 4,
+      "range_check": 31
+    }
   }
 }

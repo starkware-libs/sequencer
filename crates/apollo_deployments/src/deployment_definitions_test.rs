@@ -8,20 +8,32 @@ use apollo_node::config::component_execution_config::{
     ReactiveComponentExecutionMode,
 };
 use apollo_node::config::node_config::SequencerNodeConfig;
+use strum::IntoEnumIterator;
 
 use crate::deployment::FIX_BINARY_NAME;
-use crate::deployment_definitions::{Environment, DEPLOYMENTS};
+use crate::deployment_definitions::DEPLOYMENTS;
+use crate::service::DeploymentName;
 
 /// Test that the deployment file is up to date. To update it run:
 /// cargo run --bin deployment_generator -q
 #[test]
 fn deployment_files_are_up_to_date() {
+    env::set_current_dir(resolve_project_relative_path("").unwrap())
+        .expect("Couldn't set working dir.");
+
+    // TODO(Tsabary): The word "deployment" is overloaded. On one hand it means the "node
+    // configuration" (e.g. hybrid), on the other it means the "k8s setups" (e.g. upgrade_test).
+    // Need to fix that.
+    for deployment_name in DeploymentName::iter() {
+        deployment_name.test_dump_service_component_configs(None);
+    }
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         serialize_to_file_test(
             &deployment,
             deployment.deployment_file_path().to_str().unwrap(),
             FIX_BINARY_NAME,
         );
+        deployment.test_dump_config_override_files();
     }
 }
 
@@ -32,7 +44,15 @@ fn load_and_process_service_config_files() {
         .expect("Couldn't set working dir.");
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         for service_config_paths in deployment.get_config_file_paths().into_iter() {
+            println!(
+                "Loading deployment {} in path {:?} with application files {:?} ... ",
+                deployment.get_deployment_name(),
+                deployment.deployment_file_path(),
+                service_config_paths
+            );
+
             let config_file_args: Vec<String> = service_config_paths
+                .clone()
                 .into_iter()
                 .flat_map(|path| vec![CONFIG_FILE_ARG.to_string(), path])
                 .collect();
@@ -40,18 +60,17 @@ fn load_and_process_service_config_files() {
             let mut config_load_command: Vec<String> = vec!["command_name_placeholder".to_string()];
             config_load_command.extend(config_file_args);
             let load_result = SequencerNodeConfig::load_and_process(config_load_command);
-            assert!(load_result.is_ok());
-        }
-    }
-}
 
-#[test]
-fn application_config_files_exist() {
-    env::set_current_dir(resolve_project_relative_path("").unwrap())
-        .expect("Couldn't set working dir.");
-    for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
-        deployment.assert_application_configs_exist();
-        deployment.test_dump_application_config_files();
+            load_result.unwrap_or_else(|err| {
+                panic!(
+                    "Loading deployment in path {:?} with application config files {:?}\nResulted \
+                     in error: {}",
+                    deployment.deployment_file_path(),
+                    service_config_paths,
+                    err
+                );
+            });
+        }
     }
 }
 
@@ -59,7 +78,7 @@ fn application_config_files_exist() {
 fn l1_components_state_consistency() {
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         let deployment_name = deployment.get_deployment_name();
-        let component_configs = deployment_name.get_component_configs(None, &Environment::Testing);
+        let component_configs = deployment_name.get_component_configs(None);
 
         let l1_gas_price_provider_indicator = component_configs.values().any(|component_config| {
             component_config.l1_gas_price_provider.execution_mode

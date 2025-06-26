@@ -277,22 +277,21 @@ fn expected_validate_call_info(
         CairoVersion::Cairo0 => Retdata::default(),
         CairoVersion::Cairo1(_) => retdata!(*constants::VALIDATE_RETDATA),
     };
-    // Extra range check in regular (invoke) validate call, due to passing the calldata as an array.
+    let cairo_native = cairo_version.is_cairo_native();
+    // Extra range checks in regular (invoke) validate call, due to calldata passed as array.
+    let n_range_checks = match cairo_version {
+        CairoVersion::Cairo0 => {
+            usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
+        }
+        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
+            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
+        }
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Cairo1(RunnableCairo1::Native) => 0,
+    };
     let vm_resources = match tracked_resource {
         TrackedResource::SierraGas => ExecutionResources::default(),
         TrackedResource::CairoSteps => {
-            let n_range_checks = match cairo_version {
-                CairoVersion::Cairo0 => {
-                    usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
-                }
-                CairoVersion::Cairo1(_) => {
-                    if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME {
-                        7
-                    } else {
-                        2
-                    }
-                }
-            };
             let n_steps = match (entry_point_selector_name, cairo_version) {
                 (constants::VALIDATE_DEPLOY_ENTRY_POINT_NAME, CairoVersion::Cairo0) => 13_usize,
                 (
@@ -349,8 +348,12 @@ fn expected_validate_call_info(
         },
         // The account contract we use for testing has trivial `validate` functions.
         resources: vm_resources,
-        execution: CallExecution { retdata, gas_consumed, ..Default::default() },
+        execution: CallExecution { retdata, gas_consumed, cairo_native, ..Default::default() },
         tracked_resource,
+        builtin_counters: HashMap::from([(BuiltinName::range_check, n_range_checks)])
+            .into_iter()
+            .filter(|builtin| builtin.1 > 0)
+            .collect(),
         ..Default::default()
     })
 }
@@ -430,6 +433,10 @@ fn expected_fee_transfer_call_info(
             ]),
             ..Default::default()
         },
+        builtin_counters: HashMap::from([
+            (BuiltinName::range_check, 32),
+            (BuiltinName::pedersen, 4),
+        ]),
         ..Default::default()
     })
 }
@@ -439,16 +446,17 @@ fn get_expected_cairo_resources(
     tx_type: TransactionType,
     starknet_resources: &StarknetResources,
     call_infos: Vec<&Option<CallInfo>>,
-) -> ExecutionResources {
-    let mut expected_cairo_resources =
+) -> (ExecutionResources, ExecutionResources) {
+    let expected_os_cairo_resources =
         versioned_constants.get_additional_os_tx_resources(tx_type, starknet_resources, false);
+    let mut expected_tx_cairo_resources = ExecutionResources::default();
     for call_info in call_infos {
         if let Some(call_info) = &call_info {
-            expected_cairo_resources += &call_info.resources
+            expected_tx_cairo_resources += &call_info.resources
         };
     }
 
-    expected_cairo_resources
+    (expected_tx_cairo_resources, expected_os_cairo_resources)
 }
 
 /// Given the fee result of a single account transaction, verifies the final balances of the account
@@ -558,6 +566,7 @@ fn test_invoke_tx(
     let test_contract_address = test_contract.get_instance_address(0);
     let account_contract_address = account_contract.get_instance_address(0);
     let calldata = create_trivial_calldata(test_contract_address);
+    let cairo_native = account_cairo_version.is_cairo_native();
     let invoke_tx = invoke_tx_with_default_flags(invoke_tx_args! {
         sender_address: account_contract_address,
         calldata: Calldata(Arc::clone(&calldata.0)),
@@ -641,7 +650,10 @@ fn test_invoke_tx(
     let expected_return_result_retdata = Retdata(expected_return_result_calldata);
     let expected_inner_calls = vec![CallInfo {
         call: expected_return_result_call,
-        execution: CallExecution::from_retdata(expected_return_result_retdata.clone()),
+        execution: CallExecution {
+            retdata: expected_return_result_retdata.clone(),
+            ..Default::default()
+        },
         resources: expected_inner_call_vm_resources.clone(),
         ..Default::default()
     }];
@@ -655,16 +667,26 @@ fn test_invoke_tx(
             )
         }
     };
+    let builtin_counters = match account_cairo_version {
+        CairoVersion::Cairo0 => HashMap::from([(BuiltinName::range_check, 19)]),
+        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
+            HashMap::from([(BuiltinName::range_check, 27)])
+        }
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Cairo1(RunnableCairo1::Native) => HashMap::default(),
+    };
     let expected_execute_call_info = Some(CallInfo {
         call: expected_execute_call,
         execution: CallExecution {
             retdata: Retdata(expected_return_result_retdata.0),
             gas_consumed: expected_arguments.execute_gas_consumed,
+            cairo_native,
             ..Default::default()
         },
         resources: expected_arguments.resources,
         inner_calls: expected_inner_calls,
         tracked_resource,
+        builtin_counters,
         ..Default::default()
     });
 
@@ -680,7 +702,7 @@ fn test_invoke_tx(
 
     let da_gas = starknet_resources.state.da_gas_vector(use_kzg_da);
 
-    let expected_cairo_resources = get_expected_cairo_resources(
+    let (expected_tx_cairo_resources, expected_os_cairo_resources) = get_expected_cairo_resources(
         versioned_constants,
         TransactionType::InvokeFunction,
         &starknet_resources,
@@ -690,14 +712,15 @@ fn test_invoke_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            vm_resources: expected_cairo_resources,
+            tx_vm_resources: expected_tx_cairo_resources,
+            os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_validate_gas_for_fee + expected_execute_gas_for_fee,
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.computation.vm_resources,
+        &mut expected_actual_resources.computation.os_vm_resources,
         &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
@@ -1787,7 +1810,7 @@ fn test_declare_tx(
     };
 
     let da_gas = starknet_resources.state.da_gas_vector(use_kzg_da);
-    let expected_cairo_resources = get_expected_cairo_resources(
+    let (expected_tx_cairo_resources, expected_os_cairo_resources) = get_expected_cairo_resources(
         versioned_constants,
         TransactionType::Declare,
         &starknet_resources,
@@ -1813,14 +1836,15 @@ fn test_declare_tx(
     let mut expected_actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            vm_resources: expected_cairo_resources,
+            tx_vm_resources: expected_tx_cairo_resources,
+            os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_gas_consumed,
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_actual_resources.computation.vm_resources,
+        &mut expected_actual_resources.computation.os_vm_resources,
         &state_changes_for_fee,
         versioned_constants,
         use_kzg_da,
@@ -2058,7 +2082,7 @@ fn test_deploy_account_tx(
         ..StateChangesCount::default()
     };
     let da_gas = get_da_gas_cost(&state_changes_count, use_kzg_da);
-    let expected_cairo_resources = get_expected_cairo_resources(
+    let (expected_tx_cairo_resources, expected_os_cairo_resources) = get_expected_cairo_resources(
         &block_context.versioned_constants,
         TransactionType::DeployAccount,
         &starknet_resources,
@@ -2068,14 +2092,15 @@ fn test_deploy_account_tx(
     let mut actual_resources = TransactionResources {
         starknet_resources,
         computation: ComputationResources {
-            vm_resources: expected_cairo_resources,
+            tx_vm_resources: expected_tx_cairo_resources,
+            os_vm_resources: expected_os_cairo_resources,
             sierra_gas: expected_gas_consumed.into(),
             ..Default::default()
         },
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut actual_resources.computation.vm_resources,
+        &mut actual_resources.computation.os_vm_resources,
         &state_changes_count,
         versioned_constants,
         use_kzg_da,
@@ -2589,11 +2614,10 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let key = calldata.0[1];
     let value = calldata.0[2];
     let payload_size = tx.payload_size();
-    let actual_execution_info = tx.execute(state, block_context).unwrap();
+    let mut actual_execution_info = tx.execute(state, block_context).unwrap();
 
     // Build the expected call info.
     let accessed_storage_key = StorageKey::try_from(key).unwrap();
-    let gas_consumed = GasAmount(15850);
     let expected_call_info = CallInfo {
         call: CallEntryPoint {
             class_hash: Some(test_contract.get_class_hash()),
@@ -2613,7 +2637,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         },
         execution: CallExecution {
             retdata: Retdata(vec![value]),
-            gas_consumed: gas_consumed.0,
+            gas_consumed: 0, // Regression-tested explicitly.
             ..Default::default()
         },
         storage_access_tracker: StorageAccessTracker {
@@ -2623,21 +2647,8 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         tracked_resource: test_contract
             .get_runnable_class()
             .tracked_resource(&versioned_constants.min_sierra_version_for_sierra_gas, None),
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 6)]),
         ..Default::default()
-    };
-
-    // Build the expected resource mapping.
-    let expected_gas = match use_kzg_da {
-        true => GasVector {
-            l1_gas: 16023_u32.into(),
-            l1_data_gas: 160_u32.into(),
-            l2_gas: 200875_u32.into(),
-        },
-        false => GasVector {
-            l1_gas: 18226_u32.into(),
-            l1_data_gas: 0_u32.into(),
-            l2_gas: 149975_u32.into(),
-        },
     };
 
     let expected_da_gas = match use_kzg_da {
@@ -2651,7 +2662,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         ..StateChangesCount::default()
     };
 
-    let mut expected_execution_resources = ExecutionResources {
+    let mut expected_os_execution_resources = ExecutionResources {
         builtin_instance_counter: HashMap::from([
             (BuiltinName::pedersen, 11 + payload_size),
             (
@@ -2665,7 +2676,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     };
 
     add_kzg_da_resources_to_resources_mapping(
-        &mut expected_execution_resources,
+        &mut expected_os_execution_resources,
         &state_changes_count,
         versioned_constants,
         use_kzg_da,
@@ -2675,27 +2686,60 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     let expected_tx_resources = TransactionResources {
         starknet_resources: actual_execution_info.receipt.resources.starknet_resources.clone(),
         computation: ComputationResources {
-            vm_resources: expected_execution_resources,
-            sierra_gas: gas_consumed,
+            os_vm_resources: expected_os_execution_resources,
+            sierra_gas: GasAmount(0), // Regression-tested explicitly.
             ..Default::default()
         },
     };
 
-    assert_eq!(actual_execution_info.receipt.resources, expected_tx_resources);
-    assert_eq!(
-        actual_execution_info.receipt.resources.to_gas_vector(
-            versioned_constants,
-            use_kzg_da,
-            &gas_mode,
-        ),
-        expected_gas
-    );
-
-    let total_gas = expected_tx_resources.to_gas_vector(
+    // Regression-test the execution gas consumed.
+    // First, compute that actual gas vectors (before nullifying the gas fields on the actual
+    // execution info) to get the correct values.
+    let actual_gas_vector = actual_execution_info.receipt.resources.to_gas_vector(
         versioned_constants,
-        block_context.block_info.use_kzg_da,
+        use_kzg_da,
         &gas_mode,
     );
+
+    // Regression-test the gas consumed, and then set to zero to compare the rest of the resources.
+    let expected_gas = expect![[r#"
+        15850
+    "#]];
+    expected_gas.assert_debug_eq(&actual_execution_info.receipt.resources.computation.sierra_gas.0);
+    actual_execution_info.receipt.resources.computation.sierra_gas.0 = 0;
+    assert_eq!(actual_execution_info.receipt.resources, expected_tx_resources);
+
+    match use_kzg_da {
+        true => expect![[r#"
+            GasVector {
+                l1_gas: GasAmount(
+                    16023,
+                ),
+                l1_data_gas: GasAmount(
+                    160,
+                ),
+                l2_gas: GasAmount(
+                    200875,
+                ),
+            }
+        "#]]
+        .assert_debug_eq(&actual_gas_vector),
+        false => expect![[r#"
+            GasVector {
+                l1_gas: GasAmount(
+                    18226,
+                ),
+                l1_data_gas: GasAmount(
+                    0,
+                ),
+                l2_gas: GasAmount(
+                    149975,
+                ),
+            }
+        "#]]
+        .assert_debug_eq(&actual_gas_vector),
+    };
+    assert_eq!(use_kzg_da, actual_gas_vector.l1_data_gas.0 > 0);
 
     // Build the expected execution info.
     let expected_execution_info = TransactionExecutionInfo {
@@ -2705,13 +2749,20 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
         receipt: TransactionReceipt {
             fee: Fee(0),
             da_gas: expected_da_gas,
-            resources: expected_tx_resources,
-            gas: total_gas,
+            resources: expected_tx_resources.clone(),
+            // Gas vector was already tested; set the expected to the actual.
+            gas: actual_gas_vector,
         },
         revert_error: None,
     };
 
     // Check the actual returned execution info.
+    // First, regression-test the execution gas consumed, and set to zero after testing to easily
+    // compare the rest of the fields.
+    let mut actual_execute_call_info = actual_execution_info.execute_call_info.unwrap();
+    expected_gas.assert_debug_eq(&actual_execute_call_info.execution.gas_consumed);
+    actual_execute_call_info.execution.gas_consumed = 0;
+    actual_execution_info.execute_call_info = Some(actual_execute_call_info);
     assert_eq!(actual_execution_info, expected_execution_info);
 
     // Check the state changes.
@@ -2765,7 +2816,7 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
     // Today, we check that the paid_fee is positive, no matter what was the actual fee.
     let tip = block_context.to_tx_context(&tx_no_fee).effective_tip();
     let expected_actual_fee =
-        get_fee_by_gas_vector(&block_context.block_info, total_gas, &FeeType::Eth, tip);
+        get_fee_by_gas_vector(&block_context.block_info, actual_gas_vector, &FeeType::Eth, tip);
 
     assert_matches!(
         error,

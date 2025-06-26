@@ -47,7 +47,8 @@ pub enum OsHintError {
     #[error(transparent)]
     DeprecatedSnosSyscall(#[from] DeprecatedSnosSyscallError),
     #[error(transparent)]
-    DeprecatedSyscallExecution(#[from] DeprecatedSyscallExecutionError),
+    // TODO(Dori): Remove the Box if and when DeprecatedSyscallExecutionError is small.
+    DeprecatedSyscallExecution(#[from] Box<DeprecatedSyscallExecutionError>),
     #[error("Tried to iterate past the end of {item_type}.")]
     EndOfIterator { item_type: String },
     #[error(transparent)]
@@ -75,6 +76,10 @@ pub enum OsHintError {
     InconsistentBlockNumber { actual: BlockNumber, expected: BlockNumber },
     #[error("Inconsistent storage value. Actual: {actual}, expected: {expected}.")]
     InconsistentValue { actual: Felt, expected: Felt },
+    #[error(transparent)]
+    IO(#[from] std::io::Error),
+    #[error(transparent)]
+    SerdeJson(#[from] serde_json::Error),
     #[error(transparent)]
     Math(#[from] MathError),
     #[error(transparent)]

@@ -61,6 +61,7 @@ fn test_call_contract_that_panics(runnable_version: RunnableCairo1) {
     // Check that the tracked resource is SierraGas to make sure that Native is running.
     for call in res.iter() {
         assert_eq!(call.tracked_resource, TrackedResource::SierraGas);
+        assert_eq!(call.execution.cairo_native, runnable_version.is_cairo_native());
     }
 }
 
@@ -142,6 +143,7 @@ fn test_call_contract_and_than_revert(#[case] runnable_version: RunnableCairo1) 
     // Check that the tracked resource is SierraGas to make sure that Native is running.
     for call in call_info_a.iter() {
         assert_eq!(call.tracked_resource, TrackedResource::SierraGas);
+        assert_eq!(call.execution.cairo_native, runnable_version.is_cairo_native());
     }
 }
 
@@ -196,6 +198,7 @@ fn test_revert_with_inner_call_and_reverted_storage(#[case] runnable_version: Ru
     // Check that the tracked resource is SierraGas to make sure that Native is running.
     for call in outer_call.iter() {
         assert_eq!(call.tracked_resource, TrackedResource::SierraGas);
+        assert_eq!(call.execution.cairo_native, runnable_version.is_cairo_native());
     }
 }
 
@@ -232,7 +235,9 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
         ..trivial_external_entry_point_new(outer_contract)
     };
 
-    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    assert_eq!(execution.cairo_native, outer_contract.cairo_version().is_cairo_native());
+    execution.cairo_native = false; // For comparison.
     expect![[r#"
         CallExecution {
             retdata: Retdata(
@@ -242,6 +247,7 @@ fn test_call_contract(outer_contract: FeatureContract, inner_contract: FeatureCo
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: false,
             failed: false,
             gas_consumed: 129870,
         }
@@ -418,15 +424,15 @@ fn test_tracked_resources_nested(
 
     let second_calldata = build_recurse_calldata(&[sierra_gas_contract_version]);
 
-    let concated_calldata_felts = [first_calldata.0, second_calldata.0]
+    let concatenated_calldata_felts = [first_calldata.0, second_calldata.0]
         .into_iter()
         .map(|calldata_felts| calldata_felts.iter().copied().collect_vec())
         .concat();
-    let concated_calldata = Calldata(Arc::new(concated_calldata_felts));
+    let concatenated_calldata = Calldata(Arc::new(concatenated_calldata_felts));
     let call_contract_selector = selector_from_name("test_call_two_contracts");
     let entry_point_call = CallEntryPoint {
         entry_point_selector: call_contract_selector,
-        calldata: concated_calldata,
+        calldata: concatenated_calldata,
         ..trivial_external_entry_point_new(sierra_gas_contract)
     };
     let main_call_info = entry_point_call.execute_directly(&mut state).unwrap();
@@ -437,13 +443,19 @@ fn test_tracked_resources_nested(
     let first_inner_call = main_call_info.inner_calls.first().unwrap();
     assert_eq!(first_inner_call.tracked_resource, TrackedResource::CairoSteps);
     assert_eq!(first_inner_call.execution.gas_consumed, 0);
+    assert_eq!(first_inner_call.execution.cairo_native, false);
     let inner_inner_call = first_inner_call.inner_calls.first().unwrap();
     assert_eq!(inner_inner_call.tracked_resource, TrackedResource::CairoSteps);
     assert_eq!(inner_inner_call.execution.gas_consumed, 0);
+    assert_eq!(inner_inner_call.execution.cairo_native, false);
 
     let second_inner_call = main_call_info.inner_calls.get(1).unwrap();
     assert_eq!(second_inner_call.tracked_resource, TrackedResource::SierraGas);
     assert_ne!(second_inner_call.execution.gas_consumed, 0);
+    assert_eq!(
+        second_inner_call.execution.cairo_native,
+        sierra_gas_contract_version.is_cairo_native()
+    );
 }
 
 #[rstest]

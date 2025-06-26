@@ -31,6 +31,8 @@ pub struct ComponentConfig {
     #[validate]
     pub state_sync: ReactiveComponentExecutionConfig,
     #[validate]
+    pub l1_endpoint_monitor: ReactiveComponentExecutionConfig,
+    #[validate]
     pub l1_provider: ReactiveComponentExecutionConfig,
     #[validate]
     pub l1_gas_price_provider: ReactiveComponentExecutionConfig,
@@ -57,6 +59,7 @@ impl SerializeConfig for ComponentConfig {
             prepend_sub_config_name(self.gateway.dump(), "gateway"),
             prepend_sub_config_name(self.http_server.dump(), "http_server"),
             prepend_sub_config_name(self.mempool.dump(), "mempool"),
+            prepend_sub_config_name(self.l1_endpoint_monitor.dump(), "l1_endpoint_monitor"),
             prepend_sub_config_name(self.l1_provider.dump(), "l1_provider"),
             prepend_sub_config_name(self.l1_gas_price_provider.dump(), "l1_gas_price_provider"),
             prepend_sub_config_name(self.l1_scraper.dump(), "l1_scraper"),
@@ -83,6 +86,7 @@ impl ComponentConfig {
             sierra_compiler: ReactiveComponentExecutionConfig::disabled(),
             signature_manager: ReactiveComponentExecutionConfig::disabled(),
             state_sync: ReactiveComponentExecutionConfig::disabled(),
+            l1_endpoint_monitor: ReactiveComponentExecutionConfig::disabled(),
             l1_provider: ReactiveComponentExecutionConfig::disabled(),
             l1_gas_price_provider: ReactiveComponentExecutionConfig::disabled(),
             l1_scraper: ActiveComponentExecutionConfig::disabled(),
@@ -103,6 +107,7 @@ impl ComponentConfig {
         self.sierra_compiler.set_url_to_localhost();
         self.signature_manager.set_url_to_localhost();
         self.state_sync.set_url_to_localhost();
+        self.l1_endpoint_monitor.set_url_to_localhost();
         self.l1_provider.set_url_to_localhost();
         self.l1_gas_price_provider.set_url_to_localhost();
     }

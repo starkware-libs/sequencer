@@ -7,9 +7,10 @@ use apollo_batcher_types::batcher_types::{
     ProposalId,
     ProposeBlockInput,
 };
-use apollo_batcher_types::communication::BatcherClient;
+use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::{ProposalCommitment, Round};
+use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
     ProposalFin,
@@ -17,8 +18,9 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
-use futures::channel::{mpsc, oneshot};
-use futures::{FutureExt, SinkExt};
+use apollo_state_sync_types::communication::StateSyncClientError;
+use futures::channel::oneshot;
+use futures::FutureExt;
 use starknet_api::block::{BlockHash, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -28,17 +30,14 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, error, info, trace, warn};
 
-use crate::sequencer_consensus_context::{
-    BuiltProposals,
-    ProposalResult,
-    SequencerConsensusContextDeps,
-};
+use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
 use crate::utils::{
     convert_to_sn_api_block_info,
     get_oracle_rate_and_prices,
     retrospective_block_hash,
     truncate_to_executed_txs,
     GasPriceParams,
+    StreamSender,
 };
 
 pub(crate) struct ProposalBuildArguments {
@@ -46,7 +45,7 @@ pub(crate) struct ProposalBuildArguments {
     pub batcher_timeout: Duration,
     pub proposal_init: ProposalInit,
     pub l1_da_mode: L1DataAvailabilityMode,
-    pub proposal_sender: mpsc::Sender<ProposalPart>,
+    pub stream_sender: StreamSender,
     pub fin_sender: oneshot::Sender<ProposalCommitment>,
     pub gas_price_params: GasPriceParams,
     pub valid_proposals: Arc<Mutex<BuiltProposals>>,
@@ -59,6 +58,22 @@ pub(crate) struct ProposalBuildArguments {
     pub proposal_round: Round,
 }
 
+type BuildProposalResult<T> = Result<T, BuildProposalError>;
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum BuildProposalError {
+    #[error("Batcher error: {0}")]
+    Batcher(#[from] BatcherClientError),
+    #[error("State sync client error: {0}")]
+    StateSyncClientError(#[from] StateSyncClientError),
+    #[error("State sync is not ready: {0}")]
+    StateSyncNotReady(String),
+    #[error("EthToStrkOracle error: {0}")]
+    EthToStrkOracle(#[from] EthToStrkOracleClientError),
+    #[error("L1GasPriceProvider error: {0}")]
+    L1GasPriceProvider(#[from] L1GasPriceClientError),
+}
+
 // Handles building a new proposal without blocking consensus:
 pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
     let block_info = initiate_build(&args).await;
@@ -69,11 +84,11 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
             return;
         }
     };
-    args.proposal_sender
+    args.stream_sender
         .send(ProposalPart::Init(args.proposal_init))
         .await
         .expect("Failed to send proposal init");
-    args.proposal_sender
+    args.stream_sender
         .send(ProposalPart::BlockInfo(block_info.clone()))
         .await
         .expect("Failed to send block info");
@@ -81,7 +96,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
     let Some((proposal_commitment, content)) = get_proposal_content(
         args.proposal_id,
         args.deps.batcher.as_ref(),
-        args.proposal_sender,
+        args.stream_sender,
         args.cende_write_success,
         args.deps.transaction_converter,
         args.cancel_token,
@@ -107,7 +122,7 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
     }
 }
 
-async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<ConsensusBlockInfo> {
+async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<ConsensusBlockInfo> {
     let batcher_timeout = chrono::Duration::from_std(args.batcher_timeout)
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.deps.clock.unix_now();
@@ -150,7 +165,7 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
 pub(crate) async fn get_proposal_content(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
-    mut proposal_sender: mpsc::Sender<ProposalPart>,
+    mut stream_sender: StreamSender,
     cende_write_success: AbortOnDropHandle<bool>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     cancel_token: CancellationToken,
@@ -197,17 +212,21 @@ pub(crate) async fn get_proposal_content(
                 };
 
                 trace!(?transactions, "Sending transaction batch with {} txs.", transactions.len());
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::Transactions(TransactionBatch { transactions }))
                     .await
                     .expect("Failed to broadcast proposal content");
             }
-            GetProposalContent::Finished { id, n_executed_txs } => {
+            GetProposalContent::Finished { id, final_n_executed_txs } => {
                 let proposal_commitment = BlockHash(id.state_diff_commitment.0.0);
-                content = truncate_to_executed_txs(&mut content, n_executed_txs);
+                content = truncate_to_executed_txs(&mut content, final_n_executed_txs);
 
-                info!(?proposal_commitment, num_txs = n_executed_txs, "Finished building proposal",);
-                if n_executed_txs == 0 {
+                info!(
+                    ?proposal_commitment,
+                    num_txs = final_n_executed_txs,
+                    "Finished building proposal",
+                );
+                if final_n_executed_txs == 0 {
                     warn!("Built an empty proposal.");
                 }
 
@@ -231,13 +250,16 @@ pub(crate) async fn get_proposal_content(
                     }
                 }
 
-                proposal_sender
-                    .send(ProposalPart::ExecutedTransactionCount(n_executed_txs))
+                let final_n_executed_txs_u64 = final_n_executed_txs
+                    .try_into()
+                    .expect("Number of executed transactions should fit in u64");
+                stream_sender
+                    .send(ProposalPart::ExecutedTransactionCount(final_n_executed_txs_u64))
                     .await
                     .expect("Failed to broadcast executed transaction count");
                 let fin = ProposalFin { proposal_commitment };
                 info!("Sending fin={fin:?}");
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::Fin(fin))
                     .await
                     .expect("Failed to broadcast proposal fin");

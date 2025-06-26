@@ -54,7 +54,8 @@ pub struct BlockExecutionSummary {
     pub state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
-    pub casm_hash_computation_data: CasmHashComputationData,
+    pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
+    pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
 }
 
 /// A transaction executor, used for building a single block.
@@ -249,7 +250,12 @@ pub(crate) fn finalize_block<S: StateReader>(
         state_diff: state_diff.into(),
         compressed_state_diff,
         bouncer_weights: *bouncer.get_accumulated_weights(),
-        casm_hash_computation_data: mem::take(&mut bouncer.casm_hash_computation_data),
+        casm_hash_computation_data_sierra_gas: mem::take(
+            &mut bouncer.casm_hash_computation_data_sierra_gas,
+        ),
+        casm_hash_computation_data_proving_gas: mem::take(
+            &mut bouncer.casm_hash_computation_data_proving_gas,
+        ),
     })
 }
 

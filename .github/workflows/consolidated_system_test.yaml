@@ -10,18 +10,15 @@ on:
         type: number
 
   pull_request:
-    paths:
-      - ".github/workflows/consolidated_system_test.yaml"
-      - "deployments/**"
-      - "crates/**"
-      - "crates/apollo_deployments/resources/testing/**"
-      - "scripts/system_tests/**"
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
   deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/testing/deployment_configs/deployment_test_consolidated.json
   namespace: sequencer-consolidated-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
   cluster_name: consolidated-system-test
+  crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
+  path_triggers: ".github/workflows/consolidated_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py"
+  pvc_storage_class_name: "premium-rwo"
 
 permissions:
   contents: read
@@ -55,7 +52,10 @@ jobs:
           echo "Checking if any system-test-triggering crates were modified..."
           OUTPUT_FILE=$(mktemp)
 
-          python ./scripts/check_system_test_trigger.py --output_file $OUTPUT_FILE --commit_id ${{ github.event.pull_request.base.sha }}
+          python ./scripts/check_test_trigger.py --output_file $OUTPUT_FILE \
+            --commit_id ${{ github.event.pull_request.base.sha }} \
+            --crate_triggers ${{ env.crate_triggers }} \
+            --path_triggers ${{ env.path_triggers }}
 
           should_run=$(cat "$OUTPUT_FILE")
           echo "Captured output: $should_run"
@@ -85,6 +85,33 @@ jobs:
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install local-path-provisioner (for PVC support)
+        run: |
+          echo "🔧 Installing local-path-provisioner..."
+          kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+
+          echo "⏳ Waiting for local-path-provisioner pod to be ready..."
+          kubectl wait --for=condition=Ready pod -l app=local-path-provisioner -n local-path-storage --timeout=60s
+
+          echo "✅ local-path-provisioner is ready."
+
+          echo "📦 Verifying default StorageClass is set..."
+          kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+          echo "📦 Creating alias StorageClass ${pvc_storage_class_name} for compatibility with PVCs..."
+          cat <<EOF | envsubst | kubectl apply -f -
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: ${pvc_storage_class_name}
+          provisioner: rancher.io/local-path
+          volumeBindingMode: WaitForFirstConsumer
+          reclaimPolicy: Delete
+          EOF
+
+          echo "🎉 StorageClasses available:"
+          kubectl get storageclass
 
       - name: Install Anvil
         uses: foundry-rs/foundry-toolchain@v1
@@ -241,7 +268,7 @@ jobs:
       # TODO(Nadin): move the config definition out of the GitHub Actions secret section, since it no longer contains sensitive values.
       - name: Inject Config Secrets
         run: |
-          python ./scripts/system_tests/config_secrets_injector.py --deployment_config_path ${{ env.deployment_config_path }} --secrets_json '${{ vars.SEQUENCER_CONFIG_JSON }}'
+          python ./scripts/system_tests/config_secrets_injector.py --deployment_config_path ${{ env.deployment_config_path }}
 
       - name: Generate k8s manifests
         working-directory: deployments/sequencer

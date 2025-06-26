@@ -68,7 +68,7 @@ pub(crate) fn load_next_tx<S: StateReader>(
         ids_data,
         vm,
         ap_tracking,
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
 
     Ok(())
@@ -93,7 +93,7 @@ pub(crate) fn load_resource_bounds<S: StateReader>(
     }
 
     let resource_bound_address = vm.add_memory_segment();
-    resource_bounds.load_into(vm, hint_processor.os_program, resource_bound_address, constants)?;
+    resource_bounds.load_into(vm, hint_processor.program, resource_bound_address, constants)?;
 
     insert_value_from_var_name(
         Ids::ResourceBounds.into(),
@@ -121,7 +121,7 @@ pub(crate) fn exit_tx<S: StateReader>(
             ids_data,
             vm,
             ap_tracking,
-            hint_processor.os_program,
+            hint_processor.program,
         )?)
 }
 
@@ -243,7 +243,7 @@ pub(crate) fn set_state_entry_to_account_contract_address<S: StateReader>(
             vm,
             ap_tracking,
             &["account_contract_address"],
-            hint_processor.os_program,
+            hint_processor.program,
         )?)?
         .into_owned();
     set_state_entry(&account_contract_address, vm, exec_scopes, ids_data, ap_tracking)?;
@@ -270,7 +270,7 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
                 vm,
                 ap_tracking,
                 &["class_hash"],
-                hint_processor.os_program,
+                hint_processor.program,
             )?
             .to_owned(),
         )?,
@@ -319,7 +319,7 @@ pub(crate) fn enter_call<S: StateReader>(
         vm,
         ap_tracking,
         &["execution_info"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?)?;
     let deprecated_tx_info_ptr = vm.get_relocatable(get_address_of_nested_fields(
         ids_data,
@@ -328,7 +328,7 @@ pub(crate) fn enter_call<S: StateReader>(
         vm,
         ap_tracking,
         &["deprecated_tx_info"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?)?;
 
     hint_processor
@@ -585,7 +585,7 @@ pub(crate) fn check_execution<S: StateReader>(
             vm,
             ap_tracking,
             &["gas_builtin"],
-            hint_processor.os_program,
+            hint_processor.program,
         )?)?;
         let actual_gas = remaining_gas - *gas_builtin;
 
@@ -626,10 +626,12 @@ pub(crate) fn check_execution<S: StateReader>(
         vm,
         ap_tracking,
         &["syscall_ptr"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?;
     let syscall_ptr_end = vm.get_relocatable(syscall_ptr_end_address)?;
-    hint_processor.syscall_hint_processor.validate_and_discard_syscall_ptr(&syscall_ptr_end)?;
+    current_execution_helper
+        .syscall_hint_processor
+        .validate_and_discard_syscall_ptr(&syscall_ptr_end)?;
     current_execution_helper.tx_execution_iter.get_mut_tx_execution_info_ref()?.exit_call_info()?;
     Ok(())
 }
@@ -656,14 +658,14 @@ pub(crate) fn check_syscall_response<S: StateReader>(
         CairoStruct::DeprecatedCallContractResponse,
         vm,
         &["retdata_size"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?)?;
     let retdata_base = vm.get_relocatable(get_address_of_nested_fields_from_base_address(
         call_response_ptr,
         CairoStruct::DeprecatedCallContractResponse,
         vm,
         &["retdata"],
-        hint_processor.os_program,
+        hint_processor.program,
     )?)?;
     let expected_retdata = vm.get_continuous_range(retdata_base, felt_to_usize(&retdata_size)?)?;
     compare_retdata(&actual_retdata, &expected_retdata)
@@ -680,7 +682,7 @@ pub(crate) fn check_new_syscall_response<S: StateReader>(
         vm,
         ap_tracking,
         ids_data,
-        hint_processor.os_program,
+        hint_processor.program,
     )
 }
 
@@ -695,7 +697,7 @@ pub(crate) fn check_new_deploy_response<S: StateReader>(
         vm,
         ap_tracking,
         ids_data,
-        hint_processor.os_program,
+        hint_processor.program,
     )
 }
 
@@ -752,7 +754,7 @@ fn write_syscall_result_helper<S: StateReader>(
             vm,
             ap_tracking,
             &[key_name],
-            hint_processor.os_program,
+            hint_processor.program,
         )?)?
         .into_owned(),
     )?);
@@ -776,7 +778,7 @@ fn write_syscall_result_helper<S: StateReader>(
             vm,
             ap_tracking,
             &["value"],
-            hint_processor.os_program,
+            hint_processor.program,
         )?)?
         .into_owned();
 
@@ -916,7 +918,7 @@ fn assert_value_cached_by_reading<S: StateReader>(
             vm,
             ap_tracking,
             nested_fields,
-            hint_processor.os_program,
+            hint_processor.program,
         )?)?
         .into_owned(),
     )?);
