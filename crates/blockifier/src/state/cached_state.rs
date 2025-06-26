@@ -24,7 +24,7 @@ pub type ContractClassMapping = HashMap<ClassHash, RunnableCompiledClass>;
 ///
 /// Writer functionality is builtin, whereas Reader functionality is injected through
 /// initialization.
-#[cfg_attr(any(test, feature = "reexecution"), derive(Clone))]
+#[cfg_attr(any(test, feature = "reexecution", feature = "testing"), derive(Clone))]
 #[derive(Debug)]
 pub struct CachedState<S: StateReader> {
     pub state: S,
