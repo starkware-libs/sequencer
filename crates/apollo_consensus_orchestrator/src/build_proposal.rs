@@ -17,8 +17,8 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
+use apollo_time::time::{Clock, DateTime};
 use futures::channel::oneshot;
-use futures::FutureExt;
 use starknet_api::block::{BlockHash, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -62,6 +62,7 @@ pub(crate) struct ProposalBuildArguments {
 
 // Handles building a new proposal without blocking consensus:
 pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
+    let batcher_deadline = args.deps.clock.now() + args.batcher_timeout;
     let block_info = initiate_build(&args).await;
     let block_info = match block_info {
         Ok(info) => info,
@@ -86,6 +87,8 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         args.cende_write_success,
         args.deps.transaction_converter,
         args.cancel_token,
+        args.deps.clock,
+        batcher_deadline,
     )
     .await
     else {
@@ -148,6 +151,9 @@ async fn initiate_build(args: &ProposalBuildArguments) -> ProposalResult<Consens
 /// 1. Receive chunks of content from the batcher.
 /// 2. Forward these to the stream handler to be streamed out to the network.
 /// 3. Once finished, receive the commitment from the batcher.
+// TODO(guyn): consider passing a ref to BuildProposalArguments instead of all the fields
+// separately.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn get_proposal_content(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
@@ -155,6 +161,8 @@ pub(crate) async fn get_proposal_content(
     cende_write_success: AbortOnDropHandle<bool>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     cancel_token: CancellationToken,
+    clock: Arc<dyn Clock>,
+    batcher_deadline: DateTime,
 ) -> Option<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
     let mut content = Vec::new();
     loop {
@@ -217,21 +225,28 @@ pub(crate) async fn get_proposal_content(
                 }
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
-                // can't finish the proposal.
-                match cende_write_success.now_or_never() {
-                    Some(Ok(true)) => {
+                // can't finish the proposal. Must wait for it at least until batcher_timeout is
+                // reached.
+                let remaining = (batcher_deadline - clock.now())
+                    .to_std()
+                    .unwrap_or(Duration::from_secs(0))
+                    .max(Duration::from_millis(1)); // Ensure we wait at least 1 ms to avoid immediate timeout. 
+                match tokio::time::timeout(remaining, cende_write_success).await {
+                    Err(_) => {
+                        warn!(
+                            "Proposal build was interrupted while waiting for blob write success."
+                        );
+                        return None;
+                    }
+                    Ok(Ok(true)) => {
                         info!("Writing blob to Aerospike completed successfully.");
                     }
-                    Some(Ok(false)) => {
+                    Ok(Ok(false)) => {
                         warn!("Writing blob to Aerospike failed.");
                         return None;
                     }
-                    Some(Err(e)) => {
+                    Ok(Err(e)) => {
                         warn!("Writing blob to Aerospike failed. Error: {e:?}");
-                        return None;
-                    }
-                    None => {
-                        warn!("Writing blob to Aerospike didn't return in time.");
                         return None;
                     }
                 }
