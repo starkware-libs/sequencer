@@ -172,16 +172,15 @@ async fn txs_happy_flow() {
         ),
         ..tx.tx
     };
-    let second_expected_log = Event::L1HandlerTransaction {
-        l1_handler_tx: ExecutableL1HandlerTransaction {
-            tx_hash: expected_internal_l1_tx_2
-                .calculate_transaction_hash(&default_chain_id, &EXPECTED_VERSION)
-                .unwrap(),
-            tx: expected_internal_l1_tx_2,
-            ..tx
-        },
-        timestamp: block_timestamps[1],
+    let tx_2 = ExecutableL1HandlerTransaction {
+        tx_hash: expected_internal_l1_tx_2
+            .calculate_transaction_hash(&default_chain_id, &EXPECTED_VERSION)
+            .unwrap(),
+        tx: expected_internal_l1_tx_2,
+        ..tx
     };
+    let second_expected_log =
+        Event::L1HandlerTransaction { l1_handler_tx: tx_2, timestamp: block_timestamps[1] };
 
     let expected_cancel_message = Event::TransactionCancellationStarted {
         tx_hash: tx_hash_first_tx,
