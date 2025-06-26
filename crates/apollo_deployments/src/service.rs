@@ -14,8 +14,6 @@ use serde_json::json;
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
-#[cfg(test)]
-use crate::deployment::FIX_BINARY_NAME;
 use crate::deployment::{
     build_service_namespace_domain_address,
     ComponentConfigsSerializationWrapper,
@@ -34,6 +32,8 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+#[cfg(test)]
+use crate::test_utils::FIX_BINARY_NAME;
 
 const SERVICES_DIR_NAME: &str = "services/";
 

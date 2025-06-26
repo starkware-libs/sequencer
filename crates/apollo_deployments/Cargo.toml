@@ -27,3 +27,5 @@ strum_macros.workspace = true
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_node = { workspace = true, features = ["testing"] }
+tempfile.workspace = true
+url = { workspace = true, features = ["serde"] }
