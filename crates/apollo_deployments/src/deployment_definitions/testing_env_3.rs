@@ -5,7 +5,7 @@ use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
 use crate::deployments::hybrid::create_hybrid_instance_config_override;
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
-use crate::service::DeploymentName;
+use crate::service::NodeType;
 use crate::utils::format_node_id;
 
 // TODO(Tsabary): note this env has configs for 4 despite needing only 3. Delete when we're done
@@ -49,7 +49,7 @@ fn testing_env_3_hybrid_deployment_node(
     p2p_communication_type: P2PCommunicationType,
 ) -> Deployment {
     Deployment::new(
-        DeploymentName::HybridNode,
+        NodeType::HybridNode,
         Environment::TestingEnvThree,
         &format_node_id(INSTANCE_NAME_FORMAT, id),
         Some(ExternalSecret::new(format_node_id(SECRET_NAME_FORMAT, id))),

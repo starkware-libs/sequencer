@@ -123,7 +123,7 @@ impl Service {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumDiscriminants)]
 #[strum_discriminants(
-    name(DeploymentName),
+    name(NodeType),
     derive(IntoStaticStr, EnumIter, EnumVariantNames, Serialize, Display),
     strum(serialize_all = "snake_case")
 )]
@@ -218,7 +218,7 @@ impl ServiceName {
     pub fn get_service_file_path(&self) -> String {
         PathBuf::from(CONFIG_BASE_DIR)
             .join(SERVICES_DIR_NAME)
-            .join(DeploymentName::from(self).get_folder_name())
+            .join(NodeType::from(self).get_folder_name())
             .join(self.get_config_file_path())
             .to_string_lossy()
             .to_string()
@@ -277,7 +277,7 @@ pub(crate) trait ServiceNameInner: Display {
     }
 }
 
-impl DeploymentName {
+impl NodeType {
     pub fn get_folder_name(&self) -> &'static str {
         match self {
             Self::ConsolidatedNode => "consolidated/",
@@ -287,8 +287,8 @@ impl DeploymentName {
     }
 
     pub fn add_path_suffix(&self, path: PathBuf, instance_name: &str) -> PathBuf {
-        let deployment_name_dir = path.join(self.get_folder_name());
-        let deployment_with_instance = deployment_name_dir.join(instance_name);
+        let node_type_dir = path.join(self.get_folder_name());
+        let deployment_with_instance = node_type_dir.join(instance_name);
 
         let s = deployment_with_instance.to_string_lossy();
         let modified = if s.ends_with('/') { s.into_owned() } else { format!("{}/", s) };
