@@ -263,79 +263,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
     }
 }
 
-<<<<<<< HEAD
-impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
-    fn get_program(&self) -> &'program Program {
-        self.os_program
-    }
-
-    fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers> {
-        &mut self.state_update_pointers
-    }
-
-    fn _get_da_segment(&mut self) -> &mut Option<Vec<Felt>> {
-        &mut self.da_segment
-    }
-
-    /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
-    /// mode.
-    fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
-        if self.da_segment.is_some() {
-            return Err(OsHintError::AssertionFailed {
-                message: "DA segment is already initialized.".to_string(),
-            });
-        }
-        self.da_segment = Some(da_segment);
-        Ok(())
-    }
-
-    fn get_serialize_data_availability_create_pages(&self) -> bool {
-        self.serialize_data_availability_create_pages
-    }
-
-    #[cfg(any(test, feature = "testing"))]
-    fn get_unused_hints(&mut self) -> &mut HashSet<AllHints> {
-        &mut self.unused_hints
-    }
-||||||| 2452f56bc
-impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {
-    fn get_program(&self) -> &'program Program {
-        self.os_program
-    }
-
-    fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers> {
-        &mut self.state_update_pointers
-    }
-
-    fn _get_da_segment(&mut self) -> &mut Option<Vec<Felt>> {
-        &mut self.da_segment
-    }
-
-    /// Stores the data-availabilty segment, to be used for computing the KZG commitment in blob
-    /// mode.
-    #[allow(clippy::result_large_err)]
-    fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError> {
-        if self.da_segment.is_some() {
-            return Err(OsHintError::AssertionFailed {
-                message: "DA segment is already initialized.".to_string(),
-            });
-        }
-        self.da_segment = Some(da_segment);
-        Ok(())
-    }
-
-    fn get_serialize_data_availability_create_pages(&self) -> bool {
-        self.serialize_data_availability_create_pages
-    }
-
-    #[cfg(any(test, feature = "testing"))]
-    fn get_unused_hints(&mut self) -> &mut HashSet<AllHints> {
-        &mut self.unused_hints
-    }
-=======
 impl<S: StateReader> HintProcessorLogic for SnosHintProcessor<'_, S> {
     impl_common_hint_processor_logic!();
->>>>>>> origin/main-v0.14.0
 }
 
 impl<'program, S: StateReader> CommonHintProcessor<'program> for SnosHintProcessor<'program, S> {

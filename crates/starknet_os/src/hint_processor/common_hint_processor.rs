@@ -20,17 +20,8 @@ pub(crate) trait CommonHintProcessor<'a> {
     fn get_program(&self) -> &'a Program;
     fn get_mut_state_update_pointers(&mut self) -> &mut Option<StateUpdatePointers>;
     // KZG fields.
-<<<<<<< HEAD
-    fn _get_da_segment(&mut self) -> &mut Option<Vec<Felt>>;
-    fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError>;
-||||||| 2452f56bc
-    fn _get_da_segment(&mut self) -> &mut Option<Vec<Felt>>;
-    #[allow(clippy::result_large_err)]
-    fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> Result<(), OsHintError>;
-=======
     fn get_da_segment(&mut self) -> &mut Option<Vec<Felt>>;
     fn set_da_segment(&mut self, da_segment: Vec<Felt>) -> OsHintResult;
->>>>>>> origin/main-v0.14.0
     // Indicates wether to create pages or not when serializing data-availability.
     fn get_serialize_data_availability_create_pages(&self) -> bool;
     fn get_builtin_hint_processor(&mut self) -> &mut BuiltinHintProcessor;

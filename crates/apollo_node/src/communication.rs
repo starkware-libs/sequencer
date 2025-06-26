@@ -170,20 +170,14 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
         config.components.sierra_compiler.local_server_config.channel_capacity,
     );
 
-<<<<<<< HEAD
     let (tx_signature_manager, rx_signature_manager) =
-        channel::<SignatureManagerRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
+        channel::<SignatureManagerRequestAndResponseSender>(
+            config.components.state_sync.local_server_config.channel_capacity,
+        );
 
-    let (tx_state_sync, rx_state_sync) =
-        channel::<StateSyncRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
-||||||| 2452f56bc
-    let (tx_state_sync, rx_state_sync) =
-        channel::<StateSyncRequestAndResponseSender>(DEFAULT_INVOCATIONS_QUEUE_SIZE);
-=======
     let (tx_state_sync, rx_state_sync) = channel::<StateSyncRequestAndResponseSender>(
         config.components.state_sync.local_server_config.channel_capacity,
     );
->>>>>>> origin/main-v0.14.0
 
     SequencerNodeCommunication {
         batcher_channel: ComponentCommunication::new(Some(tx_batcher), Some(rx_batcher)),
