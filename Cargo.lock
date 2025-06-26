@@ -1429,7 +1429,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_l1_endpoint_monitor_types"
-version = "0.15.0-rc.2"
+version = "0.0.0"
 dependencies = [
  "apollo_infra",
  "apollo_proc_macros",
