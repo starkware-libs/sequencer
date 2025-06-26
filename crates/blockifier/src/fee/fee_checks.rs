@@ -186,7 +186,7 @@ impl FeeCheckReport {
     ) -> TransactionExecutionResult<()> {
         let TransactionReceipt { fee, .. } = *tx_receipt;
         let (balance_low, balance_high, can_pay) =
-            get_balance_and_if_covers_fee(state, tx_context, fee)?;
+            get_balance_and_if_covers_fee(state, tx_context, fee).map_err(Box::new)?;
         if can_pay {
             return Ok(());
         }

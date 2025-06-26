@@ -483,7 +483,7 @@ impl AccountTransaction {
 
         Ok(fee_transfer_call
             .execute(state, &mut context, &mut remaining_gas_for_fee_transfer)
-            .map_err(TransactionFeeError::ExecuteFeeTransferError)?)
+            .map_err(|error| Box::new(TransactionFeeError::ExecuteFeeTransferError(error)))?)
     }
 
     /// Handles fee transfer in concurrent execution.

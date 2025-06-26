@@ -8,9 +8,9 @@ use crate::py_objects::PyExecutionResources;
 
 #[pyfunction]
 pub fn raise_error_for_testing() -> NativeBlockifierResult<()> {
-    Err(TransactionExecutionError::TransactionFeeError(
+    Err(TransactionExecutionError::TransactionFeeError(Box::new(
         TransactionFeeError::CairoResourcesNotContainedInFeeCosts,
-    )
+    ))
     .into())
 }
 
