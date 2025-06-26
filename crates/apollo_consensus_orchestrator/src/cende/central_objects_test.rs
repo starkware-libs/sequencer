@@ -43,7 +43,11 @@ use blockifier::state::cached_state::{
     StateChangesCount,
     StateChangesCountForFee,
 };
-use blockifier::transaction::objects::{RevertError, TransactionExecutionInfo};
+use blockifier::transaction::objects::{
+    ExecutionResourcesTraits,
+    RevertError,
+    TransactionExecutionInfo,
+};
 use cairo_lang_casm::hints::{CoreHint, CoreHintBase, Hint};
 use cairo_lang_casm::operand::{CellRef, Register};
 use cairo_lang_starknet_classes::casm_contract_class::{
@@ -518,7 +522,7 @@ fn call_info() -> CallInfo {
             accessed_blocks: HashSet::from([BlockNumber(100)]),
         },
         // TODO(Meshi): insert relevant values.
-        builtin_counters: HashMap::default(),
+        builtin_counters: execution_resources().prover_builtins(),
     }
 }
 

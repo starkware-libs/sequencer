@@ -415,7 +415,10 @@
                 100
               ]
             },
-            "builtin_counters": {}
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
           }
         ],
         "resources": {
@@ -449,7 +452,10 @@
             100
           ]
         },
-        "builtin_counters": {}
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
       },
       "execute_call_info": {
         "call": {
@@ -590,7 +596,10 @@
                 100
               ]
             },
-            "builtin_counters": {}
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
           }
         ],
         "resources": {
@@ -624,7 +633,10 @@
             100
           ]
         },
-        "builtin_counters": {}
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
       },
       "fee_transfer_call_info": {
         "call": {
@@ -765,7 +777,10 @@
                 100
               ]
             },
-            "builtin_counters": {}
+            "builtin_counters": {
+              "range_check": 31,
+              "pedersen": 4
+            }
           }
         ],
         "resources": {
@@ -799,7 +814,10 @@
             100
           ]
         },
-        "builtin_counters": {}
+        "builtin_counters": {
+          "range_check": 31,
+          "pedersen": 4
+        }
       },
       "actual_fee": "0x26fe9d250e000",
       "da_gas": {
