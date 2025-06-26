@@ -28,3 +28,6 @@ pub mod config;
 pub mod metrics;
 
 pub(crate) mod utils;
+
+#[cfg(test)]
+pub(crate) mod test_utils;
