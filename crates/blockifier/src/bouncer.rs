@@ -246,34 +246,9 @@ impl CasmHashComputationData {
     pub fn extend(&mut self, other: CasmHashComputationData) {
         self.class_hash_to_casm_hash_computation_gas
             .extend(other.class_hash_to_casm_hash_computation_gas);
-<<<<<<< HEAD
-        self.sierra_gas_without_casm_hash_computation = self
-            .sierra_gas_without_casm_hash_computation
-            .checked_add_panic_on_overflow(other.sierra_gas_without_casm_hash_computation)
-||||||| 2452f56bc
-        self.sierra_gas_without_casm_hash_computation = self
-            .sierra_gas_without_casm_hash_computation
-            .checked_add(other.sierra_gas_without_casm_hash_computation)
-            .unwrap_or_else(|| {
-                panic!(
-                    "Addition overflow while adding sierra gas. current gas: {}, try to add
-                 gas: {}.",
-                    self.sierra_gas_without_casm_hash_computation,
-                    other.sierra_gas_without_casm_hash_computation
-                )
-            });
-=======
         self.gas_without_casm_hash_computation = self
             .gas_without_casm_hash_computation
-            .checked_add(other.gas_without_casm_hash_computation)
-            .unwrap_or_else(|| {
-                panic!(
-                    "Addition overflow while adding sierra gas. current gas: {}, try to add
-                 gas: {}.",
-                    self.gas_without_casm_hash_computation, other.gas_without_casm_hash_computation
-                )
-            });
->>>>>>> origin/main-v0.14.0
+            .checked_add_panic_on_overflow(other.gas_without_casm_hash_computation)
     }
 
     /// Creates CasmHashComputationData by mapping resources to gas using a provided function.
@@ -637,6 +612,7 @@ fn proving_gas_from_builtins_and_sierra_gas(
     let steps_proving_gas =
         sierra_gas_to_steps_gas(sierra_gas, versioned_constants, builtin_counters);
 
+    // TODO(Meshi): use checked_add_panic_on_overflow.
     steps_proving_gas.checked_add(builtins_proving_gas).unwrap_or_else(|| {
         panic!(
             "Addition overflow while calculating proving gas. Steps gas: {}, Builtins gas: {}.",
@@ -738,14 +714,8 @@ pub fn builtins_to_sierra_gas(
     GasAmount(total_gas)
 }
 
-<<<<<<< HEAD
-||||||| 2452f56bc
-#[allow(clippy::result_large_err)]
-=======
-#[allow(clippy::result_large_err)]
 // TODO(Noa):Fix.
 #[allow(clippy::too_many_arguments)]
->>>>>>> origin/main-v0.14.0
 pub fn get_tx_weights<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
@@ -760,76 +730,9 @@ pub fn get_tx_weights<S: StateReader>(
     let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
         .expect("This conversion should not fail as the value is a converted usize.");
 
-<<<<<<< HEAD
-    let patrticia_update_resources = get_particia_update_resources(n_visited_storage_entries);
-
-    let vm_resources = &patrticia_update_resources + &tx_resources.computation.vm_resources;
-    let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
-    let sierra_gas = tx_resources.computation.sierra_gas;
-    let sierra_gas_without_casm_hash_computation =
-        sierra_gas.checked_add_panic_on_overflow(vm_resources_gas);
-
-||||||| 2452f56bc
-    let patrticia_update_resources = get_particia_update_resources(n_visited_storage_entries);
-
-    let vm_resources = &patrticia_update_resources + &tx_resources.computation.vm_resources;
-    let vm_resources_gas = vm_resources_to_sierra_gas(vm_resources, versioned_constants);
-    let sierra_gas = tx_resources.computation.sierra_gas;
-    let sierra_gas_without_casm_hash_computation =
-        sierra_gas.checked_add(vm_resources_gas).unwrap_or_else(|| {
-            panic!(
-                "Addition overflow while adding sierra gas. current gas: {}, try to add
-                 gas: {}.",
-                sierra_gas, vm_resources_gas
-            )
-        });
-=======
     // Casm hash resources.
->>>>>>> origin/main-v0.14.0
     let class_hash_to_casm_hash_computation_resources =
         map_class_hash_to_casm_hash_computation_resources(state_reader, executed_class_hashes)?;
-<<<<<<< HEAD
-    let class_hash_to_casm_hash_computation_gas: HashMap<_, _> =
-        class_hash_to_casm_hash_computation_resources
-            .into_iter()
-            .map(|(class_hash, resources)| {
-                let gas = vm_resources_to_sierra_gas(resources, versioned_constants);
-                (class_hash, gas)
-            })
-            .collect();
-    let total_casm_hash_computation_gas = class_hash_to_casm_hash_computation_gas
-        .values()
-        .fold(GasAmount::ZERO, |acc, gas| acc.checked_add_panic_on_overflow(*gas));
-
-    let total_sierra_gas = sierra_gas_without_casm_hash_computation
-        .checked_add_panic_on_overflow(total_casm_hash_computation_gas);
-
-    let casm_hash_computation_data = CasmHashComputationData {
-        class_hash_to_casm_hash_computation_gas,
-||||||| 2452f56bc
-    let total_casm_hash_computation_resources = class_hash_to_casm_hash_computation_resources
-        .values()
-        .fold(ExecutionResources::default(), |acc, resources| &acc + resources);
-    let total_casm_hash_computation_gas =
-        vm_resources_to_sierra_gas(total_casm_hash_computation_resources, versioned_constants);
-    let sierra_gas = sierra_gas_without_casm_hash_computation
-        .checked_add(total_casm_hash_computation_gas)
-        .unwrap_or_else(|| {
-            panic!(
-                "Addition overflow while adding sierra gas. current gas: {}, try to add
-                 gas: {}.",
-                sierra_gas_without_casm_hash_computation, total_casm_hash_computation_gas
-            )
-        });
-    let casm_hash_computation_data = CasmHashComputationData {
-        class_hash_to_casm_hash_computation_gas: class_hash_to_casm_hash_computation_resources
-            .into_iter()
-            .map(|(class_hash, resources)| {
-                let gas = vm_resources_to_sierra_gas(resources, versioned_constants);
-                (class_hash, gas)
-            })
-            .collect(),
-=======
 
     // Patricia update + transaction resources.
     let patrticia_update_resources = get_particia_update_resources(n_visited_storage_entries);
@@ -839,16 +742,9 @@ pub fn get_tx_weights<S: StateReader>(
     let vm_resources_sierra_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
     let sierra_gas_without_casm_hash_computation =
-        sierra_gas.checked_add(vm_resources_sierra_gas).unwrap_or_else(|| {
-            panic!(
-                "Addition overflow while adding sierra gas. current gas: {}, try to add
-                 gas: {}.",
-                sierra_gas, vm_resources_sierra_gas
-            )
-        });
+        sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
     let casm_hash_computation_data_sierra_gas = CasmHashComputationData::from_resources(
         &class_hash_to_casm_hash_computation_resources,
->>>>>>> origin/main-v0.14.0
         sierra_gas_without_casm_hash_computation,
         |resources| vm_resources_to_sierra_gas(resources, versioned_constants),
     );

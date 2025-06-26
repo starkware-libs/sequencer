@@ -215,8 +215,8 @@ fn increment_failure_metrics(err: &HttpServerError) {
         return;
     };
     // TODO(shahak): add unit test for ADDED_TRANSACTIONS_INTERNAL_ERROR
-    if matches!(gateway_client_error, GatewayClientError::ClientError(_))
-        || matches!(gateway_client_error, GatewayClientError::GatewayError(
+    if matches!(&**gateway_client_error, GatewayClientError::ClientError(_))
+        || matches!(&**gateway_client_error, GatewayClientError::GatewayError(
             GatewayError::DeprecatedGatewayError { source, .. }) if source.is_internal())
     {
         ADDED_TRANSACTIONS_INTERNAL_ERROR.increment(1);

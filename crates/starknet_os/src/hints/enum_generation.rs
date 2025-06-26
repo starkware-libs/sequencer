@@ -97,14 +97,7 @@ macro_rules! define_hint_enum {
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
         impl $enum_name {
-<<<<<<< HEAD
-            pub fn execute_hint<S: StateReader>(
-||||||| 2452f56bc
-            #[allow(clippy::result_large_err)]
-            pub fn execute_hint<S: StateReader>(
-=======
             pub fn execute_hint$(<$generic_var: $generic>)?(
->>>>>>> origin/main-v0.14.0
                 &self,
                 hint_processor: &mut $hp,
                 hint_args: HintArgs<'_>
