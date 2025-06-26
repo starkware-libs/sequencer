@@ -305,18 +305,20 @@ pub fn run_entry_point(
     // Note that we run `verify_secure_runner` manually after filling the holes in the rc96 segment.
     let verify_secure = false;
     let args: Vec<&CairoArg> = args.iter().collect();
-    runner.run_from_entrypoint(
-        entry_point.pc(),
-        &args,
-        verify_secure,
-        Some(program_segment_size),
-        hint_processor,
-    )?;
+    runner
+        .run_from_entrypoint(
+            entry_point.pc(),
+            &args,
+            verify_secure,
+            Some(program_segment_size),
+            hint_processor,
+        )
+        .map_err(Box::new)?;
 
     maybe_fill_holes(entry_point, runner)?;
 
     verify_secure_runner(runner, false, Some(program_segment_size))
-        .map_err(CairoRunError::VirtualMachine)?;
+        .map_err(|error| Box::new(CairoRunError::VirtualMachine(error)))?;
 
     Ok(())
 }
@@ -349,14 +351,16 @@ fn maybe_fill_holes(
     // So the last implicit is at offset 5 + 1.
     const IMPLICITS_OFFSET: usize = 6;
     let rc_96_stop_ptr = (runner.vm.get_ap() - (IMPLICITS_OFFSET + rc96_offset))
-        .map_err(|err| CairoRunError::VirtualMachine(VirtualMachineError::Math(err)))?;
+        .map_err(|err| Box::new(CairoRunError::VirtualMachine(VirtualMachineError::Math(err))))?;
 
     let rc96_base = rc96_builtin_runner.base();
     let rc96_segment: isize =
         rc96_base.try_into().expect("Builtin segment index must fit in isize.");
 
-    let Relocatable { segment_index: rc96_stop_segment, offset: stop_offset } =
-        runner.vm.get_relocatable(rc_96_stop_ptr).map_err(CairoRunError::MemoryError)?;
+    let Relocatable { segment_index: rc96_stop_segment, offset: stop_offset } = runner
+        .vm
+        .get_relocatable(rc_96_stop_ptr)
+        .map_err(|error| Box::new(CairoRunError::MemoryError(error)))?;
     assert_eq!(rc96_stop_segment, rc96_segment);
 
     // Update `segment_used_sizes` to include the holes.
