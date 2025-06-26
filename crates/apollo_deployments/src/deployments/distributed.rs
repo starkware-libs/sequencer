@@ -72,52 +72,6 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         let state_sync = DistributedNodeServiceName::StateSync.component_config_pair(ports[8]);
 
         let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
-<<<<<<< HEAD
-
-        let base_port = base_port.unwrap_or(BASE_PORT);
-
-        let batcher =
-            DistributedNodeServiceName::Batcher.component_config_pair(Some(base_port), environment);
-        let class_manager = DistributedNodeServiceName::ClassManager
-            .component_config_pair(Some(base_port + 1), environment);
-        let gateway = DistributedNodeServiceName::Gateway
-            .component_config_pair(Some(base_port + 2), environment);
-        let l1_gas_price_provider =
-            DistributedNodeServiceName::L1.component_config_pair(Some(base_port + 3), environment);
-        let l1_provider =
-            DistributedNodeServiceName::L1.component_config_pair(Some(base_port + 4), environment);
-        let mempool = DistributedNodeServiceName::Mempool
-            .component_config_pair(Some(base_port + 5), environment);
-        let sierra_compiler = DistributedNodeServiceName::SierraCompiler
-            .component_config_pair(Some(base_port + 6), environment);
-        let state_sync = DistributedNodeServiceName::StateSync
-            .component_config_pair(Some(base_port + 7), environment);
-        let signature_manager = DistributedNodeServiceName::ConsensusManager
-            .component_config_pair(Some(base_port + 8), environment);
-
-||||||| 2452f56bc
-
-        let base_port = base_port.unwrap_or(BASE_PORT);
-
-        let batcher =
-            DistributedNodeServiceName::Batcher.component_config_pair(Some(base_port), environment);
-        let class_manager = DistributedNodeServiceName::ClassManager
-            .component_config_pair(Some(base_port + 1), environment);
-        let gateway = DistributedNodeServiceName::Gateway
-            .component_config_pair(Some(base_port + 2), environment);
-        let l1_gas_price_provider =
-            DistributedNodeServiceName::L1.component_config_pair(Some(base_port + 3), environment);
-        let l1_provider =
-            DistributedNodeServiceName::L1.component_config_pair(Some(base_port + 4), environment);
-        let mempool = DistributedNodeServiceName::Mempool
-            .component_config_pair(Some(base_port + 5), environment);
-        let sierra_compiler = DistributedNodeServiceName::SierraCompiler
-            .component_config_pair(Some(base_port + 6), environment);
-        let state_sync = DistributedNodeServiceName::StateSync
-            .component_config_pair(Some(base_port + 7), environment);
-
-=======
->>>>>>> origin/main-v0.14.0
         for inner_service_name in DistributedNodeServiceName::iter() {
             let component_config = match inner_service_name {
                 DistributedNodeServiceName::Batcher => get_batcher_component_config(

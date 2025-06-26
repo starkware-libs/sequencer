@@ -38,13 +38,6 @@ where
         Self { points: HashMap::new() }
     }
 
-<<<<<<< HEAD
-    pub fn secp_add(&mut self, request: SecpAddRequest) -> SyscallBaseResult<SecpAddResponse> {
-||||||| 2452f56bc
-    #[allow(clippy::result_large_err)]
-    pub fn secp_add(&mut self, request: SecpAddRequest) -> SyscallBaseResult<SecpAddResponse> {
-=======
-    #[allow(clippy::result_large_err)]
     pub fn secp_add(
         &mut self,
         request: SecpAddRequest,
@@ -52,7 +45,6 @@ where
         points_segment_base: Relocatable,
         id: usize,
     ) -> SyscallBaseResult<SecpAddResponse> {
->>>>>>> origin/main-v0.14.0
         let lhs = self.get_point_by_ptr(request.lhs_ptr)?;
         let rhs = self.get_point_by_ptr(request.rhs_ptr)?;
         let result = *lhs + *rhs;
@@ -61,13 +53,6 @@ where
         Ok(SecpOpRespone { ec_point_ptr })
     }
 
-<<<<<<< HEAD
-    pub fn secp_mul(&mut self, request: SecpMulRequest) -> SyscallBaseResult<SecpMulResponse> {
-||||||| 2452f56bc
-    #[allow(clippy::result_large_err)]
-    pub fn secp_mul(&mut self, request: SecpMulRequest) -> SyscallBaseResult<SecpMulResponse> {
-=======
-    #[allow(clippy::result_large_err)]
     pub fn secp_mul(
         &mut self,
         request: SecpMulRequest,
@@ -75,7 +60,6 @@ where
         points_segment_base: Relocatable,
         id: usize,
     ) -> SyscallBaseResult<SecpMulResponse> {
->>>>>>> origin/main-v0.14.0
         let ec_point = self.get_point_by_ptr(request.ec_point_ptr)?;
         let result = *ec_point * Curve::ScalarField::from(request.multiplier);
         let ec_point_ptr =
@@ -101,21 +85,7 @@ where
         Ok(SecpOptionalEcPointResponse { optional_ec_point_ptr })
     }
 
-<<<<<<< HEAD
-    pub fn secp_get_xy(
-        &mut self,
-        request: SecpGetXyRequest,
-    ) -> SyscallBaseResult<SecpGetXyResponse> {
-||||||| 2452f56bc
-    #[allow(clippy::result_large_err)]
-    pub fn secp_get_xy(
-        &mut self,
-        request: SecpGetXyRequest,
-    ) -> SyscallBaseResult<SecpGetXyResponse> {
-=======
-    #[allow(clippy::result_large_err)]
     pub fn secp_get_xy(&self, request: SecpGetXyRequest) -> SyscallBaseResult<SecpGetXyResponse> {
->>>>>>> origin/main-v0.14.0
         let ec_point = self.get_point_by_ptr(request.ec_point_ptr)?;
         Ok(SecpGetXyResponse { x: ec_point.x.into(), y: ec_point.y.into() })
     }

@@ -26,117 +26,25 @@ pub(crate) fn allocate_segments_for_messages(
     Ok(())
 }
 
-<<<<<<< HEAD
-pub(crate) fn disable_da_page_creation<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-||||||| 2452f56bc
-#[allow(clippy::result_large_err)]
-pub(crate) fn disable_da_page_creation<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-=======
 pub(crate) fn disable_da_page_creation(
     hint_processor: &mut AggregatorHintProcessor<'_>,
->>>>>>> origin/main-v0.14.0
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
     hint_processor.serialize_data_availability_create_pages = false;
     Ok(())
 }
 
-<<<<<<< HEAD
-pub(crate) fn get_os_output_for_inner_blocks<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
-||||||| 2452f56bc
-#[allow(clippy::result_large_err)]
-pub(crate) fn get_os_output_for_inner_blocks<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
-=======
 pub(crate) fn get_os_output_for_inner_blocks(
     _hint_processor: &mut AggregatorHintProcessor<'_>,
->>>>>>> origin/main-v0.14.0
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
     todo!()
 }
 
-<<<<<<< HEAD
-pub(crate) fn get_aggregator_output<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
-||||||| 2452f56bc
-#[allow(clippy::result_large_err)]
-pub(crate) fn get_aggregator_output<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
-=======
 pub(crate) fn get_aggregator_output(
     hint_processor: &mut AggregatorHintProcessor<'_>,
->>>>>>> origin/main-v0.14.0
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
-<<<<<<< HEAD
-    todo!()
-}
-
-pub(crate) fn write_da_segment<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn get_full_output_from_input<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn get_use_kzg_da_from_input<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
-) -> OsHintResult {
-    todo!()
-}
-
-pub(crate) fn set_state_update_pointers_to_none<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
-) -> OsHintResult {
-    hint_processor.state_update_pointers = None;
-||||||| 2452f56bc
-    todo!()
-}
-
-#[allow(clippy::result_large_err)]
-pub(crate) fn write_da_segment<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
-) -> OsHintResult {
-    todo!()
-}
-
-#[allow(clippy::result_large_err)]
-pub(crate) fn get_full_output_from_input<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
-) -> OsHintResult {
-    todo!()
-}
-
-#[allow(clippy::result_large_err)]
-pub(crate) fn get_use_kzg_da_from_input<S: StateReader>(
-    _hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
-) -> OsHintResult {
-    todo!()
-}
-
-#[allow(clippy::result_large_err)]
-pub(crate) fn set_state_update_pointers_to_none<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { .. }: HintArgs<'_>,
-) -> OsHintResult {
-    hint_processor.state_update_pointers = None;
-=======
     // This impl differes from the python one, as we don't need to support an input of
     // polynomial_coefficients_to_kzg_commitment function anymore.
     hint_processor.serialize_data_availability_create_pages = true;
@@ -182,6 +90,5 @@ pub(crate) fn set_state_update_pointers_to_none<'program, CHP: CommonHintProcess
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
     *hint_processor.get_mut_state_update_pointers() = None;
->>>>>>> origin/main-v0.14.0
     Ok(())
 }

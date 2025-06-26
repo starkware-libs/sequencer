@@ -395,7 +395,7 @@ impl BlockBuilder {
             // Send the transactions to the validators.
             // Only reached in proposal flow.
             for tx in next_txs.into_iter() {
-                output_content_sender.send(tx)?;
+                output_content_sender.send(tx).map_err(Box::new)?;
             }
         }
 
@@ -514,20 +514,6 @@ async fn collect_execution_results_and_stream_txs(
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
 
-<<<<<<< HEAD
-                if let Some(output_content_sender) = output_content_sender {
-                    // Only reached in proposal flow.
-                    output_content_sender.send(input_tx.clone()).map_err(Box::new)?;
-                }
-
-||||||| 2452f56bc
-                if let Some(output_content_sender) = output_content_sender {
-                    // Only reached in proposal flow.
-                    output_content_sender.send(input_tx.clone())?;
-                }
-
-=======
->>>>>>> origin/main-v0.14.0
                 // Skip sending the pre confirmed executed transactions, receipts and state diffs
                 // during validation flow. In validate flow pre_confirmed_tx_sender is None.
                 if let Some(pre_confirmed_tx_sender) = pre_confirmed_tx_sender {
