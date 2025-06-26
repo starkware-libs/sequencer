@@ -818,7 +818,7 @@ fn blockifier_error_mapping() {
 
     let child = blockifier::execution::errors::EntryPointExecutionError::RecursionDepthExceeded;
     let blockifier_err = BlockifierTransactionExecutionError::ValidateTransactionError {
-        error: child,
+        error: Box::new(child),
         class_hash,
         storage_address,
         selector,

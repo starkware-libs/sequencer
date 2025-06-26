@@ -2242,12 +2242,14 @@ fn check_native_validate_error(
     validate_constructor: bool,
 ) {
     let syscall_error = match error {
-        TransactionExecutionError::ValidateTransactionError {
-            error: EntryPointExecutionError::NativeUnrecoverableError(boxed_syscall_error),
-            ..
-        } => {
-            assert!(!validate_constructor);
-            boxed_syscall_error
+        TransactionExecutionError::ValidateTransactionError { error: boxed_error, .. } => {
+            match *boxed_error {
+                EntryPointExecutionError::NativeUnrecoverableError(boxed_syscall_error) => {
+                    assert!(!validate_constructor);
+                    boxed_syscall_error
+                }
+                _ => panic!("Unexpected error: {:?}", boxed_error),
+            }
         }
         TransactionExecutionError::ContractConstructorExecutionFailed(
             ConstructorEntryPointExecutionError::ExecutionError { error: boxed_error, .. },
@@ -2333,7 +2335,7 @@ fn test_validate_accounts_tx(
     match cairo_version {
         CairoVersion::Cairo0 | CairoVersion::Cairo1(RunnableCairo1::Casm) => {
             check_tx_execution_error_for_custom_hint!(
-                &error,
+                error,
                 "Unauthorized syscall call_contract in execution mode Validate.",
                 validate_constructor,
             );

@@ -117,7 +117,7 @@ pub enum TransactionExecutionError {
     TransactionTooLarge { max_capacity: Box<BouncerWeights>, tx_size: Box<BouncerWeights> },
     #[error("{}", gen_tx_execution_error_trace(self))]
     ValidateTransactionError {
-        error: EntryPointExecutionError,
+        error: Box<EntryPointExecutionError>,
         class_hash: ClassHash,
         storage_address: ContractAddress,
         selector: EntryPointSelector,
