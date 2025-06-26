@@ -3,6 +3,7 @@
 mod central_test;
 mod state_update_stream;
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroUsize;
 use std::sync::{Arc, Mutex};
@@ -15,6 +16,7 @@ use apollo_starknet_client::reader::{
     ReaderClientError,
     StarknetFeederGatewayClient,
     StarknetReader,
+    StarknetUrls,
 };
 use apollo_starknet_client::{ClientCreationError, RetryConfig};
 use apollo_storage::state::StateStorageReader;
@@ -38,13 +40,16 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::StateDiff;
 use starknet_api::StarknetApiError;
 use tracing::{debug, trace};
+use validator::{Validate, ValidationError};
 
 use self::state_update_stream::{StateUpdateStream, StateUpdateStreamConfig};
 
 type CentralResult<T> = Result<T, CentralError>;
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct CentralSourceConfig {
     pub concurrent_requests: usize,
+    // Validate that it is a valid URL and that it is a starknet URL.
+    #[validate(custom(function = "validate_starknet_url"))]
     pub starknet_url: String,
     #[serde(deserialize_with = "deserialize_optional_map")]
     pub http_headers: Option<HashMap<String, String>>,
@@ -54,6 +59,15 @@ pub struct CentralSourceConfig {
     // TODO(dan): validate that class_cache_size is a positive integer.
     pub class_cache_size: usize,
     pub retry_config: RetryConfig,
+}
+
+fn validate_starknet_url(starknet_url: &str) -> Result<(), ValidationError> {
+    StarknetUrls::new(starknet_url).map_err(|e| {
+        let mut err = ValidationError::new("Failed to parse starknet_url");
+        err.message = Some(Cow::Owned(format!("Parsing error: {e}")));
+        err
+    })?;
+    Ok(())
 }
 
 impl Default for CentralSourceConfig {

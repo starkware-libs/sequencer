@@ -124,7 +124,7 @@ pub struct StarknetFeederGatewayClient {
 }
 
 #[derive(Clone, Debug)]
-struct StarknetUrls {
+pub struct StarknetUrls {
     get_block: Url,
     get_contract_by_hash: Url,
     get_compiled_class_by_class_hash: Url,
@@ -152,7 +152,7 @@ const GET_BLOCK_SIGNATURE_URL: &str = "feeder_gateway/get_signature";
 const GET_SEQUENCER_PUB_KEY_URL: &str = "feeder_gateway/get_public_key";
 
 impl StarknetUrls {
-    fn new(url_str: &str) -> Result<Self, ClientCreationError> {
+    pub fn new(url_str: &str) -> Result<Self, ClientCreationError> {
         let base_url = Url::parse(url_str)?;
         Ok(StarknetUrls {
             get_block: base_url.join(GET_BLOCK_URL)?,
