@@ -217,6 +217,19 @@ impl TransactionExecutionInfo {
     pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
         CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
     }
+
+    pub fn clear_call_infos_nonessential_fields_for_comparison(&mut self) {
+        // Clear non-essential fields for comparison.
+        if let Some(call_info) = &mut self.validate_call_info {
+            call_info.clear_nonessential_fields_for_comparison();
+        }
+        if let Some(call_info) = &mut self.execute_call_info {
+            call_info.clear_nonessential_fields_for_comparison();
+        }
+        if let Some(call_info) = &mut self.fee_transfer_call_info {
+            call_info.clear_nonessential_fields_for_comparison();
+        }
+    }
 }
 pub trait ExecutionResourcesTraits {
     fn total_n_steps(&self) -> usize;

@@ -328,6 +328,14 @@ impl CallInfo {
             acc
         })
     }
+
+    pub fn clear_nonessential_fields_for_comparison(&mut self) {
+        for inner_call in self.inner_calls.iter_mut() {
+            inner_call.clear_nonessential_fields_for_comparison();
+        }
+        self.builtin_counters = BuiltinCounterMap::new();
+        self.execution.cairo_native = false;
+    }
 }
 
 pub struct CallInfoIter<'a> {

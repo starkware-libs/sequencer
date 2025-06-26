@@ -31,24 +31,33 @@ pub fn transfers_flow_test(
     // sure the results are the same.
     for concurrency_enabled in [false, true] {
         for cairo1_version in RunnableCairo1::iter() {
-            let result = transfers_flow_test_body(
+            let mut result = transfers_flow_test_body(
                 timeout,
                 concurrency_enabled,
                 cairo1_version,
                 recipient_generator_type,
             );
-            let Some((_expected_tx_execution_infos, expected_block_summary)) = &expected_result
+            for execution_info in &mut result.0{
+                execution_info.clear_call_infos_nonessential_fields_for_comparison();
+            }
+            let Some((expected_tx_execution_infos, expected_block_summary)) = &expected_result
             else {
                 expected_result = Some(result);
                 continue;
             };
 
-            let (_tx_execution_infos, block_summary) = result;
+            let (tx_execution_infos, block_summary) = result;
 
             // TODO(Meshi): Add assertion for `tx_execution_infos` that skips target-dependent
             // fields:
             // - `run_cairo`: `true` only when `cairo_native` is enabled
             // - `builtin_counters`: unsupported in native mode
+
+            assert_eq!(
+                &tx_execution_infos, expected_tx_execution_infos,
+                "Transaction Results differ for concurrency_enabled: {}; cairo1_version: {:?}",
+                concurrency_enabled, cairo1_version
+            );
 
             assert_eq!(
                 &block_summary, expected_block_summary,
