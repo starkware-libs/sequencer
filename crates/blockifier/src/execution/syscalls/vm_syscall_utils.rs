@@ -407,7 +407,9 @@ impl SyscallRequest for SendMessageToL1Request {
         let to_address = EthAddress::try_from(felt_from_ptr(vm, ptr)?)?;
         let payload = L2ToL1Payload(read_felt_array::<SyscallExecutorBaseError>(vm, ptr)?);
 
-        Ok(SendMessageToL1Request { message: MessageToL1 { to_address, payload } })
+        Ok(SendMessageToL1Request {
+            message: MessageToL1 { to_address: to_address.into(), payload },
+        })
     }
 }
 

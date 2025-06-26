@@ -461,6 +461,52 @@ macro_rules! contract_address {
 #[serde(try_from = "PrefixedBytesAsHex<20_usize>", into = "PrefixedBytesAsHex<20_usize>")]
 pub struct EthAddress(pub H160);
 
+#[derive(
+    Debug, Copy, Clone, Default, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
+)]
+pub struct L1Address(pub Felt);
+
+impl From<ContractAddress> for L1Address {
+    fn from(address: ContractAddress) -> Self {
+        L1Address(address.0.0)
+    }
+}
+
+impl From<L1Address> for ContractAddress {
+    fn from(address: L1Address) -> Self {
+        ContractAddress(
+            PatriciaKey::try_from(address.0)
+                .expect("L1Address should be in valid range for ContractAddress"),
+        )
+    }
+}
+
+impl From<EthAddress> for L1Address {
+    fn from(address: EthAddress) -> Self {
+        L1Address(address.into())
+    }
+}
+
+impl TryFrom<L1Address> for EthAddress {
+    type Error = StarknetApiError;
+
+    fn try_from(address: L1Address) -> Result<Self, Self::Error> {
+        EthAddress::try_from(address.0)
+    }
+}
+
+impl From<Felt> for L1Address {
+    fn from(felt: Felt) -> Self {
+        L1Address(felt)
+    }
+}
+
+impl From<L1Address> for Felt {
+    fn from(address: L1Address) -> Self {
+        address.0
+    }
+}
+
 impl TryFrom<Felt> for EthAddress {
     type Error = StarknetApiError;
     fn try_from(felt: Felt) -> Result<Self, Self::Error> {

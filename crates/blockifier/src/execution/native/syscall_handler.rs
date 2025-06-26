@@ -570,7 +570,8 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
 
         let to_address = EthAddress::try_from(to_address)
             .map_err(|err| self.handle_error(remaining_gas, err.into()))?;
-        let message = MessageToL1 { to_address, payload: L2ToL1Payload(payload.to_vec()) };
+        let message =
+            MessageToL1 { to_address: to_address.into(), payload: L2ToL1Payload(payload.to_vec()) };
 
         self.base.send_message_to_l1(message).map_err(|err| self.handle_error(remaining_gas, err))
     }
