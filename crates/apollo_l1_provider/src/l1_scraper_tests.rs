@@ -89,7 +89,7 @@ async fn txs_happy_flow() {
     let mut scraper = L1Scraper::new(
         l1_scraper_config,
         fake_client.clone(),
-        base_layer,
+        base_layer.clone(),
         event_identifiers_to_track(),
         l1_start_block,
     )
@@ -101,18 +101,18 @@ async fn txs_happy_flow() {
     let l2_contract_address = "0x12";
     let l2_entry_point = "0x34";
 
-    let message_to_l2_0 = scraper.base_layer.contract.sendMessageToL2(
+    let message_to_l2_0 = base_layer.contract.sendMessageToL2(
         l2_contract_address.parse().unwrap(),
         l2_entry_point.parse().unwrap(),
         vec![U256::from(1_u8), U256::from(2_u8)],
     );
-    let message_to_l2_1 = scraper.base_layer.contract.sendMessageToL2(
+    let message_to_l2_1 = base_layer.contract.sendMessageToL2(
         l2_contract_address.parse().unwrap(),
         l2_entry_point.parse().unwrap(),
         vec![U256::from(3_u8), U256::from(4_u8)],
     );
     let nonce_of_message_to_l2_0 = U256::from(0_u8);
-    let request_cancel_message_0 = scraper.base_layer.contract.startL1ToL2MessageCancellation(
+    let request_cancel_message_0 = base_layer.contract.startL1ToL2MessageCancellation(
         l2_contract_address.parse().unwrap(),
         l2_entry_point.parse().unwrap(),
         vec![U256::from(1_u8), U256::from(2_u8)],
@@ -124,8 +124,7 @@ async fn txs_happy_flow() {
     for msg in &[message_to_l2_0, message_to_l2_1] {
         let receipt = msg.send().await.unwrap().get_receipt().await.unwrap();
         block_timestamps.push(
-            scraper
-                .base_layer
+            base_layer
                 .get_block_header(receipt.block_number.unwrap())
                 .await
                 .unwrap()
@@ -136,8 +135,7 @@ async fn txs_happy_flow() {
 
     let cancel_receipt =
         request_cancel_message_0.send().await.unwrap().get_receipt().await.unwrap();
-    let cancel_timestamp = scraper
-        .base_layer
+    let cancel_timestamp = base_layer
         .get_block_header(cancel_receipt.block_number.unwrap())
         .await
         .unwrap()
@@ -156,8 +154,9 @@ async fn txs_happy_flow() {
             vec![default_anvil_l1_account_address, StarkHash::ONE, StarkHash::from(2)].into(),
         ),
     };
+    let default_chain_id = L1ScraperConfig::default().chain_id;
     let tx_hash_first_tx = expected_internal_l1_tx
-        .calculate_transaction_hash(&scraper.config.chain_id, &EXPECTED_VERSION)
+        .calculate_transaction_hash(&default_chain_id, &EXPECTED_VERSION)
         .unwrap();
     let tx = ExecutableL1HandlerTransaction {
         tx_hash: tx_hash_first_tx,
@@ -177,7 +176,7 @@ async fn txs_happy_flow() {
     let second_expected_log = Event::L1HandlerTransaction {
         l1_handler_tx: ExecutableL1HandlerTransaction {
             tx_hash: expected_internal_l1_tx_2
-                .calculate_transaction_hash(&scraper.config.chain_id, &EXPECTED_VERSION)
+                .calculate_transaction_hash(&default_chain_id, &EXPECTED_VERSION)
                 .unwrap(),
             tx: expected_internal_l1_tx_2,
             ..tx
