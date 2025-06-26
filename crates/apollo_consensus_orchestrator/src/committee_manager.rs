@@ -48,6 +48,10 @@ impl CommitteeDataCache {
 pub struct CommitteeManagerConfig {
     pub staking_contract_address: ContractAddress,
     pub max_cached_epochs: usize,
+
+    // The desired number of committee members to select from the available stakers.
+    // If there are fewer stakers than `committee_size`, a smaller committee will be selected.
+    pub committee_size: usize,
 }
 
 // Responsible for fetching and storing the committee at a given epoch.
@@ -108,12 +112,16 @@ impl CommitteeManager {
 
         let stakers = Staker::from_retdata_many(call_info.execution.retdata)?;
 
-        // TODO(Dafna): choose the committee.
-
-        let committee = Arc::new(stakers);
+        let committee = Arc::new(self.select_committee(stakers));
         self.committee_data_cache.insert(epoch, committee.clone());
 
         Ok(committee)
+    }
+
+    fn select_committee(&self, mut stakers: Vec<Staker>) -> Vec<Staker> {
+        // Take the top `committee_size` stakers by weight.
+        stakers.sort_by_key(|staker| staker.weight);
+        stakers.into_iter().rev().take(self.config.committee_size).collect()
     }
 }
 
