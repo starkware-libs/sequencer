@@ -7,7 +7,7 @@ use apollo_l1_gas_price_types::{
     DEFAULT_ETH_TO_FRI_RATE,
 };
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
-use apollo_state_sync_types::communication::StateSyncClient;
+use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
@@ -27,7 +27,7 @@ use starknet_api::data_availability::L1DataAvailabilityMode;
 use tracing::{info, warn};
 
 use crate::metrics::CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR;
-use crate::sequencer_consensus_context::{BuildProposalError, ProposalResult};
+use crate::sequencer_consensus_context::BuildProposalError;
 
 pub(crate) struct StreamSender {
     pub proposal_sender: mpsc::Sender<ProposalPart>,
@@ -46,6 +46,23 @@ pub(crate) struct GasPriceParams {
     pub min_l1_data_gas_price_wei: GasPrice,
     pub l1_data_gas_price_multiplier: Ratio<u128>,
     pub l1_gas_tip_wei: GasPrice,
+}
+
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum StateSyncError {
+    #[error("State sync is not ready: {0}")]
+    NotReady(String),
+    #[error("State sync client error: {0}")]
+    ClientError(#[from] StateSyncClientError),
+}
+
+impl From<StateSyncError> for BuildProposalError {
+    fn from(e: StateSyncError) -> Self {
+        match e {
+            StateSyncError::NotReady(e) => BuildProposalError::StateSyncNotReady(e),
+            StateSyncError::ClientError(e) => BuildProposalError::StateSyncClientError(e),
+        }
+    }
 }
 
 pub(crate) async fn get_oracle_rate_and_prices(
@@ -161,7 +178,7 @@ pub(crate) fn convert_to_sn_api_block_info(
 pub(crate) async fn retrospective_block_hash(
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: &ConsensusBlockInfo,
-) -> ProposalResult<Option<BlockHashAndNumber>> {
+) -> Result<Option<BlockHashAndNumber>, StateSyncError> {
     let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
     let retrospective_block_hash = match retrospective_block_number {
         Some(block_number) => {
@@ -169,8 +186,9 @@ pub(crate) async fn retrospective_block_hash(
             let block = state_sync_client
                 // Getting the next block hash because the Sync block only contains parent hash.
                 .get_block(block_number.unchecked_next())
-                .await?
-                .ok_or(BuildProposalError::StateSyncNotReady(format!(
+                .await
+                .map_err(StateSyncError::ClientError)?
+                .ok_or(StateSyncError::NotReady(format!(
                 "Failed to get retrospective block number {block_number}"
             )))?;
             Some(BlockHashAndNumber {
