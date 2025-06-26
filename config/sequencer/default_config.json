@@ -941,7 +941,7 @@
   },
   "consensus_manager_config.cende_config.skip_write_height": {
     "description": "A height that the consensus can skip writing to Aerospike. Needed for booting up (no previous height blob to write) or to handle extreme cases (all the nodes failed).",
-    "privacy": "Private",
+    "privacy": "Public",
     "value": 0
   },
   "consensus_manager_config.cende_config.skip_write_height.#is_none": {
