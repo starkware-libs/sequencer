@@ -20,9 +20,6 @@ fn deployment_files_are_up_to_date() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
 
-    // TODO(Tsabary): The word "deployment" is overloaded. On one hand it means the "node
-    // configuration" (e.g. hybrid), on the other it means the "k8s setups" (e.g. upgrade_test).
-    // Need to fix that.
     for node_type in NodeType::iter() {
         node_type.test_dump_service_component_configs(None);
     }
