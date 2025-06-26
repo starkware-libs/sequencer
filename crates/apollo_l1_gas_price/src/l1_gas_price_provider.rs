@@ -133,7 +133,7 @@ impl L1GasPriceProvider {
                 });
             }
         }
-        debug!("Received price sample for L2 block: {:?}", new_data);
+        // debug!("Received price sample for L2 block: {:?}", new_data);
         samples.push(new_data);
         Ok(())
     }
