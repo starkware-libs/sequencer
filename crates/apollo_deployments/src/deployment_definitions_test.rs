@@ -12,10 +12,9 @@ use strum::IntoEnumIterator;
 
 use crate::deployment::FIX_BINARY_NAME;
 use crate::deployment_definitions::DEPLOYMENTS;
-use crate::service::DeploymentName;
+use crate::service::NodeType;
 
-/// Test that the deployment file is up to date. To update it run:
-/// cargo run --bin deployment_generator -q
+/// Test that the deployment file is up to date.
 #[test]
 fn deployment_files_are_up_to_date() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
@@ -24,8 +23,8 @@ fn deployment_files_are_up_to_date() {
     // TODO(Tsabary): The word "deployment" is overloaded. On one hand it means the "node
     // configuration" (e.g. hybrid), on the other it means the "k8s setups" (e.g. upgrade_test).
     // Need to fix that.
-    for deployment_name in DeploymentName::iter() {
-        deployment_name.test_dump_service_component_configs(None);
+    for node_type in NodeType::iter() {
+        node_type.test_dump_service_component_configs(None);
     }
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         serialize_to_file_test(
@@ -46,7 +45,7 @@ fn load_and_process_service_config_files() {
         for service_config_paths in deployment.get_config_file_paths().into_iter() {
             println!(
                 "Loading deployment {} in path {:?} with application files {:?} ... ",
-                deployment.get_deployment_name(),
+                deployment.get_node_type(),
                 deployment.deployment_file_path(),
                 service_config_paths
             );
@@ -77,8 +76,8 @@ fn load_and_process_service_config_files() {
 #[test]
 fn l1_components_state_consistency() {
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
-        let deployment_name = deployment.get_deployment_name();
-        let component_configs = deployment_name.get_component_configs(None);
+        let node_type = deployment.get_node_type();
+        let component_configs = node_type.get_component_configs(None);
 
         let l1_gas_price_provider_indicator = component_configs.values().any(|component_config| {
             component_config.l1_gas_price_provider.execution_mode

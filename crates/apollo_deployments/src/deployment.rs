@@ -14,7 +14,7 @@ use serde_json::{json, Value};
 use crate::config_override::ConfigOverride;
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfigParams};
-use crate::service::{DeploymentName, Service, ServiceName};
+use crate::service::{NodeType, Service, ServiceName};
 
 #[cfg(test)]
 pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
@@ -32,7 +32,7 @@ pub struct Deployment {
 impl Deployment {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        deployment_name: DeploymentName,
+        node_type: NodeType,
         environment: Environment,
         instance_name: &str,
         external_secret: Option<ExternalSecret>,
@@ -41,10 +41,10 @@ impl Deployment {
         ingress_params: IngressParams,
         k8s_service_config_params: Option<K8sServiceConfigParams>,
     ) -> Self {
-        let service_names = deployment_name.all_service_names();
+        let service_names = node_type.all_service_names();
 
-        let config_override_dir = deployment_name
-            .add_path_suffix(environment.application_config_dir_path(), instance_name);
+        let config_override_dir =
+            node_type.add_path_suffix(environment.application_config_dir_path(), instance_name);
 
         let config_override_files = config_override.get_config_file_paths(&config_override_dir);
         let config_filenames: Vec<String> =
@@ -68,7 +68,7 @@ impl Deployment {
             application_config_subdir: CONFIG_BASE_DIR.into(),
             services,
             deployment_aux_data: DeploymentAuxData {
-                deployment_name,
+                node_type,
                 environment,
                 instance_name: instance_name.to_string(),
                 base_app_config_file_path,
@@ -78,8 +78,8 @@ impl Deployment {
         }
     }
 
-    pub fn get_deployment_name(&self) -> &DeploymentName {
-        &self.deployment_aux_data.deployment_name
+    pub fn get_node_type(&self) -> &NodeType {
+        &self.deployment_aux_data.node_type
     }
 
     pub fn get_base_app_config_file_path(&self) -> PathBuf {
@@ -87,8 +87,7 @@ impl Deployment {
     }
 
     pub fn application_config_values(&self) -> IndexMap<ServiceName, Value> {
-        let component_configs =
-            self.deployment_aux_data.deployment_name.get_component_configs(None);
+        let component_configs = self.deployment_aux_data.node_type.get_component_configs(None);
         let mut result = IndexMap::new();
 
         for (service, component_config) in component_configs.into_iter() {
@@ -140,7 +139,7 @@ impl Deployment {
 
 #[derive(Clone, Debug)]
 struct DeploymentAuxData {
-    deployment_name: DeploymentName,
+    node_type: NodeType,
     environment: Environment,
     instance_name: String,
     base_app_config_file_path: PathBuf,
