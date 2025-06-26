@@ -22,8 +22,8 @@ use apollo_protobuf::consensus::{
     TransactionBatch,
 };
 use apollo_state_sync_types::communication::StateSyncClientError;
+use apollo_time::time::{Clock, DateTime};
 use futures::channel::{mpsc, oneshot};
-use futures::FutureExt;
 use starknet_api::block::{BlockHash, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -87,6 +87,7 @@ pub(crate) enum BuildProposalError {
 
 // Handles building a new proposal without blocking consensus:
 pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
+    let batcher_deadline = args.deps.clock.now() + args.batcher_timeout;
     let block_info = initiate_build(&args).await;
     let block_info = match block_info {
         Ok(info) => info,
@@ -111,6 +112,8 @@ pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
         args.cende_write_success,
         args.deps.transaction_converter,
         args.cancel_token,
+        args.deps.clock,
+        batcher_deadline,
     )
     .await
     else {
@@ -173,6 +176,9 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
 /// 1. Receive chunks of content from the batcher.
 /// 2. Forward these to the stream handler to be streamed out to the network.
 /// 3. Once finished, receive the commitment from the batcher.
+// TODO(guyn): consider passing a ref to BuildProposalArguments instead of all the fields
+// separately.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn get_proposal_content(
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
@@ -180,6 +186,8 @@ pub(crate) async fn get_proposal_content(
     cende_write_success: AbortOnDropHandle<bool>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     cancel_token: CancellationToken,
+    clock: Arc<dyn Clock>,
+    batcher_deadline: DateTime,
 ) -> BuildProposalResult<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
     let mut content = Vec::new();
     loop {
@@ -229,24 +237,29 @@ pub(crate) async fn get_proposal_content(
                 }
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
-                // can't finish the proposal.
-                match cende_write_success.now_or_never() {
-                    Some(Ok(true)) => {
-                        info!("Writing blob to Aerospike completed successfully.");
-                    }
-                    Some(Ok(false)) => {
-                        warn!("Writing blob to Aerospike failed.");
-                        return Err(BuildProposalError::CendeWriteError("".to_string()));
-                    }
-                    Some(Err(e)) => {
-                        warn!("Writing blob to Aerospike failed. Error: {e:?}");
-                        return Err(BuildProposalError::CendeWriteError(e.to_string()));
-                    }
-                    None => {
-                        warn!("Writing blob to Aerospike didn't return in time.");
+                // can't finish the proposal. Must wait for it at least until batcher_timeout is
+                // reached.
+                let remaining = (batcher_deadline - clock.now())
+                    .to_std()
+                    .unwrap_or_default()
+                    .max(Duration::from_millis(1)); // Ensure we wait at least 1 ms to avoid immediate timeout. 
+                match tokio::time::timeout(remaining, cende_write_success).await {
+                    Err(_) => {
+                        warn!("Cende write timed out.");
                         return Err(BuildProposalError::CendeWriteError(
                             "didn't return in time".to_string(),
                         ));
+                    }
+                    Ok(Ok(true)) => {
+                        info!("Writing blob to Aerospike completed successfully.");
+                    }
+                    Ok(Ok(false)) => {
+                        warn!("Writing blob to Aerospike failed.");
+                        return Err(BuildProposalError::CendeWriteError("".to_string()));
+                    }
+                    Ok(Err(e)) => {
+                        warn!("Writing blob to Aerospike failed. Error: {e:?}");
+                        return Err(BuildProposalError::CendeWriteError(e.to_string()));
                     }
                 }
 
