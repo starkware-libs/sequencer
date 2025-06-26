@@ -1333,6 +1333,7 @@ dependencies = [
 name = "apollo_infra_utils"
 version = "0.15.0-rc.2"
 dependencies = [
+ "apollo_proc_macros",
  "assert-json-diff",
  "colored 3.0.0",
  "nix 0.20.2",
@@ -1810,6 +1811,7 @@ dependencies = [
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "papyrus_common",
+ "proc-macro2",
  "prometheus-parse",
  "quote",
  "rstest",

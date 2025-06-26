@@ -1,11 +1,15 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
+
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
 use syn::{
     parse,
     parse2,
     parse_macro_input,
     parse_str,
+    Expr,
     ExprLit,
     Ident,
     ItemFn,
@@ -384,6 +388,59 @@ pub fn handle_all_response_variants(input: TokenStream) -> TokenStream {
                     Err(#component_client_error::#component_error(resp))
                 }
                 unexpected_response => Err(#component_client_error::ClientError(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))),
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+struct LogEveryNMacroInput {
+    log_macro: syn::Path,
+    n: Expr,
+    args: Punctuated<Expr, Token![,]>,
+}
+
+impl Parse for LogEveryNMacroInput {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let log_macro: syn::Path = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let n: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let args: Punctuated<Expr, Token![,]> = Punctuated::parse_terminated(input)?;
+
+        Ok(LogEveryNMacroInput { log_macro, n, args })
+    }
+}
+
+#[proc_macro]
+pub fn log_every_n(input: TokenStream) -> TokenStream {
+    let LogEveryNMacroInput { log_macro, n, args, .. } =
+        parse_macro_input!(input as LogEveryNMacroInput);
+
+    // Use call site span for uniqueness
+    let span = proc_macro::Span::call_site();
+    let span_str = format!("{:?}", span);
+
+    let mut hasher = DefaultHasher::new();
+    span_str.hash(&mut hasher);
+
+    let hash_id = format!("{:x}", hasher.finish()); // short identifier
+    let ident_str = format!("__TRACING_COUNT_{}", hash_id);
+    let ident = Ident::new(&ident_str, proc_macro2::Span::call_site());
+
+    print!("Generating log_every_n macro with ident: {}", ident);
+
+    let args = args.into_iter().collect::<Vec<_>>();
+
+    let expanded = quote! {
+        {
+            static #ident: ::std::sync::OnceLock<::std::sync::atomic::AtomicUsize> = ::std::sync::OnceLock::new();
+            let counter = #ident.get_or_init(|| ::std::sync::atomic::AtomicUsize::new(0));
+            let current_count = counter.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed);
+
+            if current_count % (#n) == 0 {
+                #log_macro!(#(#args),*);
             }
         }
     };

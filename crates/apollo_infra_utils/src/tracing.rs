@@ -48,3 +48,79 @@ pub trait LogCompatibleToStringExt: std::fmt::Display {
         self.to_string().replace('\n', "\t")
     }
 }
+
+/// Logs an INFO message once every `n` calls.
+///
+/// Each call site of this macro maintains its own independent counter.
+/// The message will be logged on calls: 1, N+1, 2N+1, 3N+1, etc., for each invocation **from that
+/// specific call site**.
+///
+/// # Arguments
+///
+/// * `$n`: The integer frequency (e.g., `2` for every second call).
+/// * `$($arg:tt)*`: The arguments to pass to `tracing::info!`, e.g., a format string and its
+///   corresponding values.
+///
+/// # Example
+/// ```rust
+/// use apollo_infra_utils::info_every_n;
+///
+/// for i in 0..5 {
+///     info_every_n!(2, "Processing item: {}", i);
+///     // Output:
+///     // Processing item: 1 (on 2nd call)
+///     // Processing item: 3 (on 4th call)
+/// }
+/// ```
+#[macro_export]
+macro_rules! info_every_n {
+    ($n:expr, $($arg:tt)*) => {
+        {
+            apollo_proc_macros::log_every_n!(::tracing::info, $n, $($arg)*);
+        }
+    };
+}
+
+/// Logs a WARN message once every `n` calls.
+/// See `info_every_n!` for detailed usage and behavior.
+#[macro_export]
+macro_rules! warn_every_n {
+    ($n:expr, $($arg:tt)*) => {
+        {
+            apollo_proc_macros::log_every_n!(::tracing::warn, $n, $($arg)*);
+        }
+    };
+}
+
+/// Logs an ERROR message once every `n` calls.
+/// See `info_every_n!` for detailed usage and behavior.
+#[macro_export]
+macro_rules! error_every_n {
+    ($n:expr, $($arg:tt)*) => {
+        {
+            apollo_proc_macros::log_every_n!(::tracing::error, $n, $($arg)*);
+        }
+    };
+}
+
+/// Logs a DEBUG message once every `n` calls.
+/// See `info_every_n!` for detailed usage and behavior.
+#[macro_export]
+macro_rules! debug_every_n {
+    ($n:expr, $($arg:tt)*) => {
+        {
+            apollo_proc_macros::log_every_n!(::tracing::debug, $n, $($arg)*);
+        }
+    };
+}
+
+/// Logs a TRACE message once every `n` calls.
+/// See `info_every_n!` for detailed usage and behavior.
+#[macro_export]
+macro_rules! trace_every_n {
+    ($n:expr, $($arg:tt)*) => {
+        {
+            apollo_proc_macros::log_every_n!(::tracing::trace, $n, $($arg)*);
+        }
+    };
+}

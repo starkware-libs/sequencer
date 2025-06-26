@@ -13,6 +13,7 @@ testing = ["colored", "dep:assert-json-diff", "socket2", "tempfile"]
 workspace = true
 
 [dependencies]
+apollo_proc_macros.workspace = true
 assert-json-diff = { workspace = true, optional = true }
 colored = { workspace = true, optional = true }
 num_enum.workspace = true
