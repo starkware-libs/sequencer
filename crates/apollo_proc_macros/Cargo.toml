@@ -7,6 +7,7 @@ license-file.workspace = true
 description = "Procedural macros for the Papyrus node"
 
 [dependencies]
+proc-macro2.workspace = true
 quote.workspace = true
 syn = { workspace = true, features = ["full"] }
 

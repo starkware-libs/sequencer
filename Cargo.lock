@@ -1333,6 +1333,7 @@ dependencies = [
 name = "apollo_infra_utils"
 version = "0.15.0-rc.2"
 dependencies = [
+ "apollo_proc_macros",
  "assert-json-diff",
  "colored 3.0.0",
  "nix 0.20.2",
@@ -1805,6 +1806,7 @@ dependencies = [
 name = "apollo_proc_macros"
 version = "0.15.0-rc.2"
 dependencies = [
+ "proc-macro2",
  "quote",
  "syn 2.0.100",
 ]
