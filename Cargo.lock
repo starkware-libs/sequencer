@@ -1688,6 +1688,7 @@ dependencies = [
  "libp2p-swarm-test",
  "metrics 0.24.1",
  "mockall",
+ "once_cell",
  "pretty_assertions",
  "replace_with",
  "rstest",

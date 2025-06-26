@@ -49,6 +49,7 @@ deadqueue = { workspace = true, features = ["unlimited"] }
 defaultmap.workspace = true
 libp2p-swarm-test.workspace = true
 mockall.workspace = true
+once_cell.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
