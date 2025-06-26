@@ -105,7 +105,7 @@ pub enum TransactionExecutionError {
     #[error(transparent)]
     StateError(#[from] StateError),
     #[error(transparent)]
-    TransactionFeeError(#[from] TransactionFeeError),
+    TransactionFeeError(#[from] Box<TransactionFeeError>),
     #[error(transparent)]
     TransactionPreValidationError(#[from] TransactionPreValidationError),
     #[error(transparent)]

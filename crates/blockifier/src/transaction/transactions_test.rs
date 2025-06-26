@@ -2817,10 +2817,12 @@ fn test_l1_handler(#[values(false, true)] use_kzg_da: bool) {
 
     assert_matches!(
         error,
-        TransactionExecutionError::TransactionFeeError(
+        TransactionExecutionError::TransactionFeeError(boxed_fee_error)
+        if matches!(
+            *boxed_fee_error,
             TransactionFeeError::InsufficientFee { paid_fee, actual_fee }
+            if paid_fee == Fee(0) && actual_fee == expected_actual_fee
         )
-        if paid_fee == Fee(0) && actual_fee == expected_actual_fee
     );
 }
 
