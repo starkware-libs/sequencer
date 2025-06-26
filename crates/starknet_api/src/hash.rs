@@ -2,6 +2,7 @@ use std::fmt::Debug;
 
 use serde::{Deserialize, Serialize};
 use sha3::{Digest, Keccak256};
+
 use starknet_types_core::felt::Felt;
 
 pub type StarkHash = Felt;

@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
-use size_of::SizeOf;
+use sizeof::SizeOf;
 use strum::EnumVariantNames;
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -15,38 +15,20 @@ use crate::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce}
 use crate::data_availability::DataAvailabilityMode;
 use crate::state::{EntryPoint, SierraContractClass};
 use crate::transaction::fields::{
-    AccountDeploymentData,
-    AllResourceBounds,
-    Calldata,
-    ContractAddressSalt,
-    PaymasterData,
-    Tip,
-    TransactionSignature,
-    ValidResourceBounds,
+    AccountDeploymentData, AllResourceBounds, Calldata, ContractAddressSalt, PaymasterData, Tip,
+    TransactionSignature, ValidResourceBounds,
 };
 use crate::transaction::{
-    CalculateContractAddress,
-    DeclareTransaction,
-    DeclareTransactionV3,
-    DeployAccountTransaction,
-    DeployAccountTransactionV3,
-    DeployTransactionTrait,
-    InvokeTransaction,
-    InvokeTransactionV3,
-    Transaction,
-    TransactionHash,
-    TransactionHasher,
-    TransactionVersion,
+    CalculateContractAddress, DeclareTransaction, DeclareTransactionV3, DeployAccountTransaction,
+    DeployAccountTransactionV3, DeployTransactionTrait, InvokeTransaction, InvokeTransactionV3,
+    Transaction, TransactionHash, TransactionHasher, TransactionVersion,
 };
 use crate::transaction_hash::{
-    get_declare_transaction_v3_hash,
-    get_deploy_account_transaction_v3_hash,
+    DeclareTransactionV3Trait, DeployAccountTransactionV3Trait, InvokeTransactionV3Trait,
+    get_declare_transaction_v3_hash, get_deploy_account_transaction_v3_hash,
     get_invoke_transaction_v3_hash,
-    DeclareTransactionV3Trait,
-    DeployAccountTransactionV3Trait,
-    InvokeTransactionV3Trait,
 };
-use crate::{impl_deploy_transaction_trait, StarknetApiError};
+use crate::{StarknetApiError, impl_deploy_transaction_trait};
 
 /// Transactions that are ready to be broadcasted to the network through RPC and are not included in
 /// a block.
@@ -230,8 +212,7 @@ impl InternalRpcTransaction {
     }
 
     pub fn total_bytes(&self) -> u64 {
-        self.size_of()
-            .total_bytes()
+        self.size_bytes()
             .try_into()
             .expect("The transaction size in bytes should fit in a u64 value.")
     }

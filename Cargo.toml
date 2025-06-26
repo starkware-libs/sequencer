@@ -75,6 +75,7 @@ members = [
   "crates/starknet_os",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
+  "crates/sizeof",
   "toml_test_utils",
   "workspace_tests",
 ]
@@ -279,7 +280,7 @@ sha2 = "0.10.8"
 sha3 = "0.10.8"
 shared_execution_objects.path = "crates/shared_execution_objects"
 simple_logger = "4.0.0"
-size-of = "0.1.5"
+sizeof = { path = "crates/sizeof" }
 socket2 = "0.5.8"
 starknet-core = "0.12.1"
 starknet-crypto = "0.7.1"
