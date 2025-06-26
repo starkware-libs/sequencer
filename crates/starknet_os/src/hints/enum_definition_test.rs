@@ -20,6 +20,7 @@ use crate::hints::enum_definition::{
     AllHints,
     CommonHint,
     DeprecatedSyscallHint,
+    HintExtension,
     OsHint,
     StatelessHint,
     TEST_HINT_PREFIX,
@@ -101,6 +102,11 @@ fn os_hints() -> HashSet<String> {
 #[fixture]
 fn aggregator_hints() -> HashSet<String> {
     AggregatorHint::iter().map(|hint| hint.to_str().to_string()).collect()
+}
+
+#[fixture]
+fn hint_extension() -> HashSet<String> {
+    HintExtension::iter().map(|hint| hint.to_str().to_string()).collect()
 }
 
 #[fixture]
@@ -204,18 +210,6 @@ fn test_all_hints_are_used(
     );
 }
 
-#[rstest]
-fn test_no_aggregator_hints_in_os_program(
-    aggregator_hints: HashSet<String>,
-    os_program_hints: HashSet<String>,
-) {
-    let intersection = aggregator_hints.intersection(&os_program_hints).collect::<HashSet<_>>();
-    assert!(
-        intersection.is_empty(),
-        "The following Aggregator hints are found in the OS program: {intersection:#?}."
-    );
-}
-
 /// Tests that the set of deprecated syscall hints is consistent with the enum of deprecated
 /// syscalls.
 #[rstest]
@@ -275,7 +269,7 @@ fn test_deprecated_syscall_hint_consistency() {
 /// If OP = OS program hints, AP = aggregator program hints, VM = VM hints,
 /// S = `StatelessHint`, C = `CommonHint`, then we verify that:
 /// C = (OP ∩ AP) \ VM \ S
-fn test_common_hints_in_os_and_aggregator_programs(
+fn test_common_hints_in_both_os_and_aggregator_programs(
     common_hints: HashSet<String>,
     vm_union_stateless: HashSet<String>,
     os_program_hints: HashSet<String>,
@@ -351,6 +345,36 @@ fn test_aggregator_hints_are_unique_aggregator_program_hints(
             "The Aggregator hints should contain exactly the unique Aggregator program hints. \
              Missing in Aggregator hints: {missing_in_aggregator_hints:#?}, Extra in Aggregator \
              hints: {extra_in_aggregator_hints:#?}"
+        );
+    }
+}
+
+#[rstest]
+/// If O = `OsHint` enum hints, OP = OS program hints, A = `AggregatorHint` enum hints, VM = VM
+/// hints, S = `StatelessHint`, E = `ExtensionHint`, then we verify that:
+/// O ∪ E = OP \ (AP ∪ VM ∪ S)
+fn test_os_hints_are_unique_os_program_hints(
+    os_hints: HashSet<String>,
+    hint_extension: HashSet<String>,
+    os_program_hints: HashSet<String>,
+    aggregator_program_hints: HashSet<String>,
+    vm_union_stateless: HashSet<String>,
+) {
+    let union_aggregator_program_vm_stateless: HashSet<String> =
+        vm_union_stateless.union(&aggregator_program_hints).cloned().collect();
+    let os_union_extension: HashSet<String> = os_hints.union(&hint_extension).cloned().collect();
+    let unique_os_program_hints: HashSet<String> =
+        os_program_hints.difference(&union_aggregator_program_vm_stateless).cloned().collect();
+
+    if unique_os_program_hints != os_union_extension {
+        let missing_in_os_or_extension: HashSet<_> =
+            unique_os_program_hints.difference(&os_union_extension).cloned().collect();
+        let extra_in_os_or_extension: HashSet<_> =
+            os_union_extension.difference(&unique_os_program_hints).cloned().collect();
+        panic!(
+            "The OS & Extension hints should contain exactly the unique OS program hints. Missing \
+             in OS or Extension hints: {missing_in_os_or_extension:#?}, Extra in OS or Extension \
+             hints: {extra_in_os_or_extension:#?}"
         );
     }
 }
