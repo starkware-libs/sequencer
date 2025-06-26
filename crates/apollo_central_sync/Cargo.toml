@@ -21,6 +21,7 @@ cairo-lang-starknet-classes.workspace = true
 chrono.workspace = true
 futures.workspace = true
 futures-util.workspace = true
+validator.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 itertools.workspace = true
 lru.workspace = true

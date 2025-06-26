@@ -35,10 +35,16 @@ use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass as sn_api_ContractClass, ThinStateDiff};
 use starknet_api::{class_hash, contract_address, felt, storage_key};
 use tokio_stream::StreamExt;
+use validator::Validate;
 
 use super::state_update_stream::StateUpdateStreamConfig;
 use super::ApiContractClass;
-use crate::sources::central::{CentralError, CentralSourceTrait, GenericCentralSource};
+use crate::sources::central::{
+    CentralError,
+    CentralSourceConfig,
+    CentralSourceTrait,
+    GenericCentralSource,
+};
 
 const TEST_CONCURRENT_REQUESTS: usize = 300;
 
@@ -680,4 +686,17 @@ fn get_test_class_cache() -> Arc<Mutex<LruCache<ClassHash, ApiContractClass>>> {
 
 fn get_test_compiled_class_cache() -> Arc<Mutex<LruCache<ClassHash, CasmContractClass>>> {
     Arc::from(Mutex::new(LruCache::new(NonZeroUsize::new(2).unwrap())))
+}
+
+#[test]
+fn test_validate_starknet_url_default_valid() {
+    let config = CentralSourceConfig::default();
+    config.validate().unwrap();
+}
+
+#[test]
+fn test_validate_starknet_url_http_missing() {
+    let config =
+        CentralSourceConfig { starknet_url: String::from("localhost"), ..Default::default() };
+    config.validate().unwrap_err();
 }
