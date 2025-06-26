@@ -44,6 +44,7 @@ use crate::state::state_api::State;
 use crate::transaction::objects::{
     CurrentTransactionInfo,
     DeprecatedTransactionInfo,
+    TransactionExecutionInfo,
     TransactionInfo,
 };
 
@@ -130,6 +131,35 @@ impl CallEntryPoint {
 impl CallInfo {
     pub fn with_some_class_hash(mut self) -> Self {
         self.call.class_hash = Some(ClassHash::default());
+        self
+    }
+
+    /// Returns a version of this `CallInfo` with target-dependent fields stripped:
+    /// - `cairo_native`: varies based on whether native is used.
+    /// - `builtin_counters`: not supported in native mode.
+    ///
+    /// Used in `transfers_flow_test` to allow consistent comparison across targets.
+    pub fn without_target_specific_fields(mut self) -> Self {
+        self.builtin_counters = Default::default();
+        self.execution.cairo_native = false;
+        self.inner_calls =
+            self.inner_calls.into_iter().map(Self::without_target_specific_fields).collect();
+        self
+    }
+}
+
+impl TransactionExecutionInfo {
+    /// Returns a version of this `TransactionExecutionInfo` with target-dependent fields
+    /// stripped from all internal `CallInfo` values.
+    ///
+    /// Used in `transfers_flow_test` to allow consistent comparison across targets.
+    pub fn without_target_specific_fields(mut self) -> Self {
+        self.validate_call_info =
+            self.validate_call_info.map(CallInfo::without_target_specific_fields);
+        self.execute_call_info =
+            self.execute_call_info.map(CallInfo::without_target_specific_fields);
+        self.fee_transfer_call_info =
+            self.fee_transfer_call_info.map(CallInfo::without_target_specific_fields);
         self
     }
 }

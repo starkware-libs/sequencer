@@ -37,18 +37,26 @@ pub fn transfers_flow_test(
                 cairo1_version,
                 recipient_generator_type,
             );
-            let Some((_expected_tx_execution_infos, expected_block_summary)) = &expected_result
+            let Some((expected_tx_execution_infos, expected_block_summary)) = &expected_result
             else {
                 expected_result = Some(result);
                 continue;
             };
 
-            let (_tx_execution_infos, block_summary) = result;
+            let (tx_execution_infos, block_summary) = result;
 
-            // TODO(Meshi): Add assertion for `tx_execution_infos` that skips target-dependent
-            // fields:
-            // - `run_cairo`: `true` only when `cairo_native` is enabled
-            // - `builtin_counters`: unsupported in native mode
+            // Normalize tx_execution_infos by stripping target-specific fields before comparison.
+            let actual: Vec<_> = tx_execution_infos
+                .iter()
+                .cloned()
+                .map(TransactionExecutionInfo::without_target_specific_fields)
+                .collect();
+            let expected: Vec<_> = expected_tx_execution_infos
+                .iter()
+                .cloned()
+                .map(TransactionExecutionInfo::without_target_specific_fields)
+                .collect();
+            assert_eq!(actual, expected, "TransactionExecutionInfos differ (normalized)");
 
             assert_eq!(
                 &block_summary, expected_block_summary,
