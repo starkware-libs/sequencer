@@ -49,7 +49,7 @@ pub enum HybridNodeServiceName {
 // Implement conversion from `HybridNodeServiceName` to `NodeService`
 impl From<HybridNodeServiceName> for NodeService {
     fn from(service: HybridNodeServiceName) -> Self {
-        NodeService::HybridNode(service)
+        NodeService::Hybrid(service)
     }
 }
 

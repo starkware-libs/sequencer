@@ -13,7 +13,7 @@ on:
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/testing/deployment_configs/deployment_test_consolidated.json
+  deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/deployments/testing/deployment_test_consolidated.json
   namespace: sequencer-consolidated-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
   cluster_name: consolidated-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"

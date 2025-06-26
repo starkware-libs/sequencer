@@ -51,7 +51,7 @@ pub enum DistributedNodeServiceName {
 // Implement conversion from `DistributedNodeServiceName` to `NodeService`
 impl From<DistributedNodeServiceName> for NodeService {
     fn from(service: DistributedNodeServiceName) -> Self {
-        NodeService::DistributedNode(service)
+        NodeService::Distributed(service)
     }
 }
 

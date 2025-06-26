@@ -1187,7 +1187,6 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_node",
  "apollo_protobuf",
- "const_format",
  "hex",
  "indexmap 2.9.0",
  "libp2p",

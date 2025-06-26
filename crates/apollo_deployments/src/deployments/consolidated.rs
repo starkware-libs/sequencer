@@ -31,7 +31,7 @@ pub enum ConsolidatedNodeServiceName {
 
 impl From<ConsolidatedNodeServiceName> for NodeService {
     fn from(service: ConsolidatedNodeServiceName) -> Self {
-        NodeService::ConsolidatedNode(service)
+        NodeService::Consolidated(service)
     }
 }
 
@@ -39,7 +39,7 @@ impl GetComponentConfigs for ConsolidatedNodeServiceName {
     fn get_component_configs(_ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let mut component_config_map = IndexMap::new();
         component_config_map.insert(
-            NodeService::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+            NodeService::Consolidated(ConsolidatedNodeServiceName::Node),
             get_consolidated_config(),
         );
         component_config_map

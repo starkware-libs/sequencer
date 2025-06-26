@@ -12,11 +12,9 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::config_override::ConfigOverride;
-use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
+use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH, CONFIG_BASE_DIR};
 use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfigParams};
 use crate::service::{NodeService, NodeType, Service};
-
-const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployment_configs/";
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Deployment {
@@ -27,27 +25,24 @@ pub struct Deployment {
 }
 
 impl Deployment {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         node_type: NodeType,
         environment: Environment,
         instance_name: &str,
         external_secret: Option<ExternalSecret>,
-        base_app_config_file_path: PathBuf,
         config_override: ConfigOverride,
         ingress_params: IngressParams,
         k8s_service_config_params: Option<K8sServiceConfigParams>,
     ) -> Self {
+        // TODO(Tsabary): make the per-env deployment files reside in the same dir, instead of
+        // currently being duplicated per each instance in that deployment.
         let node_services = node_type.all_service_names();
 
-        let config_override_dir =
-            node_type.add_path_suffix(environment.application_config_dir_path(), instance_name);
+        let config_override_dir = environment.env_dir_path().join(instance_name);
 
         let config_override_files = config_override.get_config_file_paths(&config_override_dir);
         let config_filenames: Vec<String> =
-            once(base_app_config_file_path.to_string_lossy().to_string())
-                .chain(config_override_files)
-                .collect();
+            once(BASE_APP_CONFIG_PATH.to_string()).chain(config_override_files).collect();
 
         let services = node_services
             .iter()
@@ -68,7 +63,6 @@ impl Deployment {
                 node_type,
                 environment,
                 instance_name: instance_name.to_string(),
-                base_app_config_file_path,
                 config_override,
                 config_override_dir,
             },
@@ -77,10 +71,6 @@ impl Deployment {
 
     pub fn get_node_type(&self) -> &NodeType {
         &self.deployment_aux_data.node_type
-    }
-
-    pub fn get_base_app_config_file_path(&self) -> PathBuf {
-        self.deployment_aux_data.base_app_config_file_path.clone()
     }
 
     pub fn application_config_values(&self) -> IndexMap<NodeService, Value> {
@@ -114,10 +104,10 @@ impl Deployment {
     }
 
     pub fn deployment_file_path(&self) -> PathBuf {
-        PathBuf::from(CONFIG_BASE_DIR)
-            .join(self.deployment_aux_data.environment.to_string())
-            .join(DEPLOYMENT_CONFIG_DIR_NAME)
-            .join(format!("{}.json", self.deployment_aux_data.instance_name))
+        self.deployment_aux_data
+            .environment
+            .env_dir_path()
+            .join(format!("deployment_config_{}.json", self.deployment_aux_data.instance_name))
     }
 
     pub fn dump_config_override_files(&self) {
@@ -139,7 +129,6 @@ struct DeploymentAuxData {
     node_type: NodeType,
     environment: Environment,
     instance_name: String,
-    base_app_config_file_path: PathBuf,
     config_override: ConfigOverride,
     config_override_dir: PathBuf,
 }

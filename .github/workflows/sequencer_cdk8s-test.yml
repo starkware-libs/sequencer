@@ -26,7 +26,7 @@ jobs:
     env:
       cluster: test
       namespace: test
-      deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/testing/deployment_configs/deployment_test_consolidated.json
+      deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/deployments/testing/deployment_test_consolidated.json
       monitoring_dashboard_file: ${{ github.workspace }}/deployments/monitoring/examples/output/dashboards/sequencer_node_dashboard.json
 
     steps:

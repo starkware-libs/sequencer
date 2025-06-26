@@ -6,42 +6,46 @@
       "controller": "StatefulSet",
       "config_paths": [
         "base_app_config.json",
-        "testing/app_configs/hybrid/deployment_test_hybrid/deployment_config_override.json",
-        "testing/app_configs/hybrid/deployment_test_hybrid/instance_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_2/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_2/instance_config_override.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
-      "storage": null,
-      "toleration": null,
+      "storage": 1000,
+      "toleration": "apollo-core-service",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
+          "cpu": 2,
+          "memory": 4
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 7,
+          "memory": 14
         }
       },
-      "external_secret": null,
-      "anti_affinity": false
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-integration-2"
+      },
+      "anti_affinity": true
     },
     {
       "name": "HttpServer",
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing/app_configs/hybrid/deployment_test_hybrid/deployment_config_override.json",
-        "testing/app_configs/hybrid/deployment_test_hybrid/instance_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_2/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_2/instance_config_override.json",
         "services/hybrid/http_server.json"
       ],
       "ingress": {
-        "domain": "sw-dev.io",
-        "alternative_names": [],
-        "internal": true,
+        "domain": "starknet.io",
+        "alternative_names": [
+          "integration-sepolia.starknet.io"
+        ],
+        "internal": false,
         "rules": [
           {
             "path": "/gateway",
@@ -54,7 +58,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -65,7 +69,9 @@
           "memory": 8
         }
       },
-      "external_secret": null,
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-integration-2"
+      },
       "anti_affinity": false
     },
     {
@@ -73,27 +79,29 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing/app_configs/hybrid/deployment_test_hybrid/deployment_config_override.json",
-        "testing/app_configs/hybrid/deployment_test_hybrid/instance_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_2/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_2/instance_config_override.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
       "autoscale": true,
-      "replicas": 1,
+      "replicas": 2,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
-      "external_secret": null,
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-integration-2"
+      },
       "anti_affinity": false
     },
     {
@@ -101,8 +109,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing/app_configs/hybrid/deployment_test_hybrid/deployment_config_override.json",
-        "testing/app_configs/hybrid/deployment_test_hybrid/instance_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_2/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_2/instance_config_override.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
@@ -110,18 +118,20 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-core-service",
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
-      "external_secret": null,
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-integration-2"
+      },
       "anti_affinity": false
     },
     {
@@ -129,27 +139,29 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing/app_configs/hybrid/deployment_test_hybrid/deployment_config_override.json",
-        "testing/app_configs/hybrid/deployment_test_hybrid/instance_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_2/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_2/instance_config_override.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
       "autoscale": true,
-      "replicas": 1,
+      "replicas": 2,
       "storage": null,
-      "toleration": null,
+      "toleration": "apollo-general-service",
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 4,
-          "memory": 8
+          "cpu": 2,
+          "memory": 4
         }
       },
-      "external_secret": null,
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-integration-2"
+      },
       "anti_affinity": false
     }
   ]
