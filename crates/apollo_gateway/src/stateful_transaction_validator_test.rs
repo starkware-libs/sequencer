@@ -6,10 +6,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
-use blockifier::blockifier::stateful_validator::{
-    StatefulValidatorError as BlockifierStatefulValidatorError,
-    StatefulValidatorResult as BlockifierStatefulValidatorResult,
-};
+use blockifier::blockifier::stateful_validator::StatefulValidatorError as BlockifierStatefulValidatorError;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
@@ -43,18 +40,6 @@ use crate::stateful_transaction_validator::{
     StatefulTransactionValidator,
 };
 
-pub const STATEFUL_VALIDATOR_FEE_ERROR: BlockifierStatefulValidatorError =
-    BlockifierStatefulValidatorError::TransactionPreValidationError(
-        TransactionPreValidationError::TransactionFeeError(
-            TransactionFeeError::GasBoundsExceedBalance {
-                resource: Resource::L1DataGas,
-                max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
-                max_price: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
-                balance: BigUint::ZERO,
-            },
-        ),
-    );
-
 #[fixture]
 fn stateful_validator() -> StatefulTransactionValidator {
     StatefulTransactionValidator { config: StatefulTransactionValidatorConfig::default() }
@@ -62,20 +47,28 @@ fn stateful_validator() -> StatefulTransactionValidator {
 
 // TODO(Arni): consider testing declare and deploy account.
 #[rstest]
-#[case::valid_tx(
-    create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    Ok(())
-)]
-#[case::invalid_tx(
-    create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    Err(STATEFUL_VALIDATOR_FEE_ERROR)
-)]
+#[case::valid_tx(create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)), true)]
+#[case::invalid_tx(create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)), false)]
 #[tokio::test]
 async fn test_stateful_tx_validator(
     #[case] executable_tx: AccountTransaction,
-    #[case] expected_result: BlockifierStatefulValidatorResult<()>,
+    #[case] expect_ok: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
+    let expected_result = if expect_ok {
+        Ok(())
+    } else {
+        Err(BlockifierStatefulValidatorError::TransactionPreValidationError(
+            TransactionPreValidationError::TransactionFeeError(Box::new(
+                TransactionFeeError::GasBoundsExceedBalance {
+                    resource: Resource::L1DataGas,
+                    max_amount: GasAmount(VALID_L1_GAS_MAX_AMOUNT),
+                    max_price: GasPrice(VALID_L1_GAS_MAX_PRICE_PER_UNIT),
+                    balance: BigUint::ZERO,
+                },
+            )),
+        ))
+    };
     let expected_result_as_stateful_transaction_result = expected_result
         .as_ref()
         .map(|validate_result| *validate_result)

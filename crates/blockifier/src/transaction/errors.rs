@@ -141,7 +141,7 @@ pub enum TransactionPreValidationError {
     #[error(transparent)]
     StateError(#[from] StateError),
     #[error(transparent)]
-    TransactionFeeError(#[from] TransactionFeeError),
+    TransactionFeeError(#[from] Box<TransactionFeeError>),
 }
 
 #[derive(Debug, Error)]
