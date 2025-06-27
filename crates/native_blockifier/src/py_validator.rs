@@ -73,11 +73,13 @@ impl PyValidator {
 
         // We check if the transaction should be skipped due to the deploy account not being
         // processed.
-        let validate = self.should_run_stateful_validations(&account_tx, deploy_account_tx_hash)?;
+        let validate = self
+            .should_run_stateful_validations(&account_tx, deploy_account_tx_hash)
+            .map_err(Box::new)?;
 
         account_tx.execution_flags.validate = validate;
         account_tx.execution_flags.strict_nonce_check = false;
-        self.stateful_validator.perform_validations(account_tx)?;
+        self.stateful_validator.perform_validations(account_tx).map_err(Box::new)?;
 
         Ok(())
     }
