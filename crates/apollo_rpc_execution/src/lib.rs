@@ -198,7 +198,7 @@ pub enum ExecutionError {
     #[error(transparent)]
     StorageError(#[from] StorageError),
     #[error(transparent)]
-    TransactionFeeError(#[from] blockifier::transaction::errors::TransactionFeeError),
+    TransactionFeeError(#[from] Box<blockifier::transaction::errors::TransactionFeeError>),
     #[error(
         "Execution failed at transaction {transaction_index:?} with error: {execution_error:?}"
     )]
