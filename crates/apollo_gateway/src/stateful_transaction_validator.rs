@@ -45,6 +45,7 @@ type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>
 // TODO(yair): move the trait to Blockifier.
 #[cfg_attr(test, automock)]
 pub trait StatefulTransactionValidatorTrait {
+    #[allow(clippy::result_large_err)]
     fn validate(&mut self, account_tx: AccountTransaction)
     -> BlockifierStatefulValidatorResult<()>;
 }
