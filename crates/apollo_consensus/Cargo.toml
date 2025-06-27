@@ -15,7 +15,7 @@ apollo_metrics.workspace = true
 apollo_network.workspace = true
 apollo_network_types.workspace = true
 apollo_protobuf.workspace = true
-apollo_time.workspace = true
+apollo_time = { workspace = true, features = ["tokio"] }
 async-trait.workspace = true
 clap = { workspace = true, features = ["derive"] }
 fs2.workspace = true

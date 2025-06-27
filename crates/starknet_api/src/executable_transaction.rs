@@ -205,7 +205,7 @@ impl DeclareTransaction {
     pub fn is_bootstrap_declare(&self, charge_fee: bool) -> bool {
         if let crate::transaction::DeclareTransaction::V3(tx) = &self.tx {
             return tx.sender_address == Self::bootstrap_address()
-                && tx.nonce == Nonce::default()
+                && tx.nonce == Nonce(Felt::ZERO)
                 && !charge_fee;
         }
         false

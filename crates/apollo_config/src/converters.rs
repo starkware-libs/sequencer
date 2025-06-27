@@ -29,6 +29,7 @@ use std::time::Duration;
 
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
+use url::Url;
 
 /// Deserializes milliseconds to duration object.
 pub fn deserialize_milliseconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
@@ -132,4 +133,28 @@ where
         vector.push(byte);
     }
     Ok(Some(vector))
+}
+
+// TODO(Tsabary): generalize these for Vec<T> serde.
+
+/// Serializes a `&[Url]` into a single space-separated string.
+pub fn serialize_slice_url(vector: &[Url]) -> String {
+    vector.iter().map(Url::as_str).collect::<Vec<_>>().join(" ")
+}
+
+/// Deserializes a space-separated string into a `Vec<Url>`.
+/// Returns an error if any of the substrings cannot be parsed into a valid URL.
+pub fn deserialize_vec_url<'de, D>(de: D) -> Result<Vec<Url>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw: String = <String as serde::Deserialize>::deserialize(de)?;
+
+    if raw.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    raw.split_whitespace()
+        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{}': {}", s, e))))
+        .collect()
 }

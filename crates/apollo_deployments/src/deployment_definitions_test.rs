@@ -1,31 +1,29 @@
 use std::env;
 
 use apollo_config::CONFIG_FILE_ARG;
-use apollo_infra_utils::dumping::serialize_to_file_test;
+use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionMode,
     ReactiveComponentExecutionMode,
 };
 use apollo_node::config::node_config::SequencerNodeConfig;
+use serde_json::to_value;
 use strum::IntoEnumIterator;
+use tempfile::NamedTempFile;
 
-use crate::deployment::FIX_BINARY_NAME;
 use crate::deployment_definitions::DEPLOYMENTS;
-use crate::service::DeploymentName;
+use crate::service::NodeType;
+use crate::test_utils::{SecretsConfigOverride, FIX_BINARY_NAME};
 
-/// Test that the deployment file is up to date. To update it run:
-/// cargo run --bin deployment_generator -q
+/// Test that the deployment file is up to date.
 #[test]
 fn deployment_files_are_up_to_date() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
 
-    // TODO(Tsabary): The word "deployment" is overloaded. On one hand it means the "node
-    // configuration" (e.g. hybrid), on the other it means the "k8s setups" (e.g. upgrade_test).
-    // Need to fix that.
-    for deployment_name in DeploymentName::iter() {
-        deployment_name.test_dump_service_component_configs(None);
+    for node_type in NodeType::iter() {
+        node_type.test_dump_service_component_configs(None);
     }
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
         serialize_to_file_test(
@@ -42,14 +40,24 @@ fn deployment_files_are_up_to_date() {
 fn load_and_process_service_config_files() {
     env::set_current_dir(resolve_project_relative_path("").unwrap())
         .expect("Couldn't set working dir.");
+
+    // Create a dummy secrets value to the config file paths.
+    let temp_file = NamedTempFile::new().unwrap();
+    let temp_file_path = temp_file.path().to_str().unwrap();
+    let secrets_config_override = SecretsConfigOverride::default();
+    serialize_to_file(to_value(&secrets_config_override).unwrap(), temp_file_path);
+
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
-        for service_config_paths in deployment.get_config_file_paths().into_iter() {
+        for mut service_config_paths in deployment.get_config_file_paths().into_iter() {
             println!(
                 "Loading deployment {} in path {:?} with application files {:?} ... ",
-                deployment.get_deployment_name(),
+                deployment.get_node_type(),
                 deployment.deployment_file_path(),
                 service_config_paths
             );
+
+            // Add the secrets config file path to the config load command.
+            service_config_paths.push(temp_file_path.to_string());
 
             let config_file_args: Vec<String> = service_config_paths
                 .clone()
@@ -77,8 +85,8 @@ fn load_and_process_service_config_files() {
 #[test]
 fn l1_components_state_consistency() {
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
-        let deployment_name = deployment.get_deployment_name();
-        let component_configs = deployment_name.get_component_configs(None);
+        let node_type = deployment.get_node_type();
+        let component_configs = node_type.get_component_configs(None);
 
         let l1_gas_price_provider_indicator = component_configs.values().any(|component_config| {
             component_config.l1_gas_price_provider.execution_mode

@@ -18,7 +18,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
-use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
+use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 
 const NODE_STORAGE: usize = 1000;
 const TESTING_NODE_STORAGE: usize = 1;
@@ -29,17 +29,17 @@ pub enum ConsolidatedNodeServiceName {
     Node,
 }
 
-impl From<ConsolidatedNodeServiceName> for ServiceName {
+impl From<ConsolidatedNodeServiceName> for NodeService {
     fn from(service: ConsolidatedNodeServiceName) -> Self {
-        ServiceName::ConsolidatedNode(service)
+        NodeService::ConsolidatedNode(service)
     }
 }
 
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
-    fn get_component_configs(_ports: Option<Vec<u16>>) -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(_ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let mut component_config_map = IndexMap::new();
         component_config_map.insert(
-            ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
+            NodeService::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
             get_consolidated_config(),
         );
         component_config_map

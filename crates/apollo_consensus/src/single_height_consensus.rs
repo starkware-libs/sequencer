@@ -276,7 +276,7 @@ impl SingleHeightConsensus {
                     // Only replay the newest prevote.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                debug!("Rebroadcasting {last_vote:?}");
+                trace!("Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Prevote(
                     self.timeouts.prevote_timeout,
@@ -377,7 +377,7 @@ impl SingleHeightConsensus {
         context: &mut ContextT,
         vote: Vote,
     ) -> Result<ShcReturn, ConsensusError> {
-        debug!("Received {:?}", vote);
+        trace!("Received {:?}", vote);
         if !self.validators.contains(&vote.voter) {
             debug!("Ignoring vote from non validator: vote={:?}", vote);
             return Ok(ShcReturn::Tasks(Vec::new()));

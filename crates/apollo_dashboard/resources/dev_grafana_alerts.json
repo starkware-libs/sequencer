@@ -730,6 +730,60 @@
       "severity": "p2"
     },
     {
+      "name": "http_server_avg_add_tx_latency",
+      "title": "High HTTP server average add_tx latency",
+      "ruleGroup": "http_server",
+      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "http_server_p95_add_tx_latency",
+      "title": "High HTTP server P95 add_tx latency",
+      "ruleGroup": "http_server",
+      "expr": "histogram_quantile(0.95, sum(rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4"
+    },
+    {
       "name": "l1_gas_price_provider_insufficient_history",
       "title": "L1 gas price provider insufficient history",
       "ruleGroup": "l1_gas_price",
