@@ -8,6 +8,7 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
+use serde::Serialize;
 use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
 use starknet_api::execution_resources::GasAmount;
@@ -47,7 +48,7 @@ pub type SyscallSelector = DeprecatedSyscallSelector;
 
 pub type SyscallUsageMap = HashMap<SyscallSelector, SyscallUsage>;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct SyscallUsage {
     pub call_count: usize,
     pub linear_factor: usize,
