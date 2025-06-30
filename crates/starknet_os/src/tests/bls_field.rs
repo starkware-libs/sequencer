@@ -3,7 +3,6 @@ use std::collections::HashMap;
 
 use apollo_starknet_os_program::OS_PROGRAM_BYTES;
 use cairo_vm::types::builtin_name::BuiltinName;
-use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::program::Program;
 use ethnum::U256;
 use num_bigint::{BigInt, BigUint, RandBigInt, RandomBits, Sign, ToBigInt};
@@ -16,12 +15,12 @@ use crate::hints::hint_implementation::kzg::utils::{split_bigint3, BASE, BLS_PRI
 use crate::test_utils::cairo_runner::{
     run_cairo_0_entry_point,
     EndpointArg,
-    EntryPointRunnerConfig,
     ImplicitArg,
     PointerArg,
     ValueArg,
 };
 use crate::test_utils::utils::{
+    get_entrypoint_runner_config,
     pack_bigint3,
     seeded_random_prng,
     test_cairo_function,
@@ -31,14 +30,6 @@ use crate::test_utils::utils::{
 const REDUCED_MUL_LIMB_BOUND: i128 = 2_i128.pow(104);
 
 // TODO(Nimrod): Move this next to the BLS hints implementation.
-
-fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
-    EntryPointRunnerConfig {
-        layout: LayoutName::small,
-        add_main_prefix_to_entrypoint: false,
-        ..Default::default()
-    }
-}
 
 fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) {
     let explicit_args = [
@@ -159,6 +150,7 @@ fn test_horner_eval() {
             &implicit_args,
             &[EndpointArg::Value(ValueArg::Array(vec![Felt::ZERO, Felt::ZERO, Felt::ZERO]))],
             HashMap::new(),
+            None,
         )
         .unwrap();
 

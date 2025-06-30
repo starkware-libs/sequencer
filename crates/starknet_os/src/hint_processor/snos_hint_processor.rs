@@ -341,7 +341,7 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         let state_inputs = vec![os_state_input.unwrap_or_default()];
         let os_hints_config = os_hints_config.unwrap_or_default();
 
-        SnosHintProcessor::new(
+        let mut hint_processor = SnosHintProcessor::new(
             os_program,
             os_hints_config,
             block_inputs,
@@ -349,7 +349,9 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
             BTreeMap::new(),
             BTreeMap::new(),
             vec![state_reader],
-        )
+        )?;
+        hint_processor.execution_helpers_manager.increment_current_helper_index();
+        Ok(hint_processor)
     }
 }
 
