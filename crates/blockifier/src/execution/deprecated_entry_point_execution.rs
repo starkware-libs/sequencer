@@ -215,13 +215,15 @@ pub fn run_entry_point(
     let verify_secure = true;
     let program_segment_size = None; // Infer size from program.
     let args: Vec<&CairoArg> = args.iter().collect();
-    let result = runner.run_from_entrypoint(
-        entry_point_pc,
-        &args,
-        verify_secure,
-        program_segment_size,
-        hint_processor,
-    );
+    let result = runner
+        .run_from_entrypoint(
+            entry_point_pc,
+            &args,
+            verify_secure,
+            program_segment_size,
+            hint_processor,
+        )
+        .map_err(Box::new);
 
     Ok(result?)
 }

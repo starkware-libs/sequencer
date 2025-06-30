@@ -88,7 +88,7 @@ impl From<RunnerError> for PostExecutionError {
 #[derive(Debug, Error)]
 pub enum EntryPointExecutionError {
     #[error(transparent)]
-    CairoRunError(#[from] CairoRunError),
+    CairoRunError(#[from] Box<CairoRunError>),
     #[error("{error_trace}")]
     ExecutionFailed { error_trace: Cairo1RevertSummary },
     #[error("Internal error: {0}")]

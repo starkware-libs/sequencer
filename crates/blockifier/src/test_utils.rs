@@ -214,19 +214,22 @@ macro_rules! check_entry_point_execution_error {
         use cairo_vm::vm::errors::vm_exception::VmException;
         use $crate::execution::errors::EntryPointExecutionError;
 
-        if let EntryPointExecutionError::CairoRunError(CairoRunError::VmException(VmException {
-            inner_exc,
-            ..
-        })) = $error
-        {
-            match $expected_hint {
-                Some(expected_hint) => {
-                    $crate::check_inner_exc_for_custom_hint!(inner_exc, expected_hint)
+        match $error {
+            EntryPointExecutionError::CairoRunError(boxed_error) => {
+                if let CairoRunError::VmException(VmException { inner_exc, .. }) =
+                    &*(boxed_error.as_ref())
+                {
+                    match $expected_hint {
+                        Some(expected_hint) => {
+                            $crate::check_inner_exc_for_custom_hint!(inner_exc, expected_hint)
+                        }
+                        None => $crate::check_inner_exc_for_invalid_scenario!(inner_exc),
+                    };
+                } else {
+                    panic!("Unexpected structure for error: {:?}", $error);
                 }
-                None => $crate::check_inner_exc_for_invalid_scenario!(inner_exc),
-            };
-        } else {
-            panic!("Unexpected structure for error: {:?}", $error);
+            }
+            _ => panic!("Unexpected structure for error: {:?}", $error),
         }
     }};
 }
@@ -250,14 +253,14 @@ macro_rules! check_tx_execution_error_inner {
                 TransactionExecutionError::ContractConstructorExecutionFailed(
                     ConstructorEntryPointExecutionError::ExecutionError { error, .. },
                 ) => {
-                    $crate::check_entry_point_execution_error!(error, $expected_hint)
+                    $crate::check_entry_point_execution_error!(&error, $expected_hint)
                 }
                 _ => panic!("Unexpected structure for error: {:?}", $error),
             }
         } else {
             match $error {
                 TransactionExecutionError::ValidateTransactionError { error, .. } => {
-                    $crate::check_entry_point_execution_error!(error, $expected_hint)
+                    $crate::check_entry_point_execution_error!(&error, $expected_hint)
                 }
                 _ => panic!("Unexpected structure for error: {:?}", $error),
             }
