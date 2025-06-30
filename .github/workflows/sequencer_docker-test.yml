@@ -12,7 +12,7 @@ on:
   pull_request:
 
 env:
-  crate_triggers: "apollo_node,apollo_dashboard"
+  crate_triggers: "apollo_node,apollo_dashboard,apollo_integration_tests"
   path_triggers: ".github/workflows/sequencer_docker-test.yml,scripts/*.py,scripts/system_tests/**/*.py"
 
 permissions:
