@@ -10,7 +10,7 @@ use num_traits::ToPrimitive;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::MessageToL1;
+use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
@@ -48,8 +48,27 @@ fn wrap_to_bool_missing(val: Option<Felt>, val_name: &str) -> Result<bool, OsOut
     ))
 }
 
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
+    iter: &mut It,
+) -> Result<MessageToL1, OsOutputError> {
+    let from_address = wrap_missing(iter.next(), "from_address")?.try_into().map_err(
+        |e: <ContractAddress as TryFrom<Felt>>::Error| {
+            OsOutputError::InvalidOsOutputField("from_address".to_string(), e.to_string())
+        },
+    )?;
+    let to_address = wrap_missing(iter.next(), "to_address")?.try_into().map_err(
+        |e: <EthAddress as TryFrom<Felt>>::Error| {
+            OsOutputError::InvalidOsOutputField("to_address".to_string(), e.to_string())
+        },
+    )?;
+    let payload_size = wrap_to_usize_missing(iter.next(), "payload_size")?;
+    let payload = L2ToL1Payload(iter.take(payload_size).collect());
+
+    Ok(MessageToL1 { from_address, to_address, payload })
+}
+
 // An L1 to L2 message header, the message payload is concatenated to the end of the header.
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 pub struct MessageToL2 {
     // The L1 address of the contract sending the message.
     from_address: EthAddress,
@@ -57,7 +76,30 @@ pub struct MessageToL2 {
     to_address: ContractAddress,
     nonce: Nonce,
     selector: EntryPointSelector,
-    payload: Vec<Felt>,
+    payload: L1ToL2Payload,
+}
+
+impl MessageToL2 {
+    pub fn from_output_iter<It: Iterator<Item = Felt>>(
+        iter: &mut It,
+    ) -> Result<Self, OsOutputError> {
+        let from_address = wrap_missing(iter.next(), "from_address")?.try_into().map_err(
+            |e: <EthAddress as TryFrom<Felt>>::Error| {
+                OsOutputError::InvalidOsOutputField("from_address".to_string(), e.to_string())
+            },
+        )?;
+        let to_address = wrap_missing(iter.next(), "to_address")?.try_into().map_err(
+            |e: <ContractAddress as TryFrom<Felt>>::Error| {
+                OsOutputError::InvalidOsOutputField("to_address".to_string(), e.to_string())
+            },
+        )?;
+        let nonce = Nonce(wrap_missing(iter.next(), "nonce")?);
+        let selector = EntryPointSelector(wrap_missing(iter.next(), "selector")?);
+        let payload_size = wrap_to_usize_missing(iter.next(), "payload_size")?;
+        let payload = L1ToL2Payload(iter.take(payload_size).collect());
+
+        Ok(Self { from_address, to_address, nonce, selector, payload })
+    }
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
@@ -140,20 +182,20 @@ impl OsOutput {
             wrap_to_usize_missing(output_iter.next(), "messages_to_l1_segment_size")?;
         let mut messages_to_l1_iter =
             output_iter.by_ref().take(messages_to_l1_segment_size).peekable();
-        let messages_to_l1 = Vec::<MessageToL1>::with_capacity(messages_to_l1_segment_size);
+        let mut messages_to_l1 = Vec::<MessageToL1>::with_capacity(messages_to_l1_segment_size);
 
         while messages_to_l1_iter.peek().is_some() {
-            todo!("Handle L1 messages");
+            messages_to_l1.push(message_l1_from_output_iter(&mut messages_to_l1_iter)?);
         }
 
         let messages_to_l2_segment_size =
             wrap_to_usize_missing(output_iter.next(), "messages_to_l2_segment_size")?;
         let mut messages_to_l2_iter =
             output_iter.by_ref().take(messages_to_l2_segment_size).peekable();
-        let messages_to_l2 = Vec::<MessageToL2>::with_capacity(messages_to_l2_segment_size);
+        let mut messages_to_l2 = Vec::<MessageToL2>::with_capacity(messages_to_l2_segment_size);
 
         while messages_to_l2_iter.peek().is_some() {
-            todo!("Handle L2 messages");
+            messages_to_l2.push(MessageToL2::from_output_iter(&mut messages_to_l2_iter)?);
         }
 
         // State diff.
