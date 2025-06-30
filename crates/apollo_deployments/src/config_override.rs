@@ -14,7 +14,6 @@ use crate::deployment::PragmaDomain;
 use crate::test_utils::FIX_BINARY_NAME;
 
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
-const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
 
 const PRAGMA_URL_TEMPLATE: Template =
     Template("https://api.{}.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median");
@@ -33,9 +32,14 @@ impl ConfigOverride {
         Self { deployment_config_override, instance_config_override }
     }
 
-    fn config_files(&self, config_override_dir: &Path, create: bool) -> ConfigOverrideWithPaths {
-        let deployment_path = config_override_dir.join(DEPLOYMENT_FILE_NAME);
-        let instance_path = config_override_dir.join(INSTANCE_FILE_NAME);
+    fn config_files(
+        &self,
+        deployment_config_override_dir: &Path,
+        instance_name: &str,
+        create: bool,
+    ) -> ConfigOverrideWithPaths {
+        let deployment_path = deployment_config_override_dir.join(DEPLOYMENT_FILE_NAME);
+        let instance_path = deployment_config_override_dir.join(format!("{}.json", instance_name));
 
         if create {
             serialize_to_file(
@@ -59,19 +63,34 @@ impl ConfigOverride {
         }
     }
 
-    pub fn get_config_file_paths(&self, config_override_dir: &Path) -> Vec<String> {
-        let config_override_with_paths = self.config_files(config_override_dir, false);
+    pub fn get_config_file_paths(
+        &self,
+        deployment_config_override_dir: &Path,
+        instance_name: &str,
+    ) -> Vec<String> {
+        let config_override_with_paths =
+            self.config_files(deployment_config_override_dir, instance_name, false);
         vec![config_override_with_paths.deployment_path, config_override_with_paths.instance_path]
     }
 
-    pub fn dump_config_files(&self, config_override_dir: &Path) -> Vec<String> {
-        let config_override_with_paths = self.config_files(config_override_dir, true);
+    pub fn dump_config_files(
+        &self,
+        deployment_config_override_dir: &Path,
+        instance_name: &str,
+    ) -> Vec<String> {
+        let config_override_with_paths =
+            self.config_files(deployment_config_override_dir, instance_name, true);
         vec![config_override_with_paths.deployment_path, config_override_with_paths.instance_path]
     }
 
     #[cfg(test)]
-    pub fn test_dump_config_files(&self, config_override_dir: &Path) {
-        let config_override_with_paths = self.config_files(config_override_dir, false);
+    pub fn test_dump_config_files(
+        &self,
+        deployment_config_override_dir: &Path,
+        instance_name: &str,
+    ) {
+        let config_override_with_paths =
+            self.config_files(deployment_config_override_dir, instance_name, false);
 
         serialize_to_file_test(
             to_value(config_override_with_paths.deployment_config_override).unwrap(),

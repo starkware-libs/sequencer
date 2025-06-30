@@ -3,7 +3,7 @@ use apollo_infra_utils::template::Template;
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
 use crate::deployment_definitions::Environment;
-use crate::deployments::hybrid::create_hybrid_instance_config_override;
+use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
 use crate::k8s::{ExternalSecret, IngressParams};
 use crate::service::NodeType;
 
@@ -11,7 +11,6 @@ const SEPOLIA_INTEGRATION_NODE_IDS: [usize; 3] = [0, 1, 2];
 const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "integration-sepolia.starknet.io";
 const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "starknet.io";
-const INSTANCE_NAME_FORMAT: Template = Template("integration_hybrid_node_{}");
 const SECRET_NAME_FORMAT: Template = Template("apollo-sepolia-integration-{}");
 const NODE_NAMESPACE_FORMAT: Template = Template("apollo-sepolia-integration-{}");
 

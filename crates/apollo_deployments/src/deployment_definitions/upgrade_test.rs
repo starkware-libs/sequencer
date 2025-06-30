@@ -3,7 +3,7 @@ use apollo_infra_utils::template::Template;
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
 use crate::deployment_definitions::Environment;
-use crate::deployments::hybrid::create_hybrid_instance_config_override;
+use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
 use crate::service::NodeType;
 
@@ -11,7 +11,6 @@ const UPGRADE_TEST_NODE_IDS: [usize; 3] = [0, 1, 2];
 const UPGRADE_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-alpha-test-upgrade.gateway-proxy.sw-dev.io";
 const UPGRADE_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
-const INSTANCE_NAME_FORMAT: Template = Template("hybrid_node_{}");
 const SECRET_NAME_FORMAT: Template = Template("apollo-alpha-test-{}");
 const NODE_NAMESPACE_FORMAT: Template = Template("apollo-alpha-test-{}");
 

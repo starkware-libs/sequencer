@@ -3,7 +3,7 @@ use apollo_infra_utils::template::Template;
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
 use crate::deployment_definitions::Environment;
-use crate::deployments::hybrid::create_hybrid_instance_config_override;
+use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
 use crate::service::NodeType;
 
@@ -18,7 +18,6 @@ const TESTING_ENV_3_NODE_IDS: [(usize, P2PCommunicationType); 4] = [
 const TESTING_ENV_3_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io";
 const TESTING_ENV_3_INGRESS_DOMAIN: &str = "sw-dev.io";
-const INSTANCE_NAME_FORMAT: Template = Template("integration_hybrid_node_{}");
 const SECRET_NAME_FORMAT: Template = Template("sequencer-test-3-node-{}");
 const NODE_NAMESPACE_FORMAT: Template = Template("sequencer-test-3-node-{}");
 
