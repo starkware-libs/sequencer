@@ -8,6 +8,7 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra_utils::info_every_n;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use async_trait::async_trait;
@@ -19,7 +20,7 @@ use starknet_api::core::ChainId;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 use validator::Validate;
 
 use crate::metrics::{
@@ -80,6 +81,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         self.assert_no_l1_reorgs().await?;
 
         let (latest_l1_block, events) = self.fetch_events().await?;
+        trace!("scraped up to {latest_l1_block:?}");
+        // TODO(guy.f): Replace with debug_every_n_sec once implemented.
+        info_every_n!(100, "scraped up to {latest_l1_block:?}");
 
         // Sending even if there are no events, to keep the flow as simple/debuggable as possible.
         // Perf hit is minimal, since the scraper is on the same machine as the provider (no net).
