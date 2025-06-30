@@ -236,12 +236,24 @@ async fn is_block_info_valid(
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
     debug!("L1 price info: {l1_gas_prices:?}");
 
-    let l1_gas_price_fri = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate);
-    let l1_data_gas_price_fri = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate);
-    let l1_gas_price_fri_proposed =
-        block_info_proposed.l1_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate);
-    let l1_data_gas_price_fri_proposed =
-        block_info_proposed.l1_data_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate);
+    // TODO(guyn): when is_block_info_valid is refactored to return a Result, propagate these
+    // errors.
+    let Ok(l1_gas_price_fri) = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate) else {
+        return false;
+    };
+    let Ok(l1_data_gas_price_fri) = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate) else {
+        return false;
+    };
+    let Ok(l1_gas_price_fri_proposed) =
+        block_info_proposed.l1_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate)
+    else {
+        return false;
+    };
+    let Ok(l1_data_gas_price_fri_proposed) =
+        block_info_proposed.l1_data_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate)
+    else {
+        return false;
+    };
     if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
         && within_margin(
             l1_data_gas_price_fri_proposed,
