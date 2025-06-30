@@ -42,8 +42,8 @@ use crate::config::monitoring::MonitoringConfig;
 use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
-pub const DEFAULT_CONFIG_PATH: &str = "config/sequencer/default_config.json";
-pub const POINTER_TARGET_VALUE: &str = "PointerTarget";
+pub const CONFIG_SCHEMA_PATH: &str = "crates/apollo_node/resources/config_schema.json";
+pub(crate) const POINTER_TARGET_VALUE: &str = "PointerTarget";
 
 // Configuration parameters that share the same value across multiple components.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
@@ -239,10 +239,9 @@ impl SerializeConfig for SequencerNodeConfig {
 }
 
 impl SequencerNodeConfig {
-    /// Creates a config object. Selects the values from the default file and from resources with
-    /// higher priority.
+    /// Creates a config object, using the config schema and provided resources.
     pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
-        let config_file_name = &resolve_project_relative_path(DEFAULT_CONFIG_PATH)?;
+        let config_file_name = &resolve_project_relative_path(CONFIG_SCHEMA_PATH)?;
         let default_config_file = File::open(config_file_name)?;
         load_and_process_config(default_config_file, node_command(), args, true)
     }
