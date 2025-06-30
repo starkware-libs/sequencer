@@ -2,6 +2,7 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+use cairo_vm::types::layout_name::LayoutName;
 use ethnum::U256;
 use num_bigint::{BigInt, Sign};
 use rand::rngs::StdRng;
@@ -30,6 +31,7 @@ pub fn run_cairo_function_and_check_result(
     expected_implicit_retdata: &[EndpointArg],
     hint_locals: HashMap<String, Box<dyn Any>>,
 ) -> Cairo0EntryPointRunnerResult<()> {
+    let state_reader = None;
     let (actual_implicit_retdata, actual_explicit_retdata, _) = run_cairo_0_entry_point(
         runner_config,
         program_bytes,
@@ -38,6 +40,7 @@ pub fn run_cairo_function_and_check_result(
         implicit_args,
         expected_explicit_retdata,
         hint_locals,
+        state_reader,
     )?;
     assert_eq!(expected_explicit_retdata, &actual_explicit_retdata);
     assert_eq!(expected_implicit_retdata, &actual_implicit_retdata);
@@ -122,4 +125,12 @@ pub fn pack_bigint3(limbs: &[Felt]) -> BigInt {
     limbs.iter().enumerate().fold(BigInt::ZERO, |acc, (i, &limb)| {
         acc + as_int(&limb, &DEFAULT_PRIME) * BASE.pow(i.try_into().unwrap())
     })
+}
+
+pub(crate) fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
+    EntryPointRunnerConfig {
+        layout: LayoutName::small,
+        add_main_prefix_to_entrypoint: false,
+        ..Default::default()
+    }
 }

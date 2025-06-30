@@ -1,9 +1,8 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::LazyLock;
 
 use assert_matches::assert_matches;
 use rstest::rstest;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::felt;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -23,9 +22,7 @@ use crate::state::cached_state::{CachedState, StateMaps, StorageEntry};
 use crate::state::state_api::{State, StateReader};
 use crate::state::stateful_compression::{AliasCompressor, CompressionError};
 use crate::test_utils::dict_state_reader::DictStateReader;
-
-static ALIAS_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
-    LazyLock::new(|| ContractAddress(PatriciaKey::try_from(Felt::TWO).unwrap()));
+use crate::test_utils::ALIAS_CONTRACT_ADDRESS;
 
 /// Decompresses the state diff by replacing the aliases with addresses and storage keys.
 fn decompress<S: StateReader>(
