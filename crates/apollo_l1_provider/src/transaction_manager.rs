@@ -273,6 +273,10 @@ impl TransactionManager {
     ) -> Self {
         Self { records, proposable_index, current_staging_epoch: current_epoch, config }
     }
+
+    pub fn consume_tx(&mut self, _tx_hash: TransactionHash) -> bool {
+        todo!()
+    }
 }
 
 impl Default for TransactionManager {

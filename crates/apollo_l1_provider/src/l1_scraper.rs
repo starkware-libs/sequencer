@@ -117,6 +117,10 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .iter()
             .filter_map(|event| match event {
                 L1Event::LogMessageToL2 { l1_tx_hash, .. } => Some(*l1_tx_hash),
+                L1Event::ConsumedMessageToL2(event_data) => {
+                    debug!("Consumed message on L1 with event_data: {event_data:?}");
+                    None
+                }
                 _ => None,
             })
             .collect::<Vec<_>>();
