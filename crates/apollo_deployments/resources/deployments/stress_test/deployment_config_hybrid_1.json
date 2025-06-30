@@ -6,8 +6,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "base_app_config.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/stress_test/deployment_config_override.json",
+        "deployments/stress_test/hybrid_1.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
@@ -15,19 +15,19 @@
       "autoscale": false,
       "replicas": 1,
       "storage": 1000,
-      "toleration": "apollo-core-service",
+      "toleration": "apollo-core-service-c2-d56",
       "resources": {
         "requests": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 50,
+          "memory": 200
         },
         "limits": {
-          "cpu": 7,
-          "memory": 14
+          "cpu": 50,
+          "memory": 220
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-0"
+        "gcsm_key": "apollo-stresstest-dev-1"
       },
       "anti_affinity": true
     },
@@ -36,14 +36,14 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/stress_test/deployment_config_override.json",
+        "deployments/stress_test/hybrid_1.json",
         "services/hybrid/http_server.json"
       ],
       "ingress": {
-        "domain": "starknet.io",
+        "domain": "sw-dev.io",
         "alternative_names": [
-          "integration-sepolia.starknet.io"
+          "apollo-stresstest-dev.sw-dev.io"
         ],
         "internal": false,
         "rules": [
@@ -70,7 +70,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-0"
+        "gcsm_key": "apollo-stresstest-dev-1"
       },
       "anti_affinity": false
     },
@@ -79,8 +79,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/stress_test/deployment_config_override.json",
+        "deployments/stress_test/hybrid_1.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
@@ -100,7 +100,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-0"
+        "gcsm_key": "apollo-stresstest-dev-1"
       },
       "anti_affinity": false
     },
@@ -109,8 +109,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/stress_test/deployment_config_override.json",
+        "deployments/stress_test/hybrid_1.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
@@ -130,7 +130,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-0"
+        "gcsm_key": "apollo-stresstest-dev-1"
       },
       "anti_affinity": false
     },
@@ -139,8 +139,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/stress_test/deployment_config_override.json",
+        "deployments/stress_test/hybrid_1.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
@@ -160,7 +160,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-sepolia-integration-0"
+        "gcsm_key": "apollo-stresstest-dev-1"
       },
       "anti_affinity": false
     }
