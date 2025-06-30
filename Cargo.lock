@@ -1812,6 +1812,7 @@ dependencies = [
 name = "apollo_proc_macros"
 version = "0.15.0-rc.2"
 dependencies = [
+ "lazy_static",
  "proc-macro2",
  "quote",
  "syn 2.0.100",
