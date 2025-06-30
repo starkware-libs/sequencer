@@ -35,9 +35,8 @@
 //! ```
 
 use std::collections::{BTreeMap, HashSet};
-use std::fs::File;
-use std::io::{BufWriter, Write};
 
+use apollo_infra_utils::dumping::serialize_to_file;
 use itertools::chain;
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -174,19 +173,7 @@ pub trait SerializeConfig {
     ) -> Result<(), ConfigError> {
         let combined_map =
             combine_config_map_and_pointers(self.dump(), config_pointers, non_pointer_params)?;
-
-        // Create file writer.
-        let file = File::create(file_path)?;
-        let mut writer = BufWriter::new(file);
-
-        // Add config as JSON content to writer.
-        serde_json::to_writer_pretty(&mut writer, &combined_map)?;
-
-        // Add an extra newline after the JSON content.
-        writer.write_all(b"\n")?;
-
-        // Write to file.
-        writer.flush()?;
+        serialize_to_file(combined_map, file_path);
         Ok(())
     }
 }
