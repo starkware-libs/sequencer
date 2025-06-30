@@ -98,12 +98,12 @@ impl<U: UpdatableState> ExecutableTransaction<U> for L1HandlerTransaction {
                         // For now, assert only that any amount of fee was paid.
                         // The error message still indicates the required fee.
                         if paid_fee == Fee(0) {
-                            return Err(TransactionExecutionError::TransactionFeeError(
+                            return Err(TransactionExecutionError::TransactionFeeError(Box::new(
                                 TransactionFeeError::InsufficientFee {
                                     paid_fee,
                                     actual_fee: receipt.fee,
                                 },
-                            ));
+                            )));
                         }
 
                         Ok(l1_handler_tx_execution_info(execute_call_info, receipt, None))
