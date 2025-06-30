@@ -49,78 +49,95 @@ def summarize_directory(path: str) -> None:
     return size_map
 
 
+# def copy_state(pod_name: str, data_dir: str) -> None:
+#     print(f"📥 Copying state contents from '{data_dir}' to pod {pod_name}:/data ...")
+
+#     if not os.path.isdir(data_dir):
+#         print(f"❌ '{data_dir}' is not a valid directory")
+#         sys.exit(1)
+
+#     batcher_path = os.path.join(data_dir, "batcher/")
+#     batcher_target = f"{pod_name}:/data/"
+#     state_sync_path = os.path.join(data_dir, "state_sync/")
+#     state_sync_target = f"{pod_name}:/data"
+#     class_manager_path = os.path.join(data_dir, "class_manager/")
+#     class_manager_target = f"{pod_name}:/data"
+#     print(f"📦 Copying batcher: {batcher_path} → {batcher_target}")
+#     run(
+#         [
+#             "kubectl",
+#             "cp",
+#             f"{data_dir}/batcher/",
+#             f"{pod_name}:/data/",
+#             "--retries=3",
+#         ],
+#         check=True,
+#     )
+#     print(f"📦 Copying state_sync: {state_sync_path} → {state_sync_target}")
+#     run(
+#         [
+#             "kubectl",
+#             "cp",
+#             state_sync_path,
+#             state_sync_target,
+#             "--retries=3",
+#         ],
+#         check=True,
+#     )
+#     print(f"📦 Copying class_manager: {class_manager_path} → {class_manager_target}")
+#     run(
+#         [
+#             "kubectl",
+#             "cp",
+#             class_manager_path,
+#             class_manager_target,
+#             "--retries=3",
+#         ],
+#         check=True,
+#     )
+#     # print(f"🔍 Listing files in /data of pod {pod_name}...")
+#     # subprocess.run(
+#     #     ["kubectl", "exec", pod_name, "--", "ls", "-l", "/data"],
+#     #     check=True,
+#     #     capture_output=True,
+#     #     text=True,
+#     # )
+#     # for item in os.listdir(data_dir):
+#     #     item_path = os.path.join(data_dir, item)
+#     #     target_path = f"{pod_name}:/data/{item}"
+#     #     print(f"📦 Copying: {item_path} → {target_path}")
+#     #     try:
+#     #         run(
+#     #             [
+#     #                 "kubectl",
+#     #                 "cp",
+#     #                 item_path,
+#     #                 target_path,
+#     #                 "--retries=3",
+#     #             ],
+#     #             check=True,
+#     #         )
+#     #     except subprocess.CalledProcessError as e:
+#     #         print(f"❌ Failed to copy '{item}': {e}")
+#     #         run(["kubectl", "describe", "pod", pod_name], check=False)
+#     #         sys.exit(1)
+
+
 def copy_state(pod_name: str, data_dir: str) -> None:
-    print(f"📥 Copying state contents from '{data_dir}' to pod {pod_name}:/data ...")
-
-    if not os.path.isdir(data_dir):
-        print(f"❌ '{data_dir}' is not a valid directory")
+    print(f"📥 Copying state data to {pod_name}...")
+    try:
+        run(
+            [
+                "kubectl",
+                "cp",
+                f"{data_dir}/.",
+                f"{pod_name}:/data",
+                "--retries=3",
+            ]
+        )
+    except subprocess.CalledProcessError as e:
+        print(f"❌ Failed to copy state to pod {pod_name}: {e}")
         sys.exit(1)
-
-    batcher_path = os.path.join(data_dir, "batcher/")
-    batcher_target = f"{pod_name}:/data/"
-    state_sync_path = os.path.join(data_dir, "state_sync/")
-    state_sync_target = f"{pod_name}:/data"
-    class_manager_path = os.path.join(data_dir, "class_manager/")
-    class_manager_target = f"{pod_name}:/data"
-    print(f"📦 Copying batcher: {batcher_path} → {batcher_target}")
-    run(
-        [
-            "kubectl",
-            "cp",
-            f"{data_dir}/batcher/",
-            f"{pod_name}:/data/",
-            "--retries=3",
-        ],
-        check=True,
-    )
-    print(f"📦 Copying state_sync: {state_sync_path} → {state_sync_target}")
-    run(
-        [
-            "kubectl",
-            "cp",
-            state_sync_path,
-            state_sync_target,
-            "--retries=3",
-        ],
-        check=True,
-    )
-    print(f"📦 Copying class_manager: {class_manager_path} → {class_manager_target}")
-    run(
-        [
-            "kubectl",
-            "cp",
-            class_manager_path,
-            class_manager_target,
-            "--retries=3",
-        ],
-        check=True,
-    )
-    print(f"🔍 Listing files in /data of pod {pod_name}...")
-    subprocess.run(
-        ["kubectl", "exec", pod_name, "--", "ls", "-l", "/data"],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    for item in os.listdir(data_dir):
-        item_path = os.path.join(data_dir, item)
-        target_path = f"{pod_name}:/data/{item}"
-        print(f"📦 Copying: {item_path} → {target_path}")
-        try:
-            run(
-                [
-                    "kubectl",
-                    "cp",
-                    item_path,
-                    target_path,
-                    "--retries=3",
-                ],
-                check=True,
-            )
-        except subprocess.CalledProcessError as e:
-            print(f"❌ Failed to copy '{item}': {e}")
-            run(["kubectl", "describe", "pod", pod_name], check=False)
-            sys.exit(1)
 
 
 def copy_state_tar(pod_name: str, data_dir: str) -> None:

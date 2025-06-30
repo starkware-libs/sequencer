@@ -14,7 +14,11 @@ use apollo_integration_tests::utils::{
 use clap::Parser;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
-use papyrus_base_layer::test_utils::{deploy_starknet_l1_contract, make_block_history_on_anvil};
+use papyrus_base_layer::test_utils::{
+    deploy_starknet_l1_contract,
+    make_block_history_on_anvil,
+    DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS,
+};
 use serde_json::Value;
 use tokio::time::{sleep, Duration};
 use tracing::info;
@@ -67,7 +71,7 @@ async fn initialize_anvil_state(sender_address: Address, receiver_address: Addre
         sender_address, receiver_address
     );
     let starknet_contract_address: EthereumContractAddress =
-        "0x4737c0c1B4D5b1A687B42610DdabEE781152359c".parse().expect("Invalid address");
+        DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().expect("Invalid address");
     let base_layer_config = EthereumBaseLayerConfig {
         node_url: Url::parse("http://localhost:8545").expect("Failed to parse Anvil URL"),
         starknet_contract_address,
