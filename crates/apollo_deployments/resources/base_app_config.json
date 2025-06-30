@@ -212,7 +212,6 @@
   "state_sync_config.network_config.peer_manager_config.unstable_timeout_millis": 1000,
   "state_sync_config.network_config.port": 53140,
   "state_sync_config.network_config.reported_peer_ids_buffer_size": 100000,
-  "state_sync_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
   "state_sync_config.network_config.session_timeout": 120,
   "state_sync_config.p2p_sync_client_config.#is_none": true,
   "state_sync_config.p2p_sync_client_config.buffer_size": 100000,

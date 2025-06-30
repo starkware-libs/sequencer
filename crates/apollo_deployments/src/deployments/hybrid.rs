@@ -496,13 +496,8 @@ pub(crate) fn create_hybrid_instance_config_override(
         NetworkConfigOverride::new(
             consensus_bootstrap_peer_multiaddr,
             consensus_advertised_multiaddr,
-            &node_secret_key,
         ),
-        NetworkConfigOverride::new(
-            mempool_bootstrap_peer_multiaddr,
-            mempool_advertised_multiaddr,
-            &node_secret_key,
-        ),
+        NetworkConfigOverride::new(mempool_bootstrap_peer_multiaddr, mempool_advertised_multiaddr),
         get_validator_id(node_id),
     )
 }

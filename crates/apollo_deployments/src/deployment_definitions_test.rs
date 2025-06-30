@@ -87,8 +87,6 @@ fn load_and_process_service_config_files() {
 /// Test that the private values in the apollo node config schema match the secrets config override
 /// schema.
 #[test]
-// TODO(Tsabary): enable the test once the config and schema are aligned.
-#[ignore]
 fn secrets_config_and_private_parameters_config_schema_compatibility() {
     let secrets_config_override = SecretsConfigOverride::default();
     let secrets_provided_by_config = to_value(&secrets_config_override)
