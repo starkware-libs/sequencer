@@ -6,8 +6,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "base_app_config.json",
-        "deployments/testing/deployment_test_hybrid/deployment_config_override.json",
-        "deployments/testing/deployment_test_hybrid/instance_config_override.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/deployment_test_hybrid.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
@@ -34,8 +34,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/testing/deployment_test_hybrid/deployment_config_override.json",
-        "deployments/testing/deployment_test_hybrid/instance_config_override.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/deployment_test_hybrid.json",
         "services/hybrid/http_server.json"
       ],
       "ingress": {
@@ -73,8 +73,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/testing/deployment_test_hybrid/deployment_config_override.json",
-        "deployments/testing/deployment_test_hybrid/instance_config_override.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/deployment_test_hybrid.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
@@ -101,8 +101,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/testing/deployment_test_hybrid/deployment_config_override.json",
-        "deployments/testing/deployment_test_hybrid/instance_config_override.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/deployment_test_hybrid.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
@@ -129,8 +129,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/testing/deployment_test_hybrid/deployment_config_override.json",
-        "deployments/testing/deployment_test_hybrid/instance_config_override.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/deployment_test_hybrid.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,

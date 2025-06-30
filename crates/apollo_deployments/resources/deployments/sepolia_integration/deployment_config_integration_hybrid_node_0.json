@@ -6,8 +6,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "base_app_config.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/sepolia_integration/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
@@ -36,8 +36,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/sepolia_integration/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0.json",
         "services/hybrid/http_server.json"
       ],
       "ingress": {
@@ -79,8 +79,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/sepolia_integration/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
@@ -109,8 +109,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/sepolia_integration/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
@@ -139,8 +139,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/deployment_config_override.json",
-        "deployments/sepolia_integration/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/sepolia_integration/deployment_config_override.json",
+        "deployments/sepolia_integration/integration_hybrid_node_0.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
