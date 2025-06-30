@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::env;
 use std::fs::File;
 use std::path::PathBuf;
@@ -15,7 +15,11 @@ use tempfile::{NamedTempFile, TempDir};
 use validator::Validate;
 
 use crate::command::{get_command_matches, update_config_map_by_command_args};
-use crate::converters::deserialize_milliseconds_to_duration;
+use crate::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_optional_list_with_nested_json,
+    serialize_optional_list_with_nested_json,
+};
 use crate::dumping::{
     combine_config_map_and_pointers,
     generate_struct_pointer,
@@ -905,4 +909,33 @@ fn deeply_nested_optionals() {
             }),
         }
     );
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
+struct TestConfigWithNestedJson {
+    #[serde(deserialize_with = "deserialize_optional_list_with_nested_json")]
+    list: Option<Vec<BTreeMap<String, HashMap<String, u64>>>>,
+}
+
+impl SerializeConfig for TestConfigWithNestedJson {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "list",
+            &serialize_optional_list_with_nested_json(&self.list),
+            "A list of nested JSON values.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+#[test]
+fn optional_list_nested_json() {
+    let config = TestConfigWithNestedJson {
+        list: Some(vec![BTreeMap::from([("a".to_owned(), HashMap::from([("b".to_owned(), 1)]))])]),
+    };
+    let dumped = config.dump();
+    let (config_map, _) = split_values_and_types(dumped);
+    let loaded_config = load::<TestConfigWithNestedJson>(&config_map).unwrap();
+    assert_eq!(loaded_config.list, config.list);
+    let serialized = serde_json::to_string(&loaded_config).unwrap();
+    assert_eq!(serialized, r#"{"list":[{"a":{"b":1}}]}"#);
 }
