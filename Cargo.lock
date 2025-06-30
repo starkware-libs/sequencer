@@ -1447,6 +1447,7 @@ version = "0.15.0-rc.2"
 dependencies = [
  "apollo_config",
  "apollo_infra",
+ "apollo_infra_utils",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
  "async-trait",
