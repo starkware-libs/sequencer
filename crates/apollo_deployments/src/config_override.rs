@@ -176,16 +176,12 @@ pub struct NetworkConfigOverride {
     advertised_multiaddr: String,
     #[serde(rename = "advertised_multiaddr.#is_none")]
     advertised_multiaddr_is_none: bool,
-
-    // TODO(Tsabary): network secret keys should be defined as secrets.
-    secret_key: String,
 }
 
 impl NetworkConfigOverride {
     pub fn new(
         bootstrap_peer_multiaddr: Option<String>,
         advertised_multiaddr: Option<String>,
-        secret_key: impl ToString,
     ) -> Self {
         let (bootstrap_peer_multiaddr, bootstrap_peer_multiaddr_is_none) =
             match bootstrap_peer_multiaddr {
@@ -201,7 +197,6 @@ impl NetworkConfigOverride {
             bootstrap_peer_multiaddr_is_none,
             advertised_multiaddr,
             advertised_multiaddr_is_none,
-            secret_key: secret_key.to_string(),
         }
     }
 }

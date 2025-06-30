@@ -34,11 +34,9 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
 }
 
 fn testing_instance_config_override() -> InstanceConfigOverride {
-    const SECRET_KEY: &str = "0x0101010101010101010101010101010101010101010101010101010101010101";
-
     InstanceConfigOverride::new(
-        NetworkConfigOverride::new(None, None, SECRET_KEY),
-        NetworkConfigOverride::new(None, None, SECRET_KEY),
+        NetworkConfigOverride::new(None, None),
+        NetworkConfigOverride::new(None, None),
         "0x64",
     )
 }
