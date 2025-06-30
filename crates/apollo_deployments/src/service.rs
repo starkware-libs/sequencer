@@ -128,9 +128,9 @@ impl Service {
     strum(serialize_all = "snake_case")
 )]
 pub enum NodeService {
-    ConsolidatedNode(ConsolidatedNodeServiceName),
-    HybridNode(HybridNodeServiceName),
-    DistributedNode(DistributedNodeServiceName),
+    Consolidated(ConsolidatedNodeServiceName),
+    Hybrid(HybridNodeServiceName),
+    Distributed(DistributedNodeServiceName),
 }
 
 impl NodeService {
@@ -160,9 +160,9 @@ impl NodeService {
 
     fn as_inner(&self) -> &dyn ServiceNameInner {
         match self {
-            NodeService::ConsolidatedNode(inner) => inner,
-            NodeService::HybridNode(inner) => inner,
-            NodeService::DistributedNode(inner) => inner,
+            NodeService::Consolidated(inner) => inner,
+            NodeService::Hybrid(inner) => inner,
+            NodeService::Distributed(inner) => inner,
         }
     }
 
@@ -278,34 +278,19 @@ pub(crate) trait ServiceNameInner: Display {
 }
 
 impl NodeType {
-    pub fn get_folder_name(&self) -> &'static str {
-        match self {
-            Self::ConsolidatedNode => "consolidated/",
-            Self::HybridNode => "hybrid/",
-            Self::DistributedNode => "distributed/",
-        }
-    }
-
-    pub fn add_path_suffix(&self, path: PathBuf, instance_name: &str) -> PathBuf {
-        let node_type_dir = path.join(self.get_folder_name());
-        let deployment_with_instance = node_type_dir.join(instance_name);
-
-        let s = deployment_with_instance.to_string_lossy();
-        let modified = if s.ends_with('/') { s.into_owned() } else { format!("{}/", s) };
-        modified.into()
+    fn get_folder_name(&self) -> String {
+        self.to_string()
     }
 
     pub fn all_service_names(&self) -> Vec<NodeService> {
         match self {
             // TODO(Tsabary): find a way to avoid this code duplication.
-            Self::ConsolidatedNode => {
-                ConsolidatedNodeServiceName::iter().map(NodeService::ConsolidatedNode).collect()
+            Self::Consolidated => {
+                ConsolidatedNodeServiceName::iter().map(NodeService::Consolidated).collect()
             }
-            Self::HybridNode => {
-                HybridNodeServiceName::iter().map(NodeService::HybridNode).collect()
-            }
-            Self::DistributedNode => {
-                DistributedNodeServiceName::iter().map(NodeService::DistributedNode).collect()
+            Self::Hybrid => HybridNodeServiceName::iter().map(NodeService::Hybrid).collect(),
+            Self::Distributed => {
+                DistributedNodeServiceName::iter().map(NodeService::Distributed).collect()
             }
         }
     }
@@ -316,9 +301,9 @@ impl NodeType {
     ) -> IndexMap<NodeService, ComponentConfig> {
         match self {
             // TODO(Tsabary): avoid this code duplication.
-            Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(ports),
-            Self::HybridNode => HybridNodeServiceName::get_component_configs(ports),
-            Self::DistributedNode => DistributedNodeServiceName::get_component_configs(ports),
+            Self::Consolidated => ConsolidatedNodeServiceName::get_component_configs(ports),
+            Self::Hybrid => HybridNodeServiceName::get_component_configs(ports),
+            Self::Distributed => DistributedNodeServiceName::get_component_configs(ports),
         }
     }
 
@@ -362,9 +347,9 @@ impl Serialize for NodeService {
     {
         // Serialize only the inner value.
         match self {
-            NodeService::ConsolidatedNode(inner) => inner.serialize(serializer),
-            NodeService::HybridNode(inner) => inner.serialize(serializer),
-            NodeService::DistributedNode(inner) => inner.serialize(serializer),
+            NodeService::Consolidated(inner) => inner.serialize(serializer),
+            NodeService::Hybrid(inner) => inner.serialize(serializer),
+            NodeService::Distributed(inner) => inner.serialize(serializer),
         }
     }
 }

@@ -1,10 +1,8 @@
-use std::path::PathBuf;
-
 use apollo_infra_utils::template::Template;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
-use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
+use crate::deployment_definitions::Environment;
 use crate::deployments::hybrid::create_hybrid_instance_config_override;
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
 use crate::service::NodeType;
@@ -50,11 +48,10 @@ fn testing_env_3_hybrid_deployment_node(
     p2p_communication_type: P2PCommunicationType,
 ) -> Deployment {
     Deployment::new(
-        NodeType::HybridNode,
+        NodeType::Hybrid,
         Environment::TestingEnvThree,
         &INSTANCE_NAME_FORMAT.format(&[&id]),
         Some(ExternalSecret::new(SECRET_NAME_FORMAT.format(&[&id]))),
-        PathBuf::from(BASE_APP_CONFIG_PATH),
         ConfigOverride::new(
             testing_env_3_deployment_config_override(),
             create_hybrid_instance_config_override(

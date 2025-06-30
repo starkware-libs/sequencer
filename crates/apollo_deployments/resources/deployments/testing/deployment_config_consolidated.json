@@ -6,8 +6,8 @@
       "controller": "StatefulSet",
       "config_paths": [
         "base_app_config.json",
-        "testing/app_configs/consolidated/deployment_test_consolidated/deployment_config_override.json",
-        "testing/app_configs/consolidated/deployment_test_consolidated/instance_config_override.json",
+        "deployments/testing/consolidated/deployment_config_override.json",
+        "deployments/testing/consolidated/instance_config_override.json",
         "services/consolidated/node.json"
       ],
       "ingress": null,

@@ -6,50 +6,42 @@
       "controller": "StatefulSet",
       "config_paths": [
         "base_app_config.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/testing/hybrid/deployment_config_override.json",
+        "deployments/testing/hybrid/instance_config_override.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
-      "k8s_service_config": {
-        "type": "LoadBalancer",
-        "external_dns_name": "sequencer-core-service.sequencer-test-3-node-0.sw-dev.io",
-        "internal": true
-      },
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
-      "storage": 1000,
-      "toleration": "apollo-core-service",
+      "storage": null,
+      "toleration": null,
       "resources": {
         "requests": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 1,
+          "memory": 2
         },
         "limits": {
-          "cpu": 7,
-          "memory": 14
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-0"
-      },
-      "anti_affinity": true
+      "external_secret": null,
+      "anti_affinity": false
     },
     {
       "name": "HttpServer",
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/testing/hybrid/deployment_config_override.json",
+        "deployments/testing/hybrid/instance_config_override.json",
         "services/hybrid/http_server.json"
       ],
       "ingress": {
         "domain": "sw-dev.io",
-        "alternative_names": [
-          "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io"
-        ],
-        "internal": false,
+        "alternative_names": [],
+        "internal": true,
         "rules": [
           {
             "path": "/gateway",
@@ -62,7 +54,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
@@ -73,9 +65,7 @@
           "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-0"
-      },
+      "external_secret": null,
       "anti_affinity": false
     },
     {
@@ -83,29 +73,27 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/testing/hybrid/deployment_config_override.json",
+        "deployments/testing/hybrid/instance_config_override.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
       "autoscale": true,
-      "replicas": 2,
+      "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-0"
-      },
+      "external_secret": null,
       "anti_affinity": false
     },
     {
@@ -113,33 +101,27 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/testing/hybrid/deployment_config_override.json",
+        "deployments/testing/hybrid/instance_config_override.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
-      "k8s_service_config": {
-        "type": "LoadBalancer",
-        "external_dns_name": "sequencer-mempool-service.sequencer-test-3-node-0.sw-dev.io",
-        "internal": true
-      },
+      "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-core-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-0"
-      },
+      "external_secret": null,
       "anti_affinity": false
     },
     {
@@ -147,29 +129,27 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/deployment_config_override.json",
-        "testing_env_3/app_configs/hybrid/integration_hybrid_node_0/instance_config_override.json",
+        "deployments/testing/hybrid/deployment_config_override.json",
+        "deployments/testing/hybrid/instance_config_override.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
       "k8s_service_config": null,
       "autoscale": true,
-      "replicas": 2,
+      "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": null,
       "resources": {
         "requests": {
           "cpu": 1,
           "memory": 2
         },
         "limits": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 4,
+          "memory": 8
         }
       },
-      "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-0"
-      },
+      "external_secret": null,
       "anti_affinity": false
     }
   ]
