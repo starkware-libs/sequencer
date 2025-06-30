@@ -7,6 +7,7 @@ use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
 use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
+use tracing::{debug, error, warn};
 
 use crate::transaction_record::{
     Records,
@@ -272,6 +273,48 @@ impl TransactionManager {
         config: TransactionManagerConfig,
     ) -> Self {
         Self { records, proposable_index, current_staging_epoch: current_epoch, config }
+    }
+
+    // If a transaction is consumed on L1, it is not longer relevant to the transaction manager and
+    // can be removed from the records and from the proposable_index.
+    pub(crate) fn consume_tx(&mut self, tx_hash: &TransactionHash) -> bool {
+        let Some(record) = self.records.get(tx_hash) else {
+            warn!("Attempted to consume unknown transaction: {tx_hash:?}");
+            return false;
+        };
+
+        match record.state {
+            TransactionState::Committed => {
+                debug!("Consuming committed transaction: {tx_hash:?}");
+            }
+            TransactionState::Pending | TransactionState::Rejected => {
+                // This can happend if we missed an event that includes the transaction in an L2
+                // block.
+                warn!("Consuming uncommitted transaction: {tx_hash:?}");
+            }
+            TransactionState::CancellationStartedOnL2 | TransactionState::CancelledOnL2 => {
+                error!("Attempted to consume a cancelled transaction: {tx_hash:?}");
+                return false;
+            }
+        }
+
+        // Remove from the proposable index, and drop the entry if it becomes empty.
+        if let TransactionPayload::Full { created_at_block_timestamp: created_at, .. } = record.tx {
+            match self.proposable_index.entry(created_at) {
+                Entry::Occupied(mut entry) => {
+                    let tx_hashes = entry.get_mut();
+                    if let Some(index_in_vec) = tx_hashes.iter().position(|&h| h == *tx_hash) {
+                        tx_hashes.remove(index_in_vec);
+                        if tx_hashes.is_empty() {
+                            entry.remove();
+                        }
+                    }
+                }
+                Entry::Vacant(_) => {}
+            }
+        }
+
+        self.records.remove(tx_hash)
     }
 }
 

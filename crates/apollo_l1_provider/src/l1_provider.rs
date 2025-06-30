@@ -187,6 +187,11 @@ impl L1Provider {
                             );
                         });
                 }
+                Event::TransactionConsumed(tx_hash) => {
+                    if !self.tx_manager.consume_tx(&tx_hash) {
+                        info!("Failed to consume transaction with hash: {tx_hash}");
+                    }
+                }
                 _ => return Err(L1ProviderError::unsupported_l1_event(event)),
             }
         }
