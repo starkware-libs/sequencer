@@ -4,6 +4,7 @@ use std::collections::{BTreeMap, VecDeque};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra_utils::debug_every_n;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderResult, PriceInfo};
 use async_trait::async_trait;
@@ -133,7 +134,8 @@ impl L1GasPriceProvider {
                 });
             }
         }
-        debug!("Received price sample for L2 block: {:?}", new_data);
+        // TODO(guy.f): Replace with debug_every_n_sec once implemented.
+        debug_every_n!(100, "Received price sample for L1 block: {:?}", new_data);
         samples.push(new_data);
         Ok(())
     }
