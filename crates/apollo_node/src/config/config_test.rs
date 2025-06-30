@@ -16,10 +16,10 @@ use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
-    DEFAULT_CONFIG_PATH,
+    CONFIG_SCHEMA_PATH,
 };
 
-const FIX_BINARY_NAME: &str = "sequencer_dump_config";
+const FIX_BINARY_NAME: &str = "update_apollo_node_config_schema";
 
 const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
     ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled;
@@ -95,8 +95,7 @@ fn default_config_file_is_up_to_date() {
         &CONFIG_NON_POINTERS_WHITELIST,
     )
     .unwrap();
-
-    serialize_to_file_test(&combined_map, DEFAULT_CONFIG_PATH, FIX_BINARY_NAME);
+    serialize_to_file_test(&combined_map, CONFIG_SCHEMA_PATH, FIX_BINARY_NAME);
 }
 
 #[test]
