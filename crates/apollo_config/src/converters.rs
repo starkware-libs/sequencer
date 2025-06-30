@@ -27,8 +27,8 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use serde::de::Error;
-use serde::{Deserialize, Deserializer};
+use serde::de::{DeserializeOwned, Error};
+use serde::{Deserialize, Deserializer, Serialize};
 use url::Url;
 
 /// Deserializes milliseconds to duration object.
@@ -87,6 +87,42 @@ where
         map.insert(split[0].to_string(), split[1].to_string());
     }
     Ok(Some(map))
+}
+
+/// Serializes a vector containing any JSON serializable values into a space-separated string.
+pub fn serialize_optional_list_with_nested_object<T: Serialize>(list: &Option<Vec<T>>) -> String {
+    match list {
+        None => "".to_owned(),
+        Some(list) => list
+            .iter()
+            .map(|item| serde_json::to_string(item))
+            .collect::<Result<Vec<String>,_>>()
+            .unwrap_or(vec![])  // TODO(guyn): should we panic here?
+            .join(" "),
+    }
+}
+
+/// Deserializes a space-separated string into a vector of JSON serializable values.
+/// Returns an error if any of the substrings cannot be parsed into a valid JSON value.
+pub fn deserialize_optional_list_with_nested_object<'de, T, D>(
+    de: D,
+) -> Result<Option<Vec<T>>, D::Error>
+where
+    T: DeserializeOwned,
+    D: Deserializer<'de>,
+{
+    let raw: String = Deserialize::deserialize(de)?;
+    if raw.trim().is_empty() {
+        return Ok(None);
+    }
+    let number_of_items = raw.split_whitespace().count();
+    let mut output = Vec::with_capacity(number_of_items);
+    for item in raw.split_whitespace() {
+        let value: T = serde_json::from_str(item)
+            .map_err(|e| D::Error::custom(format!("Invalid JSON '{}': {}", item, e)))?;
+        output.push(value);
+    }
+    Ok(Some(output))
 }
 
 /// Serializes a vector to string structure. The vector is expected to be a hex string.

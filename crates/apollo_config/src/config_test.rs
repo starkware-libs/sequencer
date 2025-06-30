@@ -15,7 +15,11 @@ use tempfile::{NamedTempFile, TempDir};
 use validator::Validate;
 
 use crate::command::{get_command_matches, update_config_map_by_command_args};
-use crate::converters::deserialize_milliseconds_to_duration;
+use crate::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_optional_list_with_nested_object,
+    serialize_optional_list_with_nested_object,
+};
 use crate::dumping::{
     combine_config_map_and_pointers,
     generate_struct_pointer,
@@ -904,5 +908,55 @@ fn deeply_nested_optionals() {
                 level2: Some(Level2 { level2_value: Some(1) }),
             }),
         }
+    );
+}
+
+// Note: using HashMap instead of BTreeMap causes inconsistent ordering of keys in the JSON output,
+// which can lead to test failures due to the order of keys in the serialized JSON string.
+// If you want to use HashMap, you should know the order of keys is not consistent.
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
+struct TestConfigWithNestedJson {
+    #[serde(deserialize_with = "deserialize_optional_list_with_nested_object")]
+    list_of_maps: Option<Vec<BTreeMap<String, BTreeMap<String, u64>>>>,
+}
+
+impl SerializeConfig for TestConfigWithNestedJson {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "list_of_maps",
+            &serialize_optional_list_with_nested_object(&self.list_of_maps),
+            "A list of nested JSON values.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+#[test]
+fn optional_list_nested_json() {
+    let config = TestConfigWithNestedJson {
+        list_of_maps: Some(vec![
+            BTreeMap::from([]),
+            BTreeMap::from([
+                (
+                    "a".to_owned(),
+                    BTreeMap::from([("inner1".to_owned(), 1), ("inner2".to_owned(), 2)]),
+                ),
+                (
+                    "b".to_owned(),
+                    BTreeMap::from([("inner3".to_owned(), 3), ("inner4".to_owned(), 4)]),
+                ),
+                ("c".to_owned(), BTreeMap::from([])),
+            ]),
+            BTreeMap::from([("d".to_owned(), BTreeMap::from([("inner5".to_owned(), 5)]))]),
+        ]),
+    };
+    let dumped = config.dump();
+    let (config_map, _) = split_values_and_types(dumped);
+    let loaded_config = load::<TestConfigWithNestedJson>(&config_map).unwrap();
+    assert_eq!(loaded_config.list_of_maps, config.list_of_maps);
+    let serialized = serde_json::to_string(&loaded_config).unwrap();
+    assert_eq!(
+        serialized,
+        r#"{"list_of_maps":[{},{"a":{"inner1":1,"inner2":2},"b":{"inner3":3,"inner4":4},"c":{}},{"d":{"inner5":5}}]}"#
     );
 }
