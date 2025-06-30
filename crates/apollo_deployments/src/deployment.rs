@@ -34,13 +34,10 @@ impl Deployment {
         ingress_params: IngressParams,
         k8s_service_config_params: Option<K8sServiceConfigParams>,
     ) -> Self {
-        // TODO(Tsabary): make the per-env deployment files reside in the same dir, instead of
-        // currently being duplicated per each instance in that deployment.
         let node_services = node_type.all_service_names();
 
-        let config_override_dir = environment.env_dir_path().join(instance_name);
-
-        let config_override_files = config_override.get_config_file_paths(&config_override_dir);
+        let config_override_files =
+            config_override.get_config_file_paths(&environment.env_dir_path(), instance_name);
         let config_filenames: Vec<String> =
             once(BASE_APP_CONFIG_PATH.to_string()).chain(config_override_files).collect();
 
@@ -64,7 +61,6 @@ impl Deployment {
                 environment,
                 instance_name: instance_name.to_string(),
                 config_override,
-                config_override_dir,
             },
         }
     }
@@ -111,16 +107,18 @@ impl Deployment {
     }
 
     pub fn dump_config_override_files(&self) {
-        self.deployment_aux_data
-            .config_override
-            .dump_config_files(&self.deployment_aux_data.config_override_dir);
+        self.deployment_aux_data.config_override.dump_config_files(
+            &self.deployment_aux_data.environment.env_dir_path(),
+            &self.deployment_aux_data.instance_name,
+        );
     }
 
     #[cfg(test)]
     pub fn test_dump_config_override_files(&self) {
-        self.deployment_aux_data
-            .config_override
-            .test_dump_config_files(&self.deployment_aux_data.config_override_dir);
+        self.deployment_aux_data.config_override.test_dump_config_files(
+            &self.deployment_aux_data.environment.env_dir_path(),
+            &self.deployment_aux_data.instance_name,
+        );
     }
 }
 
@@ -130,7 +128,6 @@ struct DeploymentAuxData {
     environment: Environment,
     instance_name: String,
     config_override: ConfigOverride,
-    config_override_dir: PathBuf,
 }
 
 // TODO(Tsabary): test no conflicts between config entries defined in each of the override types.
