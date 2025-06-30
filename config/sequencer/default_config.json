@@ -137,7 +137,7 @@
   "batcher_config.block_builder_config.tx_polling_interval_millis": {
     "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
     "privacy": "Public",
-    "value": 100
+    "value": 1
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
