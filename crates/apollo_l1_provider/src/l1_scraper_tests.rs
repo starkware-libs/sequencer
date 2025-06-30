@@ -160,9 +160,7 @@ async fn txs_happy_flow() {
         .calculate_transaction_hash(&scraper.config.chain_id, &EXPECTED_VERSION)
         .unwrap();
     let tx = ExecutableL1HandlerTransaction {
-        tx_hash: expected_internal_l1_tx
-            .calculate_transaction_hash(&scraper.config.chain_id, &EXPECTED_VERSION)
-            .unwrap(),
+        tx_hash: tx_hash_first_tx,
         tx: expected_internal_l1_tx,
         paid_fee_on_l1: Fee(0),
     };
