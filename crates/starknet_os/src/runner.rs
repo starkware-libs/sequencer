@@ -75,9 +75,15 @@ pub fn run_os<S: StateReader>(
     }
 
     #[cfg(feature = "include_program_output")]
-    // Prepare and check expected output.
-    let os_output = crate::io::os_output::get_run_output(&cairo_runner.vm)?;
-    // TODO(Tzahi): log the output once it will have a proper struct.
+    let os_output = {
+        // Prepare and check expected output.
+        let os_raw_output = crate::io::os_output::get_run_output(&cairo_runner.vm)?;
+        let os_output =
+            crate::io::os_output::OsOutput::from_raw_output_iter(os_raw_output.into_iter())?;
+        log::debug!("OsOutput for block number={}: {os_output:?}", os_output.new_block_number);
+        os_output
+    };
+
     cairo_runner.vm.verify_auto_deductions().map_err(StarknetOsError::VirtualMachineError)?;
     cairo_runner
         .read_return_values(allow_missing_builtins)

@@ -102,8 +102,8 @@ pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
 }
 
 // TODO(Tzahi): Replace with starknet_api struct after it is updated.
-#[allow(dead_code)]
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug)]
 // An L1 to L2 message header, the message payload is concatenated to the end of the header.
 pub struct MessageToL2 {
     // The L1 address of the contract sending the message.
@@ -150,8 +150,8 @@ fn parse_storage_changes<It: Iterator<Item = Felt> + ?Sized>(
         .collect()
 }
 
-#[allow(dead_code)]
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug)]
 /// Represents the changes in a contract instance.
 pub struct ContractChanges {
     // The address of the contract.
@@ -228,6 +228,7 @@ impl ContractChanges {
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug)]
 pub struct OsStateDiff {
     // Contracts that were changed.
     pub contracts: Vec<ContractChanges>,
@@ -274,6 +275,7 @@ impl OsStateDiff {
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug)]
 pub struct OsOutput {
     // The root before.
     pub initial_root: StarkHash,
@@ -385,9 +387,8 @@ impl OsOutput {
 }
 
 pub struct StarknetOsRunnerOutput {
-    // TODO(Tzahi): Use OsOutput struct once fully supported..
     #[cfg(feature = "include_program_output")]
-    pub os_output: Vec<Felt>,
+    pub os_output: OsOutput,
     pub cairo_pie: CairoPie,
     pub da_segment: Option<Vec<Felt>>,
     pub metrics: OsMetrics,
