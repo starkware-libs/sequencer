@@ -15,11 +15,7 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use indexmap::IndexSet;
 use itertools::Itertools;
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    Starknet,
-};
+use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
 use papyrus_base_layer::test_utils::{
     anvil_instance_from_url,
     ethereum_base_layer_config_for_anvil,
@@ -38,7 +34,6 @@ use starknet_api::transaction::{
     TransactionHasher,
     TransactionVersion,
 };
-use url::Url;
 
 use crate::bootstrapper::Bootstrapper;
 use crate::l1_provider::{L1Provider, L1ProviderBuilder};
@@ -75,21 +70,25 @@ fn receive_commit_block(
     l1_provider.commit_block(committed.iter().copied().collect(), [].into(), height).unwrap();
 }
 
-// TODO(Gilad): Replace EthereumBaseLayerContract with a mock that has a provider initialized with
-// `with_recommended_fillers`, in order to be able to create txs from non-default users.
-async fn scraper(
-    base_layer_config: EthereumBaseLayerConfig,
-    base_layer_url: Url,
-) -> (L1Scraper<EthereumBaseLayerContract>, Arc<FakeL1ProviderClient>) {
+#[tokio::test]
+// TODO(Gilad): extract setup stuff into test helpers once more tests are added and patterns emerge.
+async fn txs_happy_flow() {
+    if !in_ci() {
+        return;
+    }
+
+    // Setup.
+    let (base_layer_config, base_layer_url) = ethereum_base_layer_config_for_anvil(None);
+    let anvil = anvil_instance_from_url(&base_layer_url);
     let fake_client = Arc::new(FakeL1ProviderClient::default());
     let base_layer = EthereumBaseLayerContract::new(base_layer_config, base_layer_url);
     let l1_scraper_config = L1ScraperConfig::default();
-
     let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config).await.unwrap();
+
     // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
     Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
 
-    let scraper = L1Scraper::new(
+    let mut scraper = L1Scraper::new(
         l1_scraper_config,
         fake_client.clone(),
         base_layer,
@@ -98,22 +97,6 @@ async fn scraper(
     )
     .await
     .unwrap();
-
-    (scraper, fake_client)
-}
-
-#[tokio::test]
-// TODO(Gilad): extract setup stuff into test helpers once more tests are added and patterns emerge.
-async fn txs_happy_flow() {
-    if !in_ci() {
-        return;
-    }
-
-    let (base_layer_config, base_layer_url) = ethereum_base_layer_config_for_anvil(None);
-    let anvil = anvil_instance_from_url(&base_layer_url);
-    // Setup.
-    let (mut scraper, fake_client) = scraper(base_layer_config, base_layer_url).await;
-
     // Test.
     // Scrape multiple events.
     let l2_contract_address = "0x12";
