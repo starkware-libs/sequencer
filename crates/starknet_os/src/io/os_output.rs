@@ -1,4 +1,3 @@
-use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -10,7 +9,7 @@ use num_traits::ToPrimitive;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::hash::StarkHash;
-use starknet_api::transaction::MessageToL1;
+use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
@@ -28,16 +27,16 @@ fn wrap_missing(val: Option<Felt>, val_name: &str) -> Result<Felt, OsOutputError
     val.ok_or_else(|| OsOutputError::MissingFieldInOutput(val_name.to_string()))
 }
 
-fn wrap_to_usize(val: Felt, val_name: &str) -> Result<usize, OsOutputError> {
-    felt_to_usize(&val)
-        .map_err(|e| OsOutputError::InvalidOsOutputField(val_name.to_string(), e.to_string()))
+fn wrap_missing_as<T: TryFrom<Felt>>(val: Option<Felt>, val_name: &str) -> Result<T, OsOutputError>
+where
+    <T as TryFrom<Felt>>::Error: std::fmt::Display,
+{
+    wrap_missing(val, val_name)?.try_into().map_err(|e: <T as TryFrom<Felt>>::Error| {
+        OsOutputError::InvalidOsOutputField(val_name.to_string(), e.to_string())
+    })
 }
 
-fn wrap_to_usize_missing(val: Option<Felt>, val_name: &str) -> Result<usize, OsOutputError> {
-    wrap_to_usize(wrap_missing(val, val_name)?, val_name)
-}
-
-fn wrap_to_bool_missing(val: Option<Felt>, val_name: &str) -> Result<bool, OsOutputError> {
+fn wrap_missing_as_bool(val: Option<Felt>, val_name: &str) -> Result<bool, OsOutputError> {
     let felt_val = wrap_missing(val, val_name)?;
     if felt_val == Felt::ZERO || felt_val == Felt::ONE {
         return Ok(felt_val == Felt::ONE);
@@ -46,6 +45,17 @@ fn wrap_to_bool_missing(val: Option<Felt>, val_name: &str) -> Result<bool, OsOut
         val_name.to_string(),
         format!("Expected a bool felt, got {felt_val}"),
     ))
+}
+
+pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
+    iter: &mut It,
+) -> Result<MessageToL1, OsOutputError> {
+    let from_address = wrap_missing_as::<ContractAddress>(iter.next(), "from_address")?;
+    let to_address = wrap_missing_as::<EthAddress>(iter.next(), "to_address")?;
+    let payload_size = wrap_missing_as::<usize>(iter.next(), "payload_size")?;
+    let payload = L2ToL1Payload(iter.take(payload_size).collect());
+
+    Ok(MessageToL1 { from_address, to_address, payload })
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
@@ -57,7 +67,22 @@ pub struct MessageToL2 {
     to_address: ContractAddress,
     nonce: Nonce,
     selector: EntryPointSelector,
-    payload: Vec<Felt>,
+    payload: L1ToL2Payload,
+}
+
+impl MessageToL2 {
+    pub fn from_output_iter<It: Iterator<Item = Felt>>(
+        iter: &mut It,
+    ) -> Result<Self, OsOutputError> {
+        let from_address = wrap_missing_as::<EthAddress>(iter.next(), "from_address")?;
+        let to_address = wrap_missing_as::<ContractAddress>(iter.next(), "to_address")?;
+        let nonce = Nonce(wrap_missing(iter.next(), "nonce")?);
+        let selector = EntryPointSelector(wrap_missing(iter.next(), "selector")?);
+        let payload_size = wrap_missing_as::<usize>(iter.next(), "payload_size")?;
+        let payload = L1ToL2Payload(iter.take(payload_size).collect());
+
+        Ok(Self { from_address, to_address, nonce, selector, payload })
+    }
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
@@ -100,60 +125,45 @@ impl OsOutput {
     ) -> Result<Self, OsOutputError> {
         let initial_root = wrap_missing(output_iter.next(), "initial_root")?;
         let final_root = wrap_missing(output_iter.next(), "final_root")?;
-        let prev_block_number = BlockNumber(
-            wrap_missing(output_iter.next(), "prev_block_number")?.try_into().map_err(
-                |e: <u64 as TryFrom<Felt>>::Error| {
-                    OsOutputError::InvalidOsOutputField(
-                        "prev_block_number".to_string(),
-                        e.to_string(),
-                    )
-                },
-            )?,
-        );
+        let prev_block_number =
+            BlockNumber(wrap_missing_as::<u64>(output_iter.next(), "prev_block_number")?);
         let new_block_number =
-            BlockNumber(wrap_missing(output_iter.next(), "new_block_number")?.try_into().map_err(
-                |e: <u64 as TryFrom<Felt>>::Error| {
-                    OsOutputError::InvalidOsOutputField(
-                        "new_block_number".to_string(),
-                        e.to_string(),
-                    )
-                },
-            )?);
+            BlockNumber(wrap_missing_as::<u64>(output_iter.next(), "new_block_number")?);
         let prev_block_hash = wrap_missing(output_iter.next(), "prev_block_hash")?;
         let new_block_hash = wrap_missing(output_iter.next(), "new_block_hash")?;
         let os_program_hash = wrap_missing(output_iter.next(), "os_program_hash")?;
         let starknet_os_config_hash = wrap_missing(output_iter.next(), "starknet_os_config_hash")?;
-        let use_kzg_da = wrap_to_bool_missing(output_iter.next(), "use_kzg_da")?;
-        let full_output = wrap_to_bool_missing(output_iter.next(), "full_output")?;
+        let use_kzg_da = wrap_missing_as_bool(output_iter.next(), "use_kzg_da")?;
+        let full_output = wrap_missing_as_bool(output_iter.next(), "full_output")?;
 
         if use_kzg_da {
             // Skip KZG data.
 
             let _kzg_z = wrap_missing(output_iter.next(), "kzg_z")?;
-            let n_blobs = wrap_to_usize_missing(output_iter.next(), "n_blobs")?;
+            let n_blobs = wrap_missing_as::<usize>(output_iter.next(), "n_blobs")?;
             // Skip 'n_blobs' commitments and evaluations.
             output_iter.nth((2 * 2 * n_blobs) - 1);
         }
 
         // Messages to L1 and L2.
         let messages_to_l1_segment_size =
-            wrap_to_usize_missing(output_iter.next(), "messages_to_l1_segment_size")?;
+            wrap_missing_as::<usize>(output_iter.next(), "messages_to_l1_segment_size")?;
         let mut messages_to_l1_iter =
             output_iter.by_ref().take(messages_to_l1_segment_size).peekable();
-        let messages_to_l1 = Vec::<MessageToL1>::new();
+        let mut messages_to_l1 = Vec::<MessageToL1>::new();
 
         while messages_to_l1_iter.peek().is_some() {
-            todo!("Handle L1 messages");
+            messages_to_l1.push(message_l1_from_output_iter(&mut messages_to_l1_iter)?);
         }
 
         let messages_to_l2_segment_size =
-            wrap_to_usize_missing(output_iter.next(), "messages_to_l2_segment_size")?;
+            wrap_missing_as::<usize>(output_iter.next(), "messages_to_l2_segment_size")?;
         let mut messages_to_l2_iter =
             output_iter.by_ref().take(messages_to_l2_segment_size).peekable();
-        let messages_to_l2 = Vec::<MessageToL2>::new();
+        let mut messages_to_l2 = Vec::<MessageToL2>::new();
 
         while messages_to_l2_iter.peek().is_some() {
-            todo!("Handle L2 messages");
+            messages_to_l2.push(MessageToL2::from_output_iter(&mut messages_to_l2_iter)?);
         }
 
         // State diff.
