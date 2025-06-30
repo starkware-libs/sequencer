@@ -128,7 +128,7 @@ impl<S: State> Executable<S> for L1HandlerTransaction {
 
         execute_call.non_reverting_execute(state, context, remaining_gas).map(Some).map_err(
             |error| TransactionExecutionError::ExecutionError {
-                error,
+                error: Box::new(error),
                 class_hash,
                 storage_address,
                 selector,
@@ -312,7 +312,7 @@ impl<S: State> Executable<S> for InvokeTransaction {
         let call_info =
             execute_call.non_reverting_execute(state, context, remaining_gas).map_err(|error| {
                 TransactionExecutionError::ExecutionError {
-                    error,
+                    error: Box::new(error),
                     class_hash,
                     storage_address,
                     selector: entry_point_selector,

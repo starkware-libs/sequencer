@@ -82,7 +82,7 @@ pub enum TransactionExecutionError {
     DeclareTransactionError { class_hash: ClassHash },
     #[error("{}", gen_tx_execution_error_trace(self))]
     ExecutionError {
-        error: EntryPointExecutionError,
+        error: Box<EntryPointExecutionError>,
         class_hash: ClassHash,
         storage_address: ContractAddress,
         selector: EntryPointSelector,
