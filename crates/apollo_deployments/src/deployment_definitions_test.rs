@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::env;
 
 use apollo_config::CONFIG_FILE_ARG;
@@ -8,6 +9,7 @@ use apollo_node::config::component_execution_config::{
     ReactiveComponentExecutionMode,
 };
 use apollo_node::config::node_config::SequencerNodeConfig;
+use apollo_node::config::test_utils::private_parameters;
 use serde_json::to_value;
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
@@ -79,6 +81,36 @@ fn load_and_process_service_config_files() {
                 );
             });
         }
+    }
+}
+
+/// Test that the private values in the apollo node config schema match the secrets config override
+/// schema.
+#[test]
+// TODO(Tsabary): enable the test once the config and schema are aligned.
+#[ignore]
+fn secrets_config_and_private_parameters_config_schema_compatibility() {
+    let secrets_config_override = SecretsConfigOverride::default();
+    let secrets_provided_by_config = to_value(&secrets_config_override)
+        .unwrap()
+        .as_object()
+        .unwrap()
+        .keys()
+        .cloned()
+        .collect::<HashSet<_>>();
+    let secrets_required_by_schema = private_parameters();
+
+    let only_in_config: HashSet<_> =
+        secrets_provided_by_config.difference(&secrets_required_by_schema).collect();
+    let only_in_schema: HashSet<_> =
+        secrets_required_by_schema.difference(&secrets_provided_by_config).collect();
+
+    if !(only_in_config.is_empty() && only_in_schema.is_empty()) {
+        panic!(
+            "Secrets config override schema mismatch:\nSecrets provided by config: {:?}\nSecrets \
+             required by schema: {:?}\nOnly in config: {:?}\nOnly in schema: {:?}",
+            secrets_provided_by_config, secrets_required_by_schema, only_in_config, only_in_schema
+        );
     }
 }
 
