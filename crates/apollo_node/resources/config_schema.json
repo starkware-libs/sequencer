@@ -1076,17 +1076,17 @@
   },
   "consensus_manager_config.eth_to_strk_oracle_config.lag_interval_seconds": {
     "description": "The size of the interval (seconds) that the eth to strk rate is taken on. The lag refers to the fact that the interval `[T, T+k)` contains the conversion rate for queries in the interval `[T+k, T+2k)`. Should be configured in alignment with relevant query parameters in `base_url`, if required.",
-    "privacy": "Private",
+    "privacy": "Public",
     "value": 1
   },
   "consensus_manager_config.eth_to_strk_oracle_config.max_cache_size": {
     "description": "The maximum number of cached conversion rates.",
-    "privacy": "Private",
+    "privacy": "Public",
     "value": 100
   },
   "consensus_manager_config.eth_to_strk_oracle_config.query_timeout_sec": {
     "description": "The timeout (seconds) for the query to the eth to strk oracle.",
-    "privacy": "Private",
+    "privacy": "Public",
     "value": 3
   },
   "consensus_manager_config.immediate_active_height": {

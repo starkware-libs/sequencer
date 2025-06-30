@@ -82,19 +82,19 @@ impl SerializeConfig for EthToStrkOracleConfig {
                  lag refers to the fact that the interval `[T, T+k)` contains the conversion rate \
                  for queries in the interval `[T+k, T+2k)`. Should be configured in alignment \
                  with relevant query parameters in `base_url`, if required.",
-                ParamPrivacyInput::Private,
+                ParamPrivacyInput::Public,
             ),
             ser_param(
                 "max_cache_size",
                 &self.max_cache_size,
                 "The maximum number of cached conversion rates.",
-                ParamPrivacyInput::Private,
+                ParamPrivacyInput::Public,
             ),
             ser_param(
                 "query_timeout_sec",
                 &self.query_timeout_sec,
                 "The timeout (seconds) for the query to the eth to strk oracle.",
-                ParamPrivacyInput::Private,
+                ParamPrivacyInput::Public,
             ),
         ])
     }
