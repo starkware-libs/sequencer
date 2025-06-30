@@ -7,6 +7,7 @@ use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::aggregator_hint_processor::AggregatorInput;
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::io::os_input::{OsHints, StarknetOsInput};
@@ -93,6 +94,7 @@ pub fn run_os<S: StateReader>(
     Ok(StarknetOsRunnerOutput {
         os_output,
         cairo_pie,
+        da_segment: snos_hint_processor.get_da_segment().take(),
         #[cfg(any(test, feature = "testing"))]
         unused_hints: snos_hint_processor.unused_hints,
     })

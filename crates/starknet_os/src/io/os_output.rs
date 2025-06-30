@@ -14,6 +14,7 @@ pub struct StarknetOsRunnerOutput {
     // TODO(Tzahi): Define a struct for the output.
     pub os_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
+    pub da_segment: Option<Vec<Felt>>,
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
 }
