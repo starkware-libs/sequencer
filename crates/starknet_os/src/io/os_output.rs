@@ -10,13 +10,18 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
-use starknet_types_core::felt::Felt;
+use starknet_types_core::felt::{Felt, NonZeroFelt};
 
 use crate::errors::StarknetOsError;
 use crate::hints::hint_implementation::stateless_compression::utils::decompress;
 use crate::metrics::OsMetrics;
 
 type DictEntry = (Felt, (Option<Felt>, Felt));
+
+// Defined in output.cairo
+const N_UPDATES_BOUND: NonZeroFelt = NonZeroFelt::from_raw([0, 0, 1, 0]); // 2^64.
+const N_UPDATES_SMALL_PACKING_BOUND: NonZeroFelt = NonZeroFelt::from_raw([0, 0, 0, 256]); // 2^8.
+const FLAG_BOUND: NonZeroFelt = NonZeroFelt::TWO;
 
 const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3; // from_address, to_address, payload_size.
 // from_address, to_address, nonce, selector, payload_size.
@@ -91,6 +96,26 @@ impl MessageToL2 {
     }
 }
 
+fn parse_storage_changes<It: Iterator<Item = Felt> + ?Sized>(
+    n_changes: usize,
+    iter: &mut It,
+    full_output: bool,
+) -> Result<Vec<DictEntry>, OsOutputError> {
+    (0..n_changes)
+        .map(|_| {
+            let key = wrap_missing(iter.next(), "storage key")?;
+            let prev_value = if full_output {
+                Some(wrap_missing(iter.next(), "previous storage value")?)
+            } else {
+                None
+            };
+            let new_value = wrap_missing(iter.next(), "storage value")?;
+            // Wrapped in Ok to be able to use ? operator in the closure.
+            Ok((key, (prev_value, new_value)))
+        })
+        .collect()
+}
+
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 /// Represents the changes in a contract instance.
 pub struct ContractChanges {
@@ -110,10 +135,56 @@ pub struct ContractChanges {
 
 impl ContractChanges {
     pub fn from_iter<It: Iterator<Item = Felt> + ?Sized>(
-        _iter: &mut It,
-        _full_output: bool,
+        iter: &mut It,
+        full_output: bool,
     ) -> Result<Self, OsOutputError> {
-        todo!()
+        let addr = wrap_missing(iter.next(), "addr")?;
+        if full_output {
+            return Ok(Self {
+                addr,
+                prev_nonce: Some(wrap_missing(iter.next(), "prev_nonce")?),
+                new_nonce: Some(wrap_missing(iter.next(), "new_nonce")?),
+                prev_class_hash: Some(wrap_missing(iter.next(), "prev_class_hash")?),
+                new_class_hash: Some(wrap_missing(iter.next(), "new_class_hash")?),
+                storage_changes: parse_storage_changes(
+                    wrap_missing_as(iter.next(), "storage_changes")?,
+                    iter,
+                    full_output,
+                )?,
+            });
+        }
+        // Parse packed info.
+        let nonce_n_changes_two_flags = wrap_missing(iter.next(), "nonce_n_changes_two_flags")?;
+
+        // Parse flags.
+        let (nonce_n_changes_one_flag, class_updated) =
+            nonce_n_changes_two_flags.div_rem(&FLAG_BOUND);
+        let (nonce_n_changes, is_n_updates_small) = nonce_n_changes_one_flag.div_rem(&FLAG_BOUND);
+
+        // Parse n_changes.
+        let n_updates_bound = if is_n_updates_small == Felt::ZERO {
+            N_UPDATES_SMALL_PACKING_BOUND
+        } else {
+            N_UPDATES_BOUND
+        };
+        let (nonce, n_changes) = nonce_n_changes.div_rem(&n_updates_bound);
+
+        // Parse nonce.
+        let new_nonce = if nonce == Felt::ZERO { None } else { Some(nonce) };
+
+        let new_class_hash = if class_updated != Felt::ZERO {
+            Some(wrap_missing(iter.next(), "new_class_hash")?)
+        } else {
+            None
+        };
+        Ok(Self {
+            addr,
+            prev_nonce: None,
+            new_nonce,
+            prev_class_hash: None,
+            new_class_hash,
+            storage_changes: parse_storage_changes(n_changes.try_into()?, iter, full_output)?,
+        })
     }
 }
 
@@ -252,7 +323,7 @@ impl OsOutput {
         let state_diff = if use_kzg_da {
             None
         } else {
-            todo!("Handle StateDiff");
+            Some(OsStateDiff::from_iter(&mut output_iter, full_output)?)
         };
 
         Ok(Self {
