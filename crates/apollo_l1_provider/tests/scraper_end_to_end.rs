@@ -7,12 +7,8 @@ use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper, L1ScraperConf
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
 use mockall::predicate::eq;
 use mockall::Sequence;
-use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract, Starknet};
-use papyrus_base_layer::test_utils::{
-    anvil_instance_from_config,
-    ethereum_base_layer_config_for_anvil,
-    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-};
+use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
+use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::contract_address;
@@ -33,29 +29,25 @@ async fn scraper_end_to_end() {
     }
 
     // Setup.
-    let base_layer_config = ethereum_base_layer_config_for_anvil(None);
-    let _anvil_server_guard = anvil_instance_from_config(&base_layer_config);
+    let base_layer = AnvilBaseLayer::new().await;
+    let contract = &base_layer.ethereum_base_layer.contract;
     let mut l1_provider_client = MockL1ProviderClient::default();
-    let base_layer = EthereumBaseLayerContract::new(base_layer_config);
-
-    // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
-    Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
 
     // Send messages from L1 to L2.
     let l2_contract_address = "0x12";
     let l2_entry_point = "0x34";
-    let message_to_l2_0 = base_layer.contract.sendMessageToL2(
+    let message_to_l2_0 = contract.sendMessageToL2(
         l2_contract_address.parse().unwrap(),
         l2_entry_point.parse().unwrap(),
         vec![U256::from(1_u8), U256::from(2_u8)],
     );
-    let message_to_l2_1 = base_layer.contract.sendMessageToL2(
+    let message_to_l2_1 = contract.sendMessageToL2(
         l2_contract_address.parse().unwrap(),
         l2_entry_point.parse().unwrap(),
         vec![U256::from(3_u8), U256::from(4_u8)],
     );
     let nonce_of_message_to_l2_0 = U256::from(0_u8);
-    let request_cancel_message_0 = base_layer.contract.startL1ToL2MessageCancellation(
+    let request_cancel_message_0 = contract.startL1ToL2MessageCancellation(
         l2_contract_address.parse().unwrap(),
         l2_entry_point.parse().unwrap(),
         vec![U256::from(1_u8), U256::from(2_u8)],
