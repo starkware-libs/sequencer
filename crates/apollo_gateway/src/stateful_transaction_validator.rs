@@ -18,7 +18,7 @@ use blockifier::transaction::account_transaction::{AccountTransaction, Execution
 use blockifier::transaction::transactions::enforce_fee;
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::BlockInfo;
+use starknet_api::block::{BlockInfo, NonzeroGasPrice};
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableTransaction,
@@ -106,10 +106,11 @@ impl StatefulTransactionValidator {
         &self,
         state_reader_factory: &dyn StateReaderFactory,
         chain_info: &ChainInfo,
-    ) -> StatefulTransactionValidatorResult<BlockifierStatefulValidator> {
+    ) -> StatefulTransactionValidatorResult<(BlockifierStatefulValidator, NonzeroGasPrice)> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
         let latest_block_info = get_latest_block_info(state_reader_factory)?;
+        let l2_gas_price = latest_block_info.gas_prices.strk_gas_prices.l2_gas_price;
         let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
         let state = CachedState::new(state_reader);
         let versioned_constants = VersionedConstants::get_versioned_constants(
@@ -126,7 +127,9 @@ impl StatefulTransactionValidator {
             BouncerConfig::max(),
         );
 
-        Ok(BlockifierStatefulValidator::create(state, block_context))
+        let blockifier_statefult_validator =
+            BlockifierStatefulValidator::create(state, block_context);
+        Ok((blockifier_statefult_validator, l2_gas_price))
     }
 
     fn is_valid_nonce(&self, executable_tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {

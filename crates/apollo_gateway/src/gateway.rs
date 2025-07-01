@@ -200,7 +200,9 @@ impl ProcessTxBlockingTask {
                 StarknetError::internal(&e.to_string())
             })?;
 
-        let mut validator = self
+        // TODO(Arni): Use the _l2_gas_price reject transactions that do not pass the gas price
+        // threshold.
+        let (mut validator, _l2_gas_price) = self
             .stateful_tx_validator
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
         let address = executable_tx.contract_address();
