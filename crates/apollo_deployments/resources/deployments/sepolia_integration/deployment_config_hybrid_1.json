@@ -132,7 +132,7 @@
       "external_secret": {
         "gcsm_key": "apollo-sepolia-integration-1"
       },
-      "anti_affinity": false
+      "anti_affinity": true
     },
     {
       "name": "SierraCompiler",
