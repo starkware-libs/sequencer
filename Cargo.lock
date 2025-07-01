@@ -1680,6 +1680,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "bytes",
+ "clap",
  "deadqueue",
  "defaultmap",
  "derive_more 0.99.18",
