@@ -578,7 +578,7 @@ impl From<ExecutableL1HandlerTransaction> for CendePreconfirmedTransaction {
 
 const PRE_CONFIRMED_STATUS: &str = "PRE_CONFIRMED";
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, PartialEq, Debug)]
 pub struct CendeBlockMetadata {
     pub status: &'static str,
     pub starknet_version: StarknetVersion,

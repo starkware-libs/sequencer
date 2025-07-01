@@ -90,7 +90,7 @@ impl PreconfirmedBlockWriter {
         }
     }
 
-    fn create_pre_confirmed_block(
+    pub(crate) fn create_pre_confirmed_block(
         &self,
         transactions_map: &IndexMap<
             TransactionHash,
@@ -233,7 +233,7 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
     }
 }
 
-fn is_round_mismatch_error(
+pub(crate) fn is_round_mismatch_error(
     error: &PreconfirmedCendeClientError,
     next_write_iteration: u64,
 ) -> bool {
@@ -338,6 +338,7 @@ impl PreconfirmedBlockWriterFactoryTrait for PreconfirmedBlockWriterFactory {
 }
 
 // TODO(noamsp): find a better name for this struct.
+#[derive(Clone, Debug, PartialEq)]
 pub struct PreconfirmedBlockWriterInput {
     pub block_number: BlockNumber,
     pub round: Round,
