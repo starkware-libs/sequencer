@@ -255,6 +255,11 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             Err(e) => {
                 warn!("Query failed for timestamp {timestamp}: {e:?}");
                 ETH_TO_STRK_ERROR_COUNT.increment(1);
+                // Remove the unresolved query from the cache
+                self.cached_prices
+                    .lock()
+                    .expect("Lock on cached prices was poisoned due to a previous panic")
+                    .pop(&quantized_timestamp);
                 return Err(e);
             }
         };
