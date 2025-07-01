@@ -49,10 +49,6 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
 
-// TODO(Arni): Move to a config.
-// Minimum gas price as percentage of threshold to accept transactions.
-const MIN_GAS_PRICE_PRECENTAGE: u8 = 80; // E.g., 80 to require 80% of threshold.
-
 #[derive(Clone)]
 pub struct Gateway {
     pub config: Arc<GatewayConfig>,
@@ -218,6 +214,7 @@ impl ProcessTxBlockingTask {
             validate_tx_l2_gas_price_within_threshold(
                 executable_tx.resource_bounds(),
                 l2_gas_price,
+                self.stateful_tx_validator.config.min_gas_price_precentage,
             )?;
         }
 
@@ -244,12 +241,13 @@ impl ProcessTxBlockingTask {
 fn validate_tx_l2_gas_price_within_threshold(
     tx_resource_bounds: ValidResourceBounds,
     previous_block_l2_gas_price: NonzeroGasPrice,
+    min_gas_price_percentage: u8,
 ) -> GatewayResult<()> {
     match tx_resource_bounds {
         ValidResourceBounds::AllResources(tx_resource_bounds) => {
             let tx_l2_gas_price = tx_resource_bounds.l2_gas.max_price_per_unit;
             let gas_price_threshold_multiplier =
-                Ratio::new(MIN_GAS_PRICE_PRECENTAGE.into(), 100_u128);
+                Ratio::new(min_gas_price_percentage.into(), 100_u128);
             let threshold =
                 (gas_price_threshold_multiplier * previous_block_l2_gas_price.get().0).to_integer();
             if tx_l2_gas_price.0 < threshold {

@@ -172,6 +172,8 @@ pub struct StatefulTransactionValidatorConfig {
     pub reject_future_declare_txs: bool,
     pub max_nonce_for_validation_skip: Nonce,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
+    // Minimum gas price as percentage of threshold to accept transactions.
+    pub min_gas_price_precentage: u8, // E.g., 80 to require 80% of threshold.
 }
 
 impl Default for StatefulTransactionValidatorConfig {
@@ -180,6 +182,7 @@ impl Default for StatefulTransactionValidatorConfig {
             max_allowed_nonce_gap: 50,
             reject_future_declare_txs: true,
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
+            min_gas_price_precentage: 80,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
@@ -204,6 +207,12 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
                 "reject_future_declare_txs",
                 &self.reject_future_declare_txs,
                 "If true, rejects declare transactions with future nonces.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "min_gas_price_precentage",
+                &self.min_gas_price_precentage,
+                "Minimum gas price as percentage of threshold to accept transactions.",
                 ParamPrivacyInput::Public,
             ),
         ]);

@@ -1244,6 +1244,11 @@
     "privacy": "Public",
     "value": "0x1"
   },
+  "gateway_config.stateful_tx_validator_config.min_gas_price_precentage": {
+    "description": "Minimum gas price as percentage of threshold to accept transactions.",
+    "privacy": "Public",
+    "value": 80
+  },
   "gateway_config.stateful_tx_validator_config.reject_future_declare_txs": {
     "description": "If true, rejects declare transactions with future nonces.",
     "privacy": "Public",
