@@ -4,7 +4,7 @@ use libp2p::{identity, multiaddr, Multiaddr, PeerId};
 use validator::Validate;
 
 use crate::test_utils::DUMMY_MULTI_ADDRESS;
-use crate::utils::make_tcp_multiaddr;
+use crate::utils::make_quic_multiaddr;
 use crate::NetworkConfig;
 
 #[test]
@@ -18,7 +18,7 @@ fn test_bootstrap_peer_multiaddr_unique_addresses_is_valid() {
     let key = [1u8; 32];
     let keypair = identity::Keypair::ed25519_from_bytes(key).unwrap();
     let second_addr =
-        make_tcp_multiaddr(Ipv4Addr::LOCALHOST, 12345, PeerId::from_public_key(&keypair.public()));
+        make_quic_multiaddr(Ipv4Addr::LOCALHOST, 12345, PeerId::from_public_key(&keypair.public()));
 
     let config = NetworkConfig {
         bootstrap_peer_multiaddr: Some(vec![DUMMY_MULTI_ADDRESS.clone(), second_addr]),
