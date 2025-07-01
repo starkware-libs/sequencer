@@ -9,7 +9,6 @@ use serde_json::to_value;
 use serde_with::with_prefix;
 use starknet_api::block::BlockNumber;
 
-use crate::deployment::PragmaDomain;
 use crate::deployment_definitions::{StateSyncConfig, StateSyncType};
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
@@ -124,8 +123,6 @@ pub struct DeploymentConfigOverride {
     eth_fee_token_address: String,
     starknet_url: String,
     strk_fee_token_address: String,
-    #[serde(rename = "consensus_manager_config.eth_to_strk_oracle_config.base_url")]
-    consensus_manager_config_eth_to_strk_oracle_config_base_url: String,
     #[serde(rename = "l1_provider_config.provider_startup_height_override")]
     l1_provider_config_provider_startup_height_override: u64,
     #[serde(rename = "l1_provider_config.provider_startup_height_override.#is_none")]
@@ -144,7 +141,6 @@ impl DeploymentConfigOverride {
         eth_fee_token_address: impl ToString,
         starknet_url: impl ToString,
         strk_fee_token_address: impl ToString,
-        pragma_domain: PragmaDomain,
         l1_startup_height_override: Option<BlockNumber>,
         consensus_manager_config_context_config_num_validators: usize,
         state_sync_type: StateSyncType,
@@ -163,8 +159,6 @@ impl DeploymentConfigOverride {
             eth_fee_token_address: eth_fee_token_address.to_string(),
             starknet_url: starknet_url.to_string(),
             strk_fee_token_address: strk_fee_token_address.to_string(),
-            consensus_manager_config_eth_to_strk_oracle_config_base_url: PRAGMA_URL_TEMPLATE
-                .format(&[&pragma_domain]),
             l1_provider_config_provider_startup_height_override,
             l1_provider_config_provider_startup_height_override_is_none,
             consensus_manager_config_context_config_num_validators,
