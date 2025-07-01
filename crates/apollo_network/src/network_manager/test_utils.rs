@@ -7,10 +7,9 @@ use futures::future::{ready, Ready};
 use futures::sink::With;
 use futures::stream::Map;
 use futures::{SinkExt, StreamExt};
-use libp2p::core::multiaddr::Protocol;
 use libp2p::gossipsub::SubscriptionError;
 use libp2p::identity::Keypair;
-use libp2p::{Multiaddr, PeerId};
+use libp2p::PeerId;
 
 use super::{
     BroadcastReceivedMessagesConverterFn,
@@ -29,6 +28,7 @@ use super::{
     Topic,
 };
 use crate::sqmr::Bytes;
+use crate::utils::make_multiaddr;
 use crate::NetworkConfig;
 
 pub fn mock_register_sqmr_protocol_client<Query, Response>(
@@ -176,10 +176,7 @@ pub fn create_connected_network_configs(ports: Vec<u16>) -> Vec<NetworkConfig> {
         .iter()
         .zip(ports.iter())
         .map(|(public_key, port)| {
-            Multiaddr::empty()
-                .with(Protocol::Ip4(Ipv4Addr::LOCALHOST))
-                .with(Protocol::Tcp(*port))
-                .with(Protocol::P2p(PeerId::from_public_key(public_key)))
+            make_multiaddr(Ipv4Addr::LOCALHOST, *port, PeerId::from_public_key(public_key))
         })
         .collect();
     ports
