@@ -33,6 +33,8 @@ pub enum EthToStrkOracleClientError {
     JoinError(#[from] tokio::task::JoinError),
     #[error(transparent)]
     RequestError(#[from] reqwest::Error),
+    // #[error(transparent)]
+    // TimeoutError(#[from] tokio::time::error::Elapsed),
     #[error(transparent)]
     ParseError(#[from] serde_json::Error),
     #[error("Missing or invalid field: {0}")]
@@ -41,4 +43,6 @@ pub enum EthToStrkOracleClientError {
     InvalidDecimalsError(u64, u64),
     #[error("Query not yet resolved: timestamp={0}")]
     QueryNotReadyError(u64),
+    #[error("All URLs in the list failed for timestamp {0}")]
+    AllUrlsFailedError(u64, usize),
 }
