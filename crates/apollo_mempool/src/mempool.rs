@@ -499,6 +499,15 @@ impl Mempool {
         if self.tx_pool.get_by_tx_hash(tx_reference.tx_hash).is_ok() {
             return Err(MempoolError::DuplicateTransaction { tx_hash: tx_reference.tx_hash });
         }
+
+        if !self.config.override_gas_price_threshold_check
+            && tx_reference.max_l2_gas_price < self.tx_queue.gas_price_threshold()
+        {
+            return Err(MempoolError::GasPriceTooLow {
+                max_l2_gas_price: tx_reference.max_l2_gas_price,
+                threshold: self.tx_queue.gas_price_threshold(),
+            });
+        }
         self.state.validate_incoming_tx(tx_reference, incoming_account_nonce)
     }
 

@@ -300,12 +300,14 @@ fn test_update_gas_price_threshold(mut mempool: Mempool) {
         add_tx_input!(tx_hash: 1, address: "0x0", tip: 100, max_l2_gas_price: 20);
     let input_gas_price_30 =
         add_tx_input!(tx_hash: 2, address: "0x1", tip: 50, max_l2_gas_price: 30);
-
-    // Test: only txs with gas price above the threshold are returned.
-    mempool.update_gas_price(GasPrice(30));
+    mempool.update_gas_price(GasPrice(10));
     for input in [&input_gas_price_20, &input_gas_price_30] {
         add_tx(&mut mempool, input);
     }
+    // Transactions with gas price below the threshold are moved to the pending queue.
+    mempool.update_gas_price(GasPrice(30));
+
+    // Test: only txs with gas price above the threshold are returned.
     get_txs_and_assert_expected(&mut mempool, 2, &[input_gas_price_30.tx]);
 
     let nonces = [("0x1", 1)];

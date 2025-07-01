@@ -57,6 +57,10 @@ impl TransactionQueue {
         );
     }
 
+    pub fn gas_price_threshold(&self) -> GasPrice {
+        self.gas_price_threshold
+    }
+
     pub fn priority_queue_len(&self) -> usize {
         self.priority_queue.len()
     }

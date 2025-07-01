@@ -13,6 +13,7 @@ pub struct MempoolConfig {
     // TODO(AlonH): consider adding validations; should be bounded?
     // Percentage increase for tip and max gas price to enable transaction replacement.
     pub fee_escalation_percentage: u8, // E.g., 10 for a 10% increase.
+    // TODO(Arni): consider renaming this to 'allow_bootstrap_flows'
     // If true, transactions with max L2 gas price per unit bound that are less than the threshold
     // are still inserted into the priority queue.
     pub override_gas_price_threshold_check: bool,
