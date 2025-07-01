@@ -1,4 +1,5 @@
 use apollo_infra_utils::template::Template;
+use url::Url;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
@@ -24,7 +25,8 @@ fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
         "0x4fA369fEBf0C574ea05EC12bC0e1Bc9Cd461Dd0f",
         "INTERNAL_STRESS_TEST",
         "0x7e813ecf3e7b3e14f07bd2f68cb4a3d12110e3c75ec5a63de3d2dacf1852904",
-        "http://feeder-gateway.starknet-0-14-0-stress-test-03:9713/",
+        Url::parse("http://feeder-gateway.starknet-0-14-0-stress-test-03:9713/")
+            .expect("Invalid URL"),
         "0x2208cce4221df1f35943958340abc812aa79a8f6a533bff4ee00416d3d06cd6",
         PragmaDomain::Dev,
         None,
