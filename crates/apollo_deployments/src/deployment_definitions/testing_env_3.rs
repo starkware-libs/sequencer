@@ -38,6 +38,7 @@ fn testing_env_3_deployment_config_override() -> DeploymentConfigOverride {
         "0x54a93d918d62b2fb62b25e77d9cb693bd277ab7e6fa236e53af263f1adb40e4",
         PragmaDomain::Dev,
         None,
+        TESTING_ENV_3_NODE_IDS.len(),
     )
 }
 
