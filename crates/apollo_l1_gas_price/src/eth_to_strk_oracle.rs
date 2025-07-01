@@ -190,19 +190,31 @@ impl EthToStrkOracleClient {
         };
         let body =
             handle.now_or_never().expect("Should only be called once the query completes")??;
-        let json: serde_json::Value = serde_json::from_str(&body)?;
-        let price = json
-            .get("price")
-            .and_then(|v| v.as_str())
-            .ok_or(EthToStrkOracleClientError::MissingFieldError("price"))?;
+        let json: serde_json::Value = match serde_json::from_str(&body) {
+            Ok(json) => json,
+            Err(e) => {
+                warn!("Failed to parse JSON response: {e}");
+                return Err(EthToStrkOracleClientError::ParseError(e));
+            }
+        };
+        let price = match json.get("price").and_then(|v| v.as_str()) {
+            Some(price) => price,
+            None => {
+                warn!("Missing or invalid 'price' field in response: {json}");
+                return Err(EthToStrkOracleClientError::MissingFieldError("price"));
+            }
+        };
         // Convert hex to u128
         let rate = u128::from_str_radix(price.trim_start_matches("0x"), 16)
             .expect("Failed to parse price as u128");
         // Extract decimals from API response
-        let decimals = json
-            .get("decimals")
-            .and_then(|v| v.as_u64())
-            .ok_or(EthToStrkOracleClientError::MissingFieldError("decimals"))?;
+        let decimals = match json.get("decimals").and_then(|v| v.as_u64()) {
+            Some(decimals) => decimals,
+            None => {
+                warn!("Missing or invalid 'decimals' field in response: {json}");
+                return Err(EthToStrkOracleClientError::MissingFieldError("decimals"));
+            }
+        };
         if decimals != ETH_TO_STRK_QUANTIZATION {
             return Err(EthToStrkOracleClientError::InvalidDecimalsError(
                 ETH_TO_STRK_QUANTIZATION,
@@ -255,6 +267,11 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             Err(e) => {
                 warn!("Query failed for timestamp {timestamp}: {e:?}");
                 ETH_TO_STRK_ERROR_COUNT.increment(1);
+                // Remove the unresolved query from the cache
+                self.cached_prices
+                    .lock()
+                    .expect("Lock on cached prices was poisoned due to a previous panic")
+                    .pop(&quantized_timestamp);
                 return Err(e);
             }
         };
