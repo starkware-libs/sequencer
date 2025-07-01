@@ -5,6 +5,6 @@
   "eth_fee_token_address": "0x7c07a3eec8ff611328722c3fc3e5d2e4ef2f60740c0bf86c756606036b74c16",
   "l1_provider_config.provider_startup_height_override": 0,
   "l1_provider_config.provider_startup_height_override.#is_none": true,
-  "starknet_url": "feeder.sn-alpha-test-upgrade.gateway-proxy.sw-dev.io",
+  "starknet_url": "https://feeder.sn-alpha-test-upgrade.gateway-proxy.sw-dev.io",
   "strk_fee_token_address": "0x54a93d918d62b2fb62b25e77d9cb693bd277ab7e6fa236e53af263f1adb40e4"
 }

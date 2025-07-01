@@ -27,7 +27,7 @@ fn upgrade_test_deployment_config_override() -> DeploymentConfigOverride {
         "0x9b8A6361d204a0C1F93d5194763538057444d958",
         "SN_GOERLI",
         "0x7c07a3eec8ff611328722c3fc3e5d2e4ef2f60740c0bf86c756606036b74c16",
-        "feeder.sn-alpha-test-upgrade.gateway-proxy.sw-dev.io",
+        "https://feeder.sn-alpha-test-upgrade.gateway-proxy.sw-dev.io",
         "0x54a93d918d62b2fb62b25e77d9cb693bd277ab7e6fa236e53af263f1adb40e4",
         PragmaDomain::Dev,
         None,
