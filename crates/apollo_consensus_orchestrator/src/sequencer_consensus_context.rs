@@ -62,7 +62,7 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
-use crate::build_proposal::{build_proposal, ProposalBuildArguments};
+use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
@@ -260,7 +260,6 @@ impl ConsensusContext for SequencerConsensusContext {
             proposal_init,
             l1_da_mode: self.l1_da_mode,
             stream_sender,
-            fin_sender,
             gas_price_params,
             valid_proposals: Arc::clone(&self.valid_proposals),
             proposal_id,
@@ -273,9 +272,15 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         let handle = tokio::spawn(
             async move {
-                match build_proposal(args).await {
+                let res = build_proposal(args).await.map(|proposal_commitment| {
+                    fin_sender
+                        .send(proposal_commitment)
+                        .map_err(|_| BuildProposalError::SendError(proposal_commitment))?;
+                    Ok::<_, BuildProposalError>(proposal_commitment)
+                });
+                match res {
                     Ok(proposal_commitment) => {
-                        info!(?proposal_id, ?proposal_commitment, "Proposal built successfully.");
+                        info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.");
                     }
                     Err(e) => {
                         warn!("Proposal failed. Error: {e:?}");
