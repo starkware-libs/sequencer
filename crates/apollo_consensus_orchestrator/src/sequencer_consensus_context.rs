@@ -459,7 +459,8 @@ impl ConsensusContext for SequencerConsensusContext {
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
 
-        let cende_block_info = convert_to_sn_api_block_info(&block_info);
+        // The conversion should never fail, if we already managed to get a decision.
+        let cende_block_info = convert_to_sn_api_block_info(&block_info)?;
         let l1_gas_price = GasPricePerToken {
             price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_gas_price.get(),
             price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_gas_price.get(),
