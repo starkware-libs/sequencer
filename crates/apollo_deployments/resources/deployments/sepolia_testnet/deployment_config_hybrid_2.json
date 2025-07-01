@@ -6,32 +6,32 @@
       "controller": "StatefulSet",
       "config_paths": [
         "base_app_config.json",
-        "deployments/testing_env_3/deployment_config_override.json",
-        "deployments/testing_env_3/hybrid_3.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_2.json",
         "services/hybrid/core.json"
       ],
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-core-service.sequencer-test-3-node-3.sw-dev.io",
+        "external_dns_name": "sequencer-core-service.apollo-sepolia-alpha-2.starknet.io",
         "internal": true
       },
       "autoscale": false,
       "replicas": 1,
       "storage": 1000,
-      "toleration": "apollo-core-service",
+      "toleration": "apollo-core-service-c2-d56",
       "resources": {
         "requests": {
-          "cpu": 2,
-          "memory": 4
+          "cpu": 50,
+          "memory": 200
         },
         "limits": {
-          "cpu": 7,
-          "memory": 14
+          "cpu": 50,
+          "memory": 220
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-3"
+        "gcsm_key": "apollo-sepolia-alpha-2"
       },
       "anti_affinity": true
     },
@@ -40,14 +40,14 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/testing_env_3/deployment_config_override.json",
-        "deployments/testing_env_3/hybrid_3.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_2.json",
         "services/hybrid/http_server.json"
       ],
       "ingress": {
-        "domain": "sw-dev.io",
+        "domain": "starknet.io",
         "alternative_names": [
-          "sn-test-sepolia-3-sepolia.gateway-proxy.sw-dev.io"
+          "alpha-sepolia.starknet.io"
         ],
         "internal": false,
         "rules": [
@@ -74,7 +74,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-3"
+        "gcsm_key": "apollo-sepolia-alpha-2"
       },
       "anti_affinity": false
     },
@@ -83,8 +83,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/testing_env_3/deployment_config_override.json",
-        "deployments/testing_env_3/hybrid_3.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_2.json",
         "services/hybrid/gateway.json"
       ],
       "ingress": null,
@@ -104,7 +104,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-3"
+        "gcsm_key": "apollo-sepolia-alpha-2"
       },
       "anti_affinity": false
     },
@@ -113,14 +113,14 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/testing_env_3/deployment_config_override.json",
-        "deployments/testing_env_3/hybrid_3.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_2.json",
         "services/hybrid/mempool.json"
       ],
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-mempool-service.sequencer-test-3-node-3.sw-dev.io",
+        "external_dns_name": "sequencer-mempool-service.apollo-sepolia-alpha-2.starknet.io",
         "internal": true
       },
       "autoscale": false,
@@ -138,7 +138,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-3"
+        "gcsm_key": "apollo-sepolia-alpha-2"
       },
       "anti_affinity": true
     },
@@ -147,8 +147,8 @@
       "controller": "Deployment",
       "config_paths": [
         "base_app_config.json",
-        "deployments/testing_env_3/deployment_config_override.json",
-        "deployments/testing_env_3/hybrid_3.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_2.json",
         "services/hybrid/sierra_compiler.json"
       ],
       "ingress": null,
@@ -168,7 +168,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "sequencer-test-3-node-3"
+        "gcsm_key": "apollo-sepolia-alpha-2"
       },
       "anti_affinity": false
     }
