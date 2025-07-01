@@ -129,9 +129,12 @@ pub struct DeploymentConfigOverride {
     l1_provider_config_provider_startup_height_override: u64,
     #[serde(rename = "l1_provider_config.provider_startup_height_override.#is_none")]
     l1_provider_config_provider_startup_height_override_is_none: bool,
+    #[serde(rename = "consensus_manager_config.context_config.num_validators")]
+    num_validators: usize,
 }
 
 impl DeploymentConfigOverride {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         starknet_contract_address: impl ToString,
         chain_id: impl ToString,
@@ -140,6 +143,7 @@ impl DeploymentConfigOverride {
         strk_fee_token_address: impl ToString,
         pragma_domain: PragmaDomain,
         l1_startup_height_override: Option<BlockNumber>,
+        num_validators: usize,
     ) -> Self {
         let (
             l1_provider_config_provider_startup_height_override,
@@ -159,6 +163,7 @@ impl DeploymentConfigOverride {
                 .format(&[&pragma_domain]),
             l1_provider_config_provider_startup_height_override,
             l1_provider_config_provider_startup_height_override_is_none,
+            num_validators,
         }
     }
 }

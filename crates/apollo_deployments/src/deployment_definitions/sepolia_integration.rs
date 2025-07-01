@@ -29,6 +29,7 @@ fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride 
         "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
         PragmaDomain::Dev,
         None,
+        SEPOLIA_INTEGRATION_NODE_IDS.len(),
     )
 }
 
