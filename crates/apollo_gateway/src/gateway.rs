@@ -203,6 +203,10 @@ impl ProcessTxBlockingTask {
         let mut validator = self
             .stateful_tx_validator
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
+        // TODO(Arni): Use the _l2_gas_price reject transactions that do not pass the gas price
+        // threshold.
+        let _l2_gas_price =
+            validator.block_context().block_info().gas_prices.strk_gas_prices.l2_gas_price;
         let address = executable_tx.contract_address();
         let nonce = validator.get_nonce(address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", address, e);
