@@ -17,7 +17,7 @@
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": {
     "description": "An upper bound on the total builtins and steps gas usage used in a block.",
     "privacy": "Public",
-    "value": 4000000000
+    "value": 5000000000
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": {
     "description": "An upper bound on the total sierra_gas used in a block.",
@@ -32,7 +32,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.add_mod": {
     "description": "Add_mod gas weight.",
     "privacy": "Public",
-    "value": 250
+    "value": 312
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.bitwise": {
     "description": "Bitwise gas weight.",
@@ -42,17 +42,17 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.ec_op": {
     "description": "Ec_op gas weight.",
     "privacy": "Public",
-    "value": 571900
+    "value": 714875
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.ecdsa": {
     "description": "Ecdsa gas weight.",
     "privacy": "Public",
-    "value": 1333333
+    "value": 1666666
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.keccak": {
     "description": "Keccak gas weight.",
     "privacy": "Public",
-    "value": 408566
+    "value": 510707
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.mul_mod": {
     "description": "Mul_mod gas weight.",
@@ -62,12 +62,12 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
-    "value": 8100
+    "value": 10125
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.poseidon": {
     "description": "Poseidon gas weight.",
     "privacy": "Public",
-    "value": 8334
+    "value": 6250
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.range_check": {
     "description": "Range_check gas weight.",
