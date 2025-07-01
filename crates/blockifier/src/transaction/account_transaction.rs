@@ -258,7 +258,7 @@ impl AccountTransaction {
         if self.execution_flags.charge_fee {
             self.check_fee_bounds(tx_context)?;
 
-            verify_can_pay_committed_bounds(state, tx_context)?;
+            verify_can_pay_committed_bounds(state, tx_context).map_err(Box::new)?;
         }
 
         Ok(())
@@ -345,9 +345,9 @@ impl AccountTransaction {
                     )
                     .collect::<Vec<_>>();
                 if !insufficiencies.is_empty() {
-                    return Err(TransactionFeeError::InsufficientResourceBounds {
+                    return Err(Box::new(TransactionFeeError::InsufficientResourceBounds {
                         errors: insufficiencies,
-                    })?;
+                    }))?;
                 }
             }
             TransactionInfo::Deprecated(context) => {
@@ -359,9 +359,9 @@ impl AccountTransaction {
                     tx_context.effective_tip(),
                 );
                 if max_fee < min_fee {
-                    return Err(TransactionPreValidationError::TransactionFeeError(
+                    return Err(TransactionPreValidationError::TransactionFeeError(Box::new(
                         TransactionFeeError::MaxFeeTooLow { min_fee, max_fee },
-                    ));
+                    )));
                 }
             }
         };

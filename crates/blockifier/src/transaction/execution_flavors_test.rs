@@ -280,11 +280,10 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
         assert_matches!(
             err,
             TransactionExecutionError::TransactionPreValidationError(boxed_error)
-            if matches!(
+            => assert_matches!(
                 *boxed_error,
-                TransactionPreValidationError::TransactionFeeError(
-                    TransactionFeeError::MaxFeeTooLow { .. }
-                )
+                TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+                if matches!(*boxed_fee_error, TransactionFeeError::MaxFeeTooLow { .. })
             )
         );
     } else {
@@ -293,13 +292,15 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
             TransactionExecutionError::TransactionPreValidationError(boxed_error)
             => assert_matches!(
                 *boxed_error,
-                TransactionPreValidationError::TransactionFeeError(
-                    TransactionFeeError::InsufficientResourceBounds { errors }
-                )
+                TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
                 => assert_matches!(
-                    errors[0],
-                    ResourceBoundsError::MaxGasAmountTooLow { resource , .. }
-                    if resource == Resource::L1Gas
+                    *boxed_fee_error,
+                    TransactionFeeError::InsufficientResourceBounds { errors }
+                    => assert_matches!(
+                        errors[0],
+                        ResourceBoundsError::MaxGasAmountTooLow { resource , .. }
+                        if resource == Resource::L1Gas
+                    )
                 )
             )
         );
@@ -334,9 +335,11 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
         assert_matches!(
             result.unwrap_err(),
             TransactionExecutionError::TransactionPreValidationError(boxed_error)
-            if matches!(
+            => assert_matches!(
                 *boxed_error,
-                TransactionPreValidationError::TransactionFeeError(
+                TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+                => assert_matches!(
+                    *boxed_fee_error,
                     TransactionFeeError::MaxFeeExceedsBalance { .. }
                 )
             )
@@ -345,12 +348,14 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
         assert_matches!(
             result.unwrap_err(),
             TransactionExecutionError::TransactionPreValidationError(boxed_error)
-            if matches!(
+            => assert_matches!(
                 *boxed_error,
-                TransactionPreValidationError::TransactionFeeError(
+                TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+                => assert_matches!(
+                    *boxed_fee_error,
                     TransactionFeeError::GasBoundsExceedBalance {resource, .. }
+                    if resource == Resource::L1Gas
                 )
-                if resource == Resource::L1Gas
             )
         );
     }
@@ -380,13 +385,15 @@ fn test_simulate_validate_pre_validate_with_charge_fee(
             TransactionExecutionError::TransactionPreValidationError(boxed_error)
             => assert_matches!(
                 *boxed_error,
-                TransactionPreValidationError::TransactionFeeError(
-                    TransactionFeeError::InsufficientResourceBounds{ errors }
-                )
+                TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
                 => assert_matches!(
-                    errors[0],
-                    ResourceBoundsError::MaxGasPriceTooLow { resource, .. }
-                    if resource == Resource::L1Gas
+                    *boxed_fee_error,
+                    TransactionFeeError::InsufficientResourceBounds{ errors }
+                    => assert_matches!(
+                        errors[0],
+                        ResourceBoundsError::MaxGasPriceTooLow { resource, .. }
+                        if resource == Resource::L1Gas
+                    )
                 )
             )
         );

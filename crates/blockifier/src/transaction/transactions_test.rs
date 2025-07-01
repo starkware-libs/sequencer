@@ -1018,12 +1018,14 @@ fn assert_resource_bounds_exceed_balance_failure(
             assert_matches!(
                 tx_error,
                 TransactionExecutionError::TransactionPreValidationError(boxed_error)
-                if matches!(
+                => assert_matches!(
                     *boxed_error,
-                    TransactionPreValidationError::TransactionFeeError(
+                    TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+                    if matches!(
+                        *boxed_fee_error,
                         TransactionFeeError::MaxFeeExceedsBalance{ max_fee, .. }
+                        if max_fee == context.max_fee
                     )
-                    if max_fee == context.max_fee
                 )
             );
         }
@@ -1031,30 +1033,34 @@ fn assert_resource_bounds_exceed_balance_failure(
             ValidResourceBounds::L1Gas(l1_bounds) => assert_matches!(
                 tx_error,
                 TransactionExecutionError::TransactionPreValidationError(boxed_error)
-                if matches!(
+                => assert_matches!(
                     *boxed_error,
-                    TransactionPreValidationError::TransactionFeeError(
+                    TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+                    if matches!(
+                        *boxed_fee_error,
                         TransactionFeeError::GasBoundsExceedBalance{
                             resource, max_amount, max_price, ..
                         }
+                        if max_amount == l1_bounds.max_amount
+                            && max_price == l1_bounds.max_price_per_unit
+                            && resource == L1Gas
                     )
-                    if max_amount == l1_bounds.max_amount
-                        && max_price == l1_bounds.max_price_per_unit
-                        && resource == L1Gas
                 )
             ),
             ValidResourceBounds::AllResources(actual_bounds) => {
                 assert_matches!(
                     tx_error,
                     TransactionExecutionError::TransactionPreValidationError(boxed_error)
-                    if matches!(
+                    => assert_matches!(
                         *boxed_error,
-                        TransactionPreValidationError::TransactionFeeError(
+                        TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+                        if matches!(
+                            *boxed_fee_error,
                             TransactionFeeError::ResourcesBoundsExceedBalance {
                                 bounds: error_bounds, ..
                             }
+                            if actual_bounds == error_bounds
                         )
-                        if actual_bounds == error_bounds
                     )
                 );
             }
@@ -1278,10 +1284,16 @@ fn test_insufficient_new_resource_bounds_pre_validation(
         Err(err) => match err {
             TransactionExecutionError::TransactionPreValidationError(boxed_error) => {
                 match *boxed_error {
-                    TransactionPreValidationError::TransactionFeeError(
-                        TransactionFeeError::InsufficientResourceBounds { .. },
-                    ) => panic!("Transaction failed with expected minimal resource bounds."),
-                    // Ignore failures other than those above (e.g., post-validation errors).
+                    TransactionPreValidationError::TransactionFeeError(boxed_fee_error) => {
+                        match *boxed_fee_error {
+                            TransactionFeeError::InsufficientResourceBounds { .. } => {
+                                panic!("Transaction failed with expected minimal resource bounds.")
+                            }
+                            // Ignore failures other than those above (e.g., post-validation
+                            // errors).
+                            _ => 0,
+                        }
+                    }
                     _ => 0,
                 }
             }
@@ -1315,12 +1327,15 @@ fn test_insufficient_new_resource_bounds_pre_validation(
             TransactionExecutionError::TransactionPreValidationError(boxed_error)
             => assert_matches!(
                 *boxed_error,
-                TransactionPreValidationError::TransactionFeeError(
+                TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+                => assert_matches!(
+                    *boxed_fee_error,
                     TransactionFeeError::InsufficientResourceBounds{errors}
-                ) => assert_matches!(
-                    errors[0],
-                    ResourceBoundsError::MaxGasAmountTooLow{resource, ..}
-                    if resource == insufficient_resource
+                    => assert_matches!(
+                        errors[0],
+                        ResourceBoundsError::MaxGasAmountTooLow{resource, ..}
+                        if resource == insufficient_resource
+                    )
                 )
             )
         );
@@ -1346,12 +1361,15 @@ fn test_insufficient_new_resource_bounds_pre_validation(
             TransactionExecutionError::TransactionPreValidationError(boxed_error)
             => assert_matches!(
                 *boxed_error,
-                TransactionPreValidationError::TransactionFeeError(
+                TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+                => assert_matches!(
+                    *boxed_fee_error,
                     TransactionFeeError::InsufficientResourceBounds{ errors }
-                ) => assert_matches!(
+                    => assert_matches!(
                         errors[0],
                         ResourceBoundsError::MaxGasPriceTooLow{resource,..}
                         if resource == insufficient_resource
+                    )
                 )
             )
         );
@@ -1374,31 +1392,34 @@ fn test_insufficient_new_resource_bounds_pre_validation(
         TransactionExecutionError::TransactionPreValidationError(boxed_error)
         => assert_matches!(
             *boxed_error,
-            TransactionPreValidationError::TransactionFeeError(
+            TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+            => assert_matches!(
+                *boxed_fee_error,
                 TransactionFeeError::InsufficientResourceBounds{ errors }
-            ) => {
-                assert_eq!(errors.len(), 4);
-                assert_matches!(
-                    errors[0],
-                    ResourceBoundsError::MaxGasPriceTooLow{resource,..}
-                    if resource == L1Gas
-                );
-                assert_matches!(
-                    errors[1],
-                    ResourceBoundsError::MaxGasPriceTooLow{resource,..}
-                    if resource == L1DataGas
-                );
-                assert_matches!(
-                    errors[2],
-                    ResourceBoundsError::MaxGasAmountTooLow{resource,..}
-                    if resource == L2Gas
-                );
-                assert_matches!(
-                    errors[3],
-                    ResourceBoundsError::MaxGasPriceTooLow{resource,..}
-                    if resource == L2Gas
-                );
-            }
+                => {
+                    assert_eq!(errors.len(), 4);
+                    assert_matches!(
+                        errors[0],
+                        ResourceBoundsError::MaxGasPriceTooLow{resource,..}
+                        if resource == L1Gas
+                    );
+                    assert_matches!(
+                        errors[1],
+                        ResourceBoundsError::MaxGasPriceTooLow{resource,..}
+                        if resource == L1DataGas
+                    );
+                    assert_matches!(
+                        errors[2],
+                        ResourceBoundsError::MaxGasAmountTooLow{resource,..}
+                        if resource == L2Gas
+                    );
+                    assert_matches!(
+                        errors[3],
+                        ResourceBoundsError::MaxGasPriceTooLow{resource,..}
+                        if resource == L2Gas
+                    );
+                }
+            )
         )
     );
 }
@@ -1444,12 +1465,14 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
     assert_matches!(
         execution_error,
         TransactionExecutionError::TransactionPreValidationError(boxed_error)
-        if matches!(
+        => assert_matches!(
             *boxed_error,
-            TransactionPreValidationError::TransactionFeeError(
+            TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+            => assert_matches!(
+                *boxed_fee_error,
                 TransactionFeeError::MaxFeeTooLow {  min_fee, max_fee }
+                if max_fee == invalid_max_fee && min_fee == minimal_fee
             )
-            if max_fee == invalid_max_fee && min_fee == minimal_fee
         )
     );
 
@@ -1469,9 +1492,11 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
         TransactionExecutionError::TransactionPreValidationError(boxed_error)
         => assert_matches!(
             *boxed_error,
-            TransactionPreValidationError::TransactionFeeError(
+            TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+            => assert_matches!(
+                *boxed_fee_error,
                 TransactionFeeError::InsufficientResourceBounds{ errors }
-            ) => assert_matches!(
+                => assert_matches!(
                     errors[0],
                     ResourceBoundsError::MaxGasAmountTooLow{
                         resource,
@@ -1479,6 +1504,7 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
                         minimal_gas_amount}
                     if max_gas_amount == insufficient_max_l1_gas_amount &&
                     minimal_gas_amount == minimal_l1_gas && resource == L1Gas
+                )
             )
         )
     );
@@ -1495,13 +1521,16 @@ fn test_insufficient_deprecated_resource_bounds_pre_validation(
         TransactionExecutionError::TransactionPreValidationError(boxed_error)
         => assert_matches!(
             *boxed_error,
-            TransactionPreValidationError::TransactionFeeError(
+            TransactionPreValidationError::TransactionFeeError(boxed_fee_error)
+            => assert_matches!(
+                *boxed_fee_error,
                 TransactionFeeError::InsufficientResourceBounds{errors,..}
-            ) => assert_matches!(
-                errors[0],
-                ResourceBoundsError::MaxGasPriceTooLow{ resource: L1Gas ,max_gas_price: max_l1_gas_price, actual_gas_price: actual_l1_gas_price }
-                if max_l1_gas_price == insufficient_max_l1_gas_price &&
-                actual_l1_gas_price == actual_strk_l1_gas_price.into()
+                => assert_matches!(
+                    errors[0],
+                    ResourceBoundsError::MaxGasPriceTooLow{ resource: L1Gas ,max_gas_price: max_l1_gas_price, actual_gas_price: actual_l1_gas_price }
+                    if max_l1_gas_price == insufficient_max_l1_gas_price &&
+                    actual_l1_gas_price == actual_strk_l1_gas_price.into()
+                )
             )
         )
     );
