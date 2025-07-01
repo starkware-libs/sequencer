@@ -919,7 +919,7 @@ impl ValidatableTransaction for AccountTransaction {
         let validate_call_info = validate_call
             .execute(state, &mut context, remaining_validation_gas)
             .map_err(|error| TransactionExecutionError::ValidateTransactionError {
-                error,
+                error: Box::new(error),
                 class_hash,
                 storage_address,
                 selector: validate_selector,
