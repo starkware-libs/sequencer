@@ -25,7 +25,6 @@ use tracing::info;
 use url::Url;
 
 const ANVIL_NODE_URL: &str = "http://localhost:8545";
-const STARKNET_CONTRACT_ADDRESS: &str = DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS;
 const NUM_BLOCKS_NEEDED_ON_L1: usize = 310;
 
 #[derive(Debug)]
@@ -149,7 +148,7 @@ async fn initialize_anvil_state(sender_address: Address, receiver_address: Addre
 
 fn build_base_layer_config_for_testing() -> EthereumBaseLayerConfig {
     let starknet_contract_address: EthereumContractAddress =
-        STARKNET_CONTRACT_ADDRESS.parse().expect("Invalid contract address");
+        DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().expect("Invalid contract address");
     let node_url = Url::parse(ANVIL_NODE_URL).expect("Failed to parse Anvil URL");
 
     EthereumBaseLayerConfig {
