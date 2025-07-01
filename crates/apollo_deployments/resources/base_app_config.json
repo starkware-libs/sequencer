@@ -84,7 +84,6 @@
   "consensus_manager_config.context_config.l1_da_mode": true,
   "consensus_manager_config.context_config.l1_data_gas_price_multiplier_ppt": 135,
   "consensus_manager_config.context_config.l1_gas_tip_wei": 1000000000,
-  "consensus_manager_config.context_config.num_validators": 3,
   "consensus_manager_config.context_config.proposal_buffer_size": 512,
   "consensus_manager_config.context_config.validate_proposal_margin_millis": 10000,
   "consensus_manager_config.context_config.min_l1_gas_price_wei": 1000000000,

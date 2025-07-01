@@ -12,6 +12,7 @@ use crate::k8s::IngressParams;
 use crate::service::NodeType;
 
 const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
+const TESTING_NODE_IDS: [usize; 1] = [0];
 
 pub(crate) fn system_test_deployments() -> Vec<Deployment> {
     vec![
@@ -30,6 +31,7 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         "0x1002",
         PragmaDomain::Dev,
         Some(BlockNumber(1)),
+        TESTING_NODE_IDS.len(),
     )
 }
 
