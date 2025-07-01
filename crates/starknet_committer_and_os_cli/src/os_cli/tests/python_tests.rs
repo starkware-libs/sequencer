@@ -36,8 +36,8 @@ impl PythonTestRunner for OsPythonTestRunner {
     #[allow(clippy::result_large_err)]
     async fn run(&self, input: Option<&str>) -> OsPythonTestResult {
         match self {
-            Self::AliasesTest => aliases_test(Self::non_optional_input(input)?),
-            Self::BlsFieldTest => test_bls_field(Self::non_optional_input(input)?),
+            Self::AliasesTest => aliases_test(),
+            Self::BlsFieldTest => test_bls_field(),
             Self::InputDeserialization => input_deserialization(Self::non_optional_input(input)?),
             Self::EncodeFelts => {
                 let felts: Vec<Felt> = serde_json::from_str(Self::non_optional_input(input)?)?;

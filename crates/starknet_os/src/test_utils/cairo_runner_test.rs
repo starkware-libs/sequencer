@@ -70,7 +70,7 @@ use crate::test_utils::utils::run_cairo_function_and_check_result;
 ///     let sum = number_1 + number_2;
 ///     return (res=sum);
 /// }
-const COMPILED_DUMMY_FUNCTION: &str = include_str!("compiled_dummy_function.json");
+const COMPILED_DUMMY_FUNCTION_BYTES: &[u8] = include_bytes!("compiled_dummy_function.json");
 
 #[test]
 fn test_felt_and_pointers() -> Cairo0EntryPointRunnerResult<()> {
@@ -117,7 +117,7 @@ fn test_felt_and_pointers() -> Cairo0EntryPointRunnerResult<()> {
     ]));
     run_cairo_function_and_check_result(
         &EntryPointRunnerConfig::default(),
-        COMPILED_DUMMY_FUNCTION,
+        COMPILED_DUMMY_FUNCTION_BYTES,
         "pass_felt_and_pointers",
         &[number.into(), array, tuple, simple_struct, compound_struct],
         &[],
@@ -172,7 +172,7 @@ fn test_tuples_and_structs() -> Cairo0EntryPointRunnerResult<()> {
     ]));
     run_cairo_function_and_check_result(
         &EntryPointRunnerConfig::default(),
-        COMPILED_DUMMY_FUNCTION,
+        COMPILED_DUMMY_FUNCTION_BYTES,
         "pass_structs_and_tuples",
         &[tuple, named_tuple, simple_struct, compound_struct],
         &[],
@@ -204,7 +204,7 @@ fn test_implicit_args() -> Cairo0EntryPointRunnerResult<()> {
         EntryPointRunnerConfig { layout: LayoutName::all_cairo, ..Default::default() };
     run_cairo_function_and_check_result(
         &entrypoint_runner_config,
-        COMPILED_DUMMY_FUNCTION,
+        COMPILED_DUMMY_FUNCTION_BYTES,
         "pass_implicit_args",
         &[number_1.into(), number_2.into()],
         &[

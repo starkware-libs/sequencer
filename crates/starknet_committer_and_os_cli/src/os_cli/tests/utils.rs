@@ -27,7 +27,7 @@ pub static DEFAULT_PRIME: LazyLock<BigInt> = LazyLock::new(|| {
 #[allow(clippy::result_large_err)]
 pub(crate) fn test_cairo_function(
     runner_config: &EntryPointRunnerConfig,
-    program_str: &str,
+    program_bytes: &[u8],
     function_name: &str,
     explicit_args: &[EndpointArg],
     implicit_args: &[ImplicitArg],
@@ -37,7 +37,7 @@ pub(crate) fn test_cairo_function(
 ) -> OsPythonTestResult {
     run_cairo_function_and_check_result(
         runner_config,
-        program_str,
+        program_bytes,
         function_name,
         explicit_args,
         implicit_args,
