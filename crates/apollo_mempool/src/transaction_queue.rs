@@ -18,7 +18,7 @@ pub mod transaction_queue_test_utils;
 // used.
 #[derive(Debug, Default)]
 pub struct TransactionQueue {
-    gas_price_threshold: GasPrice,
+    pub gas_price_threshold: GasPrice,
     // Transactions with gas price above gas price threshold (sorted by tip).
     priority_queue: BTreeSet<PriorityTransaction>,
     // Transactions with gas price below gas price threshold (sorted by price).

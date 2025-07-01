@@ -20,6 +20,7 @@ use mockall::predicate::eq;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
+use starknet_api::executable_transaction::DeclareTransaction;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::test_utils::invoke::internal_invoke_tx;
@@ -461,7 +462,7 @@ fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_bootstrap_tx_depends_on_config(#[values(true, false)] allow_bootstrap: bool) {
+fn config_override_gas_price_threashold(#[values(true, false)] allow_bootstrap: bool) {
     let mut builder = MempoolTestContentBuilder::new();
     builder.config.override_gas_price_threshold_check = allow_bootstrap;
     builder.gas_price_threshold = GasPrice(7);
@@ -469,19 +470,27 @@ fn test_add_bootstrap_tx_depends_on_config(#[values(true, false)] allow_bootstra
 
     let zero_bounds_tx = add_tx_input!(
         tx_hash: 1,
-        address: "0x0",
+        address: DeclareTransaction::bootstrap_address().to_string().as_str(),
         tx_nonce: 0,
         account_nonce: 0,
         tip: 0,
         max_l2_gas_price: 0
     );
-    add_tx(&mut mempool, &zero_bounds_tx);
 
-    let txs = vec![TransactionReference::new(&zero_bounds_tx.tx)];
-    let (expected_priority, expected_pending) =
-        if allow_bootstrap { (txs, vec![]) } else { (vec![], txs) };
+    if allow_bootstrap {
+        add_tx(&mut mempool, &zero_bounds_tx);
+    } else {
+        add_tx_expect_error(
+            &mut mempool,
+            &zero_bounds_tx,
+            MempoolError::GasPriceTooLow { max_l2_gas_price: GasPrice(0), threshold: GasPrice(7) },
+        );
+    }
+
+    let expected_priority =
+        if allow_bootstrap { vec![TransactionReference::new(&zero_bounds_tx.tx)] } else { vec![] };
     let expected_mempool_content = MempoolTestContentBuilder::new()
-        .with_pending_queue(expected_pending)
+        .with_pending_queue(vec![])
         .with_priority_queue(expected_priority)
         .build();
     expected_mempool_content.assert_eq(&mempool.content());
@@ -685,6 +694,7 @@ fn test_commit_block_includes_all_proposed_txs() {
     expected_mempool_content.assert_eq(&mempool.content());
 }
 
+// TODO(Arni): add case for moving from pending to priority queue.
 // Fee escalation tests.
 
 #[rstest]
@@ -695,11 +705,15 @@ fn test_fee_escalation_valid_replacement(
     #[case] in_priority_queue: bool,
     #[case] in_pending_queue: bool,
 ) {
+    // The following value is true if we expect a transaction to exist in the priority queue at the
+    // end of the test.
+    let expected_in_priority_queue = in_priority_queue || in_pending_queue;
     let increased_values = [
         99,  // Exactly increase percentage.
         100, // More than increase percentage,
         180, // More than 100% increase, to check percentage calculation.
     ];
+
     for increased_value in increased_values {
         // Setup.
         let tx = tx!(tx_hash: 0, tip: 90, max_l2_gas_price: 90);
@@ -708,7 +722,9 @@ fn test_fee_escalation_valid_replacement(
             .with_fee_escalation_percentage(10);
 
         if in_pending_queue {
-            builder = builder.with_gas_price_threshold(1000);
+            // The threshold is so that the existing transaction is in the pending queue but the
+            // input transacion would enter the priority queue.
+            builder = builder.with_gas_price_threshold(91);
         }
 
         let mempool = builder.with_pool([tx]).build_full_mempool();
@@ -719,8 +735,8 @@ fn test_fee_escalation_valid_replacement(
         add_tx_and_verify_replacement(
             mempool,
             valid_replacement_input,
-            in_priority_queue,
-            in_pending_queue,
+            expected_in_priority_queue,
+            false,
         );
     }
 }
@@ -740,7 +756,9 @@ fn test_fee_escalation_invalid_replacement(
         .with_fee_escalation_percentage(10);
 
     if in_pending_queue {
-        builder = builder.with_gas_price_threshold(1000);
+        // The threshold is so that the existing transaction is in pending queue but the input
+        // transaction would have entered the priority queue.
+        builder = builder.with_gas_price_threshold(101);
     }
 
     let mempool = builder.with_pool([existing_tx.clone()]).build_full_mempool();
@@ -1183,7 +1201,9 @@ fn metrics_correctness() {
     );
     add_tx(&mut mempool, &invoke_5);
     // invoke_6 will be pending, as it has a lower gas price than the threshold.
+    mempool.update_gas_price(GasPrice(0));
     add_tx(&mut mempool, &invoke_6);
+    mempool.update_gas_price(GasPrice(100));
     add_tx(&mut mempool, &declare_1);
 
     commit_block(

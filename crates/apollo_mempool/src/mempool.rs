@@ -15,9 +15,11 @@ use indexmap::IndexSet;
 use rand::{thread_rng, Rng};
 use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::executable_transaction::DeclareTransaction;
 use starknet_api::rpc_transaction::{InternalRpcTransaction, InternalRpcTransactionWithoutTxHash};
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
+use starknet_types_core::felt::Felt;
 use tracing::{debug, info, instrument, trace};
 
 use crate::config::MempoolConfig;
@@ -499,6 +501,17 @@ impl Mempool {
         if self.tx_pool.get_by_tx_hash(tx_reference.tx_hash).is_ok() {
             return Err(MempoolError::DuplicateTransaction { tx_hash: tx_reference.tx_hash });
         }
+
+        if tx_reference.max_l2_gas_price < self.tx_queue.gas_price_threshold {
+            let is_bootstrap_transaction = tx_reference.is_bootstrap_transaction()
+                && self.config.override_gas_price_threshold_check;
+            if !is_bootstrap_transaction {
+                return Err(MempoolError::GasPriceTooLow {
+                    max_l2_gas_price: tx_reference.max_l2_gas_price,
+                    threshold: self.tx_queue.gas_price_threshold,
+                });
+            }
+        }
         self.state.validate_incoming_tx(tx_reference, incoming_account_nonce)
     }
 
@@ -822,6 +835,13 @@ impl TransactionReference {
             tip: tx.tip(),
             max_l2_gas_price: tx.resource_bounds().l2_gas.max_price_per_unit,
         }
+    }
+
+    pub fn is_bootstrap_transaction(&self) -> bool {
+        self.tip == Tip::ZERO
+            || self.max_l2_gas_price == GasPrice(0)
+            || (self.address == DeclareTransaction::bootstrap_address()
+                && self.nonce == Nonce(Felt::ZERO))
     }
 }
 
