@@ -16,7 +16,7 @@ use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
 mod common;
 
 const DEFAULT_TIP: u64 = 1_u64;
-const CUSTOM_INVOKE_TX_COUNT: usize = 3;
+const CUSTOM_INVOKE_TX_COUNT: usize = 5;
 
 /// Test a wide range of different kinds of invoke transactions.
 #[tokio::test]
@@ -57,6 +57,7 @@ fn create_cairo_1_syscall_test_txs(
     let test_contract = FeatureContract::TestContract(account_tx_generator.account.cairo_version());
 
     let mut txs = vec![];
+    txs.extend(generate_custom_library_call_invoke_txs(account_tx_generator, &test_contract));
     txs.extend(generate_custom_not_nested_invoke_txs(account_tx_generator, &test_contract));
 
     txs
@@ -94,4 +95,26 @@ fn generate_custom_not_nested_invoke_txs(
         account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata)
     })
     .collect()
+}
+
+fn generate_custom_library_call_invoke_txs(
+    account_tx_generator: &mut AccountTransactionGenerator,
+    test_contract: &FeatureContract,
+) -> Vec<RpcTransaction> {
+    // Define the arguments for the library calls.
+    let test_sha256_args = vec![felt!(0_u64)]; // No arguments for test_sha256.
+    let test_circuit_args = vec![felt!(0_u64)]; // No arguments for test_circuit.
+
+    // Generate the invoke transactions for each library call.
+    [("test_sha256", test_sha256_args), ("test_circuit", test_circuit_args)]
+        .iter()
+        .map(|(fn_name, fn_args)| {
+            account_tx_generator.generate_invoke_tx_library_call(
+                DEFAULT_TIP,
+                fn_name,
+                fn_args,
+                test_contract,
+            )
+        })
+        .collect()
 }

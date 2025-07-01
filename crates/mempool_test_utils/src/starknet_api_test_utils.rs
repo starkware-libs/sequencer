@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::create_trivial_calldata;
+use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
@@ -422,6 +422,31 @@ impl AccountTransactionGenerator {
     pub fn generate_trivial_rpc_invoke_tx(&mut self, tip: u64) -> RpcTransaction {
         let test_contract = FeatureContract::TestContract(self.account.cairo_version());
         let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
+        self.generate_rpc_invoke_tx(tip, calldata)
+    }
+
+    pub fn generate_invoke_tx_library_call(
+        &mut self,
+        tip: u64,
+        inner_fn_name: &str,
+        inner_fn_args: &[Felt],
+        test_contract: &FeatureContract,
+    ) -> RpcTransaction {
+        let library_call_calldata = Calldata(
+            [
+                vec![test_contract.get_class_hash().0, selector_from_name(inner_fn_name).0],
+                inner_fn_args.to_vec(),
+            ]
+            .concat()
+            .into(),
+        );
+        let calldata = create_calldata(
+            test_contract.get_instance_address(0),
+            "test_library_call",
+            &library_call_calldata.0,
+        );
+
+        // Invoke "test_library_call" on the account contract.
         self.generate_rpc_invoke_tx(tip, calldata)
     }
 
