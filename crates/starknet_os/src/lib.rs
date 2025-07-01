@@ -1,4 +1,4 @@
-#[cfg(any(test, feature = "testing"))]
+#[cfg(test)]
 pub mod constants_test;
 pub mod errors;
 pub mod hint_processor;
