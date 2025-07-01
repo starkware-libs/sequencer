@@ -67,7 +67,7 @@ impl GasAmount {
     pub fn checked_add_panic_on_overflow(self, added_gas: GasAmount) -> GasAmount {
         self.checked_add(added_gas).unwrap_or_else(|| {
             panic!(
-                "Addition overflow while adding sierra gas. current gas: {}, try to add
+                "Addition overflow while adding gas. current gas: {}, try to add
                  gas: {}.",
                 self, added_gas
             )
