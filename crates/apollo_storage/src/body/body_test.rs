@@ -68,7 +68,7 @@ async fn append_body() {
             table_name: _,
             key,
             value
-        })) if key == format!("{:?}", tx_hashes[0]) && value == format!("{:?}", expected_tx_index)
+        })) if key == format!("{:?}", tx_hashes[0]) && value == format!("{expected_tx_index:?}")
     );
 
     let txn = reader.begin_ro_txn().unwrap();

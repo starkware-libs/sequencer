@@ -27,7 +27,7 @@ fn main() {
     for i in (0..hex_str.len()).step_by(2) {
         let byte_str = &hex_str[i..i + 2];
         let byte = u8::from_str_radix(byte_str, 16).map_err(|e| {
-            eprintln!("Couldn't deserialize vector. Failed to parse byte: {} {}", byte_str, e);
+            eprintln!("Couldn't deserialize vector. Failed to parse byte: {byte_str} {e}");
         });
         match byte {
             Ok(b) => vector.push(b),
@@ -37,5 +37,5 @@ fn main() {
 
     let keypair = Keypair::ed25519_from_bytes(vector).expect("Invalid private key");
     let peer_id = keypair.public().to_peer_id();
-    println!("Peer ID: {}", peer_id);
+    println!("Peer ID: {peer_id}");
 }

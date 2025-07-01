@@ -470,5 +470,5 @@ impl Default for PyOsConfig {
 
 fn serialize_failure_reason(error: TransactionExecutorError) -> RawTransactionExecutionResult {
     // TODO(Yoni, 1/7/2024): re-consider this serialization.
-    serde_json::to_vec(&format!("{}", error)).expect(RESULT_SERIALIZE_ERR)
+    serde_json::to_vec(&format!("{error}")).expect(RESULT_SERIALIZE_ERR)
 }

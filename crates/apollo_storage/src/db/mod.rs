@@ -183,7 +183,7 @@ pub struct KeyAlreadyExistsError {
 impl KeyAlreadyExistsError {
     /// Creates a new KeyAlreadyExistsError.
     pub fn new(table_name: &'static str, key: &impl Debug, value: &impl Debug) -> Self {
-        Self { table_name, key: format!("{:?}", key), value: format!("{:?}", value) }
+        Self { table_name, key: format!("{key:?}"), value: format!("{value:?}") }
     }
 }
 

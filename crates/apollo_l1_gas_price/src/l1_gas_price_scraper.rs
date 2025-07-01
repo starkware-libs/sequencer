@@ -256,6 +256,6 @@ where
                 )
             }
         };
-        self.run(start_from).await.unwrap_or_else(|e| panic!("L1 gas price scraper failed: {}", e))
+        self.run(start_from).await.unwrap_or_else(|e| panic!("L1 gas price scraper failed: {e}"))
     }
 }

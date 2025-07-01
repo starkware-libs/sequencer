@@ -15,9 +15,9 @@ fn protoc_output_matches_result_of_running_protoc() {
     let expected_name = PathBuf::from(PROTO_DIR).join(PROTOC_OUTPUT);
 
     let expected_file = fs::read_to_string(&expected_name)
-        .unwrap_or_else(|_| panic!("Failed to read expected file at {:?}", expected_name));
+        .unwrap_or_else(|_| panic!("Failed to read expected file at {expected_name:?}"));
     let generated_file = fs::read_to_string(&generated_name)
-        .unwrap_or_else(|_| panic!("Failed to read generated file at {:?}", generated_name));
+        .unwrap_or_else(|_| panic!("Failed to read generated file at {generated_name:?}"));
 
     // Using assert instead of assert_eq to avoid showing the entire content of the files on
     // assertion fail

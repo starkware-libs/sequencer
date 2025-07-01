@@ -358,7 +358,7 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
 
     // Check declared classes.
     if let Ok(Some(class)) = state_reader.get_class_definition_at(state_number, &class_hash) {
-        trace!("Class {:?} retrieved from storage.", class_hash);
+        trace!("Class {class_hash:?} retrieved from storage.");
         {
             let mut cache = cache.lock().expect("Failed to lock class cache.");
             cache.put(class_hash, ApiContractClass::ContractClass(class.clone()));
@@ -370,7 +370,7 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
     if let Ok(Some(class)) =
         state_reader.get_deprecated_class_definition_at(state_number, &class_hash)
     {
-        trace!("Deprecated class {:?} retrieved from storage.", class_hash);
+        trace!("Deprecated class {class_hash:?} retrieved from storage.");
         {
             let mut cache = cache.lock().expect("Failed to lock class cache.");
             cache.put(class_hash, ApiContractClass::DeprecatedContractClass(class.clone()));
@@ -379,7 +379,7 @@ async fn download_class_if_necessary<TStarknetClient: StarknetReader>(
     }
 
     // Class not found in storage - download.
-    trace!("Downloading class {:?}.", class_hash);
+    trace!("Downloading class {class_hash:?}.");
     let client_class = apollo_starknet_client.class_by_hash(class_hash).await.map_err(Arc::new)?;
     match client_class {
         None => Ok(None),

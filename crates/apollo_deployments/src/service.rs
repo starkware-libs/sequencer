@@ -273,7 +273,7 @@ pub(crate) trait ServiceNameInner: Display {
     // Kubernetes service name as defined by CDK8s.
     fn k8s_service_name(&self) -> String {
         let formatted_service_name = self.to_string().replace('_', "");
-        format!("sequencer-{}-service", formatted_service_name)
+        format!("sequencer-{formatted_service_name}-service")
     }
 }
 
@@ -291,7 +291,7 @@ impl DeploymentName {
         let deployment_with_instance = deployment_name_dir.join(instance_name);
 
         let s = deployment_with_instance.to_string_lossy();
-        let modified = if s.ends_with('/') { s.into_owned() } else { format!("{}/", s) };
+        let modified = if s.ends_with('/') { s.into_owned() } else { format!("{s}/") };
         modified.into()
     }
 

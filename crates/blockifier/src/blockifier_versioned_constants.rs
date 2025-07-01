@@ -1020,7 +1020,7 @@ impl GasCosts {
         builtin_costs: &BuiltinGasCosts,
     ) -> SyscallGasCost {
         let raw_cost = syscall_gas_costs.get(&selector).unwrap_or_else(|| {
-            panic!("{selector:?} missing from syscall_gas_costs map. Map: {:?}", syscall_gas_costs)
+            panic!("{selector:?} missing from syscall_gas_costs map. Map: {syscall_gas_costs:?}")
         });
         SyscallGasCost::new_from_base_cost(match raw_cost {
             RawSyscallGasCost::Flat(flat_cost) => *flat_cost,

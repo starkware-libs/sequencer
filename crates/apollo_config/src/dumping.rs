@@ -259,7 +259,7 @@ pub fn ser_generated_param(
     common_ser_param(
         name,
         SerializedContent::ParamType(serialization_type),
-        format!("{} If no value is provided, the system will generate one.", description).as_str(),
+        format!("{description} If no value is provided, the system will generate one.").as_str(),
         privacy.into(),
     )
 }
@@ -401,8 +401,7 @@ pub fn set_pointing_param_paths(param_path_list: &[&str]) -> Pointers {
     for &param_path in param_path_list {
         assert!(
             param_paths.insert(param_path.to_string()),
-            "Duplicate parameter path found: {}",
-            param_path
+            "Duplicate parameter path found: {param_path}"
         );
     }
     param_paths
@@ -412,7 +411,7 @@ pub fn set_pointing_param_paths(param_path_list: &[&str]) -> Pointers {
 pub(crate) const REQUIRED_PARAM_DESCRIPTION_PREFIX: &str = "A required param!";
 
 pub(crate) fn required_param_description(description: &str) -> String {
-    format!("{} {}", REQUIRED_PARAM_DESCRIPTION_PREFIX, description)
+    format!("{REQUIRED_PARAM_DESCRIPTION_PREFIX} {description}")
 }
 
 /// Verifies that params whose name matches a pointer target either point at it, or are whitelisted.
@@ -434,9 +433,8 @@ fn verify_pointing_params_by_name(
                 assert!(
                     serialized_param.content
                         == SerializedContent::PointerTarget(target_param.to_owned()),
-                    "The target param {} should point to {}, or to be whitelisted.",
-                    param_path,
-                    target_param
+                    "The target param {param_path} should point to {target_param}, or to be \
+                     whitelisted."
                 );
             };
         }

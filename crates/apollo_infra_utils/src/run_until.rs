@@ -39,16 +39,14 @@ where
 
         // Log attempt message.
         if let Some(config) = &logger {
-            let attempt_message =
-                format!("Attempt {}/{}, Value {:?}", attempt, max_attempts, result);
+            let attempt_message = format!("Attempt {attempt}/{max_attempts}, Value {result:?}");
             config.log_message(&attempt_message);
         }
 
         // Check if the condition is met.
         if condition(&result) {
             if let Some(config) = &logger {
-                let success_message =
-                    format!("Condition met on attempt {}/{}", attempt, max_attempts);
+                let success_message = format!("Condition met on attempt {attempt}/{max_attempts}");
                 config.log_message(&success_message);
             }
             return Some(result);
@@ -60,7 +58,7 @@ where
 
     if let Some(config) = &logger {
         let failure_message =
-            format!("Condition not met after the maximum number of {} attempts.", max_attempts);
+            format!("Condition not met after the maximum number of {max_attempts} attempts.");
         config.log_message(&failure_message);
     }
 

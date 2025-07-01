@@ -287,14 +287,12 @@ impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
             assert!(
                 chunk_size > 0,
                 "When running transactions concurrently the chunk size must be greater than 0. It \
-                 equals {:?} ",
-                chunk_size
+                 equals {chunk_size:?} "
             );
             assert!(
                 n_workers > 0,
                 "When running transactions concurrently the number of workers must be greater \
-                 than 0. It equals {:?} ",
-                n_workers
+                 than 0. It equals {n_workers:?} "
             );
             txs.chunks(chunk_size)
                 .fold_while(Vec::new(), |mut results, chunk| {

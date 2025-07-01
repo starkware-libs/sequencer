@@ -87,7 +87,7 @@ pub(crate) fn parse_and_run_os(input_path: String, output_path: String) {
 
     let StarknetOsRunnerOutput { os_output, cairo_pie, unused_hints } =
         run_os_stateless(layout, os_hints)
-            .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
+            .unwrap_or_else(|err| panic!("OS run failed. Error: {err}"));
     serialize_runner_output(
         &OsCliOutput { os_output, unused_hints },
         output_path,
@@ -104,7 +104,7 @@ pub(crate) fn parse_and_run_aggregator(input_path: String, output_path: String) 
 
     let StarknetAggregatorRunnerOutput { aggregator_output, cairo_pie, unused_hints } =
         run_aggregator(layout, aggregator_input)
-            .unwrap_or_else(|err| panic!("Aggregator run failed. Error: {}", err));
+            .unwrap_or_else(|err| panic!("Aggregator run failed. Error: {err}"));
     serialize_runner_output(
         &AggregatorCliOutput { aggregator_output, unused_hints },
         output_path,
@@ -124,7 +124,7 @@ fn serialize_runner_output<T: serde::Serialize>(
     let merge_extra_segments = true;
     cairo_pie
         .write_zip_file(Path::new(&cairo_pie_zip_path), merge_extra_segments)
-        .unwrap_or_else(|err| panic!("Failed to write cairo pie. Error: {}", err));
+        .unwrap_or_else(|err| panic!("Failed to write cairo pie. Error: {err}"));
 }
 
 pub(crate) fn dump_source_files(output_path: String) {

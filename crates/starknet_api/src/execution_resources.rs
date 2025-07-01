@@ -67,9 +67,8 @@ impl GasAmount {
     pub fn checked_add_panic_on_overflow(self, added_gas: GasAmount) -> GasAmount {
         self.checked_add(added_gas).unwrap_or_else(|| {
             panic!(
-                "Addition overflow while adding gas. current gas: {}, try to add
-                 gas: {}.",
-                self, added_gas
+                "Addition overflow while adding gas. current gas: {self}, try to add
+                 gas: {added_gas}.",
             )
         })
     }
@@ -172,16 +171,14 @@ impl GasVector {
         ] {
             let cost = gas.checked_mul(price.get()).unwrap_or_else(|| {
                 panic!(
-                    "{} cost overflowed: multiplication of gas amount ({}) by price per unit ({}) \
-                     resulted in overflow.",
-                    resource, gas, price
+                    "{resource} cost overflowed: multiplication of gas amount ({gas}) by price \
+                     per unit ({price}) resulted in overflow."
                 )
             });
             sum = sum.checked_add(cost).unwrap_or_else(|| {
                 panic!(
-                    "Total cost overflowed: addition of current sum ({}) and cost of {} ({}) \
-                     resulted in overflow.",
-                    sum, resource, cost
+                    "Total cost overflowed: addition of current sum ({sum}) and cost of \
+                     {resource} ({cost}) resulted in overflow."
                 )
             });
         }
@@ -210,24 +207,21 @@ pub fn to_discounted_l1_gas(
 ) -> GasAmount {
     let l1_data_gas_fee = l1_data_gas.checked_mul(l1_data_gas_price).unwrap_or_else(|| {
         panic!(
-            "Discounted L1 gas cost overflowed: multiplication of L1 data gas ({}) by L1 data gas \
-             price ({}) resulted in overflow.",
-            l1_data_gas, l1_data_gas_price
+            "Discounted L1 gas cost overflowed: multiplication of L1 data gas ({l1_data_gas}) by \
+             L1 data gas price ({l1_data_gas_price}) resulted in overflow."
         );
     });
     let l1_data_gas_in_l1_gas_units =
         l1_data_gas_fee.checked_div_ceil(l1_gas_price).unwrap_or_else(|| {
             panic!(
-                "Discounted L1 gas cost overflowed: division of L1 data fee ({}) by regular L1 \
-                 gas price ({}) resulted in overflow.",
-                l1_data_gas_fee, l1_gas_price
+                "Discounted L1 gas cost overflowed: division of L1 data fee ({l1_data_gas_fee}) \
+                 by regular L1 gas price ({l1_gas_price}) resulted in overflow."
             );
         });
     l1_gas.checked_add(l1_data_gas_in_l1_gas_units).unwrap_or_else(|| {
         panic!(
-            "Overflow while computing discounted L1 gas: L1 gas ({}) + L1 data gas in L1 gas \
-             units ({}) resulted in overflow.",
-            l1_gas, l1_data_gas_in_l1_gas_units
+            "Overflow while computing discounted L1 gas: L1 gas ({l1_gas}) + L1 data gas in L1 \
+             gas units ({l1_data_gas_in_l1_gas_units}) resulted in overflow."
         )
     })
 }

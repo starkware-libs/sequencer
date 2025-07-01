@@ -99,7 +99,7 @@ async fn error_into_response() {
     let body = to_bytes(response).await;
     let json: Value = serde_json::from_slice(&body).unwrap();
 
-    assert!(!status.is_success(), "{:?}", status);
+    assert!(!status.is_success(), "{status:?}");
     assert_eq!(
         json.get("code").unwrap(),
         &serde_json::to_value(&KnownStarknetErrorCode::MalformedRequest).unwrap()
@@ -140,7 +140,7 @@ async fn record_region_test(#[case] index: u16, #[case] tx: impl GatewayTransact
     let region = "test";
     http_client.add_tx_with_headers(tx, [(CLIENT_REGION_HEADER, region)]).await;
     assert!(logs_contain(
-        format!("Recorded transaction transaction_hash={} region={}", tx_hash_2, region).as_str()
+        format!("Recorded transaction transaction_hash={tx_hash_2} region={region}").as_str()
     ));
 }
 

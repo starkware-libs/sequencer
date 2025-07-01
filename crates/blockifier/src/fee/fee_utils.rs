@@ -79,9 +79,7 @@ pub fn get_vm_resources_cost(
     let known_builtins = HashSet::<&BuiltinName>::from_iter(vm_resource_fee_costs.builtins.keys());
     assert!(
         used_builtins.is_subset(&known_builtins),
-        "{:#?} should contain {:#?}",
-        known_builtins,
-        used_builtins,
+        "{known_builtins:#?} should contain {used_builtins:#?}",
     );
 
     // Convert Cairo resource usage to L1 gas usage.

@@ -124,7 +124,7 @@ async fn stream_block_headers_some_are_missing() {
         (false, true, "signature missing"),
     ];
     for (block_missing, signature_missing, test_case_description) in test_cases {
-        println!("Test case: {}", test_case_description);
+        println!("Test case: {test_case_description}");
         const START_BLOCK_NUMBER: u64 = 5;
         const END_BLOCK_NUMBER: u64 = 13;
         const MISSING_BLOCK_NUMBER: u64 = 9;
