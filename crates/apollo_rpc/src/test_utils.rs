@@ -111,7 +111,7 @@ pub(crate) async fn raw_call<R: JsonRpcServerTrait, S: Serialize, T: for<'a> Des
     let params_str = match params {
         Value::Array(vec) if vec.is_empty() => "".to_string(),
         Value::Object(map) if map.is_empty() => "".to_string(),
-        _ => format!(r#", "params":{}"#, params),
+        _ => format!(r#", "params":{params}"#),
     };
     let req = format!(r#"{{"jsonrpc":"2.0","id":"1","method":"{method}"{params_str}}}"#);
     let (resp_wrapper, _) = module

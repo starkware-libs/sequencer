@@ -195,21 +195,18 @@ fn assert_server_metrics(
     assert_eq!(
         received_msgs,
         usize_to_u64(expected_received_msgs),
-        "unexpected value for receives_msgs_started counter, expected {} got {:?}",
-        expected_received_msgs,
-        received_msgs,
+        "unexpected value for receives_msgs_started counter, expected {expected_received_msgs} \
+         got {received_msgs:?}"
     );
     assert_eq!(
         processed_msgs,
         usize_to_u64(expected_processed_msgs),
-        "unexpected value for processed_msgs counter, expected {} got {:?}",
-        expected_processed_msgs,
-        processed_msgs,
+        "unexpected value for processed_msgs counter, expected {expected_processed_msgs} got \
+         {processed_msgs:?}"
     );
     assert_eq!(
         queue_depth, expected_queue_depth,
-        "unexpected value for queue_depth, expected {} got {:?}",
-        expected_queue_depth, queue_depth,
+        "unexpected value for queue_depth, expected {expected_queue_depth} got {queue_depth:?}"
     );
 }
 
@@ -228,23 +225,20 @@ fn assert_remote_server_metrics(
     assert_eq!(
         total_received_msgs,
         usize_to_u64(expected_total_received_msgs),
-        "unexpected value for total_receives_msgs_started counter, expected {} got {:?}",
-        expected_total_received_msgs,
-        total_received_msgs,
+        "unexpected value for total_receives_msgs_started counter, expected \
+         {expected_total_received_msgs} got {total_received_msgs:?}"
     );
     assert_eq!(
         valid_received_msgs,
         usize_to_u64(expected_valid_received_msgs),
-        "unexpected value for valid_receives_msgs_started counter, expected {} got {:?}",
-        expected_total_received_msgs,
-        valid_received_msgs,
+        "unexpected value for valid_receives_msgs_started counter, expected \
+         {expected_total_received_msgs} got {valid_received_msgs:?}"
     );
     assert_eq!(
         processed_msgs,
         usize_to_u64(expected_processed_msgs),
-        "unexpected value for processed_msgs counter, expected {} got {:?}",
-        expected_processed_msgs,
-        processed_msgs,
+        "unexpected value for processed_msgs counter, expected {expected_processed_msgs} got \
+         {processed_msgs:?}"
     );
 }
 

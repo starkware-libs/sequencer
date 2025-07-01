@@ -22,7 +22,7 @@ use crate::{impl_from_through_intermediate, StarknetApiError};
 /// Felt.
 pub fn ascii_as_felt(ascii_str: &str) -> Result<Felt, StarknetApiError> {
     Felt::from_hex(hex::encode(ascii_str).as_str()).map_err(|_| StarknetApiError::OutOfRange {
-        string: format!("The str {}, does not fit into a single felt", ascii_str),
+        string: format!("The str {ascii_str}, does not fit into a single felt"),
     })
 }
 
@@ -75,7 +75,7 @@ impl std::fmt::Display for ChainId {
             ChainId::Mainnet => write!(f, "SN_MAIN"),
             ChainId::Sepolia => write!(f, "SN_SEPOLIA"),
             ChainId::IntegrationSepolia => write!(f, "SN_INTEGRATION_SEPOLIA"),
-            ChainId::Other(ref s) => write!(f, "{}", s),
+            ChainId::Other(ref s) => write!(f, "{s}"),
         }
     }
 }
@@ -93,11 +93,9 @@ where
     let hex_str = String::deserialize(deserializer)?;
     let chain_id_str =
         std::str::from_utf8(&hex::decode(hex_str.trim_start_matches("0x")).map_err(|e| {
-            D::Error::custom(format!("Failed to decode the hex string {hex_str}. Error: {:?}", e))
+            D::Error::custom(format!("Failed to decode the hex string {hex_str}. Error: {e:?}"))
         })?)
-        .map_err(|e| {
-            D::Error::custom(format!("Failed to convert to UTF-8 string. Error: {:?}", e))
-        })?
+        .map_err(|e| D::Error::custom(format!("Failed to convert to UTF-8 string. Error: {e:?}")))?
         .to_string();
     Ok(ChainId::from(chain_id_str))
 }
@@ -138,7 +136,7 @@ impl ContractAddress {
             return Ok(());
         }
 
-        Err(StarknetApiError::OutOfRange { string: format!("[0x2, {})", l2_address_upper_bound) })
+        Err(StarknetApiError::OutOfRange { string: format!("[0x2, {l2_address_upper_bound})") })
     }
 }
 
@@ -258,7 +256,7 @@ impl Nonce {
         // Check if an overflow occurred during increment.
         let incremented = self.0 + Felt::ONE;
         if incremented == Felt::ZERO {
-            return Err(StarknetApiError::OutOfRange { string: format!("{:?}", self) });
+            return Err(StarknetApiError::OutOfRange { string: format!("{self:?}") });
         }
         Ok(Self(incremented))
     }
@@ -266,7 +264,7 @@ impl Nonce {
     pub fn try_decrement(&self) -> Result<Self, StarknetApiError> {
         // Check if an underflow occurred during decrement.
         if self.0 == Felt::ZERO {
-            return Err(StarknetApiError::OutOfRange { string: format!("{:?}", self) });
+            return Err(StarknetApiError::OutOfRange { string: format!("{self:?}") });
         }
         Ok(Self(self.0 - Felt::ONE))
     }

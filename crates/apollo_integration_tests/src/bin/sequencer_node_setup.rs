@@ -41,7 +41,7 @@ async fn main() {
     info!("Generate simulator ports json files under {:?}", simulator_config_file);
     create_dir_all(&simulator_config_file).await.unwrap();
     for (node_index, node_setup) in test_manager.get_idle_nodes().iter() {
-        let path = format!("{}/node_{}", simulator_config_file, node_index);
+        let path = format!("{simulator_config_file}/node_{node_index}");
         node_setup.generate_simulator_ports_json(&path);
     }
 

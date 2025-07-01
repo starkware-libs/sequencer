@@ -183,7 +183,7 @@ impl CargoToml {
                 let cargo_toml_path = crates_dir.join(member).join("Cargo.toml");
 
                 let cargo_toml_content = fs::read_to_string(&cargo_toml_path)
-                    .unwrap_or_else(|_| panic!("Failed to read {:?}", cargo_toml_path));
+                    .unwrap_or_else(|_| panic!("Failed to read {cargo_toml_path:?}"));
 
                 let cargo_toml: CrateCargoToml = toml::from_str(&cargo_toml_content).unwrap();
                 (cargo_toml.package_name().clone(), cargo_toml)

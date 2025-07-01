@@ -92,7 +92,7 @@ impl From<&VmExceptionFrame> for String {
         };
         let vm_exception_preamble = format!("Error at pc={}:", value.pc);
         let vm_exception_traceback = if let Some(traceback) = &value.traceback {
-            format!("\n{}", traceback)
+            format!("\n{traceback}")
         } else {
             "".to_string()
         };
@@ -194,7 +194,7 @@ pub static MIN_CAIRO1_FRAME_LENGTH: LazyLock<usize> = LazyLock::new(|| {
         selector: EntryPointSelector::default(),
     };
     // +1 for newline.
-    format!("{}", frame).len() + 1
+    format!("{frame}").len() + 1
 });
 
 impl From<&&CallInfo> for Cairo1RevertFrame {
@@ -282,7 +282,7 @@ impl Display for Cairo1RevertSummary {
                     .collect::<String>()
                     + Self::TRUNCATION_SEPARATOR
             };
-            return write!(f, "{}", output);
+            return write!(f, "{output}");
         }
 
         let untruncated_string = [header.clone()]
@@ -292,7 +292,7 @@ impl Display for Cairo1RevertSummary {
             .join("\n")
             + tail;
         if untruncated_string.len() <= TRACE_LENGTH_CAP {
-            return write!(f, "{}", untruncated_string);
+            return write!(f, "{untruncated_string}");
         }
 
         // If the number of frames is too large, drop frames above the last frame (two frames are
@@ -539,7 +539,7 @@ fn extract_virtual_machine_error_into_stack_trace(
             }
         }
         _ => {
-            error_stack.push(format!("{}\n", vm_error).into());
+            error_stack.push(format!("{vm_error}\n").into());
         }
     }
 }
@@ -716,6 +716,6 @@ fn extract_entry_point_execution_error_into_stack_trace(
         EntryPointExecutionError::ExecutionFailed { error_trace } => {
             error_stack.push(error_trace.clone().into())
         }
-        _ => error_stack.push(format!("{}\n", entry_point_error).into()),
+        _ => error_stack.push(format!("{entry_point_error}\n").into()),
     }
 }

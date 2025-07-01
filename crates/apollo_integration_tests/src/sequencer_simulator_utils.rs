@@ -96,10 +96,8 @@ fn get_socket_addr(url_str: &str, port: u16) -> Result<SocketAddr, Box<dyn std::
     info!("Parsed url: {}", url);
     let host = url.host_str().ok_or("Invalid URL: no host found")?;
     info!("Host: {}", host);
-    let addr = format!("{}:{}", host, port)
-        .to_socket_addrs()?
-        .next()
-        .ok_or("Failed to resolve address")?;
+    let addr =
+        format!("{host}:{port}").to_socket_addrs()?.next().ok_or("Failed to resolve address")?;
 
     Ok(addr)
 }

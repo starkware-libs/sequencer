@@ -483,7 +483,7 @@ fn test_block_info_syscalls(
 ) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
     let mut state = test_state(&ChainInfo::create_for_testing(), Fee(0), &[(test_contract, 1)]);
-    let entry_point_selector = selector_from_name(&format!("test_get_{}", block_info_member_name));
+    let entry_point_selector = selector_from_name(&format!("test_get_{block_info_member_name}"));
     let entry_point_call = CallEntryPoint {
         entry_point_selector,
         calldata,
@@ -496,8 +496,7 @@ fn test_block_info_syscalls(
             check_entry_point_execution_error_for_custom_hint!(
                 &error,
                 &format!(
-                    "Unauthorized syscall get_{} in execution mode Validate.",
-                    block_info_member_name
+                    "Unauthorized syscall get_{block_info_member_name} in execution mode Validate."
                 ),
             );
         } else {
@@ -617,7 +616,7 @@ fn test_emit_event() {
         data_length: max_event_data_length + 1,
         max_data_length: max_event_data_length,
     };
-    assert!(error.to_string().contains(format!("{}", expected_error).as_str()));
+    assert!(error.to_string().contains(format!("{expected_error}").as_str()));
 
     // Negative flow, the keys length exceeds the limit.
     let max_event_keys_length = versioned_constants.tx_event_limits.max_keys_length;
@@ -627,7 +626,7 @@ fn test_emit_event() {
         keys_length: max_event_keys_length + 1,
         max_keys_length: max_event_keys_length,
     };
-    assert!(error.to_string().contains(format!("{}", expected_error).as_str()));
+    assert!(error.to_string().contains(format!("{expected_error}").as_str()));
 
     // Negative flow, the number of events exceeds the limit.
     let max_n_emitted_events = versioned_constants.tx_event_limits.max_n_emitted_events;
@@ -639,7 +638,7 @@ fn test_emit_event() {
         n_emitted_events: max_n_emitted_events + 1,
         max_n_emitted_events,
     };
-    assert!(error.to_string().contains(format!("{}", expected_error).as_str()));
+    assert!(error.to_string().contains(format!("{expected_error}").as_str()));
 }
 
 fn emit_events(

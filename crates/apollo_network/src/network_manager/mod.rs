@@ -151,7 +151,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         if let Some(_old_buffer_size) =
             self.inbound_protocol_to_buffer_size.insert(protocol.clone(), buffer_size)
         {
-            panic!("Protocol '{}' has already been registered as a server.", protocol);
+            panic!("Protocol '{protocol}' has already been registered as a server.");
         }
         let (inbound_payload_sender, inbound_payload_receiver) =
             futures::channel::mpsc::channel(buffer_size);
@@ -159,7 +159,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .sqmr_inbound_payload_senders
             .insert(protocol.clone(), Box::new(inbound_payload_sender));
         if insert_result.is_some() {
-            panic!("Protocol '{}' has already been registered as a server.", protocol);
+            panic!("Protocol '{protocol}' has already been registered as a server.");
         }
 
         let inbound_payload_receiver = inbound_payload_receiver
@@ -192,7 +192,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .sqmr_outbound_payload_receivers
             .insert(protocol.clone().as_ref().to_string(), Box::new(payload_receiver));
         if insert_result.is_some() {
-            panic!("Protocol '{}' has already been registered as a client.", protocol);
+            panic!("Protocol '{protocol}' has already been registered as a client.");
         };
 
         SqmrClientSender::new(Box::new(payload_sender), buffer_size)
@@ -224,14 +224,14 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .messages_to_broadcast_receivers
             .insert(topic_hash.clone(), messages_to_broadcast_receiver);
         if insert_result.is_some() {
-            panic!("Topic '{}' has already been registered.", topic);
+            panic!("Topic '{topic}' has already been registered.");
         }
 
         let insert_result = self
             .broadcasted_messages_senders
             .insert(topic_hash.clone(), broadcasted_messages_sender.clone());
         if insert_result.is_some() {
-            panic!("Topic '{}' has already been registered.", topic);
+            panic!("Topic '{topic}' has already been registered.");
         }
 
         let broadcasted_messages_fn: BroadcastReceivedMessagesConverterFn<T> =
@@ -671,7 +671,7 @@ fn send_now<Item>(
         Some(Ok(())) => {}
         Some(Err(error)) => {
             if should_panic_upon_disconnect || !error.is_disconnected() {
-                panic!("Received error while sending message: {:?}", error);
+                panic!("Received error while sending message: {error:?}");
             }
         }
         None => {
@@ -705,8 +705,8 @@ impl NetworkManager {
         // TODO(shahak): Add quic transport.
         let listen_address_str = format!("/ip4/0.0.0.0/tcp/{port}");
         let listen_address = Multiaddr::from_str(&listen_address_str)
-            .unwrap_or_else(|_| panic!("Unable to parse address {}", listen_address_str));
-        debug!("Creating swarm with listen address: {:?}", listen_address);
+            .unwrap_or_else(|_| panic!("Unable to parse address {listen_address_str}"));
+        debug!("Creating swarm with listen address: {listen_address:?}");
 
         let key_pair = match secret_key {
             Some(secret_key) => {
@@ -737,7 +737,7 @@ impl NetworkManager {
 
         swarm
             .listen_on(listen_address.clone())
-            .unwrap_or_else(|_| panic!("Error while binding to {}", listen_address));
+            .unwrap_or_else(|_| panic!("Error while binding to {listen_address}"));
 
         let advertised_multiaddr = advertised_multiaddr.map(|address| {
             address

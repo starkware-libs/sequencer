@@ -61,7 +61,7 @@ const TIMES_TO_CHECK_FOR_PENDING_EVENT: usize = 5;
 fn assert_no_event(behaviour: &mut BootstrappingBehaviour) {
     for _ in 0..TIMES_TO_CHECK_FOR_PENDING_EVENT {
         let next_event = behaviour.next().now_or_never();
-        assert!(next_event.is_none(), "Expected None, received {:?}", next_event);
+        assert!(next_event.is_none(), "Expected None, received {next_event:?}");
     }
 }
 

@@ -10,7 +10,7 @@ use crate::block_committer::input::StarknetStorageValue;
 use crate::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 
 pub fn fixed_hex_string_no_prefix(felt: &Felt) -> String {
-    format!("{:064x}", felt)
+    format!("{felt:064x}")
 }
 
 pub fn class_hash_into_node_index(class_hash: &ClassHash) -> NodeIndex {

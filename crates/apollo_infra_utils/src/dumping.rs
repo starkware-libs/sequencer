@@ -40,13 +40,13 @@ pub fn serialize_to_file<T: Serialize>(data: T, file_path: &str) {
     // Ensure the parent directory exists
     if let Some(parent) = PathBuf::from(file_path).parent() {
         create_dir_all(parent).unwrap_or_else(|err| {
-            panic!("Failed to create directory for {}: {}", file_path, err);
+            panic!("Failed to create directory for {file_path}: {err}");
         });
     }
 
     // Create file writer.
     let file = File::create(file_path)
-        .unwrap_or_else(|err| panic!("Failed generating data file: {:?}: {}", file_path, err));
+        .unwrap_or_else(|err| panic!("Failed generating data file: {file_path:?}: {err}"));
 
     let mut writer = BufWriter::new(file);
 
@@ -60,7 +60,7 @@ pub fn serialize_to_file<T: Serialize>(data: T, file_path: &str) {
     // Write to file.
     writer.flush().expect("Should have been able to flush the writer.");
 
-    assert!(PathBuf::from(&file_path).exists(), "Failed generating data file: {:?}", file_path);
+    assert!(PathBuf::from(&file_path).exists(), "Failed generating data file: {file_path:?}");
 
-    println!("Generated data file: {:?}", file_path);
+    println!("Generated data file: {file_path:?}");
 }

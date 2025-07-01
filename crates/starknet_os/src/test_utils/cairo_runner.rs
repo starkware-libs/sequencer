@@ -192,10 +192,8 @@ fn perform_basic_validations_on_explicit_args(
     entrypoint: &str,
 ) -> Cairo0EntryPointRunnerResult<()> {
     let mut expected_explicit_args: Vec<Member> = program
-        .get_identifier(&format!("{}.Args", entrypoint))
-        .unwrap_or_else(|| {
-            panic!("Found no explicit args identifier for entrypoint {}.", entrypoint)
-        })
+        .get_identifier(&format!("{entrypoint}.Args"))
+        .unwrap_or_else(|| panic!("Found no explicit args identifier for entrypoint {entrypoint}."))
         .members
         .as_ref()
         .unwrap()
@@ -230,10 +228,8 @@ fn perform_basic_validations_on_implicit_args(
     entrypoint: &str,
 ) -> Cairo0EntryPointRunnerResult<()> {
     let mut expected_implicit_args: Vec<(String, Member)> = program
-        .get_identifier(&format!("{}.ImplicitArgs", entrypoint))
-        .unwrap_or_else(|| {
-            panic!("Found no implicit args identifier for entrypoint {}.", entrypoint)
-        })
+        .get_identifier(&format!("{entrypoint}.ImplicitArgs"))
+        .unwrap_or_else(|| panic!("Found no implicit args identifier for entrypoint {entrypoint}."))
         .members
         .as_ref()
         .unwrap()
@@ -497,7 +493,7 @@ fn get_return_values(
     let mut implicit_return_values: Vec<EndpointArg> = vec![];
     let mut builtin_runner_iterator = vm.get_builtin_runners().iter();
     for (i, implicit_arg) in implicit_return_values_structures.iter().enumerate() {
-        debug!("Loading implicit return value {}. Value: {:?}", i, implicit_arg);
+        debug!("Loading implicit return value {i}. Value: {implicit_arg:?}");
         match implicit_arg {
             ImplicitArg::Builtin(builtin) => {
                 let curr_builtin_runner = builtin_runner_iterator
@@ -509,9 +505,8 @@ fn get_return_values(
                 let return_value_segment_index = vm.get_relocatable(current_address)?.segment_index;
                 assert_eq!(
                     builtin_runner_segment_index, return_value_segment_index,
-                    "Builtin runner segment index {} doesn't match return value's segment index \
-                     {}.",
-                    builtin_runner_segment_index, return_value_segment_index
+                    "Builtin runner segment index {builtin_runner_segment_index} doesn't match \
+                     return value's segment index {return_value_segment_index}."
                 );
 
                 match builtin {
@@ -536,7 +531,7 @@ fn get_return_values(
 
     let mut explicit_return_values: Vec<EndpointArg> = vec![];
     for (i, expected_return_value) in explicit_return_values_structures.iter().enumerate() {
-        debug!("Loading explicit return value {}. Value: {:?}", i, expected_return_value);
+        debug!("Loading explicit return value {i}. Value: {expected_return_value:?}");
         let (value, next_arg_address) =
             load_endpoint_arg_from_address(expected_return_value, current_address, vm)?;
         explicit_return_values.push(value);
@@ -579,7 +574,7 @@ pub fn run_cairo_0_entry_point(
         &os_block_input,
         os_state_input,
     )
-    .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {:?}", err));
+    .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {err:?}"));
     info!("Program and Hint processor created successfully.");
 
     // TODO(Amos): Perform complete validations.
@@ -619,7 +614,7 @@ pub fn run_cairo_0_entry_point(
         .run_from_entrypoint(
             program
                 .get_identifier(&entrypoint)
-                .unwrap_or_else(|| panic!("entrypoint {} not found.", entrypoint))
+                .unwrap_or_else(|| panic!("entrypoint {entrypoint} not found."))
                 .pc
                 .unwrap(),
             &entrypoint_args,
@@ -628,7 +623,7 @@ pub fn run_cairo_0_entry_point(
             &mut hint_processor,
         )
         .map_err(Box::new)?;
-    info!("Successfully finished running entrypoint {}", entrypoint);
+    info!("Successfully finished running entrypoint {entrypoint}");
     let (implicit_return_values, explicit_return_values) =
         get_return_values(implicit_args, expected_explicit_return_values, &cairo_runner.vm)?;
     Ok((implicit_return_values, explicit_return_values, cairo_runner))

@@ -121,10 +121,7 @@ impl NodeSetup {
         fn validate_index(index: usize, len: usize, label: &str) {
             assert!(
                 index < len,
-                "{} index {} is out of range. There are {} executables.",
-                label,
-                index,
-                len
+                "{label} index {index} is out of range. There are {len} executables."
             );
         }
 
@@ -327,13 +324,12 @@ impl IntegrationTestManager {
             let node_setup = self
                 .idle_nodes
                 .remove(&index)
-                .unwrap_or_else(|| panic!("Node {} does not exist in idle_nodes.", index));
+                .unwrap_or_else(|| panic!("Node {index} does not exist in idle_nodes."));
             info!("Running node {}.", index);
             let running_node = node_setup.run();
             assert!(
                 self.running_nodes.insert(index, running_node).is_none(),
-                "Node {} is already in the running map.",
-                index
+                "Node {index} is already in the running map."
             );
         });
 
@@ -354,7 +350,7 @@ impl IntegrationTestManager {
             let node_setup = self
                 .idle_nodes
                 .get_mut(&node_index)
-                .unwrap_or_else(|| panic!("Node {} does not exist in idle_nodes.", node_index));
+                .unwrap_or_else(|| panic!("Node {node_index} does not exist in idle_nodes."));
             node_setup.executables.iter_mut().for_each(|executable| {
                 info!("Modifying {} config.", executable.node_execution_id);
                 executable.modify_config(modify_config_fn);
@@ -375,7 +371,7 @@ impl IntegrationTestManager {
             let node_setup = self
                 .idle_nodes
                 .get_mut(&node_index)
-                .unwrap_or_else(|| panic!("Node {} does not exist in idle_nodes.", node_index));
+                .unwrap_or_else(|| panic!("Node {node_index} does not exist in idle_nodes."));
             node_setup.executables.iter_mut().for_each(|executable| {
                 info!("Modifying {} config pointers.", executable.node_execution_id);
                 executable.modify_config_pointers(modify_config_pointers_fn);
@@ -455,15 +451,14 @@ impl IntegrationTestManager {
             let running_node = self
                 .running_nodes
                 .remove(&index)
-                .unwrap_or_else(|| panic!("Node {} is not in the running map.", index));
+                .unwrap_or_else(|| panic!("Node {index} is not in the running map."));
             running_node.executable_handles.iter().for_each(|handle| {
-                assert!(!handle.is_finished(), "Node {} should still be running.", index);
+                assert!(!handle.is_finished(), "Node {index} should still be running.");
                 handle.abort();
             });
             assert!(
                 self.idle_nodes.insert(index, running_node.node_setup).is_none(),
-                "Node {} is already in the idle map.",
-                index
+                "Node {index} is already in the idle map."
             );
             info!("Node {} has been shut down.", index);
         });

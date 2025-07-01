@@ -46,7 +46,7 @@ pub fn compile_with_args(
                 "Process exited with non-zero status but no signal (likely a handled error, e.g., \
                  memory allocation failure)."
             }
-            Some(sig) => &format!("Process terminated by unexpected signal: {}", sig),
+            Some(sig) => &format!("Process terminated by unexpected signal: {sig}"),
         };
 
         let stderr_output = String::from_utf8(compile_output.stderr)

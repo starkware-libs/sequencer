@@ -142,9 +142,9 @@ pub fn test_get_contract_class(test_state_reader: TestStateReader, test_block_nu
     let deprecated_contract_class =
         test_state_reader.get_contract_class(&class_hash).unwrap_or_else(|err| {
             panic!(
-                "Error retrieving deprecated contract class for class hash {}: {}
-            This class hash exist in Mainnet Block Number: {}",
-                class_hash, test_block_number, err
+                "Error retrieving deprecated contract class for class hash {class_hash}: \
+                 {test_block_number}
+            This class hash exist in Mainnet Block Number: {err}"
             );
         });
 
@@ -162,7 +162,7 @@ pub fn test_get_contract_class(test_state_reader: TestStateReader, test_block_nu
 #[rstest]
 pub fn test_get_tx_hashes(test_state_reader: TestStateReader) {
     test_state_reader.get_tx_hashes().unwrap_or_else(|err| {
-        panic!("Error retrieving txs hash: {}", err);
+        panic!("Error retrieving txs hash: {err}");
     });
 }
 

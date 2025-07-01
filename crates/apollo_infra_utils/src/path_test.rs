@@ -7,7 +7,7 @@ fn resolve_project_relative_path_on_non_existent_path() {
     assert!(!expected_path.exists());
     let result = resolve_project_relative_path(relative_path);
 
-    assert!(result.is_err(), "Expected an non-existent path error, got {:?}", result);
+    assert!(result.is_err(), "Expected an non-existent path error, got {result:?}");
 }
 
 #[test]

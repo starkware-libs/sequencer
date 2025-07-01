@@ -117,9 +117,8 @@ fn check_compilation(
 ) {
     if String::from_utf8(actual_content).unwrap() != existing_contents {
         panic!(
-            "{} does not compile to {}.\nRun `{FIX_COMMAND}` to fix the existing file according \
-             to locally installed `starknet-compile-deprecated`.\n",
-            source_path, path
+            "{source_path} does not compile to {path}.\nRun `{FIX_COMMAND}` to fix the existing \
+             file according to locally installed `starknet-compile-deprecated`.\n"
         );
     }
 }

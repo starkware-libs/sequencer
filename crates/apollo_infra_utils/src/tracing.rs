@@ -20,7 +20,7 @@ impl CustomLogger {
     /// it exists.
     pub fn log_message(&self, message: &str) {
         let message = match &self.base_message {
-            Some(base_message) => format!("{}: {}", base_message, message),
+            Some(base_message) => format!("{base_message}: {message}"),
             None => message.to_string(),
         };
 

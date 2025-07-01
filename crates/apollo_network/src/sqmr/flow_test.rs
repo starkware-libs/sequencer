@@ -132,7 +132,7 @@ fn check_request_peer_assignment_event_and_return_session_id(
         outbound_session_id,
     }) = event
     else {
-        panic!("Got unexpected event {:?} when expecting RequestPeerAssignment", event);
+        panic!("Got unexpected event {event:?} when expecting RequestPeerAssignment");
     };
     let assigned_peer_id =
         *outbound_session_id_to_peer_id.get(&(outbound_peer_id, outbound_session_id)).unwrap();
@@ -153,7 +153,7 @@ fn check_new_inbound_session_event_and_return_id(
         protocol_name,
     }) = event
     else {
-        panic!("Got unexpected event {:?} when expecting NewInboundSession", event);
+        panic!("Got unexpected event {event:?} when expecting NewInboundSession");
     };
     assert_eq!(query, get_bytes_from_query_indices(outbound_peer_id, inbound_peer_id));
     assert_eq!(protocol_name, PROTOCOL_NAME);
@@ -175,7 +175,7 @@ fn check_received_response_event(
         peer_id: inbound_peer_id,
     }) = event
     else {
-        panic!("Got unexpected event {:?} when expecting ReceivedResponse", event);
+        panic!("Got unexpected event {event:?} when expecting ReceivedResponse");
     };
     assert_eq!(
         outbound_session_id_to_peer_id[&(outbound_peer_id, _outbound_session_id)],
