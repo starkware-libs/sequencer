@@ -29,6 +29,7 @@ metrics.workspace = true
 papyrus_base_layer.workspace = true
 papyrus_common.workspace = true
 reqwest = { workspace = true, features = ["blocking", "json"] }
+url.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true
 starknet_api.workspace = true

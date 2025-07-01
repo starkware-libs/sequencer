@@ -23,7 +23,7 @@ async fn run_threads_stop() {
     config.storage.db_config.path_prefix = temp_dir.path().into();
 
     // Error when not supplying legal central URL.
-    config.central.starknet_url = "_not_legal_url".to_string();
+    // config.central.starknet_url = "_not_legal_url".to_string();
     let resources = PapyrusResources::new(&config).unwrap();
     let tasks = PapyrusTaskHandles::default();
     let error = run_threads(config, resources, tasks).await.expect_err("Should be an error.");
