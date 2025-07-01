@@ -145,7 +145,7 @@ async fn txs_happy_flow() {
         .timestamp;
 
     const EXPECTED_VERSION: TransactionVersion = TransactionVersion(StarkHash::ZERO);
-    let expected_internal_l1_tx = L1HandlerTransaction {
+    let expected_l1_handler_0 = L1HandlerTransaction {
         version: EXPECTED_VERSION,
         nonce: Nonce(StarkHash::ZERO),
         contract_address: contract_address!(l2_contract_address),
@@ -155,12 +155,12 @@ async fn txs_happy_flow() {
         ),
     };
     let default_chain_id = L1ScraperConfig::default().chain_id;
-    let tx_hash_first_tx = expected_internal_l1_tx
+    let tx_hash_first_tx = expected_l1_handler_0
         .calculate_transaction_hash(&default_chain_id, &EXPECTED_VERSION)
         .unwrap();
     let tx = ExecutableL1HandlerTransaction {
         tx_hash: tx_hash_first_tx,
-        tx: expected_internal_l1_tx,
+        tx: expected_l1_handler_0,
         paid_fee_on_l1: Fee(0),
     };
     let first_expected_log = Event::L1HandlerTransaction {
@@ -169,7 +169,7 @@ async fn txs_happy_flow() {
         scrape_timestamp: block_timestamps[0].0,
     };
 
-    let expected_internal_l1_tx_2 = L1HandlerTransaction {
+    let expected_l1_handler_1 = L1HandlerTransaction {
         nonce: Nonce(StarkHash::ONE),
         calldata: Calldata(
             vec![DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, StarkHash::from(3), StarkHash::from(4)].into(),
@@ -177,10 +177,10 @@ async fn txs_happy_flow() {
         ..tx.tx
     };
     let tx_2 = ExecutableL1HandlerTransaction {
-        tx_hash: expected_internal_l1_tx_2
+        tx_hash: expected_l1_handler_1
             .calculate_transaction_hash(&default_chain_id, &EXPECTED_VERSION)
             .unwrap(),
-        tx: expected_internal_l1_tx_2,
+        tx: expected_l1_handler_1,
         ..tx
     };
     let second_expected_log = Event::L1HandlerTransaction {
