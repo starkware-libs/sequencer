@@ -11,6 +11,7 @@ use apollo_class_manager::config::{
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
+use apollo_config::converters::UrlAndHeaders;
 use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use apollo_consensus::types::ValidatorId;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
@@ -298,9 +299,13 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 ..Default::default()
             },
             eth_to_strk_oracle_config: EthToStrkOracleConfig {
-                base_url: Url::parse("https://eth_to_strk_oracle_url")
-                    .expect("Should be a valid URL"),
-                    ..Default::default()
+                url_header_list: Some(vec![
+                    UrlAndHeaders{
+                        url: Url::parse("https://eth_to_strk_oracle_url").expect("Should be a valid URL"), 
+                        headers: Default::default(),
+                    }
+                ]),
+                ..Default::default()
             },
             assume_no_malicious_validators: true,
             ..Default::default()
@@ -376,11 +381,15 @@ pub fn spawn_eth_to_strk_oracle_server(socket_address: SocketAddr) -> JoinHandle
 }
 
 /// Starts the fake eth to fri oracle server and returns its URL and handle.
-pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (Url, JoinHandle<()>) {
+pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (UrlAndHeaders, JoinHandle<()>) {
     let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
     let url = Url::parse(&format!("http://{}{}", socket_address, ETH_TO_STRK_ORACLE_PATH)).unwrap();
+    let url_and_headers = UrlAndHeaders {
+        url,
+        headers: Default::default(), // No additional headers needed for this test.
+    };
     let join_handle = spawn_eth_to_strk_oracle_server(socket_address);
-    (url, join_handle)
+    (url_and_headers, join_handle)
 }
 
 pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<MempoolP2pConfig> {
