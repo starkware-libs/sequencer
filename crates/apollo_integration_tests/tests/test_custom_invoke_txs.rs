@@ -26,7 +26,7 @@ async fn all_custom_invoke_txs() {
         TestIdentifier::EndToEndFlowTestCustomInvokeTxs,
         create_custom_invoke_txs_scenario(),
         GasAmount(60000000),
-        false,
+        true,
         false,
     )
     .await
@@ -63,6 +63,7 @@ pub fn create_cairo_1_syscall_test_txs(
     let test_contract = FeatureContract::TestContract(account_tx_generator.account.cairo_version());
 
     let mut txs = vec![];
+    txs.extend(generate_custom_library_call_invoke_txs(account_tx_generator, &test_contract));
     txs.extend(generate_custom_not_nested_invoke_txs(account_tx_generator, &test_contract));
 
     txs
@@ -116,6 +117,32 @@ fn generate_custom_not_nested_invoke_txs(
             fn_args,
             test_contract,
         )
+    })
+    .collect()
+}
+
+pub fn generate_custom_library_call_invoke_txs(
+    account_tx_generator: &mut AccountTransactionGenerator,
+    test_contract: &FeatureContract,
+) -> Vec<RpcTransaction> {
+    // Define the arguments for the library calls.
+    let test_storage_read_write_args = vec![
+        felt!(2_u8),     // number of arguments.
+        felt!(1948_u64), // key.
+        felt!(1967_u64), // value.
+    ];
+    let test_sha256_args = vec![felt!(0_u64)]; // No arguments for test_sha256.
+    let test_circuit_args = vec![felt!(0_u64)]; // No arguments for test_circuit.
+
+    // Generate the invoke transactions for each library call.
+    [
+        ("test_storage_read_write", test_storage_read_write_args),
+        ("test_sha256", test_sha256_args),
+        ("test_circuit", test_circuit_args),
+    ]
+    .iter()
+    .map(|(fn_name, fn_args)| {
+        account_tx_generator.generate_invoke_tx_library_call(DEFAULT_TIP, fn_name, fn_args, test_contract)
     })
     .collect()
 }
