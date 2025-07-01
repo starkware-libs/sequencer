@@ -39,6 +39,8 @@ pub enum KnownStarknetErrorCode {
     DuplicatedTransaction,
     #[serde(rename = "StarknetErrorCode.ENTRY_POINT_NOT_FOUND_IN_CONTRACT")]
     EntryPointNotFoundInContract,
+    #[serde(rename = "StarknetErrorCode.GAS_PRICE_TOO_LOW")]
+    GasPriceTooLow,
     #[serde(rename = "StarknetErrorCode.INSUFFICIENT_ACCOUNT_BALANCE")]
     InsufficientAccountBalance,
     #[serde(rename = "StarknetErrorCode.INSUFFICIENT_MAX_FEE")]

@@ -20,6 +20,7 @@ use mockall::predicate::eq;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
 use starknet_api::block::GasPrice;
+use starknet_api::executable_transaction::DeclareTransaction;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::test_utils::declare::{internal_rpc_declare_tx, DeclareTxArgs};
 use starknet_api::test_utils::invoke::internal_invoke_tx;
@@ -461,27 +462,34 @@ fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
 }
 
 #[rstest]
-fn test_add_bootstrap_tx_depends_on_config(#[values(true, false)] allow_bootstrap: bool) {
-    let mut builder = MempoolTestContentBuilder::new();
+fn config_override_gas_price_threshold(#[values(true, false)] allow_bootstrap: bool) {
+    let mut builder = MempoolTestContentBuilder::new().with_gas_price_threshold(7);
     builder.config.override_gas_price_threshold_check = allow_bootstrap;
-    builder.gas_price_threshold = GasPrice(7);
     let mut mempool = builder.build_full_mempool();
 
     let zero_bounds_tx = add_tx_input!(
         tx_hash: 1,
-        address: "0x0",
+        address: DeclareTransaction::bootstrap_address().to_string().as_str(),
         tx_nonce: 0,
         account_nonce: 0,
         tip: 0,
         max_l2_gas_price: 0
     );
-    add_tx(&mut mempool, &zero_bounds_tx);
 
-    let txs = vec![TransactionReference::new(&zero_bounds_tx.tx)];
-    let (expected_priority, expected_pending) =
-        if allow_bootstrap { (txs, vec![]) } else { (vec![], txs) };
+    if allow_bootstrap {
+        add_tx(&mut mempool, &zero_bounds_tx);
+    } else {
+        add_tx_expect_error(
+            &mut mempool,
+            &zero_bounds_tx,
+            MempoolError::GasPriceTooLow { max_l2_gas_price: GasPrice(0), threshold: GasPrice(7) },
+        );
+    }
+
+    let expected_priority =
+        if allow_bootstrap { vec![TransactionReference::new(&zero_bounds_tx.tx)] } else { vec![] };
     let expected_mempool_content = MempoolTestContentBuilder::new()
-        .with_pending_queue(expected_pending)
+        .with_pending_queue(vec![])
         .with_priority_queue(expected_priority)
         .build();
     expected_mempool_content.assert_eq(&mempool.content());
@@ -736,7 +744,9 @@ fn test_fee_escalation_valid_replacement(
 }
 
 #[rstest]
-fn test_fee_escalation_valid_replacement_in_pending_queue() {
+// Tests that if a transaction should be rejected due to gas price threshold, it does not cause a
+// fee escalation.
+fn test_valid_fee_escalation_in_pending_queue() {
     let increased_values = [
         99,  // Exactly increase percentage.
         100, // More than increase percentage,
@@ -753,7 +763,7 @@ fn test_fee_escalation_valid_replacement_in_pending_queue() {
             // replacement transactions are in the pending queue.
             .with_gas_price_threshold(1000);
 
-        let mempool = builder.with_pool([tx]).build_full_mempool();
+        let mut mempool = builder.with_pool([tx.clone()]).build_full_mempool();
 
         let valid_replacement_input = add_tx_input!(
             tx_hash: 1,
@@ -761,8 +771,20 @@ fn test_fee_escalation_valid_replacement_in_pending_queue() {
             max_l2_gas_price: u128::from(increased_value)
         );
 
-        // Test and assert.
-        add_tx_and_verify_replacement(mempool, valid_replacement_input, false, true);
+        add_tx_expect_error(
+            &mut mempool,
+            &valid_replacement_input,
+            MempoolError::GasPriceTooLow {
+                max_l2_gas_price: GasPrice(u128::from(increased_value)),
+                threshold: GasPrice(1000),
+            },
+        );
+        // Assert: the original transaction is in the pool.
+        let expected_mempool_content = MempoolTestContentBuilder::new()
+            .with_pending_queue([TransactionReference::new(&tx)])
+            .with_pool([tx])
+            .build();
+        expected_mempool_content.assert_eq(&mempool.content());
     }
 }
 
@@ -805,7 +827,9 @@ fn test_fee_escalation_invalid_replacement(
 }
 
 #[rstest]
-fn test_fee_escalation_invalid_replacement_in_pending_queue() {
+// Tests that if a transaction should be rejected due to gas price threshold, it does not cause a
+// fee escalation, even if the fee escalation is not valid.
+fn test_invalid_fee_escalation_in_pending_queue() {
     // Setup.
     let existing_tx = tx!(tx_hash: 1, tip: 100, max_l2_gas_price: 100);
 
@@ -815,7 +839,7 @@ fn test_fee_escalation_invalid_replacement_in_pending_queue() {
         // transactions are in the pending queue.
         .with_gas_price_threshold(1000);
 
-    let mempool = builder.with_pool([existing_tx.clone()]).build_full_mempool();
+    let mut mempool = builder.with_pool([existing_tx.clone()]).build_full_mempool();
 
     let input_not_enough_tip = add_tx_input!(tx_hash: 3, tip: 109, max_l2_gas_price: 110);
     let input_not_enough_gas_price = add_tx_input!(tx_hash: 4, tip: 110, max_l2_gas_price: 109);
@@ -824,13 +848,17 @@ fn test_fee_escalation_invalid_replacement_in_pending_queue() {
     // Test and assert.
     let invalid_replacement_inputs =
         [input_not_enough_tip, input_not_enough_gas_price, input_not_enough_both];
-    add_txs_and_verify_no_replacement(
-        mempool,
-        existing_tx,
-        invalid_replacement_inputs,
-        false,
-        true,
+    add_tx_expect_error(
+        &mut mempool,
+        &invalid_replacement_inputs[0],
+        MempoolError::GasPriceTooLow { max_l2_gas_price: GasPrice(110), threshold: GasPrice(1000) },
     );
+    // Assert: the original transaction is in the pending queue.
+    let expected_mempool_content = MempoolTestContentBuilder::new()
+        .with_pending_queue([TransactionReference::new(&existing_tx)])
+        .with_pool([existing_tx])
+        .build();
+    expected_mempool_content.assert_eq(&mempool.content());
 }
 
 #[rstest]
@@ -936,6 +964,40 @@ fn test_fee_escalation_invalid_replacement_overflow_gracefully_handled() {
 }
 
 // `update_gas_price_threshold` tests.
+
+#[rstest]
+fn input_tx_with_gas_price_below_threshold() {
+    // Setup.
+    let tx_args = add_tx_input!(tx_hash: 0, tip: u64::MAX, max_l2_gas_price: 100);
+    let mut mempool =
+        MempoolTestContentBuilder::new().with_gas_price_threshold(101).build_full_mempool();
+
+    // Test.
+    add_tx_expect_error(
+        &mut mempool,
+        &tx_args,
+        MempoolError::GasPriceTooLow { max_l2_gas_price: GasPrice(100), threshold: GasPrice(101) },
+    );
+    // Assert: the transaction is not added to the mempool.
+    let expected_mempool_content = MempoolTestContentBuilder::new().build();
+    expected_mempool_content.assert_eq(&mempool.content());
+}
+
+#[rstest]
+fn input_tx_with_gas_price_above_threshold() {
+    // Setup.
+    let tx_args = add_tx_input!(tx_hash: 0, tip: u64::MAX, max_l2_gas_price: 100);
+    let mut mempool =
+        MempoolTestContentBuilder::new().with_gas_price_threshold(99).build_full_mempool();
+
+    // Test.
+    add_tx(&mut mempool, &tx_args);
+    // Assert: the transaction is added to the mempool.
+    let expected_mempool_content = MempoolTestContentBuilder::new()
+        .with_priority_queue([TransactionReference::new(&tx_args.tx)])
+        .build();
+    expected_mempool_content.assert_eq(&mempool.content());
+}
 
 #[rstest]
 fn test_update_gas_price_threshold_increases_threshold() {
@@ -1255,7 +1317,9 @@ fn metrics_correctness() {
     );
     add_tx(&mut mempool, &invoke_5);
     // invoke_6 will be pending, as it has a lower gas price than the threshold.
+    mempool.update_gas_price(GasPrice(0));
     add_tx(&mut mempool, &invoke_6);
+    mempool.update_gas_price(GasPrice(100));
     add_tx(&mut mempool, &declare_1);
 
     commit_block(

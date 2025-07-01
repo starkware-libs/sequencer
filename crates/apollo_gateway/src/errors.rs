@@ -201,6 +201,14 @@ pub fn mempool_client_result_to_gw_spec_result(
                 MempoolError::MempoolFull => {
                     Err(GatewaySpecError::UnexpectedError { data: "Mempool full".to_owned() })
                 }
+                MempoolError::GasPriceTooLow { max_l2_gas_price, threshold } => {
+                    Err(GatewaySpecError::UnexpectedError {
+                        data: format!(
+                            "Transactions gas price {max_l2_gas_price} is below the threshold \
+                             {threshold}."
+                        ),
+                    })
+                }
                 MempoolError::P2pPropagatorClientError { .. } => {
                     // Not an error from the gateway's perspective.
                     warn!("P2p propagator client error: {}", mempool_error);
@@ -245,6 +253,9 @@ pub fn mempool_client_err_to_deprecated_gw_err(err: MempoolClientError) -> Stark
                 MempoolError::MempoolFull => StarknetErrorCode::KnownErrorCode(
                     KnownStarknetErrorCode::TransactionLimitExceeded,
                 ),
+                MempoolError::GasPriceTooLow { .. } => {
+                    StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::GasPriceTooLow)
+                }
                 MempoolError::P2pPropagatorClientError { .. } => {
                     // Not an error from the gateway's perspective.
                     return StarknetError::internal(&message);
