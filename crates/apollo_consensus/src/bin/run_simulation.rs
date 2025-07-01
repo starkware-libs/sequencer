@@ -18,7 +18,7 @@ use nix::unistd::Pid;
 use tokio::process::Command as TokioCommand;
 
 lazy_static! {
-    static ref BOOTNODE_TCP_PORT: u16 = find_free_port();
+    static ref BOOTNODE_UDP_PORT: u16 = find_free_port();
 }
 // The SECRET_KEY is used for building the BOOT_NODE_PEER_ID, so they are coupled and must be used
 // together.
@@ -276,7 +276,7 @@ async fn run_simulation(
 
 async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &PapyrusArgs) -> Node {
     let is_bootstrap = i == 1;
-    let port = if is_bootstrap { *BOOTNODE_TCP_PORT } else { find_free_port() };
+    let port = if is_bootstrap { *BOOTNODE_UDP_PORT } else { find_free_port() };
     let monitoring_gateway_server_port = find_free_port();
     let data_dir = format!("{data_dir}/data{i}");
     let validator_id = i + usize::try_from(DEFAULT_VALIDATOR_ID).expect("Conversion failed");
@@ -333,7 +333,7 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
             "--network.bootstrap_peer_multiaddr.#is_none false --network.bootstrap_peer_multiaddr \
              /ip4/127.0.0.1/udp/{}/quic-v1/p2p/{} 2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > \
              {}/validator0x{:x}.txt",
-            *BOOTNODE_TCP_PORT, BOOT_NODE_PEER_ID, logs_dir, validator_id
+            *BOOTNODE_UDP_PORT, BOOT_NODE_PEER_ID, logs_dir, validator_id
         ));
     }
 
