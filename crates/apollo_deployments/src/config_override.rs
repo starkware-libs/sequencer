@@ -8,6 +8,7 @@ use serde::Serialize;
 use serde_json::to_value;
 use serde_with::with_prefix;
 use starknet_api::block::BlockNumber;
+use url::Url;
 
 use crate::deployment::PragmaDomain;
 #[cfg(test)]
@@ -121,7 +122,7 @@ pub struct DeploymentConfigOverride {
     starknet_contract_address: String,
     chain_id: String,
     eth_fee_token_address: String,
-    starknet_url: String,
+    starknet_url: Url,
     strk_fee_token_address: String,
     #[serde(rename = "consensus_manager_config.eth_to_strk_oracle_config.base_url")]
     consensus_manager_config_eth_to_strk_oracle_config_base_url: String,
