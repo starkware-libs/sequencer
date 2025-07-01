@@ -274,8 +274,10 @@ impl TransactionManager {
         Self { records, proposable_index, current_staging_epoch: current_epoch, config }
     }
 
-    pub fn consume_tx(&mut self, _tx_hash: TransactionHash) -> bool {
-        todo!()
+    // If a transaction is consumed on L1, it is not longer relevant to the transaction manager and
+    // can be removed from the records.
+    pub(crate) fn consume_tx(&mut self, tx_hash: &TransactionHash) -> bool {
+        self.records.remove(tx_hash)
     }
 }
 

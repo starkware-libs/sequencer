@@ -209,6 +209,15 @@ impl Records {
             }
         }
     }
+
+    // Remove a transaction record by its hash.
+    // Returns true if the record was removed, false if it was not found.
+    pub(crate) fn remove(&mut self, hash: &TransactionHash) -> bool {
+        match self.0.entry(*hash) {
+            Entry::Occupied(_) => self.0.shift_remove_entry(hash).is_some(),
+            Entry::Vacant(_) => false,
+        }
+    }
 }
 
 impl Deref for Records {
