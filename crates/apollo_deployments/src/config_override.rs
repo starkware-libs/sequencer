@@ -10,6 +10,7 @@ use serde_with::with_prefix;
 use starknet_api::block::BlockNumber;
 
 use crate::deployment::PragmaDomain;
+use crate::deployment_definitions::StateSyncType;
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
 
@@ -130,7 +131,13 @@ pub struct DeploymentConfigOverride {
     #[serde(rename = "l1_provider_config.provider_startup_height_override.#is_none")]
     l1_provider_config_provider_startup_height_override_is_none: bool,
     #[serde(rename = "consensus_manager_config.context_config.num_validators")]
-    consensus_manager_config_context_config_num_validators: usize,
+consensus_manager_config_context_config_num_validators: usize,
+    #[serde(rename = "state_sync_config.central_sync_client_config.#is_none")]
+    central_sync_client_config: bool,
+    #[serde(rename = "state_sync_config.p2p_sync_client_config.#is_none")]
+    p2p_sync_client_config: bool,
+    #[serde(rename = "state_sync_config.network_config.#is_none")]
+    network_config: bool,
 }
 
 impl DeploymentConfigOverride {
@@ -144,6 +151,7 @@ impl DeploymentConfigOverride {
         pragma_domain: PragmaDomain,
         l1_startup_height_override: Option<BlockNumber>,
         consensus_manager_config_context_config_num_validators: usize,
+        state_sync_type: StateSyncType,
     ) -> Self {
         let (
             l1_provider_config_provider_startup_height_override,
@@ -164,6 +172,9 @@ impl DeploymentConfigOverride {
             l1_provider_config_provider_startup_height_override,
             l1_provider_config_provider_startup_height_override_is_none,
             consensus_manager_config_context_config_num_validators,
+            central_sync_client_config: state_sync_type.get_central_sync_client_config(),
+            p2p_sync_client_config: state_sync_type.get_p2p_sync_client_config(),
+            network_config: state_sync_type.get_network_config(),
         }
     }
 }

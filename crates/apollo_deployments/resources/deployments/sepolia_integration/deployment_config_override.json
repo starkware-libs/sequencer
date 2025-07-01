@@ -7,5 +7,8 @@
   "l1_provider_config.provider_startup_height_override": 0,
   "l1_provider_config.provider_startup_height_override.#is_none": true,
   "starknet_url": "https://feeder.integration-sepolia.starknet.io/",
+  "state_sync_config.central_sync_client_config.#is_none": false,
+  "state_sync_config.network_config.#is_none": true,
+  "state_sync_config.p2p_sync_client_config.#is_none": true,
   "strk_fee_token_address": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
 }

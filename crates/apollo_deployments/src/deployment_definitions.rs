@@ -54,3 +54,29 @@ impl Environment {
         PathBuf::from(CONFIG_BASE_DIR).join(DEPLOYMENT_CONFIG_DIR_NAME).join(self.to_string())
     }
 }
+
+pub enum StateSyncType {
+    Central,
+    P2P,
+}
+
+impl StateSyncType {
+    pub fn get_central_sync_client_config(&self) -> bool {
+        match self {
+            StateSyncType::Central => false,
+            StateSyncType::P2P => true,
+        }
+    }
+    pub fn get_p2p_sync_client_config(&self) -> bool {
+        match self {
+            StateSyncType::Central => true,
+            StateSyncType::P2P => false,
+        }
+    }
+    pub fn get_network_config(&self) -> bool {
+        match self {
+            StateSyncType::Central => true,
+            StateSyncType::P2P => false,
+        }
+    }
+}

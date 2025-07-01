@@ -11,6 +11,8 @@ use crate::deployment_definitions::Environment;
 use crate::k8s::IngressParams;
 use crate::service::NodeType;
 
+use super::StateSyncType;
+
 const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
 const TESTING_NODE_IDS: [usize; 1] = [0];
 
@@ -32,6 +34,7 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         PragmaDomain::Dev,
         Some(BlockNumber(1)),
         TESTING_NODE_IDS.len(),
+        StateSyncType::P2P,
     )
 }
 

@@ -2,7 +2,7 @@ use apollo_infra_utils::template::Template;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
-use crate::deployment_definitions::Environment;
+use crate::deployment_definitions::{Environment, StateSyncType};
 use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
 use crate::service::NodeType;
@@ -32,6 +32,7 @@ fn upgrade_test_deployment_config_override() -> DeploymentConfigOverride {
         PragmaDomain::Dev,
         None,
         UPGRADE_TEST_NODE_IDS.len(),
+        StateSyncType::Central,
     )
 }
 

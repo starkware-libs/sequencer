@@ -7,6 +7,8 @@ use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANC
 use crate::k8s::{ExternalSecret, IngressParams};
 use crate::service::NodeType;
 
+use super::StateSyncType;
+
 const SEPOLIA_INTEGRATION_NODE_IDS: [usize; 3] = [0, 1, 2];
 const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "integration-sepolia.starknet.io";
@@ -30,6 +32,7 @@ fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride 
         PragmaDomain::Dev,
         None,
         SEPOLIA_INTEGRATION_NODE_IDS.len(),
+        StateSyncType::Central,
     )
 }
 

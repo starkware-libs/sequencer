@@ -7,6 +7,8 @@ use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANC
 use crate::k8s::{ExternalSecret, IngressParams};
 use crate::service::NodeType;
 
+use super::StateSyncType;
+
 const STRESS_TEST_NODE_IDS: [usize; 3] = [0, 1, 2];
 const STRESS_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "apollo-stresstest-dev.sw-dev.io";
 const STRESS_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
@@ -29,6 +31,7 @@ fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
         PragmaDomain::Dev,
         None,
         STRESS_TEST_NODE_IDS.len(),
+        StateSyncType::Central,
     )
 }
 

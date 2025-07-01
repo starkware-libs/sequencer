@@ -7,6 +7,8 @@ use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANC
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
 use crate::service::NodeType;
 
+use super::StateSyncType;
+
 // TODO(Tsabary): note this env has configs for 4 despite needing only 3. Delete when we're done
 // with it.
 const TESTING_ENV_3_NODE_IDS: [(usize, P2PCommunicationType); 4] = [
@@ -39,6 +41,7 @@ fn testing_env_3_deployment_config_override() -> DeploymentConfigOverride {
         PragmaDomain::Dev,
         None,
         3,
+        StateSyncType::Central,
     )
 }
 
