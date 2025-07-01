@@ -19,6 +19,7 @@ use papyrus_base_layer::ethereum_base_layer_contract::{EthereumBaseLayerContract
 use papyrus_base_layer::test_utils::{
     anvil_instance_from_url,
     ethereum_base_layer_config_for_anvil,
+    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockReference, MockBaseLayerContract};
 use rstest::{fixture, rstest};
@@ -79,7 +80,7 @@ async fn txs_happy_flow() {
 
     // Setup.
     let (base_layer_config, base_layer_url) = ethereum_base_layer_config_for_anvil(None);
-    let anvil = anvil_instance_from_url(&base_layer_url);
+    let _anvil_server_guard = anvil_instance_from_url(&base_layer_url);
     let fake_client = Arc::new(FakeL1ProviderClient::default());
     let base_layer = EthereumBaseLayerContract::new(base_layer_config, base_layer_url);
     let l1_scraper_config = L1ScraperConfig::default();
@@ -144,15 +145,13 @@ async fn txs_happy_flow() {
         .timestamp;
 
     const EXPECTED_VERSION: TransactionVersion = TransactionVersion(StarkHash::ZERO);
-    let default_anvil_l1_account_address: StarkHash =
-        StarkHash::from_bytes_be_slice(anvil.addresses()[0].as_slice());
     let expected_internal_l1_tx = L1HandlerTransaction {
         version: EXPECTED_VERSION,
         nonce: Nonce(StarkHash::ZERO),
         contract_address: contract_address!(l2_contract_address),
         entry_point_selector: EntryPointSelector(StarkHash::from_hex_unchecked(l2_entry_point)),
         calldata: Calldata(
-            vec![default_anvil_l1_account_address, StarkHash::ONE, StarkHash::from(2)].into(),
+            vec![DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, StarkHash::ONE, StarkHash::from(2)].into(),
         ),
     };
     let default_chain_id = L1ScraperConfig::default().chain_id;
@@ -173,7 +172,7 @@ async fn txs_happy_flow() {
     let expected_internal_l1_tx_2 = L1HandlerTransaction {
         nonce: Nonce(StarkHash::ONE),
         calldata: Calldata(
-            vec![default_anvil_l1_account_address, StarkHash::from(3), StarkHash::from(4)].into(),
+            vec![DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, StarkHash::from(3), StarkHash::from(4)].into(),
         ),
         ..tx.tx
     };
