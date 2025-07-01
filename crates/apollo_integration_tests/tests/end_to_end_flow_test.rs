@@ -120,6 +120,6 @@ fn test_two_txs(tx_hashes: &[TransactionHash]) -> Vec<TransactionHash> {
 
 fn create_declare_tx(tx_generator: &mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction> {
     let account_tx_generator = tx_generator.account_with_id_mut(ACCOUNT_ID_0);
-    let declare_tx = account_tx_generator.generate_declare();
+    let declare_tx = account_tx_generator.generate_declare_of_contract_class();
     vec![declare_tx]
 }
