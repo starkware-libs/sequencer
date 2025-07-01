@@ -15,7 +15,7 @@ use apollo_storage::StorageConfig;
 use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
-const STATE_SYNC_TCP_PORT: u16 = 12345;
+const STATE_SYNC_UDP_PORT: u16 = 12345;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 #[validate(schema(function = "validate_config"))]
@@ -79,7 +79,7 @@ impl Default for StateSyncConfig {
             },
             p2p_sync_client_config: Some(P2pSyncClientConfig::default()),
             central_sync_client_config: None,
-            network_config: Some(NetworkConfig { port: STATE_SYNC_TCP_PORT, ..Default::default() }),
+            network_config: Some(NetworkConfig { port: STATE_SYNC_UDP_PORT, ..Default::default() }),
             revert_config: RevertConfig::default(),
             rpc_config: RpcConfig::default(),
         }
