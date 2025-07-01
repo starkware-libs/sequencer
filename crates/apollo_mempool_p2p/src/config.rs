@@ -8,7 +8,7 @@ use apollo_network::NetworkConfig;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-const MEMPOOL_TCP_PORT: u16 = 11111;
+const MEMPOOL_UDP_PORT: u16 = 11111;
 
 #[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct MempoolP2pConfig {
@@ -23,7 +23,7 @@ pub struct MempoolP2pConfig {
 impl Default for MempoolP2pConfig {
     fn default() -> Self {
         Self {
-            network_config: NetworkConfig { port: MEMPOOL_TCP_PORT, ..Default::default() },
+            network_config: NetworkConfig { port: MEMPOOL_UDP_PORT, ..Default::default() },
             network_buffer_size: 10000,
             // TODO(Eitan): Change to appropriate values.
             max_transaction_batch_size: 1,

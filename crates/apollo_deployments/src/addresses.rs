@@ -52,5 +52,5 @@ pub(crate) fn get_peer_id(secret_key: SecretKey) -> String {
 }
 
 pub(crate) fn get_p2p_address(dns: &str, port: u16, peer_id: &str) -> String {
-    format!("/dns/{}/tcp/{}/p2p/{}", dns, port, peer_id)
+    format!("/dns/{}/udp/{}/quic-v1/p2p/{}", dns, port, peer_id)
 }
