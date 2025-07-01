@@ -337,13 +337,13 @@ impl Mempool {
         let mut account_nonce_updates = self.remove_expired_txs();
         self.add_ready_declares();
 
-        if self.exceeds_capacity(&args.tx) {
-            self.handle_capacity_overflow(&args.tx, args.account_state.nonce)?;
-        }
-
         let tx_reference = TransactionReference::new(&args.tx);
         self.validate_incoming_tx(tx_reference, args.account_state.nonce)?;
         self.handle_fee_escalation(&args.tx)?;
+
+        if self.exceeds_capacity(&args.tx) {
+            self.handle_capacity_overflow(&args.tx, args.account_state.nonce)?;
+        }
 
         metric_handle.transaction_inserted();
 
