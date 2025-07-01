@@ -1372,7 +1372,7 @@
   "gateway_config.stateless_tx_validator_config.max_sierra_version.minor": {
     "description": "The minor version of the configuration.",
     "privacy": "Public",
-    "value": 5
+    "value": 7
   },
   "gateway_config.stateless_tx_validator_config.max_sierra_version.patch": {
     "description": "The patch version of the configuration.",
