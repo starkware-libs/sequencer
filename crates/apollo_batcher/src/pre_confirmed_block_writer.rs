@@ -18,7 +18,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::cende_client_types::{
     CendeBlockMetadata,
@@ -89,6 +89,29 @@ impl PreconfirmedBlockWriter {
         }
     }
 
+    fn should_stop_running(
+        &self,
+        result: &Result<(), PreconfirmedCendeClientError>,
+        next_write_iteration: u64,
+    ) -> bool {
+        // If the write iteration is the last one sent, it means that the failure is because of
+        // a round mismatch. When this happens, we can stop the pre-confirmed block
+        // writer since all subsequent writes will be rejected as well.
+        if let Err(PreconfirmedCendeClientError::OutdatedProposalError(round, write_iteration)) =
+            result
+        {
+            if *write_iteration == next_write_iteration - 1 {
+                error!(
+                    "A higher round was detected for block_number: {}. rejected round: {}. \
+                     Stopping pre-confirmed block writer.",
+                    self.pre_confirmed_block_writer_input.block_number, round,
+                );
+                return true;
+            }
+        }
+        false
+    }
+
     fn create_pre_confirmed_block(
         &self,
         transactions_map: &IndexMap<
@@ -146,7 +169,7 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
         // We initially mark that we have pending changes so that the client will write to the
         // Cende recorder that a new proposal round has started.
         let mut pending_changes = true;
-        let mut write_iteration: u64 = 0;
+        let mut next_write_iteration = 0;
 
         loop {
             tokio::select! {
@@ -156,15 +179,20 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                         // TODO(noamsp): Extract to a function.
                         let pre_confirmed_block = self.create_pre_confirmed_block(
                             &transactions_map,
-                            write_iteration,
+                            next_write_iteration,
                         );
                         pending_tasks.push(self.cende_client.write_pre_confirmed_block(pre_confirmed_block));
-                        write_iteration += 1;
+                        next_write_iteration += 1;
                         pending_changes = false;
                     }
                 }
-                // TODO(noamsp): Handle height/round mismatch by immediately exiting the loop; All the other writes will be rejected as well.
-                Some(_) = pending_tasks.next() => {}
+
+                Some(result) = pending_tasks.next() => {
+                    if self.should_stop_running(&result, next_write_iteration) {
+                        pending_tasks.clear();
+                        return Err(result.unwrap_err().into());
+                    }
+                }
                 msg = self.pre_confirmed_tx_receiver.recv() => {
                     match msg {
                         Some((tx, tx_receipt, tx_state_diff)) => {
@@ -205,13 +233,18 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
 
         if pending_changes {
             let pre_confirmed_block =
-                self.create_pre_confirmed_block(&transactions_map, write_iteration);
+                self.create_pre_confirmed_block(&transactions_map, next_write_iteration);
             self.cende_client.write_pre_confirmed_block(pre_confirmed_block).await?
         }
 
         // Wait for all pending tasks to complete gracefully.
-        // TODO(noamsp): Add error handling and timeout.
-        while pending_tasks.next().await.is_some() {}
+        // TODO(noamsp): Add timeout.
+        while let Some(result) = pending_tasks.next().await {
+            if self.should_stop_running(&result, next_write_iteration) {
+                pending_tasks.clear();
+                return Err(result.unwrap_err().into());
+            }
+        }
         info!("Pre confirmed block writer finished");
 
         Ok(())

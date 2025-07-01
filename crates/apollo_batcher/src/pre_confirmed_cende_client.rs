@@ -4,7 +4,7 @@ use apollo_batcher_types::batcher_types::Round;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use thiserror::Error;
@@ -15,11 +15,15 @@ use crate::cende_client_types::CendePreconfirmedBlock;
 use crate::metrics::PRECONFIRMED_BLOCK_WRITTEN;
 
 #[derive(Debug, Error)]
-// TODO(noamsp): add block number/round mismatch and handle it in the client implementation.
 pub enum PreconfirmedCendeClientError {
     #[error(transparent)]
     RequestError(#[from] reqwest::Error),
-    #[error("CendeRecorder returned an error: {0}")]
+    #[error(
+        "Aerospike rejected an outdated proposal. A newer proposal was already written. round: \
+         {0}, write_iteration: {1}."
+    )]
+    OutdatedProposalError(Round, u64),
+    #[error("Cende recorder returned an error: {0}")]
     CendeRecorderError(String),
 }
 
@@ -116,17 +120,26 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
         if response_status.is_success() {
             debug!(
                 "write_pre_confirmed_block request succeeded. block_number: {block_number}, \
-                 round: {round}, write_iteration: {write_iteration}, status: {response_status}",
+                 round: {round}, write_iteration: {write_iteration}.",
             );
             PRECONFIRMED_BLOCK_WRITTEN.increment(1);
             Ok(())
         } else {
             let error_msg = format!(
                 "write_pre_confirmed_block request failed. block_number: {block_number}, round: \
-                 {round}, write_iteration: {write_iteration}, status: {response_status}",
+                 {round}, write_iteration: {write_iteration}, response status: {response_status}."
             );
+
             warn!("{error_msg}");
-            Err(PreconfirmedCendeClientError::CendeRecorderError(error_msg))
+
+            if response_status == StatusCode::BAD_REQUEST {
+                return Err(PreconfirmedCendeClientError::OutdatedProposalError(
+                    round,
+                    write_iteration,
+                ));
+            } else {
+                return Err(PreconfirmedCendeClientError::CendeRecorderError(error_msg));
+            }
         }
     }
 }
