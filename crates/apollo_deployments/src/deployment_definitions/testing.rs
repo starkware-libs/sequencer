@@ -7,7 +7,7 @@ use crate::config_override::{
     NetworkConfigOverride,
 };
 use crate::deployment::{Deployment, PragmaDomain};
-use crate::deployment_definitions::Environment;
+use crate::deployment_definitions::{Environment, StateSyncType};
 use crate::k8s::IngressParams;
 use crate::service::NodeType;
 
@@ -32,6 +32,7 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         PragmaDomain::Dev,
         Some(BlockNumber(1)),
         TESTING_NODE_IDS.len(),
+        StateSyncType::P2P,
     )
 }
 

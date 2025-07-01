@@ -7,5 +7,8 @@
   "l1_provider_config.provider_startup_height_override": 0,
   "l1_provider_config.provider_startup_height_override.#is_none": true,
   "starknet_url": "http://feeder-gateway.starknet-0-14-0-stress-test:9713/",
+  "state_sync_config.central_sync_client_config.#is_none": false,
+  "state_sync_config.network_config.#is_none": true,
+  "state_sync_config.p2p_sync_client_config.#is_none": true,
   "strk_fee_token_address": "0x4fa9355c504fa2de263bd7920644b5e48794fe1450ec2a6526518ad77d6a567"
 }
