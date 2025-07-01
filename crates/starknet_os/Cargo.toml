@@ -13,7 +13,13 @@ deserialize = [
   "starknet-types-core/serde",
   "starknet_patricia/deserialize",
 ]
-testing = ["blockifier/testing", "starknet_patricia/testing"]
+testing = [
+  "apollo_starknet_os_program/test_programs",
+  "blockifier/testing",
+  "ethnum",
+  "rand",
+  "starknet_patricia/testing",
+]
 
 [dependencies]
 apollo_starknet_os_program.workspace = true
@@ -33,6 +39,7 @@ cairo-vm = { workspace = true, features = [
   "extensive_hints",
 ] }
 derive_more.workspace = true
+ethnum = { workspace = true, optional = true }
 indexmap.workspace = true
 indoc.workspace = true
 log.workspace = true
@@ -41,6 +48,7 @@ num-integer.workspace = true
 num-traits.workspace = true
 papyrus_common.workspace = true
 paste.workspace = true
+rand = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["raw_value"] }
 sha2.workspace = true
@@ -54,9 +62,11 @@ strum_macros.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+apollo_starknet_os_program = { workspace = true, features = ["test_programs"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
+ethnum.workspace = true
 rand.workspace = true
 rstest.workspace = true
 starknet_patricia = { workspace = true, features = ["testing"] }
