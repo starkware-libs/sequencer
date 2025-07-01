@@ -517,7 +517,7 @@ async fn collect_execution_results_and_stream_txs(
                         input_tx.tx_hash(),
                         revert_error,
                     );
-                }
+                } 
                 let (tx_index, duplicate_tx_hash) =
                     execution_data.execution_infos.insert_full(tx_hash, tx_execution_info);
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");

@@ -79,7 +79,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
-pub const N_TXS_IN_NON_GENERIC_INVOKE_TXS: usize = 3;
+pub const N_TXS_IN_NON_GENERIC_INVOKE_TXS: usize = 11;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
@@ -451,7 +451,11 @@ pub fn create_non_generic_invoke_txs(
     account_id: AccountId,
 ) -> Vec<RpcTransaction> {
     // Create L1 to L2 messages with non-generic invoke transactions.
-    tx_generator.account_with_id_mut(account_id).generate_all_library_call_invoke_txs()
+    let mut txs = vec![];
+    txs.extend(tx_generator.account_with_id_mut(account_id).generate_all_direct_call_invoke_txs(1));
+    txs.extend(tx_generator.account_with_id_mut(account_id).generate_all_library_call_invoke_txs());
+
+    txs
 }
 
 pub fn create_l1_to_l2_messages_args(
@@ -547,7 +551,7 @@ pub fn create_gateway_config(
 ) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_non_zero_resource_bounds,
-        max_calldata_length: 10,
+        max_calldata_length: 19,
         max_signature_length: 2,
         ..Default::default()
     };
