@@ -1,9 +1,13 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use std::sync::Mutex;
 use std::time::Duration;
 
-use apollo_config::converters::{deserialize_optional_map, serialize_optional_map};
+use apollo_config::converters::{
+    deserialize_optional_list_with_url_and_headers,
+    serialize_optional_list_with_url_and_headers,
+    UrlAndHeaders,
+};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_l1_gas_price_types::errors::EthToStrkOracleClientError;
@@ -30,24 +34,21 @@ pub mod eth_to_strk_oracle_test;
 
 pub const ETH_TO_STRK_QUANTIZATION: u64 = 18;
 
-fn hashmap_to_headermap(hash_map: Option<HashMap<String, String>>) -> HeaderMap {
+fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
-    if let Some(map) = hash_map {
-        for (key, value) in map {
-            header_map.insert(
-                HeaderName::from_bytes(key.as_bytes()).expect("Failed to parse header name"),
-                HeaderValue::from_str(&value).expect("Failed to parse header value"),
-            );
-        }
+    for (key, value) in hash_map {
+        header_map.insert(
+            HeaderName::from_bytes(key.as_bytes()).expect("Failed to parse header name"),
+            HeaderValue::from_str(&value).expect("Failed to parse header value"),
+        );
     }
     header_map
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 pub struct EthToStrkOracleConfig {
-    pub base_url: Url,
-    #[serde(deserialize_with = "deserialize_optional_map")]
-    pub headers: Option<HashMap<String, String>>,
+    #[serde(deserialize_with = "deserialize_optional_list_with_url_and_headers")]
+    pub url_header_list: Option<Vec<UrlAndHeaders>>,
     pub lag_interval_seconds: u64,
     pub max_cache_size: usize,
     pub query_timeout_sec: u64,
@@ -57,17 +58,11 @@ impl SerializeConfig for EthToStrkOracleConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
-                "base_url",
-                &self.base_url,
-                "URL to query. The `timestamp` parameter is appended dynamically when making \
-                 requests, in order to have a stable mapping from block timestamp to conversion \
-                 rate.",
-                ParamPrivacyInput::Private,
-            ),
-            ser_param(
-                "headers",
-                &serialize_optional_map(&self.headers),
-                "HTTP headers for the eth to strk oracle, formatted as 'k1:v1 k2:v2 ...'.",
+                "url_header_list",
+                &serialize_optional_list_with_url_and_headers(&self.url_header_list),
+                "A list of Url+HTTP headers for the eth to strk oracle, in JSON format. 
+                 The `timestamp` parameter is appended dynamically when making requests, in order \
+                 to have a stable mapping from block timestamp to conversion rate. ",
                 ParamPrivacyInput::Private,
             ),
             ser_param(
@@ -76,7 +71,7 @@ impl SerializeConfig for EthToStrkOracleConfig {
                 "The size of the interval (seconds) that the eth to strk rate is taken on. The \
                  lag refers to the fact that the interval `[T, T+k)` contains the conversion rate \
                  for queries in the interval `[T+k, T+2k)`. Should be configured in alignment \
-                 with relevant query parameters in `base_url`, if required.",
+                 with relevant query parameters in `url_header_list`, if required.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -98,8 +93,10 @@ impl SerializeConfig for EthToStrkOracleConfig {
 impl Default for EthToStrkOracleConfig {
     fn default() -> Self {
         Self {
-            base_url: Url::parse("https://example.com/api").unwrap(),
-            headers: None,
+            url_header_list: Some(vec![UrlAndHeaders {
+                url: Url::parse("https://api.example.com/api").expect("Invalid URL"),
+                headers: BTreeMap::new(),
+            }]),
             lag_interval_seconds: 1,
             max_cache_size: 100,
             query_timeout_sec: 3,
@@ -110,12 +107,9 @@ impl Default for EthToStrkOracleConfig {
 /// Client for interacting with the eth to strk Oracle API.
 pub struct EthToStrkOracleClient {
     config: EthToStrkOracleConfig,
-    /// The base URL of the eth to strk Oracle API.
-    /// The `timestamp` parameter is appended dynamically when making requests,
-    /// in order to have a stable mapping from block timestamp to conversion rate.
-    base_url: Url,
-    /// HTTP headers required for requests.
-    headers: HeaderMap,
+    /// The index of the current URL in the `url_header_list`.
+    /// If one URL fails, index is incremented to try the next URL.
+    index: usize,
     client: reqwest::Client,
     cached_prices: Mutex<LruCache<u64, u128>>,
     queries: Mutex<LruCache<u64, AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>>>>,
@@ -124,15 +118,13 @@ pub struct EthToStrkOracleClient {
 impl EthToStrkOracleClient {
     pub fn new(config: EthToStrkOracleConfig) -> Self {
         info!(
-            "Creating EthToStrkOracleClient with: base_url={:} headers={:?} \
-             lag_interval_seconds={}",
-            config.base_url, config.headers, config.lag_interval_seconds
+            "Creating EthToStrkOracleClient with: url_header_list={:?} lag_interval_seconds={}",
+            config.url_header_list, config.lag_interval_seconds
         );
         register_eth_to_strk_metrics();
         Self {
             config: config.clone(),
-            base_url: config.base_url,
-            headers: hashmap_to_headermap(config.headers),
+            index: 0,
             client: reqwest::Client::new(),
             cached_prices: Mutex::new(LruCache::new(
                 NonZeroUsize::new(config.max_cache_size).expect("Invalid cache size"),
@@ -149,8 +141,17 @@ impl EthToStrkOracleClient {
     ) -> AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>> {
         let adjusted_timestamp = quantized_timestamp * self.config.lag_interval_seconds;
         let client = self.client.clone();
-        let base_url = self.base_url.clone();
-        let headers = self.headers.clone();
+        // The `timestamp` parameter is appended dynamically to the base URL,
+        // in order to have a stable mapping from block timestamp to conversion rate.
+        let UrlAndHeaders { url: base_url, headers } = self
+            .config
+            .url_header_list
+            .as_ref()
+            .expect("url_header_list should be provided in EthToStrkOracleConfig")
+            .get(self.index)
+            .unwrap_or_else(|| panic!("cannot find URL and headers for index {}", self.index))
+            .clone();
+        let headers = btreemap_to_headermap(headers);
         let query_timeout_sec = self.config.query_timeout_sec;
 
         let future = async move {

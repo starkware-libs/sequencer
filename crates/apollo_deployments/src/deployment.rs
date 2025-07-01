@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fmt::{Display, Formatter, Result};
 use std::iter::once;
 use std::path::PathBuf;
 
@@ -133,22 +132,6 @@ struct DeploymentAuxData {
 // TODO(Tsabary): test no conflicts between config entries defined in each of the override types.
 // TODO(Tsabary): delete duplicates from the base app config, and add a test that there are no
 // conflicts between all the override config entries and the values in the base app config.
-
-/// Represents the domain of the pragma directive in the configuration.
-pub enum PragmaDomain {
-    Dev,
-    Prod,
-}
-
-impl Display for PragmaDomain {
-    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let s = match self {
-            PragmaDomain::Dev => "devnet",
-            PragmaDomain::Prod => "production",
-        };
-        write!(f, "{}", s)
-    }
-}
 
 // Creates the service name in the format: <node_service>.<namespace>.<domain>
 pub(crate) fn build_service_namespace_domain_address(
