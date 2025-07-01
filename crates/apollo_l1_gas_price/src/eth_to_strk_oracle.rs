@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
-use std::sync::Mutex;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use apollo_config::converters::{
@@ -109,7 +110,7 @@ pub struct EthToStrkOracleClient {
     config: EthToStrkOracleConfig,
     /// The index of the current URL in the `url_header_list`.
     /// If one URL fails, index is incremented to try the next URL.
-    index: usize,
+    index: Arc<AtomicUsize>,
     client: reqwest::Client,
     cached_prices: Mutex<LruCache<u64, u128>>,
     queries: Mutex<LruCache<u64, AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>>>>,
@@ -124,7 +125,7 @@ impl EthToStrkOracleClient {
         register_eth_to_strk_metrics();
         Self {
             config: config.clone(),
-            index: 0,
+            index: Arc::new(AtomicUsize::new(0)),
             client: reqwest::Client::new(),
             cached_prices: Mutex::new(LruCache::new(
                 NonZeroUsize::new(config.max_cache_size).expect("Invalid cache size"),
@@ -140,44 +141,61 @@ impl EthToStrkOracleClient {
         quantized_timestamp: u64,
     ) -> AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>> {
         let adjusted_timestamp = quantized_timestamp * self.config.lag_interval_seconds;
+        let query_timeout_sec = self.config.query_timeout_sec;
         let client = self.client.clone();
-        // The `timestamp` parameter is appended dynamically to the base URL,
-        // in order to have a stable mapping from block timestamp to conversion rate.
-        let UrlAndHeaders { url: base_url, headers } = self
+        let index_clone = self.index.clone();
+        let url_header_list = self
             .config
             .url_header_list
             .as_ref()
-            .expect("url_header_list should be provided in EthToStrkOracleConfig")
-            .get(self.index)
-            .unwrap_or_else(|| panic!("cannot find URL and headers for index {}", self.index))
+            .expect("spawn query should get a list of URL+headers")
             .clone();
-        let headers = btreemap_to_headermap(headers);
-        let query_timeout_sec = self.config.query_timeout_sec;
-
+        let list_len = url_header_list.len();
         let future = async move {
-            let response_body = loop {
+            let mut i = index_clone.load(Ordering::SeqCst);
+            let initial_index = i;
+            loop {
+                let UrlAndHeaders { url: base_url, headers } = url_header_list
+                    .get(i)
+                    .unwrap_or_else(|| panic!("cannot find URL and headers for index {}", i))
+                    .clone();
+                let headers = btreemap_to_headermap(headers);
                 let mut url = base_url.clone();
                 url.query_pairs_mut().append_pair("timestamp", &adjusted_timestamp.to_string());
 
                 let result = tokio::time::timeout(Duration::from_secs(query_timeout_sec), async {
-                    let response = client.get(url).headers(headers.clone()).send().await?;
+                    let response = client.get(url.clone()).headers(headers.clone()).send().await?;
                     let body = response.text().await?;
-                    Ok::<_, EthToStrkOracleClientError>(body)
+                    let rate = resolve_query(body)?;
+                    Ok::<_, EthToStrkOracleClientError>(rate)
                 })
                 .await;
 
                 match result {
-                    Ok(inner_result) => {
-                        break inner_result?;
+                    Ok(Ok(rate)) => {
+                        index_clone.store(i, Ordering::SeqCst);
+                        debug!("Resolved query to {url} with rate {rate}");
+                        return Ok(rate);
+                    }
+                    Ok(Err(e)) => {
+                        warn!("Failed to resolve query to {url}: {e:?}");
                     }
                     Err(_) => {
-                        ETH_TO_STRK_ERROR_COUNT.increment(1);
-                        warn!("Timeout when resolving query for timestamp {adjusted_timestamp}");
-                        continue;
+                        warn!("Timeout when resolving query to {url}");
                     }
+                };
+                ETH_TO_STRK_ERROR_COUNT.increment(1);
+                i = (i + 1) % list_len;
+                if i == initial_index {
+                    warn!(
+                        "All {list_len} URLs in the list failed for timestamp {adjusted_timestamp}"
+                    );
+                    return Err(EthToStrkOracleClientError::AllUrlsFailedError(
+                        adjusted_timestamp,
+                        i,
+                    ));
                 }
-            };
-            resolve_query(response_body)
+            }
         };
 
         AbortOnDropHandle::new(tokio::spawn(future))
@@ -188,7 +206,7 @@ fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
     let json: serde_json::Value = serde_json::from_str(&body)?;
     let price = json
         .get("price")
-        .and_then(|v| v.as_str())
+        .and_then(|v| v.as_str()) // Also error if value is not a string.
         .ok_or(EthToStrkOracleClientError::MissingFieldError("price"))?;
     // Convert hex to u128
     let rate = u128::from_str_radix(price.trim_start_matches("0x"), 16)
@@ -196,7 +214,7 @@ fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
     // Extract decimals from API response
     let decimals = json
         .get("decimals")
-        .and_then(|v| v.as_u64())
+        .and_then(|v| v.as_u64())// Also error if value is not a number.
         .ok_or(EthToStrkOracleClientError::MissingFieldError("decimals"))?;
     if decimals != ETH_TO_STRK_QUANTIZATION {
         return Err(EthToStrkOracleClientError::InvalidDecimalsError(
@@ -230,36 +248,32 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
         let mut queries = self.queries.lock().unwrap();
         let handle = queries
             .get_or_insert_mut(quantized_timestamp, || self.spawn_query(quantized_timestamp));
-
         // If the query is not finished, return an error.
         if !handle.is_finished() {
             warn!("Query not yet resolved: timestamp={timestamp}");
             return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
         }
-
-        let task_result = handle.now_or_never().expect("Handle must be finished if we got here");
-        let query_result = match task_result {
-            Ok(query_result) => query_result,
-            Err(e) => {
+        let result = handle.now_or_never().expect("Handle must be finished if we got here");
+        let rate = match result {
+            Ok(Ok(rate)) => rate,
+            Ok(Err(e)) => {
+                warn!("Query returned an error for timestamp {timestamp}: {e:?}");
+                // Must remove failed query from the cache, to avoid re-polling it.
                 queries.pop(&quantized_timestamp);
+                return Err(e);
+            }
+            Err(e) => {
                 warn!("Query failed to join handle for timestamp {timestamp}: {e:?}");
                 ETH_TO_STRK_ERROR_COUNT.increment(1);
-                return Err(EthToStrkOracleClientError::JoinError(e));
-            }
-        };
-        let rate = match query_result {
-            Ok(rate) => rate,
-            Err(e) => {
+                // Must remove failed query from the cache, to avoid re-polling it.
                 queries.pop(&quantized_timestamp);
-                warn!("Query failed to reach oracle for timestamp {timestamp}: {e:?}");
-                ETH_TO_STRK_ERROR_COUNT.increment(1);
-                return Err(e);
+                return Err(EthToStrkOracleClientError::JoinError(e));
             }
         };
 
         // Make sure to cache the result.
         cache.put(quantized_timestamp, rate);
-        debug!("Conversion rate for timestamp {timestamp} is {rate}");
+        debug!("Caching conversion rate for timestamp {timestamp}, with rate {rate}");
         Ok(rate)
     }
 }
