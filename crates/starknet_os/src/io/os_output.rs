@@ -7,13 +7,26 @@ use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    EntryPointSelector,
+    EthAddress,
+    Nonce,
+};
 use starknet_api::hash::StarkHash;
+use starknet_api::state::StorageKey;
 use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
+use crate::hints::hint_implementation::stateless_compression::utils::decompress;
 use crate::metrics::OsMetrics;
+
+// Cairo DictAccess types for concrete objects.
+type ContractStorageUpdate = (StorageKey, (Option<Felt>, Felt));
+type CompiledClassHashUpdate = (ClassHash, (Option<CompiledClassHash>, CompiledClassHash));
 
 const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3; // from_address, to_address, payload_size.
 // from_address, to_address, nonce, selector, payload_size.
@@ -89,8 +102,76 @@ impl MessageToL2 {
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
-// TODO(tzahi): Complete the struct.
-pub struct OsStateDiff {}
+/// Represents the changes in a contract instance.
+pub struct ContractChanges {
+    // The address of the contract.
+    addr: ContractAddress,
+    // The previous nonce of the contract (for account contracts, if full output).
+    prev_nonce: Option<Nonce>,
+    // The new nonce of the contract (for account contracts, if changed or full output).
+    new_nonce: Option<Nonce>,
+    // The previous class hash (if full output).
+    prev_class_hash: Option<ClassHash>,
+    // The new class hash (if changed or full output).
+    new_class_hash: Option<ClassHash>,
+    // A map from storage key to its prev value (optional) and new value.
+    storage_changes: Vec<ContractStorageUpdate>,
+}
+
+impl ContractChanges {
+    pub fn from_iter<It: Iterator<Item = Felt> + ?Sized>(
+        _iter: &mut It,
+        _full_output: bool,
+    ) -> Result<Self, OsOutputError> {
+        todo!()
+    }
+}
+
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+pub struct OsStateDiff {
+    // Contracts that were changed.
+    pub contracts: Vec<ContractChanges>,
+    // Classes that were declared. Represents the updates of a mapping from class hash to previous
+    // (optional) and new compiled class hash.
+    pub classes: Vec<CompiledClassHashUpdate>,
+}
+
+impl OsStateDiff {
+    pub fn from_iter<It: Iterator<Item = Felt>>(
+        output_iter: &mut It,
+        full_output: bool,
+    ) -> Result<Self, OsOutputError> {
+        let state_diff;
+        let iter: &mut dyn Iterator<Item = Felt> = if !full_output {
+            state_diff = decompress(output_iter);
+            &mut state_diff.into_iter().chain(output_iter)
+        } else {
+            output_iter
+        };
+        // Contracts changes.
+        let n_contracts = wrap_missing_as(iter.next(), "OsStateDiff.n_contracts")?;
+        let mut contracts = Vec::with_capacity(n_contracts);
+        for _ in 0..n_contracts {
+            contracts.push(ContractChanges::from_iter(iter, full_output)?);
+        }
+
+        // Classes changes.
+        let n_classes = wrap_missing_as(iter.next(), "OsStateDiff.n_classes")?;
+        let mut classes = Vec::with_capacity(n_classes);
+        for _ in 0..n_classes {
+            let class_hash = ClassHash(wrap_missing(iter.next(), "class_hash")?);
+            let prev_compiled_class_hash = if full_output {
+                Some(CompiledClassHash(wrap_missing(iter.next(), "prev_compiled_class_hash")?))
+            } else {
+                None
+            };
+            let new_compiled_class_hash =
+                CompiledClassHash(wrap_missing(iter.next(), "new_compiled_class_hash")?);
+            classes.push((class_hash, (prev_compiled_class_hash, new_compiled_class_hash)));
+        }
+        Ok(Self { contracts, classes })
+    }
+}
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 pub struct OsOutput {
