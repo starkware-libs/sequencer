@@ -85,7 +85,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
-pub const N_TXS_IN_NON_GENERIC_INVOKE_TXS: usize = 6;
+pub const N_TXS_IN_NON_GENERIC_INVOKE_TXS: usize = 10;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
