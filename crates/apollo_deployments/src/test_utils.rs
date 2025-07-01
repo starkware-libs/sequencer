@@ -1,4 +1,9 @@
-use apollo_config::converters::{serialize_optional_vec_u8, serialize_slice_url};
+use apollo_config::converters::{
+    serialize_optional_list_with_url_and_headers,
+    serialize_optional_vec_u8,
+    serialize_slice_url,
+    UrlAndHeaders,
+};
 use serde::{Serialize, Serializer};
 use url::Url;
 
@@ -8,10 +13,11 @@ pub(crate) const FIX_BINARY_NAME: &str = "deployment_generator";
 pub struct SecretsConfigOverride {
     #[serde(rename = "base_layer_config.node_url")]
     base_layer_config_node_url: Url,
-    #[serde(rename = "consensus_manager_config.eth_to_strk_oracle_config.base_url")]
-    consensus_manager_config_eth_to_strk_oracle_config_base_url: Url,
-    #[serde(rename = "consensus_manager_config.eth_to_strk_oracle_config.headers")]
-    consensus_manager_config_eth_to_strk_oracle_config_headers: String,
+    #[serde(
+        rename = "consensus_manager_config.eth_to_strk_oracle_config.url_header_list",
+        serialize_with = "serialize_optional_list_with_url_and_headers_wrapper"
+    )]
+    consensus_manager_config_eth_to_strk_oracle_config_url_header_list: Option<Vec<UrlAndHeaders>>,
     #[serde(
         rename = "consensus_manager_config.network_config.secret_key",
         serialize_with = "serialize_optional_vec_u8_wrapper"
@@ -43,11 +49,12 @@ impl Default for SecretsConfigOverride {
     fn default() -> Self {
         Self {
             base_layer_config_node_url: Url::parse("https://arbitrary.url.com").unwrap(),
-            consensus_manager_config_eth_to_strk_oracle_config_base_url: Url::parse(
-                "https://arbitrary.eth_to_strk_oracle.url",
-            )
-            .unwrap(),
-            consensus_manager_config_eth_to_strk_oracle_config_headers: "".to_string(),
+            consensus_manager_config_eth_to_strk_oracle_config_url_header_list: Some(vec![
+                UrlAndHeaders {
+                    url: Url::parse("https://arbitrary.eth_to_strk_oracle.url").unwrap(),
+                    headers: Default::default(),
+                },
+            ]),
             consensus_manager_config_network_config_secret_key: None,
             l1_endpoint_monitor_config_ordered_l1_endpoint_urls: vec![
                 Url::parse("https://arbitrary.ordered_l1_endpoint_1.url").unwrap(),
@@ -60,6 +67,23 @@ impl Default for SecretsConfigOverride {
             state_sync_config_network_config_secret_key: None,
         }
     }
+}
+
+// Wrapper function for the custom `serialize_optional_list_with_url_and_headers` function, to be
+// compatible with serde's `serialize_with` attribute. It first applies the custom serialization
+// logic to convert the optional list of `UrlAndHeaders` into a `String`, and then serializes that
+// string.
+fn serialize_optional_list_with_url_and_headers_wrapper<S>(
+    list: &Option<Vec<UrlAndHeaders>>,
+    serializer: S,
+) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    // Call the implemented custom serialization function
+    let s = serialize_optional_list_with_url_and_headers(list);
+    // Serialize the returned String
+    serializer.serialize_str(&s)
 }
 
 // Wrapper function for the custom `serialize_slice_url` function, to be compatible with serde's

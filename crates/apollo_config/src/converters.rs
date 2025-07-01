@@ -98,6 +98,61 @@ pub struct UrlAndHeaders {
     pub headers: BTreeMap<String, String>,
 }
 
+impl UrlAndHeaders {
+    /// Reserved characters that are not allowed in keys or values.
+    const RESERVED_CHARS: [char; 2] = ['^', ','];
+
+    /// Serialize into: url,key1^val1,key2^val2,...
+    pub fn to_custom_string(&self) -> Result<String, String> {
+        for (k, v) in &self.headers {
+            Self::validate_component(k, "key")?;
+            Self::validate_component(v, "value")?;
+        }
+
+        let mut output = self.url.as_str().to_string();
+        for (key, value) in &self.headers {
+            output.push(',');
+            output.push_str(key);
+            output.push('^');
+            output.push_str(value);
+        }
+        Ok(output)
+    }
+
+    /// Deserialize from: url,key1^val1,key2^val2,...
+    pub fn from_custom_string(s: &str) -> Result<Self, String> {
+        // Split the string into URL and headers on the first comma.
+        let mut parts = s.splitn(2, ',');
+        let url_str = parts.next().ok_or("Missing URL")?;
+        let rest = parts.next().unwrap_or("");
+
+        let url = Url::parse(url_str).map_err(|e| format!("Invalid URL: {}", e))?;
+
+        let mut headers = BTreeMap::new();
+        if !rest.is_empty() {
+            for pair in rest.split(',') {
+                let mut kv = pair.splitn(2, '^');
+                let k = kv.next().ok_or("Missing header key")?;
+                let v = kv.next().ok_or("Missing header value")?;
+
+                Self::validate_component(k, "key")?;
+                Self::validate_component(v, "value")?;
+
+                headers.insert(k.to_string(), v.to_string());
+            }
+        }
+
+        Ok(UrlAndHeaders { url, headers })
+    }
+
+    fn validate_component(value: &str, label: &str) -> Result<(), String> {
+        if let Some(c) = value.chars().find(|c| Self::RESERVED_CHARS.contains(c)) {
+            return Err(format!("Invalid character '{}' in header {}: '{}'", c, label, value));
+        }
+        Ok(())
+    }
+}
+
 /// Serializes a vector containing the UrlAndHeaders struct into a space-separated string.
 pub fn serialize_optional_list_with_url_and_headers(list: &Option<Vec<UrlAndHeaders>>) -> String {
     match list {
@@ -105,10 +160,10 @@ pub fn serialize_optional_list_with_url_and_headers(list: &Option<Vec<UrlAndHead
         Some(list) => list
             .iter()
             .map(|item| {
-                serde_json::to_string(item).expect("Failed to serialize UrlAndHeader to JSON")
+                UrlAndHeaders::to_custom_string(item).expect("Failed to serialize UrlAndHeader")
             })
             .collect::<Vec<String>>()
-            .join(" "),
+            .join("|"),
     }
 }
 
@@ -124,11 +179,13 @@ where
     if raw.trim().is_empty() {
         return Ok(None);
     }
-    let number_of_items = raw.split_whitespace().count();
+    let items = raw.split('|');
+    let number_of_items = items.clone().count();
     let mut output = Vec::with_capacity(number_of_items);
-    for item in raw.split_whitespace() {
-        let value: UrlAndHeaders = serde_json::from_str(item)
-            .map_err(|e| D::Error::custom(format!("Invalid JSON '{}': {}", item, e)))?;
+    for item in items {
+        let value: UrlAndHeaders = UrlAndHeaders::from_custom_string(item).map_err(|e| {
+            D::Error::custom(format!("Invalid UrlAndHeaders formatting '{}': {}", item, e))
+        })?;
         output.push(value);
     }
     Ok(Some(output))

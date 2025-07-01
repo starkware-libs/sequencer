@@ -1,8 +1,9 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
 use alloy::node_bindings::AnvilInstance;
+use apollo_config::converters::UrlAndHeaders;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
@@ -235,9 +236,10 @@ impl FlowSequencerSetup {
             spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 
-        let (eth_to_strk_oracle_url, _join_handle) =
+        let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
-        consensus_manager_config.eth_to_strk_oracle_config.base_url = eth_to_strk_oracle_url;
+        consensus_manager_config.eth_to_strk_oracle_config.url_header_list =
+            Some(vec![eth_to_strk_oracle_url_headers]);
 
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
 
@@ -324,8 +326,10 @@ pub fn create_consensus_manager_configs_and_channels(
     for (i, config) in consensus_manager_configs.iter_mut().enumerate() {
         config.context_config.builder_address =
             ContractAddress::try_from(BUILDER_BASE_ADDRESS + Felt::from(i)).unwrap();
-        config.eth_to_strk_oracle_config.base_url =
-            Url::parse("https://eth_to_strk_oracle_url").expect("Should be a valid URL");
+        config.eth_to_strk_oracle_config.url_header_list = Some(vec![UrlAndHeaders {
+            url: Url::parse("https://eth_to_strk_oracle_url").expect("Should be a valid URL"),
+            headers: BTreeMap::new(),
+        }]);
     }
 
     let broadcast_channels = network_config_into_broadcast_channels(
