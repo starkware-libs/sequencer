@@ -79,7 +79,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
-pub const N_TXS_IN_NON_GENERIC_INVOKE_TXS: usize = 12;
+pub const N_TXS_IN_NON_GENERIC_INVOKE_TXS: usize = 15;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
@@ -455,6 +455,14 @@ pub fn create_non_generic_invoke_txs(
     txs.extend(tx_generator.account_with_id_mut(account_id).generate_empty_contract_declare_tx());
     txs.extend(tx_generator.account_with_id_mut(account_id).generate_all_direct_call_invoke_txs(1));
     txs.extend(tx_generator.account_with_id_mut(account_id).generate_all_library_call_invoke_txs());
+    txs.extend(
+        tx_generator.account_with_id_mut(account_id).generate_test_get_execution_info_invoke_tx(0),
+    );
+    txs.extend(
+        tx_generator
+            .account_with_id_mut(account_id)
+            .generate_invoke_txs_of_deploy_and_replace_class(1),
+    );
 
     txs
 }
