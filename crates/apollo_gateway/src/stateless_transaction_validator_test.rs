@@ -34,7 +34,7 @@ use crate::test_utils::{
     NON_EMPTY_RESOURCE_BOUNDS,
 };
 
-const MAX_GAS_PRICE: u128 = 100_000_000_u128;
+const MAX_GAS_PRICE: u128 = 3_000_000_000_u128; // Equal to the min possible gas price.
 static MIN_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new(1, 1, 0));
 static MAX_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new(1, 5, usize::MAX));
 
