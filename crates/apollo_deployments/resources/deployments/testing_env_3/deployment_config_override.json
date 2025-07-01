@@ -1,6 +1,7 @@
 {
   "base_layer_config.starknet_contract_address": "0xa23a6BA7DA61988D2420dAE9F10eE964552459d5",
   "chain_id": "SN_GOERLI",
+  "consensus_manager_config.context_config.num_validators": 3,
   "consensus_manager_config.eth_to_strk_oracle_config.base_url": "https://api.devnet.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median",
   "eth_fee_token_address": "0x7c07a3eec8ff611328722c3fc3e5d2e4ef2f60740c0bf86c756606036b74c16",
   "l1_provider_config.provider_startup_height_override": 0,
