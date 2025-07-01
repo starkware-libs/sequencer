@@ -136,6 +136,105 @@ fn allocate_and_replace_keys_from_empty_storage(
     assert_eq!(actual_alias_per_key, expected_alias_per_key);
 }
 
+#[rstest]
+#[case(
+    vec![],
+    vec![],
+    HashMap::from([(0.into(), 128.into())]),
+    HashMap::from([(0, 128)])
+)]
+#[case(
+    vec![2000.into()],
+    vec![128],
+    HashMap::from([
+        (0.into(), 131.into()),
+        (2000.into(), 128.into())
+    ]),
+    HashMap::from([
+        (0, 131),
+        (2000, 128),
+        (1999999999, 129),
+        (3000, 130)
+    ])
+)]
+#[case(
+    vec![2001.into()],
+    vec![131],
+    HashMap::from([
+        (0.into(), 132.into()),
+        (2001.into(), 131.into())
+    ]),
+    HashMap::from([
+        (0, 131),
+        (2000, 128),
+        (1999999999, 129),
+        (3000, 130)
+    ])
+)]
+#[case(
+    vec![2001.into(), 2000.into(), 2005.into()],
+    vec![131, 128, 132],
+    HashMap::from([
+        (0.into(), 133.into()),
+        (2000.into(), 128.into()),
+        (2001.into(), 131.into()),
+        (2005.into(), 132.into())
+    ]),
+    HashMap::from([
+        (0, 131),
+        (2000, 128),
+        (1999999999, 129),
+        (3000, 130)
+    ])
+)]
+#[case(
+    vec![
+        13.into(),
+        500.into(),
+        11.into(),
+        2000.into(),
+        89999.into(),
+        13.into(),
+        501.into(),
+        98.into(),
+        222.into(),
+        501.into()
+    ],
+    vec![13, 128, 11, 129, 131, 13, 132, 98, 133, 132],
+    HashMap::from([
+        (0.into(), 134.into()),
+        (222.into(), 133.into()),
+        (500.into(), 128.into()),
+        (501.into(), 132.into()),
+        (2000.into(), 129.into()),
+        (89999.into(), 131.into())
+    ]),
+    HashMap::from([
+        (0, 131),
+        (500, 128),
+        (2000, 129),
+        (2001, 130)
+    ])
+)]
+fn allocate_and_replace_keys_from_non_empty_storage(
+    #[case] keys: Vec<Felt>,
+    #[case] expected_alias_per_key: Vec<u128>,
+    #[case] expected_alias_storage: HashMap<Felt, Felt>,
+    #[case] initial_storage: HashMap<u128, u128>,
+) {
+    let initial_storage = initial_storage
+        .into_iter()
+        .map(|(key, value)| (StorageKey::from(key), Felt::from(value)))
+        .collect::<HashMap<_, _>>();
+    let expected_alias_per_key: Vec<_> =
+        expected_alias_per_key.into_iter().map(Felt::from).collect();
+    let (actual_alias_storage, actual_alias_per_key) =
+        allocate_aliases_for_keys_and_replace(keys, initial_storage);
+
+    assert_eq!(actual_alias_storage, expected_alias_storage);
+    assert_eq!(actual_alias_per_key, expected_alias_per_key);
+}
+
 fn allocate_aliases_for_keys_and_replace(
     keys: Vec<Felt>,
     initial_storage: HashMap<StorageKey, Felt>,
