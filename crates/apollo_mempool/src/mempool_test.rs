@@ -695,11 +695,15 @@ fn test_fee_escalation_valid_replacement(
     #[case] in_priority_queue: bool,
     #[case] in_pending_queue: bool,
 ) {
+    // The following value is true if we expect a transaction to exist in the priority queue at the
+    // end of the test.
+    let expected_in_priority_queue = in_priority_queue || in_pending_queue;
     let increased_values = [
         99,  // Exactly increase percentage.
         100, // More than increase percentage,
         180, // More than 100% increase, to check percentage calculation.
     ];
+
     for increased_value in increased_values {
         // Setup.
         let tx = tx!(tx_hash: 0, tip: 90, max_l2_gas_price: 90);
@@ -708,19 +712,25 @@ fn test_fee_escalation_valid_replacement(
             .with_fee_escalation_percentage(10);
 
         if in_pending_queue {
-            builder = builder.with_gas_price_threshold(1000);
+            // The threshold is so that the existing transaction is in the pending queue but the
+            // input transacion would enter the priority queue.
+            builder = builder.with_gas_price_threshold(91);
         }
 
         let mempool = builder.with_pool([tx]).build_full_mempool();
 
-        let valid_replacement_input = add_tx_input!(tx_hash: 1, tip: increased_value, max_l2_gas_price: u128::from(increased_value));
+        let valid_replacement_input = add_tx_input!(
+            tx_hash: 1,
+            tip: increased_value,
+            max_l2_gas_price: u128::from(increased_value)
+        );
 
         // Test and assert.
         add_tx_and_verify_replacement(
             mempool,
             valid_replacement_input,
-            in_priority_queue,
-            in_pending_queue,
+            expected_in_priority_queue,
+            false,
         );
     }
 }
@@ -740,7 +750,9 @@ fn test_fee_escalation_invalid_replacement(
         .with_fee_escalation_percentage(10);
 
     if in_pending_queue {
-        builder = builder.with_gas_price_threshold(1000);
+        // The threshold is so that the existing transaction is in pending queue but the input
+        // transaction would have entered the priority queue.
+        builder = builder.with_gas_price_threshold(101);
     }
 
     let mempool = builder.with_pool([existing_tx.clone()]).build_full_mempool();
