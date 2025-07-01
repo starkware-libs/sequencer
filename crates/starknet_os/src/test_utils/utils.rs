@@ -16,7 +16,7 @@ use crate::test_utils::cairo_runner::{
 #[allow(clippy::too_many_arguments)]
 pub fn run_cairo_function_and_check_result(
     runner_config: &EntryPointRunnerConfig,
-    program_str: &str,
+    program_bytes: &[u8],
     function_name: &str,
     explicit_args: &[EndpointArg],
     implicit_args: &[ImplicitArg],
@@ -26,7 +26,7 @@ pub fn run_cairo_function_and_check_result(
 ) -> Cairo0EntryPointRunnerResult<()> {
     let (actual_implicit_retdata, actual_explicit_retdata, _) = run_cairo_0_entry_point(
         runner_config,
-        program_str,
+        program_bytes,
         function_name,
         explicit_args,
         implicit_args,

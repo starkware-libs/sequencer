@@ -1,6 +1,7 @@
 use std::array;
 use std::collections::HashMap;
 
+use apollo_starknet_os_program::OS_PROGRAM_BYTES;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::program::Program;
@@ -32,20 +33,21 @@ use crate::shared_utils::types::PythonTestError;
 
 const REDUCED_MUL_LIMB_BOUND: i128 = 2_i128.pow(104);
 
+// TODO(Nimrod): Move this to the starknet_os crate and run it directly.
 #[allow(clippy::result_large_err)]
-pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
+pub(crate) fn test_bls_field() -> OsPythonTestResult {
     info!("Testing `test_bigint3_to_uint256`...");
-    test_bigint3_to_uint256(input)?;
+    test_bigint3_to_uint256()?;
     info!("Testing `test_felt_to_bigint3`...");
-    test_felt_to_bigint3(input)?;
+    test_felt_to_bigint3()?;
     info!("Testing `test_horner_eval`...");
-    test_horner_eval(input)?;
+    test_horner_eval()?;
     info!("Testing `test_reduced_mul_random`...");
-    test_reduced_mul_random(input)?;
+    test_reduced_mul_random()?;
     info!("Testing `test_reduced_mul_parameterized`...");
-    test_reduced_mul_parameterized(input)?;
+    test_reduced_mul_parameterized()?;
     info!("Testing `test_bls_prime_value`...");
-    test_bls_prime_value(input)?;
+    test_bls_prime_value()?;
     Ok("".to_string())
 }
 
@@ -58,7 +60,7 @@ fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
 }
 
 #[allow(clippy::result_large_err)]
-fn run_reduced_mul_test(input: &str, a_split: &[Felt], b_split: &[Felt]) -> OsPythonTestResult {
+fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) -> OsPythonTestResult {
     let explicit_args = [
         EndpointArg::Value(ValueArg::Array(a_split.to_vec())),
         EndpointArg::Value(ValueArg::Array(b_split.to_vec())),
@@ -72,7 +74,7 @@ fn run_reduced_mul_test(input: &str, a_split: &[Felt], b_split: &[Felt]) -> OsPy
     let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(expected_result.to_vec()))];
     test_cairo_function(
         &get_entrypoint_runner_config(),
-        input,
+        OS_PROGRAM_BYTES,
         "starkware.starknet.core.os.data_availability.bls_field.reduced_mul",
         &explicit_args,
         &implicit_args,
@@ -84,7 +86,7 @@ fn run_reduced_mul_test(input: &str, a_split: &[Felt], b_split: &[Felt]) -> OsPy
 }
 
 #[allow(clippy::result_large_err)]
-fn test_bigint3_to_uint256(input: &str) -> OsPythonTestResult {
+fn test_bigint3_to_uint256() -> OsPythonTestResult {
     let mut rng = seeded_random_prng();
     let random_u256_big_uint: BigUint = rng.sample(RandomBits::new(256));
     let random_u256_bigint = BigInt::from_biguint(Sign::Plus, random_u256_big_uint);
@@ -104,7 +106,7 @@ fn test_bigint3_to_uint256(input: &str) -> OsPythonTestResult {
     let entrypoint_runner_config = get_entrypoint_runner_config();
     test_cairo_function(
         &entrypoint_runner_config,
-        input,
+        OS_PROGRAM_BYTES,
         "starkware.starknet.core.os.data_availability.bls_field.bigint3_to_uint256",
         &explicit_args,
         &implicit_args,
@@ -116,7 +118,7 @@ fn test_bigint3_to_uint256(input: &str) -> OsPythonTestResult {
 }
 
 #[allow(clippy::result_large_err)]
-fn test_felt_to_bigint3(input: &str) -> OsPythonTestResult {
+fn test_felt_to_bigint3() -> OsPythonTestResult {
     let values: [BigInt; 9] = [
         0.into(),
         1.into(),
@@ -140,7 +142,7 @@ fn test_felt_to_bigint3(input: &str) -> OsPythonTestResult {
 
         test_cairo_function(
             &entrypoint_runner_config,
-            input,
+            OS_PROGRAM_BYTES,
             "starkware.starknet.core.os.data_availability.bls_field.felt_to_bigint3",
             &explicit_args,
             &implicit_args,
@@ -153,7 +155,7 @@ fn test_felt_to_bigint3(input: &str) -> OsPythonTestResult {
 }
 
 #[allow(clippy::result_large_err)]
-fn test_horner_eval(input: &str) -> OsPythonTestResult {
+fn test_horner_eval() -> OsPythonTestResult {
     let mut rng = seeded_random_prng();
     let entrypoint_runner_config = get_entrypoint_runner_config();
 
@@ -175,7 +177,7 @@ fn test_horner_eval(input: &str) -> OsPythonTestResult {
 
         let (_, explicit_retdata, _) = run_cairo_0_entry_point(
             &entrypoint_runner_config,
-            input,
+            OS_PROGRAM_BYTES,
             "starkware.starknet.core.os.data_availability.bls_field.horner_eval",
             &explicit_args,
             &implicit_args,
@@ -237,7 +239,7 @@ fn test_horner_eval(input: &str) -> OsPythonTestResult {
 
 #[allow(dead_code)]
 #[allow(clippy::result_large_err)]
-fn test_reduced_mul_random(input: &str) -> OsPythonTestResult {
+fn test_reduced_mul_random() -> OsPythonTestResult {
     // Generate a,b in (-REDUCED_MUL_LIMB_LIMIT, REDUCED_MUL_LIMB_LIMIT).
     let mut rng = seeded_random_prng();
     let a_split = (0..3)
@@ -247,12 +249,12 @@ fn test_reduced_mul_random(input: &str) -> OsPythonTestResult {
         .map(|_| rng.gen_range(-REDUCED_MUL_LIMB_BOUND + 1..REDUCED_MUL_LIMB_BOUND).into())
         .collect::<Vec<Felt>>();
 
-    run_reduced_mul_test(input, &a_split, &b_split)
+    run_reduced_mul_test(&a_split, &b_split)
 }
 
 #[allow(dead_code)]
 #[allow(clippy::result_large_err)]
-fn test_reduced_mul_parameterized(input: &str) -> OsPythonTestResult {
+fn test_reduced_mul_parameterized() -> OsPythonTestResult {
     let max_value = Felt::from(REDUCED_MUL_LIMB_BOUND - 1);
     let min_value = Felt::from(-REDUCED_MUL_LIMB_BOUND + 1);
     let values: [([Felt; 3], [Felt; 3]); 4] = [
@@ -263,16 +265,16 @@ fn test_reduced_mul_parameterized(input: &str) -> OsPythonTestResult {
     ];
     for (a_split, b_split) in values {
         info!("Testing `reduced_mul` with a = {a_split:?}, b = {b_split:?}");
-        run_reduced_mul_test(input, &a_split, &b_split)?;
+        run_reduced_mul_test(&a_split, &b_split)?;
     }
 
     Ok("".to_string())
 }
 
 #[allow(clippy::result_large_err)]
-fn test_bls_prime_value(input: &str) -> OsPythonTestResult {
+fn test_bls_prime_value() -> OsPythonTestResult {
     let entrypoint = None;
-    let program = Program::from_bytes(input.as_bytes(), entrypoint).unwrap();
+    let program = Program::from_bytes(OS_PROGRAM_BYTES, entrypoint).unwrap();
     let actual_split_bls_prime: [Felt; 3] = array::from_fn(|i| {
         *program
             .constants
