@@ -1307,7 +1307,7 @@
   "gateway_config.stateless_tx_validator_config.min_gas_price": {
     "description": "Minimum gas price for transactions.",
     "privacy": "Public",
-    "value": 100000000
+    "value": 3000000000
   },
   "gateway_config.stateless_tx_validator_config.min_sierra_version.major": {
     "description": "The major version of the configuration.",
