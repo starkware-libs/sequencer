@@ -187,7 +187,6 @@ impl BlockContext {
                     n_events: max_n_events_in_block,
                     ..BouncerWeights::max()
                 },
-                // TODO(Meshi): Check what should be the values here.
                 ..BouncerConfig::max()
             },
             ..Self::create_for_account_testing()
