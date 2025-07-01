@@ -425,29 +425,24 @@ impl AccountTransactionGenerator {
         self.generate_rpc_invoke_tx(tip, calldata)
     }
 
-    pub fn generate_invoke_tx_library_call(
+    pub fn generate_nested_call_invoke_tx(
         &mut self,
         tip: u64,
-        inner_test_contract: &FeatureContract,
+        outer_test_contract: &FeatureContract,
+        inner_contract_pointer: &Felt,
+        outer_fn_name: &str,
         inner_fn_name: &str,
         inner_fn_args: &[Felt],
     ) -> RpcTransaction {
-        // Calldata for nested library call: called contract class hash, called entry point
-        // selector, and arguments.
-        let library_call_calldata = Calldata(
-            [
-                vec![inner_test_contract.get_class_hash().0, selector_from_name(inner_fn_name).0],
-                inner_fn_args.to_vec(),
-            ]
-            .concat()
-            .into(),
-        );
-        let calldata = create_calldata(
-            inner_test_contract.get_instance_address(0),
-            "test_library_call",
-            &library_call_calldata.0,
-        );
+        let mut inner_calldata_args = vec![*inner_contract_pointer, selector_from_name(inner_fn_name).0];
+        inner_calldata_args.extend_from_slice(inner_fn_args);
+        let inner_calldata = Calldata(inner_calldata_args.into());
 
+        let calldata = create_calldata(
+            outer_test_contract.get_instance_address(0),
+            outer_fn_name,
+            &inner_calldata.0,
+        );
         self.generate_rpc_invoke_tx(tip, calldata)
     }
 
