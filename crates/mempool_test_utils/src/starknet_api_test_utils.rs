@@ -25,6 +25,7 @@ use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
+    Calldata,
     ContractAddressSalt,
     Fee,
     ResourceBounds,
@@ -427,6 +428,32 @@ impl AccountTransactionGenerator {
             tip,
             "return_result",
             &[felt!(2_u8)],
+            test_contract.get_instance_address(0),
+        )
+    }
+
+    pub fn generate_invoke_tx_library_call(
+        &mut self,
+        tip: u64,
+        inner_fn_name: &str,
+        inner_fn_args: &[Felt],
+        test_contract: &FeatureContract,
+    ) -> RpcTransaction {
+        let inner_calldata = Calldata(
+            [
+                vec![test_contract.get_class_hash().0, selector_from_name(inner_fn_name).0],
+                inner_fn_args.to_vec(),
+            ]
+            .concat()
+            .into(),
+        );
+
+        // Now invoke "test_library_call" on the contract, passing in the constructed
+        // inner_calldata.
+        self.generate_generic_rpc_invoke_tx(
+            tip,
+            "test_library_call",
+            &inner_calldata.0,
             test_contract.get_instance_address(0),
         )
     }
