@@ -1805,15 +1805,22 @@ dependencies = [
 name = "apollo_proc_macros"
 version = "0.15.0-rc.2"
 dependencies = [
+ "quote",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "apollo_proc_macros_tests"
+version = "0.15.0-rc.2"
+dependencies = [
  "apollo_metrics",
+ "apollo_proc_macros",
  "apollo_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "papyrus_common",
  "prometheus-parse",
- "quote",
  "rstest",
- "syn 2.0.100",
 ]
 
 [[package]]

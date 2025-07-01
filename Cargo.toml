@@ -42,6 +42,7 @@ members = [
   "crates/apollo_node",
   "crates/apollo_p2p_sync",
   "crates/apollo_proc_macros",
+  "crates/apollo_proc_macros_tests",
   "crates/apollo_protobuf",
   "crates/apollo_reverts",
   "crates/apollo_rpc",
