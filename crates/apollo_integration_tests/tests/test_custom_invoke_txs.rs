@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use apollo_infra_utils::test_utils::TestIdentifier;
 use apollo_integration_tests::utils::{
     ACCOUNT_ID_0 as CAIRO1_ACCOUNT_ID,
@@ -10,6 +12,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use starknet_api::core::CompiledClassHash;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -62,6 +65,7 @@ pub fn create_cairo_1_syscall_test_txs(
     let test_contract = FeatureContract::TestContract(account_tx_generator.account.cairo_version());
 
     let mut txs = vec![];
+    txs.push(generate_empty_contract_declare_tx(account_tx_generator));
     txs.extend(generate_custom_library_call_invoke_txs(account_tx_generator, &test_contract));
     txs.extend(generate_custom_not_nested_invoke_txs(account_tx_generator, &test_contract));
 
@@ -122,4 +126,17 @@ fn generate_custom_library_call_invoke_txs(
             )
         })
         .collect()
+}
+
+pub fn generate_empty_contract_declare_tx(
+    account_tx_generator: &mut AccountTransactionGenerator,
+) -> RpcTransaction {
+    let empty_contract = FeatureContract::Empty(account_tx_generator.account.cairo_version());
+    // Hard coded class hash for empty contract. See example in https://github.com/starkware-libs/sequencer/blob/main-v0.14.0/crates/mempool_test_utils/src/starknet_api_test_utils.rs#L92
+    let compiled_empty_class_hash_raw =
+        "0x317D3AC2CF840E487B6D0014A75F0CF507DFF0BC143C710388E323487089BFA";
+    let empty_compiled_class_hash =
+        *LazyLock::new(|| CompiledClassHash(felt!(compiled_empty_class_hash_raw)));
+
+    account_tx_generator.generate_declare_tx(empty_compiled_class_hash, empty_contract.get_sierra())
 }

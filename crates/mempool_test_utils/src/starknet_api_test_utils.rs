@@ -451,6 +451,21 @@ impl AccountTransactionGenerator {
         self.generate_rpc_invoke_tx(tip, calldata)
     }
 
+    pub fn generate_declare_tx(
+        &mut self,
+        compiled_class_hash: CompiledClassHash,
+        contract_class: SierraContractClass,
+    ) -> RpcTransaction {
+        let nonce = self.next_nonce();
+        let declare_args = declare_tx_args!(
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            nonce,
+            compiled_class_hash,
+        );
+        rpc_declare_tx(declare_args, contract_class)
+    }
+
     pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
         let test_contract = FeatureContract::TestContract(self.account.cairo_version());
         let calldata = create_trivial_calldata(test_contract.get_instance_address(0));
@@ -511,7 +526,7 @@ impl AccountTransactionGenerator {
         rpc_deploy_account_tx(deploy_account_args)
     }
 
-    pub fn generate_declare(&mut self) -> RpcTransaction {
+    pub fn generate_declare_of_contract_class(&mut self) -> RpcTransaction {
         let nonce = self.next_nonce();
         let declare_args = declare_tx_args!(
             signature: TransactionSignature(vec![Felt::ZERO].into()),

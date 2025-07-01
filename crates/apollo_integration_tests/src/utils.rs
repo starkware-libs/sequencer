@@ -85,7 +85,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
-pub const N_TXS_IN_NON_GENERIC_INVOKE_TXS: usize = 5;
+pub const N_TXS_IN_NON_GENERIC_INVOKE_TXS: usize = 6;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
@@ -132,7 +132,8 @@ impl TestScenario for DeclareTx {
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
     ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
-        let declare_tx = tx_generator.account_with_id_mut(account_id).generate_declare();
+        let declare_tx =
+            tx_generator.account_with_id_mut(account_id).generate_declare_of_contract_class();
         (vec![declare_tx], vec![])
     }
 
