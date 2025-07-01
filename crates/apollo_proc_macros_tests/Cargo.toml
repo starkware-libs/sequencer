@@ -1,0 +1,21 @@
+[package]
+name = "apollo_proc_macros_tests"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+
+[dependencies]
+apollo_proc_macros.workspace = true
+
+[dev-dependencies]
+apollo_metrics.workspace = true
+apollo_test_utils.workspace = true
+metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
+papyrus_common.workspace = true
+prometheus-parse.workspace = true
+rstest.workspace = true
+
+[lints]
+workspace = true
