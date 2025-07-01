@@ -6,7 +6,7 @@ use std::task::{Context, Poll, Waker};
 
 use futures::stream::{Stream, StreamExt};
 use libp2p::core::multiaddr::Protocol;
-use libp2p::Multiaddr;
+use libp2p::{Multiaddr, PeerId};
 
 // This is an implementation of `StreamMap` from tokio_stream. The reason we're implementing it
 // ourselves is that the implementation in tokio_stream requires that the values implement the
@@ -103,4 +103,12 @@ pub fn is_localhost(address: &Multiaddr) -> bool {
         return false;
     };
     ip4_address == Ipv4Addr::LOCALHOST
+}
+
+/// Creates a `Multiaddr` from an `Ipv4Addr`, a port, and a `PeerId`.
+pub fn make_tcp_multiaddr(ip: Ipv4Addr, port: u16, peer_id: PeerId) -> Multiaddr {
+    Multiaddr::empty()
+        .with(Protocol::Ip4(ip))
+        .with(Protocol::Tcp(port))
+        .with(Protocol::P2p(peer_id))
 }
