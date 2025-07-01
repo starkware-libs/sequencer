@@ -12187,6 +12187,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "derive_more 0.99.18",
+ "ethnum",
  "indexmap 2.9.0",
  "indoc 2.0.5",
  "log",

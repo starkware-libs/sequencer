@@ -9,8 +9,10 @@ use ethnum::U256;
 use num_bigint::{BigInt, BigUint, RandBigInt, RandomBits, Sign, ToBigInt};
 use num_integer::Integer;
 use rand::Rng;
-use starknet_os::hints::hint_implementation::kzg::utils::{split_bigint3, BASE, BLS_PRIME};
-use starknet_os::test_utils::cairo_runner::{
+use starknet_types_core::felt::Felt;
+
+use crate::hints::hint_implementation::kzg::utils::{split_bigint3, BASE, BLS_PRIME};
+use crate::test_utils::cairo_runner::{
     run_cairo_0_entry_point,
     EndpointArg,
     EntryPointRunnerConfig,
@@ -18,38 +20,14 @@ use starknet_os::test_utils::cairo_runner::{
     PointerArg,
     ValueArg,
 };
-use starknet_os::test_utils::errors::OsSpecificTestError;
-use starknet_types_core::felt::Felt;
-use tracing::info;
-
-use crate::os_cli::tests::types::OsPythonTestResult;
-use crate::os_cli::tests::utils::{
+use crate::test_utils::utils::{
     pack_bigint3,
     seeded_random_prng,
     test_cairo_function,
     DEFAULT_PRIME,
 };
-use crate::shared_utils::types::PythonTestError;
 
 const REDUCED_MUL_LIMB_BOUND: i128 = 2_i128.pow(104);
-
-// TODO(Nimrod): Move this to the starknet_os crate and run it directly.
-#[allow(clippy::result_large_err)]
-pub(crate) fn test_bls_field() -> OsPythonTestResult {
-    info!("Testing `test_bigint3_to_uint256`...");
-    test_bigint3_to_uint256()?;
-    info!("Testing `test_felt_to_bigint3`...");
-    test_felt_to_bigint3()?;
-    info!("Testing `test_horner_eval`...");
-    test_horner_eval()?;
-    info!("Testing `test_reduced_mul_random`...");
-    test_reduced_mul_random()?;
-    info!("Testing `test_reduced_mul_parameterized`...");
-    test_reduced_mul_parameterized()?;
-    info!("Testing `test_bls_prime_value`...");
-    test_bls_prime_value()?;
-    Ok("".to_string())
-}
 
 fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
     EntryPointRunnerConfig {
@@ -59,8 +37,7 @@ fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
     }
 }
 
-#[allow(clippy::result_large_err)]
-fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) -> OsPythonTestResult {
+fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) {
     let explicit_args = [
         EndpointArg::Value(ValueArg::Array(a_split.to_vec())),
         EndpointArg::Value(ValueArg::Array(b_split.to_vec())),
@@ -81,16 +58,14 @@ fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) -> OsPythonTestResul
         &expected_explicit_args,
         &expected_implicit_args,
         HashMap::new(),
-    )?;
-    Ok("".to_string())
+    );
 }
 
-#[allow(clippy::result_large_err)]
-fn test_bigint3_to_uint256() -> OsPythonTestResult {
+#[test]
+fn test_bigint3_to_uint256() {
     let mut rng = seeded_random_prng();
     let random_u256_big_uint: BigUint = rng.sample(RandomBits::new(256));
     let random_u256_bigint = BigInt::from_biguint(Sign::Plus, random_u256_big_uint);
-    info!("random 256 bit bigint in `test_bigint3_to_uint256`: {random_u256_bigint}");
     let cairo_bigin3 = EndpointArg::Value(ValueArg::Array(
         split_bigint3(random_u256_bigint.clone()).unwrap().to_vec(),
     ));
@@ -113,12 +88,11 @@ fn test_bigint3_to_uint256() -> OsPythonTestResult {
         &expected_explicit_args,
         &expected_implicit_args,
         HashMap::new(),
-    )?;
-    Ok("".to_string())
+    );
 }
 
-#[allow(clippy::result_large_err)]
-fn test_felt_to_bigint3() -> OsPythonTestResult {
+#[test]
+fn test_felt_to_bigint3() {
     let values: [BigInt; 9] = [
         0.into(),
         1.into(),
@@ -149,18 +123,16 @@ fn test_felt_to_bigint3() -> OsPythonTestResult {
             &expected_explicit_args,
             &expected_implicit_args,
             HashMap::new(),
-        )?;
+        );
     }
-    Ok("".to_string())
 }
 
-#[allow(clippy::result_large_err)]
-fn test_horner_eval() -> OsPythonTestResult {
+#[test]
+fn test_horner_eval() {
     let mut rng = seeded_random_prng();
     let entrypoint_runner_config = get_entrypoint_runner_config();
 
     for n_coefficients in [0, 100, 4096] {
-        info!("Testing horner_eval with {n_coefficients} coefficients.");
         let mut explicit_args: Vec<EndpointArg> = vec![];
         explicit_args.push(n_coefficients.into());
         let coefficients: Vec<Felt> = (0..n_coefficients)
@@ -184,9 +156,7 @@ fn test_horner_eval() -> OsPythonTestResult {
             &[EndpointArg::Value(ValueArg::Array(vec![Felt::ZERO, Felt::ZERO, Felt::ZERO]))],
             HashMap::new(),
         )
-        .map_err(|error| {
-            PythonTestError::SpecificError(OsSpecificTestError::Cairo0EntryPointRunner(error))
-        })?;
+        .unwrap();
 
         // Get actual result.
         assert_eq!(
@@ -220,7 +190,6 @@ fn test_horner_eval() -> OsPythonTestResult {
         .mod_floor(&BLS_PRIME.clone());
 
         // Calculate expected result.
-        info!("Calculating expected result.");
         let expected_result =
             coefficients.iter().enumerate().fold(BigUint::ZERO, |acc, (i, coefficient)| {
                 acc + BigUint::from_bytes_be(&coefficient.to_bytes_be())
@@ -233,13 +202,10 @@ fn test_horner_eval() -> OsPythonTestResult {
              Expected result: {expected_result}"
         );
     }
-
-    Ok("".to_string())
 }
 
-#[allow(dead_code)]
-#[allow(clippy::result_large_err)]
-fn test_reduced_mul_random() -> OsPythonTestResult {
+#[test]
+fn test_reduced_mul_random() {
     // Generate a,b in (-REDUCED_MUL_LIMB_LIMIT, REDUCED_MUL_LIMB_LIMIT).
     let mut rng = seeded_random_prng();
     let a_split = (0..3)
@@ -252,9 +218,8 @@ fn test_reduced_mul_random() -> OsPythonTestResult {
     run_reduced_mul_test(&a_split, &b_split)
 }
 
-#[allow(dead_code)]
-#[allow(clippy::result_large_err)]
-fn test_reduced_mul_parameterized() -> OsPythonTestResult {
+#[test]
+fn test_reduced_mul_parameterized() {
     let max_value = Felt::from(REDUCED_MUL_LIMB_BOUND - 1);
     let min_value = Felt::from(-REDUCED_MUL_LIMB_BOUND + 1);
     let values: [([Felt; 3], [Felt; 3]); 4] = [
@@ -264,15 +229,12 @@ fn test_reduced_mul_parameterized() -> OsPythonTestResult {
         ([Felt::ONE, Felt::from(2), Felt::from(3)], [Felt::ZERO, Felt::ZERO, Felt::ZERO]),
     ];
     for (a_split, b_split) in values {
-        info!("Testing `reduced_mul` with a = {a_split:?}, b = {b_split:?}");
-        run_reduced_mul_test(&a_split, &b_split)?;
+        run_reduced_mul_test(&a_split, &b_split);
     }
-
-    Ok("".to_string())
 }
 
-#[allow(clippy::result_large_err)]
-fn test_bls_prime_value() -> OsPythonTestResult {
+#[test]
+fn test_bls_prime_value() {
     let entrypoint = None;
     let program = Program::from_bytes(OS_PROGRAM_BYTES, entrypoint).unwrap();
     let actual_split_bls_prime: [Felt; 3] = array::from_fn(|i| {
@@ -287,5 +249,4 @@ fn test_bls_prime_value() -> OsPythonTestResult {
         "Expected BLS prime value to be {expected_split_bls_prime:?}, got \
          {actual_split_bls_prime:?}"
     );
-    Ok("".to_string())
 }

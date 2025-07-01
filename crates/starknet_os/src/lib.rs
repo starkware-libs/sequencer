@@ -7,4 +7,6 @@ pub mod runner;
 pub mod syscall_handler_utils;
 #[cfg(any(test, feature = "testing"))]
 pub mod test_utils;
+#[cfg(any(test, feature = "testing"))]
+pub(crate) mod tests;
 pub mod vm_utils;
