@@ -8,5 +8,5 @@
     "rpc.server_address": "127.0.0.1:8083",
     "network.port": 10003,
     "network.bootstrap_peer_multiaddr.#is_none": false,
-    "network.bootstrap_peer_multiaddr": "/ip4/127.0.0.1/tcp/10000/p2p/12D3KooWDFYi71juk6dYWo3UDvqs5gAzGDc124LSvcR5d187Tdvi"
+    "network.bootstrap_peer_multiaddr": "/ip4/127.0.0.1/udp/10000/quic-v1/p2p/12D3KooWDFYi71juk6dYWo3UDvqs5gAzGDc124LSvcR5d187Tdvi"
 }
