@@ -7,6 +7,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use starknet_api::core::CompiledClassHash;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::felt;
 use starknet_api::rpc_transaction::RpcTransaction;
