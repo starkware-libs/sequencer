@@ -104,10 +104,9 @@ impl StatefulTransactionValidator {
             // TODO(Arni): getnext_l2_gas_price from the block header.
             let previous_block_l2_gas_price =
                 validator.block_info().gas_prices.strk_gas_prices.l2_gas_price;
-            validate_tx_l2_gas_price_within_threshold(
+            self.validate_tx_l2_gas_price_within_threshold(
                 executable_tx.resource_bounds(),
                 previous_block_l2_gas_price,
-                self.config.min_gas_price_percentage,
             )?;
         }
 
@@ -204,6 +203,41 @@ impl StatefulTransactionValidator {
             Nonce(account_nonce.0 + Felt::from(self.config.max_allowed_nonce_gap));
         account_nonce <= incoming_tx_nonce && incoming_tx_nonce <= max_allowed_nonce
     }
+
+    // TODO(Arni): Consider running this validation for all gas prices.
+    fn validate_tx_l2_gas_price_within_threshold(
+        &self,
+        tx_resource_bounds: ValidResourceBounds,
+        previous_block_l2_gas_price: NonzeroGasPrice,
+    ) -> StatefulTransactionValidatorResult<()> {
+        match tx_resource_bounds {
+            ValidResourceBounds::AllResources(tx_resource_bounds) => {
+                let tx_l2_gas_price = tx_resource_bounds.l2_gas.max_price_per_unit;
+                let gas_price_threshold_multiplier =
+                    Ratio::new(self.config.min_gas_price_percentage.into(), 100_u128);
+                let threshold = (gas_price_threshold_multiplier
+                    * previous_block_l2_gas_price.get().0)
+                    .to_integer();
+                if tx_l2_gas_price.0 < threshold {
+                    return Err(StarknetError {
+                        // We didn't have this kind of an error.
+                        code: StarknetErrorCode::UnknownErrorCode(
+                            "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+                        ),
+                        message: format!(
+                            "Transaction L2 gas price {} is below the required threshold {}.",
+                            tx_l2_gas_price, threshold
+                        ),
+                    });
+                }
+            }
+            ValidResourceBounds::L1Gas(_) => {
+                // No validation required for legacy transactions.
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// Check if validation of an invoke transaction should be skipped due to deploy_account not being
@@ -246,38 +280,4 @@ pub fn get_latest_block_info(
         error!("Failed to get latest block info: {}", e);
         StarknetError::internal(&e.to_string())
     })
-}
-
-// TODO(Arni): Consider running this validation for all gas prices.
-fn validate_tx_l2_gas_price_within_threshold(
-    tx_resource_bounds: ValidResourceBounds,
-    previous_block_l2_gas_price: NonzeroGasPrice,
-    min_gas_price_percentage: u8,
-) -> StatefulTransactionValidatorResult<()> {
-    match tx_resource_bounds {
-        ValidResourceBounds::AllResources(tx_resource_bounds) => {
-            let tx_l2_gas_price = tx_resource_bounds.l2_gas.max_price_per_unit;
-            let gas_price_threshold_multiplier =
-                Ratio::new(min_gas_price_percentage.into(), 100_u128);
-            let threshold =
-                (gas_price_threshold_multiplier * previous_block_l2_gas_price.get().0).to_integer();
-            if tx_l2_gas_price.0 < threshold {
-                return Err(StarknetError {
-                    // We didn't have this kind of an error.
-                    code: StarknetErrorCode::UnknownErrorCode(
-                        "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
-                    ),
-                    message: format!(
-                        "Transaction L2 gas price {} is below the required threshold {}.",
-                        tx_l2_gas_price, threshold
-                    ),
-                });
-            }
-        }
-        ValidResourceBounds::L1Gas(_) => {
-            // No validation required for legacy transactions.
-        }
-    }
-
-    Ok(())
 }
