@@ -157,30 +157,34 @@ async fn txs_happy_flow() {
     let tx_hash_first_tx = expected_l1_handler_0
         .calculate_transaction_hash(&default_chain_id, &EXPECTED_VERSION)
         .unwrap();
-    let tx = ExecutableL1HandlerTransaction {
+    let expected_executable_l1_handler_0 = ExecutableL1HandlerTransaction {
         tx_hash: tx_hash_first_tx,
         tx: expected_l1_handler_0,
         paid_fee_on_l1: Fee(0),
     };
-    let first_expected_log =
-        Event::L1HandlerTransaction { l1_handler_tx: tx.clone(), timestamp: block_timestamps[0] };
+    let first_expected_log = Event::L1HandlerTransaction {
+        l1_handler_tx: expected_executable_l1_handler_0.clone(),
+        timestamp: block_timestamps[0],
+    };
 
     let expected_l1_handler_1 = L1HandlerTransaction {
         nonce: Nonce(StarkHash::ONE),
         calldata: Calldata(
             vec![DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, StarkHash::from(3), StarkHash::from(4)].into(),
         ),
-        ..tx.tx
+        ..expected_executable_l1_handler_0.tx
     };
-    let tx_2 = ExecutableL1HandlerTransaction {
+    let expected_executable_l1_handler_1 = ExecutableL1HandlerTransaction {
         tx_hash: expected_l1_handler_1
             .calculate_transaction_hash(&default_chain_id, &EXPECTED_VERSION)
             .unwrap(),
         tx: expected_l1_handler_1,
-        ..tx
+        ..expected_executable_l1_handler_0
     };
-    let second_expected_log =
-        Event::L1HandlerTransaction { l1_handler_tx: tx_2, timestamp: block_timestamps[1] };
+    let second_expected_log = Event::L1HandlerTransaction {
+        l1_handler_tx: expected_executable_l1_handler_1,
+        timestamp: block_timestamps[1],
+    };
 
     let expected_cancel_message = Event::TransactionCancellationStarted {
         tx_hash: tx_hash_first_tx,
