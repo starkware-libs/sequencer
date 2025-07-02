@@ -36,7 +36,7 @@ pub enum EthToStrkOracleClientError {
     #[error(transparent)]
     ParseError(#[from] serde_json::Error),
     #[error("Missing or invalid field: {0}")]
-    MissingFieldError(&'static str),
+    MissingFieldError(String),
     #[error("Invalid decimals value: expected {0}, got {1}")]
     InvalidDecimalsError(u64, u64),
     #[error("Query not yet resolved: timestamp={0}")]
