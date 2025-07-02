@@ -28,6 +28,7 @@ fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
         "0x4fa9355c504fa2de263bd7920644b5e48794fe1450ec2a6526518ad77d6a567",
         PragmaDomain::Dev,
         None,
+        STRESS_TEST_NODE_IDS.len(),
     )
 }
 
