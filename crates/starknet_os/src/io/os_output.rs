@@ -385,6 +385,7 @@ impl OsOutput {
 
 pub struct StarknetOsRunnerOutput {
     // TODO(Tzahi): Use OsOutput struct once fully supported..
+    #[cfg(feature = "dump_program_output")]
     pub os_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
     pub da_segment: Option<Vec<Felt>>,
@@ -395,6 +396,7 @@ pub struct StarknetOsRunnerOutput {
 
 pub struct StarknetAggregatorRunnerOutput {
     // TODO(Aner): Define a struct for the output.
+    #[cfg(feature = "dump_program_output")]
     pub aggregator_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
     #[cfg(any(test, feature = "testing"))]

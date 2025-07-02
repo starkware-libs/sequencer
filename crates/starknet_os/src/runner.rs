@@ -11,11 +11,7 @@ use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::io::os_input::{OsHints, StarknetOsInput};
-use crate::io::os_output::{
-    get_run_output,
-    StarknetAggregatorRunnerOutput,
-    StarknetOsRunnerOutput,
-};
+use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::OsMetrics;
 
 pub fn run_os<S: StateReader>(
@@ -78,8 +74,9 @@ pub fn run_os<S: StateReader>(
         cairo_runner.finalize_segments()?;
     }
 
+    #[cfg(feature = "dump_program_output")]
     // Prepare and check expected output.
-    let os_output = get_run_output(&cairo_runner.vm)?;
+    let os_output = crate::io::os_output::get_run_output(&cairo_runner.vm)?;
     // TODO(Tzahi): log the output once it will have a proper struct.
     cairo_runner.vm.verify_auto_deductions().map_err(StarknetOsError::VirtualMachineError)?;
     cairo_runner
@@ -93,6 +90,7 @@ pub fn run_os<S: StateReader>(
     let cairo_pie = cairo_runner.get_cairo_pie().map_err(StarknetOsError::RunnerError)?;
 
     Ok(StarknetOsRunnerOutput {
+        #[cfg(feature = "dump_program_output")]
         os_output,
         cairo_pie,
         da_segment: snos_hint_processor.get_da_segment().take(),

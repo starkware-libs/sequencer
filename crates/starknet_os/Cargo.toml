@@ -13,6 +13,7 @@ deserialize = [
   "starknet-types-core/serde",
   "starknet_patricia/deserialize",
 ]
+dump_program_output = []
 testing = ["blockifier/testing", "starknet_patricia/testing"]
 
 [dependencies]
