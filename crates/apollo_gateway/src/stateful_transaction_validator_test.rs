@@ -6,6 +6,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
+use assert_matches::assert_matches;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidatorError as BlockifierStatefulValidatorError,
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
@@ -25,14 +26,19 @@ use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockInfo, GasPrice};
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
-use starknet_api::transaction::fields::Resource;
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    Resource,
+    ResourceBounds,
+    ValidResourceBounds,
+};
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
 use crate::config::StatefulTransactionValidatorConfig;
@@ -60,11 +66,24 @@ fn stateful_validator() -> StatefulTransactionValidator {
     StatefulTransactionValidator { config: StatefulTransactionValidatorConfig::default() }
 }
 
+fn create_executable_invoke_with_resource_bounds(
+    resource_bounds: ValidResourceBounds,
+) -> AccountTransaction {
+    let mut tx = create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    assert_matches!(tx, AccountTransaction::Invoke(ref mut invoke_tx) => {
+        assert_matches!(invoke_tx.tx, starknet_api::transaction::InvokeTransaction::V3(ref mut invoke_tx_v3) => {
+            invoke_tx_v3.resource_bounds = resource_bounds;
+        });
+    });
+
+    tx
+}
+
 // TODO(Arni): consider testing declare and deploy account.
 #[rstest]
 #[case::valid_tx(
     create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    Ok(())
+    Ok(()),
 )]
 #[case::invalid_tx(
     create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -86,6 +105,7 @@ async fn test_stateful_tx_validator(
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_| mocked_blockifier_result.map(|_| ()));
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
 
     let account_nonce = nonce!(0);
     let mut mock_mempool_client = MockMempoolClient::new();
@@ -208,6 +228,35 @@ async fn test_skip_validate(
     })
     .await
     .unwrap();
+}
+
+#[rstest]
+#[tokio::test]
+async fn validate_resource_bounds(stateful_validator: StatefulTransactionValidator) {
+    let executable_tx = create_executable_invoke_with_resource_bounds(
+        ValidResourceBounds::AllResources(AllResourceBounds {
+            l2_gas: ResourceBounds {
+                max_amount: GasAmount(u64::MAX),
+                max_price_per_unit: GasPrice(0),
+            },
+            ..AllResourceBounds::create_for_testing()
+        }),
+    );
+    let expected_stateful_validator_result = Err(StarknetError {
+        code: StarknetErrorCode::UnknownErrorCode(
+            "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+        ),
+        message: "Transaction L2 gas price 0 is below the required threshold 1.".to_string(),
+    });
+    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
+
+    let result = tokio::task::spawn_blocking(move || {
+        stateful_validator.validate_resource_bounds(&executable_tx, &mock_validator)
+    })
+    .await
+    .unwrap();
+    assert_eq!(result, expected_stateful_validator_result);
 }
 
 #[rstest]
