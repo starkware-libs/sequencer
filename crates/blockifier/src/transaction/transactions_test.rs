@@ -20,7 +20,7 @@ use starknet_api::abi::abi_utils::{
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
 use starknet_api::block::{FeeType, GasPriceVector};
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ascii_as_felt, ClassHash, ContractAddress, EthAddress, Nonce};
+use starknet_api::core::{ascii_as_felt, ClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction as ApiExecutableTransaction,
     DeployAccountTransaction,
@@ -951,7 +951,7 @@ fn test_invoke_tx_advanced_operations(
     let expected_msg = OrderedL2ToL1Message {
         order: 0,
         message: MessageToL1 {
-            to_address: EthAddress::try_from(to_address).unwrap(),
+            to_address: to_address.into(),
             payload: L2ToL1Payload(vec![felt!(12_u32), felt!(34_u32)]),
         },
     };
