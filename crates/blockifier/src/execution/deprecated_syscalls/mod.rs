@@ -6,7 +6,7 @@ use deprecated_syscall_executor::{
 };
 use serde::Deserialize;
 use starknet_api::block::{BlockNumber, BlockTimestamp};
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector, EthAddress};
+use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::{Calldata, ContractAddressSalt};
 use starknet_api::transaction::{EventContent, EventData, EventKey, L2ToL1Payload};
@@ -424,7 +424,8 @@ impl SyscallRequest for SendMessageToL1Request {
         vm: &VirtualMachine,
         ptr: &mut Relocatable,
     ) -> DeprecatedSyscallExecutorBaseResult<SendMessageToL1Request> {
-        let to_address = EthAddress::try_from(felt_from_ptr(vm, ptr)?)?;
+        let to_address_felt = felt_from_ptr(vm, ptr)?;
+        let to_address = to_address_felt.into();
         let payload =
             L2ToL1Payload(read_felt_array::<DeprecatedSyscallExecutorBaseError>(vm, ptr)?);
 
