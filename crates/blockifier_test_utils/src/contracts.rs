@@ -126,7 +126,7 @@ const LEGACY_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x6d9f03fde30543af9a457c4fcc13aced0ce27ef4e5a498a143d483b23711f32"];
 
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V1: expect_test::Expect =
-    expect!["0x5f823783ca1ace605e4bc17d5930c7dda3f221a11f54f92633b50c08ddd8fb5"];
+    expect!["0xaff07efb7be4b4626a10523d7b8643596acb501c42a8c7935eaa57bf426497"];
 const TEST_CONTRACT_COMPILED_CLASS_HASH_V2: expect_test::Expect =
     expect!["0x7bca2b28c4e9033e0b3f484689e2b1cb7c80f269cf73e4919b5e96679527b92"];
 
