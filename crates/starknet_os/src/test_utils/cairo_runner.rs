@@ -558,7 +558,7 @@ fn get_return_values(
 /// If the endpoint used builtins, the respective returned (implicit) arg is the builtin instance
 /// usage, unless the builtin is the output builtin, in which case the arg is the output.
 #[allow(clippy::too_many_arguments)]
-pub fn run_cairo_0_entry_point(
+pub fn initialize_and_run_cairo_0_entry_point(
     runner_config: &EntryPointRunnerConfig,
     program_bytes: &[u8],
     entrypoint: &str,
@@ -568,6 +568,35 @@ pub fn run_cairo_0_entry_point(
     hint_locals: HashMap<String, Box<dyn Any>>,
     state_reader: Option<DictStateReader>,
 ) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>, CairoRunner)> {
+    // This function is split into to sub-functions to allow advanced use cases,
+    // which require access to the cairo runner before running the entrypoint.
+    let (mut cairo_runner, program, entrypoint) = initialize_cairo_runner(
+        runner_config,
+        program_bytes,
+        entrypoint,
+        implicit_args,
+        hint_locals,
+    )?;
+    let (explicit_return_values, implicit_return_values) = run_cairo_0_entrypoint(
+        entrypoint,
+        explicit_args,
+        implicit_args,
+        state_reader,
+        &mut cairo_runner,
+        &program,
+        runner_config,
+        expected_explicit_return_values,
+    )?;
+    Ok((explicit_return_values, implicit_return_values, cairo_runner))
+}
+
+pub fn initialize_cairo_runner(
+    runner_config: &EntryPointRunnerConfig,
+    program_bytes: &[u8],
+    entrypoint: &str,
+    implicit_args: &[ImplicitArg], // Used to infer the builtins the program uses.
+    hint_locals: HashMap<String, Box<dyn Any>>,
+) -> Cairo0EntryPointRunnerResult<(CairoRunner, Program, String)> {
     let mut entrypoint = entrypoint.to_string();
     if runner_config.add_main_prefix_to_entrypoint {
         info!("Adding __main__ prefix to entrypoint.");
@@ -576,23 +605,6 @@ pub fn run_cairo_0_entry_point(
 
     let program = inject_builtins(program_bytes, implicit_args)?;
     info!("Successfully injected builtins into program.");
-
-    let (os_hints_config, os_state_input) = (None, None);
-    let os_block_input = OsBlockInput::default();
-    let mut hint_processor = SnosHintProcessor::new_for_testing(
-        state_reader,
-        &program,
-        os_hints_config,
-        &os_block_input,
-        os_state_input,
-    )
-    .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {:?}", err));
-    info!("Program and Hint processor created successfully.");
-
-    // TODO(Amos): Perform complete validations.
-    perform_basic_validations_on_explicit_args(explicit_args, &program, &entrypoint)?;
-    perform_basic_validations_on_implicit_args(implicit_args, &program, &entrypoint)?;
-    info!("Performed basic validations on explicit & implicit args.");
 
     let dynamic_layout_params = None;
     let disable_trace_padding = false;
@@ -613,6 +625,24 @@ pub fn run_cairo_0_entry_point(
     let program_base: Option<Relocatable> = None;
     cairo_runner.initialize_segments(program_base);
     info!("Created and initialized Cairo runner.");
+    Ok((cairo_runner, program, entrypoint))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn run_cairo_0_entrypoint(
+    entrypoint: String,
+    explicit_args: &[EndpointArg],
+    implicit_args: &[ImplicitArg],
+    state_reader: Option<DictStateReader>,
+    cairo_runner: &mut CairoRunner,
+    program: &Program,
+    runner_config: &EntryPointRunnerConfig,
+    expected_explicit_return_values: &[EndpointArg],
+) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>)> {
+    // TODO(Amos): Perform complete validations.
+    perform_basic_validations_on_explicit_args(explicit_args, program, &entrypoint)?;
+    perform_basic_validations_on_implicit_args(implicit_args, program, &entrypoint)?;
+    info!("Performed basic validations on explicit & implicit args.");
 
     let explicit_cairo_args: Vec<CairoArg> =
         explicit_args.iter().flat_map(EndpointArg::to_cairo_arg_vec).collect();
@@ -621,6 +651,17 @@ pub fn run_cairo_0_entry_point(
         implicit_cairo_args.iter().chain(explicit_cairo_args.iter()).collect();
     info!("Converted explicit & implicit args to Cairo args.");
 
+    let (os_hints_config, os_state_input) = (None, None);
+    let os_block_input = OsBlockInput::default();
+    let mut hint_processor = SnosHintProcessor::new_for_testing(
+        state_reader,
+        program,
+        os_hints_config,
+        &os_block_input,
+        os_state_input,
+    )
+    .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {:?}", err));
+    info!("Program and Hint processor created successfully.");
     let program_segment_size: Option<usize> = None;
     cairo_runner
         .run_from_entrypoint(
@@ -638,5 +679,5 @@ pub fn run_cairo_0_entry_point(
     info!("Successfully finished running entrypoint {}", entrypoint);
     let (implicit_return_values, explicit_return_values) =
         get_return_values(implicit_args, expected_explicit_return_values, &cairo_runner.vm)?;
-    Ok((implicit_return_values, explicit_return_values, cairo_runner))
+    Ok((implicit_return_values, explicit_return_values))
 }
