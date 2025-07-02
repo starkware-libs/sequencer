@@ -12,7 +12,13 @@ use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{
+    calculate_contract_address,
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
@@ -33,7 +39,7 @@ use starknet_api::transaction::fields::{
     TransactionSignature,
     ValidResourceBounds,
 };
-use starknet_api::transaction::L1HandlerTransaction;
+use starknet_api::transaction::{L1HandlerTransaction, TransactionVersion};
 use starknet_api::{
     calldata,
     declare_tx_args,
@@ -590,6 +596,49 @@ impl AccountTransactionGenerator {
         .collect()
     }
 
+    pub fn generate_test_get_execution_info_invoke_tx(&mut self, tip: u64) -> Vec<RpcTransaction> {
+        let resource_bounds: Vec<Felt> = match test_valid_resource_bounds() {
+            ValidResourceBounds::AllResources(resources_bounds_values) => vec![
+                Felt::from(0_u8),                                                // L1_GAS
+                Felt::from(resources_bounds_values.l1_gas.max_amount.0),         // u64
+                Felt::from(resources_bounds_values.l1_gas.max_price_per_unit.0), // u128
+                Felt::from(1_u8),                                                // L2_GAS
+                Felt::from(resources_bounds_values.l2_gas.max_amount.0),
+                Felt::from(resources_bounds_values.l2_gas.max_price_per_unit.0),
+                Felt::from(2_u8), // L1_DATA_GAS
+                Felt::from(resources_bounds_values.l1_data_gas.max_amount.0),
+                Felt::from(resources_bounds_values.l1_data_gas.max_price_per_unit.0),
+            ],
+            _ => panic!("Expected AllResources variant."),
+        };
+        // let resource_bounds_len =
+        // Felt::from(u8::try_from(resource_bounds.len()).expect("resource_bounds_felts length does
+        // not fit in u8"));
+        let resource_bounds_len = Felt::from(3_u8); // Three resources total
+
+        let call_info = vec![
+            *self.sender_address().0.key(),
+            *self.test_contract_address().0.key(),
+            selector_from_name("test_storage_write").0,
+        ];
+
+        // Construct the calldata expected by the Cairo function.
+        let mut calldata = vec![
+            TransactionVersion::THREE.0,    // version
+            *self.sender_address().0.key(), // account address
+            Felt::ZERO,                     // max fee
+            resource_bounds_len,            // len of resource bounds (Span)
+        ];
+        calldata.extend(resource_bounds);
+        calldata.extend(call_info);
+
+        vec![self.generate_direct_call_invoke_tx(
+            tip,
+            "test_get_execution_info_without_block_info",
+            &calldata,
+        )]
+    }
+
     pub fn generate_empty_contract_declare_tx(&mut self) -> Vec<RpcTransaction> {
         let mut txs = vec![];
 
@@ -606,6 +655,52 @@ impl AccountTransactionGenerator {
             compiled_class_hash: empty_compiled_class_hash
         );
         txs.push(rpc_declare_tx(declare_args, empty_contract.get_sierra()));
+
+        txs
+    }
+
+    pub fn generate_invoke_txs_of_deploy_and_replace_class(
+        &mut self,
+        tip: u64,
+    ) -> Vec<RpcTransaction> {
+        let mut txs = vec![];
+
+        let newly_deployed_salt = ContractAddressSalt(felt!(7_u64));
+        let constructor_calldata_arg1 = felt!(1_u8);
+        let constructor_calldata_arg2 = felt!(1_u8);
+
+        // get newly_deployed_address
+        let newly_deployed_contract_address = calculate_contract_address(
+            newly_deployed_salt,
+            self.test_contract.get_class_hash(),
+            &calldata!(constructor_calldata_arg1, constructor_calldata_arg2), // constructor calldata
+            self.test_contract.get_instance_address(0), // deployer address
+        )
+        .expect("Failed to calculate contract address");
+    
+        // test_call_contract - failing now
+        txs.push(self.generate_call_contract_invoke_tx(
+            newly_deployed_contract_address,
+            tip,
+        ));
+
+        // test_replace_class
+        let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+        let test_replace_class_args: Vec<Felt> =
+            vec![empty_contract.safe_get_sierra().unwrap().calculate_class_hash().0];
+
+        let nonce = self.next_nonce();
+        let invoke_args = invoke_tx_args!(
+            nonce,
+            tip: Tip(tip),
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            calldata: create_calldata(newly_deployed_contract_address,
+            "test_replace_class", &test_replace_class_args),
+        );
+
+        txs.push(rpc_invoke_tx(invoke_args));
 
         txs
     }
