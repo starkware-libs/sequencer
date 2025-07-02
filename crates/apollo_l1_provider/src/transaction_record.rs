@@ -209,6 +209,10 @@ impl Records {
             }
         }
     }
+
+    pub(crate) fn remove(&mut self, hash: &TransactionHash) -> bool {
+        self.0.shift_remove_entry(hash).is_some()
+    }
 }
 
 impl Deref for Records {
