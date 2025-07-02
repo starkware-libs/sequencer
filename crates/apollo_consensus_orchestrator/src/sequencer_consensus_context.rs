@@ -523,6 +523,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     l2_gas_consumed: l2_gas_used,
                     next_l2_gas_price: self.l2_gas_price,
                 },
+                class_hashes_for_migration: central_objects.class_hashes_for_migration,
             })
             .await
             .inspect_err(|e| {
