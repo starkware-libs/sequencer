@@ -2,6 +2,8 @@ use std::any::Any;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
+use cairo_vm::hint_processor::builtin_hint_processor::dict_hint_utils::DICT_ACCESS_SIZE;
+use cairo_vm::types::layout_name::LayoutName;
 use ethnum::U256;
 use num_bigint::{BigInt, Sign};
 use rand::rngs::StdRng;
@@ -30,6 +32,7 @@ pub fn run_cairo_function_and_check_result(
     expected_implicit_retdata: &[EndpointArg],
     hint_locals: HashMap<String, Box<dyn Any>>,
 ) -> Cairo0EntryPointRunnerResult<()> {
+    let state_reader = None;
     let (actual_implicit_retdata, actual_explicit_retdata, _) = run_cairo_0_entry_point(
         runner_config,
         program_bytes,
@@ -38,6 +41,7 @@ pub fn run_cairo_function_and_check_result(
         implicit_args,
         expected_explicit_retdata,
         hint_locals,
+        state_reader,
     )?;
     assert_eq!(expected_explicit_retdata, &actual_explicit_retdata);
     assert_eq!(expected_implicit_retdata, &actual_implicit_retdata);
@@ -60,6 +64,16 @@ pub fn create_squashed_cairo_dict(
         squashed_dict.push(value.clone());
     }
     PointerArg::Composed(squashed_dict)
+}
+
+pub fn parse_squashed_cairo_dict(squashed_dict: &[Felt]) -> HashMap<Felt, Felt> {
+    assert!(squashed_dict.len() % DICT_ACCESS_SIZE == 0, "Invalid squashed dict length");
+    let key_offset = 0;
+    let new_val_offset = 2;
+    squashed_dict
+        .chunks(DICT_ACCESS_SIZE)
+        .map(|chunk| (chunk[key_offset], chunk[new_val_offset]))
+        .collect()
 }
 
 // 2**251 + 17 * 2**192 + 1
@@ -122,4 +136,12 @@ pub fn pack_bigint3(limbs: &[Felt]) -> BigInt {
     limbs.iter().enumerate().fold(BigInt::ZERO, |acc, (i, &limb)| {
         acc + as_int(&limb, &DEFAULT_PRIME) * BASE.pow(i.try_into().unwrap())
     })
+}
+
+pub(crate) fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
+    EntryPointRunnerConfig {
+        layout: LayoutName::small,
+        add_main_prefix_to_entrypoint: false,
+        ..Default::default()
+    }
 }
