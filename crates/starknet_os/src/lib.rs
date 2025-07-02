@@ -1,3 +1,5 @@
+#[cfg(test)]
+pub mod constants_test;
 pub mod errors;
 pub mod hint_processor;
 pub mod hints;
