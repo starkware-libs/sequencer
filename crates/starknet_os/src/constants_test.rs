@@ -1,10 +1,13 @@
 use apollo_starknet_os_program::OS_PROGRAM;
+use blockifier::abi::constants::L1_TO_L2_MSG_HEADER_SIZE;
 use cairo_vm::types::program::Program;
 use starknet_api::core::L2_ADDRESS_UPPER_BOUND;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::FIELD_ELEMENTS_PER_BLOB;
+use crate::hints::vars::CairoStruct;
+use crate::vm_utils::get_size_of_cairo_struct;
 
 fn get_from_program(program: &Program, const_path: &str) -> Felt {
     program
@@ -55,5 +58,13 @@ fn test_starknet_state_version() {
             "starkware.starknet.core.os.state.commitment.GLOBAL_STATE_VERSION"
         ),
         Felt::from_hex(global_state_version).unwrap()
+    );
+}
+
+#[test]
+fn test_l1_to_l2_message_header_size() {
+    assert_eq!(
+        get_size_of_cairo_struct(CairoStruct::L1ToL2MessageHeader, &*OS_PROGRAM).unwrap(),
+        L1_TO_L2_MSG_HEADER_SIZE
     );
 }

@@ -407,6 +407,7 @@ define_string_enum! {
         ),
         (HashBuiltin, "starkware.cairo.common.cairo_builtins.HashBuiltin"),
         (HashBuiltinPtr, "starkware.cairo.common.cairo_builtins.HashBuiltin*"),
+        (L1ToL2MessageHeader,"starkware.starknet.core.os.output.MessageToL2Header"),
         (NodeEdge, "starkware.cairo.common.patricia_utils.NodeEdge"),
         (NonSelectableBuiltins, "starkware.starknet.core.os.builtins.NonSelectableBuiltins"),
         (OsStateUpdate, "starkware.starknet.core.os.state.state.OsStateUpdate"),
