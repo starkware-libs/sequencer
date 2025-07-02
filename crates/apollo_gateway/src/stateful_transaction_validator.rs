@@ -18,12 +18,14 @@ use blockifier::transaction::account_transaction::{AccountTransaction, Execution
 use blockifier::transaction::transactions::enforce_fee;
 #[cfg(test)]
 use mockall::automock;
-use starknet_api::block::BlockInfo;
+use num_rational::Ratio;
+use starknet_api::block::{BlockInfo, NonzeroGasPrice};
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableTransaction,
     InvokeTransaction as ExecutableInvokeTransaction,
 };
+use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 use tracing::{debug, error};
 
@@ -48,6 +50,8 @@ pub trait StatefulTransactionValidatorTrait {
     #[allow(clippy::result_large_err)]
     fn validate(&mut self, account_tx: AccountTransaction)
     -> BlockifierStatefulValidatorResult<()>;
+
+    fn block_info(&self) -> &BlockInfo;
 }
 
 impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
@@ -58,6 +62,10 @@ impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
         account_tx: AccountTransaction,
     ) -> BlockifierStatefulValidatorResult<()> {
         self.perform_validations(account_tx)
+    }
+
+    fn block_info(&self) -> &BlockInfo {
+        BlockifierStatefulValidator::block_info(&self)
     }
 }
 
@@ -70,6 +78,18 @@ impl StatefulTransactionValidator {
         mut validator: V,
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<()> {
+        // Skip this validation during the systems bootstrap phase.
+        if self.config.validate_resource_bounds {
+            // TODO(Arni): get next_l2_gas_price from the block header.
+            let previous_block_l2_gas_price =
+                validator.block_info().gas_prices.strk_gas_prices.l2_gas_price;
+            validate_tx_l2_gas_price_within_threshold(
+                executable_tx.resource_bounds(),
+                previous_block_l2_gas_price,
+                self.config.min_gas_price_percentage,
+            )?;
+        }
+
         if !self.is_valid_nonce(executable_tx, account_nonce) {
             let tx_nonce = executable_tx.nonce();
             debug!(
@@ -185,4 +205,38 @@ pub fn get_latest_block_info(
         error!("Failed to get latest block info: {}", e);
         StarknetError::internal(&e.to_string())
     })
+}
+
+// TODO(Arni): Consider running this validation for all gas prices.
+fn validate_tx_l2_gas_price_within_threshold(
+    tx_resource_bounds: ValidResourceBounds,
+    previous_block_l2_gas_price: NonzeroGasPrice,
+    min_gas_price_percentage: u8,
+) -> StatefulTransactionValidatorResult<()> {
+    match tx_resource_bounds {
+        ValidResourceBounds::AllResources(tx_resource_bounds) => {
+            let tx_l2_gas_price = tx_resource_bounds.l2_gas.max_price_per_unit;
+            let gas_price_threshold_multiplier =
+                Ratio::new(min_gas_price_percentage.into(), 100_u128);
+            let threshold =
+                (gas_price_threshold_multiplier * previous_block_l2_gas_price.get().0).to_integer();
+            if tx_l2_gas_price.0 < threshold {
+                return Err(StarknetError {
+                    // We didn't have this kind of an error.
+                    code: StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+                    ),
+                    message: format!(
+                        "Transaction L2 gas price {} is below the required threshold {}.",
+                        tx_l2_gas_price, threshold
+                    ),
+                });
+            }
+        }
+        ValidResourceBounds::L1Gas(_) => {
+            // No validation required for legacy transactions.
+        }
+    }
+
+    Ok(())
 }
