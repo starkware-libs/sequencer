@@ -25,14 +25,19 @@ use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockInfo, GasPrice, GasPriceVector, GasPrices, NonzeroGasPrice};
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
-use starknet_api::transaction::fields::Resource;
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    Resource,
+    ResourceBounds,
+    ValidResourceBounds,
+};
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
 use crate::config::StatefulTransactionValidatorConfig;
@@ -64,7 +69,7 @@ fn stateful_validator() -> StatefulTransactionValidator {
 #[rstest]
 #[case::valid_tx(
     create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    Ok(())
+    Ok(()),
 )]
 #[case::invalid_tx(
     create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -86,6 +91,7 @@ async fn test_stateful_tx_validator(
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_| mocked_blockifier_result.map(|_| ()));
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
 
     let account_nonce = nonce!(0);
     let mut mock_mempool_client = MockMempoolClient::new();
@@ -208,6 +214,92 @@ async fn test_skip_validate(
     })
     .await
     .unwrap();
+}
+
+#[rstest]
+#[case::hundred_percent_happy_flow(
+    100_u128.try_into().unwrap(),
+    100,
+    100_u128.into(),
+    Ok(())
+)]
+#[case::hundred_percent_sad_flow(
+    100_u128.try_into().unwrap(),
+    100,
+    99_u128.into(),
+    Err(StarknetError {
+        code: StarknetErrorCode::UnknownErrorCode(
+            "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+        ),
+        message: "Transaction L2 gas price 99 is below the required threshold 100.".to_string(),
+    })
+)]
+#[case::tx_gas_price_equal_to_threshold(
+    100_u128.try_into().unwrap(),
+    50,
+    50_u128.into(),
+    Ok(())
+)]
+#[case::tx_gas_price_just_above_threshold(
+    100_u128.try_into().unwrap(),
+    50,
+    51_u128.into(),
+    Ok(())
+)]
+#[case::tx_gas_price_just_below_threshold(
+    100_u128.try_into().unwrap(),
+    50,
+    49_u128.into(),
+    Err(StarknetError {
+        code: StarknetErrorCode::UnknownErrorCode(
+            "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+        ),
+        message: "Transaction L2 gas price 49 is below the required threshold 50.".to_string(),
+    })
+)]
+#[case::percentage_zero_disables_check(
+    100_u128.try_into().unwrap(),
+    0,
+    0_u128.into(),
+    Ok(())
+)]
+#[case::tx_gas_price_zero_when_percentage_not_zero(
+    100_u128.try_into().unwrap(),
+    10,
+    0_u128.into(),
+    Err(StarknetError {
+        code: StarknetErrorCode::UnknownErrorCode(
+            "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+        ),
+        message: "Transaction L2 gas price 0 is below the required threshold 10.".to_string(),
+    })
+)]
+fn validate_resource_bounds_additional(
+    #[case] l2_gas_price: NonzeroGasPrice,
+    #[case] min_gas_price_percentage: u8,
+    #[case] tx_gas_price_per_unit: GasPrice,
+    #[case] expected_result: Result<(), StarknetError>,
+    mut stateful_validator: StatefulTransactionValidator,
+) {
+    stateful_validator.config.validate_resource_bounds = true;
+    stateful_validator.config.min_gas_price_percentage = min_gas_price_percentage;
+    let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+        l2_gas: ResourceBounds { max_price_per_unit: tx_gas_price_per_unit, ..Default::default() },
+        ..Default::default()
+    });
+    let executable_tx = executable_invoke_tx(invoke_tx_args!(resource_bounds));
+    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
+    let block_info = BlockInfo {
+        gas_prices: GasPrices {
+            strk_gas_prices: GasPriceVector { l2_gas_price, ..Default::default() },
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    mock_validator.expect_block_info().return_const(block_info);
+
+    let result = stateful_validator.validate_resource_bounds(&executable_tx, &mock_validator);
+    assert_eq!(result, expected_result);
 }
 
 #[rstest]
