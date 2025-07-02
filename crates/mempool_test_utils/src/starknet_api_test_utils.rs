@@ -590,6 +590,26 @@ impl AccountTransactionGenerator {
         .collect()
     }
 
+    pub fn generate_empty_contract_declare_tx(&mut self) -> Vec<RpcTransaction> {
+        let mut txs = vec![];
+
+        let empty_contract = FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm));
+        let compiled_empty_class_hash_raw =
+            "0x317D3AC2CF840E487B6D0014A75F0CF507DFF0BC143C710388E323487089BFA";
+        let empty_compiled_class_hash =
+            *LazyLock::new(|| CompiledClassHash(felt!(compiled_empty_class_hash_raw)));
+
+        let declare_args = declare_tx_args!(
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            nonce: self.next_nonce(),
+            compiled_class_hash: empty_compiled_class_hash
+        );
+        txs.push(rpc_declare_tx(declare_args, empty_contract.get_sierra()));
+
+        txs
+    }
+
     pub fn generate_executable_invoke(&mut self) -> AccountTransaction {
         assert!(
             self.is_deployed(),
