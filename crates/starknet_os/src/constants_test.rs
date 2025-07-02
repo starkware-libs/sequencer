@@ -43,3 +43,17 @@ fn test_contract_class_hash_version() {
         Felt::from_hex(TreeHashFunctionImpl::CONTRACT_CLASS_LEAF_V0).unwrap()
     );
 }
+
+#[test]
+// TODO(Aner): is this correct? Is it needed?
+fn test_starknet_state_version() {
+    // The hex string corresponding to b'STARKNET_STATE_V0' in big-endian.
+    let global_state_version = "0x535441524b4e45545f53544154455f5630";
+    assert_eq!(
+        get_from_program(
+            &OS_PROGRAM,
+            "starkware.starknet.core.os.state.commitment.GLOBAL_STATE_VERSION"
+        ),
+        Felt::from_hex(global_state_version).unwrap()
+    );
+}
