@@ -79,7 +79,7 @@ use starknet_api::block::{
 };
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion};
-use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, EthAddress};
+use starknet_api::core::{ClassHash, CompiledClassHash, EntryPointSelector, L1Address};
 use starknet_api::data_availability::{DataAvailabilityMode, L1DataAvailabilityMode};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::execution_resources::{GasAmount, GasVector};
@@ -502,7 +502,7 @@ fn call_info() -> CallInfo {
             l2_to_l1_messages: vec![OrderedL2ToL1Message {
                 order: 1,
                 message: MessageToL1 {
-                    to_address: EthAddress::try_from(felt!(1_u8)).unwrap(),
+                    to_address: L1Address::from(felt!(1_u8)),
                     payload: L2ToL1Payload(felt_vector()),
                 },
             }],

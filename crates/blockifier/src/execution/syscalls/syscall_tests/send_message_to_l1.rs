@@ -42,7 +42,7 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let to_address = EthAddress::try_from(to_address).unwrap();
+    let to_address = EthAddress::try_from(to_address).unwrap().into();
     let message = MessageToL1 { to_address, payload: L2ToL1Payload(payload) };
 
     let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
@@ -58,8 +58,8 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
                 OrderedL2ToL1Message {
                     order: 0,
                     message: MessageToL1 {
-                        to_address: EthAddress(
-                            0x00000000000000000000000000000000000004d2,
+                        to_address: L1Address(
+                            0x4d2,
                         ),
                         payload: L2ToL1Payload(
                             [
