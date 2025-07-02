@@ -12,7 +12,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::BASE;
 use crate::test_utils::cairo_runner::{
-    run_cairo_0_entry_point,
+    initialize_and_run_cairo_0_entry_point,
     Cairo0EntryPointRunnerResult,
     EndpointArg,
     EntryPointRunnerConfig,
@@ -33,16 +33,17 @@ pub fn run_cairo_function_and_check_result(
     hint_locals: HashMap<String, Box<dyn Any>>,
 ) -> Cairo0EntryPointRunnerResult<()> {
     let state_reader = None;
-    let (actual_implicit_retdata, actual_explicit_retdata, _) = run_cairo_0_entry_point(
-        runner_config,
-        program_bytes,
-        function_name,
-        explicit_args,
-        implicit_args,
-        expected_explicit_retdata,
-        hint_locals,
-        state_reader,
-    )?;
+    let (actual_implicit_retdata, actual_explicit_retdata, _) =
+        initialize_and_run_cairo_0_entry_point(
+            runner_config,
+            program_bytes,
+            function_name,
+            explicit_args,
+            implicit_args,
+            expected_explicit_retdata,
+            hint_locals,
+            state_reader,
+        )?;
     assert_eq!(expected_explicit_retdata, &actual_explicit_retdata);
     assert_eq!(expected_implicit_retdata, &actual_implicit_retdata);
     Ok(())
