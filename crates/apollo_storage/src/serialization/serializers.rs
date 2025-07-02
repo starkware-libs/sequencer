@@ -337,6 +337,9 @@ auto_storage_serde! {
     }
     pub struct MessageToL2 {
         pub from_address: EthAddress,
+        pub to_address: ContractAddress,
+        pub nonce: Nonce,
+        pub selector: EntryPointSelector,
         pub payload: L1ToL2Payload,
     }
     pub enum NestedIntList {

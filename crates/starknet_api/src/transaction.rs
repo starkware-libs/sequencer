@@ -978,7 +978,12 @@ pub fn signed_tx_version(
 /// An L1 to L2 message.
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct MessageToL2 {
+    // The L1 address of the contract sending the message.
     pub from_address: EthAddress,
+    // The L2 address of the contract receiving the message.
+    pub to_address: ContractAddress,
+    pub nonce: Nonce,
+    pub selector: EntryPointSelector,
     pub payload: L1ToL2Payload,
 }
 

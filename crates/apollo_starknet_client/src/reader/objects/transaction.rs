@@ -869,6 +869,9 @@ impl From<L1ToL2Message> for starknet_api::transaction::MessageToL2 {
     fn from(message: L1ToL2Message) -> Self {
         starknet_api::transaction::MessageToL2 {
             from_address: message.from_address,
+            to_address: message.to_address,
+            selector: message.selector,
+            nonce: Nonce(message.nonce.0),
             payload: message.payload,
         }
     }

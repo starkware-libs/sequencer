@@ -12,12 +12,11 @@ use starknet_api::core::{
     CompiledClassHash,
     ContractAddress,
     EntryPointSelector,
-    EthAddress,
     Nonce,
 };
 use starknet_api::hash::StarkHash;
 use starknet_api::state::StorageKey;
-use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
+use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1, MessageToL2};
 use starknet_types_core::felt::{Felt, NonZeroFelt};
 
 use crate::errors::StarknetOsError;
@@ -101,32 +100,17 @@ pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
     Ok(MessageToL1 { from_address, to_address, payload })
 }
 
-#[allow(dead_code)]
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
-// An L1 to L2 message header, the message payload is concatenated to the end of the header.
-pub struct MessageToL2 {
-    // The L1 address of the contract sending the message.
-    from_address: EthAddress,
-    // The L2 address of the contract receiving the message.
-    to_address: ContractAddress,
-    nonce: Nonce,
-    selector: EntryPointSelector,
-    payload: L1ToL2Payload,
-}
+pub fn message_l2_from_output_iter<It: Iterator<Item = Felt>>(
+    iter: &mut It,
+) -> Result<MessageToL2, OsOutputError> {
+    let from_address = wrap_missing_as(iter.next(), "from_address")?;
+    let to_address = wrap_missing_as(iter.next(), "to_address")?;
+    let nonce = Nonce(wrap_missing(iter.next(), "nonce")?);
+    let selector = EntryPointSelector(wrap_missing(iter.next(), "selector")?);
+    let payload_size = wrap_missing_as(iter.next(), "payload_size")?;
+    let payload = L1ToL2Payload(iter.take(payload_size).collect());
 
-impl MessageToL2 {
-    pub fn from_output_iter<It: Iterator<Item = Felt>>(
-        iter: &mut It,
-    ) -> Result<Self, OsOutputError> {
-        let from_address = wrap_missing_as(iter.next(), "from_address")?;
-        let to_address = wrap_missing_as(iter.next(), "to_address")?;
-        let nonce = Nonce(wrap_missing(iter.next(), "nonce")?);
-        let selector = EntryPointSelector(wrap_missing(iter.next(), "selector")?);
-        let payload_size = wrap_missing_as(iter.next(), "payload_size")?;
-        let payload = L1ToL2Payload(iter.take(payload_size).collect());
-
-        Ok(Self { from_address, to_address, nonce, selector, payload })
-    }
+    Ok(MessageToL2 { from_address, to_address, nonce, selector, payload })
 }
 
 fn parse_storage_changes<It: Iterator<Item = Felt> + ?Sized>(
@@ -353,7 +337,7 @@ impl OsOutput {
         let mut messages_to_l2 = Vec::<MessageToL2>::new();
 
         while messages_to_l2_iter.peek().is_some() {
-            let message = MessageToL2::from_output_iter(&mut messages_to_l2_iter)?;
+            let message = message_l2_from_output_iter(&mut messages_to_l2_iter)?;
             messages_to_l2_segment_size -= message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
             messages_to_l2.push(message);
         }
