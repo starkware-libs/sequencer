@@ -41,6 +41,8 @@ pub enum KnownStarknetErrorCode {
     EntryPointNotFoundInContract,
     #[serde(rename = "StarknetErrorCode.INSUFFICIENT_ACCOUNT_BALANCE")]
     InsufficientAccountBalance,
+    #[serde(rename = "StarknetErrorCode.GAS_PRICE_TOO_LOW")]
+    GasPriceTooLow,
     #[serde(rename = "StarknetErrorCode.INSUFFICIENT_MAX_FEE")]
     InsufficientMaxFee,
     #[serde(rename = "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH")]
