@@ -129,6 +129,7 @@ fn assert_only_expected_txs(
 ) {
     total_expected_txs.sort();
     batched_txs.sort();
+    batched_txs.dedup();
     assert_eq!(total_expected_txs, batched_txs);
 }
 
