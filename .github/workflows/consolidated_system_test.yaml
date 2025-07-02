@@ -230,7 +230,7 @@ jobs:
           kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
           echo "🚀 Anvil deployed successfully."
 
-          echo "🔍 Extracting Anvil addresses from logs."
+          echo "🔍 Extracting Anvil addresses from logs.."
 
           ANVIL_POD=$(kubectl get pods -n "${{ env.namespace }}" -l app=anvil -o jsonpath="{.items[0].metadata.name}")
           ANVIL_LOGS=$(kubectl logs -n "${{ env.namespace }}" "$ANVIL_POD")
