@@ -3,6 +3,9 @@ use std::fmt;
 
 use libp2p::identity::Keypair;
 
+// TODO(Tsabary): Get rid of the secret key type and its usage; there should be a precomputed map
+// from node index to its peer id.
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SecretKey([u8; 32]);
 

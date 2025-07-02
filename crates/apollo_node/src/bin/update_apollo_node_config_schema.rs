@@ -3,13 +3,12 @@ use apollo_node::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
-    DEFAULT_CONFIG_PATH,
+    CONFIG_SCHEMA_PATH,
 };
 
-/// Updates the default config file by:
-/// cargo run --bin sequencer_dump_config -q
+/// Updates the apollo node config schema.
 fn main() {
     SequencerNodeConfig::default()
-        .dump_to_file(&CONFIG_POINTERS, &CONFIG_NON_POINTERS_WHITELIST, DEFAULT_CONFIG_PATH)
+        .dump_to_file(&CONFIG_POINTERS, &CONFIG_NON_POINTERS_WHITELIST, CONFIG_SCHEMA_PATH)
         .expect("dump to file error");
 }

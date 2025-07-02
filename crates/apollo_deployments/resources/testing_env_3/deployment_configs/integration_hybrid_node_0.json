@@ -140,7 +140,7 @@
       "external_secret": {
         "gcsm_key": "sequencer-test-3-node-0"
       },
-      "anti_affinity": false
+      "anti_affinity": true
     },
     {
       "name": "SierraCompiler",

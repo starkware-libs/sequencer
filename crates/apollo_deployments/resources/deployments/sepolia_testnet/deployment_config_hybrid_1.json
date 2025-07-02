@@ -1,0 +1,176 @@
+{
+  "application_config_subdir": "crates/apollo_deployments/resources/",
+  "services": [
+    {
+      "name": "Core",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "base_app_config.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_1.json",
+        "services/hybrid/core.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": {
+        "type": "LoadBalancer",
+        "external_dns_name": "sequencer-core-service.apollo-sepolia-alpha-1.starknet.io",
+        "internal": true
+      },
+      "autoscale": false,
+      "replicas": 1,
+      "storage": 1000,
+      "toleration": "apollo-core-service-c2-d56",
+      "resources": {
+        "requests": {
+          "cpu": 50,
+          "memory": 200
+        },
+        "limits": {
+          "cpu": 50,
+          "memory": 220
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-alpha-1"
+      },
+      "anti_affinity": true
+    },
+    {
+      "name": "HttpServer",
+      "controller": "Deployment",
+      "config_paths": [
+        "base_app_config.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_1.json",
+        "services/hybrid/http_server.json"
+      ],
+      "ingress": {
+        "domain": "starknet.io",
+        "alternative_names": [
+          "alpha-sepolia.starknet.io"
+        ],
+        "internal": false,
+        "rules": [
+          {
+            "path": "/gateway",
+            "port": 8080,
+            "backend": null
+          }
+        ]
+      },
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": "apollo-general-service",
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-alpha-1"
+      },
+      "anti_affinity": false
+    },
+    {
+      "name": "Gateway",
+      "controller": "Deployment",
+      "config_paths": [
+        "base_app_config.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_1.json",
+        "services/hybrid/gateway.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": true,
+      "replicas": 2,
+      "storage": null,
+      "toleration": "apollo-general-service",
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 2,
+          "memory": 4
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-alpha-1"
+      },
+      "anti_affinity": false
+    },
+    {
+      "name": "Mempool",
+      "controller": "Deployment",
+      "config_paths": [
+        "base_app_config.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_1.json",
+        "services/hybrid/mempool.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": {
+        "type": "LoadBalancer",
+        "external_dns_name": "sequencer-mempool-service.apollo-sepolia-alpha-1.starknet.io",
+        "internal": true
+      },
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": "apollo-core-service",
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 2,
+          "memory": 4
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-alpha-1"
+      },
+      "anti_affinity": true
+    },
+    {
+      "name": "SierraCompiler",
+      "controller": "Deployment",
+      "config_paths": [
+        "base_app_config.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_1.json",
+        "services/hybrid/sierra_compiler.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": true,
+      "replicas": 2,
+      "storage": null,
+      "toleration": "apollo-general-service",
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 2,
+          "memory": 4
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-alpha-1"
+      },
+      "anti_affinity": false
+    }
+  ]
+}

@@ -156,7 +156,7 @@ impl SerializeConfig for CendeConfig {
             "skip_write_height",
             "A height that the consensus can skip writing to Aerospike. Needed for booting up (no \
              previous height blob to write) or to handle extreme cases (all the nodes failed).",
-            ParamPrivacyInput::Private,
+            ParamPrivacyInput::Public,
         ));
 
         config

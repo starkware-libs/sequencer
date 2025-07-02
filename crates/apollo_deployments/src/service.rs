@@ -14,8 +14,6 @@ use serde_json::json;
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
-#[cfg(test)]
-use crate::deployment::FIX_BINARY_NAME;
 use crate::deployment::{
     build_service_namespace_domain_address,
     ComponentConfigsSerializationWrapper,
@@ -34,13 +32,15 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
+#[cfg(test)]
+use crate::test_utils::FIX_BINARY_NAME;
 
 const SERVICES_DIR_NAME: &str = "services/";
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Service {
     #[serde(rename = "name")]
-    service_name: ServiceName,
+    node_service: NodeService,
     // TODO(Tsabary): change config path to PathBuf type.
     controller: Controller,
     config_paths: Vec<String>,
@@ -57,14 +57,9 @@ pub struct Service {
     anti_affinity: bool,
 }
 
-// TODO(Tsabary): remove clippy::too_many_arguments
-// TODO(Tsabary): the service doesn't need the deployment name, consider passing a function / just
-// the path.
 impl Service {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        service_name: ServiceName,
-        deployment_name: &DeploymentName,
+        node_service: NodeService,
         external_secret: Option<ExternalSecret>,
         config_filenames: Vec<String>,
         ingress_params: IngressParams,
@@ -79,7 +74,7 @@ impl Service {
         // TODO(Tsabary): delete redundant directories in the path.
         // TODO(Tsabary): reduce visibility of relevant functions and consts.
 
-        let service_file_path = deployment_name.get_service_file_path(&service_name);
+        let service_file_path = node_service.get_service_file_path();
 
         let config_paths = config_filenames
             .iter()
@@ -94,17 +89,17 @@ impl Service {
             })
             .collect();
 
-        let controller = service_name.get_controller();
-        let autoscale = service_name.get_autoscale();
-        let toleration = service_name.get_toleration(&environment);
-        let ingress = service_name.get_ingress(&environment, ingress_params);
-        let k8s_service_config = service_name.get_k8s_service_config(k8s_service_config_params);
-        let storage = service_name.get_storage(&environment);
-        let resources = service_name.get_resources(&environment);
-        let replicas = service_name.get_replicas(&environment);
-        let anti_affinity = service_name.get_anti_affinity(&environment);
+        let controller = node_service.get_controller();
+        let autoscale = node_service.get_autoscale();
+        let toleration = node_service.get_toleration(&environment);
+        let ingress = node_service.get_ingress(&environment, ingress_params);
+        let k8s_service_config = node_service.get_k8s_service_config(k8s_service_config_params);
+        let storage = node_service.get_storage(&environment);
+        let resources = node_service.get_resources(&environment);
+        let replicas = node_service.get_replicas(&environment);
+        let anti_affinity = node_service.get_anti_affinity(&environment);
         Self {
-            service_name,
+            node_service,
             config_paths,
             controller,
             ingress,
@@ -128,17 +123,17 @@ impl Service {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumDiscriminants)]
 #[strum_discriminants(
-    name(DeploymentName),
+    name(NodeType),
     derive(IntoStaticStr, EnumIter, EnumVariantNames, Serialize, Display),
     strum(serialize_all = "snake_case")
 )]
-pub enum ServiceName {
-    ConsolidatedNode(ConsolidatedNodeServiceName),
-    HybridNode(HybridNodeServiceName),
-    DistributedNode(DistributedNodeServiceName),
+pub enum NodeService {
+    Consolidated(ConsolidatedNodeServiceName),
+    Hybrid(HybridNodeServiceName),
+    Distributed(DistributedNodeServiceName),
 }
 
-impl ServiceName {
+impl NodeService {
     fn get_config_file_path(&self) -> String {
         let mut name = self.as_inner().to_string();
         name.push_str(".json");
@@ -154,8 +149,7 @@ impl ServiceName {
         k8s_service_config_params: Option<K8sServiceConfigParams>,
     ) -> Service {
         Service::new(
-            Into::<ServiceName>::into(*self),
-            &DeploymentName::from(*self),
+            Into::<NodeService>::into(*self),
             external_secret.clone(),
             config_filenames,
             ingress_params.clone(),
@@ -166,9 +160,9 @@ impl ServiceName {
 
     fn as_inner(&self) -> &dyn ServiceNameInner {
         match self {
-            ServiceName::ConsolidatedNode(inner) => inner,
-            ServiceName::HybridNode(inner) => inner,
-            ServiceName::DistributedNode(inner) => inner,
+            NodeService::Consolidated(inner) => inner,
+            NodeService::Hybrid(inner) => inner,
+            NodeService::Distributed(inner) => inner,
         }
     }
 
@@ -219,6 +213,15 @@ impl ServiceName {
     // Kubernetes service name as defined by CDK8s.
     pub fn k8s_service_name(&self) -> String {
         self.as_inner().k8s_service_name()
+    }
+
+    pub fn get_service_file_path(&self) -> String {
+        PathBuf::from(CONFIG_BASE_DIR)
+            .join(SERVICES_DIR_NAME)
+            .join(NodeType::from(self).get_folder_name())
+            .join(self.get_config_file_path())
+            .to_string_lossy()
+            .to_string()
     }
 }
 
@@ -274,35 +277,20 @@ pub(crate) trait ServiceNameInner: Display {
     }
 }
 
-impl DeploymentName {
-    pub fn get_folder_name(&self) -> &'static str {
-        match self {
-            Self::ConsolidatedNode => "consolidated/",
-            Self::HybridNode => "hybrid/",
-            Self::DistributedNode => "distributed/",
-        }
+impl NodeType {
+    fn get_folder_name(&self) -> String {
+        self.to_string()
     }
 
-    pub fn add_path_suffix(&self, path: PathBuf, instance_name: &str) -> PathBuf {
-        let deployment_name_dir = path.join(self.get_folder_name());
-        let deployment_with_instance = deployment_name_dir.join(instance_name);
-
-        let s = deployment_with_instance.to_string_lossy();
-        let modified = if s.ends_with('/') { s.into_owned() } else { format!("{}/", s) };
-        modified.into()
-    }
-
-    pub fn all_service_names(&self) -> Vec<ServiceName> {
+    pub fn all_service_names(&self) -> Vec<NodeService> {
         match self {
             // TODO(Tsabary): find a way to avoid this code duplication.
-            Self::ConsolidatedNode => {
-                ConsolidatedNodeServiceName::iter().map(ServiceName::ConsolidatedNode).collect()
+            Self::Consolidated => {
+                ConsolidatedNodeServiceName::iter().map(NodeService::Consolidated).collect()
             }
-            Self::HybridNode => {
-                HybridNodeServiceName::iter().map(ServiceName::HybridNode).collect()
-            }
-            Self::DistributedNode => {
-                DistributedNodeServiceName::iter().map(ServiceName::DistributedNode).collect()
+            Self::Hybrid => HybridNodeServiceName::iter().map(NodeService::Hybrid).collect(),
+            Self::Distributed => {
+                DistributedNodeServiceName::iter().map(NodeService::Distributed).collect()
             }
         }
     }
@@ -310,22 +298,13 @@ impl DeploymentName {
     pub fn get_component_configs(
         &self,
         ports: Option<Vec<u16>>,
-    ) -> IndexMap<ServiceName, ComponentConfig> {
+    ) -> IndexMap<NodeService, ComponentConfig> {
         match self {
             // TODO(Tsabary): avoid this code duplication.
-            Self::ConsolidatedNode => ConsolidatedNodeServiceName::get_component_configs(ports),
-            Self::HybridNode => HybridNodeServiceName::get_component_configs(ports),
-            Self::DistributedNode => DistributedNodeServiceName::get_component_configs(ports),
+            Self::Consolidated => ConsolidatedNodeServiceName::get_component_configs(ports),
+            Self::Hybrid => HybridNodeServiceName::get_component_configs(ports),
+            Self::Distributed => DistributedNodeServiceName::get_component_configs(ports),
         }
-    }
-
-    pub fn get_service_file_path(&self, service_name: &ServiceName) -> String {
-        PathBuf::from(CONFIG_BASE_DIR)
-            .join(SERVICES_DIR_NAME)
-            .join(self.get_folder_name())
-            .join(service_name.get_config_file_path())
-            .to_string_lossy()
-            .to_string()
     }
 
     fn dump_component_configs_with<SerdeFn>(&self, ports: Option<Vec<u16>>, writer: SerdeFn)
@@ -333,10 +312,10 @@ impl DeploymentName {
         SerdeFn: Fn(&serde_json::Value, &str),
     {
         let component_configs = self.get_component_configs(ports);
-        for (service_name, config) in component_configs {
+        for (node_service, config) in component_configs {
             let wrapper = ComponentConfigsSerializationWrapper::from(config);
             let flattened = config_to_preset(&json!(wrapper.dump()));
-            let file_path = self.get_service_file_path(&service_name);
+            let file_path = node_service.get_service_file_path();
             writer(&flattened, &file_path);
         }
     }
@@ -358,19 +337,19 @@ impl DeploymentName {
 pub trait GetComponentConfigs {
     // TODO(Tsabary): replace IndexMap with regular HashMap. Currently using IndexMap as the
     // integration test relies on indices rather than service names.
-    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<ServiceName, ComponentConfig>;
+    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig>;
 }
 
-impl Serialize for ServiceName {
+impl Serialize for NodeService {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         // Serialize only the inner value.
         match self {
-            ServiceName::ConsolidatedNode(inner) => inner.serialize(serializer),
-            ServiceName::HybridNode(inner) => inner.serialize(serializer),
-            ServiceName::DistributedNode(inner) => inner.serialize(serializer),
+            NodeService::Consolidated(inner) => inner.serialize(serializer),
+            NodeService::Hybrid(inner) => inner.serialize(serializer),
+            NodeService::Distributed(inner) => inner.serialize(serializer),
         }
     }
 }
