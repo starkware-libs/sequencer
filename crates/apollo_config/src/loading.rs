@@ -4,7 +4,7 @@
 //! * Custom config files, separated by ',' (comma), from last to first.
 //! * Default config file.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs::File;
 use std::ops::IndexMut;
 use std::path::PathBuf;
@@ -17,6 +17,7 @@ use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use tracing::{info, instrument};
 
+use crate::dumping::ConfigPointers;
 use crate::validators::validate_path_exists;
 use crate::{
     command,
@@ -51,20 +52,20 @@ pub fn load<T: for<'a> Deserialize<'a>>(
 /// Deserializes a json config file, updates the values by the given arguments for the command, and
 /// set values for the pointers.
 pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
-    default_config_file: File,
+    config_schema_file: File,
     command: Command,
     args: Vec<String>,
     ignore_default_values: bool,
 ) -> Result<T, ConfigError> {
-    let deserialized_default_config: Map<ParamPath, Value> =
-        serde_json::from_reader(default_config_file)?;
+    let deserialized_config_schema: Map<ParamPath, Value> =
+        serde_json::from_reader(&config_schema_file)?;
     // Store the pointers separately from the default values. The pointers will receive a value
     // only at the end of the process.
-    let (default_config_map, pointers_map) = split_pointers_map(deserialized_default_config);
+    let (config_map, pointers_map) = split_pointers_map(deserialized_config_schema.clone());
     // Take param paths with corresponding descriptions, and get the matching arguments.
-    let mut arg_matches = get_command_matches(&default_config_map, command, args)?;
+    let mut arg_matches = get_command_matches(&config_map, command, args)?;
     // Retaining values from the default config map for backward compatibility.
-    let (mut values_map, types_map) = split_values_and_types(default_config_map);
+    let (mut values_map, types_map) = split_values_and_types(config_map);
     if ignore_default_values {
         info!("Ignoring default values by overriding with an empty map.");
         values_map = BTreeMap::new();
@@ -80,7 +81,44 @@ pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
     // Set values according to the is-none marks.
     update_optional_values(&mut values_map);
     // Build and return a Config object.
-    load(&values_map)
+    let load_result = load(&values_map);
+
+    if load_result.is_err() {
+        let input_keys = values_map.keys().cloned().collect::<HashSet<_>>();
+
+        // TODO address pointers in the config schema.
+        let mut schema_keys = deserialized_config_schema.keys().cloned().collect::<HashSet<_>>();
+
+        let optional_params =
+            get_optional_params(&deserialized_config_schema.keys().cloned().collect::<Vec<_>>());
+        let optional_params_set: HashSet<String> = optional_params.iter().cloned().collect();
+        // let none_params = extract_none_params_and_remove_optional_keys(&mut config_map,
+        // optional_params); remove_none_params(&mut config_map, &none_params);
+        // let set: HashSet<String> = optional_params.iter().map(|s| s.as_str()).collect();
+        // schema_keys = schema_keys.difference(&optional_params_set).cloned().collect::<HashSet<_>>();
+
+        let only_in_input: HashSet<_> = input_keys.difference(&schema_keys).collect();
+        let only_in_schema: HashSet<_> = schema_keys.difference(&input_keys).collect();
+
+        if !(only_in_input.is_empty() && only_in_schema.is_empty()) {
+            // TODO edit msg
+            panic!(
+                "Schema-values mismatch:\nOnly in config: {:#?}\nOnly in schema: {:#?}",
+                only_in_input, only_in_schema
+            );
+        }
+
+        // load all keys from the config schema
+        // load all pointers from the pointers map
+        // remove all pointing params from schema, and add the pointer target params to the expected
+        // keys
+
+        // let schema_keys = &config_map.keys().collect::<Vec<_>>();
+
+        info!("Failed to load config with values: {:#?}", values_map);
+    }
+
+    load_result
 }
 
 // Separates a json map into config map of the raw values and pointers map.
@@ -160,34 +198,52 @@ pub(crate) fn update_config_map_by_pointers(
     Ok(())
 }
 
-// Removes the none marks, and sets null for the params marked as None instead of the inner params.
-pub(crate) fn update_optional_values(config_map: &mut BTreeMap<ParamPath, Value>) {
-    let optional_params: Vec<_> = config_map
-        .keys()
-        .filter_map(|param_path| param_path.strip_suffix(&format!(".{IS_NONE_MARK}")))
-        .map(|param_path| param_path.to_owned())
-        .collect();
+fn get_optional_params(config_map_keys: &[ParamPath]) -> Vec<ParamPath> {
+    config_map_keys
+        .iter()
+        .filter_map(|param_path| {
+            if param_path.ends_with(&format!(".{IS_NONE_MARK}")) {
+                param_path.strip_suffix(&format!(".{IS_NONE_MARK}")).map(|s| s.to_owned())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+fn extract_none_params_and_remove_optional_keys(
+    config_map: &mut BTreeMap<ParamPath, Value>,
+    optional_params: Vec<ParamPath>,
+) -> Vec<ParamPath> {
     let mut none_params = vec![];
+
     for optional_param in optional_params {
-        let value = config_map
-            .remove(&format!("{optional_param}.{IS_NONE_MARK}"))
-            .expect("Not found optional param");
-        if value == json!(true) {
+        let key = format!("{optional_param}.{IS_NONE_MARK}");
+        let optional_param_value = config_map.remove(&key).expect("Not found optional param");
+
+        if optional_param_value == json!(true) {
             none_params.push(optional_param);
         }
     }
+
+    none_params
+}
+
+// Remove param paths that start with any None param, and set the outer-most param to be null.
+fn remove_none_params(config_map: &mut BTreeMap<ParamPath, Value>, none_params: &[ParamPath]) {
     // Remove param paths that start with any None param.
+
     config_map.retain(|param_path, _| {
-        !any(&none_params, |none_param| {
+        !any(none_params, |none_param| {
             param_path.starts_with(format!("{none_param}{FIELD_SEPARATOR}").as_str())
                 || param_path == none_param
         })
     });
 
     // Set null for the None params.
-    for none_param in &none_params {
+    for none_param in none_params {
         let mut is_nested_in_outer_none_config = false;
-        for other_none_param in &none_params {
+        for other_none_param in none_params {
             if none_param.starts_with(other_none_param) && none_param != other_none_param {
                 is_nested_in_outer_none_config = true;
             }
@@ -197,6 +253,14 @@ pub(crate) fn update_optional_values(config_map: &mut BTreeMap<ParamPath, Value>
         }
         config_map.insert(none_param.clone(), Value::Null);
     }
+}
+
+// Removes the none marks, and sets null for the params marked as None instead of the inner params.
+pub(crate) fn update_optional_values(config_map: &mut BTreeMap<ParamPath, Value>) {
+    let keys_vec: Vec<_> = config_map.keys().cloned().collect();
+    let optional_params = get_optional_params(&keys_vec);
+    let none_params = extract_none_params_and_remove_optional_keys(config_map, optional_params);
+    remove_none_params(config_map, &none_params);
 }
 
 pub(crate) fn update_config_map(
