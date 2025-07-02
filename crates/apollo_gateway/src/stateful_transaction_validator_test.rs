@@ -25,14 +25,19 @@ use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockInfo, GasPrice, GasPriceVector, GasPrices, NonzeroGasPrice};
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
-use starknet_api::transaction::fields::Resource;
+use starknet_api::transaction::fields::{
+    AllResourceBounds,
+    Resource,
+    ResourceBounds,
+    ValidResourceBounds,
+};
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
 use crate::config::StatefulTransactionValidatorConfig;
@@ -64,7 +69,7 @@ fn stateful_validator() -> StatefulTransactionValidator {
 #[rstest]
 #[case::valid_tx(
     create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    Ok(())
+    Ok(()),
 )]
 #[case::invalid_tx(
     create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
@@ -86,6 +91,7 @@ async fn test_stateful_tx_validator(
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_| mocked_blockifier_result.map(|_| ()));
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
 
     let account_nonce = nonce!(0);
     let mut mock_mempool_client = MockMempoolClient::new();
@@ -190,6 +196,7 @@ async fn test_skip_validate(
         .expect_validate()
         .withf(move |tx| tx.execution_flags.validate == should_validate)
         .returning(|_| Ok(()));
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
     let mut mock_mempool_client = MockMempoolClient::new();
     mock_mempool_client
         .expect_account_tx_in_pool_or_recent_block()
@@ -208,6 +215,108 @@ async fn test_skip_validate(
     })
     .await
     .unwrap();
+}
+
+#[rstest]
+#[case::tx_gas_price_meets_threshold_exactly_pass(
+    100_u128.try_into().unwrap(),
+    100,
+    100_u128.into(),
+    Ok(())
+)]
+#[case::tx_gas_price_below_threshold_fails(
+    100_u128.try_into().unwrap(),
+    100,
+    99_u128.into(),
+    Err(StarknetError {
+        code: StarknetErrorCode::UnknownErrorCode(
+            "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+        ),
+        message: "Transaction L2 gas price 99 is below the required threshold 100.".to_string(),
+    })
+)]
+#[case::tx_gas_price_meets_threshold_with_factor_pass(
+    100_u128.try_into().unwrap(),
+    50,
+    50_u128.into(),
+    Ok(())
+)]
+#[case::tx_gas_price_above_threshold_with_factor_pass(
+    100_u128.try_into().unwrap(),
+    50,
+    51_u128.into(),
+    Ok(())
+)]
+#[case::tx_gas_price_below_threshold_with_factor_fails(
+    100_u128.try_into().unwrap(),
+    50,
+    49_u128.into(),
+    Err(StarknetError {
+        code: StarknetErrorCode::UnknownErrorCode(
+            "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+        ),
+        message: "Transaction L2 gas price 49 is below the required threshold 50.".to_string(),
+    })
+)]
+#[case::gas_price_check_disabled_when_percentage_zero_pass(
+    100_u128.try_into().unwrap(),
+    0,
+    0_u128.into(),
+    Ok(())
+)]
+#[case::tx_gas_price_zero_fails_when_percentage_nonzero_fails(
+    100_u128.try_into().unwrap(),
+    10,
+    0_u128.into(),
+    Err(StarknetError {
+        code: StarknetErrorCode::UnknownErrorCode(
+            "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+        ),
+        message: "Transaction L2 gas price 0 is below the required threshold 10.".to_string(),
+    })
+)]
+#[tokio::test]
+async fn validate_resource_bounds(
+    #[case] prev_l2_gas_price: NonzeroGasPrice,
+    #[case] min_gas_price_percentage: u8,
+    #[case] tx_gas_price_per_unit: GasPrice,
+    #[case] expected_result: Result<(), StarknetError>,
+    mut stateful_validator: StatefulTransactionValidator,
+) {
+    stateful_validator.config.validate_resource_bounds = true;
+    stateful_validator.config.min_gas_price_percentage = min_gas_price_percentage;
+
+    let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
+        l2_gas: ResourceBounds { max_price_per_unit: tx_gas_price_per_unit, ..Default::default() },
+        ..Default::default()
+    });
+    let executable_tx = executable_invoke_tx(invoke_tx_args!(resource_bounds));
+
+    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
+    mock_validator.expect_validate().return_once(|_| Ok(()));
+    mock_validator.expect_block_info().return_const(BlockInfo {
+        gas_prices: GasPrices {
+            strk_gas_prices: GasPriceVector {
+                l2_gas_price: prev_l2_gas_price,
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+
+    let result = tokio::task::spawn_blocking(move || {
+        stateful_validator.run_transaction_validations(
+            &executable_tx,
+            nonce!(0),
+            Arc::new(MockMempoolClient::new()),
+            mock_validator,
+            tokio::runtime::Handle::current(),
+        )
+    })
+    .await
+    .unwrap();
+    assert_eq!(result, expected_result);
 }
 
 #[rstest]
@@ -237,7 +346,11 @@ async fn test_is_valid_nonce(
     };
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_| Ok(()));
-    let executable_tx = executable_invoke_tx(invoke_tx_args!(nonce: nonce!(tx_nonce)));
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
+    let executable_tx = executable_invoke_tx(invoke_tx_args!(
+        nonce: nonce!(tx_nonce),
+        resource_bounds: ValidResourceBounds::create_for_testing(),
+    ));
 
     let result = tokio::task::spawn_blocking(move || {
         stateful_validator.run_transaction_validations(
@@ -269,10 +382,14 @@ async fn test_reject_future_declares(
 ) {
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_| Ok(()));
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
 
     let account_nonce = 10;
     let executable_tx = executable_declare_tx(
-        declare_tx_args!(nonce: nonce!(account_nonce + account_nonce_diff)),
+        declare_tx_args!(
+            nonce: nonce!(account_nonce + account_nonce_diff),
+            resource_bounds: ValidResourceBounds::create_for_testing(),
+        ),
         calculate_class_info_for_testing(
             FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class(),
         ),
