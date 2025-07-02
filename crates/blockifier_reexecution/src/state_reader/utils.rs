@@ -67,7 +67,11 @@ pub fn get_rpc_state_reader_config() -> RpcStateReaderConfig {
 
 /// Returns the chain info of mainnet.
 pub fn get_chain_info(chain_id: &ChainId) -> ChainInfo {
-    ChainInfo { chain_id: chain_id.clone(), fee_token_addresses: get_fee_token_addresses(chain_id) }
+    ChainInfo {
+        chain_id: chain_id.clone(),
+        fee_token_addresses: get_fee_token_addresses(chain_id),
+        is_layer_3: false,
+    }
 }
 
 // TODO(Aner): import the following functions instead, to reduce code duplication.

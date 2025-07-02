@@ -119,6 +119,11 @@
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
   },
+  "batcher_config.block_builder_config.chain_info.is_layer_3": {
+    "description": "Whether the chain is a layer 3 chain.",
+    "privacy": "Public",
+    "value": false
+  },
   "batcher_config.block_builder_config.execute_config.n_workers": {
     "description": "Number of parallel transaction execution workers.",
     "privacy": "Public",
@@ -1283,6 +1288,11 @@
     "description": "Address of the STRK fee token.",
     "pointer_target": "strk_fee_token_address",
     "privacy": "Public"
+  },
+  "gateway_config.chain_info.is_layer_3": {
+    "description": "Whether the chain is a layer 3 chain.",
+    "privacy": "Public",
+    "value": false
   },
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": {
     "description": "The maximum allowed gap between the account nonce and the transaction nonce.",
