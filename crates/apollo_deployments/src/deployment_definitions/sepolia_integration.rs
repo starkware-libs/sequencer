@@ -1,30 +1,22 @@
-use std::path::PathBuf;
+use apollo_infra_utils::template::Template;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
-use crate::deployment::{Deployment, DeploymentType, P2PCommunicationType, PragmaDomain};
-use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
-use crate::deployments::hybrid::create_hybrid_instance_config_override;
+use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
+use crate::deployment_definitions::Environment;
+use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
 use crate::k8s::{ExternalSecret, IngressParams};
-use crate::service::DeploymentName;
-use crate::utils::format_node_id;
+use crate::service::NodeType;
 
 const SEPOLIA_INTEGRATION_NODE_IDS: [usize; 3] = [0, 1, 2];
 const SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
     "integration-sepolia.starknet.io";
 const SEPOLIA_INTEGRATION_INGRESS_DOMAIN: &str = "starknet.io";
-const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
-const SECRET_NAME_FORMAT: &str = "apollo-sepolia-integration-{}";
-const NODE_NAMESPACE_FORMAT: &str = "apollo-sepolia-integration-{}";
+const SECRET_NAME_FORMAT: Template = Template("apollo-sepolia-integration-{}");
+const NODE_NAMESPACE_FORMAT: Template = Template("apollo-sepolia-integration-{}");
 
 pub(crate) fn sepolia_integration_hybrid_deployments() -> Vec<Deployment> {
     SEPOLIA_INTEGRATION_NODE_IDS
-        .map(|i| {
-            sepolia_integration_hybrid_deployment_node(
-                i,
-                DeploymentType::Operational,
-                P2PCommunicationType::Internal,
-            )
-        })
+        .map(|i| sepolia_integration_hybrid_deployment_node(i, P2PCommunicationType::Internal))
         .to_vec()
 }
 
@@ -42,21 +34,18 @@ fn sepolia_integration_deployment_config_override() -> DeploymentConfigOverride 
 
 fn sepolia_integration_hybrid_deployment_node(
     id: usize,
-    deployment_type: DeploymentType,
     p2p_communication_type: P2PCommunicationType,
 ) -> Deployment {
     Deployment::new(
-        DeploymentName::HybridNode,
+        NodeType::Hybrid,
         Environment::SepoliaIntegration,
-        &format_node_id(INSTANCE_NAME_FORMAT, id),
-        Some(ExternalSecret::new(format_node_id(SECRET_NAME_FORMAT, id))),
-        PathBuf::from(BASE_APP_CONFIG_PATH),
+        &INSTANCE_NAME_FORMAT.format(&[&id]),
+        Some(ExternalSecret::new(SECRET_NAME_FORMAT.format(&[&id]))),
         ConfigOverride::new(
             sepolia_integration_deployment_config_override(),
             create_hybrid_instance_config_override(
                 id,
                 NODE_NAMESPACE_FORMAT,
-                deployment_type,
                 p2p_communication_type,
                 SEPOLIA_INTEGRATION_INGRESS_DOMAIN,
             ),
