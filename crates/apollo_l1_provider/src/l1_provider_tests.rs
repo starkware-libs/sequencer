@@ -956,3 +956,57 @@ fn validate_tx_unknown_returns_invalid_consumed_or_unknown() {
     let status = l1_provider.validate(tx_hash!(1), l1_provider.current_height).unwrap();
     assert_eq!(status, InvalidValidationStatus::ConsumedOnL1OrUnknown.into());
 }
+
+#[test]
+fn consume_committed_tx() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_committed([l1_handler(2)])
+        .build_into_l1_provider();
+
+    l1_provider.add_events(vec![Event::TransactionConsumed(tx_hash!(2))]).unwrap();
+
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_committed([])
+        .build_into_l1_provider();
+
+    assert_eq!(l1_provider, expected_l1_provider);
+}
+
+#[test]
+fn consume_uncommitted_tx() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1), l1_handler(2)])
+        .with_committed([])
+        .build_into_l1_provider();
+
+    l1_provider.add_events(vec![Event::TransactionConsumed(tx_hash!(1))]).unwrap();
+
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(2)])
+        .with_committed([])
+        .build_into_l1_provider();
+
+    assert_eq!(l1_provider, expected_l1_provider);
+}
+
+#[test]
+fn consume_unknown_tx() {
+    // Setup.
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_committed([l1_handler(2)])
+        .build_into_l1_provider();
+
+    l1_provider.add_events(vec![Event::TransactionConsumed(tx_hash!(3))]).unwrap();
+
+    let expected_l1_provider = L1ProviderContentBuilder::new()
+        .with_txs([l1_handler(1)])
+        .with_committed([l1_handler(2)])
+        .build_into_l1_provider();
+
+    assert_eq!(l1_provider, expected_l1_provider);
+}
