@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use apollo_starknet_os_program::test_programs::ALIASES_TEST_BYTES;
 use blockifier::state::stateful_compression::{ALIAS_COUNTER_STORAGE_KEY, INITIAL_AVAILABLE_ALIAS};
@@ -15,6 +15,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
+    initialize_cairo_runner,
+    run_cairo_0_entrypoint,
     EndpointArg,
     EntryPointRunnerConfig,
     ImplicitArg,
@@ -22,6 +24,8 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 use crate::test_utils::utils::{
+    create_squashed_cairo_dict,
+    flatten_cairo_dict,
     get_entrypoint_runner_config,
     parse_squashed_cairo_dict,
     test_cairo_function,
@@ -29,6 +33,8 @@ use crate::test_utils::utils::{
 
 // TODO(Nimrod): Move this next to the stateful compression hints implementation.
 // TODO(Amos): This test is incomplete. Add the rest of the test cases and remove this todo.
+
+const DEFAULT_CLASS_HASH: u128 = 7777;
 
 #[test]
 fn test_constants() {
@@ -308,4 +314,87 @@ fn allocate_aliases_for_keys_and_replace(
             "The return value doesn't match the given format.\n Got: {explicit_return_values:?}"
         );
     }
+}
+
+#[rstest]
+#[case(HashMap::new(), HashMap::new(), HashMap::new(), HashMap::new(), HashMap::new())]
+fn test_allocate_addresses_for_state_diff_and_replace(
+    #[case] storage_updates: HashMap<u128, HashMap<u128, u128>>,
+    #[case] address_to_class_hash: HashMap<u128, u128>,
+    #[case] address_to_nonce: HashMap<u128, u128>,
+    #[case] initial_alias_storage: HashMap<u128, u128>,
+    #[case] expected_alias_storage: HashMap<u128, u128>,
+) {
+    let runner_config = get_entrypoint_runner_config();
+    let entrypoint = "__main__.allocate_aliases_and_replace";
+    let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
+    let modified_contracts: BTreeSet<_> = storage_updates
+        .keys()
+        .chain(address_to_class_hash.keys().chain(address_to_nonce.keys()))
+        .collect();
+
+    // Initialize the runner to be able to allocate segments.
+    let (mut cairo_runner, program, entrypoint) = initialize_cairo_runner(
+        &runner_config,
+        ALIASES_TEST_BYTES,
+        entrypoint,
+        &implicit_args,
+        HashMap::new(),
+    )
+    .unwrap();
+
+    // Construct the contract state changes.
+    let mut prev_state_entries = HashMap::new();
+    let mut new_state_entries = HashMap::new();
+    let n_contracts = modified_contracts.len();
+    for address in modified_contracts {
+        let inner_updates = storage_updates
+            .get(address)
+            .unwrap_or(&HashMap::new())
+            .iter()
+            .map(|(k, v)| ((*k).into(), Felt::from(*v).into()))
+            .collect();
+        let (new_nonce, prev_nonce) = (address_to_nonce.get(address).copied().unwrap_or(0), 0);
+        let (new_class_hash, prev_class_hash) = (
+            address_to_class_hash.get(address).copied().unwrap_or(DEFAULT_CLASS_HASH),
+            DEFAULT_CLASS_HASH,
+        );
+        let (prev_storage_ptr, new_storage_ptr) =
+            create_squashed_cairo_dict(&HashMap::new(), &inner_updates, &mut cairo_runner.vm);
+        let new_state_entry: Vec<MaybeRelocatable> = vec![
+            Felt::from(new_class_hash).into(),
+            new_storage_ptr.into(),
+            Felt::from(new_nonce).into(),
+        ];
+        let prev_state_entry: Vec<MaybeRelocatable> = vec![
+            Felt::from(prev_class_hash).into(),
+            prev_storage_ptr.into(),
+            Felt::from(prev_nonce).into(),
+        ];
+        new_state_entries
+            .insert((*address).into(), cairo_runner.vm.gen_arg(&new_state_entry).unwrap());
+        prev_state_entries
+            .insert((*address).into(), cairo_runner.vm.gen_arg(&prev_state_entry).unwrap());
+    }
+    let flat_contract_state_changes = flatten_cairo_dict(&prev_state_entries, &new_state_entries);
+    let explicit_args = vec![
+        EndpointArg::Value(ValueArg::Single(n_contracts.into())),
+        EndpointArg::Pointer(PointerArg::Array(flat_contract_state_changes)),
+    ];
+    let expected_explicit_return_values = vec![]; // COMPLETE!
+    let storage_view = initial_alias_storage
+        .into_iter()
+        .map(|(key, value)| ((*ALIAS_CONTRACT_ADDRESS, key.into()), value.into()))
+        .collect();
+    let state_reader = DictStateReader { storage_view, ..Default::default() };
+    run_cairo_0_entrypoint(
+        entrypoint,
+        &explicit_args,
+        &implicit_args,
+        Some(state_reader),
+        &mut cairo_runner,
+        &program,
+        &runner_config,
+        &expected_explicit_return_values,
+    );
 }
