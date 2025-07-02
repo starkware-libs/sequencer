@@ -101,6 +101,7 @@ pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
     Ok(MessageToL1 { from_address, to_address, payload })
 }
 
+// TODO(Tzahi): Replace with starknet_api struct after it is updated.
 #[allow(dead_code)]
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 // An L1 to L2 message header, the message payload is concatenated to the end of the header.
@@ -385,6 +386,7 @@ impl OsOutput {
 
 pub struct StarknetOsRunnerOutput {
     // TODO(Tzahi): Use OsOutput struct once fully supported..
+    #[cfg(feature = "include_program_output")]
     pub os_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
     pub da_segment: Option<Vec<Felt>>,
@@ -395,6 +397,7 @@ pub struct StarknetOsRunnerOutput {
 
 pub struct StarknetAggregatorRunnerOutput {
     // TODO(Aner): Define a struct for the output.
+    #[cfg(feature = "include_program_output")]
     pub aggregator_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
     #[cfg(any(test, feature = "testing"))]
