@@ -454,6 +454,7 @@ impl TryFrom<PyOsConfig> for ChainInfo {
                     py_os_config.fee_token_address.0,
                 )?,
             },
+            is_l3: false,
         })
     }
 }

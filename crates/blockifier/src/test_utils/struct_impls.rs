@@ -144,6 +144,7 @@ impl ChainInfo {
                 eth_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS),
                 strk_fee_token_address: contract_address!(TEST_ERC20_CONTRACT_ADDRESS2),
             },
+            is_l3: false,
         }
     }
 }
