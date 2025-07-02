@@ -17,6 +17,7 @@ use async_trait::async_trait;
 use futures::FutureExt;
 use lru::LruCache;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
+use serde::de::Error;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use tokio_util::task::AbortOnDropHandle;
@@ -210,19 +211,31 @@ impl EthToStrkOracleClient {
 }
 
 fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
-    let json: serde_json::Value = serde_json::from_str(&body)?;
-    let price = json
-        .get("price")
-        .and_then(|v| v.as_str()) // Also error if value is not a string.
-        .ok_or(EthToStrkOracleClientError::MissingFieldError("price"))?;
+    let Ok(json): Result<serde_json::Value, _> = serde_json::from_str(&body) else {
+        warn!("Failed to parse JSON response: {body}");
+        return Err(EthToStrkOracleClientError::ParseError(serde_json::Error::custom(format!(
+            "Failed to parse JSON: {body}"
+        ))));
+    };
+    // Extract price from API response. Also returns MissingFieldError if value is not a string.
+    let price = match json.get("price").and_then(|v| v.as_str()) {
+        Some(price) => price,
+        None => {
+            warn!("Failed to parse JSON response: {json}");
+            return Err(EthToStrkOracleClientError::MissingFieldError("price"));
+        }
+    };
     // Convert hex to u128
     let rate = u128::from_str_radix(price.trim_start_matches("0x"), 16)
         .expect("Failed to parse price as u128");
-    // Extract decimals from API response
-    let decimals = json
-        .get("decimals")
-        .and_then(|v| v.as_u64())// Also error if value is not a number.
-        .ok_or(EthToStrkOracleClientError::MissingFieldError("decimals"))?;
+    // Extract decimals from API response. Also returns MissingFieldError if value is not a number.
+    let decimals = match json.get("decimals").and_then(|v| v.as_u64()) {
+        Some(decimals) => decimals,
+        None => {
+            warn!("Failed to parse JSON response: {json}");
+            return Err(EthToStrkOracleClientError::MissingFieldError("decimals"));
+        }
+    };
     if decimals != ETH_TO_STRK_QUANTIZATION {
         return Err(EthToStrkOracleClientError::InvalidDecimalsError(
             ETH_TO_STRK_QUANTIZATION,
