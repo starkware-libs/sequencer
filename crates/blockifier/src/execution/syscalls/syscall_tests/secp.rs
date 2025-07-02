@@ -37,7 +37,7 @@ fn test_secp256k1(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 16997129,
+            gas_consumed: 16995759,
         }
     "#]];
     expectation.assert_debug_eq(&execution);
@@ -70,7 +70,7 @@ fn test_secp256k1_point_from_x(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 184690,
+            gas_consumed: 184090,
         }
     "#]]
     .assert_debug_eq(&execution);
@@ -102,7 +102,7 @@ fn test_secp256r1(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 27569930,
+            gas_consumed: 27570910,
         }
     "#]]
     .assert_debug_eq(&execution);

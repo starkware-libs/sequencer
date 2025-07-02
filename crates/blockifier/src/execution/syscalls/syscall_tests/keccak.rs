@@ -38,7 +38,7 @@ fn test_keccak(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 236667,
+            gas_consumed: 232697,
         }
     "#]]
     .assert_debug_eq(&execution);

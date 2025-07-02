@@ -37,7 +37,7 @@ fn test_sha256(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 869855,
+            gas_consumed: 861265,
         }
     "#]]
     .assert_debug_eq(&execution);

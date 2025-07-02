@@ -57,7 +57,7 @@ fn test_library_call(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 127470,
+            gas_consumed: 126670,
         }
     "#]]
     .assert_debug_eq(&execution);
@@ -101,7 +101,7 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: true,
-            gas_consumed: 111020,
+            gas_consumed: 110520,
         }
     "#]]
     .assert_debug_eq(&call_info.execution);
@@ -146,7 +146,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
     let expected_nested_initial_gas = expect![[r#"
-        9999081600
+        9999083710
     "#]];
     let nested_storage_entry_point = CallEntryPoint {
         entry_point_selector: inner_entry_point_selector,
@@ -158,7 +158,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
     let expected_library_initial_gas = expect![[r#"
-        9999182620
+        9999184230
     "#]];
     let library_entry_point = CallEntryPoint {
         entry_point_selector: outer_entry_point_selector,
@@ -176,7 +176,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
     let expected_storage_initial_gas = expect![[r#"
-        9998975990
+        9998978400
     "#]];
     let storage_entry_point = CallEntryPoint {
         calldata: calldata![felt!(key), felt!(value)],
@@ -191,7 +191,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
     );
 
     let expected_nested_gas_consumed = expect![[r#"
-        26450
+        26150
     "#]];
     let nested_storage_call_info = CallInfo {
         call: nested_storage_entry_point,
@@ -214,7 +214,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
     };
 
     let expected_library_call_gas_consumed = expect![[r#"
-        127470
+        126670
     "#]];
     let library_call_info = CallInfo {
         call: library_entry_point,
@@ -233,7 +233,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
     };
 
     let expected_storage_call_gas_consumed = expect![[r#"
-        26450
+        26150
     "#]];
     let storage_call_info = CallInfo {
         call: storage_entry_point,
@@ -256,7 +256,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
     };
 
     let expected_main_gas_consumed = expect![[r#"
-        342890
+        340190
     "#]];
     let expected_call_info = CallInfo {
         call: main_entry_point.clone(),

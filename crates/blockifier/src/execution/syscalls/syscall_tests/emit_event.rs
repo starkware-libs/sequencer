@@ -71,7 +71,7 @@ fn positive_flow(runnable_version: RunnableCairo1) {
             l2_to_l1_messages: [],
             cairo_native: false,
             failed: false,
-            gas_consumed: 34580,
+            gas_consumed: 31810,
         }
     "#]]
     .assert_debug_eq(&call_info.execution);
