@@ -4,6 +4,8 @@ use std::sync::LazyLock;
 
 use cairo_vm::hint_processor::builtin_hint_processor::dict_hint_utils::DICT_ACCESS_SIZE;
 use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
+use cairo_vm::vm::vm_core::VirtualMachine;
 use ethnum::U256;
 use num_bigint::{BigInt, Sign};
 use rand::rngs::StdRng;
@@ -17,8 +19,6 @@ use crate::test_utils::cairo_runner::{
     EndpointArg,
     EntryPointRunnerConfig,
     ImplicitArg,
-    PointerArg,
-    ValueArg,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -49,22 +49,33 @@ pub fn run_cairo_function_and_check_result(
     Ok(())
 }
 
-pub fn create_squashed_cairo_dict(
-    prev_values: &HashMap<Felt, EndpointArg>,
-    new_values: &HashMap<Felt, EndpointArg>,
-) -> PointerArg {
-    let mut squashed_dict: Vec<EndpointArg> = vec![];
+/// Creates a squashed dict from previous and new values, and stores it in a new memory segment.
+pub fn allocate_squashed_cairo_dict(
+    prev_values: &HashMap<Felt, MaybeRelocatable>,
+    new_values: &HashMap<Felt, MaybeRelocatable>,
+    vm: &mut VirtualMachine,
+) -> (Relocatable, Relocatable) {
+    let squashed_dict = flatten_cairo_dict(prev_values, new_values);
+    let dict_segment_start = vm.add_memory_segment();
+    let dict_segment_end = vm.load_data(dict_segment_start, &squashed_dict).unwrap();
+    (dict_segment_start, dict_segment_end)
+}
+
+pub fn flatten_cairo_dict(
+    prev_values: &HashMap<Felt, MaybeRelocatable>,
+    new_values: &HashMap<Felt, MaybeRelocatable>,
+) -> Vec<MaybeRelocatable> {
+    let mut squashed_dict = vec![];
     let mut sorted_new_values: Vec<_> = new_values.iter().collect();
     sorted_new_values.sort_by_key(|(key, _)| *key);
 
     for (key, value) in sorted_new_values {
-        let prev_value: &EndpointArg =
-            prev_values.get(key).unwrap_or(&EndpointArg::Value(ValueArg::Single(Felt::ZERO)));
+        let prev_value = prev_values.get(key).unwrap_or(&MaybeRelocatable::Int(Felt::ZERO));
         squashed_dict.push((*key).into());
         squashed_dict.push(prev_value.clone());
         squashed_dict.push(value.clone());
     }
-    PointerArg::Composed(squashed_dict)
+    squashed_dict
 }
 
 pub fn parse_squashed_cairo_dict(squashed_dict: &[Felt]) -> HashMap<Felt, Felt> {
