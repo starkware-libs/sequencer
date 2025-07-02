@@ -26,12 +26,15 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::context::ChainInfo;
+use num_rational::Ratio;
+use starknet_api::block::NonzeroGasPrice;
 use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
     RpcTransaction,
 };
+use starknet_api::transaction::fields::ValidResourceBounds;
 use tracing::{debug, error, info, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
@@ -45,6 +48,10 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 #[cfg(test)]
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
+
+// TODO(Arni): Move to a config.
+// Minimum gas price as percentage of threshold to accept transactions.
+const MIN_GAS_PRICE_PRECENTAGE: u8 = 80; // E.g., 80 to require 80% of threshold.
 
 #[derive(Clone)]
 pub struct Gateway {
@@ -203,11 +210,18 @@ impl ProcessTxBlockingTask {
         let mut validator = self
             .stateful_tx_validator
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
-        // TODO(Arni): Use the _l2_gas_price reject transactions that do not pass the gas price
-        // threshold.
-        // TODO(Arni): get next_l2_gas_price from the block header.
-        let _l2_gas_price =
-            validator.block_context().block_info().gas_prices.strk_gas_prices.l2_gas_price;
+
+        // Skip this validation during the systems bootstrap phase.
+        if self.stateless_tx_validator.config.validate_non_zero_resource_bounds {
+            // TODO(Arni): get next_l2_gas_price from the block header.
+            let previous_block_l2_gas_price =
+                validator.block_context().block_info().gas_prices.strk_gas_prices.l2_gas_price;
+            validate_tx_l2_gas_price_within_threshold(
+                executable_tx.resource_bounds(),
+                previous_block_l2_gas_price,
+            )?;
+        }
+
         let address = executable_tx.contract_address();
         let nonce = validator.get_nonce(address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", address, e);
@@ -225,6 +239,39 @@ impl ProcessTxBlockingTask {
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
         Ok(AddTransactionArgs { tx: internal_tx, account_state: AccountState { address, nonce } })
     }
+}
+
+// TODO(Arni): Consider running this validation for all gas prices.
+fn validate_tx_l2_gas_price_within_threshold(
+    tx_resource_bounds: ValidResourceBounds,
+    previous_block_l2_gas_price: NonzeroGasPrice,
+) -> GatewayResult<()> {
+    match tx_resource_bounds {
+        ValidResourceBounds::AllResources(tx_resource_bounds) => {
+            let tx_l2_gas_price = tx_resource_bounds.l2_gas.max_price_per_unit;
+            let gas_price_threshold_multiplier =
+                Ratio::new(MIN_GAS_PRICE_PRECENTAGE.into(), 100_u128);
+            let threshold =
+                (gas_price_threshold_multiplier * previous_block_l2_gas_price.get().0).to_integer();
+            if tx_l2_gas_price.0 < threshold {
+                return Err(StarknetError {
+                    // We didn't have this kind of an error.
+                    code: StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+                    ),
+                    message: format!(
+                        "Transaction L2 gas price {} is below the required threshold {}.",
+                        tx_l2_gas_price, threshold
+                    ),
+                });
+            }
+        }
+        ValidResourceBounds::L1Gas(_) => {
+            // No validation required for legacy transactions.
+        }
+    }
+
+    Ok(())
 }
 
 fn convert_compiled_class_hash_error(error: ValidateCompiledClassHashError) -> StarknetError {

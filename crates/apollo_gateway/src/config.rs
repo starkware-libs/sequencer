@@ -44,6 +44,8 @@ impl SerializeConfig for GatewayConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatelessTransactionValidatorConfig {
+    // TODO(Arni): Align the name of this field with the mempool config, and all other places where
+    // validation is skipped during the systems bootstrap phase.
     // If true, validates that the resource bounds are not zero.
     pub validate_non_zero_resource_bounds: bool,
     // TODO(AlonH): Remove this field and use the one from the versioned constants.
