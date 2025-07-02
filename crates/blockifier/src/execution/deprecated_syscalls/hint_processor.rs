@@ -23,6 +23,7 @@ use starknet_api::core::{
     ClassHash,
     ContractAddress,
     EntryPointSelector,
+    EthAddress,
 };
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::constants::EXECUTE_ENTRY_POINT_NAME;
@@ -757,6 +758,9 @@ impl DeprecatedSyscallExecutor for DeprecatedSyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
     ) -> DeprecatedSyscallResult<SendMessageToL1Response> {
         let execution_context = &mut syscall_handler.context;
+        if !execution_context.tx_context.block_context.chain_info.is_l3 {
+            EthAddress::try_from(request.message.to_address)?;
+        }
         let ordered_message_to_l1 = OrderedL2ToL1Message {
             order: execution_context.n_sent_messages_to_l1,
             message: request.message,
