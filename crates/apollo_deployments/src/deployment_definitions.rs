@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use serde::Serialize;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
@@ -52,5 +53,37 @@ pub enum Environment {
 impl Environment {
     pub(crate) fn env_dir_path(&self) -> PathBuf {
         PathBuf::from(CONFIG_BASE_DIR).join(DEPLOYMENT_CONFIG_DIR_NAME).join(self.to_string())
+    }
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+pub struct StateSyncConfig {
+    #[serde(rename = "state_sync_config.central_sync_client_config.#is_none")]
+    state_sync_config_central_sync_client_config_is_none: bool,
+    #[serde(rename = "state_sync_config.p2p_sync_client_config.#is_none")]
+    state_sync_config_p2p_sync_client_config_is_none: bool,
+    #[serde(rename = "state_sync_config.network_config.#is_none")]
+    state_sync_config_network_config_is_none: bool,
+}
+
+pub enum StateSyncType {
+    Central,
+    P2P,
+}
+
+impl StateSyncType {
+    pub fn get_state_sync_config(&self) -> StateSyncConfig {
+        match self {
+            StateSyncType::Central => StateSyncConfig {
+                state_sync_config_central_sync_client_config_is_none: false,
+                state_sync_config_p2p_sync_client_config_is_none: true,
+                state_sync_config_network_config_is_none: true,
+            },
+            StateSyncType::P2P => StateSyncConfig {
+                state_sync_config_central_sync_client_config_is_none: true,
+                state_sync_config_p2p_sync_client_config_is_none: false,
+                state_sync_config_network_config_is_none: false,
+            },
+        }
     }
 }

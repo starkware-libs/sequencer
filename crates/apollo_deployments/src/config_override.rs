@@ -10,6 +10,7 @@ use serde_with::with_prefix;
 use starknet_api::block::BlockNumber;
 
 use crate::deployment::PragmaDomain;
+use crate::deployment_definitions::{StateSyncConfig, StateSyncType};
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
 
@@ -131,6 +132,8 @@ pub struct DeploymentConfigOverride {
     l1_provider_config_provider_startup_height_override_is_none: bool,
     #[serde(rename = "consensus_manager_config.context_config.num_validators")]
     consensus_manager_config_context_config_num_validators: usize,
+    #[serde(flatten)]
+    state_sync_config: StateSyncConfig,
 }
 
 impl DeploymentConfigOverride {
@@ -144,6 +147,7 @@ impl DeploymentConfigOverride {
         pragma_domain: PragmaDomain,
         l1_startup_height_override: Option<BlockNumber>,
         consensus_manager_config_context_config_num_validators: usize,
+        state_sync_type: StateSyncType,
     ) -> Self {
         let (
             l1_provider_config_provider_startup_height_override,
@@ -164,6 +168,7 @@ impl DeploymentConfigOverride {
             l1_provider_config_provider_startup_height_override,
             l1_provider_config_provider_startup_height_override_is_none,
             consensus_manager_config_context_config_num_validators,
+            state_sync_config: state_sync_type.get_state_sync_config(),
         }
     }
 }
