@@ -12,7 +12,8 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
-pub type SharedCommittee = Arc<Vec<Staker>>;
+pub type Committee = Vec<Staker>;
+pub type StakerSet = Vec<Staker>;
 
 const GET_STAKERS_ENTRY_POINT: &str = "get_stakers";
 
@@ -25,7 +26,7 @@ struct CommitteeDataCache {
     // The maximum number of epochs to cache.
     capacity: usize,
     // A map of epoch to the epoch's data.
-    cache: BTreeMap<u64, SharedCommittee>,
+    cache: BTreeMap<u64, Arc<Committee>>,
 }
 
 impl CommitteeDataCache {
@@ -33,11 +34,11 @@ impl CommitteeDataCache {
         Self { capacity, cache: BTreeMap::new() }
     }
 
-    pub fn get(&self, epoch: u64) -> Option<&SharedCommittee> {
+    pub fn get(&self, epoch: u64) -> Option<&Arc<Committee>> {
         self.cache.get(&epoch)
     }
 
-    pub fn insert(&mut self, epoch: u64, data: SharedCommittee) {
+    pub fn insert(&mut self, epoch: u64, data: Arc<Committee>) {
         self.cache.insert(epoch, data);
         if self.cache.len() > self.capacity {
             self.cache.pop_first();
@@ -48,6 +49,10 @@ impl CommitteeDataCache {
 pub struct CommitteeManagerConfig {
     pub staking_contract_address: ContractAddress,
     pub max_cached_epochs: usize,
+
+    // The desired number of committee members to select from the available stakers.
+    // If there are fewer stakers than `committee_size`, a smaller committee will be selected.
+    pub committee_size: usize,
 }
 
 // Responsible for fetching and storing the committee at a given epoch.
@@ -93,7 +98,7 @@ impl CommitteeManager {
         epoch: u64,
         state_reader: impl StateReader,
         block_context: Arc<BlockContext>,
-    ) -> CommitteeManagerResult<SharedCommittee> {
+    ) -> CommitteeManagerResult<Arc<Committee>> {
         if let Some(committee_data) = self.committee_data_cache.get(epoch) {
             return Ok(committee_data.clone());
         }
@@ -108,12 +113,16 @@ impl CommitteeManager {
 
         let stakers = Staker::from_retdata_many(call_info.execution.retdata)?;
 
-        // TODO(Dafna): choose the committee.
-
-        let committee = Arc::new(stakers);
+        let committee = Arc::new(self.select_committee(stakers));
         self.committee_data_cache.insert(epoch, committee.clone());
 
         Ok(committee)
+    }
+
+    fn select_committee(&self, mut stakers: StakerSet) -> Committee {
+        // Take the top `committee_size` stakers by weight.
+        stakers.sort_by_key(|staker| staker.weight);
+        stakers.into_iter().rev().take(self.config.committee_size).collect()
     }
 }
 
