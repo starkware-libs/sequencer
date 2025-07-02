@@ -17,8 +17,10 @@ mod TestContract {
     use starknet::{
         class_hash_try_from_felt252, contract_address_try_from_felt252,
         eth_address::U256IntoEthAddress, EthAddress, secp256_trait::{Signature, is_valid_signature},
-        secp256r1::{Secp256r1Point, Secp256r1Impl}, eth_signature::verify_eth_signature,
         info::{BlockInfo, SyscallResultTrait}, info::v2::{ExecutionInfo, TxInfo, ResourceBounds,},
+        secp256r1::{Secp256r1Point, Secp256r1Impl}, eth_signature::verify_eth_signature,
+        storage_access::{storage_address_from_base_and_offset, storage_base_address_from_felt252},
+        storage_write_syscall,
         syscalls
     };
     use core::circuit::{
@@ -42,6 +44,22 @@ mod TestContract {
     fn constructor(ref self: ContractState, arg1: felt252, arg2: felt252) -> felt252 {
         self.my_storage_var.write(arg1 + arg2);
         arg1
+    }
+
+    #[external(v0)]
+    fn test(ref self: ContractState, ref arg: felt252, arg1: felt252, arg2: felt252) -> felt252 {
+        let x = self.my_storage_var.read();
+        self.my_storage_var.write(x + 1);
+        x + 1
+    }
+
+    #[external(v0)]
+    fn test_storage_write(ref self: ContractState, address: felt252, value: felt252) {
+        let domain_address = 0_u32; // Only address_domain 0 is currently supported.
+        let storage_address = storage_address_from_base_and_offset(
+            storage_base_address_from_felt252(address), 0_u8
+        );
+        storage_write_syscall(domain_address, storage_address, value).unwrap_syscall();
     }
 
     #[external(v0)]
@@ -225,6 +243,35 @@ mod TestContract {
             execution_info.entry_point_selector == expected_entry_point_selector,
             'SELECTOR_MISMATCH'
         );
+    }
+
+    #[external(v0)]
+    fn test_get_execution_info_without_block_info(
+        ref self: ContractState,
+        // Expected transaction info.
+        version: felt252,
+        account_address: felt252,
+        max_fee: felt252,
+        resource_bounds: Span::<ResourceBounds>,
+        // Expected call info.
+        caller_address: felt252,
+        contract_address: felt252,
+        entry_point_selector: felt252,
+    ) {
+        let execution_info = starknet::get_execution_info().unbox();
+        let tx_info = execution_info.tx_info.unbox();
+        assert(tx_info.version == version, 'VERSION_MISMATCH');
+        assert(tx_info.account_contract_address.into() == account_address, 'ACCOUNT_MISMATCH');
+        assert(tx_info.max_fee.into() == max_fee, 'MAX_FEE_MISMATCH');
+        assert(tx_info.resource_bounds == resource_bounds, 'RESOURCE_BOUND_MISMATCH');
+        assert(tx_info.tip == 0_u128, 'TIP_MISMATCH');
+        assert(tx_info.paymaster_data.len() == 0_u32, 'PAYMASTER_DATA_MISMATCH');
+        assert(tx_info.nonce_data_availability_mode == 0_u32, 'NONCE_DA_MODE_MISMATCH');
+        assert(tx_info.fee_data_availability_mode == 0_u32, 'FEE_DA_MODE_MISMATCH');
+        assert(tx_info.account_deployment_data.len() == 0_u32, 'DEPLOYMENT_DATA_MISMATCH');
+        assert(execution_info.caller_address.into() == caller_address, 'CALLER_MISMATCH');
+        assert(execution_info.contract_address.into() == contract_address, 'CONTRACT_MISMATCH');
+        assert(execution_info.entry_point_selector == entry_point_selector, 'SELECTOR_MISMATCH');
     }
 
     #[external(v0)]
