@@ -25,14 +25,14 @@ use mockall::predicate::eq;
 use num_bigint::BigUint;
 use pretty_assertions::assert_eq;
 use rstest::{fixture, rstest};
-use starknet_api::block::GasPrice;
+use starknet_api::block::{BlockInfo, GasPrice};
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::AccountTransaction;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
-use starknet_api::transaction::fields::Resource;
+use starknet_api::transaction::fields::{Resource, ValidResourceBounds};
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
 use crate::config::StatefulTransactionValidatorConfig;
@@ -86,6 +86,7 @@ async fn test_stateful_tx_validator(
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_| expected_result.map(|_| ()));
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
 
     let account_nonce = nonce!(0);
     let mut mock_mempool_client = MockMempoolClient::new();
@@ -190,6 +191,7 @@ async fn test_skip_stateful_validation(
         .expect_validate()
         .withf(move |tx| tx.execution_flags.validate == should_validate)
         .returning(|_| Ok(()));
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
     let mut mock_mempool_client = MockMempoolClient::new();
     mock_mempool_client
         .expect_account_tx_in_pool_or_recent_block()
@@ -238,8 +240,12 @@ async fn test_is_valid_nonce(
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_| Ok(()));
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
 
-    let executable_tx = executable_invoke_tx(invoke_tx_args!(nonce: nonce!(tx_nonce)));
+    let executable_tx = executable_invoke_tx(invoke_tx_args!(
+        nonce: nonce!(tx_nonce),
+        resource_bounds: ValidResourceBounds::create_for_testing(),
+    ));
     let result = tokio::task::spawn_blocking(move || {
         stateful_validator.run_validate(
             &executable_tx,
@@ -270,10 +276,14 @@ async fn test_reject_future_declares(
 ) {
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
     mock_validator.expect_validate().return_once(|_| Ok(()));
+    mock_validator.expect_block_info().return_const(BlockInfo::default());
 
     let account_nonce = 10;
     let executable_tx = executable_declare_tx(
-        declare_tx_args!(nonce: nonce!(account_nonce + account_nonce_diff)),
+        declare_tx_args!(
+            nonce: nonce!(account_nonce + account_nonce_diff),
+            resource_bounds: ValidResourceBounds::create_for_testing()
+        ),
         calculate_class_info_for_testing(
             FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class(),
         ),
