@@ -14,7 +14,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{split_bigint3, BASE, BLS_PRIME};
 use crate::test_utils::cairo_runner::{
-    run_cairo_0_entry_point,
+    initialize_and_run_cairo_0_entry_point,
     EndpointArg,
     ImplicitArg,
     PointerArg,
@@ -154,7 +154,7 @@ fn test_horner_eval() {
         let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
 
         let state_reader = None;
-        let (_, explicit_retdata, _) = run_cairo_0_entry_point(
+        let (_, explicit_retdata, _) = initialize_and_run_cairo_0_entry_point(
             &entrypoint_runner_config,
             OS_PROGRAM_BYTES,
             "starkware.starknet.core.os.data_availability.bls_field.horner_eval",
