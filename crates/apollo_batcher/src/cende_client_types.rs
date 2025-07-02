@@ -255,7 +255,8 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
         let messages =
             call.execution.l2_to_l1_messages.iter().map(|l2_to_l1_message| L2ToL1Message {
                 from_address: call.call.caller_address,
-                to_address: l2_to_l1_message.message.to_address,
+                to_address: EthAddress::try_from(l2_to_l1_message.message.to_address)
+                    .expect("Failed to convert L1Address to EthAddress"),
                 payload: l2_to_l1_message.message.payload.clone(),
             });
         l2_to_l1_messages.extend(messages);

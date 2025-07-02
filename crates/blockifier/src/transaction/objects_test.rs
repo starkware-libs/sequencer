@@ -1,6 +1,6 @@
 use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
-use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
+use starknet_api::core::{ClassHash, ContractAddress, L1Address};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::L2ToL1Payload;
@@ -77,7 +77,7 @@ impl TestExecutionSummary {
                     .map(|i| OrderedL2ToL1Message {
                         order: i,
                         message: MessageToL1 {
-                            to_address: EthAddress::default(),
+                            to_address: L1Address::default(),
                             payload: L2ToL1Payload(vec![Felt::default()]),
                         },
                     })
