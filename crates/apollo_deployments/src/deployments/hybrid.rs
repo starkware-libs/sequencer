@@ -1,5 +1,6 @@
 use std::net::{IpAddr, Ipv4Addr};
 
+use apollo_infra_utils::template::Template;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -12,11 +13,7 @@ use strum_macros::{AsRefStr, EnumIter};
 
 use crate::addresses::{get_p2p_address, get_peer_id, SecretKey};
 use crate::config_override::{InstanceConfigOverride, NetworkConfigOverride};
-use crate::deployment::{
-    build_service_namespace_domain_address,
-    DeploymentType,
-    P2PCommunicationType,
-};
+use crate::deployment::{build_service_namespace_domain_address, P2PCommunicationType};
 use crate::deployment_definitions::Environment;
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
@@ -29,10 +26,11 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
-use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
-use crate::utils::{determine_port_numbers, format_node_id, get_secret_key, get_validator_id};
+use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
+use crate::utils::{determine_port_numbers, get_secret_key, get_validator_id};
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
+pub(crate) const INSTANCE_NAME_FORMAT: Template = Template("hybrid_{}");
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const CORE_STORAGE: usize = 1000;
@@ -49,16 +47,16 @@ pub enum HybridNodeServiceName {
     SierraCompiler,
 }
 
-// Implement conversion from `HybridNodeServiceName` to `ServiceName`
-impl From<HybridNodeServiceName> for ServiceName {
+// Implement conversion from `HybridNodeServiceName` to `NodeService`
+impl From<HybridNodeServiceName> for NodeService {
     fn from(service: HybridNodeServiceName) -> Self {
-        ServiceName::HybridNode(service)
+        NodeService::Hybrid(service)
     }
 }
 
 impl GetComponentConfigs for HybridNodeServiceName {
-    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<ServiceName, ComponentConfig> {
-        let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
+    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
+        let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
 
         let ports = determine_port_numbers(ports, HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
 
@@ -102,8 +100,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     get_sierra_compiler_component_config(sierra_compiler.local())
                 }
             };
-            let service_name = inner_service_name.into();
-            component_config_map.insert(service_name, component_config);
+            let node_service = inner_service_name.into();
+            component_config_map.insert(node_service, component_config);
         }
         component_config_map
     }
@@ -143,7 +141,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
-            Environment::StressTest => match self {
+            Environment::StressTest | Environment::SepoliaTestnet => match self {
                 HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
                 HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
@@ -183,6 +181,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
@@ -218,7 +217,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                 }
             },
-            Environment::StressTest => match self {
+            Environment::StressTest | Environment::SepoliaTestnet => match self {
                 HybridNodeServiceName::Core => {
                     Resources::new(Resource::new(50, 200), Resource::new(50, 220))
                 }
@@ -243,6 +242,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => 1,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
@@ -260,13 +260,14 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => false,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => true,
                 HybridNodeServiceName::HttpServer => false,
                 HybridNodeServiceName::Gateway => false,
-                HybridNodeServiceName::Mempool => false,
+                HybridNodeServiceName::Mempool => true,
                 HybridNodeServiceName::SierraCompiler => false,
             },
             _ => unimplemented!(),
@@ -407,9 +408,7 @@ fn get_http_server_component_config(
 
 pub(crate) fn create_hybrid_instance_config_override(
     node_id: usize,
-    // TODO(Tsabary): change `node_namespace_format` to be of its own type with dedicated fns
-    node_namespace_format: &str,
-    deployment_type: DeploymentType,
+    node_namespace_format: Template,
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
@@ -436,10 +435,10 @@ pub(crate) fn create_hybrid_instance_config_override(
     let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
 
     let build_peer_address =
-        |service_name: HybridNodeServiceName, port: u16, node_id: usize, peer_id: &str| {
+        |node_service: HybridNodeServiceName, port: u16, node_id: usize, peer_id: &str| {
             let domain = build_service_namespace_domain_address(
-                &service_name.k8s_service_name(),
-                &format_node_id(node_namespace_format, node_id),
+                &node_service.k8s_service_name(),
+                &node_namespace_format.format(&[&node_id]),
                 &sanitized_domain,
             );
             Some(get_p2p_address(&domain, port, peer_id))
@@ -500,13 +499,8 @@ pub(crate) fn create_hybrid_instance_config_override(
         NetworkConfigOverride::new(
             consensus_bootstrap_peer_multiaddr,
             consensus_advertised_multiaddr,
-            &node_secret_key,
         ),
-        NetworkConfigOverride::new(
-            mempool_bootstrap_peer_multiaddr,
-            mempool_advertised_multiaddr,
-            &node_secret_key,
-        ),
-        get_validator_id(node_id, deployment_type),
+        NetworkConfigOverride::new(mempool_bootstrap_peer_multiaddr, mempool_advertised_multiaddr),
+        get_validator_id(node_id),
     )
 }

@@ -3,6 +3,7 @@ use std::path::Path;
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
+use apollo_infra_utils::template::Template;
 use serde::Serialize;
 use serde_json::to_value;
 use serde_with::with_prefix;
@@ -10,13 +11,12 @@ use starknet_api::block::BlockNumber;
 
 use crate::deployment::PragmaDomain;
 #[cfg(test)]
-use crate::deployment::FIX_BINARY_NAME;
+use crate::test_utils::FIX_BINARY_NAME;
 
 const DEPLOYMENT_FILE_NAME: &str = "deployment_config_override.json";
-const INSTANCE_FILE_NAME: &str = "instance_config_override.json";
 
-const PRAGMA_URL_TEMPLATE: &str =
-    "https://api.{}.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median";
+const PRAGMA_URL_TEMPLATE: Template =
+    Template("https://api.{}.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median");
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct ConfigOverride {
@@ -34,11 +34,12 @@ impl ConfigOverride {
 
     fn config_files(
         &self,
-        application_config_subdir: &Path,
+        deployment_config_override_dir: &Path,
+        instance_name: &str,
         create: bool,
     ) -> ConfigOverrideWithPaths {
-        let deployment_path = application_config_subdir.join(DEPLOYMENT_FILE_NAME);
-        let instance_path = application_config_subdir.join(INSTANCE_FILE_NAME);
+        let deployment_path = deployment_config_override_dir.join(DEPLOYMENT_FILE_NAME);
+        let instance_path = deployment_config_override_dir.join(format!("{}.json", instance_name));
 
         if create {
             serialize_to_file(
@@ -62,19 +63,34 @@ impl ConfigOverride {
         }
     }
 
-    pub fn get_config_file_paths(&self, application_config_subdir: &Path) -> Vec<String> {
-        let config_override_with_paths = self.config_files(application_config_subdir, false);
+    pub fn get_config_file_paths(
+        &self,
+        deployment_config_override_dir: &Path,
+        instance_name: &str,
+    ) -> Vec<String> {
+        let config_override_with_paths =
+            self.config_files(deployment_config_override_dir, instance_name, false);
         vec![config_override_with_paths.deployment_path, config_override_with_paths.instance_path]
     }
 
-    pub fn dump_config_files(&self, application_config_subdir: &Path) -> Vec<String> {
-        let config_override_with_paths = self.config_files(application_config_subdir, true);
+    pub fn dump_config_files(
+        &self,
+        deployment_config_override_dir: &Path,
+        instance_name: &str,
+    ) -> Vec<String> {
+        let config_override_with_paths =
+            self.config_files(deployment_config_override_dir, instance_name, true);
         vec![config_override_with_paths.deployment_path, config_override_with_paths.instance_path]
     }
 
     #[cfg(test)]
-    pub fn test_dump_config_files(&self, application_config_subdir: &Path) {
-        let config_override_with_paths = self.config_files(application_config_subdir, false);
+    pub fn test_dump_config_files(
+        &self,
+        deployment_config_override_dir: &Path,
+        instance_name: &str,
+    ) {
+        let config_override_with_paths =
+            self.config_files(deployment_config_override_dir, instance_name, false);
 
         serialize_to_file_test(
             to_value(config_override_with_paths.deployment_config_override).unwrap(),
@@ -140,7 +156,7 @@ impl DeploymentConfigOverride {
             starknet_url: starknet_url.to_string(),
             strk_fee_token_address: strk_fee_token_address.to_string(),
             consensus_manager_config_eth_to_strk_oracle_config_base_url: PRAGMA_URL_TEMPLATE
-                .replace("{}", &pragma_domain.to_string()),
+                .format(&[&pragma_domain]),
             l1_provider_config_provider_startup_height_override,
             l1_provider_config_provider_startup_height_override_is_none,
         }
@@ -160,16 +176,12 @@ pub struct NetworkConfigOverride {
     advertised_multiaddr: String,
     #[serde(rename = "advertised_multiaddr.#is_none")]
     advertised_multiaddr_is_none: bool,
-
-    // TODO(Tsabary): network secret keys should be defined as secrets.
-    secret_key: String,
 }
 
 impl NetworkConfigOverride {
     pub fn new(
         bootstrap_peer_multiaddr: Option<String>,
         advertised_multiaddr: Option<String>,
-        secret_key: impl ToString,
     ) -> Self {
         let (bootstrap_peer_multiaddr, bootstrap_peer_multiaddr_is_none) =
             match bootstrap_peer_multiaddr {
@@ -185,7 +197,6 @@ impl NetworkConfigOverride {
             bootstrap_peer_multiaddr_is_none,
             advertised_multiaddr,
             advertised_multiaddr_is_none,
-            secret_key: secret_key.to_string(),
         }
     }
 }

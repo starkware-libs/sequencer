@@ -1,13 +1,9 @@
-use std::env;
-use std::fs::File;
 use std::net::{IpAddr, Ipv4Addr};
 
-use apollo_config::dumping::SerializeConfig;
+use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
-use apollo_infra_utils::path::resolve_project_relative_path;
-use apollo_infra_utils::test_utils::assert_json_eq;
-use colored::Colorize;
+use apollo_infra_utils::dumping::serialize_to_file_test;
 use rstest::rstest;
 use validator::Validate;
 
@@ -20,8 +16,10 @@ use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
-    DEFAULT_CONFIG_PATH,
+    CONFIG_SCHEMA_PATH,
 };
+
+const FIX_BINARY_NAME: &str = "update_apollo_node_config_schema";
 
 const LOCAL_EXECUTION_MODE: ReactiveComponentExecutionMode =
     ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled;
@@ -88,38 +86,16 @@ fn valid_component_execution_config(
 }
 
 /// Test the validation of the struct SequencerNodeConfig and that the default config file is up to
-/// date. To update the default config file, run:
-/// cargo run --bin sequencer_dump_config -q
+/// date. To update the default config file, run `cargo run --bin <FIX_BINARY_NAME>`.
 #[test]
 fn default_config_file_is_up_to_date() {
-    let config_path = resolve_project_relative_path("").unwrap().join(DEFAULT_CONFIG_PATH);
-    let from_default_config_file: serde_json::Value =
-        serde_json::from_reader(File::open(config_path).unwrap()).unwrap();
-
-    // Create a temporary file and dump the default config to it.
-    let mut tmp_file_path = env::temp_dir();
-    tmp_file_path.push("cfg.json");
-    SequencerNodeConfig::default()
-        .dump_to_file(
-            &CONFIG_POINTERS,
-            &CONFIG_NON_POINTERS_WHITELIST,
-            tmp_file_path.to_str().unwrap(),
-        )
-        .unwrap();
-
-    // Read the dumped config from the file.
-    let from_code: serde_json::Value =
-        serde_json::from_reader(File::open(tmp_file_path).unwrap()).unwrap();
-
-    let error_message = format!(
-        "{}\n{}",
-        "Default config file doesn't match the default SequencerNodeConfig implementation. Please \
-         update it using the sequencer_dump_config binary."
-            .purple()
-            .bold(),
-        "Diffs shown below (default config file <<>> dump of SequencerNodeConfig::default())."
-    );
-    assert_json_eq(&from_default_config_file, &from_code, error_message);
+    let combined_map = combine_config_map_and_pointers(
+        SequencerNodeConfig::default().dump(),
+        &CONFIG_POINTERS,
+        &CONFIG_NON_POINTERS_WHITELIST,
+    )
+    .unwrap();
+    serialize_to_file_test(&combined_map, CONFIG_SCHEMA_PATH, FIX_BINARY_NAME);
 }
 
 #[test]
