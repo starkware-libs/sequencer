@@ -158,7 +158,7 @@ def merge_branches(src_branch: str, dst_branch: Optional[str]):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Merge a branch into another branch.")
-    parser.add_argument("--src", type=str, help="The source branch to merge.")
+    parser.add_argument("--src", type=str, help="The source branch to merge.", required=True)
     parser.add_argument(
         "--dst",
         type=str,
