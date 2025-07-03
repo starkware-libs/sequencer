@@ -85,18 +85,11 @@ impl TestExecutionSummary {
                 gas_consumed: self.gas_consumed.0,
                 ..Default::default()
             },
-<<<<<<< HEAD
             storage_access_tracker: StorageAccessTracker {
                 accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
                 ..Default::default()
             },
-||||||| 3e0570f6d
-            accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
-=======
-            accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
-            inner_calls: vec![inner_call_info(&self.inner_builtin_counters)],
             builtin_counters: self.builtin_counters.clone(),
->>>>>>> origin/main-v0.13.6
             ..Default::default()
         }
     }
