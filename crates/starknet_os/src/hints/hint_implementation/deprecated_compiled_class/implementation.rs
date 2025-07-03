@@ -15,6 +15,7 @@ use starknet_api::deprecated_contract_class::ContractClass;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::error::{OsHintError, OsHintExtensionResult, OsHintResult};
+use crate::hints::hint_implementation::deprecated_compiled_class::utils::ContractClassWithHintedHash;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
 use crate::vm_utils::{get_address_of_nested_fields, LoadCairoObject};
@@ -38,13 +39,23 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_>,
 ) -> OsHintResult {
-    let (class_hash, deprecated_class) =
+    let (class_hash, (hinted_class_hash, deprecated_class)) =
         hint_processor.deprecated_compiled_classes_iter.next().ok_or_else(|| {
             OsHintError::EndOfIterator { item_type: "deprecated_compiled_classes".to_string() }
         })?;
 
     let dep_class_base = vm.add_memory_segment();
-    deprecated_class.load_into(vm, hint_processor.program, dep_class_base, constants)?;
+    let deprecated_class_with_hinted_hash = ContractClassWithHintedHash {
+        contract_class: &deprecated_class,
+        hinted_class_hash,
+        class_hash,
+    };
+    deprecated_class_with_hinted_hash.load_into(
+        vm,
+        hint_processor.program,
+        dep_class_base,
+        constants,
+    )?;
 
     exec_scopes.insert_value(Scope::CompiledClassHash.into(), class_hash);
     exec_scopes.insert_value(Scope::CompiledClass.into(), deprecated_class);
