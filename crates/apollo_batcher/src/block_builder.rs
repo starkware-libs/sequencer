@@ -603,7 +603,7 @@ impl Default for BlockBuilderConfig {
             execute_config: WorkerPoolConfig::default(),
             bouncer_config: BouncerConfig::default(),
             n_concurrent_txs: 100,
-            tx_polling_interval_millis: 100,
+            tx_polling_interval_millis: 1,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
