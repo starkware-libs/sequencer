@@ -44,7 +44,7 @@ pub enum ValueArg {
 /// pointer to a pointer.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PointerArg {
-    Array(Vec<Felt>),
+    Array(Vec<MaybeRelocatable>),
     Composed(Vec<EndpointArg>),
 }
 
@@ -93,9 +93,9 @@ impl EndpointArg {
                 }
             },
             EndpointArg::Pointer(pointer_arg) => match pointer_arg {
-                PointerArg::Array(felts) => vec![CairoArg::Array(
-                    felts.iter().map(|felt| MaybeRelocatable::Int(*felt)).collect(),
-                )],
+                PointerArg::Array(felts) => {
+                    vec![CairoArg::Array(felts.to_vec())]
+                }
                 PointerArg::Composed(endpoint_args) => vec![CairoArg::Composed(
                     endpoint_args.iter().flat_map(Self::to_cairo_arg_vec).collect(),
                 )],
@@ -433,8 +433,11 @@ fn load_endpoint_arg_from_address(
         EndpointArg::Pointer(pointer_arg) => match pointer_arg {
             PointerArg::Array(array) => {
                 let array_pointer = vm.get_relocatable(address)?;
-                let felt_array = load_sequence_of_felts(array.len(), array_pointer, vm)?;
-                Ok((EndpointArg::Pointer(PointerArg::Array(felt_array)), (address + value_size)?))
+                let array = load_sequence_of_felts(array.len(), array_pointer, vm)?
+                    .into_iter()
+                    .map(MaybeRelocatable::from)
+                    .collect();
+                Ok((EndpointArg::Pointer(PointerArg::Array(array)), (address + value_size)?))
             }
             PointerArg::Composed(endpoint_args) => {
                 let (endpoint_arg_array, _) = load_sequence_of_endpoint_args(
