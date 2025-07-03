@@ -413,7 +413,7 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
     let account_balance = BALANCE.0 - result.receipt.fee.0;
     assert!(!result.is_reverted());
 
-    let erc20 = FeatureContract::ERC20(CairoVersion::Cairo0);
+    let erc20 = FeatureContract::ERC20(account_contract.cairo_version());
     let erc_contract_address = contract_address!(TEST_ERC20_CONTRACT_ADDRESS2);
     let account_balance_key_low = get_fee_token_var_address(account_address);
     let account_balance_key_high = account_balance_key_low.next_storage_key().unwrap();

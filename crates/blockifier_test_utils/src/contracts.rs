@@ -277,8 +277,6 @@ impl FeatureContract {
 
     pub fn get_sierra_path(&self) -> String {
         assert_ne!(self.cairo_version(), CairoVersion::Cairo0);
-        // This is not the compiled Sierra file of the existing ERC20 contract,
-        // but a file that was taken from the compiler repo of another ERC20 contract.
         if matches!(self, &Self::ERC20(CairoVersion::Cairo1(_))) {
             return ERC20_SIERRA_CONTRACT_PATH.to_string();
         }
@@ -296,9 +294,7 @@ impl FeatureContract {
                 CairoVersion::Cairo0 => ERC20_CAIRO0_CONTRACT_PATH,
                 CairoVersion::Cairo1(RunnableCairo1::Casm) => ERC20_CAIRO1_CONTRACT_PATH,
                 #[cfg(feature = "cairo_native")]
-                CairoVersion::Cairo1(RunnableCairo1::Native) => {
-                    todo!("ERC20 cannot be tested with Native")
-                }
+                CairoVersion::Cairo1(RunnableCairo1::Native) => ERC20_SIERRA_CONTRACT_PATH,
             }
             .into()
         } else {
