@@ -46,6 +46,12 @@ struct Args {
     timeout: u64,
 }
 
+fn log(message: &str, args: &Args, level: u8) {
+    if args.verbosity >= level {
+        println!("[{}] {}", args.id, message);
+    }
+}
+
 fn create_peer_private_key(peer_index: usize) -> [u8; 32] {
     let peer_index: u64 = peer_index.try_into().expect("Failed converting usize to u64");
     let array = peer_index.to_le_bytes();
@@ -66,5 +72,6 @@ async fn main() {
 
     builder.install().expect("Failed to install prometheus recorder/exporter");
 
-    let _peer_private_key = create_peer_private_key(args.id);
+    let peer_private_key = create_peer_private_key(args.id);
+    log(&format!("Secret Key: {:#?}", peer_private_key), &args, 1);
 }
