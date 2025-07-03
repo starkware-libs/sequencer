@@ -68,7 +68,7 @@ native_blockifier_errors!(
     (SerdeError, serde_json::Error, PySerdeError),
     (StarknetApiError, StarknetApiError, PyStarknetApiError),
     (StateError, StateError, PyStateError),
-    (StatefulValidatorError, StatefulValidatorError, PyStatefulValidatorError),
+    (StatefulValidatorError, Box<StatefulValidatorError>, PyStatefulValidatorError),
     (StorageError, apollo_storage::StorageError, PyStorageError),
     (TransactionExecutionError, TransactionExecutionError, PyTransactionExecutionError),
     (TransactionExecutorError, TransactionExecutorError, PyTransactionExecutorError),
