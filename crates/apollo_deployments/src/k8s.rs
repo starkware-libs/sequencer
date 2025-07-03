@@ -1,4 +1,7 @@
+use std::collections::HashMap;
+
 use serde::{Serialize, Serializer};
+use serde_json::Value;
 
 use crate::deployment::P2PCommunicationType;
 use crate::deployment_definitions::Environment;
@@ -71,6 +74,104 @@ pub struct Ingress {
 impl Ingress {
     pub fn new(ingress_params: IngressParams, internal: bool, rules: Vec<IngressRule>) -> Self {
         Self { ingress_params, internal, rules }
+    }
+}
+
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub struct InfraPorts {
+    http_server: u16,
+    mempool_p2p: u16,
+    monitoring_endpoint: u16,
+    state_sync: u16,
+}
+
+impl InfraPorts {
+    pub fn new(
+        http_server: u16,
+        mempool_p2p: u16,
+        monitoring_endpoint: u16,
+        state_sync: u16,
+    ) -> Self {
+        Self { http_server, mempool_p2p, monitoring_endpoint, state_sync }
+    }
+
+    pub fn as_map(&self) -> HashMap<String, u16> {
+        match serde_json::to_value(self).unwrap() {
+            Value::Object(map) => map
+                .into_iter()
+                .filter_map(|(k, v)| v.as_u64().and_then(|n| u16::try_from(n).ok()).map(|n| (k, n)))
+                .collect(),
+            _ => panic!("Expected object"),
+        }
+    }
+}
+
+#[derive(Serialize, Clone, Debug, PartialEq)]
+pub struct ComponentPorts {
+    batcher: u16,
+    class_manager: u16,
+    gateway: u16,
+    l1_endpoint_monitor: u16,
+    l1_gas_price_provider: u16,
+    l1_provider: u16,
+    mempool: u16,
+    mempool_p2p: u16,
+    sierra_compiler: u16,
+    state_sync: u16,
+}
+
+impl ComponentPorts {
+    pub fn new(
+        batcher: u16,
+        class_manager: u16,
+        gateway: u16,
+        l1_endpoint_monitor: u16,
+        l1_gas_price_provider: u16,
+        l1_provider: u16,
+        mempool: u16,
+        mempool_p2p: u16,
+        sierra_compiler: u16,
+        state_sync: u16,
+    ) -> Self {
+        Self {
+            batcher,
+            class_manager,
+            gateway,
+            l1_endpoint_monitor,
+            l1_gas_price_provider,
+            l1_provider,
+            mempool,
+            mempool_p2p,
+            sierra_compiler,
+            state_sync,
+        }
+    }
+
+    pub fn as_map(&self) -> HashMap<String, u16> {
+        match serde_json::to_value(self).unwrap() {
+            Value::Object(map) => map
+                .into_iter()
+                .filter_map(|(k, v)| v.as_u64().and_then(|n| u16::try_from(n).ok()).map(|n| (k, n)))
+                .collect(),
+            _ => panic!("Expected object"),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct DeploymentPorts {
+    infra_ports: InfraPorts,
+    component_ports: ComponentPorts,
+}
+
+impl DeploymentPorts {
+    pub fn new(infra_ports: InfraPorts, component_ports: ComponentPorts) -> Self {
+        Self { infra_ports, component_ports }
+    }
+    pub fn get_ports(&self) -> HashMap<String, u16> {
+        let mut ports = self.infra_ports.as_map();
+        ports.extend(self.component_ports.as_map());
+        ports
     }
 }
 
