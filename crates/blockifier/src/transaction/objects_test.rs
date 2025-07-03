@@ -90,6 +90,7 @@ impl TestExecutionSummary {
                 ..Default::default()
             },
             builtin_counters: self.builtin_counters.clone(),
+            inner_calls: vec![inner_call_info(&self.inner_builtin_counters)],
             ..Default::default()
         }
     }
@@ -109,6 +110,7 @@ fn inner_call_info(builtin_counters: &BuiltinCounterMap) -> CallInfo {
         ..Default::default()
     }
 }
+
 fn call_info_with_x_events(n_events: usize, n_inner_calls: usize) -> CallInfo {
     CallInfo {
         execution: CallExecution {
