@@ -9,6 +9,7 @@ use apollo_infra::metrics::{
 };
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
+    ETH_TO_STRK_RATE,
     ETH_TO_STRK_SUCCESS_COUNT,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
@@ -66,17 +67,23 @@ fn get_panel_l1_gas_price_scraper_latest_scraped_block() -> Panel {
     )
 }
 
+fn get_panel_eth_to_strk_rate() -> Panel {
+    Panel::from_gauge(ETH_TO_STRK_RATE, PanelType::TimeSeries)
+}
+
 pub(crate) fn get_l1_gas_price_row() -> Row {
     Row::new(
         "L1 Gas Price",
         vec![
             get_panel_eth_to_strk_error_count(),
             get_panel_eth_to_strk_success_count(),
+            get_panel_eth_to_strk_rate(),
             get_panel_l1_gas_price_provider_insufficient_history(),
             get_panel_l1_gas_price_scraper_success_count(),
             get_panel_l1_gas_price_scraper_baselayer_error_count(),
             get_panel_l1_gas_price_scraper_reorg_detected(),
             get_panel_l1_gas_price_scraper_latest_scraped_block(),
+            get_panel_eth_to_strk_rate(),
         ],
     )
 }

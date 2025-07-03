@@ -8,7 +8,8 @@ define_metrics!(
         MetricCounter { L1_GAS_PRICE_SCRAPER_REORG_DETECTED, "l1_gas_price_scraper_reorg_detected", "Number of times the L1 gas price scraper detected a reorganization in the base layer", init=0 },
         MetricCounter { ETH_TO_STRK_ERROR_COUNT, "eth_to_strk_error_count", "Number of times the query to the Eth to Strk oracle failed due to an error or timeout", init=0 },
         MetricCounter { ETH_TO_STRK_SUCCESS_COUNT, "eth_to_strk_success_count", "Number of times the query to the Eth to Strk oracle succeeded", init=0 },
-        MetricGauge { L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK, "l1_gas_price_scraper_latest_scraped_block", "The latest block number that the L1 gas price scraper has scraped" }
+        MetricGauge { L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK, "l1_gas_price_scraper_latest_scraped_block", "The latest block number that the L1 gas price scraper has scraped" },
+        MetricGauge { ETH_TO_STRK_RATE, "eth_to_strk_rate", "The current rate of ETH to STRK conversion" }
     }
 );
 
@@ -26,4 +27,5 @@ pub(crate) fn register_scraper_metrics() {
 pub(crate) fn register_eth_to_strk_metrics() {
     ETH_TO_STRK_ERROR_COUNT.register();
     ETH_TO_STRK_SUCCESS_COUNT.register();
+    ETH_TO_STRK_RATE.register();
 }
