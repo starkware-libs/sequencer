@@ -274,14 +274,11 @@ impl CasmHashComputationData {
     }
 
     pub fn total_gas(&self) -> GasAmount {
-        self.class_hash_to_casm_hash_computation_gas.values().fold(
-            self.gas_without_casm_hash_computation,
-            |acc, &gas| {
-                acc.checked_add(gas).unwrap_or_else(|| {
-                    panic!("Addition overflow while adding casm hash computation gas.")
-                })
-            },
-        )
+        self.class_hash_to_casm_hash_computation_gas
+            .values()
+            .fold(self.gas_without_casm_hash_computation, |acc, &gas| {
+                acc.checked_add_panic_on_overflow(gas)
+            })
     }
 }
 
@@ -612,13 +609,7 @@ fn proving_gas_from_builtins_and_sierra_gas(
     let steps_proving_gas =
         sierra_gas_to_steps_gas(sierra_gas, versioned_constants, builtin_counters);
 
-    // TODO(Meshi): use checked_add_panic_on_overflow.
-    steps_proving_gas.checked_add(builtins_proving_gas).unwrap_or_else(|| {
-        panic!(
-            "Addition overflow while calculating proving gas. Steps gas: {}, Builtins gas: {}.",
-            steps_proving_gas, builtins_proving_gas
-        )
-    })
+    steps_proving_gas.checked_add_panic_on_overflow(builtins_proving_gas)
 }
 
 // TODO(AvivY): Share code with `vm_resources_to_sierra_gas`.
@@ -635,15 +626,8 @@ fn vm_resources_to_proving_gas(
         memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
 
     n_steps_gas_cost
-        .checked_add(n_memory_holes_gas_cost)
-        .and_then(|sum| sum.checked_add(builtins_gas_cost))
-        .unwrap_or_else(|| {
-            panic!(
-                "Addition overflow while converting vm resources to gas. steps gas: {}, memory \
-                 holes gas: {}, builtins gas: {}.",
-                n_steps_gas_cost, builtins_gas_cost, n_memory_holes_gas_cost
-            )
-        })
+        .checked_add_panic_on_overflow(n_memory_holes_gas_cost)
+        .checked_add_panic_on_overflow(builtins_gas_cost)
 }
 
 pub fn vm_resources_to_sierra_gas(
@@ -657,15 +641,8 @@ pub fn vm_resources_to_sierra_gas(
         memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
 
     n_steps_gas_cost
-        .checked_add(n_memory_holes_gas_cost)
-        .and_then(|sum| sum.checked_add(builtins_gas_cost))
-        .unwrap_or_else(|| {
-            panic!(
-                "Addition overflow while converting vm resources to gas. steps gas: {}, memory \
-                 holes gas: {}, builtins gas: {}.",
-                n_steps_gas_cost, builtins_gas_cost, n_memory_holes_gas_cost
-            )
-        })
+        .checked_add_panic_on_overflow(n_memory_holes_gas_cost)
+        .checked_add_panic_on_overflow(builtins_gas_cost)
 }
 
 /// Computes the steps gas by subtracting the builtins' contribution from the Sierra gas.
