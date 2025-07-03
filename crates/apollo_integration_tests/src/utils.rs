@@ -535,8 +535,11 @@ pub fn create_gateway_config(
         max_signature_length: 2,
         ..Default::default()
     };
-    let stateful_tx_validator_config =
-        StatefulTransactionValidatorConfig { max_allowed_nonce_gap: 1000, ..Default::default() };
+    let stateful_tx_validator_config = StatefulTransactionValidatorConfig {
+        max_allowed_nonce_gap: 1000,
+        validate_non_zero_resource_bounds,
+        ..Default::default()
+    };
 
     GatewayConfig {
         stateless_tx_validator_config,
