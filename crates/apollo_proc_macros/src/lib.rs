@@ -395,6 +395,19 @@ pub fn handle_all_response_variants(input: TokenStream) -> TokenStream {
     TokenStream::from(expanded)
 }
 
+fn get_uniq_identifier_for_call_site() -> Ident {
+    // Use call site span for uniqueness
+    let span = proc_macro::Span::call_site();
+    let span_str = format!("{:?}", span);
+
+    let mut hasher = DefaultHasher::new();
+    span_str.hash(&mut hasher);
+
+    let hash_id = format!("{:x}", hasher.finish()); // short identifier
+    let ident_str = format!("__TRACING_COUNT_{}", hash_id);
+    Ident::new(&ident_str, proc_macro2::Span::call_site())
+}
+
 struct LogEveryNMacroInput {
     log_macro: syn::Path,
     n: Expr,
@@ -420,16 +433,52 @@ pub fn log_every_n(input: TokenStream) -> TokenStream {
     let LogEveryNMacroInput { log_macro, n, args, .. } =
         parse_macro_input!(input as LogEveryNMacroInput);
 
-    // Use call site span for uniqueness
-    let span = proc_macro::Span::call_site();
-    let span_str = format!("{:?}", span);
+    let ident = get_uniq_identifier_for_call_site();
 
-    let mut hasher = DefaultHasher::new();
-    span_str.hash(&mut hasher);
+    let args = args.into_iter().collect::<Vec<_>>();
 
-    let hash_id = format!("{:x}", hasher.finish()); // short identifier
-    let ident_str = format!("__TRACING_COUNT_{}", hash_id);
-    let ident = Ident::new(&ident_str, proc_macro2::Span::call_site());
+    let expanded = quote! {
+        {
+            static #ident: ::std::sync::OnceLock<::std::sync::atomic::AtomicUsize> = ::std::sync::OnceLock::new();
+            let counter = #ident.get_or_init(|| ::std::sync::atomic::AtomicUsize::new(0));
+            let current_count = counter.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed);
+
+            if current_count % (#n) == 0 {
+                #log_macro!(#(#args),*);
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+struct LogEveryNSecMacroInput {
+    log_macro: syn::Path,
+    n: Expr,
+    args: Punctuated<Expr, Token![,]>,
+}
+
+impl Parse for LogEveryNSecMacroInput {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let log_macro: syn::Path = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let n: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let args: Punctuated<Expr, Token![,]> = Punctuated::parse_terminated(input)?;
+
+        Ok(LogEveryNSecMacroInput { log_macro, n, args })
+    }
+}
+
+/// An internal helper macro for logging a message at most once every `n` seconds.
+/// Do not use this directly. Instead use the `info_every_n_sec!`, `debug_every_n_sec!`, etc.
+/// macros.
+#[proc_macro]
+pub fn log_every_n_sec(input: TokenStream) -> TokenStream {
+    let LogEveryNSecMacroInput { log_macro, n, args, .. } =
+        parse_macro_input!(input as LogEveryNSecMacroInput);
+
+    let ident = get_uniq_identifier_for_call_site();
 
     let args = args.into_iter().collect::<Vec<_>>();
 
