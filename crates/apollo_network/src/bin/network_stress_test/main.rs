@@ -1,12 +1,21 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::str::FromStr;
+use std::time::SystemTime;
 use std::vec;
 
-use apollo_network::network_manager::NetworkManager;
+use apollo_network::network_manager::{
+    BroadcastTopicChannels,
+    BroadcastTopicClient,
+    BroadcastTopicClientTrait,
+    NetworkManager,
+};
 use apollo_network::NetworkConfig;
 use clap::Parser;
+use converters::{StressTestMessage, METADATA_SIZE};
 use futures::future::join_all;
+use libp2p::gossipsub::Topic;
 use libp2p::Multiaddr;
+use metrics::counter;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio::time::Duration;
 
@@ -60,6 +69,28 @@ fn log(message: &str, args: &Args, level: u8) {
     }
 }
 
+async fn send_stress_test_messages(
+    mut broadcast_topic_client: BroadcastTopicClient<StressTestMessage>,
+    args: &Args,
+    peer_id: String,
+) {
+    let mut message = StressTestMessage::new(
+        args.id.try_into().unwrap(),
+        vec![0; args.message_size_bytes - METADATA_SIZE],
+        peer_id.clone(),
+    );
+    let duration = Duration::from_millis(args.heartbeat_millis);
+
+    for i in 0.. {
+        tokio::time::sleep(duration).await;
+        message.time = SystemTime::now();
+        // message.id = i;
+        broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
+        log(&format!("Sent message {i}"), args, 1);
+        counter!("sent_messages").increment(1);
+    }
+}
+
 fn create_peer_private_key(peer_index: usize) -> [u8; 32] {
     let peer_index: u64 = peer_index.try_into().expect("Failed converting usize to u64");
     let array = peer_index.to_le_bytes();
@@ -95,10 +126,19 @@ async fn main() {
         network_config.bootstrap_peer_multiaddr = Some(vec![bootstrap_peer]);
     }
 
-    let network_manager = NetworkManager::new(network_config, None, None);
+    let mut network_manager = NetworkManager::new(network_config, None, None);
 
     let peer_id = network_manager.get_local_peer_id();
     log(&format!("My PeerId: {peer_id}"), &args, 1);
+
+    let network_channels = network_manager
+        .register_broadcast_topic::<StressTestMessage>(
+            Topic::new("stress_test_topic".to_string()),
+            args.buffer_size,
+        )
+        .unwrap();
+    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
+        network_channels;
 
     let mut tasks = Vec::new();
 
@@ -106,6 +146,12 @@ async fn main() {
         // Start the network manager to handle incoming connections and messages.
         network_manager.run().await.unwrap();
         panic!("Network manager should not exit");
+    }));
+
+    let args_clone = args.clone();
+    tasks.push(tokio::spawn(async move {
+        send_stress_test_messages(broadcast_topic_client, &args_clone, peer_id).await;
+        unreachable!("Broadcast topic client should not exit");
     }));
 
     let test_timeout = Duration::from_secs(args.timeout);
