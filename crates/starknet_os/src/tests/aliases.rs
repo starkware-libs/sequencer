@@ -14,7 +14,7 @@ use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use crate::test_utils::cairo_runner::{
-    run_cairo_0_entry_point,
+    initialize_and_run_cairo_0_entry_point,
     EndpointArg,
     EntryPointRunnerConfig,
     ImplicitArg,
@@ -279,7 +279,7 @@ fn allocate_aliases_for_keys_and_replace(
         .collect();
 
     let state_reader = DictStateReader { storage_view, ..Default::default() };
-    let (_, explicit_return_values, _) = run_cairo_0_entry_point(
+    let (_, explicit_return_values, _) = initialize_and_run_cairo_0_entry_point(
         &runner_config,
         ALIASES_TEST_BYTES,
         entrypoint,
