@@ -47,7 +47,7 @@ impl StatelessTransactionValidator {
         &self,
         tx: &RpcTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
-        if !self.config.validate_non_zero_resource_bounds {
+        if !self.config.validate_resource_bounds_above_threshold {
             return Ok(());
         }
 
