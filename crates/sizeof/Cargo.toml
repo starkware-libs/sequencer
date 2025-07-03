@@ -9,7 +9,6 @@ license-file.workspace = true
 sizeof_macro = { path = "sizeof_macro" } # Dependency on our macro crate
 sizeof_internal = { path = "sizeof_internal" } # Dependency on our internal crate
 starknet-types-core.workspace = true
-size-of = "0.1.5"
 
 [lints]
 workspace = true

@@ -11879,7 +11879,11 @@ dependencies = [
 
 [[package]]
 name = "sizeof"
+<<<<<<< HEAD
 version = "0.0.0"
+=======
+version = "0.15.0-rc.2"
+>>>>>>> 0b35377fc (starknet_api: internal implementation of sizeof)
 dependencies = [
  "size-of",
  "sizeof_internal",
@@ -11901,7 +11905,11 @@ version = "0.0.0"
 dependencies = [
  "proc-macro2",
  "quote",
+<<<<<<< HEAD
  "syn 2.0.104",
+=======
+ "syn 2.0.100",
+>>>>>>> 0b35377fc (starknet_api: internal implementation of sizeof)
 ]
 
 [[package]]
