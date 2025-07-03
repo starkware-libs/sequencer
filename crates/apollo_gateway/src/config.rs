@@ -47,7 +47,7 @@ pub struct StatelessTransactionValidatorConfig {
     // TODO(Arni): Align the name of this field with the mempool config, and all other places where
     // validation is skipped during the systems bootstrap phase.
     // If true, validates that the resource bounds are not zero.
-    pub validate_non_zero_resource_bounds: bool,
+    pub validate_resource_bounds_above_threshold: bool,
     // TODO(AlonH): Remove this field and use the one from the versioned constants.
     pub min_gas_price: u128,
     pub max_calldata_length: usize,
@@ -63,7 +63,7 @@ pub struct StatelessTransactionValidatorConfig {
 impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
-            validate_non_zero_resource_bounds: true,
+            validate_resource_bounds_above_threshold: true,
             min_gas_price: 3_000_000_000,
             max_calldata_length: 4000,
             max_signature_length: 4000,
@@ -79,8 +79,8 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let members = BTreeMap::from_iter([
             ser_param(
-                "validate_non_zero_resource_bounds",
-                &self.validate_non_zero_resource_bounds,
+                "validate_resource_bounds_above_threshold",
+                &self.validate_resource_bounds_above_threshold,
                 "If true, validates that at least one resource bound (L1, L2, or L1 Data) is \
                  non-zero.",
                 ParamPrivacyInput::Public,
