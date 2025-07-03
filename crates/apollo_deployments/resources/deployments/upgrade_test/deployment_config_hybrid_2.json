@@ -140,7 +140,7 @@
       "external_secret": {
         "gcsm_key": "apollo-alpha-test-2"
       },
-      "anti_affinity": false
+      "anti_affinity": true
     },
     {
       "name": "SierraCompiler",

@@ -141,7 +141,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
-            Environment::StressTest => match self {
+            Environment::StressTest | Environment::SepoliaTestnet => match self {
                 HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
                 HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
@@ -181,6 +181,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
@@ -216,7 +217,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                 }
             },
-            Environment::StressTest => match self {
+            Environment::StressTest | Environment::SepoliaTestnet => match self {
                 HybridNodeServiceName::Core => {
                     Resources::new(Resource::new(50, 200), Resource::new(50, 220))
                 }
@@ -241,6 +242,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => 1,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
@@ -258,13 +260,14 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => false,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => true,
                 HybridNodeServiceName::HttpServer => false,
                 HybridNodeServiceName::Gateway => false,
-                HybridNodeServiceName::Mempool => false,
+                HybridNodeServiceName::Mempool => true,
                 HybridNodeServiceName::SierraCompiler => false,
             },
             _ => unimplemented!(),

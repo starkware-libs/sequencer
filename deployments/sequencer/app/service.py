@@ -366,7 +366,12 @@ class ServiceApp(Construct):
             self.service_topology.k8s_service_config.get("internal") is True
             and self._get_service_type() == const.K8SServiceType.LOAD_BALANCER
         ):
-            annotations.update({"cloud.google.com/load-balancer-type": "Internal"})
+            annotations.update(
+                {
+                    "cloud.google.com/load-balancer-type": "Internal",
+                    "networking.gke.io/internal-load-balancer-allow-global-access": "true",
+                }
+            )
         if self.service_topology.k8s_service_config.get("external_dns_name"):
             annotations.update(
                 {

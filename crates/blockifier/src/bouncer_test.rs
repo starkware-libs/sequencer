@@ -199,8 +199,8 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
 fn test_bouncer_try_update_gas_based(
     #[case] sierra_gas: GasAmount,
     #[case] scenario: &'static str,
+    block_context: BlockContext,
 ) {
-    let block_context = BlockContext::create_for_account_testing();
     let state = &mut test_state(&block_context.chain_info, Fee(0), &[]);
     let mut transactional_state = TransactionalState::create_transactional(state);
     let builtin_weights = BuiltinWeights::default();
@@ -268,9 +268,8 @@ fn test_bouncer_try_update_gas_based(
     }
 }
 
-#[test]
-fn test_transaction_too_large_sierra_gas_based() {
-    let block_context = BlockContext::create_for_account_testing();
+#[rstest]
+fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
     let mut state = test_state(&block_context.chain_info, Fee(0), &[]);
     let mut transactional_state = TransactionalState::create_transactional(&mut state);
     let block_max_capacity = BouncerWeights { sierra_gas: GasAmount(20), ..Default::default() };

@@ -161,6 +161,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
@@ -218,6 +219,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
@@ -247,6 +249,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => false,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
@@ -256,7 +259,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::HttpServer => false,
                 DistributedNodeServiceName::Gateway => false,
                 DistributedNodeServiceName::L1 => false,
-                DistributedNodeServiceName::Mempool => false,
+                DistributedNodeServiceName::Mempool => true,
                 DistributedNodeServiceName::SierraCompiler => false,
                 DistributedNodeServiceName::StateSync => false,
             },
