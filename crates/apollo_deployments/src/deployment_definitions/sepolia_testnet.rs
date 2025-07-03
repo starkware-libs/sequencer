@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use apollo_infra_utils::template::Template;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
@@ -57,5 +59,6 @@ fn hybrid_deployments(id: usize, p2p_communication_type: P2PCommunicationType) -
             INGRESS_DOMAIN.to_string(),
             P2PCommunicationType::External,
         )),
+        HashMap::new(),
     )
 }

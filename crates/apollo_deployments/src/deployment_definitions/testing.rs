@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use starknet_api::block::BlockNumber;
 
 use crate::config_override::{
@@ -61,6 +63,7 @@ fn system_test_distributed_deployment() -> Deployment {
         testing_config_override(),
         get_ingress_params(),
         None,
+        HashMap::new(),
     )
 }
 
@@ -73,6 +76,7 @@ fn system_test_hybrid_deployment() -> Deployment {
         testing_config_override(),
         get_ingress_params(),
         None,
+        HashMap::new(),
     )
 }
 
@@ -85,5 +89,6 @@ fn system_test_consolidated_deployment() -> Deployment {
         testing_config_override(),
         get_ingress_params(),
         None,
+        HashMap::new(),
     )
 }

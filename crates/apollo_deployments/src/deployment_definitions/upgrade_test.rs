@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use apollo_infra_utils::template::Template;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
@@ -63,5 +65,6 @@ fn upgrade_test_hybrid_deployment_node(
             UPGRADE_TEST_INGRESS_DOMAIN.to_string(),
             P2PCommunicationType::External,
         )),
+        HashMap::new(),
     )
 }

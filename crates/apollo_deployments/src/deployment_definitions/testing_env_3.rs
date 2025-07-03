@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use apollo_infra_utils::template::Template;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
@@ -71,5 +73,6 @@ fn testing_env_3_hybrid_deployment_node(
             TESTING_ENV_3_INGRESS_DOMAIN.to_string(),
             p2p_communication_type,
         )),
+        HashMap::new(),
     )
 }

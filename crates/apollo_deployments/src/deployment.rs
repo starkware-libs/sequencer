@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter, Result};
 use std::iter::once;
 use std::path::PathBuf;
@@ -25,6 +25,7 @@ pub struct Deployment {
 }
 
 impl Deployment {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         node_type: NodeType,
         environment: Environment,
@@ -33,6 +34,7 @@ impl Deployment {
         config_override: ConfigOverride,
         ingress_params: IngressParams,
         k8s_service_config_params: Option<K8sServiceConfigParams>,
+        ports: HashMap<String, u16>,
     ) -> Self {
         let node_services = node_type.all_service_names();
 
@@ -50,6 +52,7 @@ impl Deployment {
                     config_filenames.clone(),
                     ingress_params.clone(),
                     k8s_service_config_params.clone(),
+                    ports.clone(),
                 )
             })
             .collect();
