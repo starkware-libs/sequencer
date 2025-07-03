@@ -5,8 +5,8 @@ use std::vec;
 use apollo_batcher::cende_client_types::{
     Builtin,
     CendeBlockMetadata,
-    CendePreConfirmedBlock,
-    CendePreConfirmedTransaction,
+    CendePreconfirmedBlock,
+    CendePreconfirmedTransaction,
     ExecutionResources as CendeClientExecutionResources,
     IntermediateInvokeTransaction,
     StarknetClientTransactionReceipt,
@@ -674,7 +674,7 @@ fn event_from_serialized_fields(from_address: &str, keys: Vec<&str>, data: Vec<&
     }
 }
 
-fn starknet_preconfiremd_block() -> CendePreConfirmedBlock {
+fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
     let metadata = CendeBlockMetadata {
         status: "PRE_CONFIRMED",
         starknet_version: StarknetVersion::V0_14_0,
@@ -698,7 +698,7 @@ fn starknet_preconfiremd_block() -> CendePreConfirmedBlock {
     };
 
     let transactions = vec![
-        CendePreConfirmedTransaction::Invoke(IntermediateInvokeTransaction {
+        CendePreconfirmedTransaction::Invoke(IntermediateInvokeTransaction {
             resource_bounds: Some(
                 AllResourceBounds {
                     l1_gas: ResourceBounds {
@@ -755,7 +755,7 @@ fn starknet_preconfiremd_block() -> CendePreConfirmedBlock {
             entry_point_selector: None,
             max_fee: None,
         }),
-        CendePreConfirmedTransaction::Invoke(IntermediateInvokeTransaction {
+        CendePreconfirmedTransaction::Invoke(IntermediateInvokeTransaction {
             resource_bounds: Some(
                 AllResourceBounds {
                     l1_gas: ResourceBounds {
@@ -924,7 +924,7 @@ fn starknet_preconfiremd_block() -> CendePreConfirmedBlock {
         ..Default::default()
     })];
 
-    CendePreConfirmedBlock { metadata, transactions, transaction_receipts, transaction_state_diffs }
+    CendePreconfirmedBlock { metadata, transactions, transaction_receipts, transaction_state_diffs }
 }
 
 #[rstest]

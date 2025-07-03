@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 use validator::{Validate, ValidationError};
 
 use crate::block_builder::BlockBuilderConfig;
-use crate::pre_confirmed_block_writer::PreConfirmedBlockWriterConfig;
-use crate::pre_confirmed_cende_client::PreConfirmedCendeConfig;
+use crate::pre_confirmed_block_writer::PreconfirmedBlockWriterConfig;
+use crate::pre_confirmed_cende_client::PreconfirmedCendeConfig;
 
 /// The batcher related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
@@ -18,10 +18,10 @@ pub struct BatcherConfig {
     pub outstream_content_buffer_size: usize,
     pub input_stream_content_buffer_size: usize,
     pub block_builder_config: BlockBuilderConfig,
-    pub pre_confirmed_block_writer_config: PreConfirmedBlockWriterConfig,
+    pub pre_confirmed_block_writer_config: PreconfirmedBlockWriterConfig,
     pub contract_class_manager_config: ContractClassManagerConfig,
     pub max_l1_handler_txs_per_block_proposal: usize,
-    pub pre_confirmed_cende_config: PreConfirmedCendeConfig,
+    pub pre_confirmed_cende_config: PreconfirmedCendeConfig,
 }
 
 impl SerializeConfig for BatcherConfig {
@@ -85,10 +85,10 @@ impl Default for BatcherConfig {
             outstream_content_buffer_size: 100,
             input_stream_content_buffer_size: 400,
             block_builder_config: BlockBuilderConfig::default(),
-            pre_confirmed_block_writer_config: PreConfirmedBlockWriterConfig::default(),
+            pre_confirmed_block_writer_config: PreconfirmedBlockWriterConfig::default(),
             contract_class_manager_config: ContractClassManagerConfig::default(),
             max_l1_handler_txs_per_block_proposal: 3,
-            pre_confirmed_cende_config: PreConfirmedCendeConfig::default(),
+            pre_confirmed_cende_config: PreconfirmedCendeConfig::default(),
         }
     }
 }

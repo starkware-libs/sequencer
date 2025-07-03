@@ -68,8 +68,8 @@ use crate::metrics::{
     SYNCED_TRANSACTIONS,
 };
 use crate::pre_confirmed_block_writer::{
-    MockPreConfirmedBlockWriterFactoryTrait,
-    MockPreConfirmedBlockWriterTrait,
+    MockPreconfirmedBlockWriterFactoryTrait,
+    MockPreconfirmedBlockWriterTrait,
 };
 use crate::test_utils::{
     test_txs,
@@ -116,7 +116,7 @@ struct MockDependencies {
     mempool_client: MockMempoolClient,
     l1_provider_client: MockL1ProviderClient,
     block_builder_factory: MockBlockBuilderFactoryTrait,
-    pre_confirmed_block_writer_factory: MockPreConfirmedBlockWriterFactoryTrait,
+    pre_confirmed_block_writer_factory: MockPreconfirmedBlockWriterFactoryTrait,
     class_manager_client: SharedClassManagerClient,
 }
 
@@ -137,11 +137,11 @@ impl Default for MockDependencies {
             .with(eq(CommitBlockArgs::default()))
             .returning(|_| Ok(()));
         let block_builder_factory = MockBlockBuilderFactoryTrait::new();
-        let mut pre_confirmed_block_writer_factory = MockPreConfirmedBlockWriterFactoryTrait::new();
+        let mut pre_confirmed_block_writer_factory = MockPreconfirmedBlockWriterFactoryTrait::new();
         pre_confirmed_block_writer_factory.expect_create().returning(|_, _, _| {
             let (non_working_candidate_tx_sender, _) = tokio::sync::mpsc::channel(1);
             let (non_working_pre_confirmed_tx_sender, _) = tokio::sync::mpsc::channel(1);
-            let mut mock_writer = Box::new(MockPreConfirmedBlockWriterTrait::new());
+            let mut mock_writer = Box::new(MockPreconfirmedBlockWriterTrait::new());
             mock_writer.expect_run().return_once(|| Box::pin(async move { Ok(()) }));
             (mock_writer, non_working_candidate_tx_sender, non_working_pre_confirmed_tx_sender)
         });

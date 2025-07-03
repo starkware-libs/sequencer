@@ -71,11 +71,11 @@ use crate::metrics::{
     SYNCED_TRANSACTIONS,
 };
 use crate::pre_confirmed_block_writer::{
-    PreConfirmedBlockWriterFactory,
-    PreConfirmedBlockWriterFactoryTrait,
-    PreConfirmedBlockWriterTrait,
+    PreconfirmedBlockWriterFactory,
+    PreconfirmedBlockWriterFactoryTrait,
+    PreconfirmedBlockWriterTrait,
 };
-use crate::pre_confirmed_cende_client::PreConfirmedCendeClientTrait;
+use crate::pre_confirmed_cende_client::PreconfirmedCendeClientTrait;
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
     deadline_as_instant,
@@ -101,7 +101,7 @@ pub struct Batcher {
     block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
 
     /// Used to create pre-confirmed block writers.
-    pre_confirmed_block_writer_factory: Box<dyn PreConfirmedBlockWriterFactoryTrait>,
+    pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
 
     /// The height that the batcher is currently working on.
     /// All proposals are considered to be at this height.
@@ -137,7 +137,7 @@ impl Batcher {
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
-        pre_confirmed_block_writer_factory: Box<dyn PreConfirmedBlockWriterFactoryTrait>,
+        pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
     ) -> Self {
         Self {
             config,
@@ -706,7 +706,7 @@ impl Batcher {
         mut block_builder: Box<dyn BlockBuilderTrait>,
         abort_signal_sender: tokio::sync::oneshot::Sender<()>,
         final_n_executed_txs_sender: Option<tokio::sync::oneshot::Sender<usize>>,
-        pre_confirmed_block_writer: Option<Box<dyn PreConfirmedBlockWriterTrait>>,
+        pre_confirmed_block_writer: Option<Box<dyn PreconfirmedBlockWriterTrait>>,
         mut proposal_metrics_handle: ProposalMetricsHandle,
     ) -> BatcherResult<()> {
         self.set_active_proposal(proposal_id).await?;
@@ -857,14 +857,14 @@ pub fn create_batcher(
     mempool_client: SharedMempoolClient,
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
-    pre_confirmed_cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
+    pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
 ) -> Batcher {
     let (storage_reader, storage_writer) = apollo_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
-    let pre_confirmed_block_writer_factory = Box::new(PreConfirmedBlockWriterFactory {
+    let pre_confirmed_block_writer_factory = Box::new(PreconfirmedBlockWriterFactory {
         config: config.pre_confirmed_block_writer_config,
         cende_client: pre_confirmed_cende_client,
     });
