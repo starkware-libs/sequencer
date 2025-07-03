@@ -172,6 +172,8 @@ impl ProcessTxBlockingTask {
         // Perform stateless validations.
         self.stateless_tx_validator.validate(&self.tx)?;
 
+        let start = std::time::Instant::now();
+        debug!("AVI: Converting RPC transaction to internal RPC transaction");
         let internal_tx = self
             .runtime
             .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
@@ -187,7 +189,10 @@ impl ProcessTxBlockingTask {
                     }
                 }
             })?;
+        debug!("AVI: Converted RPC transaction to internal RPC transaction in {:?}", start.elapsed());
 
+        let start = std::time::Instant::now();
+        debug!("AVI: Converting internal RPC transaction to executable transaction");
         let executable_tx = self
             .runtime
             .block_on(
@@ -202,6 +207,7 @@ impl ProcessTxBlockingTask {
                 // TODO(yair): Fix this.
                 StarknetError::internal(&e.to_string())
             })?;
+        debug!("AVI: Converted internal RPC transaction to executable transaction in {:?}", start.elapsed());
 
         let mut validator = self
             .stateful_tx_validator
