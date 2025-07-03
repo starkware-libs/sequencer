@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use alloy::primitives::{Address as EthereumContractAddress, U256};
+use alloy::primitives::U256;
 use alloy::rpc::types::Log;
 use alloy::sol_types::SolEventInterface;
 use starknet_api::block::BlockTimestamp;
@@ -12,6 +12,7 @@ use starknet_types_core::felt::Felt;
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerError,
     EthereumBaseLayerResult,
+    EthereumContractAddress,
     Starknet,
 };
 use crate::{EventData, L1Event};
