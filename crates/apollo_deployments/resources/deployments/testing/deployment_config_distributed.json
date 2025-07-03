@@ -28,7 +28,26 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "ClassManager",
@@ -57,7 +76,26 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "ConsensusManager",
@@ -86,7 +124,26 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "HttpServer",
@@ -126,7 +183,26 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "Gateway",
@@ -155,7 +231,26 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "L1",
@@ -184,7 +279,26 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "Mempool",
@@ -213,7 +327,26 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "SierraCompiler",
@@ -242,7 +375,26 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "StateSync",
@@ -271,7 +423,26 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     }
   ]
 }

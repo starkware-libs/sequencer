@@ -34,7 +34,26 @@
         "gcsm_key": "apollo-sepolia-alpha-1"
       },
       "anti_affinity": true,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "HttpServer",
@@ -78,7 +97,26 @@
         "gcsm_key": "apollo-sepolia-alpha-1"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "Gateway",
@@ -109,7 +147,26 @@
         "gcsm_key": "apollo-sepolia-alpha-1"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "Mempool",
@@ -144,7 +201,26 @@
         "gcsm_key": "apollo-sepolia-alpha-1"
       },
       "anti_affinity": true,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     },
     {
       "name": "SierraCompiler",
@@ -175,7 +251,26 @@
         "gcsm_key": "apollo-sepolia-alpha-1"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "infra_ports": {
+          "http_server": 0,
+          "mempool_p2p": 0,
+          "monitoring_endpoint": 0,
+          "state_sync": 0
+        },
+        "component_ports": {
+          "batcher": 0,
+          "class_manager": 0,
+          "gateway": 0,
+          "l1_endpoint_monitor": 0,
+          "l1_gas_price_provider": 0,
+          "l1_provider": 0,
+          "mempool": 0,
+          "mempool_p2p": 0,
+          "sierra_compiler": 0,
+          "state_sync": 0
+        }
+      }
     }
   ]
 }

@@ -14,14 +14,7 @@ use strum_macros::{AsRefStr, EnumIter};
 use crate::deployment_definitions::Environment;
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
-    get_environment_ingress_internal,
-    get_ingress,
-    Controller,
-    Ingress,
-    IngressParams,
-    Resource,
-    Resources,
-    Toleration,
+    get_environment_ingress_internal, get_ingress, Controller, DeploymentPorts, Ingress, IngressParams, Resource, Resources, Toleration
 };
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::utils::determine_port_numbers;
@@ -269,8 +262,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
     }
 
     // TODO(Nadin): Implement this method to return the actual ports used by the service.
-    fn get_ports(&self) -> BTreeMap<String, u16> {
-        BTreeMap::new()
+    fn get_ports(&self) -> DeploymentPorts {
+        DeploymentPorts::default()
     }
 }
 

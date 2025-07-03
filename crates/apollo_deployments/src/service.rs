@@ -24,14 +24,7 @@ use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
 use crate::k8s::{
-    Controller,
-    ExternalSecret,
-    Ingress,
-    IngressParams,
-    K8sServiceConfig,
-    K8sServiceConfigParams,
-    Resources,
-    Toleration,
+    Controller, DeploymentPorts, ExternalSecret, Ingress, IngressParams, K8sServiceConfig, K8sServiceConfigParams, Resources, Toleration
 };
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
@@ -56,7 +49,7 @@ pub struct Service {
     #[serde(skip_serializing)]
     environment: Environment,
     anti_affinity: bool,
-    ports: BTreeMap<String, u16>,
+    ports: DeploymentPorts,
 }
 
 impl Service {
@@ -228,7 +221,7 @@ impl NodeService {
             .to_string()
     }
 
-    pub fn get_ports(&self) -> BTreeMap<String, u16> {
+    pub fn get_ports(&self) -> DeploymentPorts {
         self.as_inner().get_ports()
     }
 }
@@ -278,13 +271,15 @@ pub(crate) trait ServiceNameInner: Display {
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool;
 
-    fn get_ports(&self) -> BTreeMap<String, u16>;
+    fn get_ports(&self) -> DeploymentPorts;
 
     // Kubernetes service name as defined by CDK8s.
     fn k8s_service_name(&self) -> String {
         let formatted_service_name = self.to_string().replace('_', "");
         format!("sequencer-{}-service", formatted_service_name)
     }
+
+
 }
 
 impl NodeType {
