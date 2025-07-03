@@ -524,6 +524,26 @@ fn get_http_server_no_successful_transactions() -> Alert {
     }
 }
 
+fn get_http_server_low_successful_transactions_rate() -> Alert {
+    Alert {
+        name: "http_server_low_successful_transactions_rate",
+        title: "http server low successful transactions rate",
+        alert_group: AlertGroup::HttpServer,
+        expr: format!(
+            "rate({}[5m]) or vector(0)",
+            ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 0.1,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
 fn get_http_server_high_transaction_failure_ratio() -> Alert {
     Alert {
         name: "http_server_high_transaction_failure_ratio",
@@ -1035,6 +1055,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_http_server_internal_error_ratio(),
         get_http_server_internal_error_once(),
         get_http_server_no_successful_transactions(),
+        get_http_server_low_successful_transactions_rate(),
         get_http_server_avg_add_tx_latency_alert(),
         get_http_server_p95_add_tx_latency_alert(),
         get_l1_gas_price_provider_insufficient_history_alert(),
