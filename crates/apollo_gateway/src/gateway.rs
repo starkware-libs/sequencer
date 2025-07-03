@@ -211,7 +211,7 @@ impl ProcessTxBlockingTask {
         if self.stateful_tx_validator.config.validate_non_zero_resource_bounds {
             // TODO(Arni): get next_l2_gas_price from the block header.
             let previous_block_l2_gas_price =
-                validator.block_context().block_info().gas_prices.strk_gas_prices.l2_gas_price;
+                validator.block_info().gas_prices.strk_gas_prices.l2_gas_price;
             validate_tx_l2_gas_price_within_threshold(
                 executable_tx.resource_bounds(),
                 previous_block_l2_gas_price,
