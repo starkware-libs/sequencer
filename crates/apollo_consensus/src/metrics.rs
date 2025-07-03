@@ -8,6 +8,7 @@ define_metrics!(
         MetricGauge { CONSENSUS_ROUND, "consensus_round", "The round of the state machine"},
         MetricGauge { CONSENSUS_MAX_CACHED_BLOCK_NUMBER, "consensus_max_cached_block_number", "How many blocks after current are cached"},
         MetricGauge { CONSENSUS_CACHED_VOTES, "consensus_cached_votes", "How many votes are cached when starting to work on a new block number" },
+        MetricCounter { CONSENSUS_RESTART_COUNTER, "consensus_restart_counter", "The number of times consensus has been restarted", init=0 },
         MetricCounter { CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, "consensus_decisions_reached_by_consensus", "The total number of decisions reached by way of consensus", init=0},
         MetricCounter { CONSENSUS_DECISIONS_REACHED_BY_SYNC, "consensus_decisions_reached_by_sync", "The total number of decisions reached by way of sync", init=0},
         MetricCounter { CONSENSUS_PROPOSALS_RECEIVED, "consensus_proposals_received", "The total number of proposals received", init=0},
@@ -51,6 +52,7 @@ pub(crate) fn register_metrics() {
     CONSENSUS_ROUND.register();
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER.register();
     CONSENSUS_CACHED_VOTES.register();
+    CONSENSUS_RESTART_COUNTER.register();
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS.register();
     CONSENSUS_DECISIONS_REACHED_BY_SYNC.register();
     CONSENSUS_PROPOSALS_RECEIVED.register();
