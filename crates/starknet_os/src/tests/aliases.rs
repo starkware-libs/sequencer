@@ -7,6 +7,7 @@ use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use cairo_vm::hint_processor::builtin_hint_processor::dict_hint_utils::DICT_ACCESS_SIZE;
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use rstest::rstest;
 use starknet_api::core::L2_ADDRESS_UPPER_BOUND;
 use starknet_api::state::StorageKey;
@@ -258,14 +259,19 @@ fn allocate_aliases_for_keys_and_replace(
     let expected_explicit_return_values = vec![
         EndpointArg::Value(ValueArg::Single(Felt::ZERO)), // Aliases.len
         EndpointArg::Pointer(PointerArg::Array(vec![ // Aliases.ptr
-            Felt::ZERO;
+            MaybeRelocatable::Int(Felt::ZERO);
             (unique_keys.len()) * DICT_ACCESS_SIZE
             ])),
         // Aliases per-key ptr.
-        EndpointArg::Pointer(PointerArg::Array(vec![Felt::ZERO; keys.len()])),
+        EndpointArg::Pointer(PointerArg::Array(vec![
+            MaybeRelocatable::Int(Felt::ZERO);
+            keys.len()
+        ])),
     ];
     let n_keys_arg = EndpointArg::Value(ValueArg::Single(keys.len().into()));
-    let keys_arg = EndpointArg::Pointer(PointerArg::Array(keys));
+    let keys_arg = EndpointArg::Pointer(PointerArg::Array(
+        keys.iter().cloned().map(MaybeRelocatable::from).collect(),
+    ));
     let explicit_args = vec![n_keys_arg, keys_arg];
     let storage_view = initial_storage
         .into_iter()
@@ -292,8 +298,11 @@ fn allocate_aliases_for_keys_and_replace(
     {
         let n_aliases = felt_to_usize(n_aliases).unwrap();
         assert_eq!(n_aliases, aliases_storage_updates.len() / DICT_ACCESS_SIZE);
-        let actual_alias_storage = parse_squashed_cairo_dict(aliases_storage_updates);
-        (actual_alias_storage, alias_per_key.clone().to_vec())
+        let aliases_storage_updates_as_felts: Vec<Felt> =
+            aliases_storage_updates.iter().map(|f| f.get_int().unwrap()).collect();
+        let actual_alias_storage = parse_squashed_cairo_dict(&aliases_storage_updates_as_felts);
+        let alias_per_key: Vec<Felt> = alias_per_key.iter().map(|f| f.get_int().unwrap()).collect();
+        (actual_alias_storage, alias_per_key)
     } else {
         panic!(
             "The return value doesn't match the given format.\n Got: {explicit_return_values:?}"
