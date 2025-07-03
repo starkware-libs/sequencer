@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use apollo_starknet_os_program::OS_PROGRAM_BYTES;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::program::Program;
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use ethnum::U256;
 use num_bigint::{BigInt, BigUint, RandBigInt, RandomBits, Sign, ToBigInt};
 use num_integer::Integer;
@@ -134,7 +135,9 @@ fn test_horner_eval() {
             .map(|_| Felt::from(RandBigInt::gen_bigint_range(&mut rng, &0.into(), &DEFAULT_PRIME)))
             .collect();
 
-        explicit_args.push(EndpointArg::Pointer(PointerArg::Array(coefficients.clone())));
+        explicit_args.push(EndpointArg::Pointer(PointerArg::Array(
+            coefficients.iter().cloned().map(MaybeRelocatable::from).collect(),
+        )));
         let point =
             RandBigInt::gen_bigint_range(&mut rng, &0.into(), &BLS_PRIME.to_bigint().unwrap());
         explicit_args.push(EndpointArg::Value(ValueArg::Array(
