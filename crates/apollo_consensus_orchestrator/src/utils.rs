@@ -87,7 +87,6 @@ pub(crate) async fn get_oracle_rate_and_prices(
         eth_to_strk_oracle_client.eth_to_fri_rate(timestamp),
         l1_gas_price_provider_client.get_price_info(BlockTimestamp(timestamp))
     );
-
     if price_info.is_err() {
         warn!("Failed to get l1 gas price from provider: {:?}", price_info);
         CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR.increment(1);
