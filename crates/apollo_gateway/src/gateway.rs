@@ -208,7 +208,7 @@ impl ProcessTxBlockingTask {
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
 
         // Skip this validation during the systems bootstrap phase.
-        if self.stateless_tx_validator.config.validate_non_zero_resource_bounds {
+        if self.stateful_tx_validator.config.validate_resource_bounds_above_threshold {
             // TODO(Arni): get next_l2_gas_price from the block header.
             let previous_block_l2_gas_price =
                 validator.block_context().block_info().gas_prices.strk_gas_prices.l2_gas_price;
