@@ -85,7 +85,7 @@ pub(crate) fn parse_and_run_os(input_path: String, output_path: String) {
     let OsCliInput { layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
     validate_os_input(&os_hints.os_input);
 
-    let StarknetOsRunnerOutput { os_output: _, cairo_pie, da_segment, metrics, unused_hints } =
+    let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, .. } =
         run_os_stateless(layout, os_hints)
             .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
     serialize_runner_output(
@@ -102,7 +102,7 @@ pub(crate) fn parse_and_run_aggregator(input_path: String, output_path: String) 
         load_input(input_path);
     // TODO(Aner): Validate the aggregator input.
 
-    let StarknetAggregatorRunnerOutput { aggregator_output: _, cairo_pie, unused_hints } =
+    let StarknetAggregatorRunnerOutput { cairo_pie, unused_hints, .. } =
         run_aggregator(layout, aggregator_input)
             .unwrap_or_else(|err| panic!("Aggregator run failed. Error: {}", err));
     serialize_runner_output(
