@@ -6,7 +6,7 @@ use apollo_l1_provider_types::InvalidValidationStatus;
 use apollo_l1_provider_types::InvalidValidationStatus::{
     AlreadyIncludedInProposedBlock,
     AlreadyIncludedOnL2,
-    ConsumedOnL1OrUnknown,
+    NotFound,
 };
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::{
@@ -760,7 +760,7 @@ async fn test_validate_block_with_error(
 #[rstest]
 #[case::already_included_in_proposed_block(AlreadyIncludedInProposedBlock)]
 #[case::already_included_on_l2(AlreadyIncludedOnL2)]
-#[case::consumed_on_l1_or_unknown(ConsumedOnL1OrUnknown)]
+#[case::consumed_on_l1_or_unknown(NotFound)]
 #[tokio::test]
 async fn test_validate_block_l1_handler_validation_error(#[case] status: InvalidValidationStatus) {
     let tx_provider = mock_tx_provider_with_error(L1HandlerTransactionValidationFailed {
