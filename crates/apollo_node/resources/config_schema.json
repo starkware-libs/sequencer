@@ -1254,6 +1254,11 @@
     "privacy": "Public",
     "value": true
   },
+  "gateway_config.stateful_tx_validator_config.validate_resource_bounds_above_threshold": {
+    "description": "If true, validates that the L2 gas price is above a threshold. The threshold depends on the blocks L2 gas price.",
+    "privacy": "Public",
+    "value": true
+  },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
