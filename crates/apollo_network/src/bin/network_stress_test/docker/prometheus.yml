@@ -1,0 +1,44 @@
+global:
+  scrape_interval: 1s
+scrape_configs:
+  - job_name: 'network_stress_test_nodes'
+    # Use Docker Service Discovery
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock # Path to the Docker socket
+    relabel_configs:
+      # Only scrape containers that have the label prometheus.io/scrape = "true"
+      - source_labels: [__meta_docker_container_label_prometheus_io_scrape]
+        regex: "true"
+        action: keep
+
+      # Use the value of the prometheus.io/port label as the target port
+      - source_labels: [__meta_docker_container_label_prometheus_io_port]
+        regex: "(.+)"
+        target_label: __address__
+        replacement: "${__meta_docker_container_name}:${1}"
+
+      # Use the value of the prometheus.io/path label as the metrics path
+      - source_labels: [__meta_docker_container_label_prometheus_io_path]
+        regex: "(.+)"
+        target_label: __metrics_path__
+        replacement: "$1"
+        action: replace
+
+      # Extract 'application' label
+      - source_labels: [__meta_docker_container_label_application]
+        regex: "(.+)"
+        target_label: application
+        replacement: "$1"
+        action: replace
+
+      # Extract 'environment' label
+      - source_labels: [__meta_docker_container_label_environment]
+        regex: "(.+)"
+        target_label: environment
+        replacement: "$1"
+        action: replace
+
+      # You can also add more labels based on Docker metadata, e.g., container name
+      - source_labels: [__meta_docker_container_name]
+        target_label: instance
+        action: replace
