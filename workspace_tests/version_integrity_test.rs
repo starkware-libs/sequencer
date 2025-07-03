@@ -178,7 +178,7 @@ fn test_version_alignment() {
 fn validate_crate_version_is_workspace() {
     let crates_without_workspace_version: Vec<String> = MEMBER_TOMLS
         .iter()
-        .flat_map(|(member, toml)| match toml.package.get("version") {
+        .filter_map(|(member, toml)| match toml.package.get("version") {
             // No `version` field.
             None => Some(member.clone()),
             Some(version) => match version {
