@@ -168,6 +168,10 @@ impl SerializeConfig for RpcStateReaderConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
+    // TODO(Arni): Align the name of this field with the mempool config, and all other places where
+    // validation is skipped during the systems bootstrap phase.
+    // If true, validates that the resource bounds are not zero.
+    pub validate_non_zero_resource_bounds: bool,
     pub max_allowed_nonce_gap: u32,
     pub reject_future_declare_txs: bool,
     pub max_nonce_for_validation_skip: Nonce,
@@ -179,6 +183,7 @@ pub struct StatefulTransactionValidatorConfig {
 impl Default for StatefulTransactionValidatorConfig {
     fn default() -> Self {
         StatefulTransactionValidatorConfig {
+            validate_non_zero_resource_bounds: true,
             max_allowed_nonce_gap: 50,
             reject_future_declare_txs: true,
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
@@ -191,6 +196,13 @@ impl Default for StatefulTransactionValidatorConfig {
 impl SerializeConfig for StatefulTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from_iter([
+            ser_param(
+                "validate_non_zero_resource_bounds",
+                &self.validate_non_zero_resource_bounds,
+                "If true, validates that at least one resource bound (L1, L2, or L1 Data) is \
+                 non-zero.",
+                ParamPrivacyInput::Public,
+            ),
             ser_param(
                 "max_nonce_for_validation_skip",
                 &self.max_nonce_for_validation_skip,

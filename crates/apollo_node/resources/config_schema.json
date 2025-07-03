@@ -1254,6 +1254,11 @@
     "privacy": "Public",
     "value": true
   },
+  "gateway_config.stateful_tx_validator_config.validate_non_zero_resource_bounds": {
+    "description": "If true, validates that at least one resource bound (L1, L2, or L1 Data) is non-zero.",
+    "privacy": "Public",
+    "value": true
+  },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
     "pointer_target": "versioned_constants_overrides.invoke_tx_max_n_steps",
