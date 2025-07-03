@@ -35,13 +35,19 @@ pub fn install_compiler_binary(
     let temp_cargo_path = TempDir::new().expect("Failed to create a temporary directory.");
     let post_install_file_path = temp_cargo_path.path().join("bin").join(binary_name);
 
-    let install_command_status = Command::new("cargo")
-        .args([
-            "install",
-            "--root",
-            temp_cargo_path.path().to_str().expect("Failed to convert cargo_path to str"),
-            "--locked",
-        ])
+    let mut install_command = Command::new("cargo");
+    install_command.args([
+        "install",
+        "--root",
+        temp_cargo_path.path().to_str().expect("Failed to convert cargo_path to str"),
+        "--locked",
+    ]);
+
+    if let Ok(num_jobs) = std::env::var("NUM_JOBS") {
+        install_command.args(["--jobs", &num_jobs]);
+    }
+
+    let install_command_status = install_command
         .args(cargo_install_args)
         .status()
         .unwrap_or_else(|_| panic!("Failed to install {binary_name}"));
