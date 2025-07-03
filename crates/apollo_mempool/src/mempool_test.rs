@@ -463,7 +463,7 @@ fn test_add_tx_correctly_places_txs_in_queue_and_pool(mut mempool: Mempool) {
 #[rstest]
 fn test_add_bootstrap_tx_depends_on_config(#[values(true, false)] allow_bootstrap: bool) {
     let mut builder = MempoolTestContentBuilder::new();
-    builder.config.override_gas_price_threshold_check = allow_bootstrap;
+    builder.config.validate_resource_bounds_above_threshold = !allow_bootstrap;
     builder.gas_price_threshold = GasPrice(7);
     let mut mempool = builder.build_full_mempool();
 
