@@ -34,7 +34,7 @@ pub fn parse_event(log: Log, block_timestamp: BlockTimestamp) -> EthereumBaseLay
         Starknet::StarknetEvents::ConsumedMessageToL2(event) => {
             let event_data = EventData::try_from(event)?;
             let tx = L1HandlerTransaction::from(event_data);
-            Ok(L1Event::ConsumedMessageToL2(tx))
+            Ok(L1Event::ConsumedMessageToL2 { tx, timestamp: block_timestamp })
         }
         Starknet::StarknetEvents::MessageToL2Canceled(event) => {
             Ok(L1Event::MessageToL2Canceled(event.try_into()?))
