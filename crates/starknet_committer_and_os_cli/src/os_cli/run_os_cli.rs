@@ -138,7 +138,6 @@ impl From<OsMetrics> for OsCliMetrics {
 
 #[derive(Serialize)]
 pub(crate) struct OsCliOutput {
-    pub(crate) os_output: Vec<Felt>,
     pub(crate) da_segment: Option<Vec<Felt>>,
     pub(crate) metrics: OsCliMetrics,
     pub unused_hints: HashSet<AllHints>,
@@ -146,6 +145,5 @@ pub(crate) struct OsCliOutput {
 
 #[derive(Serialize)]
 pub(crate) struct AggregatorCliOutput {
-    pub(crate) aggregator_output: Vec<Felt>,
     pub unused_hints: HashSet<AllHints>,
 }
