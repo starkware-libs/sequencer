@@ -1,3 +1,6 @@
+//! Runs a node that stress tests the p2p communication of the network.
+
+use std::convert::Infallible;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::str::FromStr;
 use std::time::SystemTime;
@@ -7,15 +10,18 @@ use apollo_network::network_manager::{
     BroadcastTopicChannels,
     BroadcastTopicClient,
     BroadcastTopicClientTrait,
+    BroadcastTopicServer,
     NetworkManager,
 };
 use apollo_network::NetworkConfig;
+use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use clap::Parser;
 use converters::{StressTestMessage, METADATA_SIZE};
 use futures::future::join_all;
+use futures::StreamExt;
 use libp2p::gossipsub::{Sha256Topic, Topic};
 use libp2p::Multiaddr;
-use metrics::counter;
+use metrics::{counter, gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio::time::Duration;
 
@@ -95,6 +101,49 @@ async fn send_stress_test_messages(
     }
 }
 
+fn receive_stress_test_message(
+    message_result: Result<StressTestMessage, Infallible>,
+    _metadata: BroadcastedMessageMetadata,
+) {
+    let end_time = SystemTime::now();
+
+    let received_message = message_result.unwrap();
+    let start_time = received_message.time;
+    let duration = match end_time.duration_since(start_time) {
+        Ok(duration) => duration,
+        Err(_) => panic!(),
+    };
+
+    let delay_seconds = duration.as_secs_f64();
+    let delay_micros = duration.as_micros().try_into().unwrap();
+
+    // TODO(AndrewL): Concentrate all string metrics to constants in a different file
+    counter!("message_received").increment(1);
+    counter!(format!("message_received_from_{}", received_message.id)).increment(1);
+
+    // TODO(AndrewL): This should be a historgram
+    gauge!("message_received_delay_seconds").set(delay_seconds);
+    gauge!(format!("message_received_delay_seconds_from_{}", received_message.id))
+        .set(delay_seconds);
+
+    counter!("message_received_delay_micros_sum").increment(delay_micros);
+    counter!(format!("message_received_delay_micros_sum_from_{}", received_message.id))
+        .increment(delay_micros);
+    // TODO(AndrewL): Figure out what to log here
+}
+
+async fn receive_stress_test_messages(
+    broadcasted_messages_receiver: BroadcastTopicServer<StressTestMessage>,
+) {
+    broadcasted_messages_receiver
+        .for_each(|result| async {
+            let (message_result, metadata) = result;
+            tokio::task::spawn_blocking(|| receive_stress_test_message(message_result, metadata));
+        })
+        .await;
+    panic!("BroadcastTopicServer stream should never terminate...");
+}
+
 fn create_peer_private_key(peer_index: usize) -> [u8; 32] {
     let peer_index: u64 = peer_index.try_into().expect("Failed converting usize to u64");
     let array = peer_index.to_le_bytes();
@@ -143,7 +192,7 @@ async fn main() {
     let network_channels = network_manager
         .register_broadcast_topic::<StressTestMessage>(TOPIC.clone(), args.buffer_size)
         .unwrap();
-    let BroadcastTopicChannels { broadcasted_messages_receiver: _, broadcast_topic_client } =
+    let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client } =
         network_channels;
 
     let mut tasks = Vec::new();
@@ -154,10 +203,15 @@ async fn main() {
         panic!("Network manager should not exit");
     }));
 
+    tasks.push(tokio::spawn(async move {
+        receive_stress_test_messages(broadcasted_messages_receiver).await;
+        panic!("Broadcast topic receiver should not exit");
+    }));
+
     let args_clone = args.clone();
     tasks.push(tokio::spawn(async move {
         send_stress_test_messages(broadcast_topic_client, &args_clone, peer_id).await;
-        unreachable!("Broadcast topic client should not exit");
+        panic!("Broadcast topic client should not exit");
     }));
 
     let test_timeout = Duration::from_secs(args.timeout);
