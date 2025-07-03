@@ -142,7 +142,11 @@ fn test_events_counter_in_tx_execution_info(
     };
 
     assert_eq!(
-        tx_execution_info.summarize(VersionedConstants::latest_constants()).event_summary.n_events,
+        tx_execution_info
+            .summarize(VersionedConstants::latest_constants())
+            .0
+            .event_summary
+            .n_events,
         n_validate_events + n_execute_events + n_fee_transfer_events + n_inner_calls
     );
 }
@@ -171,7 +175,11 @@ fn test_events_counter_in_tx_execution_info_with_inner_call_info(#[case] n_execu
     };
 
     assert_eq!(
-        tx_execution_info.summarize(VersionedConstants::latest_constants()).event_summary.n_events,
+        tx_execution_info
+            .summarize(VersionedConstants::latest_constants())
+            .0
+            .event_summary
+            .n_events,
         n_execute_events
             + n_fee_transfer_events
             + n_execution_events
@@ -236,13 +244,14 @@ fn test_summarize(
             total_event_keys: 0,
             total_event_data_size: 0,
         },
-        // TODO(Meshi): Change it to a relevant value for this test.
-        builtin_counters: HashMap::new(),
     };
+    // TODO(Meshi): Change it to a relevant value for this test.
+    let expected_builtins = HashMap::new();
+    let expected_summary_with_builtins = (expected_summary, expected_builtins);
 
     // Call the summarize method.
     let actual_summary = tx_execution_info.summarize(VersionedConstants::latest_constants());
 
     // Compare the actual result with the expected result.
-    assert_eq!(actual_summary, expected_summary);
+    assert_eq!(actual_summary, expected_summary_with_builtins);
 }

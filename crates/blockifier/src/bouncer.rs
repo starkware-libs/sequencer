@@ -13,7 +13,7 @@ use crate::blockifier::transaction_executor::{
     TransactionExecutorResult,
 };
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
+use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary, SummaryWithBuiltins};
 use crate::fee::gas_usage::get_onchain_data_segment_length;
 use crate::fee::resources::TransactionResources;
 use crate::state::cached_state::{StateChangesKeys, StorageEntry};
@@ -502,12 +502,13 @@ impl Bouncer {
         &mut self,
         state_reader: &S,
         tx_state_changes_keys: &StateChangesKeys,
-        tx_execution_summary: &ExecutionSummary,
+        summary: &SummaryWithBuiltins,
         tx_resources: &TransactionResources,
         versioned_constants: &VersionedConstants,
     ) -> TransactionExecutorResult<()> {
         // The countings here should be linear in the transactional state changes and execution info
         // rather than the cumulative state attributes.
+        let (tx_execution_summary, tx_builtin_counters) = summary;
         let marginal_state_changes_keys =
             tx_state_changes_keys.difference(&self.state_changes_keys);
         let marginal_executed_class_hashes = tx_execution_summary
@@ -526,7 +527,7 @@ impl Bouncer {
             tx_resources,
             &marginal_state_changes_keys,
             versioned_constants,
-            &tx_execution_summary.builtin_counters,
+            &tx_builtin_counters,
             &self.bouncer_config.builtin_weights,
         )?;
 
@@ -861,12 +862,13 @@ pub fn get_particia_update_resources(n_visited_storage_entries: usize) -> Execut
 #[allow(clippy::result_large_err)]
 pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     state_reader: &S,
-    tx_execution_summary: &ExecutionSummary,
+    summary: &SummaryWithBuiltins,
     tx_resources: &TransactionResources,
     tx_state_changes_keys: &StateChangesKeys,
     bouncer_config: &BouncerConfig,
     versioned_constants: &VersionedConstants,
 ) -> TransactionExecutionResult<()> {
+    let (tx_execution_summary, tx_builtin_counters) = summary;
     let tx_weights = get_tx_weights(
         state_reader,
         &tx_execution_summary.executed_class_hashes,
@@ -874,7 +876,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         tx_resources,
         tx_state_changes_keys,
         versioned_constants,
-        &tx_execution_summary.builtin_counters,
+        tx_builtin_counters,
         &bouncer_config.builtin_weights,
     )?
     .bouncer_weights;
