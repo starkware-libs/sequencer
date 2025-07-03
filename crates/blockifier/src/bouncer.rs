@@ -503,6 +503,7 @@ impl Bouncer {
         state_reader: &S,
         tx_state_changes_keys: &StateChangesKeys,
         tx_execution_summary: &ExecutionSummary,
+        tx_builtin_counters: &BuiltinCounterMap,
         tx_resources: &TransactionResources,
         versioned_constants: &VersionedConstants,
     ) -> TransactionExecutorResult<()> {
@@ -526,7 +527,7 @@ impl Bouncer {
             tx_resources,
             &marginal_state_changes_keys,
             versioned_constants,
-            &tx_execution_summary.builtin_counters,
+            tx_builtin_counters,
             &self.bouncer_config.builtin_weights,
         )?;
 
@@ -862,6 +863,7 @@ pub fn get_particia_update_resources(n_visited_storage_entries: usize) -> Execut
 pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     state_reader: &S,
     tx_execution_summary: &ExecutionSummary,
+    tx_builtin_counters: &BuiltinCounterMap,
     tx_resources: &TransactionResources,
     tx_state_changes_keys: &StateChangesKeys,
     bouncer_config: &BouncerConfig,
@@ -874,7 +876,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         tx_resources,
         tx_state_changes_keys,
         versioned_constants,
-        &tx_execution_summary.builtin_counters,
+        tx_builtin_counters,
         &bouncer_config.builtin_weights,
     )?
     .bouncer_weights;

@@ -28,6 +28,7 @@ use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
+use crate::utils::add_maps;
 
 #[cfg(test)]
 #[path = "objects_test.rs"]
@@ -216,6 +217,13 @@ impl TransactionExecutionInfo {
     /// entries, L2-to-L1_payload_lengths, and the number of emitted events.
     pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
         CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
+    }
+
+    pub fn summarize_builtins(&self) -> BuiltinCounterMap {
+        self.non_optional_call_infos().fold(BuiltinCounterMap::new(), |mut acc, call_info| {
+            add_maps(&mut acc, &call_info.builtin_counters);
+            acc
+        })
     }
 }
 pub trait ExecutionResourcesTraits {
