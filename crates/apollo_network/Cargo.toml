@@ -44,6 +44,7 @@ validator = { workspace = true, features = ["derive"] }
 
 
 [dev-dependencies]
+apollo_network_types = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 deadqueue = { workspace = true, features = ["unlimited"] }
 defaultmap.workspace = true
