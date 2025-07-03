@@ -217,6 +217,8 @@ fn test_bouncer_try_update_sierra_gas(
 
     // Prepare the resources to be added to the bouncer.
     let execution_summary = ExecutionSummary::default();
+    let builtin_counters = BuiltinCounterMap::default();
+    let summary = (execution_summary, builtin_counters);
     let tx_resources = TransactionResources {
         // Only the `sierra_gas` field is varied.
         computation: ComputationResources { sierra_gas: added_gas, ..Default::default() },
@@ -230,7 +232,7 @@ fn test_bouncer_try_update_sierra_gas(
     // Check that the transaction is not too large.
     let mut result = verify_tx_weights_within_max_capacity(
         &transactional_state,
-        &execution_summary,
+        &summary,
         &tx_resources,
         &tx_state_changes_keys,
         &bouncer.bouncer_config,
@@ -249,7 +251,7 @@ fn test_bouncer_try_update_sierra_gas(
         result = bouncer.try_update(
             &transactional_state,
             &tx_state_changes_keys,
-            &execution_summary,
+            &summary,
             &tx_resources,
             &block_context.versioned_constants,
         );
@@ -294,7 +296,7 @@ fn test_bouncer_try_update_n_txs(
     let mut result = bouncer.try_update(
         &first_transactional_state,
         &first_tx_state_changes_keys,
-        &ExecutionSummary::default(),
+        &(ExecutionSummary::default(), BuiltinCounterMap::default()),
         &TransactionResources::default(),
         &block_context.versioned_constants,
     );
@@ -309,7 +311,7 @@ fn test_bouncer_try_update_n_txs(
     result = bouncer.try_update(
         &second_transactional_state,
         &second_tx_state_changes_keys,
-        &ExecutionSummary::default(),
+        &(ExecutionSummary::default(), BuiltinCounterMap::default()),
         &TransactionResources::default(),
         &block_context.versioned_constants,
     );
