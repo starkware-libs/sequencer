@@ -8,6 +8,7 @@ use serde::Serialize;
 use serde_json::to_value;
 use serde_with::with_prefix;
 use starknet_api::block::BlockNumber;
+use url::Url;
 
 use crate::deployment::PragmaDomain;
 use crate::deployment_definitions::{StateSyncConfig, StateSyncType};
@@ -122,7 +123,7 @@ pub struct DeploymentConfigOverride {
     starknet_contract_address: String,
     chain_id: String,
     eth_fee_token_address: String,
-    starknet_url: String,
+    starknet_url: Url,
     strk_fee_token_address: String,
     #[serde(rename = "consensus_manager_config.eth_to_strk_oracle_config.base_url")]
     consensus_manager_config_eth_to_strk_oracle_config_base_url: String,
@@ -161,7 +162,8 @@ impl DeploymentConfigOverride {
             starknet_contract_address: starknet_contract_address.to_string(),
             chain_id: chain_id.to_string(),
             eth_fee_token_address: eth_fee_token_address.to_string(),
-            starknet_url: starknet_url.to_string(),
+            starknet_url: Url::parse(starknet_url.to_string().as_str())
+                .expect("Failed to parse the provided Starknet URL"),
             strk_fee_token_address: strk_fee_token_address.to_string(),
             consensus_manager_config_eth_to_strk_oracle_config_base_url: PRAGMA_URL_TEMPLATE
                 .format(&[&pragma_domain]),
