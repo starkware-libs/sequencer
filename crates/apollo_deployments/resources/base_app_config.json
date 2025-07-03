@@ -129,7 +129,7 @@
   "gateway_config.stateless_tx_validator_config.min_sierra_version.major": 1,
   "gateway_config.stateless_tx_validator_config.min_sierra_version.minor": 1,
   "gateway_config.stateless_tx_validator_config.min_sierra_version.patch": 0,
-  "gateway_config.stateless_tx_validator_config.validate_non_zero_resource_bounds": true,
+  "gateway_config.stateless_tx_validator_config.validate_resource_bounds_above_threshold": true,
   "http_server_config.ip": "0.0.0.0",
   "http_server_config.port": 8080,
   "l1_gas_price_provider_config.lag_margin_seconds": 60,
