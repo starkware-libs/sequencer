@@ -62,3 +62,17 @@ fn test_l2_to_l1_message_header_size() {
         L2_TO_L1_MSG_HEADER_SIZE
     );
 }
+
+#[test]
+// TODO(Aner): is this correct? Is it needed?
+fn test_compiled_class_version() {
+    // The hex string corresponding to b'COMPILED_CLASS_V1' in big-endian.
+    let compiled_class_version = "0x434f4d50494c45445f434c4153535f5631";
+    assert_eq!(
+        get_from_program(
+            &OS_PROGRAM,
+            "starkware.starknet.core.os.contract_class.compiled_class.COMPILED_CLASS_VERSION"
+        ),
+        Felt::from_hex(compiled_class_version).unwrap()
+    );
+}
