@@ -4,7 +4,7 @@ extern crate syn;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Data, DeriveInput, Fields, parse_macro_input};
+use syn::{parse_macro_input, Data, DeriveInput, Fields};
 
 /// This macro derives the `SizeOf` trait for structs and enums, allowing them to calculate
 /// their size in bytes. The `SizeOf` trait requires implementing the `size_bytes`
@@ -22,7 +22,7 @@ pub fn derive_size_of(input: TokenStream) -> TokenStream {
                     .map(|f| {
                         let ident = f.ident.as_ref().unwrap();
                         quote! {
-                            size += self.#ident.size_bytes();
+                            size += self.#ident.dynamic_size();
                         }
                     })
                     .collect::<Vec<_>>(),
@@ -30,7 +30,7 @@ pub fn derive_size_of(input: TokenStream) -> TokenStream {
                     .map(|i| {
                         let idx = syn::Index::from(i);
                         quote! {
-                            size += self.#idx.size_bytes();
+                            size += self.#idx.dynamic_size();
                         }
                     })
                     .collect(),
@@ -38,7 +38,7 @@ pub fn derive_size_of(input: TokenStream) -> TokenStream {
             };
             quote! {
                 impl SizeOf for #name {
-                    fn size_bytes(&self) -> usize {
+                    fn dynamic_size(&self) -> usize {
                         let mut size = 0;
                         #(#field_exprs)*
                         size
@@ -54,8 +54,10 @@ pub fn derive_size_of(input: TokenStream) -> TokenStream {
                         let idents: Vec<_> =
                             fields.named.iter().map(|f| f.ident.as_ref().unwrap()).collect();
                         let bindings: Vec<_> = idents.iter().map(|id| quote! { #id }).collect();
-                        let sizes: Vec<_> =
-                            idents.iter().map(|id| quote! { size += #id.size_bytes(); }).collect();
+                        let sizes: Vec<_> = idents
+                            .iter()
+                            .map(|id| quote! { size += #id.dynamic_size(); })
+                            .collect();
                         quote! {
                             Self::#vname { #(#bindings),* } => {
                                 let mut size = 0;
@@ -68,8 +70,10 @@ pub fn derive_size_of(input: TokenStream) -> TokenStream {
                         let bindings: Vec<syn::Ident> = (0..fields.unnamed.len())
                             .map(|i| syn::Ident::new(&format!("f{}", i), vname.span()))
                             .collect();
-                        let sizes: Vec<_> =
-                            bindings.iter().map(|b| quote! { size += #b.size_bytes(); }).collect();
+                        let sizes: Vec<_> = bindings
+                            .iter()
+                            .map(|b| quote! { size += #b.dynamic_size(); })
+                            .collect();
                         quote! {
                             Self::#vname( #(#bindings),* ) => {
                                 let mut size = 0;
@@ -87,7 +91,7 @@ pub fn derive_size_of(input: TokenStream) -> TokenStream {
             });
             quote! {
                 impl SizeOf for #name {
-                    fn size_bytes(&self) -> usize {
+                    fn dynamic_size(&self) -> usize {
                         match self {
                             #(#variant_matches),*
                         }

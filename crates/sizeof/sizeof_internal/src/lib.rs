@@ -1,10 +1,20 @@
 extern crate starknet_types_core;
 
+use std::ops::Deref;
+
 use starknet_types_core::felt::Felt;
 
 pub trait SizeOf {
-    /// Returns the size (stack+heap) of the type in bytes.
-    fn size_bytes(&self) -> usize;
+    /// Returns the heap size of the type in bytes.
+    fn dynamic_size(&self) -> usize;
+
+    /// Returns the total size of the type in bytes, including both stack and heap parts.
+    fn size_bytes(&self) -> usize
+    where
+        Self: Sized,
+    {
+        std::mem::size_of::<Self>() + self.dynamic_size()
+    }
 }
 
 #[macro_export]
@@ -12,8 +22,8 @@ macro_rules! default_primitive_sizeof {
     ($($type:ty),*) => {
         $(
             impl SizeOf for $type {
-                fn size_bytes(&self) -> usize {
-                    std::mem::size_of::<$type>()
+                fn dynamic_size(&self) -> usize {
+                    0
                 }
             }
         )*
@@ -28,14 +38,20 @@ default_primitive_sizeof! {
 }
 
 impl SizeOf for String {
-    fn size_bytes(&self) -> usize {
-        std::mem::size_of::<Self>() + self.capacity()
+    fn dynamic_size(&self) -> usize {
+        self.capacity()
     }
 }
 
 impl<T: SizeOf> SizeOf for Vec<T> {
-    fn size_bytes(&self) -> usize {
-        std::mem::size_of::<Self>() + self.iter().map(|x| x.size_bytes()).sum::<usize>()
+    fn dynamic_size(&self) -> usize {
+        self.iter().map(|x| x.size_bytes()).sum::<usize>()
+    }
+}
+
+impl<T: SizeOf> SizeOf for Box<T> {
+    fn dynamic_size(&self) -> usize {
+        self.deref().size_bytes()
     }
 }
 

@@ -1,0 +1,13 @@
+error[E0599]: no method named `dynamic_size` found for struct `NotSizeOf` in the current scope
+ --> negative_tests/notsizeof.rs:6:10
+  |
+2 | struct NotSizeOf {
+  | ---------------- method `dynamic_size` not found for this struct
+...
+6 | #[derive(SizeOf)]
+  |          ^^^^^^ method not found in `NotSizeOf`
+  |
+  = help: items from traits can only be used if the trait is implemented and in scope
+  = note: the following trait defines an item `dynamic_size`, perhaps you need to implement it:
+          candidate #1: `SizeOf`
+  = note: this error originates in the derive macro `SizeOf` (in Nightly builds, run with -Z macro-backtrace for more info)
