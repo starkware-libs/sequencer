@@ -1055,7 +1055,6 @@ dependencies = [
  "lru 0.12.5",
  "metrics 0.24.1",
  "mockall",
- "papyrus_common",
  "prost",
  "serde",
  "starknet-types-core",
