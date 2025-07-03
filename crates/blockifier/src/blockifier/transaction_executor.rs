@@ -161,6 +161,7 @@ impl<S: StateReader> TransactionExecutor<S> {
                     &transactional_state,
                     &tx_state_changes_keys,
                     &tx_execution_info.summarize(&self.block_context.versioned_constants),
+                    &tx_execution_info.summarize_builtins(),
                     &tx_execution_info.receipt.resources,
                     &self.block_context.versioned_constants,
                 )?;

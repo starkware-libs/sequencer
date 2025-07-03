@@ -236,13 +236,15 @@ fn test_summarize(
             total_event_keys: 0,
             total_event_data_size: 0,
         },
-        // TODO(Meshi): Change it to a relevant value for this test.
-        builtin_counters: HashMap::new(),
     };
+    // TODO(Meshi): Change it to a relevant value for this test.
+    let expected_builtins = HashMap::new();
 
     // Call the summarize method.
     let actual_summary = tx_execution_info.summarize(VersionedConstants::latest_constants());
+    let actual_builtins = tx_execution_info.summarize_builtins();
 
     // Compare the actual result with the expected result.
     assert_eq!(actual_summary, expected_summary);
+    assert_eq!(actual_builtins, expected_builtins);
 }
