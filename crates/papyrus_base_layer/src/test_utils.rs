@@ -160,6 +160,9 @@ pub async fn deploy_starknet_l1_contract(config: EthereumBaseLayerConfig) -> Sta
     Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap()
 }
 
+// FIXME: This should be part of AnvilBaseLayer, however the usage in the simulator doesn't allow
+// that, since it is coupled with a manual invocation of an anvil instance that is managed inside
+// the github workflow.
 pub async fn make_block_history_on_anvil(
     sender_address: EthereumContractAddress,
     receiver_address: EthereumContractAddress,
