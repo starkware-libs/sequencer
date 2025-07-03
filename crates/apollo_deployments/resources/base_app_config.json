@@ -117,6 +117,7 @@
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": "0x1",
   "gateway_config.stateful_tx_validator_config.min_gas_price_percentage": 100,
   "gateway_config.stateful_tx_validator_config.reject_future_declare_txs": true,
+  "gateway_config.stateful_tx_validator_config.validate_resource_bounds_above_threshold": true,
   "gateway_config.stateless_tx_validator_config.max_calldata_length": 5000,
   "gateway_config.stateless_tx_validator_config.max_contract_bytecode_size": 81920,
   "gateway_config.stateless_tx_validator_config.max_contract_class_object_size": 4089446,
