@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -131,6 +133,11 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             | Environment::StressTest => true,
             _ => unimplemented!(),
         }
+    }
+
+    // TODO(Nadin): Implement this method to return the actual ports used by the service.
+    fn get_ports(&self) -> BTreeMap<String, u16> {
+        BTreeMap::new()
     }
 }
 

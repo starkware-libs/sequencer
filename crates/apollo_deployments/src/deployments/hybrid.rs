@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::template::Template;
@@ -272,6 +273,11 @@ impl ServiceNameInner for HybridNodeServiceName {
             },
             _ => unimplemented!(),
         }
+    }
+
+    // TODO(Nadin): Implement this method to return the actual ports used by the service.
+    fn get_ports(&self) -> BTreeMap<String, u16> {
+        BTreeMap::new()
     }
 }
 
