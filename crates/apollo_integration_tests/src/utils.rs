@@ -558,7 +558,7 @@ pub fn create_gateway_config(
     validate_non_zero_resource_bounds: bool,
 ) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds,
+        validate_resource_bounds: validate_non_zero_resource_bounds,
         max_calldata_length: 10,
         max_signature_length: 2,
         ..Default::default()
