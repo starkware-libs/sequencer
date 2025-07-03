@@ -2,14 +2,7 @@
     "main-v0.13.2": "main-v0.13.4",
     "main-v0.13.4": "main-v0.13.5",
     "main-v0.13.5": "main-v0.13.6",
-<<<<<<< HEAD
     "main-v0.13.6": "main-v0.14.0-testnet",
     "main-v0.14.0-testnet": "main-v0.14.0",
-||||||| fbd870c48
-    "main-v0.13.6": "main-v0.14.0",
-=======
-    "main-v0.13.6": "main-v0.14.0",
-    "main-v0.14.0-testnet": "main-v0.14.0",
->>>>>>> origin/main-v0.14.0-testnet
     "main-v0.14.0": "main"
 }

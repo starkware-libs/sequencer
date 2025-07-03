@@ -25,16 +25,8 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
-<<<<<<< HEAD
 use apollo_state_sync_types::communication::StateSyncClientError;
 use apollo_time::time::{Clock, DateTime};
-||||||| fbd870c48
-use futures::channel::oneshot;
-use futures::FutureExt;
-=======
-use apollo_time::time::{Clock, DateTime};
-use futures::channel::oneshot;
->>>>>>> origin/main-v0.14.0-testnet
 use starknet_api::block::{BlockHash, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
@@ -100,34 +92,11 @@ pub(crate) enum BuildProposalError {
 }
 
 // Handles building a new proposal without blocking consensus:
-<<<<<<< HEAD
 pub(crate) async fn build_proposal(
     mut args: ProposalBuildArguments,
 ) -> BuildProposalResult<ProposalCommitment> {
     let batcher_deadline = args.deps.clock.now() + args.batcher_timeout;
     let block_info = initiate_build(&args).await?;
-||||||| fbd870c48
-pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
-    let block_info = initiate_build(&args).await;
-    let block_info = match block_info {
-        Ok(info) => info,
-        Err(e) => {
-            error!("Failed to initiate proposal build. {e:?}");
-            return;
-        }
-    };
-=======
-pub(crate) async fn build_proposal(mut args: ProposalBuildArguments) {
-    let batcher_deadline = args.deps.clock.now() + args.batcher_timeout;
-    let block_info = initiate_build(&args).await;
-    let block_info = match block_info {
-        Ok(info) => info,
-        Err(e) => {
-            error!("Failed to initiate proposal build. {e:?}");
-            return;
-        }
-    };
->>>>>>> origin/main-v0.14.0-testnet
     args.stream_sender
         .send(ProposalPart::Init(args.proposal_init))
         .await
@@ -207,36 +176,19 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
 /// 1. Receive chunks of content from the batcher.
 /// 2. Forward these to the stream handler to be streamed out to the network.
 /// 3. Once finished, receive the commitment from the batcher.
-<<<<<<< HEAD
 // TODO(guyn): consider passing a ref to BuildProposalArguments instead of all the fields
 // separately.
 #[allow(clippy::too_many_arguments)]
 async fn get_proposal_content(
-||||||| fbd870c48
-pub(crate) async fn get_proposal_content(
-=======
-// TODO(guyn): consider passing a ref to BuildProposalArguments instead of all the fields
-// separately.
-#[allow(clippy::too_many_arguments)]
-pub(crate) async fn get_proposal_content(
->>>>>>> origin/main-v0.14.0-testnet
     proposal_id: ProposalId,
     batcher: &dyn BatcherClient,
     mut stream_sender: StreamSender,
     cende_write_success: AbortOnDropHandle<bool>,
     transaction_converter: Arc<dyn TransactionConverterTrait>,
     cancel_token: CancellationToken,
-<<<<<<< HEAD
     clock: Arc<dyn Clock>,
     batcher_deadline: DateTime,
 ) -> BuildProposalResult<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
-||||||| fbd870c48
-) -> Option<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
-=======
-    clock: Arc<dyn Clock>,
-    batcher_deadline: DateTime,
-) -> Option<(ProposalCommitment, Vec<Vec<InternalConsensusTransaction>>)> {
->>>>>>> origin/main-v0.14.0-testnet
     let mut content = Vec::new();
     loop {
         if cancel_token.is_cancelled() {
@@ -291,7 +243,6 @@ pub(crate) async fn get_proposal_content(
                 }
 
                 // If the blob writing operation to Aerospike doesn't return a success status, we
-<<<<<<< HEAD
                 // can't finish the proposal. Must wait for it at least until batcher_timeout is
                 // reached.
                 let remaining = (batcher_deadline - clock.now())
@@ -305,60 +256,16 @@ pub(crate) async fn get_proposal_content(
                         ));
                     }
                     Ok(Ok(true)) => {
-||||||| fbd870c48
-                // can't finish the proposal.
-                match cende_write_success.now_or_never() {
-                    Some(Ok(true)) => {
-=======
-                // can't finish the proposal. Must wait for it at least until batcher_timeout is
-                // reached.
-                let remaining = (batcher_deadline - clock.now())
-                    .to_std()
-                    .unwrap_or_default()
-                    .max(Duration::from_millis(1)); // Ensure we wait at least 1 ms to avoid immediate timeout. 
-                match tokio::time::timeout(remaining, cende_write_success).await {
-                    Err(_) => {
-                        warn!("Cende write timed out.");
-                        return None;
-                    }
-                    Ok(Ok(true)) => {
->>>>>>> origin/main-v0.14.0-testnet
                         info!("Writing blob to Aerospike completed successfully.");
                     }
-<<<<<<< HEAD
                     Ok(Ok(false)) => {
                         return Err(BuildProposalError::CendeWriteError(
                             "Writing blob to Aerospike failed.".to_string(),
                         ));
-||||||| fbd870c48
-                    Some(Ok(false)) => {
-                        warn!("Writing blob to Aerospike failed.");
-                        return None;
-=======
-                    Ok(Ok(false)) => {
-                        warn!("Writing blob to Aerospike failed.");
-                        return None;
->>>>>>> origin/main-v0.14.0-testnet
                     }
-<<<<<<< HEAD
                     Ok(Err(e)) => {
                         return Err(BuildProposalError::CendeWriteError(e.to_string()));
                     }
-||||||| fbd870c48
-                    Some(Err(e)) => {
-                        warn!("Writing blob to Aerospike failed. Error: {e:?}");
-                        return None;
-                    }
-                    None => {
-                        warn!("Writing blob to Aerospike didn't return in time.");
-                        return None;
-                    }
-=======
-                    Ok(Err(e)) => {
-                        warn!("Writing blob to Aerospike failed. Error: {e:?}");
-                        return None;
-                    }
->>>>>>> origin/main-v0.14.0-testnet
                 }
 
                 let final_n_executed_txs_u64 = final_n_executed_txs
