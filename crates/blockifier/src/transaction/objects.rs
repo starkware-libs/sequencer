@@ -22,7 +22,7 @@ use starknet_api::transaction::{
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::execution::call_info::{BuiltinCounterMap, CallInfo, ExecutionSummary};
+use crate::execution::call_info::{BuiltinCounterMap, CallInfo, SummaryWithBuiltins};
 use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
@@ -214,8 +214,15 @@ impl TransactionExecutionInfo {
 
     /// Returns a summary of transaction execution, including executed class hashes, visited storage
     /// entries, L2-to-L1_payload_lengths, and the number of emitted events.
-    pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
-        CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
+    pub fn summarize(&self, versioned_constants: &VersionedConstants) -> SummaryWithBuiltins {
+        let summary = CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants);
+        let builtins = self.summarize_builtins();
+
+        (summary, builtins)
+    }
+
+    pub fn summarize_builtins(&self) -> BuiltinCounterMap {
+        CallInfo::summarize_many_builtins(self.non_optional_call_infos())
     }
 }
 pub trait ExecutionResourcesTraits {

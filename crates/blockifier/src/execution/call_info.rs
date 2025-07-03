@@ -97,6 +97,8 @@ impl EventSummary {
 
 pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
 
+pub type SummaryWithBuiltins = (ExecutionSummary, BuiltinCounterMap);
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
     pub charged_resources: ChargedResources,
@@ -104,7 +106,6 @@ pub struct ExecutionSummary {
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub l2_to_l1_payload_lengths: Vec<usize>,
     pub event_summary: EventSummary,
-    pub builtin_counters: BuiltinCounterMap,
 }
 
 impl Add for ExecutionSummary {
@@ -115,7 +116,6 @@ impl Add for ExecutionSummary {
         self.executed_class_hashes.extend(other.executed_class_hashes);
         self.visited_storage_entries.extend(other.visited_storage_entries);
         self.l2_to_l1_payload_lengths.extend(other.l2_to_l1_payload_lengths);
-        add_maps(&mut self.builtin_counters, &other.builtin_counters);
         self.event_summary += other.event_summary;
         self
     }
@@ -257,7 +257,6 @@ impl CallInfo {
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
         let mut event_summary = EventSummary::default();
         let mut l2_to_l1_payload_lengths = Vec::new();
-        let mut builtin_counters = BuiltinCounterMap::new();
 
         for call_info in self.iter() {
             // Class hashes.
@@ -282,8 +281,6 @@ impl CallInfo {
                     .map(|message| message.message.payload.0.len()),
             );
 
-            add_maps(&mut builtin_counters, &call_info.builtin_counters);
-
             // Events: all event resources in the execution tree, unless executing a 0.13.1 block.
             if !versioned_constants.ignore_inner_event_resources {
                 event_summary += call_info.specific_event_summary();
@@ -307,8 +304,16 @@ impl CallInfo {
             visited_storage_entries,
             l2_to_l1_payload_lengths,
             event_summary,
-            builtin_counters,
         }
+    }
+
+    pub fn summarize_many_builtins<'a>(
+        call_infos: impl Iterator<Item = &'a CallInfo>,
+    ) -> BuiltinCounterMap {
+        call_infos.fold(BuiltinCounterMap::new(), |mut acc, call_info| {
+            add_maps(&mut acc, &call_info.builtin_counters);
+            acc
+        })
     }
 
     pub fn summarize_many<'a>(
