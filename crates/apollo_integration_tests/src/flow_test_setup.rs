@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use alloy::node_bindings::AnvilInstance;
 use apollo_config::converters::UrlAndHeaders;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_http_server::config::HttpServerConfig;
@@ -31,15 +30,13 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     L1ToL2MessageArgs,
-    StarknetL1Contract,
 };
 use papyrus_base_layer::test_utils::{
-    ethereum_base_layer_config_for_anvil,
     make_block_history_on_anvil,
-    spawn_anvil_and_deploy_starknet_l1_contract,
     ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
     OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
@@ -78,10 +75,9 @@ pub struct FlowTestSetup {
     pub sequencer_0: FlowSequencerSetup,
     pub sequencer_1: FlowSequencerSetup,
 
-    // Handle for L1 server: the server is dropped when handle is dropped.
-    #[allow(dead_code)]
-    l1_handle: AnvilInstance,
-    starknet_l1_contract: StarknetL1Contract,
+    // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
+    // instance is dropped.
+    pub anvil_base_layer: AnvilBaseLayer,
 
     // The transactions that were streamed in the consensus proposals, used for asserting the right
     // transactions are batched.
@@ -122,10 +118,8 @@ impl FlowTestSetup {
             .try_into()
             .unwrap();
 
-        let base_layer_config =
-            ethereum_base_layer_config_for_anvil(Some(available_ports.get_next_port()));
-        let (anvil, starknet_l1_contract) =
-            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config).await;
+        let anvil_base_layer = AnvilBaseLayer::new().await;
+        let base_layer_config = anvil_base_layer.ethereum_base_layer.config.clone();
 
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let sender_address = ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
@@ -177,7 +171,7 @@ impl FlowTestSetup {
         )
         .await;
 
-        Self { sequencer_0, sequencer_1, l1_handle: anvil, starknet_l1_contract, accumulated_txs }
+        Self { sequencer_0, sequencer_1, anvil_base_layer, accumulated_txs }
     }
 
     pub fn chain_id(&self) -> &ChainId {
@@ -195,7 +189,11 @@ impl FlowTestSetup {
 
     pub async fn send_messages_to_l2(&self, l1_to_l2_messages_args: &[L1ToL2MessageArgs]) {
         for l1_to_l2_message_args in l1_to_l2_messages_args {
-            self.starknet_l1_contract.send_message_to_l2(l1_to_l2_message_args).await;
+            self.anvil_base_layer
+                .ethereum_base_layer
+                .contract
+                .send_message_to_l2(l1_to_l2_message_args)
+                .await;
         }
     }
 }
