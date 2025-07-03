@@ -442,7 +442,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
             proposals.remove_proposals_below_or_at_height(&height);
         }
-        let transactions = transactions.concat();
+
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
         let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } = self
@@ -451,6 +451,15 @@ impl ConsensusContext for SequencerConsensusContext {
             .decision_reached(DecisionReachedInput { proposal_id })
             .await
             .expect("Failed to get state diff.");
+
+        // Remove transactions that were not accepted by the Batcher, so `transactions` and
+        // `central_objects.execution_infos` correspond to the same list of (only accepted)
+        // transactions.
+        let transactions: Vec<InternalConsensusTransaction> = transactions
+            .concat()
+            .into_iter()
+            .filter(|tx| central_objects.execution_infos.contains_key(&tx.tx_hash()))
+            .collect();
 
         let gas_target = GasAmount(VersionedConstants::latest_constants().max_block_size.0 / 2);
         self.l2_gas_price =
@@ -515,6 +524,11 @@ impl ConsensusContext for SequencerConsensusContext {
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
+        // Strip the transaction hashes from `execution_infos`, since we don't use it in the blob
+        // version of `execution_infos`.
+        let stripped_execution_infos =
+            central_objects.execution_infos.into_iter().map(|(_, info)| info).collect();
+
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
@@ -526,7 +540,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
                 transactions,
-                execution_infos: central_objects.execution_infos,
+                execution_infos: stripped_execution_infos,
                 bouncer_weights: central_objects.bouncer_weights,
                 casm_hash_computation_data_sierra_gas: central_objects
                     .casm_hash_computation_data_sierra_gas,
