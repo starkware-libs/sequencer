@@ -200,6 +200,9 @@ impl TransactionManager {
                 TransactionState::CancelledOnL2 => {
                     snapshot.cancelled_on_l2.push(tx_hash);
                 }
+                TransactionState::Consumed => {
+                    snapshot.consumed.push(tx_hash);
+                }
             }
         }
 
@@ -293,6 +296,7 @@ pub(crate) struct TransactionManagerSnapshot {
     // NOTE: transition from cancellation-started into cancelled state is done LAZILY only when
     // validation requests are processed against a record.
     pub cancelled_on_l2: Vec<TransactionHash>,
+    pub consumed: Vec<TransactionHash>,
 }
 
 // Invariant: Monotone-increasing.

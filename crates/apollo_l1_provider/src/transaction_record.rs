@@ -188,6 +188,7 @@ pub enum TransactionState {
     #[default]
     Pending,
     Rejected,
+    Consumed,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
