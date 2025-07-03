@@ -47,6 +47,7 @@ pub enum InvalidValidationStatus {
     AlreadyIncludedInProposedBlock,
     AlreadyIncludedOnL2,
     CancelledOnL2,
+    ConsumedOnL1,
     ConsumedOnL1OrUnknown,
 }
 
