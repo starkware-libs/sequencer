@@ -33,6 +33,7 @@ libp2p = { workspace = true, features = [
   "yamux",
 ] }
 metrics.workspace = true
+metrics-exporter-prometheus.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true

@@ -1,4 +1,7 @@
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+
 use clap::Parser;
+use metrics_exporter_prometheus::PrometheusBuilder;
 mod converters;
 mod utils;
 
@@ -43,6 +46,14 @@ struct Args {
     timeout: u64,
 }
 
-fn main() {
-    let _args = Args::parse();
+#[tokio::main]
+async fn main() {
+    let args = Args::parse();
+
+    let builder = PrometheusBuilder::new().with_http_listener(SocketAddr::V4(SocketAddrV4::new(
+        Ipv4Addr::LOCALHOST,
+        args.metric_port,
+    )));
+
+    builder.install().expect("failed to install recorder/exporter");
 }
