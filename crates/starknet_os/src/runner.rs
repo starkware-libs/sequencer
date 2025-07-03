@@ -1,7 +1,9 @@
 use apollo_starknet_os_program::OS_PROGRAM;
 use blockifier::state::state_api::StateReader;
 use cairo_vm::cairo_run::CairoRunConfig;
+use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
 use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::vm_exception::VmException;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 
@@ -14,19 +16,12 @@ use crate::io::os_input::{OsHints, StarknetOsInput};
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::OsMetrics;
 
-pub fn run_os<S: StateReader>(
+// TODO(Aner): replace the return type with Result<StarknetRunnerOutput,...>
+// TODO(Aner): Make generic (CommonHintProcessor trait) depend on testing flag.
+fn run_runner<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
     layout: LayoutName,
-    OsHints {
-        os_hints_config,
-        os_input:
-            StarknetOsInput {
-                os_block_inputs,
-                cached_state_inputs,
-                deprecated_compiled_classes,
-                compiled_classes,
-            },
-    }: OsHints,
-    state_readers: Vec<S>,
+    program: &Program,
+    mut hint_processor: HP,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     // Init CairoRunConfig.
     let cairo_run_config =
@@ -35,7 +30,7 @@ pub fn run_os<S: StateReader>(
 
     // Init cairo runner.
     let mut cairo_runner = CairoRunner::new(
-        &OS_PROGRAM,
+        program,
         cairo_run_config.layout,
         cairo_run_config.dynamic_layout_params,
         cairo_run_config.proof_mode,
@@ -46,20 +41,9 @@ pub fn run_os<S: StateReader>(
     // Init the Cairo VM.
     let end = cairo_runner.initialize(allow_missing_builtins)?;
 
-    // Create the hint processor.
-    let mut snos_hint_processor = SnosHintProcessor::new(
-        &OS_PROGRAM,
-        os_hints_config,
-        os_block_inputs.iter().collect(),
-        cached_state_inputs,
-        deprecated_compiled_classes,
-        compiled_classes,
-        state_readers,
-    )?;
-
     // Run the Cairo VM.
     cairo_runner
-        .run_until_pc(end, &mut snos_hint_processor)
+        .run_until_pc(end, &mut hint_processor)
         .map_err(|err| Box::new(VmException::from_vm_error(&cairo_runner, err)))?;
 
     // End the Cairo VM run.
@@ -67,7 +51,7 @@ pub fn run_os<S: StateReader>(
     cairo_runner.end_run(
         cairo_run_config.disable_trace_padding,
         disable_finalize_all,
-        &mut snos_hint_processor,
+        &mut hint_processor,
     )?;
 
     if cairo_run_config.proof_mode {
@@ -94,7 +78,6 @@ pub fn run_os<S: StateReader>(
 
     // Parse the Cairo VM output.
     let cairo_pie = cairo_runner.get_cairo_pie().map_err(StarknetOsError::RunnerError)?;
-
     Ok(StarknetOsRunnerOutput {
         #[cfg(feature = "include_program_output")]
         os_output,
@@ -102,8 +85,36 @@ pub fn run_os<S: StateReader>(
         da_segment: snos_hint_processor.get_da_segment().take(),
         metrics: OsMetrics::new(&mut cairo_runner, &snos_hint_processor)?,
         #[cfg(any(test, feature = "testing"))]
-        unused_hints: snos_hint_processor.unused_hints,
+        unused_hints: hint_processor.get_unused_hints(),
     })
+}
+
+pub fn run_os<S: StateReader>(
+    layout: LayoutName,
+    OsHints {
+        os_hints_config,
+        os_input:
+            StarknetOsInput {
+                os_block_inputs,
+                cached_state_inputs,
+                deprecated_compiled_classes,
+                compiled_classes,
+            },
+    }: OsHints,
+    state_readers: Vec<S>,
+) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
+    // Create the hint processor.
+    let snos_hint_processor = SnosHintProcessor::new(
+        &OS_PROGRAM,
+        os_hints_config,
+        os_block_inputs.iter().collect(),
+        cached_state_inputs,
+        deprecated_compiled_classes,
+        compiled_classes,
+        state_readers,
+    )?;
+
+    run_runner(layout, &OS_PROGRAM, snos_hint_processor)
 }
 
 /// Run the OS with a "stateless" state reader - panics if the state is accessed for data that was
