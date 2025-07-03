@@ -58,7 +58,7 @@ impl PendingSource {
         node_version: &'static str,
     ) -> Result<PendingSource, ClientCreationError> {
         let apollo_starknet_client = StarknetFeederGatewayClient::new(
-            &config.starknet_url,
+            config.starknet_url.as_ref(),
             config.http_headers,
             node_version,
             config.retry_config,
