@@ -19,6 +19,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_PROPOSALS_VALIDATED,
     CONSENSUS_PROPOSALS_VALID_INIT,
     CONSENSUS_REPROPOSALS,
+    CONSENSUS_RESTART_COUNTER,
     CONSENSUS_ROUND,
     CONSENSUS_ROUND_ABOVE_ZERO,
     CONSENSUS_TIMEOUTS,
@@ -69,6 +70,9 @@ fn get_panel_consensus_max_cached_block_number() -> Panel {
 }
 fn get_panel_consensus_cached_votes() -> Panel {
     Panel::from_gauge(CONSENSUS_CACHED_VOTES, PanelType::TimeSeries)
+}
+fn get_panel_consensus_restart_counter() -> Panel {
+    Panel::from_counter(CONSENSUS_RESTART_COUNTER, PanelType::TimeSeries)
 }
 fn get_panel_consensus_decisions_reached_by_consensus() -> Panel {
     Panel::from_counter(CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS, PanelType::TimeSeries)
@@ -198,6 +202,7 @@ pub(crate) fn get_consensus_row() -> Row {
             get_panel_consensus_round_above_zero(),
             get_panel_consensus_max_cached_block_number(),
             get_panel_consensus_cached_votes(),
+            get_panel_consensus_restart_counter(),
             get_panel_consensus_decisions_reached_by_consensus(),
             get_panel_consensus_decisions_reached_by_sync(),
             get_panel_consensus_proposals_received(),

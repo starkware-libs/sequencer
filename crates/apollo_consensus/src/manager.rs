@@ -34,6 +34,7 @@ use crate::metrics::{
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_MAX_CACHED_BLOCK_NUMBER,
     CONSENSUS_PROPOSALS_RECEIVED,
+    CONSENSUS_RESTART_COUNTER,
 };
 use crate::single_height_consensus::{ShcReturn, SingleHeightConsensus};
 use crate::types::{BroadcastVoteChannel, ConsensusContext, ConsensusError, Decision, ValidatorId};
@@ -84,6 +85,8 @@ where
 {
     info!("Running consensus, args: {:?}", run_consensus_args.clone());
     register_metrics();
+    CONSENSUS_RESTART_COUNTER.increment(1);
+
     // Add a short delay to allow peers to connect and avoid "InsufficientPeers" error
     tokio::time::sleep(run_consensus_args.consensus_delay).await;
     assert!(run_consensus_args.start_observe_height <= run_consensus_args.start_active_height);
