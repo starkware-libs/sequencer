@@ -107,10 +107,10 @@ async fn txs_happy_flow() {
     );
 
     // Send the transactions.
-    let mut block_timestamps: Vec<BlockTimestamp> = Vec::with_capacity(2);
+    let mut l1_handler_timestamps: Vec<BlockTimestamp> = Vec::with_capacity(2);
     for msg in &[message_to_l2_0, message_to_l2_1] {
         let receipt = msg.send().await.unwrap().get_receipt().await.unwrap();
-        block_timestamps.push(
+        l1_handler_timestamps.push(
             base_layer
                 .get_block_header(receipt.block_number.unwrap())
                 .await
@@ -150,7 +150,7 @@ async fn txs_happy_flow() {
     };
     let first_expected_log = Event::L1HandlerTransaction {
         l1_handler_tx: expected_executable_l1_handler_0.clone(),
-        timestamp: block_timestamps[0],
+        timestamp: l1_handler_timestamps[0],
     };
 
     let expected_l1_handler_1 = L1HandlerTransaction {
@@ -169,7 +169,7 @@ async fn txs_happy_flow() {
     };
     let second_expected_log = Event::L1HandlerTransaction {
         l1_handler_tx: expected_executable_l1_handler_1,
-        timestamp: block_timestamps[1],
+        timestamp: l1_handler_timestamps[1],
     };
 
     let expected_cancel_message = Event::TransactionCancellationStarted {
