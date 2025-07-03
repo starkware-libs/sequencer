@@ -20,7 +20,7 @@ use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderCl
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_time::time::{sleep_until, Clock, DateTime};
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -54,7 +54,6 @@ pub(crate) struct ProposalValidateArguments {
     pub batcher_timeout_margin: Duration,
     pub valid_proposals: Arc<Mutex<BuiltProposals>>,
     pub content_receiver: mpsc::Receiver<ProposalPart>,
-    pub fin_sender: oneshot::Sender<ProposalCommitment>,
     pub gas_price_params: GasPriceParams,
     pub cancel_token: CancellationToken,
 }
@@ -91,6 +90,9 @@ pub(crate) enum ValidateProposalError {
     StateSyncClientError(#[from] StateSyncClientError),
     #[error("State sync is not ready: {0}")]
     StateSyncNotReady(String),
+    // Consensus may exit early (e.g. sync).
+    #[error("Failed to send commitment to consensus: {0}")]
+    SendError(ProposalCommitment),
     #[error("EthToStrkOracle error: {0}")]
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
@@ -133,18 +135,11 @@ pub(crate) async fn validate_proposal(
         &mut args.content_receiver,
         args.deps.clock.as_ref(),
     )
-    .await
+    .await?
     {
-        Ok(SecondProposalPart::BlockInfo(block_info)) => block_info,
-        Ok(SecondProposalPart::Fin(ProposalFin { proposal_commitment })) => {
-            if args.fin_sender.send(proposal_commitment).is_err() {
-                // Consensus may exit early (e.g. sync).
-                warn!("Failed to send proposal content ids");
-            }
+        SecondProposalPart::BlockInfo(block_info) => block_info,
+        SecondProposalPart::Fin(ProposalFin { proposal_commitment }) => {
             return Ok(proposal_commitment);
-        }
-        Err(err) => {
-            return Err(err);
         }
     };
     is_block_info_valid(
@@ -224,10 +219,6 @@ pub(crate) async fn validate_proposal(
         return Err(ValidateProposalError::ProposalFinMismatch);
     }
 
-    if args.fin_sender.send(built_block).is_err() {
-        // Consensus may exit early (e.g. sync).
-        warn!("Failed to send proposal content ids");
-    }
     Ok(built_block)
 }
 

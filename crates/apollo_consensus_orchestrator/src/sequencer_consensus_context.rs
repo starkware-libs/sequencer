@@ -69,7 +69,12 @@ use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::utils::{convert_to_sn_api_block_info, GasPriceParams, StreamSender};
-use crate::validate_proposal::{validate_proposal, BlockInfoValidation, ProposalValidateArguments};
+use crate::validate_proposal::{
+    validate_proposal,
+    BlockInfoValidation,
+    ProposalValidateArguments,
+    ValidateProposalError,
+};
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
@@ -691,13 +696,12 @@ impl SequencerConsensusContext {
         content_receiver: mpsc::Receiver<ProposalPart>,
         fin_sender: oneshot::Sender<ProposalCommitment>,
     ) {
-        let cancel_token = CancellationToken::new();
-        let cancel_token_clone = cancel_token.clone();
-        let l1_gas_tip_wei = GasPrice(self.config.l1_gas_tip_wei);
-        let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        let deps = self.deps.clone();
+        info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
+
+        let cancel_token = CancellationToken::new();
+        let cancel_token_clone = cancel_token.clone();
         let gas_price_params = GasPriceParams {
             min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
             max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
@@ -707,28 +711,25 @@ impl SequencerConsensusContext {
                 self.config.l1_data_gas_price_multiplier_ppt,
                 1000,
             ),
-            l1_gas_tip_wei,
+            l1_gas_tip_wei: GasPrice(self.config.l1_gas_tip_wei),
+        };
+        let args = ProposalValidateArguments {
+            deps: self.deps.clone(),
+            block_info_validation,
+            proposal_id,
+            timeout,
+            batcher_timeout_margin,
+            valid_proposals: Arc::clone(&self.valid_proposals),
+            content_receiver,
+            gas_price_params,
+            cancel_token: cancel_token_clone,
         };
 
-        info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
         let handle = tokio::spawn(
             async move {
-                match validate_proposal(ProposalValidateArguments {
-                    deps,
-                    block_info_validation,
-                    proposal_id,
-                    timeout,
-                    batcher_timeout_margin,
-                    valid_proposals,
-                    content_receiver,
-                    fin_sender,
-                    gas_price_params,
-                    cancel_token: cancel_token_clone,
-                })
-                .await
-                {
+                match validate_and_send(args, fin_sender).await {
                     Ok(proposal_commitment) => {
-                        info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.",);
+                        info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.");
                     }
                     Err(e) => {
                         warn!("Proposal failed. Error: {e:?}");
@@ -748,4 +749,15 @@ impl SequencerConsensusContext {
             handle.await.expect("Proposal task failed");
         }
     }
+}
+
+async fn validate_and_send(
+    args: ProposalValidateArguments,
+    fin_sender: oneshot::Sender<ProposalCommitment>,
+) -> Result<ProposalCommitment, ValidateProposalError> {
+    let proposal_commitment = validate_proposal(args).await?;
+    fin_sender
+        .send(proposal_commitment)
+        .map_err(|_| ValidateProposalError::SendError(proposal_commitment))?;
+    Ok(proposal_commitment)
 }
