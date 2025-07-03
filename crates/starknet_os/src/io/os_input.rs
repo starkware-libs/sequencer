@@ -78,7 +78,9 @@ pub struct OsHints {
 pub struct StarknetOsInput {
     pub os_block_inputs: Vec<OsBlockInput>,
     pub cached_state_inputs: Vec<CachedStateInput>,
-    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
+    // TODO(Dori): Once computation of the hinted class hash is fully functional, the extra Felt
+    //   value in the tuple should be removed.
+    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, (Felt, ContractClass)>,
     pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
 }
 

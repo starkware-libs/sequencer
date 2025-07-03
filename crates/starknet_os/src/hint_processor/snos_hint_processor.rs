@@ -125,7 +125,7 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) program: &'a Program,
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
-    pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, ContractClass>,
+    pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, (Felt, ContractClass)>,
     pub(crate) deprecated_class_hashes: HashSet<ClassHash>,
     pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
@@ -149,7 +149,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         os_hints_config: OsHintsConfig,
         os_block_inputs: Vec<&'a OsBlockInput>,
         cached_state_inputs: Vec<CachedStateInput>,
-        deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
+        deprecated_compiled_classes: BTreeMap<ClassHash, (Felt, ContractClass)>,
         compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
         state_readers: Vec<S>,
     ) -> Result<Self, StarknetOsError> {
