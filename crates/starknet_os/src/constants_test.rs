@@ -1,6 +1,7 @@
 use apollo_starknet_os_program::OS_PROGRAM;
 use cairo_vm::types::program::Program;
 use starknet_api::core::L2_ADDRESS_UPPER_BOUND;
+use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::FIELD_ELEMENTS_PER_BLOB;
@@ -29,5 +30,16 @@ fn test_blob_constants() {
             "starkware.starknet.core.os.data_availability.commitment.BLOB_LENGTH"
         ),
         FIELD_ELEMENTS_PER_BLOB.into()
+    );
+}
+
+#[test]
+fn test_contract_class_hash_version() {
+    assert_eq!(
+        get_from_program(
+            &OS_PROGRAM,
+            "starkware.starknet.core.os.state.commitment.CONTRACT_CLASS_LEAF_VERSION"
+        ),
+        Felt::from_hex(TreeHashFunctionImpl::CONTRACT_CLASS_LEAF_V0).unwrap()
     );
 }
