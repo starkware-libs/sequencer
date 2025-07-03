@@ -22,10 +22,10 @@ pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
 fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
         "0x4fA369fEBf0C574ea05EC12bC0e1Bc9Cd461Dd0f",
-        "SN_GOERLI",
-        "0x497d1c054cec40f64454b45deecdc83e0c7f7b961c63531eae03748abd95350",
-        "http://feeder-gateway.starknet-0-14-0-stress-test:9713/",
-        "0x4fa9355c504fa2de263bd7920644b5e48794fe1450ec2a6526518ad77d6a567",
+        "INTERNAL_STRESS_TEST",
+        "0x7e813ecf3e7b3e14f07bd2f68cb4a3d12110e3c75ec5a63de3d2dacf1852904",
+        "http://feeder-gateway.starknet-0-14-0-stress-test-03:9713/",
+        "0x2208cce4221df1f35943958340abc812aa79a8f6a533bff4ee00416d3d06cd6",
         PragmaDomain::Dev,
         None,
         STRESS_TEST_NODE_IDS.len(),
