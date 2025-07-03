@@ -30,11 +30,6 @@ pub mod eth_to_strk_oracle_test;
 
 pub const ETH_TO_STRK_QUANTIZATION: u64 = 18;
 
-pub enum Query {
-    Resolved(u128),
-    Unresolved(AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>>),
-}
-
 fn hashmap_to_headermap(hash_map: Option<HashMap<String, String>>) -> HeaderMap {
     let mut header_map = HeaderMap::new();
     if let Some(map) = hash_map {
@@ -122,7 +117,8 @@ pub struct EthToStrkOracleClient {
     /// HTTP headers required for requests.
     headers: HeaderMap,
     client: reqwest::Client,
-    cached_prices: Mutex<LruCache<u64, Query>>,
+    cached_prices: Mutex<LruCache<u64, u128>>,
+    queries: Mutex<LruCache<u64, AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>>>>,
 }
 
 impl EthToStrkOracleClient {
@@ -139,6 +135,9 @@ impl EthToStrkOracleClient {
             headers: hashmap_to_headermap(config.headers),
             client: reqwest::Client::new(),
             cached_prices: Mutex::new(LruCache::new(
+                NonZeroUsize::new(config.max_cache_size).expect("Invalid cache size"),
+            )),
+            queries: Mutex::new(LruCache::new(
                 NonZeroUsize::new(config.max_cache_size).expect("Invalid cache size"),
             )),
         }
@@ -219,41 +218,46 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
             .checked_div(self.config.lag_interval_seconds)
             .expect("lag_interval_seconds should be non-zero");
 
-        let mut cached_prices = self.cached_prices.lock().expect("Lock poisoned");
-        let Some(query) = cached_prices.get_mut(&quantized_timestamp) else {
-            cached_prices.push(
-                quantized_timestamp,
-                Query::Unresolved(self.spawn_query(quantized_timestamp)),
-            );
+        let mut cache = self.cached_prices.lock().unwrap();
+
+        if let Some(rate) = cache.get(&quantized_timestamp) {
+            debug!("Cached conversion rate for timestamp {timestamp} is {rate}");
+            return Ok(*rate);
+        }
+
+        // Check if there is a query already sent out for this timestamp, if not, start one.
+        let mut queries = self.queries.lock().unwrap();
+        let handle = queries
+            .get_or_insert_mut(quantized_timestamp, || self.spawn_query(quantized_timestamp));
+
+        // If the query is not finished, return an error.
+        if !handle.is_finished() {
             warn!("Query not yet resolved: timestamp={timestamp}");
             return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
-        };
+        }
 
-        let handle = match query {
-            Query::Resolved(rate) => {
-                debug!("Cached conversion rate for timestamp {timestamp} is {rate}");
-                return Ok(*rate);
-            }
-            Query::Unresolved(handle) => {
-                if !handle.is_finished() {
-                    warn!("Query not yet resolved: timestamp={timestamp}");
-                    return Err(EthToStrkOracleClientError::QueryNotReadyError(timestamp));
-                } else {
-                    handle
-                }
+        let task_result = handle.now_or_never().expect("Handle must be finished if we got here");
+        let query_result = match task_result {
+            Ok(query_result) => query_result,
+            Err(e) => {
+                queries.pop(&quantized_timestamp);
+                warn!("Query failed to join handle for timestamp {timestamp}: {e:?}");
+                ETH_TO_STRK_ERROR_COUNT.increment(1);
+                return Err(EthToStrkOracleClientError::JoinError(e));
             }
         };
-        let result = handle.now_or_never().expect("Task must have completed")?;
-        let rate = match result {
+        let rate = match query_result {
             Ok(rate) => rate,
             Err(e) => {
-                cached_prices.pop(&quantized_timestamp);
-                warn!("Query failed for timestamp {timestamp}: {e:?}");
+                queries.pop(&quantized_timestamp);
+                warn!("Query failed to reach oracle for timestamp {timestamp}: {e:?}");
                 ETH_TO_STRK_ERROR_COUNT.increment(1);
                 return Err(e);
             }
         };
-        cached_prices.put(quantized_timestamp, Query::Resolved(rate));
+
+        // Make sure to cache the result.
+        cache.put(quantized_timestamp, rate);
         debug!("Conversion rate for timestamp {timestamp} is {rate}");
         Ok(rate)
     }
