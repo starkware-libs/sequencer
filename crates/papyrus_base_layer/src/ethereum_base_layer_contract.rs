@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use alloy::dyn_abi::SolType;
 use alloy::eips::eip7840;
-use alloy::primitives::Address as EthereumContractAddress;
+use alloy::primitives::Address;
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
 use alloy::rpc::json_rpc::RpcError;
 use alloy::rpc::types::eth::Filter as EthEventFilter;
@@ -29,6 +29,7 @@ use crate::eth_events::parse_event;
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
+pub type EthereumContractAddress = Address;
 
 // Wraps the Starknet contract with a type that implements its interface, and is aware of its
 // events.
