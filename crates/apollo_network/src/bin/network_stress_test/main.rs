@@ -5,8 +5,10 @@ use std::vec;
 use apollo_network::network_manager::NetworkManager;
 use apollo_network::NetworkConfig;
 use clap::Parser;
+use futures::future::join_all;
 use libp2p::Multiaddr;
 use metrics_exporter_prometheus::PrometheusBuilder;
+use tokio::time::Duration;
 
 mod converters;
 mod utils;
@@ -97,4 +99,20 @@ async fn main() {
 
     let peer_id = network_manager.get_local_peer_id();
     log(&format!("My PeerId: {peer_id}"), &args, 1);
+
+    let mut tasks = Vec::new();
+
+    tasks.push(tokio::spawn(async move {
+        // Start the network manager to handle incoming connections and messages.
+        network_manager.run().await.unwrap();
+        unreachable!("Network manager should not exit");
+    }));
+
+    let test_timeout = Duration::from_secs(args.timeout);
+    match tokio::time::timeout(test_timeout, join_all(tasks.into_iter())).await {
+        Ok(_) => unreachable!(),
+        Err(e) => {
+            log(&format!("Test timeout after {e}"), &args, 1);
+        }
+    }
 }
