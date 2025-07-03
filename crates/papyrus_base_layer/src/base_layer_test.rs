@@ -10,6 +10,7 @@ use starknet_api::core::EntryPointSelector;
 use starknet_api::transaction::L1HandlerTransaction;
 use starknet_api::{calldata, contract_address, felt};
 
+use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -17,11 +18,7 @@ use crate::ethereum_base_layer_contract::{
     L1ToL2MessageArgs,
     Starknet,
 };
-use crate::test_utils::{
-    anvil_instance_from_config,
-    ethereum_base_layer_config_for_anvil,
-    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-};
+use crate::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use crate::{BaseLayerContract, L1Event};
 
 // TODO(Gilad): Use everywhere instead of relying on the confusing `#[ignore]` api to mark slow
@@ -117,6 +114,8 @@ async fn get_gas_price_and_timestamps() {
     assert_eq!(header.blob_fee, expected_original_blob_calc);
 }
 
+// Ensure that the base layer instance filters out events from other deployments of the core
+// contract.
 #[tokio::test]
 async fn events_from_other_contract() {
     if !in_ci() {
@@ -124,15 +123,12 @@ async fn events_from_other_contract() {
     }
     const EVENT_IDENTIFIERS: &[EventIdentifier] = &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER];
 
-    let this_config = ethereum_base_layer_config_for_anvil(None);
-    let _anvil = anvil_instance_from_config(&this_config);
-    let this_contract = EthereumBaseLayerContract::new(this_config.clone());
+    let anvil_base_layer = AnvilBaseLayer::new().await;
+    // Anvil base layer already auto-deployed a starknet contract.
+    let this_contract = anvil_base_layer.ethereum_base_layer;
 
-    // Test: Get events from L1 contract and other instances of this L1 contract.
     // Setup.
 
-    // Deploy the contract to the anvil instance.
-    Starknet::deploy(this_contract.contract.provider().clone()).await.unwrap();
     // Deploy another instance of the contract to the same anvil instance.
     let other_contract = Starknet::deploy(this_contract.contract.provider().clone()).await.unwrap();
     assert_ne!(
