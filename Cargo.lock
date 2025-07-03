@@ -1716,6 +1716,7 @@ name = "apollo_network_types"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_test_utils",
+ "lazy_static",
  "libp2p",
  "rand_chacha 0.3.1",
  "serde",
