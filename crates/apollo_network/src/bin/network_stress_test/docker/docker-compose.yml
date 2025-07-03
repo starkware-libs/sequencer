@@ -1,0 +1,87 @@
+services:
+  # Service for the first network_stress_test node (bootstrap node)
+  network_stress_test_node_0:
+    build:
+      context: ../../../../../../
+      dockerfile: .
+    image: network_stress_test_node:latest
+    container_name: network_stress_test_node_0
+    environment:
+      - METRIC_PORT=2000
+      - P2P_PORT=10000
+      - ID=0
+      # Bootstrap multi-address will be determined by this node's P2P ID after it starts
+      # We'll rely on service discovery or manual configuration for other nodes
+    ports:
+      - "2000:2000"
+      - "10000:10000"
+    networks:
+      - network_stress_test_network
+    labels:
+      # These labels tell Prometheus to scrape this container
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "2000" # The port on which metrics are exposed
+      prometheus.io/path: "/metrics" # The path to the metrics endpoint (default is /metrics)
+      application: "network_stress_test"
+      environment: "test"
+
+  # Services for additional network_stress_test nodes (up to num_nodes - 1)
+  network_stress_test_node:
+    build:
+      context: ../../../../../../
+      dockerfile: Dockerfile
+    image: network_stress_test_node:latest
+    # We remove `depends_on` here because Prometheus will discover them dynamically.
+    # However, for the network_stress_test application itself to function,
+    # you still need a way for nodes to find the bootstrap. This typically
+    # involves either a custom entrypoint script (as discussed before) or
+    # a more sophisticated service discovery for your application.
+    # For now, let's assume the application's internal bootstrap mechanism
+    # handles finding network_stress_test_node_0 by its service name.
+    environment:
+      # Assuming your application can resolve 'network_stress_test_node_0' via DNS
+      # and then query its P2P ID (e.g., if get_peer_id_from_secret_key could be exposed as an API)
+      # OR, if the bootstrap ID is fixed for 'node 0', you could hardcode it here.
+      # For true dynamic bootstrap with scaling, a custom entrypoint is highly recommended.
+      # Example with placeholder:
+      - BOOTSTRAP=/dns/network_stress_test_node_0/tcp/10000/p2p/12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN # REPLACE WITH ACTUAL ID
+      # METRIC_PORT and P2P_PORT for scaled instances.
+      # Docker Compose *does not* dynamically assign unique environment variables for scaled services.
+      # If you want unique ports/IDs for each scaled instance, you MUST use a custom entrypoint script
+      # within your Docker image to calculate these based on container ID or other dynamic info.
+      # For now, if you scale, these will all try to use the same internal ports.
+      # The `prometheus.io/port` label helps Prometheus find them even if the internal port is fixed.
+      - METRIC_PORT=2000 # Example: if all nodes expose metrics on 2000 internally
+      - P2P_PORT=10000 # Example: if all nodes expose P2P on 10000 internally
+      - ID=1 # THIS WILL BE THE SAME FOR ALL SCALED INSTANCES. Needs a custom entrypoint for dynamic IDs.
+    # We don't expose individual ports for scaled nodes unless strictly necessary for external access.
+    # Prometheus will connect to them internally via the Docker network.
+    # If you need external access to scaled nodes, you'll need to define separate services for them
+    # like network_stress_test_node_1, network_stress_test_node_2, etc., with unique port mappings.
+    #ports:
+    #  - "2001:2000" # Example for node 1
+    #  - "10001:10000"
+    networks:
+      - network_stress_test_network
+    labels:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "2000"
+      prometheus.io/path: "/metrics"
+      application: "network_stress_test"
+      environment: "test"
+
+  prometheus:
+    image: prom/prometheus
+    container_name: network_stress_test_prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Mount Docker socket for discovery
+    command: --config.file=/etc/prometheus/prometheus.yml --web.enable-lifecycle # Enable reload endpoint
+    networks:
+      - network_stress_test_network
+
+networks:
+  network_stress_test_network:
+    driver: bridge
