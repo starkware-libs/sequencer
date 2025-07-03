@@ -84,7 +84,7 @@ def current_git_conflictstyle() -> Optional[str]:
         return None
 
 
-def merge_branches(src_branch: str, dst_branch: Optional[str]):
+def merge_branches(src_branch: str, dst_branch: Optional[str], apply_dst_delete: bool):
     """
     Merge source branch into destination branch.
     If no destination branch is passed, the destination branch is taken from state on repo.
@@ -112,7 +112,10 @@ def merge_branches(src_branch: str, dst_branch: Optional[str]):
 
     run_command(f"git checkout origin/{dst_branch} {' '.join(FILES_TO_PRESERVE) }")
 
-    run_command("git status -s | grep -E \"^UU|^AA\" | awk '{ print $2 }' | tee /tmp/conflicts")
+    grep_filter = '"^UU|^AA|^UD"' if apply_dst_delete else '"^UU|^AA"'
+    run_command(
+        f"git status -s | grep -E {grep_filter} | awk '{{ print $2 }}' | tee /tmp/conflicts"
+    )
 
     conflicts_file = "/tmp/conflicts"
     conflicts = [line.strip() for line in open(conflicts_file).readlines() if line.strip() != ""]
@@ -168,6 +171,15 @@ if __name__ == "__main__":
             f"destination branch registered for the source branch in {MERGE_PATHS_FILE}."
         ),
     )
+    parser.add_argument(
+        "--apply-dst-delete",
+        action="store_true",
+        help=(
+            "If set, files updated in the source branch but deleted in the destination branch will "
+            "be deleted in the merge branch as well."
+        ),
+    )
+
     args = parser.parse_args()
 
-    merge_branches(src_branch=args.src, dst_branch=args.dst)
+    merge_branches(src_branch=args.src, dst_branch=args.dst, apply_dst_delete=args.apply_dst_delete)
