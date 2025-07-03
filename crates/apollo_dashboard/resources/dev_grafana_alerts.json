@@ -730,6 +730,33 @@
       "severity": "p2"
     },
     {
+      "name": "http_server_low_successful_transactions_rate",
+      "title": "http server low successful transactions rate",
+      "ruleGroup": "http_server",
+      "expr": "rate(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.1
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3"
+    },
+    {
       "name": "http_server_avg_add_tx_latency",
       "title": "High HTTP server average add_tx latency",
       "ruleGroup": "http_server",
