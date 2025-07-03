@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Display;
 use std::iter::once;
 use std::path::{Path, PathBuf};
@@ -55,6 +56,7 @@ pub struct Service {
     #[serde(skip_serializing)]
     environment: Environment,
     anti_affinity: bool,
+    ports: HashMap<String, u16>,
 }
 
 impl Service {
@@ -65,6 +67,7 @@ impl Service {
         ingress_params: IngressParams,
         k8s_service_config_params: Option<K8sServiceConfigParams>,
         environment: Environment,
+        ports: HashMap<String, u16>,
     ) -> Self {
         // Configs are loaded by order such that a config may override previous ones.
         // We first list the base config, and then follow with the overrides, and finally, the
@@ -113,6 +116,7 @@ impl Service {
             // TODO(Tsabary): consider removing `environment` from the `Service` struct.
             environment,
             anti_affinity,
+            ports,
         }
     }
 
@@ -147,6 +151,7 @@ impl NodeService {
         config_filenames: Vec<String>,
         ingress_params: IngressParams,
         k8s_service_config_params: Option<K8sServiceConfigParams>,
+        ports: HashMap<String, u16>,
     ) -> Service {
         Service::new(
             Into::<NodeService>::into(*self),
@@ -155,6 +160,7 @@ impl NodeService {
             ingress_params.clone(),
             k8s_service_config_params,
             environment.clone(),
+            ports.clone(),
         )
     }
 

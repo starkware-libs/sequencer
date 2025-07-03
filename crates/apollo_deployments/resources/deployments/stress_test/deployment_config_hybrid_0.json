@@ -29,7 +29,8 @@
       "external_secret": {
         "gcsm_key": "apollo-stresstest-dev-0"
       },
-      "anti_affinity": true
+      "anti_affinity": true,
+      "ports": {}
     },
     {
       "name": "HttpServer",
@@ -72,7 +73,8 @@
       "external_secret": {
         "gcsm_key": "apollo-stresstest-dev-0"
       },
-      "anti_affinity": false
+      "anti_affinity": false,
+      "ports": {}
     },
     {
       "name": "Gateway",
@@ -102,7 +104,8 @@
       "external_secret": {
         "gcsm_key": "apollo-stresstest-dev-0"
       },
-      "anti_affinity": false
+      "anti_affinity": false,
+      "ports": {}
     },
     {
       "name": "Mempool",
@@ -132,7 +135,8 @@
       "external_secret": {
         "gcsm_key": "apollo-stresstest-dev-0"
       },
-      "anti_affinity": true
+      "anti_affinity": true,
+      "ports": {}
     },
     {
       "name": "SierraCompiler",
@@ -162,7 +166,8 @@
       "external_secret": {
         "gcsm_key": "apollo-stresstest-dev-0"
       },
-      "anti_affinity": false
+      "anti_affinity": false,
+      "ports": {}
     }
   ]
 }

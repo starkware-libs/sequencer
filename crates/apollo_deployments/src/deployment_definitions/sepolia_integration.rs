@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use apollo_infra_utils::template::Template;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
@@ -57,5 +59,6 @@ fn sepolia_integration_hybrid_deployment_node(
             Some(vec![SEPOLIA_INTEGRATION_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
         ),
         None,
+        HashMap::new(),
     )
 }
