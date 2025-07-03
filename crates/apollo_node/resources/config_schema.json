@@ -1499,15 +1499,15 @@
     "privacy": "Public",
     "value": 10
   },
-  "mempool_config.override_gas_price_threshold_check": {
-    "description": "If true, transactions with max L2 gas price per unit bound that are less than the threshold are still inserted into the priority queue.",
-    "privacy": "Public",
-    "value": false
-  },
   "mempool_config.transaction_ttl": {
     "description": "Time-to-live for transactions in the mempool, in seconds.",
     "privacy": "Public",
     "value": 60
+  },
+  "mempool_config.validate_resource_bounds": {
+    "description": "If true, only transactions with max L2 gas price per unit bound that are above the threshold are inserted into the priority queue. If false, all transactions are inserted into the priority queue.",
+    "privacy": "Public",
+    "value": true
   },
   "mempool_p2p_config.max_transaction_batch_size": {
     "description": "Maximum number of transactions in each batch.",

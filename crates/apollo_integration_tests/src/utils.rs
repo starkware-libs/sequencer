@@ -204,8 +204,8 @@ pub fn create_node_config(
         // TODO(Gilad): make this explicit in the Anvil refactor.
         ordered_l1_endpoint_urls: vec![base_layer_config.node_url.clone()],
     };
-    let override_gas_price_threshold_check = allow_bootstrap_txs;
-    let mempool_config = create_mempool_config(override_gas_price_threshold_check);
+    let validate_resource_bounds = !allow_bootstrap_txs;
+    let mempool_config = create_mempool_config(validate_resource_bounds);
     let l1_gas_price_provider_config = L1GasPriceProviderConfig {
         // Use newly minted blocks on Anvil to be used for gas price calculations.
         lag_margin_seconds: 0,
@@ -605,10 +605,10 @@ pub fn create_batcher_config(
     }
 }
 
-pub fn create_mempool_config(override_gas_price_threshold_check: bool) -> MempoolConfig {
+pub fn create_mempool_config(validate_resource_bounds: bool) -> MempoolConfig {
     MempoolConfig {
         transaction_ttl: Duration::from_secs(5 * 60),
-        override_gas_price_threshold_check,
+        validate_resource_bounds,
         ..Default::default()
     }
 }
