@@ -106,8 +106,6 @@ where
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatelessTransactionValidatorConfig {
-    // TODO(Arni): Align the name of this field with the mempool config, and all other places where
-    // validation is skipped during the systems bootstrap phase.
     // If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.
     pub validate_resource_bounds: bool,
     // TODO(AlonH): Remove this field and use the one from the versioned constants.
@@ -230,8 +228,6 @@ impl SerializeConfig for RpcStateReaderConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
-    // TODO(Arni): Align the name of this field with the mempool config, and all other places where
-    // validation is skipped during the systems bootstrap phase.
     // If true, ensures the max L2 gas price exceeds (a configurable percentage of) the base gas
     // price of the previous block.
     pub validate_resource_bounds: bool,
