@@ -1,7 +1,13 @@
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::str::FromStr;
+use std::vec;
 
+use apollo_network::network_manager::NetworkManager;
+use apollo_network::NetworkConfig;
 use clap::Parser;
+use libp2p::Multiaddr;
 use metrics_exporter_prometheus::PrometheusBuilder;
+
 mod converters;
 mod utils;
 
@@ -76,4 +82,19 @@ async fn main() {
     let peer_private_key_hex =
         peer_private_key.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
     log(&format!("Secret Key: 0x{peer_private_key_hex}"), &args, 1);
+
+    let mut network_config = NetworkConfig {
+        port: args.p2p_port,
+        secret_key: Some(peer_private_key.to_vec()),
+        ..Default::default()
+    };
+    if let Some(peer) = &args.bootstrap {
+        let bootstrap_peer: Multiaddr = Multiaddr::from_str(peer).unwrap();
+        network_config.bootstrap_peer_multiaddr = Some(vec![bootstrap_peer]);
+    }
+
+    let network_manager = NetworkManager::new(network_config, None, None);
+
+    let peer_id = network_manager.get_local_peer_id();
+    log(&format!("My PeerId: {peer_id}"), &args, 1);
 }
