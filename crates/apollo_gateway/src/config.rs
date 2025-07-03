@@ -44,8 +44,6 @@ impl SerializeConfig for GatewayConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatelessTransactionValidatorConfig {
-    // TODO(Arni): Align the name of this field with the mempool config, and all other places where
-    // validation is skipped during the systems bootstrap phase.
     // If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.
     pub validate_resource_bounds_above_threshold: bool,
     // TODO(AlonH): Remove this field and use the one from the versioned constants.
@@ -168,8 +166,6 @@ impl SerializeConfig for RpcStateReaderConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
-    // TODO(Arni): Align the name of this field with the mempool config, and all other places where
-    // validation is skipped during the systems bootstrap phase.
     // If true, ensures the L2 gas price exceeds a dynamically calculated threshold based on
     // EIP-1559 network usage.
     pub validate_resource_bounds_above_threshold: bool,
