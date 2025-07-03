@@ -25,6 +25,7 @@ use url::Url;
 use crate::metrics::{
     register_eth_to_strk_metrics,
     ETH_TO_STRK_ERROR_COUNT,
+    ETH_TO_STRK_RATE,
     ETH_TO_STRK_SUCCESS_COUNT,
 };
 
@@ -208,6 +209,7 @@ fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
         ));
     }
     ETH_TO_STRK_SUCCESS_COUNT.increment(1);
+    ETH_TO_STRK_RATE.set_lossy(rate);
     Ok(rate)
 }
 
