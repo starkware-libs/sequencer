@@ -580,12 +580,7 @@ impl Batcher {
             block_execution_artifacts.execution_data.rejected_tx_hashes,
         )
         .await?;
-        let execution_infos: Vec<_> = block_execution_artifacts
-            .execution_data
-            .execution_infos
-            .into_iter()
-            .map(|(_, info)| info)
-            .collect();
+        let execution_infos = block_execution_artifacts.execution_data.execution_infos;
 
         LAST_BATCHED_BLOCK.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);

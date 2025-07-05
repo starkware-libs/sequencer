@@ -240,7 +240,7 @@ fn test_summarize(
     let (execute_poseidon, execute_pedersen, execute_bitwise) =
         update_builtin_counters_for_summary_test(execute_params, 1, 4, 2, 1);
 
-    let (fee_transfer_poseidon, fee_transfer_pedersen, fee_transfer_bitwise) =
+    let (_fee_transfer_poseidon, _fee_transfer_pedersen, _fee_transfer_bitwise) =
         update_builtin_counters_for_summary_test(fee_transfer_params, 1, 2, 3, 4);
 
     let validate_call_info = validate_params.to_call_info();
@@ -288,16 +288,20 @@ fn test_summarize(
             total_event_keys: 0,
             total_event_data_size: 0,
         },
-        builtin_counters: BuiltinCounterMap::from_iter([
-            (BuiltinName::pedersen, validate_pedersen + execute_pedersen + fee_transfer_pedersen),
-            (BuiltinName::poseidon, validate_poseidon + execute_poseidon + fee_transfer_poseidon),
-            (BuiltinName::bitwise, validate_bitwise + execute_bitwise + fee_transfer_bitwise),
-        ]),
     };
+
+    // Omit the fee transfer builtin counters as done in `summarize_builtins`.
+    let expected_builtins = BuiltinCounterMap::from_iter([
+        (BuiltinName::pedersen, validate_pedersen + execute_pedersen),
+        (BuiltinName::poseidon, validate_poseidon + execute_poseidon),
+        (BuiltinName::bitwise, validate_bitwise + execute_bitwise),
+    ]);
 
     // Call the summarize method.
     let actual_summary = tx_execution_info.summarize(VersionedConstants::latest_constants());
+    let actual_builtins = tx_execution_info.summarize_builtins();
 
     // Compare the actual result with the expected result.
     assert_eq!(actual_summary, expected_summary);
+    assert_eq!(actual_builtins, expected_builtins);
 }

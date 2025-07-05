@@ -244,7 +244,7 @@ fn test_bouncer_try_update_gas_based(
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
 
     // Prepare the resources to be added to the bouncer.
-    let execution_summary = ExecutionSummary { builtin_counters, ..Default::default() };
+    let execution_summary = ExecutionSummary::default();
     let tx_resources = TransactionResources {
         computation: ComputationResources { sierra_gas, ..Default::default() },
         ..Default::default()
@@ -255,6 +255,7 @@ fn test_bouncer_try_update_gas_based(
         &transactional_state,
         &tx_state_changes_keys,
         &execution_summary,
+        &builtin_counters,
         &tx_resources,
         &block_context.versioned_constants,
     );
@@ -279,6 +280,7 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
     // Use gas amount > block_max_capacity's.
     let exceeding_gas = GasAmount(30);
     let execution_summary = ExecutionSummary::default();
+    let builtin_counters = BuiltinCounterMap::default();
     let tx_resources = TransactionResources {
         computation: ComputationResources { sierra_gas: exceeding_gas, ..Default::default() },
         ..Default::default()
@@ -288,6 +290,7 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
     let result = verify_tx_weights_within_max_capacity(
         &transactional_state,
         &execution_summary,
+        &builtin_counters,
         &tx_resources,
         &tx_state_changes_keys,
         &bouncer_config,
@@ -337,6 +340,7 @@ fn test_bouncer_try_update_n_txs(
         &first_transactional_state,
         &first_tx_state_changes_keys,
         &ExecutionSummary::default(),
+        &BuiltinCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
     );
@@ -352,6 +356,7 @@ fn test_bouncer_try_update_n_txs(
         &second_transactional_state,
         &second_tx_state_changes_keys,
         &ExecutionSummary::default(),
+        &BuiltinCounterMap::default(),
         &TransactionResources::default(),
         &block_context.versioned_constants,
     );

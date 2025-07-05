@@ -31,7 +31,6 @@ use apollo_mempool_types::mempool_types::CommitBlockArgs;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use blockifier::abi::constants;
-use blockifier::transaction::objects::TransactionExecutionInfo;
 use indexmap::{indexmap, IndexSet};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
@@ -301,7 +300,7 @@ fn verify_decision_reached_response(
     assert_eq!(response.central_objects.bouncer_weights, expected_artifacts.bouncer_weights);
     assert_eq!(
         response.central_objects.execution_infos,
-        expected_artifacts.execution_data.execution_infos.values().cloned().collect::<Vec<_>>()
+        expected_artifacts.execution_data.execution_infos
     );
 }
 
@@ -1096,8 +1095,7 @@ async fn test_execution_info_order_is_kept() {
         batcher_propose_and_commit_block(mock_dependencies).await.unwrap();
 
     // Verify that the execution_infos are in the same order as returned from the block_builder.
-    let expected_execution_infos: Vec<TransactionExecutionInfo> =
-        block_builder_result.execution_data.execution_infos.into_values().collect();
+    let expected_execution_infos = block_builder_result.execution_data.execution_infos;
     assert_eq!(decision_reached_response.central_objects.execution_infos, expected_execution_infos);
 }
 

@@ -13,6 +13,7 @@ deserialize = [
   "starknet-types-core/serde",
   "starknet_patricia/deserialize",
 ]
+include_program_output = []
 testing = ["blockifier/testing", "starknet_patricia/testing"]
 
 [dependencies]
@@ -61,6 +62,7 @@ blockifier_test_utils.workspace = true
 ethnum.workspace = true
 rand.workspace = true
 rstest.workspace = true
+starknet_committer.workspace = true
 starknet_patricia = { workspace = true, features = ["testing"] }
 
 [lints]
