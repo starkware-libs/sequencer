@@ -77,7 +77,7 @@ pub fn get_gas_cost_from_vm_resources(
         .map(|(builtin, amount)| {
             let builtin_cost = builtin_costs
                 .get_builtin_gas_cost(builtin)
-                .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
+                .unwrap_or_else(|err| panic!("Failed to get gas cost: {err}"));
             builtin_cost * u64_from_usize(*amount)
         })
         .sum();
@@ -99,7 +99,7 @@ where
         dest.entry(key.clone())
             .and_modify(|existing| {
                 *existing = existing.checked_add(value).unwrap_or_else(|| {
-                    panic!("add counters: overflow when adding {:?} to {:?}", value, existing)
+                    panic!("add counters: overflow when adding {value:?} to {existing:?}")
                 });
             })
             .or_insert_with(|| value.clone());

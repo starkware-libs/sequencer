@@ -8,7 +8,7 @@ use crate::eth_to_strk_oracle::{EthToStrkOracleClient, EthToStrkOracleConfig};
 #[tokio::test]
 async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
     let expected_rate = 123456;
-    let expected_rate_hex = format!("0x{:x}", expected_rate);
+    let expected_rate_hex = format!("0x{expected_rate:x}");
     let timestamp1 = 1234567890;
     let timestamp2 = timestamp1 + 10; // Still in the same quantized bucket
     let lag_interval_seconds = 60;

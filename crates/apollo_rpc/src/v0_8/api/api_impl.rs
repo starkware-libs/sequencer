@@ -551,7 +551,7 @@ impl JsonRpcServer for JsonRpcServerImpl {
             let tx = txn
                 .get_transaction(transaction_index)
                 .map_err(internal_server_error)?
-                .unwrap_or_else(|| panic!("Should have tx {}", transaction_hash));
+                .unwrap_or_else(|| panic!("Should have tx {transaction_hash}"));
 
             // TODO(Shahak): Add version function to transaction in SN_API.
             let tx_version = match &tx {

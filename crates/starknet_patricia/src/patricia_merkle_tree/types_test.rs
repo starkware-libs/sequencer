@@ -121,5 +121,5 @@ fn test_nodeindex_to_felt_conversion() {
 #[rstest]
 fn test_felt_printing() {
     let felt = Felt::from(17_u8);
-    assert_eq!(format!("{:?}", felt), "0x11");
+    assert_eq!(format!("{felt:?}"), "0x11");
 }

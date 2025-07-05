@@ -410,10 +410,7 @@ impl AccountTransaction {
                     );
                 }
                 TransactionInfo::Deprecated(_) => {
-                    panic!(
-                        "Actual fee {:#?} exceeded bounds; max fee is {:#?}.",
-                        actual_fee, max_fee
-                    );
+                    panic!("Actual fee {actual_fee:#?} exceeded bounds; max fee is {max_fee:#?}.");
                 }
             }
         }

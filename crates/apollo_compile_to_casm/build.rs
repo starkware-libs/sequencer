@@ -26,7 +26,7 @@ fn install_starknet_sierra_compile() {
 // available only after the build is completed. Most importantly, it is available during runtime.
 fn set_run_time_out_dir_env_var() {
     let out_dir = std::env::var("OUT_DIR").expect("OUT_DIR is not set");
-    println!("cargo:rustc-env=RUNTIME_ACCESSIBLE_OUT_DIR={}", out_dir);
+    println!("cargo:rustc-env=RUNTIME_ACCESSIBLE_OUT_DIR={out_dir}");
 }
 
 // Returns the OUT_DIR. This function is only operable at build time.

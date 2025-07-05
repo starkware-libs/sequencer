@@ -228,7 +228,7 @@ impl StateMachine {
     {
         trace!("Processing event: {:?}", event);
         if self.awaiting_get_proposal {
-            assert!(matches!(event, StateMachineEvent::GetProposal(_, _)), "{:?}", event);
+            assert!(matches!(event, StateMachineEvent::GetProposal(_, _)), "{event:?}");
         }
 
         match event {

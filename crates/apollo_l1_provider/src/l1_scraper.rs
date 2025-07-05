@@ -136,7 +136,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         });
 
         let formatted_pairs = zip_eq(l1_hashes, l2_hashes)
-            .map(|(l1_hash, l2_hash)| format!("L1 hash: {:?}, L2 hash: {}", l1_hash, l2_hash))
+            .map(|(l1_hash, l2_hash)| format!("L1 hash: {l1_hash:?}, L2 hash: {l2_hash}"))
             .collect::<Vec<_>>();
         debug!("Got Messages to L2: {:?}", formatted_pairs);
 

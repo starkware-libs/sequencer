@@ -41,7 +41,7 @@ impl Formatter for PythonJsonFormatter {
             } else {
                 let slice = ch.encode_utf16(&mut buf);
                 for num in slice {
-                    write!(writer, r"\u{:4x}", num)?;
+                    write!(writer, r"\u{num:4x}")?;
                 }
             }
         }

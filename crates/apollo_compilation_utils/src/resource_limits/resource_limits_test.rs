@@ -19,7 +19,7 @@ fn test_cpu_time_limit() {
     let status = command.spawn().expect("Failed to start CPU consuming process").wait().unwrap();
     assert!(start.elapsed().as_secs() <= cpu_limit);
     let signal = status.signal();
-    assert_eq!(signal, Some(9), "Process should terminate with SIGKILL (9) got {:?}", signal);
+    assert_eq!(signal, Some(9), "Process should terminate with SIGKILL (9) got {signal:?}");
 }
 
 #[rstest]
@@ -34,7 +34,7 @@ fn test_memory_size_limit() {
     let output = command.output().expect("Failed to start memory consuming process");
 
     let signal = output.status.signal();
-    assert!(signal.is_none(), "Exceeding memory usage should not cause a signal, got {:?}", signal);
+    assert!(signal.is_none(), "Exceeding memory usage should not cause a signal, got {signal:?}");
 
     let stderr = String::from_utf8_lossy(&output.stderr);
 
@@ -66,7 +66,7 @@ fn test_file_size_limit() {
     let status = command.spawn().expect("Failed to start disk consuming process").wait().unwrap();
     assert_eq!(std::fs::metadata(temp_file_path).unwrap().len(), file_limit);
     let signal = status.signal();
-    assert!(signal == Some(25), "Process should terminate with SIGXFSZ (25), got {:?}", signal);
+    assert!(signal == Some(25), "Process should terminate with SIGXFSZ (25), got {signal:?}");
 }
 
 #[rstest]

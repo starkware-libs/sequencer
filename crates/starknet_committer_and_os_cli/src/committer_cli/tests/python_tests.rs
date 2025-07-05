@@ -204,8 +204,7 @@ fn get_or_key_not_found<'a, T: Debug>(
 ) -> Result<&'a T, CommitterPythonTestError> {
     map.get(key).ok_or_else(|| {
         PythonTestError::SpecificError(CommitterSpecificTestError::KeyNotFound(format!(
-            "Failed to get value for key '{}' from {:?}.",
-            key, map
+            "Failed to get value for key '{key}' from {map:?}."
         )))
     })
 }
@@ -217,14 +216,14 @@ fn get_actual_tree_height() -> String {
 pub(crate) fn example_test(test_args: HashMap<String, String>) -> String {
     let x = test_args.get("x").expect("Failed to get value for key 'x'");
     let y = test_args.get("y").expect("Failed to get value for key 'y'");
-    format!("Calling example test with args: x: {}, y: {}", x, y)
+    format!("Calling example test with args: x: {x}, y: {y}")
 }
 
 /// Serializes a Felt into a string.
 pub(crate) fn felt_serialize_test(felt: u128) -> String {
     let bytes = Felt::from(felt).to_bytes_be().to_vec();
     serde_json::to_string(&bytes)
-        .unwrap_or_else(|error| panic!("Failed to serialize felt: {}", error))
+        .unwrap_or_else(|error| panic!("Failed to serialize felt: {error}"))
 }
 
 pub(crate) fn test_hash_function(hash_input: HashMap<String, u128>) -> String {
@@ -241,7 +240,7 @@ pub(crate) fn test_hash_function(hash_input: HashMap<String, u128>) -> String {
 
     // Serialize the hash result.
     serde_json::to_string(&hash_result)
-        .unwrap_or_else(|error| panic!("Failed to serialize hash result: {}", error))
+        .unwrap_or_else(|error| panic!("Failed to serialize hash result: {error}"))
 }
 
 /// Serializes binary data into a JSON string.
@@ -277,7 +276,7 @@ pub(crate) fn test_binary_serialize_test(binary_input: HashMap<String, u128>) ->
 
     // Serialize the map to a JSON string and handle serialization errors.
     serde_json::to_string(&map)
-        .unwrap_or_else(|error| panic!("Failed to serialize binary fact: {}", error))
+        .unwrap_or_else(|error| panic!("Failed to serialize binary fact: {error}"))
 }
 
 pub(crate) fn parse_input_test(committer_input: String) -> CommitterPythonTestResult {
@@ -454,7 +453,7 @@ pub(crate) fn test_node_db_key() -> String {
 
     // Serialize the map to a JSON string and handle serialization errors.
     serde_json::to_string(&map)
-        .unwrap_or_else(|error| panic!("Failed to serialize storage prefix: {}", error))
+        .unwrap_or_else(|error| panic!("Failed to serialize storage prefix: {error}"))
 }
 
 /// This function storage_serialize_test generates a MapStorage containing DbKey and

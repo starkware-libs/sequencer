@@ -171,8 +171,7 @@ async fn verify_running_nodes_received_more_txs(
         info!("Node {} processed {} transactions", node_idx, curr_n_processed);
         assert!(
             curr_n_processed > prev_n_processed,
-            "Node {} did not process more transactions",
-            node_idx
+            "Node {node_idx} did not process more transactions"
         );
     }
 }

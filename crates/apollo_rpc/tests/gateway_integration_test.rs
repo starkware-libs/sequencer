@@ -58,12 +58,12 @@ async fn test_gw_integration_testnet() {
     let node_url = env::var("INTEGRATION_TESTNET_NODE_URL")
         .expect("Node url must be given in INTEGRATION_TESTNET_NODE_URL environment variable.");
     let client =
-        HttpClientBuilder::default().build(format!("https://{}:443/rpc/v0_8", node_url)).unwrap();
+        HttpClientBuilder::default().build(format!("https://{node_url}:443/rpc/v0_8")).unwrap();
     let sender_address = contract_address!(USER_A_ADDRESS);
     // Sender balance sufficient balance should be maintained outside of this test.
     let sender_balance = get_eth_balance(&client, sender_address).await;
     if sender_balance <= MAX_FEE.into() {
-        println!("Sender balance is too low. Please fund account {}.", USER_A_ADDRESS);
+        println!("Sender balance is too low. Please fund account {USER_A_ADDRESS}.");
         std::process::exit(INSUFFICIENT_FUNDS_STATUS_CODE);
     }
 
@@ -130,5 +130,5 @@ async fn test_gw_integration_testnet() {
         .await
         .unwrap_or_else(|err| panic!("Failed to add tx '{hash}' with nonce '{nonce:?}'.: {err}"));
 
-    println!("Invoke Tx result: {:?}", invoke_res);
+    println!("Invoke Tx result: {invoke_res:?}");
 }

@@ -137,7 +137,7 @@ pub fn create_monitoring_endpoint(
 impl ComponentStarter for MonitoringEndpoint {
     async fn start(&mut self) {
         info!("Starting component {}.", short_type_name::<Self>());
-        self.run().await.unwrap_or_else(|e| panic!("Failed to start MointoringEndpoint: {:?}", e));
+        self.run().await.unwrap_or_else(|e| panic!("Failed to start MointoringEndpoint: {e:?}"));
     }
 }
 

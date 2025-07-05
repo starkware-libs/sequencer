@@ -230,5 +230,5 @@ fn usize_to_hex<S>(value: &usize, s: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
-    s.serialize_str(format!("{:#x}", value).as_str())
+    s.serialize_str(format!("{value:#x}").as_str())
 }

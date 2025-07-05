@@ -272,16 +272,15 @@ impl Display for Event {
                     tx.tx_hash, timestamp
                 )
             }
-            Event::TransactionCanceled(data) => write!(f, "TransactionCanceled({})", data),
+            Event::TransactionCanceled(data) => write!(f, "TransactionCanceled({data})"),
             Event::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp } => {
                 write!(
                     f,
-                    "TransactionCancellationStarted(tx_hash={}, \
-                     cancellation_request_block_timestamp={})",
-                    tx_hash, cancellation_request_timestamp
+                    "TransactionCancellationStarted(tx_hash={tx_hash}, \
+                     cancellation_request_block_timestamp={cancellation_request_timestamp})"
                 )
             }
-            Event::TransactionConsumed(data) => write!(f, "TransactionConsumed({})", data),
+            Event::TransactionConsumed(data) => write!(f, "TransactionConsumed({data})"),
         }
     }
 }

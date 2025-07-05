@@ -97,7 +97,7 @@ pub(crate) fn delete_memory_data(
     let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
     if vm.is_accessed(&data_ptr)? {
         return Err(OsHintError::AssertionFailed {
-            message: format!("The segment {} is skipped but was accessed.", data_ptr),
+            message: format!("The segment {data_ptr} is skipped but was accessed."),
         });
     }
     vm.delete_unaccessed(data_ptr)?;

@@ -102,7 +102,7 @@ impl From<StatelessTransactionValidatorError> for GatewaySpecError {
 
 impl From<StatelessTransactionValidatorError> for StarknetError {
     fn from(e: StatelessTransactionValidatorError) -> Self {
-        let message = format!("{}", e);
+        let message = format!("{e}");
         let code = match e {
             StatelessTransactionValidatorError::ContractBytecodeSizeTooLarge { .. } => {
                 StarknetErrorCode::KnownErrorCode(
@@ -217,7 +217,7 @@ pub fn mempool_client_result_to_gw_spec_result(
 }
 
 pub fn mempool_client_err_to_deprecated_gw_err(err: MempoolClientError) -> StarknetError {
-    let message = format!("{}", err);
+    let message = format!("{err}");
     let code = match err {
         MempoolClientError::ClientError(client_error) => {
             error!("Mempool client error: {}", client_error);

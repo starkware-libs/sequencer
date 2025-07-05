@@ -414,9 +414,7 @@ pub(crate) fn create_hybrid_instance_config_override(
 ) -> InstanceConfigOverride {
     assert!(
         node_id < MAX_NODE_ID,
-        "Node node_id {} exceeds the number of nodes {}",
-        node_id,
-        MAX_NODE_ID
+        "Node node_id {node_id} exceeds the number of nodes {MAX_NODE_ID}"
     );
 
     // TODO(Tsabary): these ports should be derived from the hybrid deployment module, and used

@@ -14,7 +14,7 @@ pub enum CompilationArtifacts {
 }
 
 pub fn cairo1_compiler_tag() -> String {
-    format!("v{}", CAIRO1_COMPILER_VERSION)
+    format!("v{CAIRO1_COMPILER_VERSION}")
 }
 
 /// Path to local compiler package directory, of the specified version.

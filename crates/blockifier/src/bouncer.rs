@@ -576,8 +576,8 @@ fn vm_resource_to_gas_amount(amount: usize, gas_per_unit: u64, name: &str) -> Ga
     let amount_u64 = u64_from_usize(amount);
     let gas = amount_u64.checked_mul(gas_per_unit).unwrap_or_else(|| {
         panic!(
-            "Multiplication overflow converting {name} to gas. units: {}, gas per unit: {}.",
-            amount_u64, gas_per_unit
+            "Multiplication overflow converting {name} to gas. units: {amount_u64}, gas per unit: \
+             {gas_per_unit}."
         )
     });
 
@@ -655,11 +655,8 @@ pub fn sierra_gas_to_steps_gas(
 
     sierra_gas.checked_sub(builtins_gas_cost).unwrap_or_else(|| {
         log::debug!(
-            "Sierra gas underflow: builtins gas exceeds total. Sierra gas: {:?}, Builtins gas: \
-             {:?}, Builtins: {:?}",
-            sierra_gas,
-            builtins_gas_cost,
-            builtin_counters
+            "Sierra gas underflow: builtins gas exceeds total. Sierra gas: {sierra_gas:?}, \
+             Builtins gas: {builtins_gas_cost:?}, Builtins: {builtin_counters:?}"
         );
         GasAmount::ZERO
     })
@@ -676,15 +673,15 @@ pub fn builtins_to_sierra_gas(
         .try_fold(0u64, |accumulated_gas, (&builtin, &count)| {
             let builtin_gas_cost = gas_costs
                 .get_builtin_gas_cost(&builtin)
-                .unwrap_or_else(|err| panic!("Failed to get gas cost: {}", err));
+                .unwrap_or_else(|err| panic!("Failed to get gas cost: {err}"));
             let builtin_counters_u64 = u64_from_usize(count);
             let builtin_total_cost = builtin_counters_u64.checked_mul(builtin_gas_cost)?;
             accumulated_gas.checked_add(builtin_total_cost)
         })
         .unwrap_or_else(|| {
             panic!(
-                "Overflow occurred while converting built-in resources to gas. Builtins: {:?}",
-                builtin_counters
+                "Overflow occurred while converting built-in resources to gas. Builtins: \
+                 {builtin_counters:?}"
             )
         });
 

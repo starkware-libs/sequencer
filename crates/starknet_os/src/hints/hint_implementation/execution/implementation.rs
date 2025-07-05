@@ -893,7 +893,7 @@ pub(crate) fn write_old_block_to_storage<S: StateReader>(
     let old_block_hash =
         get_integer_from_var_name(Ids::OldBlockHash.into(), vm, ids_data, ap_tracking)?;
 
-    log::debug!("writing block number: {} -> block hash: {}", old_block_number, old_block_hash);
+    log::debug!("writing block number: {old_block_number} -> block hash: {old_block_hash}");
 
     execution_helper.cached_state.set_storage_at(
         ContractAddress(PatriciaKey::try_from(*block_hash_contract_address)?),
@@ -1017,7 +1017,7 @@ pub(crate) fn fetch_result(
     if retdata_size != 1 || result[0] != Some(Cow::Borrowed(&validated)) {
         log::info!("Invalid return value from __validate__:");
         log::info!("  Size: {retdata_size}");
-        log::info!("  Result (at most 100 elements): {:?}", result);
+        log::info!("  Result (at most 100 elements): {result:?}");
     }
     Ok(())
 }

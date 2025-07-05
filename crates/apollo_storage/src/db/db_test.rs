@@ -307,7 +307,7 @@ impl Migratable for V1 {
         older_version: u8,
     ) -> Result<Self, StorageSerdeError> {
         if older_version != 0 {
-            println!("Unexpected older version: {}", older_version);
+            println!("Unexpected older version: {older_version}");
             return Err(StorageSerdeError::Migration);
         }
         V0::deserialize_from(bytes)

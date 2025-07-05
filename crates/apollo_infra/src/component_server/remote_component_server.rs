@@ -201,8 +201,7 @@ where
                     }
                     Err(error) => {
                         panic!(
-                            "Remote server failed sending with its local client. Error: {:?}",
-                            error
+                            "Remote server failed sending with its local client. Error: {error:?}"
                         );
                     }
                 }
@@ -262,7 +261,7 @@ where
         Server::bind(&self.socket)
             .serve(make_svc)
             .await
-            .unwrap_or_else(|e| panic!("HttpServerStartError: {}", e));
+            .unwrap_or_else(|e| panic!("HttpServerStartError: {e}"));
     }
 }
 

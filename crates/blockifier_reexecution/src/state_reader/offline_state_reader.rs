@@ -137,8 +137,7 @@ impl StateReader for OfflineStateReader {
     ) -> StateResult<Felt> {
         Ok(*self.state_maps.storage.get(&(contract_address, key)).ok_or(
             StateError::StateReadError(format!(
-                "Missing Storage Value at contract_address: {}, key:{:?}",
-                contract_address, key
+                "Missing Storage Value at contract_address: {contract_address}, key:{key:?}"
             )),
         )?)
     }

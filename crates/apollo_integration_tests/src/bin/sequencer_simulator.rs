@@ -25,13 +25,13 @@ fn read_ports_from_file(path: &str) -> (u16, u16) {
 
     let http_port: u16 = json[HTTP_PORT_ARG]
         .as_u64()
-        .unwrap_or_else(|| panic!("http port should be available in {}", path))
+        .unwrap_or_else(|| panic!("http port should be available in {path}"))
         .try_into()
         .expect("http port should be within the valid range for u16");
 
     let monitoring_port: u16 = json[MONITORING_PORT_ARG]
         .as_u64()
-        .unwrap_or_else(|| panic!("monitoring port should be available in {}", path))
+        .unwrap_or_else(|| panic!("monitoring port should be available in {path}"))
         .try_into()
         .expect("monitoring port should be within the valid range for u16");
 

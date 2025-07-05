@@ -45,6 +45,6 @@ pub fn assert_default_config_file_is_up_to_date<T: Default + SerializeConfig>(
         "Diffs shown below (default config file <<>> dump of {}::default()).",
         std::any::type_name::<T>()
     );
-    let error_message = format!("{}\n{}", update_instructions, file_names_on_diff);
+    let error_message = format!("{update_instructions}\n{file_names_on_diff}");
     assert_json_eq(&from_default_config_file, &from_code, error_message);
 }

@@ -181,19 +181,19 @@ async fn server_metrics() {
         let metrics = prometheus_handle.render();
         for line in metrics.split('\n').filter(|line| line.contains("V0_8")) {
             if line.contains("rpc_incoming_requests{method=\"blockNumber\"") {
-                println!("{}", line);
+                println!("{line}");
                 line.split(' ').next_back().unwrap().clone_into(&mut incoming_block_number);
             }
             if line.contains("rpc_failed_requests{method=\"blockNumber\"") {
-                println!("{}", line);
+                println!("{line}");
                 line.split(' ').next_back().unwrap().clone_into(&mut failing_block_number);
             }
             if line.contains("rpc_incoming_requests{method=\"getStateUpdate\"") {
-                println!("{}", line);
+                println!("{line}");
                 line.split(' ').next_back().unwrap().clone_into(&mut incoming_get_state_update);
             }
             if line.contains("rpc_failed_requests{method=\"getStateUpdate\"") {
-                println!("{}", line);
+                println!("{line}");
                 line.split(' ').next_back().unwrap().clone_into(&mut failing_get_state_update);
             }
         }

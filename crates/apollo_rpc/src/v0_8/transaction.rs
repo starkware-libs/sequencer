@@ -1210,7 +1210,7 @@ impl Serialize for L1L2MsgHash {
     where
         S: Serializer,
     {
-        serializer.serialize_str(format!("{}", self).as_str())
+        serializer.serialize_str(format!("{self}").as_str())
     }
 }
 
@@ -1297,7 +1297,7 @@ where
     S: serde::Serializer,
 {
     let hex_string = hex::encode(eth_address.0.as_bytes());
-    let fixed_size_hex_string = format!("0x{:0<40}", hex_string);
+    let fixed_size_hex_string = format!("0x{hex_string:0<40}");
     serializer.serialize_str(fixed_size_hex_string.as_str())
 }
 

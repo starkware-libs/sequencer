@@ -138,6 +138,6 @@ where
     }
 
     raw.split_whitespace()
-        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{}': {}", s, e))))
+        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{s}': {e}"))))
         .collect()
 }

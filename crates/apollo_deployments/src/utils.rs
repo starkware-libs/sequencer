@@ -36,7 +36,7 @@ pub(crate) fn determine_port_numbers(
             );
 
             let unique: HashSet<_> = v.iter().cloned().collect();
-            assert!(unique.len() == v.len(), "Vector contains duplicate values: {:?}", v);
+            assert!(unique.len() == v.len(), "Vector contains duplicate values: {v:?}");
 
             v
         }

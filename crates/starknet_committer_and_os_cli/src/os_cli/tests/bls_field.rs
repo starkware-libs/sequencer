@@ -268,7 +268,7 @@ fn test_bls_prime_value(input: &str) -> OsPythonTestResult {
     let actual_split_bls_prime: [Felt; 3] = array::from_fn(|i| {
         *program
             .constants
-            .get(&format!("starkware.starknet.core.os.data_availability.bls_field.P{}", i))
+            .get(&format!("starkware.starknet.core.os.data_availability.bls_field.P{i}"))
             .unwrap()
     });
     let expected_split_bls_prime = split_bigint3(BLS_PRIME.to_bigint().unwrap()).unwrap();

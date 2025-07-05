@@ -47,7 +47,7 @@ pub fn install_compiler_binary(
         .unwrap_or_else(|_| panic!("Failed to install {binary_name}"));
 
     if !install_command_status.success() {
-        panic!("Failed to install {}", binary_name);
+        panic!("Failed to install {binary_name}");
     }
 
     // Move the '{binary_name}' executable to a shared location.
@@ -59,7 +59,7 @@ pub fn install_compiler_binary(
         .expect("Failed to perform mv command.");
 
     if !move_command_status.success() {
-        panic!("Failed to move the {} binary to the shared folder.", binary_name);
+        panic!("Failed to move the {binary_name} binary to the shared folder.");
     }
 
     std::fs::remove_dir_all(temp_cargo_path).expect("Failed to remove the cargo directory.");

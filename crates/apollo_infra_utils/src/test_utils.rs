@@ -47,15 +47,11 @@ impl AvailablePorts {
     pub fn new(test_unique_index: u16, instance_index: u16) -> Self {
         assert!(
             test_unique_index < MAX_NUMBER_OF_TESTS,
-            "Test unique index {:?} exceeded bound {:?}",
-            test_unique_index,
-            MAX_NUMBER_OF_TESTS
+            "Test unique index {test_unique_index:?} exceeded bound {MAX_NUMBER_OF_TESTS:?}"
         );
         assert!(
             instance_index < MAX_NUMBER_OF_INSTANCES_PER_TEST,
-            "Instance index {:?} exceeded bound {:?}",
-            instance_index,
-            MAX_NUMBER_OF_INSTANCES_PER_TEST
+            "Instance index {instance_index:?} exceeded bound {MAX_NUMBER_OF_INSTANCES_PER_TEST:?}",
         );
 
         let test_offset: u16 =
@@ -140,7 +136,7 @@ where
     Rhs: Serialize,
 {
     if let Err(error) = assert_json_matches_no_panic(lhs, rhs, Config::new(CompareMode::Strict)) {
-        let printed_error = format!("\n\n{}\n{}\n\n", message, error);
+        let printed_error = format!("\n\n{message}\n{error}\n\n");
         panic!("{}", printed_error);
     }
 }

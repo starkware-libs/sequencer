@@ -271,7 +271,7 @@ where
                         );
                     } else {
                         // TODO(guyn): replace panic with more graceful error handling
-                        panic!("Unexpected error: {:?}", e);
+                        panic!("Unexpected error: {e:?}");
                     }
                 }
             };

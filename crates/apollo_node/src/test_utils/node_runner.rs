@@ -49,7 +49,7 @@ pub fn spawn_run_node(
         let _node_run_result = node_handle.
             wait(). // Runs the node until completion, should be running indefinitely.
             await; // Awaits the completion of the node.
-        panic!("Node {:?} stopped unexpectedly.", node_runner);
+        panic!("Node {node_runner:?} stopped unexpectedly.");
     }))
 }
 

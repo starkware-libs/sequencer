@@ -4171,9 +4171,8 @@ fn spec_api_methods_coverage() {
     // Methods in the spec are a subset of the implemented methods.
     assert!(
         method_names_in_spec.iter().all(|method| implemented_method_names.contains(method)),
-        "Implemented methods: {:#?}, methods in spec: {:#?}",
-        implemented_method_names,
-        method_names_in_spec
+        "Implemented methods: {implemented_method_names:#?}, methods in spec: \
+         {method_names_in_spec:#?}"
     );
 }
 

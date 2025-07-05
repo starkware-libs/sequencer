@@ -56,7 +56,7 @@ fn get_block_url(
     use_deprecated_feeder_gateway: bool,
 ) -> String {
     let mut url = match block_number_or_latest {
-        Some(block_number) => format!("/feeder_gateway/get_block?blockNumber={}", block_number),
+        Some(block_number) => format!("/feeder_gateway/get_block?blockNumber={block_number}"),
         _ => "/feeder_gateway/get_block?blockNumber=latest".to_string(),
     };
 
@@ -104,7 +104,7 @@ fn mock_current_feeder_gateway_invalid_get_latest_block_response() -> mockito::M
 fn block_not_found_error(block_number: i64) -> String {
     let error = StarknetError {
         code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::BlockNotFound),
-        message: format!("Block {} was not found.", block_number),
+        message: format!("Block {block_number} was not found."),
     };
     serde_json::to_string(&error).unwrap()
 }

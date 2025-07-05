@@ -1383,7 +1383,7 @@ fn test_get_mempool_snapshot() {
         fake_clock.advance(Duration::from_secs(1));
         add_tx(
             &mut mempool,
-            &add_tx_input!(tx_hash: i, address: format!("0x{}", i).as_str(), tip: 10),
+            &add_tx_input!(tx_hash: i, address: format!("0x{i}").as_str(), tip: 10),
         );
     }
 
@@ -1416,8 +1416,7 @@ async fn add_tx_tolerates_p2p_propagation_error(mempool: Mempool) {
 
     assert!(
         result.is_ok(),
-        "Expected add_tx to succeed even if P2P propagation fails, but got error: {:?}",
-        result
+        "Expected add_tx to succeed even if P2P propagation fails, but got error: {result:?}"
     );
 }
 

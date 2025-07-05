@@ -818,7 +818,7 @@ pub async fn run_component_servers(servers: SequencerNodeServers) {
     if let Some(servers_type) = all_servers.next().await {
         // TODO(alonl): check all tasks are exited properly in case of a server failure before
         // panicing.
-        panic!("{} Servers ended unexpectedly.", servers_type);
+        panic!("{servers_type} Servers ended unexpectedly.");
     } else {
         unreachable!("all_servers is never empty");
     }

@@ -61,7 +61,7 @@ pub enum TransactionFeeError {
     MaxFeeExceedsBalance { max_fee: Fee, balance: BigUint },
     #[error("Max fee ({}) is too low. Minimum fee: {}.", max_fee.0, min_fee.0)]
     MaxFeeTooLow { min_fee: Fee, max_fee: Fee },
-    #[error("Resource bounds were not satisfied: {}", errors.iter().map(|e| format!("{}", e)).collect::<Vec<_>>().join("\n"))]
+    #[error("Resource bounds were not satisfied: {}", errors.iter().map(|e| format!("{e}")).collect::<Vec<_>>().join("\n"))]
     InsufficientResourceBounds { errors: Vec<ResourceBoundsError> },
     #[error("Missing L1 gas bounds in resource bounds.")]
     MissingL1GasBounds,

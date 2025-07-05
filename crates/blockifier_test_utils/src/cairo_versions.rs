@@ -49,7 +49,7 @@ impl CairoVersion {
         } else if tx_version == TransactionVersion::TWO || tx_version == TransactionVersion::THREE {
             CairoVersion::Cairo1(RunnableCairo1::Casm)
         } else {
-            panic!("Transaction version {:?} is not supported.", tx_version)
+            panic!("Transaction version {tx_version:?} is not supported.")
         }
     }
 

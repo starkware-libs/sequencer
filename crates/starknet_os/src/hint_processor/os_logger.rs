@@ -400,7 +400,7 @@ impl OsLogger {
 
         if selector.is_calling_syscall() {
             let deprecated_str = if is_deprecated { "deprecated " } else { "" };
-            self.log(&format!("Entering {deprecated_str}{:?}.", selector), true);
+            self.log(&format!("Entering {deprecated_str}{selector:?}."), true);
         }
 
         Ok(())

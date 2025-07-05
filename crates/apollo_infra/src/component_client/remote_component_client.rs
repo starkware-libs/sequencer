@@ -181,7 +181,7 @@ where
         port: u16,
         metrics: RemoteClientMetrics,
     ) -> Self {
-        let uri = format!("http://{}:{}/", url, port).parse().unwrap();
+        let uri = format!("http://{url}:{port}/").parse().unwrap();
         let client = Client::builder()
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)

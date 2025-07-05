@@ -106,9 +106,8 @@ impl SierraVersion {
             .map(|(index, felt)| {
                 felt.clone().try_into().map_err(|err| {
                     StarknetApiError::ParseSierraVersionError(format!(
-                        "Failed to parse Sierra program to Sierra version. Index: {}, Felt: {}, \
-                         Error: {}",
-                        index, felt, err
+                        "Failed to parse Sierra program to Sierra version. Index: {index}, Felt: \
+                         {felt}, Error: {err}"
                     ))
                 })
             })

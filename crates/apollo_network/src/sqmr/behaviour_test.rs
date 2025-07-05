@@ -376,10 +376,9 @@ async fn connection_closed() {
             })) = event
             else {
                 panic!(
-                    "Event {:?} doesn't match expected event \
+                    "Event {event:?} doesn't match expected event \
                      ToSwarm::GenerateEvent(Event::External(ExternalEvent::SessionFailed {{ \
-                     error: SessionError::ConnectionClosed }}))",
-                    event
+                     error: SessionError::ConnectionClosed }}))"
                 );
             };
             *session_id

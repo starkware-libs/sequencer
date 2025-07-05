@@ -39,7 +39,7 @@ pub async fn run_block_hash_cli(block_hash_cli_command: BlockHashCliCommand) {
             info!("Successfully loaded block hash input.");
             let block_hash =
                 calculate_block_hash(block_hash_input.header, block_hash_input.block_commitments)
-                    .unwrap_or_else(|error| panic!("Failed to calculate block hash: {}", error));
+                    .unwrap_or_else(|error| panic!("Failed to calculate block hash: {error}"));
             write_to_file(&output_path, &block_hash);
             info!("Successfully computed block hash {:?}.", block_hash);
         }

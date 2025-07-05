@@ -63,14 +63,14 @@ where
 {
     // Create PythonTest from test_name.
     let test = PT::try_from(python_test_arg.test_name)
-        .unwrap_or_else(|error| panic!("Failed to create PythonTest: {:?}", error));
+        .unwrap_or_else(|error| panic!("Failed to create PythonTest: {error:?}"));
     let input = read_input(python_test_arg.io_args.input_path);
 
     // Run relevant test.
     let output = test
         .run(Some(&input))
         .await
-        .unwrap_or_else(|error| panic!("Failed to run test: {:?}", error));
+        .unwrap_or_else(|error| panic!("Failed to run test: {error:?}"));
 
     // Write test's output.
     write_to_file(&python_test_arg.io_args.output_path, &output);

@@ -205,7 +205,7 @@ pub fn create_http_server(
 impl ComponentStarter for HttpServer {
     async fn start(&mut self) {
         info!("Starting component {}.", short_type_name::<Self>());
-        self.run().await.unwrap_or_else(|e| panic!("Failed to start HttpServer component: {:?}", e))
+        self.run().await.unwrap_or_else(|e| panic!("Failed to start HttpServer component: {e:?}"))
     }
 }
 

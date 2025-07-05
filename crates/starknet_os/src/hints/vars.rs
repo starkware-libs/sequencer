@@ -105,7 +105,7 @@ define_string_enum! {
 impl std::fmt::Display for Scope {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let scope_string: &'static str = (*self).into();
-        write!(f, "{}", scope_string)
+        write!(f, "{scope_string}")
     }
 }
 

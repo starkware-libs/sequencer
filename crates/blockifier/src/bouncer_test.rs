@@ -259,7 +259,7 @@ fn test_bouncer_try_update_sierra_gas(
                     TransactionExecutionError::TransactionTooLarge { max_capacity, tx_size }
                 )
             ) if *max_capacity == block_max_capacity && *tx_size == expected_weights),
-        _ => panic!("Unexpected scenario: {}", scenario),
+        _ => panic!("Unexpected scenario: {scenario}"),
     }
 }
 

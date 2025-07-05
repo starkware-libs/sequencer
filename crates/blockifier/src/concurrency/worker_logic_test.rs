@@ -150,7 +150,7 @@ pub fn test_commit_tx() {
         if should_pass_validation {
             assert_eq!(commit_result, CommitResult::Success);
         } else {
-            assert_eq!(commit_result, CommitResult::ValidationFailed, "commit_idx: {}", commit_idx);
+            assert_eq!(commit_result, CommitResult::ValidationFailed, "commit_idx: {commit_idx}");
             // Re-execute the transaction.
             executor.execute_tx(commit_idx);
             // Commit again. This time it should succeed.

@@ -125,13 +125,13 @@ async fn compare(requests: Vec<jsonVal>, endpoint: &str, fixes: &[fn(&mut jsonVa
             create_dir(&param_path).unwrap();
 
             let mut file = File::create(param_path.join(&*REQUEST_FILE_NAME)).unwrap();
-            file.write_all(format!("{:#?}", request).as_bytes()).unwrap();
+            file.write_all(format!("{request:#?}").as_bytes()).unwrap();
 
             let mut file = File::create(param_path.join(&*ALPHA_RESPONSE_FILE_NAME)).unwrap();
-            file.write_all(format!("{:#?}", alpha_response).as_bytes()).unwrap();
+            file.write_all(format!("{alpha_response:#?}").as_bytes()).unwrap();
 
             let mut file = File::create(param_path.join(&*BETA_RESPONSE_FILE_NAME)).unwrap();
-            file.write_all(format!("{:#?}", beta_response).as_bytes()).unwrap();
+            file.write_all(format!("{beta_response:#?}").as_bytes()).unwrap();
         }
     }
 

@@ -152,7 +152,7 @@ fn casm_serialization_regression() {
     }
 
     for (json_file_name, bin_file_name) in CASM_SERIALIZATION_REGRESSION_FILES {
-        let json_path = format!("casm/{}", json_file_name);
+        let json_path = format!("casm/{json_file_name}");
         let json_casm: CasmContractClass = read_json_file(&json_path);
         let mut serialized: Vec<u8> = Vec::new();
         json_casm
@@ -191,7 +191,7 @@ fn casm_deserialization_regression() {
         let regression_casm =
             CasmContractClass::deserialize_from(&mut regression_casm_bytes.as_slice())
                 .expect("Failed to deserialize casm file: {casm_file}.");
-        let json_path = format!("casm/{}", json_file_name);
+        let json_path = format!("casm/{json_file_name}");
         let json_casm: CasmContractClass = read_json_file(&json_path);
         assert_eq!(
             regression_casm, json_casm,
@@ -203,7 +203,7 @@ result.\n{FIX_SUGGESTION}"
 
 fn fix_casm_regression_files() {
     for (json_file_name, bin_file_name) in CASM_SERIALIZATION_REGRESSION_FILES {
-        let json_path = format!("casm/{}", json_file_name);
+        let json_path = format!("casm/{json_file_name}");
         let json_casm: CasmContractClass = read_json_file(&json_path);
         let mut serialized: Vec<u8> = Vec::new();
         json_casm.serialize_into(&mut serialized).unwrap();

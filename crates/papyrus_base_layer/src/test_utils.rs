@@ -125,7 +125,7 @@ pub fn anvil(port: Option<u16>) -> AnvilInstance {
 pub fn ethereum_base_layer_config_for_anvil(port: Option<u16>) -> EthereumBaseLayerConfig {
     // Use the specified port if provided; otherwise, default to Anvil's default port.
     let non_optional_port = port.unwrap_or(DEFAULT_ANVIL_PORT);
-    let endpoint = format!("http://localhost:{}", non_optional_port);
+    let endpoint = format!("http://localhost:{non_optional_port}");
     EthereumBaseLayerConfig {
         node_url: Url::parse(&endpoint).unwrap(),
         starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),

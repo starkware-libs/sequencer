@@ -54,10 +54,10 @@ async fn test_get_block() {
         ))
         .await;
     let StateSyncResponse::GetBlock(Ok(boxed_sync_block)) = response else {
-        panic!("Expected StateSyncResponse::GetBlock::Ok(Box(Some(_))), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetBlock::Ok(Box(Some(_))), but got {response:?}");
     };
     let Some(block) = *boxed_sync_block else {
-        panic!("Expected Box(Some(_)), but got {:?}", boxed_sync_block);
+        panic!("Expected Box(Some(_)), but got {boxed_sync_block:?}");
     };
 
     assert_eq!(block.block_header_without_hash, expected_header.block_header_without_hash);
@@ -105,7 +105,7 @@ async fn test_get_storage_at() {
         .await;
 
     let StateSyncResponse::GetStorageAt(Ok(value)) = response else {
-        panic!("Expected StateSyncResponse::GetStorageAt::Ok(_), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetStorageAt::Ok(_), but got {response:?}");
     };
 
     assert_eq!(value, expected_value);
@@ -144,7 +144,7 @@ async fn test_get_nonce_at() {
         .await;
 
     let StateSyncResponse::GetNonceAt(Ok(nonce)) = response else {
-        panic!("Expected StateSyncResponse::GetNonceAt::Ok(_), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetNonceAt::Ok(_), but got {response:?}");
     };
 
     assert_eq!(nonce, expected_nonce);
@@ -182,7 +182,7 @@ async fn get_class_hash_at() {
         .await;
 
     let StateSyncResponse::GetClassHashAt(Ok(class_hash)) = response else {
-        panic!("Expected StateSyncResponse::GetClassHashAt::Ok(_), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetClassHashAt::Ok(_), but got {response:?}");
     };
 
     assert_eq!(class_hash, expected_class_hash);
@@ -198,7 +198,7 @@ async fn test_block_not_found() {
     let response =
         state_sync.handle_request(StateSyncRequest::GetBlock(non_existing_block_number)).await;
     let StateSyncResponse::GetBlock(Ok(maybe_block)) = response else {
-        panic!("Expected StateSyncResponse::GetBlock::Ok(_), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetBlock::Ok(_), but got {response:?}");
     };
 
     assert!(maybe_block.is_none());
@@ -211,7 +211,7 @@ async fn test_block_not_found() {
         ))
         .await;
     let StateSyncResponse::GetStorageAt(get_storage_at_result) = response else {
-        panic!("Expected StateSyncResponse::GetStorageAt(_), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetStorageAt(_), but got {response:?}");
     };
 
     assert_eq!(
@@ -223,7 +223,7 @@ async fn test_block_not_found() {
         .handle_request(StateSyncRequest::GetNonceAt(non_existing_block_number, Default::default()))
         .await;
     let StateSyncResponse::GetNonceAt(get_nonce_at_result) = response else {
-        panic!("Expected StateSyncResponse::GetNonceAt(_), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetNonceAt(_), but got {response:?}");
     };
 
     assert_eq!(get_nonce_at_result, Err(StateSyncError::BlockNotFound(non_existing_block_number)));
@@ -235,7 +235,7 @@ async fn test_block_not_found() {
         ))
         .await;
     let StateSyncResponse::GetClassHashAt(get_class_hash_at_result) = response else {
-        panic!("Expected StateSyncResponse::GetClassHashAt(_), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetClassHashAt(_), but got {response:?}");
     };
 
     assert_eq!(
@@ -277,7 +277,7 @@ async fn test_contract_not_found() {
         ))
         .await;
     let StateSyncResponse::GetStorageAt(get_storage_at_result) = response else {
-        panic!("Expected StateSyncResponse::GetStorageAt(_), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetStorageAt(_), but got {response:?}");
     };
 
     assert_eq!(get_storage_at_result, Err(StateSyncError::ContractNotFound(address)));
@@ -289,7 +289,7 @@ async fn test_contract_not_found() {
         ))
         .await;
     let StateSyncResponse::GetNonceAt(get_nonce_at_result) = response else {
-        panic!("Expected StateSyncResponse::GetNonceAt(_), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetNonceAt(_), but got {response:?}");
     };
 
     assert_eq!(get_nonce_at_result, Err(StateSyncError::ContractNotFound(address)));
@@ -301,7 +301,7 @@ async fn test_contract_not_found() {
         ))
         .await;
     let StateSyncResponse::GetClassHashAt(get_class_hash_at_result) = response else {
-        panic!("Expected StateSyncResponse::GetClassHashAt(_), but got {:?}", response);
+        panic!("Expected StateSyncResponse::GetClassHashAt(_), but got {response:?}");
     };
 
     assert_eq!(get_class_hash_at_result, Err(StateSyncError::ContractNotFound(address)));

@@ -74,7 +74,7 @@ async fn test_stateful_tx_validator(
         .map(|validate_result| *validate_result)
         .map_err(|blockifier_error| StarknetError {
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
-            message: format!("{}", blockifier_error),
+            message: format!("{blockifier_error}"),
         });
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();

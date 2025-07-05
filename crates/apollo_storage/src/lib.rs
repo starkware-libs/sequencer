@@ -769,7 +769,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
         location: LocationInFile,
     ) -> StorageResult<ThinStateDiff> {
         self.thin_state_diff.get(location)?.ok_or(StorageError::DBInconsistency {
-            msg: format!("ThinStateDiff at location {:?} not found.", location),
+            msg: format!("ThinStateDiff at location {location:?} not found."),
         })
     }
 
@@ -779,14 +779,14 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
         location: LocationInFile,
     ) -> StorageResult<SierraContractClass> {
         self.contract_class.get(location)?.ok_or(StorageError::DBInconsistency {
-            msg: format!("ContractClass at location {:?} not found.", location),
+            msg: format!("ContractClass at location {location:?} not found."),
         })
     }
 
     // Returns the CASM at the given location or an error in case it doesn't exist.
     fn get_casm_unchecked(&self, location: LocationInFile) -> StorageResult<CasmContractClass> {
         self.casm.get(location)?.ok_or(StorageError::DBInconsistency {
-            msg: format!("CasmContractClass at location {:?} not found.", location),
+            msg: format!("CasmContractClass at location {location:?} not found."),
         })
     }
 
@@ -797,7 +797,7 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
         location: LocationInFile,
     ) -> StorageResult<DeprecatedContractClass> {
         self.deprecated_contract_class.get(location)?.ok_or(StorageError::DBInconsistency {
-            msg: format!("DeprecatedContractClass at location {:?} not found.", location),
+            msg: format!("DeprecatedContractClass at location {location:?} not found."),
         })
     }
 
@@ -808,14 +808,14 @@ impl<Mode: TransactionKind> FileHandlers<Mode> {
         location: LocationInFile,
     ) -> StorageResult<TransactionOutput> {
         self.transaction_output.get(location)?.ok_or(StorageError::DBInconsistency {
-            msg: format!("TransactionOutput at location {:?} not found.", location),
+            msg: format!("TransactionOutput at location {location:?} not found."),
         })
     }
 
     // Returns the transaction at the given location or an error in case it doesn't exist.
     fn get_transaction_unchecked(&self, location: LocationInFile) -> StorageResult<Transaction> {
         self.transaction.get(location)?.ok_or(StorageError::DBInconsistency {
-            msg: format!("Transaction at location {:?} not found.", location),
+            msg: format!("Transaction at location {location:?} not found."),
         })
     }
 }

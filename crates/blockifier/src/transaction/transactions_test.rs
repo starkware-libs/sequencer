@@ -2277,7 +2277,7 @@ fn check_native_validate_error(
                     assert!(!validate_constructor);
                     boxed_syscall_error
                 }
-                _ => panic!("Unexpected error: {:?}", boxed_error),
+                _ => panic!("Unexpected error: {boxed_error:?}"),
             }
         }
         TransactionExecutionError::ContractConstructorExecutionFailed(
@@ -2287,7 +2287,7 @@ fn check_native_validate_error(
                 assert!(validate_constructor);
                 boxed_syscall_error
             }
-            _ => panic!("Unexpected error: {:?}", boxed_error),
+            _ => panic!("Unexpected error: {boxed_error:?}"),
         },
         _ => panic!("Unexpected error: {:?}", &error),
     };
@@ -2943,7 +2943,7 @@ fn test_execute_tx_with_invalid_tx_version(
             .revert_error
             .unwrap()
             .to_string()
-            .contains(format!("ASSERT_EQ instruction failed: {} != 3.", invalid_version).as_str())
+            .contains(format!("ASSERT_EQ instruction failed: {invalid_version} != 3.").as_str())
     );
 }
 
@@ -3031,7 +3031,7 @@ fn test_emit_event_exceeds_limit(
     match &expected_error {
         Some(expected_error) => {
             let error_string = execution_info.revert_error.unwrap().to_string();
-            assert!(error_string.contains(&format!("{}", expected_error)));
+            assert!(error_string.contains(&format!("{expected_error}")));
         }
         None => {
             assert!(!execution_info.is_reverted());
@@ -3042,7 +3042,7 @@ fn test_emit_event_exceeds_limit(
 #[test]
 fn test_balance_print() {
     let int = balance_to_big_uint(&Felt::from(16_u64), &Felt::from(1_u64));
-    assert!(format!("{}", int) == (BigUint::from(u128::MAX) + BigUint::from(17_u128)).to_string());
+    assert!(format!("{int}") == (BigUint::from(u128::MAX) + BigUint::from(17_u128)).to_string());
 }
 
 #[apply(two_cairo_versions)]
