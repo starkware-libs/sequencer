@@ -200,6 +200,7 @@ impl BlockContext {
 pub struct ChainInfo {
     pub chain_id: ChainId,
     pub fee_token_addresses: FeeTokenAddresses,
+    pub is_layer_3: bool,
 }
 
 impl ChainInfo {
@@ -217,18 +218,27 @@ impl Default for ChainInfo {
             // TODO(guyn): should we remove the default value for chain_id?
             chain_id: ChainId::Other("0x0".to_string()),
             fee_token_addresses: FeeTokenAddresses::default(),
+            is_layer_3: false,
         }
     }
 }
 
 impl SerializeConfig for ChainInfo {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let members = BTreeMap::from_iter([ser_param(
-            "chain_id",
-            &self.chain_id,
-            "The chain ID of the StarkNet chain.",
-            ParamPrivacyInput::Public,
-        )]);
+        let members = BTreeMap::from_iter([
+            ser_param(
+                "chain_id",
+                &self.chain_id,
+                "The chain ID of the StarkNet chain.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "is_layer_3",
+                &self.is_layer_3,
+                "Whether the chain is a layer 3 chain.",
+                ParamPrivacyInput::Public,
+            ),
+        ]);
 
         vec![
             members,

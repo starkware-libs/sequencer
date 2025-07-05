@@ -394,6 +394,7 @@ fn create_block_context(
             strk_fee_token_address: execution_config.strk_fee_contract_address,
             eth_fee_token_address: execution_config.eth_fee_contract_address,
         },
+        is_layer_3: false,
     };
     let starknet_version = storage_reader
         .begin_ro_txn()?
