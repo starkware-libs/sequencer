@@ -65,7 +65,7 @@ impl TestExecutionSummary {
                     .map(|i| OrderedL2ToL1Message {
                         order: i,
                         message: MessageToL1 {
-                            to_address: EthAddress::default(),
+                            to_address: EthAddress::default().into(),
                             payload: L2ToL1Payload(vec![Felt::default()]),
                         },
                     })

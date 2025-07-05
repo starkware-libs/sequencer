@@ -951,7 +951,7 @@ fn test_invoke_tx_advanced_operations(
     let expected_msg = OrderedL2ToL1Message {
         order: 0,
         message: MessageToL1 {
-            to_address: EthAddress::try_from(to_address).unwrap(),
+            to_address: EthAddress::try_from(to_address).unwrap().into(),
             payload: L2ToL1Payload(vec![felt!(12_u32), felt!(34_u32)]),
         },
     };

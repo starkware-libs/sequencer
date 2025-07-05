@@ -502,7 +502,7 @@ fn call_info() -> CallInfo {
             l2_to_l1_messages: vec![OrderedL2ToL1Message {
                 order: 1,
                 message: MessageToL1 {
-                    to_address: EthAddress::try_from(felt!(1_u8)).unwrap(),
+                    to_address: EthAddress::try_from(felt!(1_u8)).unwrap().into(),
                     payload: L2ToL1Payload(felt_vector()),
                 },
             }],

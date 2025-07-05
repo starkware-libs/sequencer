@@ -27,6 +27,7 @@ use starknet_api::core::{
     ContractAddress,
     EntryPointSelector,
     EthAddress,
+    L1Address,
     Nonce,
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -91,7 +92,7 @@ impl From<starknet_api::transaction::L1HandlerTransaction> for L1ToL2Message {
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 pub struct L2ToL1Message {
     pub from_address: ContractAddress,
-    pub to_address: EthAddress,
+    pub to_address: L1Address,
     pub payload: L2ToL1Payload,
 }
 
