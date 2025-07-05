@@ -76,7 +76,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         Ok(())
     }
 
-    async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
+    pub async fn send_events_to_l1_provider(&mut self) -> L1ScraperResult<(), B> {
         self.assert_no_l1_reorgs().await?;
 
         let (latest_l1_block, events) = self.fetch_events().await?;
