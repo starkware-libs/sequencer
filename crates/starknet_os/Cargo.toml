@@ -23,6 +23,7 @@ ark-ff.workspace = true
 ark-poly.workspace = true
 ark-secp256k1.workspace = true
 ark-secp256r1.workspace = true
+blake2s.workspace = true
 blockifier.workspace = true
 c-kzg.workspace = true
 cairo-lang-casm.workspace = true
