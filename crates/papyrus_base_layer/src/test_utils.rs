@@ -12,23 +12,17 @@ use starknet_api::hash::StarkHash;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
 use tracing::debug;
-use url::Url;
 
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     EthereumContractAddress,
-    Starknet,
-    StarknetL1Contract,
 };
 
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 
 const MINIMAL_GANACHE_VERSION: u8 = 7;
 
-// See Anvil documentation:
-// https://docs.rs/ethers-core/latest/ethers_core/utils/struct.Anvil.html#method.new.
-const DEFAULT_ANVIL_PORT: u16 = 8545;
 // This address is commonly used as the L1 address of the Starknet core contract.
 // TODO(Arni): Replace with constant with use of `AnvilInstance::address(&self)`.
 pub const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
@@ -127,37 +121,6 @@ pub fn anvil(port: Option<u16>) -> AnvilInstance {
         }
         _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
     })
-}
-
-pub fn ethereum_base_layer_config_for_anvil(port: Option<u16>) -> EthereumBaseLayerConfig {
-    // Use the specified port if provided; otherwise, default to Anvil's default port.
-    let non_optional_port = port.unwrap_or(DEFAULT_ANVIL_PORT);
-    let endpoint = format!("http://localhost:{non_optional_port}");
-    EthereumBaseLayerConfig {
-        node_url: Url::parse(&endpoint).unwrap(),
-        starknet_contract_address: DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
-        ..Default::default()
-    }
-}
-
-pub fn anvil_instance_from_config(config: &EthereumBaseLayerConfig) -> AnvilInstance {
-    let port = config.node_url.port();
-    let anvil = anvil(port);
-    assert_eq!(config.node_url, anvil.endpoint_url(), "Unexpected config for Anvil instance.");
-    anvil
-}
-
-pub async fn spawn_anvil_and_deploy_starknet_l1_contract(
-    config: &EthereumBaseLayerConfig,
-) -> (AnvilInstance, StarknetL1Contract) {
-    let anvil = anvil_instance_from_config(config);
-    let starknet_l1_contract = deploy_starknet_l1_contract(config.clone()).await;
-    (anvil, starknet_l1_contract)
-}
-
-pub async fn deploy_starknet_l1_contract(config: EthereumBaseLayerConfig) -> StarknetL1Contract {
-    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(config);
-    Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap()
 }
 
 // FIXME: This should be part of AnvilBaseLayer, however the usage in the simulator doesn't allow
