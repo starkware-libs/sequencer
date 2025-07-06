@@ -1,4 +1,4 @@
-use apollo_starknet_os_program::OS_PROGRAM;
+use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
 use blockifier::state::state_api::StateReader;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::types::layout_name::LayoutName;
@@ -6,7 +6,7 @@ use cairo_vm::vm::errors::vm_exception::VmException;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 
 use crate::errors::StarknetOsError;
-use crate::hint_processor::aggregator_hint_processor::AggregatorInput;
+use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, AggregatorInput};
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -119,8 +119,77 @@ pub fn run_os_stateless(
 /// Run the Aggregator.
 #[allow(clippy::result_large_err)]
 pub fn run_aggregator(
-    _layout: LayoutName,
-    _aggregator_input: AggregatorInput,
+    layout: LayoutName,
+    aggregator_input: AggregatorInput,
 ) -> Result<StarknetAggregatorRunnerOutput, StarknetOsError> {
-    todo!()
+    // Create the aggregator hint processor.
+    let mut aggregator_hint_processor =
+        AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
+
+    // Init CairoRunConfig.
+    let cairo_run_config =
+        CairoRunConfig { layout, relocate_mem: true, trace_enabled: true, ..Default::default() };
+    let allow_missing_builtins = cairo_run_config.allow_missing_builtins.unwrap_or(false);
+
+    // Init cairo runner.
+    let mut cairo_runner = CairoRunner::new(
+        &AGGREGATOR_PROGRAM,
+        cairo_run_config.layout,
+        cairo_run_config.dynamic_layout_params,
+        cairo_run_config.proof_mode,
+        cairo_run_config.trace_enabled,
+        cairo_run_config.disable_trace_padding,
+    )?;
+
+    // Init the Cairo VM.
+    let end = cairo_runner.initialize(allow_missing_builtins)?;
+
+    // Run the Cairo VM.
+    cairo_runner
+        .run_until_pc(end, &mut aggregator_hint_processor)
+        .map_err(|err| Box::new(VmException::from_vm_error(&cairo_runner, err)))?;
+
+    // End the Cairo VM run.
+    let disable_finalize_all = false;
+    cairo_runner.end_run(
+        cairo_run_config.disable_trace_padding,
+        disable_finalize_all,
+        &mut aggregator_hint_processor,
+    )?;
+
+    if cairo_run_config.proof_mode {
+        cairo_runner.finalize_segments()?;
+    }
+
+    #[cfg(feature = "include_program_output")]
+    let aggregator_output = {
+        // Prepare and check expected output.
+        let aggregator_raw_output = crate::io::os_output::get_run_output(&cairo_runner.vm)?;
+        let aggregator_output =
+            crate::io::os_output::OsOutput::from_raw_output_iter(os_raw_output.into_iter())?;
+        log::debug!(
+            "AggregatorOutput for block number={}: {aggregator_output:?}",
+            aggregator_output.new_block_number
+        );
+        aggregator_output
+    };
+
+    cairo_runner.vm.verify_auto_deductions().map_err(StarknetOsError::VirtualMachineError)?;
+    cairo_runner
+        .read_return_values(allow_missing_builtins)
+        .map_err(StarknetOsError::RunnerError)?;
+    cairo_runner
+        .relocate(cairo_run_config.relocate_mem)
+        .map_err(|e| StarknetOsError::VirtualMachineError(e.into()))?;
+
+    // Parse the Cairo VM output.
+    let cairo_pie = cairo_runner.get_cairo_pie().map_err(StarknetOsError::RunnerError)?;
+
+    Ok(StarknetAggregatorRunnerOutput {
+        #[cfg(feature = "include_program_output")]
+        aggregator_output,
+        cairo_pie,
+        #[cfg(any(test, feature = "testing"))]
+        unused_hints: aggregator_hint_processor.unused_hints,
+    })
 }
