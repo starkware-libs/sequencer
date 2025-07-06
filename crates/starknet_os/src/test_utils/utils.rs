@@ -1,6 +1,7 @@
 use std::any::Any;
 use std::collections::HashMap;
 use std::sync::LazyLock;
+use std::vec::IntoIter;
 
 use cairo_vm::hint_processor::builtin_hint_processor::dict_hint_utils::DICT_ACCESS_SIZE;
 use cairo_vm::types::layout_name::LayoutName;
@@ -155,5 +156,70 @@ pub(crate) fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
         layout: LayoutName::small,
         add_main_prefix_to_entrypoint: false,
         ..Default::default()
+    }
+}
+
+pub(crate) type DictEntry = [Felt; DICT_ACCESS_SIZE];
+
+#[derive(Debug, PartialEq, Eq)]
+/// Represents a contract's state diff outputted by the OS in `full_output` mode.
+pub(crate) struct FullOutputContractChanges {
+    pub(crate) contract_address: Felt,
+    pub(crate) prev_nonce: Felt,
+    pub(crate) new_nonce: Felt,
+    pub(crate) prev_class_hash: Felt,
+    pub(crate) new_class_hash: Felt,
+    pub(crate) storage_changes: Vec<DictEntry>,
+}
+
+impl FullOutputContractChanges {
+    pub(crate) fn new_from_iter(iter: &mut IntoIter<Felt>) -> Self {
+        let contract_address = iter.next().unwrap();
+        let prev_nonce = iter.next().unwrap();
+        let new_nonce = iter.next().unwrap();
+        let prev_class_hash = iter.next().unwrap();
+        let new_class_hash = iter.next().unwrap();
+        let n_storage_changes = usize::try_from(iter.next().unwrap()).unwrap();
+        let storage_changes = parse_dict_entries(n_storage_changes, iter);
+        FullOutputContractChanges {
+            contract_address,
+            prev_nonce,
+            new_nonce,
+            prev_class_hash,
+            new_class_hash,
+            storage_changes,
+        }
+    }
+}
+
+pub(crate) fn parse_dict_entries(
+    n_entries: usize,
+    entries_iter: &mut IntoIter<Felt>,
+) -> Vec<DictEntry> {
+    (0..n_entries)
+        .map(|_| {
+            let key = entries_iter.next().unwrap();
+            let prev_value = entries_iter.next().unwrap();
+            let value = entries_iter.next().unwrap();
+            [key, prev_value, value]
+        })
+        .collect()
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct FullOutputOsStateDiff {
+    pub(crate) contracts: Vec<FullOutputContractChanges>,
+    pub(crate) classes: Vec<DictEntry>,
+}
+
+impl FullOutputOsStateDiff {
+    pub(crate) fn new_from_iter(os_output_iter: &mut IntoIter<Felt>) -> Self {
+        let n_contracts = usize::try_from(os_output_iter.next().unwrap()).unwrap();
+        let contracts = (0..n_contracts)
+            .map(|_| FullOutputContractChanges::new_from_iter(os_output_iter))
+            .collect();
+        let n_classes = usize::try_from(os_output_iter.next().unwrap()).unwrap();
+        let classes = parse_dict_entries(n_classes, os_output_iter);
+        Self { contracts, classes }
     }
 }
