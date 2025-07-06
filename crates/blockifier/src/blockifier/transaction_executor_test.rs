@@ -62,7 +62,7 @@ fn tx_executor_test_body<S: StateReader>(
     // TODO(Arni, 30/03/2024): Test all bouncer weights.
     let _tx_execution_output = tx_executor.execute(&tx).unwrap();
     let bouncer = tx_executor.bouncer.lock().unwrap();
-    let bouncer_weights = bouncer.get_accumulated_weights();
+    let bouncer_weights = bouncer.get_bouncer_weights();
     assert_eq!(bouncer_weights.state_diff_size, expected_bouncer_weights.state_diff_size);
     assert_eq!(
         bouncer_weights.message_segment_length,
@@ -284,7 +284,7 @@ fn test_bouncing(#[case] initial_bouncer_weights: BouncerWeights, #[case] n_even
     let mut tx_executor =
         TransactionExecutor::new(state, block_context, TransactionExecutorConfig::default());
 
-    tx_executor.bouncer.lock().unwrap().set_accumulated_weights(initial_bouncer_weights);
+    tx_executor.bouncer.lock().unwrap().set_bouncer_weights(initial_bouncer_weights);
 
     tx_executor
         .execute(

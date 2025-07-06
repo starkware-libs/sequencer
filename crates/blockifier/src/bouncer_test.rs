@@ -117,7 +117,10 @@ fn test_block_weights_has_room_n_txs(
         contract_address!(0_u128),
     ])),
     bouncer_config: BouncerConfig::empty(),
-    accumulated_weights: BouncerWeights {
+    accumulated_weights:
+    TxWeights{
+    bouncer_weights:
+    BouncerWeights {
         l1_gas: 10,
         message_segment_length: 10,
         n_events: 10,
@@ -134,6 +137,7 @@ fn test_block_weights_has_room_n_txs(
     casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
     // TODO(Meshi): Change to relevant test case when the migration is implemented.
     class_hashes_to_migrate: HashSet::default(),
+}
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     // TODO(Aviv): Use expect! to avoid magic numbers.
@@ -185,11 +189,13 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
         .visited_storage_entries
         .extend(&execution_summary_to_update.visited_storage_entries);
     expected_bouncer.state_changes_keys.extend(&state_changes_keys_to_update);
-    expected_bouncer.accumulated_weights += weights_to_update;
+    expected_bouncer.accumulated_weights.bouncer_weights += weights_to_update;
     expected_bouncer
+        .accumulated_weights
         .casm_hash_computation_data_sierra_gas
         .extend(casm_hash_computation_data_sierra_gas.clone());
     expected_bouncer
+        .accumulated_weights
         .casm_hash_computation_data_proving_gas
         .extend(casm_hash_computation_data_proving_gas.clone());
 
@@ -239,7 +245,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
     };
     let bouncer_config = BouncerConfig { block_max_capacity, builtin_weights };
 
-    let accumulated_weights = BouncerWeights {
+    let bouncer_weights = BouncerWeights {
         l1_gas: 10,
         message_segment_length: 10,
         n_events: 10,
@@ -248,6 +254,7 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         n_txs: 10,
         proving_gas: GasAmount(10),
     };
+    let accumulated_weights = TxWeights { bouncer_weights, ..Default::default() };
 
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
 
@@ -326,7 +333,7 @@ fn test_bouncer_try_update_n_txs(
     bouncer_config: BouncerConfig,
     mut state: CachedState<DictStateReader>,
 ) {
-    let accumulated_weights = BouncerWeights {
+    let bouncer_weights = BouncerWeights {
         l1_gas: 10,
         message_segment_length: 10,
         n_events: 10,
@@ -335,6 +342,8 @@ fn test_bouncer_try_update_n_txs(
         n_txs: 19,
         proving_gas: GasAmount(10),
     };
+
+    let accumulated_weights = TxWeights { bouncer_weights, ..Default::default() };
 
     let mut bouncer = Bouncer { accumulated_weights, bouncer_config, ..Bouncer::empty() };
 
