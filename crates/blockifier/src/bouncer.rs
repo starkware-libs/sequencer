@@ -163,7 +163,7 @@ impl Default for BouncerWeights {
             n_txs: 600,
             state_diff_size: 4000,
             sierra_gas: GasAmount(4000000000),
-            proving_gas: GasAmount(4000000000),
+            proving_gas: GasAmount(5000000000),
         }
     }
 }
@@ -373,14 +373,14 @@ impl BuiltinWeights {
 impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
-            pedersen: 8100,
+            pedersen: 10125,
             range_check: 70,
-            ecdsa: 1333333,
-            ec_op: 571900,
+            ecdsa: 1666666,
+            ec_op: 714875,
             bitwise: 583,
-            keccak: 408566,
-            poseidon: 8334,
-            add_mod: 250,
+            keccak: 510707,
+            poseidon: 6250,
+            add_mod: 312,
             mul_mod: 604,
             range_check96: 56,
         }
