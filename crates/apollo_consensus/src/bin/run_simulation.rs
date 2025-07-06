@@ -254,7 +254,7 @@ async fn run_simulation(
             should_break = async {
                 tokio::time::sleep(Duration::from_secs(MONITORING_PERIOD_SECONDS)).await;
                 let elapsed = start_time.elapsed().as_secs();
-                println!("\nTime elapsed: {}s", elapsed);
+                println!("\nTime elapsed: {elapsed}s");
 
                 monitor_simulation(&mut nodes, start_time, max_test_duration, stagnation_timeout).await
             } => {
@@ -278,7 +278,7 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
     let is_bootstrap = i == 1;
     let port = if is_bootstrap { *BOOTNODE_TCP_PORT } else { find_free_port() };
     let monitoring_gateway_server_port = find_free_port();
-    let data_dir = format!("{}/data{}", data_dir, i);
+    let data_dir = format!("{data_dir}/data{i}");
     let validator_id = i + usize::try_from(DEFAULT_VALIDATOR_ID).expect("Conversion failed");
 
     let mut cmd = format!(
@@ -303,7 +303,7 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
     ];
     for (key, value) in conditional_params {
         if let Some(v) = value {
-            cmd.push_str(&format!("--consensus.{} {} ", key, v));
+            cmd.push_str(&format!("--consensus.{key} {v} "));
         }
     }
 
@@ -319,15 +319,14 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
     ];
     for (key, value) in conditional_test_params {
         if let Some(v) = value {
-            cmd.push_str(&format!("--test.{} {} ", key, v));
+            cmd.push_str(&format!("--test.{key} {v} "));
         }
     }
 
     if is_bootstrap {
         cmd.push_str(&format!(
-            "--network.secret_key {} 2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > \
-             {}/validator0x{:x}.txt",
-            SECRET_KEY, logs_dir, validator_id
+            "--network.secret_key {SECRET_KEY} 2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > \
+             {logs_dir}/validator0x{validator_id:x}.txt"
         ));
     } else {
         cmd.push_str(&format!(
@@ -385,11 +384,11 @@ fn setup_artifact_dirs(papyrus_args: &PapyrusArgs) -> (String, LockDir) {
             .map(|d| d.file_name().into_string().unwrap())
             .collect();
         let expected_dirs: HashSet<_> =
-            (0..papyrus_args.num_validators).map(|i| format!("data{}", i)).collect();
+            (0..papyrus_args.num_validators).map(|i| format!("data{i}")).collect();
         assert!(expected_dirs.is_subset(&actual_dirs), "{db_dir} must contain: {expected_dirs:?}");
     } else {
         for i in 0..papyrus_args.num_validators {
-            fs::create_dir_all(format!("{}/data{}", db_dir, i)).unwrap();
+            fs::create_dir_all(format!("{db_dir}/data{i}")).unwrap();
         }
     }
     let db_lock = LockDir::new(db_dir).unwrap();

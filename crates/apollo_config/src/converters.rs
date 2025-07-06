@@ -95,7 +95,7 @@ pub fn serialize_optional_vec_u8(optional_vector: &Option<Vec<u8>>) -> String {
         Some(vector) => {
             format!(
                 "0x{}",
-                vector.iter().map(|num| format!("{:02x}", num)).collect::<Vec<String>>().join("")
+                vector.iter().map(|num| format!("{num:02x}")).collect::<Vec<String>>().join("")
             )
         }
     }
@@ -125,8 +125,7 @@ where
         let byte_str = &hex_str[i..i + 2];
         let byte = u8::from_str_radix(byte_str, 16).map_err(|e| {
             D::Error::custom(format!(
-                "Couldn't deserialize vector. Failed to parse byte: {} {}",
-                byte_str, e
+                "Couldn't deserialize vector. Failed to parse byte: {byte_str} {e}"
             ))
         })?;
         vector.push(byte);

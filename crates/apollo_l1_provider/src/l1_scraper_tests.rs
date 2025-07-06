@@ -134,8 +134,8 @@ async fn bootstrap_e2e() {
         vec![BlockNumber(2), BlockNumber(5), BlockNumber(6), BlockNumber(3), BlockNumber(4)];
     assert_eq!(
         received_order, expected_order,
-        "Sanity check failed: commit block order mismatch. Expected {:?}, got {:?}",
-        expected_order, received_order
+        "Sanity check failed: commit block order mismatch. Expected {expected_order:?}, got \
+         {received_order:?}"
     );
 
     // Apply commit blocks and assert that correct height commit_blocks are applied, but commit

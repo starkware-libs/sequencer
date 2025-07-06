@@ -162,14 +162,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let node_url_ref = node_url.clone();
 
             let handle = async move {
-                println!("Processing block number: {}", block_number);
+                println!("Processing block number: {block_number}");
                 let block_transactions =
                     get_block_transactions_via_rpc(&client_ref, node_url_ref.clone(), block_number)
                         .await
                         .unwrap_or_else(|_| {
                             println!(
-                                "Failed to get block transactions for block number: {}",
-                                block_number
+                                "Failed to get block transactions for block number: {block_number}"
                             );
                             vec![]
                         });

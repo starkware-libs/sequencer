@@ -204,10 +204,10 @@ impl ConsensusManager {
                 }
             },
             network_result = network_task => {
-                panic!("Consensus' network task finished unexpectedly: {:?}", network_result);
+                panic!("Consensus' network task finished unexpectedly: {network_result:?}");
             }
             stream_handler_result = stream_handler_task => {
-                panic!("Consensus' stream handler task finished unexpectedly: {:?}", stream_handler_result);
+                panic!("Consensus' stream handler task finished unexpectedly: {stream_handler_result:?}");
             }
         }
     }
@@ -264,6 +264,6 @@ impl ComponentStarter for ConsensusManager {
         info!("Starting component {}.", short_type_name::<Self>());
         self.run()
             .await
-            .unwrap_or_else(|e| panic!("Failed to start ConsensusManager component: {:?}", e))
+            .unwrap_or_else(|e| panic!("Failed to start ConsensusManager component: {e:?}"))
     }
 }

@@ -512,6 +512,6 @@ fn str_to_32_bytes_in_hex(s: &str) -> String {
     let prefix = "0x";
     let padding_zeros = "0".repeat(64 - s.len() * 2); // Each string char is 2 chars in hex.
     let word_in_hex: String =
-        s.as_bytes().iter().fold(String::new(), |s, byte| s + (&format!("{:02x}", byte)));
+        s.as_bytes().iter().fold(String::new(), |s, byte| s + (&format!("{byte:02x}")));
     [prefix, &padding_zeros, &word_in_hex].into_iter().collect()
 }

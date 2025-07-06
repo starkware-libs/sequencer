@@ -38,6 +38,6 @@ fn metric_names_no_duplications() {
 
     let mut unique_metric_names: HashSet<&&'static str> = HashSet::new();
     for metric_name in all_metric_names {
-        assert!(unique_metric_names.insert(metric_name), "Duplicated metric name: {}", metric_name);
+        assert!(unique_metric_names.insert(metric_name), "Duplicated metric name: {metric_name}");
     }
 }

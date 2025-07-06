@@ -382,12 +382,11 @@ impl TxCollector {
 
         assert_eq!(
             incoming_message_id, 0,
-            "Expected the first message in the stream to have id 0, got {}",
-            incoming_message_id
+            "Expected the first message in the stream to have id 0, got {incoming_message_id}"
         );
         let StreamMessageBody::Content(ProposalPart::Init(incoming_proposal_init)) = init_message
         else {
-            panic!("Expected an init message. Got: {:?}", init_message)
+            panic!("Expected an init message. Got: {init_message:?}")
         };
 
         self.accumulated_txs
@@ -403,7 +402,7 @@ impl TxCollector {
             assert_eq!(stream_id, first_stream_id, "Expected the same stream id for all messages");
             match message {
                 StreamMessageBody::Content(ProposalPart::Init(init)) => {
-                    panic!("Unexpected init: {:?}", init)
+                    panic!("Unexpected init: {init:?}")
                 }
                 StreamMessageBody::Content(ProposalPart::Fin(..)) => {
                     got_proposal_fin = true;

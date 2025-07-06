@@ -193,7 +193,7 @@ fn validate_url(url: &str) -> Result<(), ValidationError> {
     let arbitrary_port: u16 = 0;
     let socket_addrs = (url, arbitrary_port)
         .to_socket_addrs()
-        .map_err(|e| create_url_validation_error(format!("Failed to resolve url IP: {}", e)))?;
+        .map_err(|e| create_url_validation_error(format!("Failed to resolve url IP: {e}")))?;
 
     if socket_addrs.count() > 0 {
         Ok(())
@@ -212,7 +212,7 @@ fn validate_max_concurrency(max_concurrency: usize) -> Result<(), ValidationErro
         Ok(())
     } else {
         Err(create_validation_error(
-            format!("Invalid max_concurrency: {}", max_concurrency),
+            format!("Invalid max_concurrency: {max_concurrency}"),
             "Invalid max concurrency",
             "Ensure the max concurrency is greater than 0.",
         ))

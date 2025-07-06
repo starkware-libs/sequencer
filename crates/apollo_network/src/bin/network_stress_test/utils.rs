@@ -93,7 +93,7 @@ impl TestConfig {
             network_config: NetworkConfig {
                 port: 10002,
                 bootstrap_peer_multiaddr: Some(vec![
-                    Multiaddr::from_str(&format!("/ip4/127.0.0.1/tcp/10000/p2p/{}", peer_id))
+                    Multiaddr::from_str(&format!("/ip4/127.0.0.1/tcp/10000/p2p/{peer_id}"))
                         .unwrap(),
                 ]),
                 ..Default::default()

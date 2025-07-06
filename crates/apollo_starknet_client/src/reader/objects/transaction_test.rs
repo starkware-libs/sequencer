@@ -56,7 +56,7 @@ fn load_transaction_succeeds() {
         "reader/deploy_account_v3.json",
     ] {
         let res = serde_json::from_str::<Transaction>(&read_resource_file(file_name));
-        assert!(res.is_ok(), "filename: {}, error: {:?}", file_name, res);
+        assert!(res.is_ok(), "filename: {file_name}, error: {res:?}");
     }
 }
 
@@ -75,7 +75,7 @@ fn load_transaction_unknown_field_fails() {
             .unwrap()
             .insert("unknown_field".to_string(), serde_json::Value::Null);
         let json_str = serde_json::to_string(&json_value).unwrap();
-        assert!(serde_json::from_str::<Transaction>(&json_str).is_err(), "filename: {}", file_name);
+        assert!(serde_json::from_str::<Transaction>(&json_str).is_err(), "filename: {file_name}");
     }
 }
 
@@ -95,7 +95,7 @@ fn load_transaction_wrong_type_fails() {
             .unwrap()
             .insert("type".to_string(), serde_json::Value::String(new_wrong_type.to_string()));
         let json_str = serde_json::to_string(&json_value).unwrap();
-        assert!(serde_json::from_str::<Transaction>(&json_str).is_err(), "filename: {}", file_name);
+        assert!(serde_json::from_str::<Transaction>(&json_str).is_err(), "filename: {file_name}");
     }
 }
 
@@ -109,8 +109,8 @@ fn load_transaction_receipt_succeeds() {
         serde_json::from_str::<TransactionReceipt>(&read_resource_file(file_name)).unwrap_or_else(
             |err| {
                 panic!(
-                    "Failed to deserialize transaction receipt. Filename: {}. Error: {}",
-                    file_name, err
+                    "Failed to deserialize transaction receipt. Filename: {file_name}. Error: \
+                     {err}"
                 )
             },
         );

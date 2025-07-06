@@ -47,8 +47,7 @@ async fn mock_working_l1_endpoint() -> MockL1Endpoint {
         .mock("POST", "/")
         // Catch this specific RPC method.
         .match_body(Matcher::PartialJsonString(format!(
-            r#"{{ "method": "{}"}}"#,
-            HEALTH_CHECK_RPC_METHOD
+            r#"{{ "method": "{HEALTH_CHECK_RPC_METHOD}"}}"#
         )))
         .with_status(200)
         // Return 2_u64 as a valid response for the method.

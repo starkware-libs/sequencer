@@ -60,7 +60,7 @@ where
     let mut vector = Vec::new();
     for i in raw_str.split(',').filter(|s| !s.is_empty()) {
         let value = Multiaddr::from_str(i).map_err(|_| {
-            D::Error::custom(format!("Couldn't deserialize vector. Failed to parse value: {}", i))
+            D::Error::custom(format!("Couldn't deserialize vector. Failed to parse value: {i}"))
         })?;
         vector.push(value);
     }
@@ -217,7 +217,7 @@ fn validate_bootstrap_peer_multiaddr_list(
 
         if !peers.insert(peer_id) {
             let mut error = ValidationError::new("Bootstrap peer PeerIds are not unique.");
-            error.message = Some(std::borrow::Cow::from(format!("Repeated PeerId: {}", peer_id)));
+            error.message = Some(std::borrow::Cow::from(format!("Repeated PeerId: {peer_id}")));
             return Err(error);
         }
     }

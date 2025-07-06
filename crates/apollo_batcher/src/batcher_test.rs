@@ -323,30 +323,22 @@ fn assert_proposal_metrics(
     assert_eq!(
         started,
         Some(expected_started),
-        "unexpected value proposal_started, expected {} got {:?}",
-        expected_started,
-        started,
+        "unexpected value proposal_started, expected {expected_started} got {started:?}",
     );
     assert_eq!(
         succeeded,
         Some(expected_succeeded),
-        "unexpected value proposal_succeeded, expected {} got {:?}",
-        expected_succeeded,
-        succeeded,
+        "unexpected value proposal_succeeded, expected {expected_succeeded} got {succeeded:?}",
     );
     assert_eq!(
         failed,
         Some(expected_failed),
-        "unexpected value proposal_failed, expected {} got {:?}",
-        expected_failed,
-        failed,
+        "unexpected value proposal_failed, expected {expected_failed} got {failed:?}",
     );
     assert_eq!(
         aborted,
         Some(expected_aborted),
-        "unexpected value proposal_aborted, expected {} got {:?}",
-        expected_aborted,
-        aborted,
+        "unexpected value proposal_aborted, expected {expected_aborted} got {aborted:?}",
     );
 }
 

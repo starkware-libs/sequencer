@@ -133,7 +133,7 @@ impl TryInto<ProposalInit> for ProposalPart {
             _ => Err(ProtobufConversionError::WrongEnumVariant {
                 type_description: "ProposalPart",
                 expected: "Init",
-                value_as_str: format!("{:?}", self),
+                value_as_str: format!("{self:?}"),
             }),
         }
     }

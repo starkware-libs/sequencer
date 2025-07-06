@@ -563,8 +563,7 @@ impl SingleHeightConsensus {
         };
         if let Some(old) = votes.insert((round, self.id), vote.clone()) {
             return Err(ConsensusError::InternalInconsistency(format!(
-                "State machine should not send repeat votes: old={:?}, new={:?}",
-                old, vote
+                "State machine should not send repeat votes: old={old:?}, new={vote:?}"
             )));
         }
         *last_vote = match last_vote {
@@ -575,8 +574,8 @@ impl SingleHeightConsensus {
                 // current round. It should monotonicly increase its round. It should only vote once
                 // per step.
                 return Err(ConsensusError::InternalInconsistency(format!(
-                    "State machine must progress in time: last_vote: {:?} new_vote: {:?}",
-                    last_vote, vote,
+                    "State machine must progress in time: last_vote: {last_vote:?} new_vote: \
+                     {vote:?}",
                 )));
             }
         };

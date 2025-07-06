@@ -89,8 +89,7 @@ impl BootstrappingBehaviour {
             bootstrap_peers.iter().map(|(id, _)| id).collect();
         assert!(
             unique_peer_ids.len() == bootstrap_peers.len(),
-            "Bootstrap peer IDs must be unique, PeerIds: {:?}",
-            bootstrap_peers
+            "Bootstrap peer IDs must be unique, PeerIds: {bootstrap_peers:?}"
         );
 
         let mut peers = SelectAll::new();

@@ -550,7 +550,7 @@ pub fn parse_numeric_metric<T: Num + FromStr>(
             .map(|(k, v)| format!(r#"{}="{}""#, escape(k), escape(v)))
             .collect::<Vec<_>>()
             .join(r",");
-        labels_pattern = format!(r#"\{{{}\}}"#, inner_pattern)
+        labels_pattern = format!(r#"\{{{inner_pattern}\}}"#)
     };
     let pattern = format!(r#"{}{}\s+(\d+)"#, escape(metric_name), labels_pattern);
     let re = Regex::new(&pattern).expect("Invalid regex");
@@ -594,8 +594,8 @@ pub fn parse_histogram_metric(
             .map(|(k, v)| format!(r#"{}="{}""#, escape(k), escape(v)))
             .collect::<Vec<_>>()
             .join(r",");
-        quantile_labels_pattern = format!(r#"\{{{},"#, inner_pattern);
-        labels_pattern = format!(r#"\{{{}\}}"#, inner_pattern);
+        quantile_labels_pattern = format!(r#"\{{{inner_pattern},"#);
+        labels_pattern = format!(r#"\{{{inner_pattern}\}}"#);
     }
     // Define regex patterns for quantiles, sum, and count.
     let quantile_pattern = format!(
@@ -648,10 +648,10 @@ fn assert_equality<T: PartialEq + Debug>(
     metric_name: &str,
     label: Option<&[(&str, &str)]>,
 ) {
-    let label_msg = label.map(|l| format!(" {:?}", l)).unwrap_or_default();
+    let label_msg = label.map(|l| format!(" {l:?}")).unwrap_or_default();
     assert_eq!(
         value, expected_value,
-        "Metric {}{} did not match the expected value. Expected value: {:?}, metric value: {:?}",
-        metric_name, label_msg, expected_value, value
+        "Metric {metric_name}{label_msg} did not match the expected value. Expected value: \
+         {expected_value:?}, metric value: {value:?}"
     );
 }

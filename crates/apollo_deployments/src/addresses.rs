@@ -11,7 +11,7 @@ impl TryFrom<&str> for SecretKey {
 
     fn try_from(hex_str: &str) -> Result<Self, Self::Error> {
         let bytes = hex::decode(hex_str.strip_prefix("0x").unwrap_or(hex_str))
-            .map_err(|e| format!("Invalid hex: {}", e))?;
+            .map_err(|e| format!("Invalid hex: {e}"))?;
         if bytes.len() != 32 {
             return Err(format!("Expected 32 bytes, got {}", bytes.len()));
         }
@@ -52,5 +52,5 @@ pub(crate) fn get_peer_id(secret_key: SecretKey) -> String {
 }
 
 pub(crate) fn get_p2p_address(dns: &str, port: u16, peer_id: &str) -> String {
-    format!("/dns/{}/tcp/{}/p2p/{}", dns, port, peer_id)
+    format!("/dns/{dns}/tcp/{port}/p2p/{peer_id}")
 }

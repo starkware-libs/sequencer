@@ -153,8 +153,8 @@ fn stream_message_display() {
     assert_eq!(
         txt,
         format!(
-            "StreamMessage {{ stream_id: {}, message_id: {}, message_length: {}}}",
-            stream_id, message_id, proposal_length
+            "StreamMessage {{ stream_id: {stream_id}, message_id: {message_id}, message_length: \
+             {proposal_length}}}"
         )
     );
 
@@ -164,8 +164,7 @@ fn stream_message_display() {
     assert_eq!(
         txt,
         format!(
-            "StreamMessage {{ stream_id: {}, message_id: {}, message is fin }}",
-            stream_id, message_id
+            "StreamMessage {{ stream_id: {stream_id}, message_id: {message_id}, message is fin }}"
         )
     );
 }

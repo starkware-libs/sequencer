@@ -73,6 +73,6 @@ fn change_builtins_gas_cost(block_context: &mut BlockContext, selector_name: &st
             os_constants.gas_costs.builtins.add_mod = TESTED_BUILTIN_GAS_COST;
             os_constants.gas_costs.builtins.mul_mod = TESTED_BUILTIN_GAS_COST;
         }
-        _ => panic!("Unknown selector name: {}", selector_name),
+        _ => panic!("Unknown selector name: {selector_name}"),
     }
 }

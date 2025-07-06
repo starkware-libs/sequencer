@@ -416,6 +416,6 @@ fn get_compiled_class_with_error() {
     let (exec_state_reader, _) = set_execution_state_reader(Arc::new(mock_class_manager_client), 0);
 
     let result = exec_state_reader.get_compiled_class(class_hash!("0x2"));
-    let expected_err_msg = format!("Internal client error: {}", internal_err_msg);
+    let expected_err_msg = format!("Internal client error: {internal_err_msg}");
     assert_matches!(result, Err(StateError::StateReadError(err_str)) if err_str == expected_err_msg);
 }

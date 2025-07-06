@@ -61,7 +61,7 @@ pub fn config_to_preset(config_map: &Value) -> Value {
         // Return the transformed result as a JSON object.
         Value::Object(result)
     } else {
-        panic!("Config map is not a JSON object: {:?}", config_map);
+        panic!("Config map is not a JSON object: {config_map:?}");
     }
 }
 
@@ -71,7 +71,7 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
         for (key, value) in preset_map {
             if value == POINTER_TARGET_VALUE {
                 return Err(create_validation_error(
-                    format!("Pointer target not set for key: '{}'", key),
+                    format!("Pointer target not set for key: '{key}'"),
                     "pointer_target_not_set",
                     "Pointer target not set",
                 ));

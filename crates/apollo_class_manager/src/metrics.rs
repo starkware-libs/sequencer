@@ -56,13 +56,12 @@ pub(crate) fn increment_n_classes(cls_type: CairoClassType) {
 
 pub(crate) fn record_class_size<T>(class_type: ClassObjectType, class: &SerializedClass<T>) {
     let class_size = class.size().unwrap_or_else(|_| {
-        panic!("Illegally formatted {} class, should not have gotten into the system.", class_type)
+        panic!("Illegally formatted {class_type} class, should not have gotten into the system.")
     });
     let class_size = u32::try_from(class_size).unwrap_or_else(|_| {
         panic!(
-            "{} class size {} is bigger than what is allowed,
-            should not have gotten into the system.",
-            class_type, class_size
+            "{class_type} class size {class_size} is bigger than what is allowed,
+            should not have gotten into the system."
         )
     });
 

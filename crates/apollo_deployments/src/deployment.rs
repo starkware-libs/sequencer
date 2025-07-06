@@ -164,7 +164,7 @@ impl Display for PragmaDomain {
             PragmaDomain::Dev => "devnet",
             PragmaDomain::Prod => "production",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -174,7 +174,7 @@ pub(crate) fn build_service_namespace_domain_address(
     namespace: &str,
     domain: &str,
 ) -> String {
-    format!("{}.{}.{}", service_name, namespace, domain)
+    format!("{service_name}.{namespace}.{domain}")
 }
 
 // TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be
