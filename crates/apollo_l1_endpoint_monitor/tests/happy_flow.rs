@@ -1,6 +1,6 @@
+use alloy::node_bindings::{Anvil, AnvilInstance};
 use apollo_l1_endpoint_monitor::monitor::{L1EndpointMonitor, L1EndpointMonitorConfig};
 use apollo_l1_endpoint_monitor_types::L1EndpointMonitorError;
-use papyrus_base_layer::test_utils::anvil;
 use url::Url;
 
 /// Integration test: two Anvil nodes plus a bogus endpoint to exercise cycling and failure.
@@ -10,9 +10,10 @@ async fn end_to_end_cycle_and_recovery() {
     // IMPORTANT: This is one of the only cases where two anvil nodes are needed simultaneously,
     // since we are flow testing two separate L1 nodes. Other tests should never use more than one
     // at a time!
-    let good_node_1 = anvil(None);
+    let good_node_1 = anvil();
     let good_url_1 = good_node_1.endpoint_url();
-    let good_node_2 = anvil(None);
+    let good_node_2 = anvil();
+
     let good_url_2 = good_node_2.endpoint_url();
 
     // Bogus endpoint on port 1 that is likely to be unbound, see the unit tests for more details.
@@ -54,7 +55,7 @@ async fn end_to_end_cycle_and_recovery() {
     }
 
     // ANVIL node 1 has risen!
-    let good_node_1 = anvil(None);
+    let good_node_1 = anvil();
     // Anvil is configured to use an ephemeral port, so this new node will be bound to a fresh port.
     // We cannot reuse the previous URL since the old port may no longer be available.
     let good_url_1 = good_node_1.endpoint_url();
@@ -63,4 +64,12 @@ async fn end_to_end_cycle_and_recovery() {
     let active3 = monitor.get_active_l1_endpoint().await.unwrap();
     assert_eq!(active3, good_url_1);
     assert_eq!(monitor.current_l1_endpoint_index, 1);
+}
+
+// IMPORTANT: this util is needed since this specific test must run two L1 instances by definition,
+// for all other integration tests that need anvil use "anvil base layer".
+fn anvil() -> AnvilInstance {
+    Anvil::new()
+        .try_spawn()
+        .expect("Anvil not installed, see anvil base layer for installation instructions.")
 }
