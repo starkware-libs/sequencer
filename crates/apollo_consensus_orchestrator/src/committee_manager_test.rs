@@ -1,6 +1,7 @@
 use std::convert::TryFrom;
 use std::sync::Arc;
 
+use apollo_state_sync_types::communication::MockStateSyncClient;
 use assert_matches::assert_matches;
 use blockifier::context::BlockContext;
 use blockifier::execution::call_info::Retdata;
@@ -27,6 +28,7 @@ use crate::committee_manager::{
     Committee,
     CommitteeManager,
     CommitteeManagerConfig,
+    ExecutionContext,
     RetdataDeserializationError,
     Staker,
     StakerSet,
@@ -116,9 +118,15 @@ fn get_committee_success(
         staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
         max_cached_epochs: 10,
         committee_size: 3,
+        proposer_prediction_window: 10,
     });
 
-    let committee = committee_manager.get_committee(1, state, block_context).unwrap();
+    let context = ExecutionContext {
+        state_reader: state.clone(),
+        block_context: block_context.clone(),
+        state_sync_client: Arc::new(MockStateSyncClient::new()),
+    };
+    let committee = committee_manager.get_committee(1, context).unwrap();
 
     assert_eq!(*committee, expected_committee);
 }
@@ -129,29 +137,37 @@ fn get_committee_cache(mut state: State, block_context: Context) {
         staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
         max_cached_epochs: 1,
         committee_size: 10,
+        proposer_prediction_window: 10,
     });
 
     // Case 1: Get committee for epoch 1. Cache miss – STAKER_1 fetched from contract.
     set_stakers(&mut state, &block_context, vec![STAKER_1].as_slice());
-    let committee =
-        committee_manager.get_committee(1, state.clone(), block_context.clone()).unwrap();
+    let context = ExecutionContext {
+        state_reader: state.clone(),
+        block_context: block_context.clone(),
+        state_sync_client: Arc::new(MockStateSyncClient::new()),
+    };
+    let committee = committee_manager.get_committee(1, context).unwrap();
     assert_eq!(*committee, vec![STAKER_1]);
 
     // Case 2: Query epoch 1 again. Cache hit – STAKER_1 returned from cache despite contract
     // change.
     set_stakers(&mut state, &block_context, vec![STAKER_2].as_slice());
-    let committee =
-        committee_manager.get_committee(1, state.clone(), block_context.clone()).unwrap();
+    let context = ExecutionContext {
+        state_reader: state.clone(),
+        block_context: block_context.clone(),
+        state_sync_client: Arc::new(MockStateSyncClient::new()),
+    };
+    let committee = committee_manager.get_committee(1, context.clone()).unwrap();
     assert_eq!(*committee, vec![STAKER_1]);
 
     // Case 3: Get committee for epoch 2. Cache miss – STAKER_2 fetched from updated contract state.
-    let committee =
-        committee_manager.get_committee(2, state.clone(), block_context.clone()).unwrap();
+    let committee = committee_manager.get_committee(2, context.clone()).unwrap();
     assert_eq!(*committee, vec![STAKER_2]);
 
     // Case 4: Query epoch 1 again. Cache miss due to the cache being full - STAKER_2 now fetched
     // from contract.
-    let committee = committee_manager.get_committee(1, state, block_context).unwrap();
+    let committee = committee_manager.get_committee(1, context).unwrap();
     assert_eq!(*committee, vec![STAKER_2]);
 }
 
