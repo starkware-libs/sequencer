@@ -73,6 +73,7 @@ pub async fn run_os_cli(
     os_command: OsCliCommand,
     _log_filter_handle: Handle<LevelFilter, Registry>,
 ) {
+    panic!("The OS CLI has panicked!");
     info!("Starting starknet-os-cli with command: \n{:?}", os_command);
     match os_command.command {
         Command::DumpProgram { output_path, program } => dump_program(output_path, program),
