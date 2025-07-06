@@ -524,6 +524,26 @@ fn get_http_server_no_successful_transactions() -> Alert {
     }
 }
 
+fn get_http_server_low_successful_transaction_rate() -> Alert {
+    Alert {
+        name: "http_server_low_successful_transaction_rate",
+        title: "http server low successful transaction rate",
+        alert_group: AlertGroup::HttpServer,
+        expr: format!(
+            "rate({}[5m]) or vector(0)",
+            ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 0.05,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
 fn get_http_server_high_transaction_failure_ratio() -> Alert {
     Alert {
         name: "http_server_high_transaction_failure_ratio",
@@ -1028,23 +1048,24 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_round_high(),
         get_consensus_validate_proposal_failed_alert(),
         get_consensus_votes_num_sent_messages_alert(),
+        get_eth_to_strk_error_count_alert(),
+        get_eth_to_strk_success_count_alert(),
         get_gateway_add_tx_idle(),
-        get_http_server_idle(),
         get_http_server_add_tx_idle(),
+        get_http_server_avg_add_tx_latency_alert(),
         get_http_server_high_transaction_failure_ratio(),
+        get_http_server_idle(),
         get_http_server_internal_error_ratio(),
         get_http_server_internal_error_once(),
+        get_http_server_low_successful_transaction_rate(),
         get_http_server_no_successful_transactions(),
-        get_http_server_avg_add_tx_latency_alert(),
         get_http_server_p95_add_tx_latency_alert(),
         get_l1_gas_price_provider_insufficient_history_alert(),
         get_l1_gas_price_reorg_detected_alert(),
         get_l1_gas_price_scraper_success_count_alert(),
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
-        get_eth_to_strk_error_count_alert(),
-        get_eth_to_strk_success_count_alert(),
-        get_l1_message_scraper_no_successes_alert(),
         get_l1_message_scraper_baselayer_error_count_alert(),
+        get_l1_message_scraper_no_successes_alert(),
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),
         get_mempool_evictions_count_alert(),
