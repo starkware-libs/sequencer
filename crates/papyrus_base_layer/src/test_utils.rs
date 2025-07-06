@@ -2,33 +2,25 @@ use std::fs::File;
 use std::process::Command;
 
 use alloy::network::TransactionBuilder;
-use alloy::node_bindings::{Anvil, AnvilInstance, NodeError as AnvilError};
 use alloy::primitives::{address as ethereum_address, U256};
 use alloy::providers::Provider;
 use alloy::rpc::types::TransactionRequest;
-use colored::*;
 use ethers::utils::{Ganache, GanacheInstance};
 use starknet_api::hash::StarkHash;
 use tar::Archive;
 use tempfile::{tempdir, TempDir};
 use tracing::debug;
-use url::Url;
 
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     EthereumContractAddress,
-    Starknet,
-    StarknetL1Contract,
 };
 
 type TestEthereumNodeHandle = (GanacheInstance, TempDir);
 
 const MINIMAL_GANACHE_VERSION: u8 = 7;
 
-// See Anvil documentation:
-// https://docs.rs/ethers-core/latest/ethers_core/utils/struct.Anvil.html#method.new.
-const DEFAULT_ANVIL_PORT: u16 = 8545;
 // This address is commonly used as the L1 address of the Starknet core contract.
 // TODO(Arni): Replace with constant with use of `AnvilInstance::address(&self)`.
 pub const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
@@ -101,30 +93,6 @@ pub fn get_test_ethereum_node() -> (TestEthereumNodeHandle, EthereumContractAddr
     let ganache = Ganache::new().args(["--db", db_path.to_str().unwrap()]).spawn();
 
     ((ganache, ganache_db), SN_CONTRACT_ADDR.to_string().parse().unwrap())
-}
-
-// TODO(Arni): Make port non-optional.
-// Spin up Anvil instance, a local Ethereum node, dies when dropped.
-pub fn anvil(port: Option<u16>) -> AnvilInstance {
-    let mut anvil = Anvil::new();
-    // If the port is not set explicitly, a random ephemeral port is bound and used.
-    if let Some(port) = port {
-        anvil = anvil.port(port);
-    }
-
-    anvil.try_spawn().unwrap_or_else(|error| match error {
-        AnvilError::SpawnError(e) if e.to_string().contains("No such file or directory") => {
-            panic!(
-                "\n{}\n{}\n",
-                "Anvil binary not found!".bold().red(),
-                "Install instructions (for local development):\n
-                 cargo install --git \
-                 https://github.com/foundry-rs/foundry anvil --locked --tag=v0.3.0"
-                    .yellow()
-            )
-        }
-        _ => panic!("Failed to spawn Anvil: {}", error.to_string().red()),
-    })
 }
 
 pub async fn make_block_history_on_anvil(
