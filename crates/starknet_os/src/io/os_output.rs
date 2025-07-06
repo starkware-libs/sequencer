@@ -151,7 +151,7 @@ fn parse_storage_changes<It: Iterator<Item = Felt> + ?Sized>(
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 /// Represents the changes in a contract instance.
 pub struct ContractChanges {
     // The address of the contract.
@@ -228,7 +228,7 @@ impl ContractChanges {
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct OsStateDiff {
     // Contracts that were changed.
     pub contracts: Vec<ContractChanges>,
