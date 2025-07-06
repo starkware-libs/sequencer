@@ -1827,7 +1827,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_proc_macros_tests"
-version = "0.15.0-rc.2"
+version = "0.0.0"
 dependencies = [
  "apollo_metrics",
  "apollo_proc_macros",

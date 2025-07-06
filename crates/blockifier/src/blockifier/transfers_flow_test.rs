@@ -50,8 +50,8 @@ pub fn transfers_flow_test(
 
             assert_eq!(
                 &tx_execution_infos, expected_tx_execution_infos,
-                "Transaction Results differ for concurrency_enabled: {}; cairo1_version: {:?}",
-                concurrency_enabled, cairo1_version
+                "Transaction Results differ for concurrency_enabled: {concurrency_enabled}; \
+                 cairo1_version: {cairo1_version:?}"
             );
 
             assert_eq!(

@@ -40,7 +40,7 @@ impl ConfigOverride {
         create: bool,
     ) -> ConfigOverrideWithPaths {
         let deployment_path = deployment_config_override_dir.join(DEPLOYMENT_FILE_NAME);
-        let instance_path = deployment_config_override_dir.join(format!("{}.json", instance_name));
+        let instance_path = deployment_config_override_dir.join(format!("{instance_name}.json"));
 
         if create {
             serialize_to_file(

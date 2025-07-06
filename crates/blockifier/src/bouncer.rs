@@ -519,20 +519,6 @@ impl Bouncer {
             &self.bouncer_config.builtin_weights,
         )?;
 
-        assert_eq!(
-            tx_weights
-                .casm_hash_computation_data_sierra_gas
-                .class_hash_to_casm_hash_computation_gas
-                .keys()
-                .collect::<HashSet<_>>(),
-            tx_weights
-                .casm_hash_computation_data_proving_gas
-                .class_hash_to_casm_hash_computation_gas
-                .keys()
-                .collect::<HashSet<_>>(),
-            "Sierra and proving gas data should have the same class hashes."
-        );
-
         let tx_bouncer_weights = tx_weights.bouncer_weights;
 
         // Check if the transaction can fit the current block available capacity.
@@ -662,38 +648,9 @@ pub fn vm_resources_to_sierra_gas(
     resources: &ExecutionResources,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-<<<<<<< HEAD
-    let builtins_gas_cost =
-        builtins_to_sierra_gas(&resources.prover_builtins(), versioned_constants);
-    let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
-    let n_memory_holes_gas_cost =
-        memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
-
-    n_steps_gas_cost
-        .checked_add_panic_on_overflow(n_memory_holes_gas_cost)
-        .checked_add_panic_on_overflow(builtins_gas_cost)
-||||||| 3f74dd8a6
-    let builtins_gas_cost =
-        builtins_to_sierra_gas(&resources.prover_builtins(), versioned_constants);
-    let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
-    let n_memory_holes_gas_cost =
-        memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
-
-    n_steps_gas_cost
-        .checked_add(n_memory_holes_gas_cost)
-        .and_then(|sum| sum.checked_add(builtins_gas_cost))
-        .unwrap_or_else(|| {
-            panic!(
-                "Addition overflow while converting vm resources to gas. steps gas: {}, memory \
-                 holes gas: {}, builtins gas: {}.",
-                n_steps_gas_cost, builtins_gas_cost, n_memory_holes_gas_cost
-            )
-        })
-=======
     vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
         builtins_to_sierra_gas(builtin_counters, versioned_constants)
     })
->>>>>>> origin/main-v0.14.0
 }
 
 /// Computes the steps gas by subtracting the builtins' contribution from the Sierra gas.

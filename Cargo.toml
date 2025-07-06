@@ -128,7 +128,7 @@ apollo_network.path = "crates/apollo_network"
 apollo_network_types.path = "crates/apollo_network_types"
 apollo_node.path = "crates/apollo_node"
 apollo_p2p_sync.path = "crates/apollo_p2p_sync"
-apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.15.0-rc.2" }
+apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.0.0" }
 apollo_proc_macros_tests.path = "crates/apollo_proc_macros_tests"
 apollo_protobuf.path = "crates/apollo_protobuf"
 apollo_reverts.path = "crates/apollo_reverts"

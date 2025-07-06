@@ -7,7 +7,7 @@ license-file.workspace = true
 description = "A library for handling node configuration."
 
 [dependencies]
-apollo_infra_utils = { workspace = true, optional = true }
+apollo_infra_utils.workspace = true
 clap = { workspace = true, features = ["env", "string"] }
 colored = { workspace = true, optional = true }
 const_format.workspace = true

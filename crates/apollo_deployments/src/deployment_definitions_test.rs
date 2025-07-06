@@ -105,9 +105,10 @@ fn secrets_config_and_private_parameters_config_schema_compatibility() {
 
     if !(only_in_config.is_empty() && only_in_schema.is_empty()) {
         panic!(
-            "Secrets config override schema mismatch:\nSecrets provided by config: {:?}\nSecrets \
-             required by schema: {:?}\nOnly in config: {:?}\nOnly in schema: {:?}",
-            secrets_provided_by_config, secrets_required_by_schema, only_in_config, only_in_schema
+            "Secrets config override schema mismatch:\nSecrets provided by config: \
+             {secrets_provided_by_config:?}\nSecrets required by schema: \
+             {secrets_required_by_schema:?}\nOnly in config: {only_in_config:?}\nOnly in schema: \
+             {only_in_schema:?}"
         );
     }
 }

@@ -128,7 +128,7 @@ where
     let mut output = Vec::with_capacity(number_of_items);
     for item in raw.split_whitespace() {
         let value: UrlAndHeaders = serde_json::from_str(item)
-            .map_err(|e| D::Error::custom(format!("Invalid JSON '{}': {}", item, e)))?;
+            .map_err(|e| D::Error::custom(format!("Invalid JSON '{item}': {e}")))?;
         output.push(value);
     }
     Ok(Some(output))
@@ -199,6 +199,6 @@ where
     }
 
     raw.split_whitespace()
-        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{}': {}", s, e))))
+        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{s}': {e}"))))
         .collect()
 }

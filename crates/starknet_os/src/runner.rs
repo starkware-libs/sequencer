@@ -117,7 +117,6 @@ pub fn run_os_stateless(
 }
 
 /// Run the Aggregator.
-#[allow(clippy::result_large_err)]
 pub fn run_aggregator(
     _layout: LayoutName,
     _aggregator_input: AggregatorInput,

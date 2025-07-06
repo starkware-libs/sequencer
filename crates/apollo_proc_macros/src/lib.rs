@@ -422,13 +422,13 @@ pub fn log_every_n(input: TokenStream) -> TokenStream {
 
     // Use call site span for uniqueness
     let span = proc_macro::Span::call_site();
-    let span_str = format!("{:?}", span);
+    let span_str = format!("{span:?}");
 
     let mut hasher = DefaultHasher::new();
     span_str.hash(&mut hasher);
 
     let hash_id = format!("{:x}", hasher.finish()); // short identifier
-    let ident_str = format!("__TRACING_COUNT_{}", hash_id);
+    let ident_str = format!("__TRACING_COUNT_{hash_id}");
     let ident = Ident::new(&ident_str, proc_macro2::Span::call_site());
 
     let args = args.into_iter().collect::<Vec<_>>();

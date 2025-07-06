@@ -29,67 +29,9 @@ use crate::test_utils::utils::{
 
 const REDUCED_MUL_LIMB_BOUND: i128 = 2_i128.pow(104);
 
-<<<<<<< HEAD:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
-    info!("Testing `test_bigint3_to_uint256`...");
-    test_bigint3_to_uint256(input)?;
-    info!("Testing `test_felt_to_bigint3`...");
-    test_felt_to_bigint3(input)?;
-    info!("Testing `test_horner_eval`...");
-    test_horner_eval(input)?;
-    info!("Testing `test_reduced_mul_random`...");
-    test_reduced_mul_random(input)?;
-    info!("Testing `test_reduced_mul_parameterized`...");
-    test_reduced_mul_parameterized(input)?;
-    info!("Testing `test_bls_prime_value`...");
-    test_bls_prime_value(input)?;
-    Ok("".to_string())
-}
-||||||| 3f74dd8a6:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-#[allow(clippy::result_large_err)]
-pub(crate) fn test_bls_field(input: &str) -> OsPythonTestResult {
-    info!("Testing `test_bigint3_to_uint256`...");
-    test_bigint3_to_uint256(input)?;
-    info!("Testing `test_felt_to_bigint3`...");
-    test_felt_to_bigint3(input)?;
-    info!("Testing `test_horner_eval`...");
-    test_horner_eval(input)?;
-    info!("Testing `test_reduced_mul_random`...");
-    test_reduced_mul_random(input)?;
-    info!("Testing `test_reduced_mul_parameterized`...");
-    test_reduced_mul_parameterized(input)?;
-    info!("Testing `test_bls_prime_value`...");
-    test_bls_prime_value(input)?;
-    Ok("".to_string())
-}
-=======
 // TODO(Nimrod): Move this next to the BLS hints implementation.
->>>>>>> origin/main-v0.14.0:crates/starknet_os/src/tests/bls_field.rs
 
-<<<<<<< HEAD:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
-    EntryPointRunnerConfig {
-        layout: LayoutName::small,
-        add_main_prefix_to_entrypoint: false,
-        ..Default::default()
-    }
-}
-
-fn run_reduced_mul_test(input: &str, a_split: &[Felt], b_split: &[Felt]) -> OsPythonTestResult {
-||||||| 3f74dd8a6:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
-    EntryPointRunnerConfig {
-        layout: LayoutName::small,
-        add_main_prefix_to_entrypoint: false,
-        ..Default::default()
-    }
-}
-
-#[allow(clippy::result_large_err)]
-fn run_reduced_mul_test(input: &str, a_split: &[Felt], b_split: &[Felt]) -> OsPythonTestResult {
-=======
 fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) {
->>>>>>> origin/main-v0.14.0:crates/starknet_os/src/tests/bls_field.rs
     let explicit_args = [
         EndpointArg::Value(ValueArg::Array(a_split.to_vec())),
         EndpointArg::Value(ValueArg::Array(b_split.to_vec())),
@@ -113,15 +55,8 @@ fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) {
     );
 }
 
-<<<<<<< HEAD:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-fn test_bigint3_to_uint256(input: &str) -> OsPythonTestResult {
-||||||| 3f74dd8a6:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-#[allow(clippy::result_large_err)]
-fn test_bigint3_to_uint256(input: &str) -> OsPythonTestResult {
-=======
 #[test]
 fn test_bigint3_to_uint256() {
->>>>>>> origin/main-v0.14.0:crates/starknet_os/src/tests/bls_field.rs
     let mut rng = seeded_random_prng();
     let random_u256_big_uint: BigUint = rng.sample(RandomBits::new(256));
     let random_u256_bigint = BigInt::from_biguint(Sign::Plus, random_u256_big_uint);
@@ -150,50 +85,21 @@ fn test_bigint3_to_uint256() {
     );
 }
 
-<<<<<<< HEAD:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-fn test_felt_to_bigint3(input: &str) -> OsPythonTestResult {
-    let values: [BigInt; 9] = [
-        0.into(),
-        1.into(),
-        DEFAULT_PRIME.clone() - 1,
-        DEFAULT_PRIME.clone() - 2,
-        BASE.clone() - 1,
-        BASE.clone(),
-        BASE.pow(2_u32) - 1,
-        BASE.pow(2_u32),
-        DEFAULT_PRIME.clone() / 2,
-    ];
-||||||| 3f74dd8a6:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-#[allow(clippy::result_large_err)]
-fn test_felt_to_bigint3(input: &str) -> OsPythonTestResult {
-    let values: [BigInt; 9] = [
-        0.into(),
-        1.into(),
-        DEFAULT_PRIME.clone() - 1,
-        DEFAULT_PRIME.clone() - 2,
-        BASE.clone() - 1,
-        BASE.clone(),
-        BASE.pow(2_u32) - 1,
-        BASE.pow(2_u32),
-        DEFAULT_PRIME.clone() / 2,
-    ];
-=======
 #[rstest]
 fn test_felt_to_bigint3(
     #[values(
-    0.into(),
-    1.into(),
-    DEFAULT_PRIME.clone() - 1,
-    DEFAULT_PRIME.clone() - 2,
-    BASE.clone() - 1,
-    BASE.clone(),
-    BASE.pow(2_u32) - 1,
-    BASE.pow(2_u32),
-    DEFAULT_PRIME.clone() / 2
-)]
+        0.into(),
+        1.into(),
+        DEFAULT_PRIME.clone() - 1,
+        DEFAULT_PRIME.clone() - 2,
+        BASE.clone() - 1,
+        BASE.clone(),
+        BASE.pow(2_u32) - 1,
+        BASE.pow(2_u32),
+        DEFAULT_PRIME.clone() / 2
+    )]
     value: BigInt,
 ) {
->>>>>>> origin/main-v0.14.0:crates/starknet_os/src/tests/bls_field.rs
     let entrypoint_runner_config = get_entrypoint_runner_config();
 
     let explicit_args: [EndpointArg; 1] = [Felt::from(value.clone()).into()];
@@ -216,15 +122,8 @@ fn test_felt_to_bigint3(
     );
 }
 
-<<<<<<< HEAD:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-fn test_horner_eval(input: &str) -> OsPythonTestResult {
-||||||| 3f74dd8a6:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-#[allow(clippy::result_large_err)]
-fn test_horner_eval(input: &str) -> OsPythonTestResult {
-=======
 #[test]
 fn test_horner_eval() {
->>>>>>> origin/main-v0.14.0:crates/starknet_os/src/tests/bls_field.rs
     let mut rng = seeded_random_prng();
     let entrypoint_runner_config = get_entrypoint_runner_config();
 
@@ -302,17 +201,8 @@ fn test_horner_eval() {
     }
 }
 
-<<<<<<< HEAD:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-#[allow(dead_code)]
-fn test_reduced_mul_random(input: &str) -> OsPythonTestResult {
-||||||| 3f74dd8a6:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-#[allow(dead_code)]
-#[allow(clippy::result_large_err)]
-fn test_reduced_mul_random(input: &str) -> OsPythonTestResult {
-=======
 #[test]
 fn test_reduced_mul_random() {
->>>>>>> origin/main-v0.14.0:crates/starknet_os/src/tests/bls_field.rs
     // Generate a,b in (-REDUCED_MUL_LIMB_LIMIT, REDUCED_MUL_LIMB_LIMIT).
     let mut rng = seeded_random_prng();
     let a_split = (0..3)
@@ -325,17 +215,8 @@ fn test_reduced_mul_random() {
     run_reduced_mul_test(&a_split, &b_split)
 }
 
-<<<<<<< HEAD:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-#[allow(dead_code)]
-fn test_reduced_mul_parameterized(input: &str) -> OsPythonTestResult {
-||||||| 3f74dd8a6:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-#[allow(dead_code)]
-#[allow(clippy::result_large_err)]
-fn test_reduced_mul_parameterized(input: &str) -> OsPythonTestResult {
-=======
 #[test]
 fn test_reduced_mul_parameterized() {
->>>>>>> origin/main-v0.14.0:crates/starknet_os/src/tests/bls_field.rs
     let max_value = Felt::from(REDUCED_MUL_LIMB_BOUND - 1);
     let min_value = Felt::from(-REDUCED_MUL_LIMB_BOUND + 1);
     let values: [([Felt; 3], [Felt; 3]); 4] = [
@@ -349,15 +230,8 @@ fn test_reduced_mul_parameterized() {
     }
 }
 
-<<<<<<< HEAD:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-fn test_bls_prime_value(input: &str) -> OsPythonTestResult {
-||||||| 3f74dd8a6:crates/starknet_committer_and_os_cli/src/os_cli/tests/bls_field.rs
-#[allow(clippy::result_large_err)]
-fn test_bls_prime_value(input: &str) -> OsPythonTestResult {
-=======
 #[test]
 fn test_bls_prime_value() {
->>>>>>> origin/main-v0.14.0:crates/starknet_os/src/tests/bls_field.rs
     let entrypoint = None;
     let program = Program::from_bytes(OS_PROGRAM_BYTES, entrypoint).unwrap();
     let actual_split_bls_prime: [Felt; 3] = array::from_fn(|i| {

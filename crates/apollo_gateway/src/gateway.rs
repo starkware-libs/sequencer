@@ -258,8 +258,8 @@ fn validate_tx_l2_gas_price_within_threshold(
                         "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
                     ),
                     message: format!(
-                        "Transaction L2 gas price {} is below the required threshold {}.",
-                        tx_l2_gas_price, threshold
+                        "Transaction L2 gas price {tx_l2_gas_price} is below the required \
+                         threshold {threshold}."
                     ),
                 });
             }
