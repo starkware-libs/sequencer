@@ -192,15 +192,11 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
 }
 
 #[rstest]
-#[case::sierra_gas_positive_flow(GasAmount(1), "ok")]
-#[case::sierra_gas_block_full(GasAmount(11), "sierra_gas_block_full")]
-#[case::proving_gas_positive_flow(GasAmount(0), "ok")]
-#[case::proving_gas_block_full(GasAmount(0), "proving_gas_block_full")]
-fn test_bouncer_try_update_gas_based(
-    #[case] sierra_gas: GasAmount,
-    #[case] scenario: &'static str,
-    block_context: BlockContext,
-) {
+#[case::sierra_gas_positive_flow("ok")]
+#[case::sierra_gas_block_full("sierra_gas_block_full")]
+#[case::proving_gas_positive_flow("ok")]
+#[case::proving_gas_block_full("proving_gas_block_full")]
+fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_context: BlockContext) {
     let state = &mut test_state(&block_context.chain_info, Fee(0), &[]);
     let mut transactional_state = TransactionalState::create_transactional(state);
     let builtin_weights = BuiltinWeights::default();
@@ -214,6 +210,13 @@ fn test_bouncer_try_update_gas_based(
         "ok" | "sierra_gas_block_full" => {
             HashMap::from([(BuiltinName::range_check, range_check_count - 1)])
         }
+        _ => panic!("Unexpected scenario: {}", scenario),
+    };
+
+    // Derive sierra_gas from scenario
+    let sierra_gas = match scenario {
+        "sierra_gas_block_full" => GasAmount(11), // Exceeds capacity
+        "ok" | "proving_gas_block_full" => GasAmount(1), // Within capacity
         _ => panic!("Unexpected scenario: {}", scenario),
     };
 
