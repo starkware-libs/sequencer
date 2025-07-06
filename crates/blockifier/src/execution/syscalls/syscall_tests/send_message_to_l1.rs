@@ -9,7 +9,7 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::L2ToL1Payload;
 use test_case::test_case;
 
-use crate::context::ChainInfo;
+use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{MessageToL1, OrderedL2ToL1Message};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::initial_test_state::test_state;
@@ -82,4 +82,75 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
         execution.l2_to_l1_messages,
         vec![OrderedL2ToL1Message { order: 0, message }]
     );
+}
+
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm; "VM")]
+fn test_send_message_to_l1_invalid_address(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let chain_info = &ChainInfo::create_for_testing();
+    let mut state = test_state(chain_info, BALANCE, &[(test_contract, 1)]);
+
+    let invalid_to_address = felt!("0x1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+    let payload = vec![felt!(2019_u16), felt!(2020_u16)];
+    let calldata = Calldata(
+        concat(vec![
+            vec![
+                invalid_to_address,
+                felt!(u64::try_from(payload.len()).expect("Failed to convert usize to u64.")),
+            ],
+            payload.clone(),
+        ])
+        .into(),
+    );
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_send_message_to_l1"),
+        calldata,
+        ..trivial_external_entry_point_new(test_contract)
+    };
+
+    let result = entry_point_call.execute_directly(&mut state);
+    assert!(result.is_err(), "Expected execution to fail with invalid address");
+
+    // Verify the error is related to address format
+    let error = result.unwrap_err();
+    let error_string = error.to_string();
+    assert!(
+        error_string.contains("Out of range"),
+        "Expected error containing 'Out of range', got: {}",
+        error_string
+    );
+}
+
+#[cfg_attr(feature = "cairo_native", test_case(RunnableCairo1::Native; "Native"))]
+#[test_case(RunnableCairo1::Casm; "VM")]
+fn test_send_message_to_l1_l3_address(runnable_version: RunnableCairo1) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let mut chain_info = ChainInfo::create_for_testing();
+    chain_info.is_l3 = true;
+    let mut state = test_state(&chain_info, BALANCE, &[(test_contract, 1)]);
+
+    let block_context =
+        BlockContext { chain_info: chain_info.clone(), ..BlockContext::create_for_testing() };
+
+    let invalid_to_address = felt!("0x1FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF");
+    let payload = vec![felt!(2019_u16), felt!(2020_u16)];
+    let calldata = Calldata(
+        concat(vec![
+            vec![
+                invalid_to_address,
+                felt!(u64::try_from(payload.len()).expect("Failed to convert usize to u64.")),
+            ],
+            payload.clone(),
+        ])
+        .into(),
+    );
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_send_message_to_l1"),
+        calldata,
+        ..trivial_external_entry_point_new(test_contract)
+    };
+
+    let result = entry_point_call.execute_directly_given_block_context(&mut state, block_context);
+    assert!(result.is_ok(), "Expected execution to succeed on L3 chain");
 }
