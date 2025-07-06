@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use alloy::dyn_abi::SolType;
 use alloy::eips::eip7840;
-use alloy::primitives::Address as EthereumContractAddress;
+pub use alloy::primitives::Address as EthereumContractAddress;
 use alloy::providers::{Provider, ProviderBuilder, RootProvider};
 use alloy::rpc::json_rpc::RpcError;
 use alloy::rpc::types::eth::Filter as EthEventFilter;
