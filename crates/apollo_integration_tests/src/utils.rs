@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use apollo_batcher::block_builder::BlockBuilderConfig;
 use apollo_batcher::config::BatcherConfig;
+use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
 use apollo_class_manager::class_storage::CachedClassStorageConfig;
 use apollo_class_manager::config::{
     ClassManagerConfig,
@@ -310,16 +311,27 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
 // Creates a local recorder server that always returns a success status.
 pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let router = Router::new().route(
-            RECORDER_WRITE_BLOB_PATH,
-            post(move || {
-                async {
-                    debug!("Received a request to write a blob.");
-                    StatusCode::OK.to_string()
-                }
-                .instrument(tracing::debug_span!("success recorder write_blob"))
-            }),
-        );
+        let router = Router::new()
+            .route(
+                RECORDER_WRITE_BLOB_PATH,
+                post(move || {
+                    async {
+                        debug!("Received a request to write a blob.");
+                        StatusCode::OK.to_string()
+                    }
+                    .instrument(tracing::debug_span!("success recorder write_blob"))
+                }),
+            )
+            .route(
+                RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH,
+                post(move || {
+                    async {
+                        debug!("Received a request to write a pre-confirmed block.");
+                        StatusCode::OK.to_string()
+                    }
+                    .instrument(tracing::debug_span!("success recorder write_pre_confirmed_block"))
+                }),
+            );
         axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
     })
 }
