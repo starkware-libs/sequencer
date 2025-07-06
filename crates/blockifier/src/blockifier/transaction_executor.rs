@@ -234,7 +234,7 @@ pub(crate) fn finalize_block<S: StateReader>(
     block_state: &mut CachedState<S>,
     block_context: &BlockContext,
 ) -> TransactionExecutorResult<BlockExecutionSummary> {
-    log::debug!("Final block weights: {:?}.", lock_bouncer(bouncer).get_accumulated_weights());
+    log::debug!("Final block weights: {:?}.", lock_bouncer(bouncer).get_bouncer_weights());
     let alias_contract_address = block_context
         .versioned_constants
         .os_constants
@@ -254,9 +254,9 @@ pub(crate) fn finalize_block<S: StateReader>(
     // and verify that class hashes are the same.
     let mut bouncer = lock_bouncer(bouncer);
     let casm_hash_computation_data_sierra_gas =
-        mem::take(&mut bouncer.casm_hash_computation_data_sierra_gas);
+        mem::take(bouncer.get_mut_casm_hash_computation_data_sierra_gas());
     let casm_hash_computation_data_proving_gas =
-        mem::take(&mut bouncer.casm_hash_computation_data_proving_gas);
+        mem::take(bouncer.get_mut_casm_hash_computation_data_proving_gas());
     assert_eq!(
         casm_hash_computation_data_sierra_gas
             .class_hash_to_casm_hash_computation_gas
@@ -271,7 +271,7 @@ pub(crate) fn finalize_block<S: StateReader>(
     Ok(BlockExecutionSummary {
         state_diff: state_diff.into(),
         compressed_state_diff,
-        bouncer_weights: *bouncer.get_accumulated_weights(),
+        bouncer_weights: *bouncer.get_bouncer_weights(),
         casm_hash_computation_data_sierra_gas,
         casm_hash_computation_data_proving_gas,
         // TODO(Meshi): derive from bouncer once migration is supported.
