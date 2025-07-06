@@ -668,3 +668,36 @@ fn emit_events(
 
     entry_point_call.execute_directly(&mut state)
 }
+
+#[rstest]
+fn test_send_message_to_l1_invalid_address(#[values(true, false)] is_l3: bool) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let mut chain_info = ChainInfo::create_for_testing();
+    chain_info.is_l3 = is_l3;
+    let mut state = test_state(&chain_info, Fee(0), &[(test_contract, 1)]);
+
+    let invalid_to_address = felt!("0x100000000000000000000000000000000000000001");
+
+    let calldata = calldata![invalid_to_address];
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("send_message"),
+        calldata,
+        ..trivial_external_entry_point_new(test_contract)
+    };
+
+    let block_context =
+        BlockContext { chain_info: chain_info.clone(), ..BlockContext::create_for_testing() };
+    let result = entry_point_call.execute_directly_given_block_context(&mut state, block_context);
+
+    if is_l3 {
+        assert!(result.is_ok(), "Expected execution to succeed on L3 chain");
+    } else {
+        assert!(result.is_err(), "Expected execution to fail with invalid address");
+        let error = result.unwrap_err();
+        let error_string = error.to_string();
+        assert!(
+            error_string.contains("Out of range"),
+            "Expected error containing 'Out of range', got: {error_string}"
+        );
+    }
+}
