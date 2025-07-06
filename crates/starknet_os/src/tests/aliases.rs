@@ -30,6 +30,7 @@ use crate::test_utils::utils::{
     get_entrypoint_runner_config,
     parse_squashed_cairo_dict,
     test_cairo_function,
+    FullOutputOsStateDiff,
 };
 
 // TODO(Nimrod): Move this next to the stateful compression hints implementation.
@@ -338,7 +339,8 @@ fn allocate_aliases_for_keys_and_replace(
     HashMap::new(),
     HashMap::new(),
     HashMap::new(),
-    HashMap::from([(0, 136), (128, 128), (129, 129), (200, 132), (225, 130), (300, 133), (1111, 134), (7659, 131), (99999, 135)])
+    HashMap::from([(0, 136), (128, 128), (129, 129), (200, 132), (225, 130), (300, 133), (1111, 134), (7659, 131), (99999, 135)]),
+    97,
 )]
 #[case::non_allocation_of_address_lt_16_from_non_empty_storage(
     HashMap::from([
@@ -348,7 +350,7 @@ fn allocate_aliases_for_keys_and_replace(
         ),
         (
             44,
-            HashMap::from([(11, 1), (129, 1), (225, 1), (7659, 1)])
+            HashMap::from([(11, 1), (129, 1), (225, 1), (400, 1), (7659, 1)])
         ),
         (
             400,
@@ -358,8 +360,8 @@ fn allocate_aliases_for_keys_and_replace(
     HashMap::new(),
     HashMap::new(),
     HashMap::from([(0, 135), (129, 128), (225, 129), (7659, 130), (200, 131), (300, 132), (1111, 133), (99999, 134)]),
-    HashMap::from([(0, 138), (129, 128), (225, 129), (400, 135), (700, 136), (701, 137), (1111, 133), (7659, 130)]
-    )
+    HashMap::from([(0, 138), (129, 128), (225, 129), (400, 135), (700, 136), (701, 137), (1111, 133), (7659, 130)]),
+    76,
 )]
 #[case::non_allocation_with_only_trivial_updates(
     HashMap::from([
@@ -383,8 +385,8 @@ fn allocate_aliases_for_keys_and_replace(
     HashMap::new(),
     HashMap::new(),
     HashMap::new(),
-    HashMap::from([(0, 134), (129, 128), (400, 129), (700, 131), (701, 132), (1111, 133), (7659, 130)]
-    )
+    HashMap::from([(0, 134), (129, 128), (400, 129), (700, 131), (701, 132), (1111, 133), (7659, 130)]),
+    73,
 )]
 #[case::allocation_with_only_nonce_change(
     HashMap::new(),
@@ -398,8 +400,8 @@ fn allocate_aliases_for_keys_and_replace(
     ]),
     HashMap::from([(11111, 1)]),
     HashMap::new(),
-    HashMap::from([(0, 131), (11111, 128), (222222, 129), (3333333, 130)]
-    )
+    HashMap::from([(0, 131), (11111, 128), (222222, 129), (3333333, 130)]),
+    49,
 )]
 #[case::non_allocation_with_trivial_class_hash_update(
     HashMap::new(),
@@ -407,8 +409,8 @@ fn allocate_aliases_for_keys_and_replace(
     ]),
     HashMap::new(),
     HashMap::from([(0, 133), (5000, 128), (11111, 129), (222222, 130), (3333333, 131), (87777, 132)]),
-    HashMap::from([(0, 135), (5000, 128), (6666, 133), (9999, 134)]
-    )
+    HashMap::from([(0, 135), (5000, 128), (6666, 133), (9999, 134)]),
+    40,
 )]
 #[case::allocation_with_partially_trivial_updates(
     HashMap::from([
@@ -440,7 +442,8 @@ fn allocate_aliases_for_keys_and_replace(
     HashMap::from([(200, 1), (500, 1), (700, 1), (800, DEFAULT_CLASS_HASH)]),
     HashMap::from([(700, 1), (10000, 0)]),
     HashMap::new(),
-    HashMap::from([(0, 137), (200, 128), (500, 130), (600, 133), (700, 134), (701, 135), (777, 129), (800, 136), (2000, 131), (3000, 132)])
+    HashMap::from([(0, 137), (200, 128), (500, 130), (600, 133), (700, 134), (701, 135), (777, 129), (800, 136), (2000, 131), (3000, 132)]),
+    118
 )]
 fn test_allocate_addresses_for_state_diff_and_replace(
     #[case] storage_updates: HashMap<u128, HashMap<u128, u128>>,
@@ -448,6 +451,7 @@ fn test_allocate_addresses_for_state_diff_and_replace(
     #[case] address_to_nonce: HashMap<u128, u128>,
     #[case] initial_alias_storage: HashMap<u128, u128>,
     #[case] expected_alias_storage: HashMap<u128, u128>,
+    #[case] contract_state_diff_len: usize,
 ) {
     let runner_config = get_entrypoint_runner_config();
     let entrypoint = "__main__.allocate_aliases_and_replace";
@@ -516,8 +520,14 @@ fn test_allocate_addresses_for_state_diff_and_replace(
             MaybeRelocatable::Int(Felt::ZERO);
             expected_aliases_storage_flat_length
         ])),
-        EndpointArg::Pointer(PointerArg::Array(vec![])),
-        EndpointArg::Pointer(PointerArg::Array(vec![])),
+        EndpointArg::Pointer(PointerArg::Array(vec![
+            MaybeRelocatable::Int(Felt::ZERO);
+            contract_state_diff_len
+        ])),
+        EndpointArg::Pointer(PointerArg::Array(vec![
+            MaybeRelocatable::Int(Felt::ZERO);
+            contract_state_diff_len
+        ])),
     ];
 
     let (_, explicit_return_values) = run_cairo_0_entrypoint(
@@ -532,11 +542,10 @@ fn test_allocate_addresses_for_state_diff_and_replace(
     )
     .unwrap();
 
-    // TODO(Nimrod): Complete this test to also compare the other return values.
     let [
         EndpointArg::Pointer(PointerArg::Array(aliases_storage_updates)),
-        EndpointArg::Pointer(PointerArg::Array(_)),
-        EndpointArg::Pointer(PointerArg::Array(_)),
+        EndpointArg::Pointer(PointerArg::Array(contract_state_diff)),
+        EndpointArg::Pointer(PointerArg::Array(contract_state_diff_with_aliases)),
     ] = explicit_return_values.as_slice()
     else {
         panic!(
@@ -544,10 +553,32 @@ fn test_allocate_addresses_for_state_diff_and_replace(
         );
     };
 
+    // Compare the aliases storage updates.
     let aliases_storage_updates_as_felts: Vec<Felt> =
         aliases_storage_updates.iter().map(|f| f.get_int().unwrap()).collect();
     let actual_alias_storage = parse_squashed_cairo_dict(&aliases_storage_updates_as_felts);
     let expected_alias_storage: HashMap<Felt, Felt> =
         expected_alias_storage.into_iter().map(|(key, value)| (key.into(), value.into())).collect();
     assert_eq!(actual_alias_storage, expected_alias_storage);
+
+    // Parse the OS output.
+    let contract_state_diff_as_felts: Vec<Felt> = contract_state_diff
+        .iter()
+        .map(|f| f.get_int().unwrap())
+        .chain([Felt::ZERO]) // Number of declared classes, zero in this case.
+        .collect();
+    let contract_state_diff_with_aliases_as_felts: Vec<Felt> = contract_state_diff_with_aliases
+        .iter()
+        .map(|f| f.get_int().unwrap())
+        .chain([Felt::ZERO]) // Number of declared classes, zero in this case.
+        .collect();
+    let os_state_diff =
+        FullOutputOsStateDiff::new_from_felts(&mut contract_state_diff_as_felts.into_iter());
+    let os_state_diff_with_aliases = FullOutputOsStateDiff::new_from_felts(
+        &mut contract_state_diff_with_aliases_as_felts.into_iter(),
+    );
+
+    // Sanity check - make sure the alias allocation is not trivial.
+    assert!(os_state_diff != os_state_diff_with_aliases);
+    // TODO(Nimrod): Complete this test by verifying the decompression.
 }
