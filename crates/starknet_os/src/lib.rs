@@ -4,6 +4,8 @@ pub mod hints;
 pub mod io;
 pub mod runner;
 pub mod syscall_handler_utils;
+#[cfg(test)]
+pub mod compiled_class_test;
 #[cfg(any(test, feature = "testing"))]
 pub mod test_utils;
 pub mod vm_utils;
