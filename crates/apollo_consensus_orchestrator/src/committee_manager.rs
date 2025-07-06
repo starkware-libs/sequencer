@@ -1,11 +1,14 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use apollo_consensus::types::Round;
+use apollo_state_sync_types::communication::SharedStateSyncClient;
 use blockifier::context::BlockContext;
 use blockifier::execution::call_info::Retdata;
 use blockifier::execution::entry_point::call_view_entry_point;
 use blockifier::execution::errors::EntryPointExecutionError;
 use blockifier::state::state_api::StateReader;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::ContractAddress;
 use starknet_api::staking::StakingWeight;
 use starknet_api::transaction::fields::Calldata;
@@ -16,6 +19,7 @@ pub type Committee = Vec<Staker>;
 pub type StakerSet = Vec<Staker>;
 
 const GET_STAKERS_ENTRY_POINT: &str = "get_stakers";
+const EPOCH_LENGTH: u64 = 100; // Number of heights in an epoch.
 
 #[cfg(test)]
 #[path = "committee_manager_test.rs"]
@@ -53,6 +57,11 @@ pub struct CommitteeManagerConfig {
     // The desired number of committee members to select from the available stakers.
     // If there are fewer stakers than `committee_size`, a smaller committee will be selected.
     pub committee_size: usize,
+
+    // Defines how many heights in advance the proposer can be predicted.
+    // While the exact identity may depend on staker prediction constraints,
+    // the proposer selection logic becomes deterministic at this offset.
+    pub proposer_prediction_window_in_heights: u64,
 }
 
 // Responsible for fetching and storing the committee at a given epoch.
@@ -84,6 +93,13 @@ pub enum RetdataDeserializationError {
     InvalidArrayLength { length: usize, num_structs: usize, struct_size: usize },
 }
 
+#[cfg_attr(test, derive(Clone))]
+pub struct ExecutionContext<S: StateReader> {
+    pub state_reader: S,
+    pub block_context: Arc<BlockContext>,
+    pub state_sync_client: SharedStateSyncClient,
+}
+
 pub type CommitteeManagerResult<T> = Result<T, CommitteeManagerError>;
 
 impl CommitteeManager {
@@ -93,19 +109,18 @@ impl CommitteeManager {
 
     // Returns a list of the committee members at the given epoch.
     // The state's most recent block should be provided in the block_context.
-    pub fn get_committee(
+    pub fn get_committee<S: StateReader>(
         &mut self,
         epoch: u64,
-        state_reader: impl StateReader,
-        block_context: Arc<BlockContext>,
+        execution_context: ExecutionContext<S>,
     ) -> CommitteeManagerResult<Arc<Committee>> {
         if let Some(committee_data) = self.committee_data_cache.get(epoch) {
             return Ok(committee_data.clone());
         }
 
         let call_info = call_view_entry_point(
-            state_reader,
-            block_context,
+            execution_context.state_reader,
+            execution_context.block_context,
             self.config.staking_contract_address,
             GET_STAKERS_ENTRY_POINT,
             Calldata(vec![Felt::from(epoch)].into()),
@@ -119,11 +134,59 @@ impl CommitteeManager {
         Ok(committee)
     }
 
+    // Returns the address of the proposer for the specified height and round.
+    //
+    // The proposer is chosen from the committee corresponding to the epoch of the given height.
+    // Selection is based on a deterministic random number derived from the height, round,
+    // and the hash of a past block — offset by `config.proposer_prediction_window`.
+    pub async fn get_proposer<S: StateReader>(
+        &mut self,
+        height: BlockNumber,
+        round: Round,
+        execution_context: ExecutionContext<S>,
+    ) -> CommitteeManagerResult<ContractAddress> {
+        // Try to get the hash of the block used for proposer selection randomness.
+        let block_hash = self
+            .proposer_randomness_block_hash(height, execution_context.state_sync_client.clone())
+            .await?;
+
+        // Generate a pseudorandom value based on the height, round, and block hash.
+        let random_value = get_pseudorandom_value(height, round, block_hash);
+
+        // Get the committee for the epoch this height belongs to.
+        let epoch = height.0 / EPOCH_LENGTH; // TODO(Dafna): export to a utility function.
+        let committee = self.get_committee(epoch, execution_context)?;
+
+        // Select a proposer from the committee using the generated random.
+        let proposer = self.choose_proposer(&committee, random_value);
+        Ok(proposer.address)
+    }
+
     fn select_committee(&self, mut stakers: StakerSet) -> Committee {
         // Take the top `committee_size` stakers by weight.
         stakers.sort_by_key(|staker| staker.weight);
         stakers.into_iter().rev().take(self.config.committee_size).collect()
     }
+
+    async fn proposer_randomness_block_hash(
+        &self,
+        _block_number: BlockNumber,
+        _state_sync_client: SharedStateSyncClient,
+    ) -> CommitteeManagerResult<Option<BlockHash>> {
+        todo!()
+    }
+
+    fn choose_proposer(&self, _committee: &Committee, _random: u64) -> &Staker {
+        todo!()
+    }
+}
+
+fn get_pseudorandom_value(
+    _height: BlockNumber,
+    _round: Round,
+    _block_hash: Option<BlockHash>,
+) -> u64 {
+    todo!()
 }
 
 #[cfg_attr(test, derive(Clone))]
