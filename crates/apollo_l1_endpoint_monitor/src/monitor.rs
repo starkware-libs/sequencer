@@ -2,16 +2,15 @@ use std::collections::BTreeMap;
 
 use alloy::primitives::U64;
 use alloy::providers::{Provider, ProviderBuilder};
+use apollo_config::converters::{deserialize_vec_url, serialize_slice_url};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_l1_endpoint_monitor_types::{L1EndpointMonitorError, L1EndpointMonitorResult};
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
 use url::Url;
 use validator::Validate;
-
 #[cfg(test)]
 #[path = "l1_endpoint_monitor_tests.rs"]
 pub mod l1_endpoint_monitor_tests;
@@ -117,6 +116,7 @@ impl SerializeConfig for L1EndpointMonitorConfig {
         )])
     }
 }
+<<<<<<< HEAD
 
 // TODO(Tsabary): generalize these for Vec<T> serde.
 
@@ -141,3 +141,30 @@ where
         .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{s}': {e}"))))
         .collect()
 }
+||||||| 3f74dd8a6
+
+// TODO(Tsabary): generalize these for Vec<T> serde.
+
+/// Serializes a `&[Url]` into a single space-separated string.
+fn serialize_slice_url(vector: &[Url]) -> String {
+    vector.iter().map(Url::as_str).collect::<Vec<_>>().join(" ")
+}
+
+/// Deserializes a space-separated string into a `Vec<Url>`.
+/// Returns an error if any of the substrings cannot be parsed into a valid URL.
+fn deserialize_vec_url<'de, D>(de: D) -> Result<Vec<Url>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw: String = <String as serde::Deserialize>::deserialize(de)?;
+
+    if raw.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    raw.split_whitespace()
+        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{}': {}", s, e))))
+        .collect()
+}
+=======
+>>>>>>> origin/main-v0.14.0

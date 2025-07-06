@@ -14,20 +14,24 @@ use crate::run::{
 };
 
 // The mission of this test is to ensure that if an error is returned from one of the spawned tasks,
-// the node will stop, and this error will be returned. This is done by checking the case of an
-// illegal central URL, which will cause the sync task to return an error.
+// the node will stop, and this error will be returned. This is done by checking the case of a
+// network handler that returns an error, which will cause the sync task to return an error.
 #[tokio::test]
 async fn run_threads_stop() {
     let mut config = NodeConfig::default();
     let temp_dir = TempDir::new().unwrap();
     config.storage.db_config.path_prefix = temp_dir.path().into();
 
-    // Error when not supplying legal central URL.
-    config.central.starknet_url = "_not_legal_url".to_string();
     let resources = PapyrusResources::new(&config).unwrap();
-    let tasks = PapyrusTaskHandles::default();
+    let tasks = PapyrusTaskHandles {
+        network_handle: Some(tokio::task::spawn(async {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            Err(anyhow::Error::msg("Network task stopped"))
+        })),
+        ..Default::default()
+    };
     let error = run_threads(config, resources, tasks).await.expect_err("Should be an error.");
-    assert_eq!("relative URL without a base", error.to_string());
+    assert_eq!("Network task stopped", error.to_string());
 }
 
 // TODO(dvir): use here metrics names from the storage instead of hard-coded ones. This will be done

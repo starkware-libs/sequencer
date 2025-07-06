@@ -863,7 +863,7 @@ fn stream_new_blocks<
                     ).await?;
                 }
                 else{
-                    debug!("Blocks syncing reached the last known block {:?}, waiting for blockchain to advance.", header_marker.prev());
+                    trace!("Blocks syncing reached the last known block {:?}, waiting for blockchain to advance.", header_marker.prev());
                     tokio::time::sleep(block_propagation_sleep_duration).await;
                 };
                 continue;
@@ -894,7 +894,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
             let last_block_number = txn.get_header_marker()?;
             drop(txn);
             if state_marker == last_block_number {
-                debug!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
+                trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
             }

@@ -13,6 +13,7 @@ deserialize = [
   "starknet-types-core/serde",
   "starknet_patricia/deserialize",
 ]
+include_program_output = []
 testing = ["blockifier/testing", "starknet_patricia/testing"]
 
 [dependencies]
@@ -37,6 +38,7 @@ indexmap.workspace = true
 indoc.workspace = true
 log.workspace = true
 num-bigint.workspace = true
+num-integer.workspace = true
 num-traits.workspace = true
 papyrus_common.workspace = true
 paste.workspace = true
@@ -53,12 +55,14 @@ strum_macros.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
+apollo_starknet_os_program = { workspace = true, features = ["test_programs"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
-num-integer.workspace = true
+ethnum.workspace = true
 rand.workspace = true
 rstest.workspace = true
+starknet_committer.workspace = true
 starknet_patricia = { workspace = true, features = ["testing"] }
 
 [lints]

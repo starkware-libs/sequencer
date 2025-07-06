@@ -17,6 +17,7 @@ testing = [
 apollo_batcher_types.workspace = true
 apollo_config.workspace = true
 apollo_infra.workspace = true
+apollo_infra_utils.workspace = true
 apollo_l1_provider_types.workspace = true
 apollo_metrics.workspace = true
 apollo_state_sync_types.workspace = true

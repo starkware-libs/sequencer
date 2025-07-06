@@ -147,6 +147,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         // Check if the transaction is too large to fit any block.
         // TODO(Yoni, 1/8/2024): consider caching these two.
         let tx_execution_summary = tx_execution_info.summarize(&block_context.versioned_constants);
+        let tx_builtin_counters = tx_execution_info.summarize_builtins();
         let mut tx_state_changes_keys = state.to_state_diff()?.state_maps.keys();
         tx_state_changes_keys.update_sequencer_key_in_storage(
             &block_context.to_tx_context(self),
@@ -156,6 +157,7 @@ impl<U: UpdatableState> ExecutableTransaction<U> for Transaction {
         verify_tx_weights_within_max_capacity(
             state,
             &tx_execution_summary,
+            &tx_builtin_counters,
             &tx_execution_info.receipt.resources,
             &tx_state_changes_keys,
             &block_context.bouncer_config,

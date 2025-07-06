@@ -324,7 +324,7 @@ fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> Executi
 // Also a few modifications were made to the serialization format.
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(tag = "type")]
-pub enum CendePreConfirmedTransaction {
+pub enum CendePreconfirmedTransaction {
     #[serde(rename = "DECLARE")]
     Declare(IntermediateDeclareTransaction),
     #[serde(rename = "DEPLOY_ACCOUNT")]
@@ -335,18 +335,18 @@ pub enum CendePreConfirmedTransaction {
     L1Handler(L1HandlerTransaction),
 }
 
-impl CendePreConfirmedTransaction {
+impl CendePreconfirmedTransaction {
     pub fn transaction_hash(&self) -> TransactionHash {
         match self {
-            CendePreConfirmedTransaction::Declare(tx) => tx.transaction_hash,
-            CendePreConfirmedTransaction::DeployAccount(tx) => tx.transaction_hash,
-            CendePreConfirmedTransaction::Invoke(tx) => tx.transaction_hash,
-            CendePreConfirmedTransaction::L1Handler(tx) => tx.transaction_hash,
+            CendePreconfirmedTransaction::Declare(tx) => tx.transaction_hash,
+            CendePreconfirmedTransaction::DeployAccount(tx) => tx.transaction_hash,
+            CendePreconfirmedTransaction::Invoke(tx) => tx.transaction_hash,
+            CendePreconfirmedTransaction::L1Handler(tx) => tx.transaction_hash,
         }
     }
 }
 
-impl From<InternalConsensusTransaction> for CendePreConfirmedTransaction {
+impl From<InternalConsensusTransaction> for CendePreconfirmedTransaction {
     fn from(transaction: InternalConsensusTransaction) -> Self {
         match transaction {
             InternalConsensusTransaction::RpcTransaction(internal_rpc_transaction) => {
@@ -467,7 +467,7 @@ pub struct IntermediateInvokeTransaction {
     pub version: TransactionVersion,
 }
 
-impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
+impl From<InternalRpcTransaction> for CendePreconfirmedTransaction {
     fn from(internal_rpc_transaction: InternalRpcTransaction) -> Self {
         let tx_hash = internal_rpc_transaction.tx_hash;
         match internal_rpc_transaction.tx {
@@ -475,7 +475,7 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
                 declare_transaction,
             ) => {
                 let version = declare_transaction.version();
-                CendePreConfirmedTransaction::Declare(IntermediateDeclareTransaction {
+                CendePreconfirmedTransaction::Declare(IntermediateDeclareTransaction {
                     resource_bounds: Some(declare_transaction.resource_bounds.into()),
                     tip: Some(declare_transaction.tip),
                     signature: declare_transaction.signature,
@@ -505,7 +505,7 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
                     tx: RpcDeployAccountTransaction::V3(tx),
                     contract_address,
                 } = deploy_account_transaction;
-                CendePreConfirmedTransaction::DeployAccount(IntermediateDeployAccountTransaction {
+                CendePreconfirmedTransaction::DeployAccount(IntermediateDeployAccountTransaction {
                     resource_bounds: Some(tx.resource_bounds.into()),
                     tip: Some(tx.tip),
                     signature: tx.signature,
@@ -528,7 +528,7 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
             ) => {
                 let version = invoke_transaction.version();
                 let RpcInvokeTransaction::V3(tx) = invoke_transaction;
-                CendePreConfirmedTransaction::Invoke(IntermediateInvokeTransaction {
+                CendePreconfirmedTransaction::Invoke(IntermediateInvokeTransaction {
                     resource_bounds: Some(tx.resource_bounds.into()),
                     tip: Some(tx.tip),
                     calldata: tx.calldata,
@@ -562,10 +562,10 @@ pub struct L1HandlerTransaction {
     pub calldata: Calldata,
 }
 
-impl From<ExecutableL1HandlerTransaction> for CendePreConfirmedTransaction {
+impl From<ExecutableL1HandlerTransaction> for CendePreconfirmedTransaction {
     fn from(l1_handler_transaction: ExecutableL1HandlerTransaction) -> Self {
         let ExecutableL1HandlerTransaction { tx, tx_hash, .. } = l1_handler_transaction;
-        CendePreConfirmedTransaction::L1Handler(L1HandlerTransaction {
+        CendePreconfirmedTransaction::L1Handler(L1HandlerTransaction {
             transaction_hash: tx_hash,
             version: tx.version,
             nonce: tx.nonce,
@@ -636,10 +636,10 @@ fn get_gas_prices(
 }
 
 #[derive(Serialize)]
-pub struct CendePreConfirmedBlock {
+pub struct CendePreconfirmedBlock {
     #[serde(flatten)]
     pub metadata: CendeBlockMetadata,
-    pub transactions: Vec<CendePreConfirmedTransaction>,
+    pub transactions: Vec<CendePreconfirmedTransaction>,
     pub transaction_receipts: Vec<Option<StarknetClientTransactionReceipt>>,
     pub transaction_state_diffs: Vec<Option<StateDiff>>,
 }

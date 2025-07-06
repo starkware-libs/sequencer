@@ -1,19 +1,17 @@
-use std::path::PathBuf;
+use apollo_infra_utils::template::Template;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
-use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
-use crate::deployments::hybrid::create_hybrid_instance_config_override;
+use crate::deployment_definitions::{Environment, StateSyncType};
+use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
 use crate::k8s::{ExternalSecret, IngressParams};
-use crate::service::DeploymentName;
-use crate::utils::format_node_id;
+use crate::service::NodeType;
 
 const STRESS_TEST_NODE_IDS: [usize; 3] = [0, 1, 2];
 const STRESS_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "apollo-stresstest-dev.sw-dev.io";
 const STRESS_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
-const INSTANCE_NAME_FORMAT: &str = "integration_hybrid_node_{}";
-const SECRET_NAME_FORMAT: &str = "apollo-stresstest-dev-{}";
-const NODE_NAMESPACE_FORMAT: &str = "apollo-stresstest-dev-{}";
+const SECRET_NAME_FORMAT: Template = Template("apollo-stresstest-dev-{}");
+const NODE_NAMESPACE_FORMAT: Template = Template("apollo-stresstest-dev-{}");
 
 pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
     STRESS_TEST_NODE_IDS
@@ -24,12 +22,14 @@ pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
 fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
         "0x4fA369fEBf0C574ea05EC12bC0e1Bc9Cd461Dd0f",
-        "SN_GOERLI",
-        "0x497d1c054cec40f64454b45deecdc83e0c7f7b961c63531eae03748abd95350",
-        "http://feeder-gateway.starknet-0-14-0-stress-test:9713/",
-        "0x4fa9355c504fa2de263bd7920644b5e48794fe1450ec2a6526518ad77d6a567",
+        "INTERNAL_STRESS_TEST",
+        "0x7e813ecf3e7b3e14f07bd2f68cb4a3d12110e3c75ec5a63de3d2dacf1852904",
+        "http://feeder-gateway.starknet-0-14-0-stress-test-03:9713/",
+        "0x2208cce4221df1f35943958340abc812aa79a8f6a533bff4ee00416d3d06cd6",
         PragmaDomain::Dev,
         None,
+        STRESS_TEST_NODE_IDS.len(),
+        StateSyncType::Central,
     )
 }
 
@@ -38,11 +38,10 @@ fn stress_test_hybrid_deployment_node(
     p2p_communication_type: P2PCommunicationType,
 ) -> Deployment {
     Deployment::new(
-        DeploymentName::HybridNode,
+        NodeType::Hybrid,
         Environment::StressTest,
-        &format_node_id(INSTANCE_NAME_FORMAT, id),
-        Some(ExternalSecret::new(format_node_id(SECRET_NAME_FORMAT, id))),
-        PathBuf::from(BASE_APP_CONFIG_PATH),
+        &INSTANCE_NAME_FORMAT.format(&[&id]),
+        Some(ExternalSecret::new(SECRET_NAME_FORMAT.format(&[&id]))),
         ConfigOverride::new(
             stress_test_deployment_config_override(),
             create_hybrid_instance_config_override(

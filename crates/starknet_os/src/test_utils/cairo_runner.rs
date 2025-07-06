@@ -2,6 +2,7 @@ use std::any::Any;
 use std::collections::{HashMap, HashSet};
 
 use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::test_utils::dict_state_reader::DictStateReader;
 use cairo_vm::serde::deserialize_program::Member;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
@@ -297,10 +298,11 @@ fn extract_builtins_from_implicit_args(
 // TODO(Amos): Add builtins properly once the VM allows loading an entrypoint's builtins.
 // In addition, pass program as struct and add hint processor as param.
 fn inject_builtins(
-    program_str: &str,
+    program_bytes: &[u8],
     implicit_args: &[ImplicitArg],
 ) -> Cairo0EntryPointRunnerResult<Program> {
     let program_builtins = extract_builtins_from_implicit_args(implicit_args)?;
+    let program_str = std::str::from_utf8(program_bytes).unwrap();
     let mut program_dict: HashMap<String, Value> =
         serde_json::from_str(program_str).map_err(Cairo0EntryPointRunnerError::ProgramSerde)?;
     program_dict.insert(
@@ -547,14 +549,16 @@ fn get_return_values(
 /// Hint locals are added to the outermost exec scope.
 /// If the endpoint used builtins, the respective returned (implicit) arg is the builtin instance
 /// usage, unless the builtin is the output builtin, in which case the arg is the output.
+#[allow(clippy::too_many_arguments)]
 pub fn run_cairo_0_entry_point(
     runner_config: &EntryPointRunnerConfig,
-    program_str: &str,
+    program_bytes: &[u8],
     entrypoint: &str,
     explicit_args: &[EndpointArg],
     implicit_args: &[ImplicitArg],
     expected_explicit_return_values: &[EndpointArg],
     hint_locals: HashMap<String, Box<dyn Any>>,
+    state_reader: Option<DictStateReader>,
 ) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>, CairoRunner)> {
     let mut entrypoint = entrypoint.to_string();
     if runner_config.add_main_prefix_to_entrypoint {
@@ -562,10 +566,10 @@ pub fn run_cairo_0_entry_point(
         entrypoint = format!("__main__.{entrypoint}");
     }
 
-    let program = inject_builtins(program_str, implicit_args)?;
+    let program = inject_builtins(program_bytes, implicit_args)?;
     info!("Successfully injected builtins into program.");
 
-    let (state_reader, os_hints_config, os_state_input) = (None, None, None);
+    let (os_hints_config, os_state_input) = (None, None);
     let os_block_input = OsBlockInput::default();
     let mut hint_processor = SnosHintProcessor::new_for_testing(
         state_reader,

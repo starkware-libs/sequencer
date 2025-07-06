@@ -22,7 +22,7 @@ use crate::k8s::{
     Resources,
     Toleration,
 };
-use crate::service::{GetComponentConfigs, ServiceName, ServiceNameInner};
+use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::utils::determine_port_numbers;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 10;
@@ -48,15 +48,15 @@ pub enum DistributedNodeServiceName {
     StateSync,
 }
 
-// Implement conversion from `DistributedNodeServiceName` to `ServiceName`
-impl From<DistributedNodeServiceName> for ServiceName {
+// Implement conversion from `DistributedNodeServiceName` to `NodeService`
+impl From<DistributedNodeServiceName> for NodeService {
     fn from(service: DistributedNodeServiceName) -> Self {
-        ServiceName::DistributedNode(service)
+        NodeService::Distributed(service)
     }
 }
 
 impl GetComponentConfigs for DistributedNodeServiceName {
-    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let ports = determine_port_numbers(ports, DISTRIBUTED_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
 
         let batcher = DistributedNodeServiceName::Batcher.component_config_pair(ports[0]);
@@ -73,7 +73,7 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         let signature_manager =
             DistributedNodeServiceName::ConsensusManager.component_config_pair(ports[9]);
 
-        let mut component_config_map = IndexMap::<ServiceName, ComponentConfig>::new();
+        let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
         for inner_service_name in DistributedNodeServiceName::iter() {
             let component_config = match inner_service_name {
                 DistributedNodeServiceName::Batcher => get_batcher_component_config(
@@ -123,8 +123,8 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                     get_state_sync_component_config(state_sync.local(), class_manager.remote())
                 }
             };
-            let service_name = inner_service_name.into();
-            component_config_map.insert(service_name, component_config);
+            let node_service = inner_service_name.into();
+            component_config_map.insert(node_service, component_config);
         }
         component_config_map
     }
@@ -164,6 +164,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
@@ -221,6 +222,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
@@ -250,6 +252,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
         match environment {
             Environment::Testing => false,
             Environment::SepoliaIntegration
+            | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
@@ -259,7 +262,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::HttpServer => false,
                 DistributedNodeServiceName::Gateway => false,
                 DistributedNodeServiceName::L1 => false,
-                DistributedNodeServiceName::Mempool => false,
+                DistributedNodeServiceName::Mempool => true,
                 DistributedNodeServiceName::SierraCompiler => false,
                 DistributedNodeServiceName::StateSync => false,
             },

@@ -352,19 +352,28 @@ pub struct GasPricePerToken {
 pub struct GasPrice(pub u128);
 
 impl GasPrice {
-    pub fn wei_to_fri(self, eth_to_fri_rate: u128) -> GasPrice {
+    pub fn wei_to_fri(self, eth_to_fri_rate: u128) -> Result<GasPrice, StarknetApiError> {
         // We use integer division since wei * eth_to_fri_rate is expected to be high enough to not
         // cause too much precision loss.
-        self.checked_mul_u128(eth_to_fri_rate)
-            .expect("Gas price is too high.")
+        Ok(self
+            .checked_mul_u128(eth_to_fri_rate)
+            .ok_or_else(|| {
+                StarknetApiError::GasPriceConversionError("Gas price is too high".to_string())
+            })?
             .checked_div(WEI_PER_ETH)
-            .expect("ETH to FRI rate must be non-zero")
+            .expect("WEI_PER_ETH must be non-zero"))
     }
-    pub fn fri_to_wei(self, eth_to_fri_rate: u128) -> GasPrice {
+    pub fn fri_to_wei(self, eth_to_fri_rate: u128) -> Result<GasPrice, StarknetApiError> {
         self.checked_mul_u128(WEI_PER_ETH)
-            .expect("Gas price is too high")
+            .ok_or_else(|| {
+                StarknetApiError::GasPriceConversionError("Gas price is too high".to_string())
+            })?
             .checked_div(eth_to_fri_rate)
-            .expect("FRI to ETH rate must be non-zero")
+            .ok_or_else(|| {
+                StarknetApiError::GasPriceConversionError(
+                    "FRI to ETH rate must be non-zero".to_string(),
+                )
+            })
     }
 }
 

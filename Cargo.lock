@@ -850,6 +850,7 @@ dependencies = [
  "blockifier",
  "chrono",
  "derive_more 0.99.18",
+ "indexmap 2.9.0",
  "mockall",
  "serde",
  "starknet_api",
@@ -892,6 +893,8 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+ "url",
+ "validator",
 ]
 
 [[package]]
@@ -1029,6 +1032,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tracing",
+ "url",
  "validator",
 ]
 
@@ -1108,6 +1112,7 @@ dependencies = [
  "apollo_class_manager_types",
  "apollo_config",
  "apollo_consensus",
+ "apollo_infra",
  "apollo_infra_utils",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
@@ -1119,6 +1124,7 @@ dependencies = [
  "apollo_storage",
  "apollo_test_utils",
  "apollo_time",
+ "assert_matches",
  "async-trait",
  "blockifier",
  "cairo-lang-casm",
@@ -1187,7 +1193,6 @@ dependencies = [
  "apollo_infra_utils",
  "apollo_node",
  "apollo_protobuf",
- "const_format",
  "hex",
  "indexmap 2.9.0",
  "libp2p",
@@ -1197,6 +1202,8 @@ dependencies = [
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "tempfile",
+ "url",
 ]
 
 [[package]]
@@ -1232,6 +1239,7 @@ dependencies = [
  "mockall",
  "mockito 1.6.1",
  "num-bigint 0.4.6",
+ "num-rational 0.4.2",
  "pretty_assertions",
  "reqwest 0.11.27",
  "rstest",
@@ -1277,6 +1285,7 @@ dependencies = [
  "apollo_infra",
  "apollo_infra_utils",
  "apollo_metrics",
+ "apollo_proc_macros",
  "assert_matches",
  "axum",
  "base64 0.13.1",
@@ -1334,6 +1343,7 @@ dependencies = [
 name = "apollo_infra_utils"
 version = "0.0.0"
 dependencies = [
+ "apollo_proc_macros",
  "assert-json-diff",
  "colored 3.0.0",
  "nix 0.20.2",
@@ -1447,6 +1457,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_config",
  "apollo_infra",
+ "apollo_infra_utils",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
  "async-trait",
@@ -1496,6 +1507,7 @@ dependencies = [
  "apollo_batcher_types",
  "apollo_config",
  "apollo_infra",
+ "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_types",
  "apollo_l1_provider_types",
  "apollo_metrics",
@@ -1752,11 +1764,9 @@ dependencies = [
  "apollo_signature_manager_types",
  "apollo_state_sync",
  "apollo_state_sync_types",
- "assert_matches",
  "clap",
  "const_format",
  "futures",
- "mempool_test_utils",
  "papyrus_base_layer",
  "pretty_assertions",
  "rstest",
@@ -1810,15 +1820,23 @@ dependencies = [
 name = "apollo_proc_macros"
 version = "0.0.0"
 dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.100",
+]
+
+[[package]]
+name = "apollo_proc_macros_tests"
+version = "0.15.0-rc.2"
+dependencies = [
  "apollo_metrics",
+ "apollo_proc_macros",
  "apollo_test_utils",
  "metrics 0.24.1",
  "metrics-exporter-prometheus",
  "papyrus_common",
  "prometheus-parse",
- "quote",
  "rstest",
- "syn 2.0.100",
 ]
 
 [[package]]
@@ -12170,6 +12188,7 @@ dependencies = [
  "apollo_starknet_os_program",
  "assert_matches",
  "blake2s",
+ "blockifier",
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "clap",
@@ -12178,8 +12197,6 @@ dependencies = [
  "ethnum",
  "futures",
  "indexmap 2.9.0",
- "num-bigint 0.4.6",
- "num-integer",
  "pretty_assertions",
  "rand 0.8.5",
  "rand_distr",
@@ -12220,6 +12237,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-vm",
  "derive_more 0.99.18",
+ "ethnum",
  "indexmap 2.9.0",
  "indoc 2.0.5",
  "log",
@@ -12237,6 +12255,7 @@ dependencies = [
  "shared_execution_objects",
  "starknet-types-core",
  "starknet_api",
+ "starknet_committer",
  "starknet_patricia",
  "strum 0.25.0",
  "strum_macros 0.25.3",

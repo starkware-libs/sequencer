@@ -78,6 +78,10 @@ impl<S: StateReader> StatefulValidator<S> {
         Ok(())
     }
 
+    pub fn block_context(&self) -> &BlockContext {
+        self.tx_executor.block_context.as_ref()
+    }
+
     fn state(&mut self) -> &mut CachedState<S> {
         self.tx_executor.block_state.as_mut().expect(BLOCK_STATE_ACCESS_ERR)
     }

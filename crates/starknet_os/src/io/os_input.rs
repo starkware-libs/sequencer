@@ -72,13 +72,18 @@ pub struct OsHints {
     pub os_hints_config: OsHintsConfig,
 }
 
+// TODO(Dori): Once computation of the hinted class hash is fully functional, delete this type.
+pub(crate) type HintedClassHash = Felt;
+
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct StarknetOsInput {
     pub os_block_inputs: Vec<OsBlockInput>,
     pub cached_state_inputs: Vec<CachedStateInput>,
-    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
+    // TODO(Dori): Once computation of the hinted class hash is fully functional, the extra Felt
+    //   value in the tuple should be removed.
+    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, (HintedClassHash, ContractClass)>,
     pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
 }
 

@@ -293,16 +293,16 @@ impl Mempool {
             self.state.stage(tx_reference)?;
         }
 
-        info!(
-            "Returned {} out of {n_txs} transactions, ready for sequencing.",
-            eligible_tx_references.len()
-        );
-        debug!(
-            "Returned mempool txs: {:?}",
-            eligible_tx_references.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
-        );
+        let n_returned_txs = eligible_tx_references.len();
+        if n_returned_txs != 0 {
+            info!("Returned {n_returned_txs} out of {n_txs} transactions, ready for sequencing.");
+            debug!(
+                "Returned mempool txs: {:?}",
+                eligible_tx_references.iter().map(|tx| tx.tx_hash).collect::<Vec<_>>()
+            );
+        }
 
-        metric_set_get_txs_size(eligible_tx_references.len());
+        metric_set_get_txs_size(n_returned_txs);
         self.update_state_metrics();
         self.update_accounts_with_gap(account_nonce_updates);
 
@@ -337,13 +337,13 @@ impl Mempool {
         let mut account_nonce_updates = self.remove_expired_txs();
         self.add_ready_declares();
 
-        if self.exceeds_capacity(&args.tx) {
-            self.handle_capacity_overflow(&args.tx, args.account_state.nonce)?;
-        }
-
         let tx_reference = TransactionReference::new(&args.tx);
         self.validate_incoming_tx(tx_reference, args.account_state.nonce)?;
         self.handle_fee_escalation(&args.tx)?;
+
+        if self.exceeds_capacity(&args.tx) {
+            self.handle_capacity_overflow(&args.tx, args.account_state.nonce)?;
+        }
 
         metric_handle.transaction_inserted();
 

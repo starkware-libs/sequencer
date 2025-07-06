@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use starknet_api::block::BlockNumber;
 
 use crate::config_override::{
@@ -9,11 +7,12 @@ use crate::config_override::{
     NetworkConfigOverride,
 };
 use crate::deployment::{Deployment, PragmaDomain};
-use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
+use crate::deployment_definitions::{Environment, StateSyncType};
 use crate::k8s::IngressParams;
-use crate::service::DeploymentName;
+use crate::service::NodeType;
 
 const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
+const TESTING_NODE_IDS: [usize; 1] = [0];
 
 pub(crate) fn system_test_deployments() -> Vec<Deployment> {
     vec![
@@ -32,15 +31,15 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         "0x1002",
         PragmaDomain::Dev,
         Some(BlockNumber(1)),
+        TESTING_NODE_IDS.len(),
+        StateSyncType::P2P,
     )
 }
 
 fn testing_instance_config_override() -> InstanceConfigOverride {
-    const SECRET_KEY: &str = "0x0101010101010101010101010101010101010101010101010101010101010101";
-
     InstanceConfigOverride::new(
-        NetworkConfigOverride::new(None, None, SECRET_KEY),
-        NetworkConfigOverride::new(None, None, SECRET_KEY),
+        NetworkConfigOverride::new(None, None),
+        NetworkConfigOverride::new(None, None),
         "0x64",
     )
 }
@@ -55,11 +54,10 @@ fn get_ingress_params() -> IngressParams {
 
 fn system_test_distributed_deployment() -> Deployment {
     Deployment::new(
-        DeploymentName::DistributedNode,
+        NodeType::Distributed,
         Environment::Testing,
-        "deployment_test_distributed",
+        "distributed",
         None,
-        PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
         None,
@@ -68,11 +66,10 @@ fn system_test_distributed_deployment() -> Deployment {
 
 fn system_test_hybrid_deployment() -> Deployment {
     Deployment::new(
-        DeploymentName::HybridNode,
+        NodeType::Hybrid,
         Environment::Testing,
-        "deployment_test_hybrid",
+        "hybrid",
         None,
-        PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
         None,
@@ -81,11 +78,10 @@ fn system_test_hybrid_deployment() -> Deployment {
 
 fn system_test_consolidated_deployment() -> Deployment {
     Deployment::new(
-        DeploymentName::ConsolidatedNode,
+        NodeType::Consolidated,
         Environment::Testing,
-        "deployment_test_consolidated",
+        "consolidated",
         None,
-        PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
         None,

@@ -58,6 +58,8 @@ pub enum StarknetApiError {
     InvalidStarknetVersion(Vec<u8>),
     #[error("NonzeroGasPrice cannot be zero.")]
     ZeroGasPrice,
+    #[error("Gas price conversion error: {0}")]
+    GasPriceConversionError(String),
     #[error(
         "Sierra program length must be > 0 for Cairo1, and == 0 for Cairo0. Got: \
          {sierra_program_length:?} for contract class version {contract_class_version:?}"

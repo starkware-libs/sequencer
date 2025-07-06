@@ -7,14 +7,12 @@ use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::aggregator_hint_processor::AggregatorInput;
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::io::os_input::{OsHints, StarknetOsInput};
-use crate::io::os_output::{
-    get_run_output,
-    StarknetAggregatorRunnerOutput,
-    StarknetOsRunnerOutput,
-};
+use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
+use crate::metrics::OsMetrics;
 
 pub fn run_os<S: StateReader>(
     layout: LayoutName,
@@ -76,9 +74,16 @@ pub fn run_os<S: StateReader>(
         cairo_runner.finalize_segments()?;
     }
 
-    // Prepare and check expected output.
-    let os_output = get_run_output(&cairo_runner.vm)?;
-    // TODO(Tzahi): log the output once it will have a proper struct.
+    #[cfg(feature = "include_program_output")]
+    let os_output = {
+        // Prepare and check expected output.
+        let os_raw_output = crate::io::os_output::get_run_output(&cairo_runner.vm)?;
+        let os_output =
+            crate::io::os_output::OsOutput::from_raw_output_iter(os_raw_output.into_iter())?;
+        log::debug!("OsOutput for block number={}: {os_output:?}", os_output.new_block_number);
+        os_output
+    };
+
     cairo_runner.vm.verify_auto_deductions().map_err(StarknetOsError::VirtualMachineError)?;
     cairo_runner
         .read_return_values(allow_missing_builtins)
@@ -91,8 +96,11 @@ pub fn run_os<S: StateReader>(
     let cairo_pie = cairo_runner.get_cairo_pie().map_err(StarknetOsError::RunnerError)?;
 
     Ok(StarknetOsRunnerOutput {
+        #[cfg(feature = "include_program_output")]
         os_output,
         cairo_pie,
+        da_segment: snos_hint_processor.get_da_segment().take(),
+        metrics: OsMetrics::new(&mut cairo_runner, &snos_hint_processor)?,
         #[cfg(any(test, feature = "testing"))]
         unused_hints: snos_hint_processor.unused_hints,
     })

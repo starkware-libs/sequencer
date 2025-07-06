@@ -7,17 +7,9 @@ license-file.workspace = true
 description = "Procedural macros for the Papyrus node"
 
 [dependencies]
+proc-macro2.workspace = true
 quote.workspace = true
 syn = { workspace = true, features = ["full"] }
-
-[dev-dependencies]
-apollo_metrics.workspace = true
-apollo_test_utils.workspace = true
-metrics.workspace = true
-metrics-exporter-prometheus.workspace = true
-papyrus_common.workspace = true
-prometheus-parse.workspace = true
-rstest.workspace = true
 
 [lib]
 proc-macro = true

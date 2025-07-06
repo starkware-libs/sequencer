@@ -44,6 +44,8 @@ impl SerializeConfig for GatewayConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatelessTransactionValidatorConfig {
+    // TODO(Arni): Align the name of this field with the mempool config, and all other places where
+    // validation is skipped during the systems bootstrap phase.
     // If true, validates that the resource bounds are not zero.
     pub validate_non_zero_resource_bounds: bool,
     // TODO(AlonH): Remove this field and use the one from the versioned constants.
@@ -62,7 +64,7 @@ impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
             validate_non_zero_resource_bounds: true,
-            min_gas_price: 100_000_000,
+            min_gas_price: 3_000_000_000,
             max_calldata_length: 4000,
             max_signature_length: 4000,
             max_contract_bytecode_size: 81920,
@@ -170,6 +172,8 @@ pub struct StatefulTransactionValidatorConfig {
     pub reject_future_declare_txs: bool,
     pub max_nonce_for_validation_skip: Nonce,
     pub versioned_constants_overrides: VersionedConstantsOverrides,
+    // Minimum gas price as percentage of threshold to accept transactions.
+    pub min_gas_price_percentage: u8, // E.g., 80 to require 80% of threshold.
 }
 
 impl Default for StatefulTransactionValidatorConfig {
@@ -178,6 +182,7 @@ impl Default for StatefulTransactionValidatorConfig {
             max_allowed_nonce_gap: 50,
             reject_future_declare_txs: true,
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
+            min_gas_price_percentage: 100,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
@@ -202,6 +207,12 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
                 "reject_future_declare_txs",
                 &self.reject_future_declare_txs,
                 "If true, rejects declare transactions with future nonces.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "min_gas_price_percentage",
+                &self.min_gas_price_percentage,
+                "Minimum gas price as percentage of threshold to accept transactions.",
                 ParamPrivacyInput::Public,
             ),
         ]);

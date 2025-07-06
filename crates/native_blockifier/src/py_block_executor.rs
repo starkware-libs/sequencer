@@ -352,7 +352,6 @@ impl PyBlockExecutor {
                     state_diff_size: max_state_diff_size,
                     ..BouncerWeights::max()
                 },
-                // TODO(Meshi): Check what should be the values here.
                 ..BouncerConfig::max()
             },
             tx_executor_config: TransactionExecutorConfig {

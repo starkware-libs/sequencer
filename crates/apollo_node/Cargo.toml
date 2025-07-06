@@ -59,8 +59,15 @@ validator.workspace = true
 [dev-dependencies]
 apollo_config = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
+<<<<<<< HEAD
 assert_matches.workspace = true
 mempool_test_utils.workspace = true
+||||||| 3f74dd8a6
+assert_matches.workspace = true
+colored.workspace = true
+mempool_test_utils.workspace = true
+=======
+>>>>>>> origin/main-v0.14.0
 pretty_assertions.workspace = true
 tokio-util = { workspace = true, features = ["rt"] }
 

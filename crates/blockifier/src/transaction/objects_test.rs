@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-
+use cairo_vm::types::builtin_name::BuiltinName;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, EthAddress};
 use starknet_api::execution_resources::GasAmount;
@@ -10,6 +9,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::execution::call_info::{
+    BuiltinCounterMap,
     CallExecution,
     CallInfo,
     ChargedResources,
@@ -31,6 +31,8 @@ pub struct TestExecutionSummary {
     pub class_hash: ClassHash,
     pub storage_address: ContractAddress,
     pub storage_key: StorageKey,
+    pub builtin_counters: BuiltinCounterMap,
+    pub inner_builtin_counters: BuiltinCounterMap,
 }
 
 impl TestExecutionSummary {
@@ -49,7 +51,17 @@ impl TestExecutionSummary {
             class_hash,
             storage_address: contract_address!(storage_address),
             storage_key: storage_key!(storage_key),
+            builtin_counters: BuiltinCounterMap::new(),
+            inner_builtin_counters: BuiltinCounterMap::new(),
         }
+    }
+
+    pub fn update_builtin_counters(&mut self, builtin_counters: &BuiltinCounterMap) {
+        self.builtin_counters.extend(builtin_counters);
+    }
+
+    pub fn update_inner_builtin_counters(&mut self, inner_builtin_counters: &BuiltinCounterMap) {
+        self.inner_builtin_counters.extend(inner_builtin_counters);
     }
 
     pub fn to_call_info(&self) -> CallInfo {
@@ -77,6 +89,8 @@ impl TestExecutionSummary {
                 accessed_storage_keys: vec![self.storage_key].into_iter().collect(),
                 ..Default::default()
             },
+            builtin_counters: self.builtin_counters.clone(),
+            inner_calls: vec![inner_call_info(&self.inner_builtin_counters)],
             ..Default::default()
         }
     }
@@ -85,6 +99,14 @@ impl TestExecutionSummary {
 fn shared_call_info() -> CallInfo {
     CallInfo {
         call: CallEntryPoint { class_hash: Some(class_hash!("0x1")), ..Default::default() },
+        ..Default::default()
+    }
+}
+
+fn inner_call_info(builtin_counters: &BuiltinCounterMap) -> CallInfo {
+    CallInfo {
+        call: CallEntryPoint { class_hash: Some(class_hash!("0x1")), ..Default::default() },
+        builtin_counters: builtin_counters.clone(),
         ..Default::default()
     }
 }
@@ -180,17 +202,47 @@ fn test_events_counter_in_tx_execution_info_with_inner_call_info(#[case] n_execu
     );
 }
 
+// This function gets a set of builtins for the outer and inner calls, updates the
+// param builtin counter and returns the expected values for the summary test.
+fn update_builtin_counters_for_summary_test(
+    params: &mut TestExecutionSummary,
+    outer_poseidon: usize,
+    outer_bitwise: usize,
+    inner_pedersen: usize,
+    inner_bitwise: usize,
+) -> (usize, usize, usize) {
+    params.update_builtin_counters(&BuiltinCounterMap::from_iter([
+        (BuiltinName::poseidon, outer_poseidon),
+        (BuiltinName::bitwise, outer_bitwise),
+    ]));
+
+    params.update_inner_builtin_counters(&BuiltinCounterMap::from_iter([
+        (BuiltinName::pedersen, inner_pedersen),
+        (BuiltinName::bitwise, inner_bitwise),
+    ]));
+    (outer_poseidon, inner_pedersen, outer_bitwise + inner_bitwise)
+}
+
 #[rstest]
 #[case(
-    TestExecutionSummary::new(10, 1, 2, class_hash!("0x1"), "0x1", "0x1"),
-    TestExecutionSummary::new(20, 2, 3, class_hash!("0x2"), "0x2", "0x2"),
-    TestExecutionSummary::new(30, 3, 4, class_hash!("0x3"), "0x3", "0x3")
+    &mut TestExecutionSummary::new(10, 1, 2, class_hash!("0x1"), "0x1", "0x1"),
+    &mut TestExecutionSummary::new(20, 2, 3, class_hash!("0x2"), "0x2", "0x2"),
+    &mut TestExecutionSummary::new(30, 3, 4, class_hash!("0x3"), "0x3", "0x3")
 )]
 fn test_summarize(
-    #[case] validate_params: TestExecutionSummary,
-    #[case] execute_params: TestExecutionSummary,
-    #[case] fee_transfer_params: TestExecutionSummary,
+    #[case] validate_params: &mut TestExecutionSummary,
+    #[case] execute_params: &mut TestExecutionSummary,
+    #[case] fee_transfer_params: &mut TestExecutionSummary,
 ) {
+    let (validate_poseidon, validate_pedersen, validate_bitwise) =
+        update_builtin_counters_for_summary_test(validate_params, 1, 5, 2, 6);
+
+    let (execute_poseidon, execute_pedersen, execute_bitwise) =
+        update_builtin_counters_for_summary_test(execute_params, 1, 4, 2, 1);
+
+    let (_fee_transfer_poseidon, _fee_transfer_pedersen, _fee_transfer_bitwise) =
+        update_builtin_counters_for_summary_test(fee_transfer_params, 1, 2, 3, 4);
+
     let validate_call_info = validate_params.to_call_info();
     let execute_call_info = execute_params.to_call_info();
     let fee_transfer_call_info = fee_transfer_params.to_call_info();
@@ -236,13 +288,20 @@ fn test_summarize(
             total_event_keys: 0,
             total_event_data_size: 0,
         },
-        // TODO(Meshi): Change it to a relevant value for this test.
-        builtin_counters: HashMap::new(),
     };
+
+    // Omit the fee transfer builtin counters as done in `summarize_builtins`.
+    let expected_builtins = BuiltinCounterMap::from_iter([
+        (BuiltinName::pedersen, validate_pedersen + execute_pedersen),
+        (BuiltinName::poseidon, validate_poseidon + execute_poseidon),
+        (BuiltinName::bitwise, validate_bitwise + execute_bitwise),
+    ]);
 
     // Call the summarize method.
     let actual_summary = tx_execution_info.summarize(VersionedConstants::latest_constants());
+    let actual_builtins = tx_execution_info.summarize_builtins();
 
     // Compare the actual result with the expected result.
     assert_eq!(actual_summary, expected_summary);
+    assert_eq!(actual_builtins, expected_builtins);
 }
