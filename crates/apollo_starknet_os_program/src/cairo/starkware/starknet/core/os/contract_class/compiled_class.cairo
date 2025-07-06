@@ -26,9 +26,7 @@ from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     CompiledClassEntryPoint,
     CompiledClassFact,
 )
-from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
-    compiled_class_hash,
-)
+from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import compiled_class_hash
 
 // Checks that the list of selectors is sorted.
 func validate_entry_points{range_check_ptr}(
@@ -67,7 +65,7 @@ func validate_entry_points_inner{range_check_ptr}(
 // which is appended to every contract.
 //
 // Note: `validate_compiled_class_facts` must be called eventually to complete the validation.
-func guess_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}() -> (
+func guess_compiled_class_facts{range_check_ptr}() -> (
     n_compiled_class_facts: felt, compiled_class_facts: CompiledClassFact*, builtin_costs: felt*
 ) {
     alloc_locals;
@@ -130,7 +128,7 @@ func guess_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}
 
 // Validates the compiled class facts structure and hash after the execution.
 // Uses the execution info to optimize hash computation.
-func validate_compiled_class_facts_post_execution{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
+func validate_compiled_class_facts_post_execution{range_check_ptr}(
     n_compiled_class_facts, compiled_class_facts: CompiledClassFact*, builtin_costs: felt*
 ) {
     %{
@@ -163,7 +161,7 @@ func validate_compiled_class_facts_post_execution{poseidon_ptr: PoseidonBuiltin*
 
 // Validates the compiled class facts structure and hash, using the hint variable
 // `bytecode_segment_structures` - a mapping from compilied class hash to the structure.
-func validate_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
+func validate_compiled_class_facts{range_check_ptr}(
     n_compiled_class_facts, compiled_class_facts: CompiledClassFact*, builtin_costs: felt*
 ) {
     if (n_compiled_class_facts == 0) {
