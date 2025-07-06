@@ -46,6 +46,15 @@ struct Args {
     timeout: u64,
 }
 
+fn create_peer_private_key(peer_index: usize) -> [u8; 32] {
+    let peer_index: u64 = peer_index.try_into().expect("Failed converting usize to u64");
+    let array = peer_index.to_le_bytes();
+    assert_eq!(array.len(), 8);
+    let mut private_key = [0u8; 32];
+    private_key[0..8].copy_from_slice(&array);
+    private_key
+}
+
 #[tokio::main]
 async fn main() {
     let args = Args::parse();
@@ -56,4 +65,6 @@ async fn main() {
     )));
 
     builder.install().expect("Failed to install prometheus recorder/exporter");
+
+    let _peer_private_key = create_peer_private_key(args.id);
 }
