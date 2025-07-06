@@ -1,4 +1,4 @@
-use apollo_starknet_os_program::OS_PROGRAM;
+use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
 use blockifier::state::state_api::StateReader;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
@@ -11,7 +11,7 @@ use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
-use crate::hint_processor::aggregator_hint_processor::AggregatorInput;
+use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, AggregatorInput};
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -147,8 +147,20 @@ pub fn run_os_stateless(
 /// Run the Aggregator.
 #[allow(clippy::result_large_err)]
 pub fn run_aggregator(
-    _layout: LayoutName,
-    _aggregator_input: AggregatorInput,
+    layout: LayoutName,
+    aggregator_input: AggregatorInput,
 ) -> Result<StarknetAggregatorRunnerOutput, StarknetOsError> {
-    todo!()
+    // Create the aggregator hint processor.
+    let mut aggregator_hint_processor =
+        AggregatorHintProcessor::new(&AGGREGATOR_PROGRAM, aggregator_input);
+
+    let runner_output = run_runner(layout, &AGGREGATOR_PROGRAM, &mut aggregator_hint_processor)?;
+
+    Ok(StarknetAggregatorRunnerOutput {
+        #[cfg(feature = "include_program_output")]
+        aggregator_output: runner_output.raw_output,
+        cairo_pie: runner_output.cairo_pie,
+        #[cfg(any(test, feature = "testing"))]
+        unused_hints: aggregator_hint_processor.get_unused_hints(),
+    })
 }
