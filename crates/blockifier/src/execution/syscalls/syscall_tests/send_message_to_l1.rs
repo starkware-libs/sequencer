@@ -2,6 +2,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use expect_test::expect;
 use itertools::concat;
+use rstest::rstest;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::EthAddress;
 use starknet_api::felt;
@@ -9,7 +10,7 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_api::transaction::L2ToL1Payload;
 use test_case::test_case;
 
-use crate::context::ChainInfo;
+use crate::context::{BlockContext, ChainInfo};
 use crate::execution::call_info::{MessageToL1, OrderedL2ToL1Message};
 use crate::execution::entry_point::CallEntryPoint;
 use crate::test_utils::initial_test_state::test_state;
@@ -82,4 +83,50 @@ fn test_send_message_to_l1(runnable_version: RunnableCairo1) {
         execution.l2_to_l1_messages,
         vec![OrderedL2ToL1Message { order: 0, message }]
     );
+}
+
+#[rstest]
+#[cfg_attr(feature = "cairo_native", case::native(RunnableCairo1::Native))]
+#[case::vm(RunnableCairo1::Casm)]
+fn test_send_message_to_l1_invalid_address(
+    #[case] runnable_version: RunnableCairo1,
+    #[values(true, false)] is_l3: bool,
+) {
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
+    let mut chain_info = ChainInfo::create_for_testing();
+    chain_info.is_l3 = is_l3;
+    let mut state = test_state(&chain_info, BALANCE, &[(test_contract, 1)]);
+
+    let invalid_to_address = felt!("0x10000000000000000000000000000000000000000");
+    let payload = vec![felt!(2019_u16), felt!(2020_u16)];
+    let calldata = Calldata(
+        concat(vec![
+            vec![
+                invalid_to_address,
+                felt!(u64::try_from(payload.len()).expect("Failed to convert usize to u64.")),
+            ],
+            payload.clone(),
+        ])
+        .into(),
+    );
+    let entry_point_call = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_send_message_to_l1"),
+        calldata,
+        ..trivial_external_entry_point_new(test_contract)
+    };
+    let block_context =
+        BlockContext { chain_info: chain_info.clone(), ..BlockContext::create_for_testing() };
+    let result = entry_point_call.execute_directly_given_block_context(&mut state, block_context);
+
+    if is_l3 {
+        assert!(result.is_ok(), "Expected execution to succeed on L3 chain");
+    } else {
+        assert!(result.is_err(), "Expected execution to fail with invalid address");
+        let error = result.unwrap_err();
+        let error_string = error.to_string();
+        assert!(
+            error_string.contains("Out of range"),
+            "Expected error containing 'Out of range', got: {error_string}"
+        );
+    }
 }
