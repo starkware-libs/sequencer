@@ -38,6 +38,7 @@ use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContract
 use starknet_api::state::StateDiff;
 use starknet_api::StarknetApiError;
 use tracing::{debug, trace};
+use url::Url;
 use validator::Validate;
 
 use self::state_update_stream::{StateUpdateStream, StateUpdateStreamConfig};
@@ -46,7 +47,7 @@ type CentralResult<T> = Result<T, CentralError>;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct CentralSourceConfig {
     pub concurrent_requests: usize,
-    pub starknet_url: String,
+    pub starknet_url: Url,
     #[serde(deserialize_with = "deserialize_optional_map")]
     pub http_headers: Option<HashMap<String, String>>,
     pub max_state_updates_to_download: usize,
@@ -61,7 +62,8 @@ impl Default for CentralSourceConfig {
     fn default() -> Self {
         CentralSourceConfig {
             concurrent_requests: 10,
-            starknet_url: String::from("https://alpha-mainnet.starknet.io/"),
+            starknet_url: Url::parse("https://alpha-mainnet.starknet.io/")
+                .expect("Unable to parse default URL, this should never happen."),
             http_headers: None,
             max_state_updates_to_download: 20,
             max_state_updates_to_store_in_memory: 20,
@@ -452,7 +454,7 @@ impl CentralSource {
         storage_reader: StorageReader,
     ) -> Result<CentralSource, ClientCreationError> {
         let apollo_starknet_client = StarknetFeederGatewayClient::new(
-            &config.starknet_url,
+            config.starknet_url.as_ref(),
             config.http_headers,
             node_version,
             config.retry_config,
