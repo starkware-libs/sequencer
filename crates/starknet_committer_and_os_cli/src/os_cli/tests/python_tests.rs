@@ -45,25 +45,14 @@ impl PythonTestRunner for OsPythonTestRunner {
     }
 }
 
-<<<<<<< HEAD
-/// Deserialize the input string into an `Input` struct.
-fn input_deserialization(input_str: &str) -> OsPythonTestResult {
-||||||| 3f74dd8a6
-/// Deserialize the input string into an `Input` struct.
-#[allow(clippy::result_large_err)]
-fn input_deserialization(input_str: &str) -> OsPythonTestResult {
-=======
 /// Deserialize the OS input string into an `OsInput` struct.
-#[allow(clippy::result_large_err)]
 fn os_input_deserialization(input_str: &str) -> OsPythonTestResult {
->>>>>>> origin/main-v0.14.0
     let input = serde_json::from_str::<OsCliInput>(input_str)?;
     validate_os_input(&input.os_hints.os_input);
     Ok("Deserialization successful".to_string())
 }
 
 /// Deserialize the aggregator input string into an `AggregatorInput` struct.
-#[allow(clippy::result_large_err)]
 fn aggregator_input_deserialization(input_str: &str) -> OsPythonTestResult {
     let _input = serde_json::from_str::<AggregatorCliInput>(input_str)?;
     // TODO(Aner): Validate the aggregator input.

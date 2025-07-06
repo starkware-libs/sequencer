@@ -282,31 +282,7 @@ impl NodeType {
         self.to_string()
     }
 
-<<<<<<< HEAD
-    pub fn add_path_suffix(&self, path: PathBuf, instance_name: &str) -> PathBuf {
-        let deployment_name_dir = path.join(self.get_folder_name());
-        let deployment_with_instance = deployment_name_dir.join(instance_name);
-
-        let s = deployment_with_instance.to_string_lossy();
-        let modified = if s.ends_with('/') { s.into_owned() } else { format!("{s}/") };
-        modified.into()
-    }
-
-    pub fn all_service_names(&self) -> Vec<ServiceName> {
-||||||| 3f74dd8a6
-    pub fn add_path_suffix(&self, path: PathBuf, instance_name: &str) -> PathBuf {
-        let deployment_name_dir = path.join(self.get_folder_name());
-        let deployment_with_instance = deployment_name_dir.join(instance_name);
-
-        let s = deployment_with_instance.to_string_lossy();
-        let modified = if s.ends_with('/') { s.into_owned() } else { format!("{}/", s) };
-        modified.into()
-    }
-
-    pub fn all_service_names(&self) -> Vec<ServiceName> {
-=======
     pub fn all_service_names(&self) -> Vec<NodeService> {
->>>>>>> origin/main-v0.14.0
         match self {
             // TODO(Tsabary): find a way to avoid this code duplication.
             Self::Consolidated => {

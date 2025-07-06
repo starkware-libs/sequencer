@@ -345,8 +345,8 @@ impl OsOutput {
         }
         assert_eq!(
             messages_to_l1_segment_size, 0,
-            "Expected messages to L1 segment to be consumed, but {} felts were left.",
-            messages_to_l1_segment_size
+            "Expected messages to L1 segment to be consumed, but {messages_to_l1_segment_size} \
+             felts were left."
         );
 
         let mut messages_to_l2_segment_size =

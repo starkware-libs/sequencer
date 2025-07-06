@@ -298,13 +298,10 @@ async fn is_block_info_valid(
             block_info_proposed,
             block_info_validation,
             format!(
-                "L1 gas price mismatch: expected L1 gas price FRI={}, proposed={}, expected L1 \
-                 data gas price FRI={}, proposed={}, l1_gas_price_margin_percent={}",
-                l1_gas_price_fri,
-                l1_gas_price_fri_proposed,
-                l1_data_gas_price_fri,
-                l1_data_gas_price_fri_proposed,
-                l1_gas_price_margin_percent
+                "L1 gas price mismatch: expected L1 gas price FRI={l1_gas_price_fri}, \
+                 proposed={l1_gas_price_fri_proposed}, expected L1 data gas price \
+                 FRI={l1_data_gas_price_fri}, proposed={l1_data_gas_price_fri_proposed}, \
+                 l1_gas_price_margin_percent={l1_gas_price_margin_percent}"
             ),
         ));
     }

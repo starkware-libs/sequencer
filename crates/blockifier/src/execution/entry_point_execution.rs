@@ -297,15 +297,7 @@ pub fn prepare_call_arguments(
 }
 
 /// Runs the runner from the given PC.
-<<<<<<< HEAD
-pub fn run_entry_point(
-||||||| 3f74dd8a6
-#[allow(clippy::result_large_err)]
-pub fn run_entry_point(
-=======
-#[allow(clippy::result_large_err)]
 pub fn run_entry_point<HP: HintProcessor>(
->>>>>>> origin/main-v0.14.0
     runner: &mut CairoRunner,
     hint_processor: &mut HP,
     entry_point: EntryPointV1,

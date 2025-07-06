@@ -156,13 +156,7 @@ pub(crate) fn build_service_namespace_domain_address(
     namespace: &str,
     domain: &str,
 ) -> String {
-<<<<<<< HEAD
-    format!("{service_name}.{namespace}.{domain}")
-||||||| 3f74dd8a6
-    format!("{}.{}.{}", service_name, namespace, domain)
-=======
-    format!("{}.{}.{}", node_service, namespace, domain)
->>>>>>> origin/main-v0.14.0
+    format!("{node_service}.{namespace}.{domain}")
 }
 
 // TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be

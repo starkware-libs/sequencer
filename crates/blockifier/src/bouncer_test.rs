@@ -210,14 +210,14 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         "ok" | "sierra_gas_block_full" => {
             HashMap::from([(BuiltinName::range_check, range_check_count - 1)])
         }
-        _ => panic!("Unexpected scenario: {}", scenario),
+        _ => panic!("Unexpected scenario: {scenario}"),
     };
 
     // Derive sierra_gas from scenario
     let sierra_gas = match scenario {
         "sierra_gas_block_full" => GasAmount(11), // Exceeds capacity
         "ok" | "proving_gas_block_full" => GasAmount(1), // Within capacity
-        _ => panic!("Unexpected scenario: {}", scenario),
+        _ => panic!("Unexpected scenario: {scenario}"),
     };
 
     let proving_gas_max_capacity =
@@ -265,28 +265,10 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
 
     match scenario {
         "ok" => assert_matches!(result, Ok(())),
-<<<<<<< HEAD
-        "block_full" => assert_matches!(result, Err(TransactionExecutorError::BlockFull)),
-        "too_large" => assert_matches!(result, Err(
-                TransactionExecutorError::TransactionExecutionError(
-                    TransactionExecutionError::TransactionTooLarge { max_capacity, tx_size }
-                )
-            ) if *max_capacity == block_max_capacity && *tx_size == expected_weights),
-        _ => panic!("Unexpected scenario: {scenario}"),
-||||||| 3f74dd8a6
-        "block_full" => assert_matches!(result, Err(TransactionExecutorError::BlockFull)),
-        "too_large" => assert_matches!(result, Err(
-                TransactionExecutorError::TransactionExecutionError(
-                    TransactionExecutionError::TransactionTooLarge { max_capacity, tx_size }
-                )
-            ) if *max_capacity == block_max_capacity && *tx_size == expected_weights),
-        _ => panic!("Unexpected scenario: {}", scenario),
-=======
         "proving_gas_block_full" | "sierra_gas_block_full" => {
             assert_matches!(result, Err(TransactionExecutorError::BlockFull))
         }
-        _ => panic!("Unexpected scenario: {}", scenario),
->>>>>>> origin/main-v0.14.0
+        _ => panic!("Unexpected scenario: {scenario}"),
     }
 }
 
