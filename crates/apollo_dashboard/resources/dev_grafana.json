@@ -799,6 +799,15 @@
           "native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "calls_running_native_rate",
+        "description": "Gauge of the rate of calls running native",
+        "type": "stat",
+        "exprs": [
+          "calls_running_native_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
       }
     ],
     "Batcher Infra": [

@@ -13,6 +13,11 @@ define_metrics!(
             "native_compilation_error",
             "Counter of Native compilation failures in the blockifier",
             init=0 },
+        MetricGauge {
+            CALLS_RUNNING_NATIVE_RATE,
+            "calls_running_native_rate",
+            "Gauge of the rate of calls running native"
+        },
     }
 );
 

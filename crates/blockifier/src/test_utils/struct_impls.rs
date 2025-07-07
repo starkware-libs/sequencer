@@ -141,6 +141,23 @@ impl CallInfo {
         self.builtin_counters = BuiltinCounterMap::new();
         self.execution.cairo_native = false;
     }
+
+    pub fn calculate_num_of_native_and_total_runs(&self) -> (usize, usize) {
+        let mut native_runs = 0;
+        let mut total_runs = 0;
+
+        if self.execution.cairo_native {
+            native_runs += 1;
+        }
+        total_runs += 1;
+        for inner_call in &self.inner_calls {
+            let (inner_native_runs, inner_total_runs) = inner_call.calculate_num_of_native_and_total_runs();
+            native_runs += inner_native_runs;
+            total_runs += inner_total_runs;
+        }
+
+        (native_runs, total_runs)
+    }
 }
 
 impl TransactionExecutionInfo {
@@ -155,6 +172,30 @@ impl TransactionExecutionInfo {
         if let Some(call_info) = &mut self.fee_transfer_call_info {
             call_info.clear_nonessential_fields_for_comparison();
         }
+    }
+
+    pub fn calculate_rate_of_native_runs(&mut self) -> f64 {
+        let mut native_runs = 0;
+        let mut total_runs = 0;
+        if let Some(call_info) = &self.validate_call_info {
+            let (native, total) = call_info.calculate_num_of_native_and_total_runs();
+            native_runs += native;
+            total_runs += total;
+        }
+        if let Some(call_info) = &self.execute_call_info {
+            let (native, total) = call_info.calculate_num_of_native_and_total_runs();
+            native_runs += native;
+            total_runs += total;
+        }
+        if let Some(call_info) = &self.fee_transfer_call_info {
+            let (native, total) = call_info.calculate_num_of_native_and_total_runs();
+            native_runs += native;
+            total_runs += total;
+        }
+        if total_runs == 0 {
+            return 0.0;
+        }
+        native_runs as f64 / total_runs as f64
     }
 }
 

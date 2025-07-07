@@ -28,6 +28,7 @@ use crate::state::state_api::{StateReader, UpdatableState};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ExecutableTransaction;
+use crate::metrics::CALLS_RUNNING_NATIVE_RATE;
 
 #[cfg(test)]
 #[path = "worker_logic_test.rs"]
@@ -349,6 +350,16 @@ impl<S: StateReader> WorkerExecutor<S> {
                     }
                 }
             }
+
+            let native_run_rate = tx_execution_info.calculate_rate_of_native_runs();
+
+            CALLS_RUNNING_NATIVE_RATE.set(
+                native_run_rate,
+            );
+
+
+
+
             complete_fee_transfer_flow(
                 &tx_context,
                 tx_execution_info,
