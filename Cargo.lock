@@ -1118,12 +1118,8 @@ dependencies = [
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_test_utils",
-<<<<<<< HEAD
  "apollo_time",
-||||||| 511a6f78a
-=======
  "assert_matches",
->>>>>>> origin/constaking
  "async-trait",
  "blockifier",
  "blockifier_test_utils",
