@@ -13,6 +13,18 @@ define_metrics!(
             "native_compilation_error",
             "Counter of Native compilation failures in the blockifier",
             init=0 },
+        MetricCounter {
+            CALLS_RUNNING_NATIVE,
+            "calls_running_native",
+            "Counter of the number of calls running native",
+            init=0
+        },
+        MetricCounter {
+            TOTAL_CALLS,
+            "number_of_total_calls",
+            "Counter of the total number of calls",
+            init=0
+        }
     }
 );
 

@@ -772,7 +772,7 @@
         "extra_params": {}
       }
     ],
-    "Blockifier State Reader": [
+    "Blockifier": [
       {
         "title": "class_cache_miss_ratio",
         "description": "The ratio of cache misses when requesting compiled classes from the Blockifier State Reader",
@@ -797,6 +797,15 @@
         "type": "stat",
         "exprs": [
           "native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "native_execution_ratio",
+        "description": "The fraction of calls running Cairo Native in the Blockifier State Reader",
+        "type": "timeseries",
+        "exprs": [
+          "100 * (increase(calls_running_native{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / increase(number_of_total_calls{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]))"
         ],
         "extra_params": {}
       }

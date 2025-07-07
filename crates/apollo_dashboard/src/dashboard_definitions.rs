@@ -9,7 +9,7 @@ use crate::panels::l1_provider::{get_l1_provider_infra_row, get_l1_provider_row}
 use crate::panels::mempool::{get_mempool_infra_row, get_mempool_row};
 use crate::panels::mempool_p2p::{get_mempool_p2p_infra_row, get_mempool_p2p_row};
 use crate::panels::sierra_compiler::{get_compile_to_casm_row, get_sierra_compiler_infra_row};
-use crate::panels::state_reader::get_blockifier_state_reader_row;
+use crate::panels::blockifier::get_blockifier_row;
 use crate::panels::state_sync::{
     get_state_sync_infra_row,
     get_state_sync_p2p_row,
@@ -35,7 +35,7 @@ pub fn get_apollo_dashboard() -> Dashboard {
             get_state_sync_p2p_row(),
             get_gateway_row(),
             get_mempool_row(),
-            get_blockifier_state_reader_row(),
+            get_blockifier_row(),
             get_batcher_infra_row(),
             get_gateway_infra_row(),
             get_class_manager_infra_row(),

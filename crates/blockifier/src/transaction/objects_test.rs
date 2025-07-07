@@ -12,6 +12,7 @@ use crate::execution::call_info::{
     BuiltinCounterMap,
     CallExecution,
     CallInfo,
+    CallSummary,
     ChargedResources,
     EventSummary,
     ExecutionSummary,
@@ -288,6 +289,7 @@ fn test_summarize(
             total_event_keys: 0,
             total_event_data_size: 0,
         },
+        call_summary: CallSummary { n_calls: 6, n_calls_running_native: 0 },
     };
 
     // Omit the fee transfer builtin counters as done in `summarize_builtins`.
