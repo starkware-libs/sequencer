@@ -31,10 +31,7 @@ use mempool_test_utils::starknet_api_test_utils::{
     MultiAccountTransactionGenerator,
 };
 use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    L1ToL2MessageArgs,
-};
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::{
     make_block_history_on_anvil,
     ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
@@ -45,7 +42,12 @@ use starknet_api::consensus_transaction::ConsensusTransaction;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
+use starknet_api::transaction::{
+    L1HandlerTransaction,
+    TransactionHash,
+    TransactionHasher,
+    TransactionVersion,
+};
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};
@@ -187,13 +189,9 @@ impl FlowTestSetup {
             .chain_id
     }
 
-    pub async fn send_messages_to_l2(&self, l1_to_l2_messages_args: &[L1ToL2MessageArgs]) {
-        for l1_to_l2_message_args in l1_to_l2_messages_args {
-            self.anvil_base_layer
-                .ethereum_base_layer
-                .contract
-                .send_message_to_l2(l1_to_l2_message_args)
-                .await;
+    pub async fn send_messages_to_l2(&self, l1_handlers: &[L1HandlerTransaction]) {
+        for l1_handler in l1_handlers {
+            self.anvil_base_layer.ethereum_base_layer.contract.send_message_to_l2(l1_handler).await;
         }
     }
 }
