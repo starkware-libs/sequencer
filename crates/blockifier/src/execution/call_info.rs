@@ -95,6 +95,12 @@ impl EventSummary {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, derive_more::AddAssign, PartialEq)]
+pub struct CallSummary {
+    pub n_calls: u64,
+    pub n_calls_running_native: u64,
+}
+
 pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -104,6 +110,7 @@ pub struct ExecutionSummary {
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub l2_to_l1_payload_lengths: Vec<usize>,
     pub event_summary: EventSummary,
+    pub call_summary: CallSummary,
 }
 
 impl Add for ExecutionSummary {
@@ -115,6 +122,7 @@ impl Add for ExecutionSummary {
         self.visited_storage_entries.extend(other.visited_storage_entries);
         self.l2_to_l1_payload_lengths.extend(other.l2_to_l1_payload_lengths);
         self.event_summary += other.event_summary;
+        self.call_summary += other.call_summary;
         self
     }
 }
@@ -255,6 +263,13 @@ impl CallInfo {
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
         let mut event_summary = EventSummary::default();
         let mut l2_to_l1_payload_lengths = Vec::new();
+        let mut call_summary = CallSummary::default();
+
+        if versioned_constants.ignore_inner_event_resources {
+            // For reexecution of 0.13.1 blocks, we ignore inner events resources - only outermost
+            // event data will be processed.
+            event_summary = self.specific_event_summary();
+        }
 
         for call_info in self.iter() {
             // Class hashes.
@@ -283,12 +298,10 @@ impl CallInfo {
             if !versioned_constants.ignore_inner_event_resources {
                 event_summary += call_info.specific_event_summary();
             }
-        }
-
-        if versioned_constants.ignore_inner_event_resources {
-            // For reexecution of 0.13.1 blocks, we ignore inner events resources - only outermost
-            // event data will be processed.
-            event_summary = self.specific_event_summary();
+            call_summary.n_calls += 1;
+            if call_info.execution.cairo_native {
+                call_summary.n_calls_running_native += 1;
+            }
         }
 
         ExecutionSummary {
@@ -302,6 +315,7 @@ impl CallInfo {
             visited_storage_entries,
             l2_to_l1_payload_lengths,
             event_summary,
+            call_summary,
         }
     }
 
