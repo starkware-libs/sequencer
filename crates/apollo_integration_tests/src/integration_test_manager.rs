@@ -634,7 +634,7 @@ impl IntegrationTestManager {
         let send_l1_handler_tx_fn = &mut |l1_handler_tx| {
             send_message_to_l2_and_calculate_tx_hash(
                 l1_handler_tx,
-                &self.anvil_base_layer.ethereum_base_layer.contract,
+                &self.anvil_base_layer,
                 &chain_id,
             )
         };

@@ -53,10 +53,8 @@ use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    StarknetL1Contract,
-};
+use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
+use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::Deserialize;
 use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
@@ -474,10 +472,10 @@ pub fn create_l1_to_l2_messages_args(
 
 pub async fn send_message_to_l2_and_calculate_tx_hash(
     l1_handler: L1HandlerTransaction,
-    starknet_l1_contract: &StarknetL1Contract,
+    anvil_base_layer: &AnvilBaseLayer,
     chain_id: &ChainId,
 ) -> TransactionHash {
-    starknet_l1_contract.send_message_to_l2(&l1_handler).await;
+    anvil_base_layer.send_message_to_l2(&l1_handler).await;
     l1_handler.calculate_transaction_hash(chain_id, &l1_handler.version).unwrap()
 }
 
