@@ -750,7 +750,8 @@ pub fn get_tx_weights<S: StateReader>(
         &mut builtin_counters_without_casm_hash_computation,
         &tx_resources.computation.os_vm_resources.prover_builtins(),
     );
-
+    // TODO(Meshi): Add proving builtin_counters to the
+    // `builtin_counters_without_casm_hash_computation`.
     let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
         &builtin_counters_without_casm_hash_computation,
         sierra_gas_without_casm_hash_computation,
