@@ -86,17 +86,8 @@ impl Deployment {
         result
     }
 
-    pub fn get_config_file_paths(&self) -> Vec<Vec<String>> {
-        self.services
-            .iter()
-            .map(|service| {
-                service
-                    .get_config_paths()
-                    .into_iter()
-                    .map(|s| format!("{}{}", self.application_config_subdir.to_string_lossy(), s))
-                    .collect::<Vec<_>>()
-            })
-            .collect()
+    pub fn get_all_services_config_paths(&self) -> Vec<Vec<String>> {
+        self.services.iter().map(|service| service.get_service_config_paths()).collect()
     }
 
     pub fn deployment_file_path(&self) -> PathBuf {

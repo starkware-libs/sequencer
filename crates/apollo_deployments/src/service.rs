@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::iter::once;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use apollo_config::dumping::SerializeConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -10,6 +10,7 @@ use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::config_utils::config_to_preset;
 use indexmap::IndexMap;
+use serde::ser::SerializeSeq;
 use serde::{Serialize, Serializer};
 use serde_json::json;
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
@@ -44,6 +45,7 @@ pub struct Service {
     node_service: NodeService,
     // TODO(Tsabary): change config path to PathBuf type.
     controller: Controller,
+    #[serde(serialize_with = "serialize_vec_strip_prefix")]
     config_paths: Vec<String>,
     ingress: Option<Ingress>,
     k8s_service_config: Option<K8sServiceConfig>,
@@ -53,8 +55,6 @@ pub struct Service {
     toleration: Option<Toleration>,
     resources: Resources,
     external_secret: Option<ExternalSecret>,
-    #[serde(skip_serializing)]
-    environment: Environment,
     anti_affinity: bool,
     ports: BTreeMap<ServicePort, u16>,
 }
@@ -78,18 +78,8 @@ impl Service {
 
         let service_file_path = node_service.get_service_file_path();
 
-        let config_paths = config_filenames
-            .iter()
-            .cloned()
-            .chain(once(service_file_path))
-            .map(|p| {
-                // Strip the parent dir prefix.
-                Path::new(&p)
-                    .strip_prefix(CONFIG_BASE_DIR)
-                    .map(|stripped| stripped.to_string_lossy().into_owned())
-                    .expect("Failed to strip mutual prefix")
-            })
-            .collect();
+        let config_paths =
+            config_filenames.iter().cloned().chain(once(service_file_path)).collect();
 
         let controller = node_service.get_controller();
         let autoscale = node_service.get_autoscale();
@@ -113,16 +103,34 @@ impl Service {
             toleration,
             resources,
             external_secret,
-            // TODO(Tsabary): consider removing `environment` from the `Service` struct.
-            environment,
             anti_affinity,
             ports,
         }
     }
 
-    pub fn get_config_paths(&self) -> Vec<String> {
+    pub fn get_service_config_paths(&self) -> Vec<String> {
         self.config_paths.clone()
     }
+}
+
+fn serialize_vec_strip_prefix<S>(vec: &Vec<String>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let mut seq = serializer.serialize_seq(Some(vec.len()))?;
+
+    for s in vec {
+        if let Some(stripped) = s.strip_prefix(CONFIG_BASE_DIR) {
+            seq.serialize_element(stripped)?;
+        } else {
+            return Err(serde::ser::Error::custom(format!(
+                "Expected all items to start with '{}', got '{}'",
+                CONFIG_BASE_DIR, s
+            )));
+        }
+    }
+
+    seq.end()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumDiscriminants)]

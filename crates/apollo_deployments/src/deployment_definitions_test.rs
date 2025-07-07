@@ -54,7 +54,7 @@ fn load_and_process_service_config_files() {
     serialize_to_file(to_value(&secrets_config_override).unwrap(), temp_file_path);
 
     for deployment in DEPLOYMENTS.iter().flat_map(|f| f()) {
-        for mut service_config_paths in deployment.get_config_file_paths().into_iter() {
+        for mut service_config_paths in deployment.get_all_services_config_paths().into_iter() {
             println!(
                 "Loading deployment {} in path {:?} with application files {:?} ... ",
                 deployment.get_node_type(),
