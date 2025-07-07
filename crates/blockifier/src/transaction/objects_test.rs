@@ -16,6 +16,7 @@ use crate::execution::call_info::{
     EventSummary,
     ExecutionSummary,
     MessageToL1,
+    NumberOfCalls,
     OrderedEvent,
     OrderedL2ToL1Message,
     StorageAccessTracker,
@@ -288,6 +289,7 @@ fn test_summarize(
             total_event_keys: 0,
             total_event_data_size: 0,
         },
+        number_of_calls: NumberOfCalls { n_calls: 6, n_calls_run_native: 0 },
     };
 
     // Omit the fee transfer builtin counters as done in `summarize_builtins`.
