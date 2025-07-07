@@ -6,7 +6,7 @@ use indexmap::IndexMap;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::transaction_manager::StagingEpoch;
 
@@ -26,6 +26,7 @@ pub struct TransactionRecord {
     committed: bool,
     rejected: bool,
     cancellation_requested_at: Option<BlockTimestamp>,
+    consumed_at: Option<BlockTimestamp>,
     /// A record is staged iff its epoch equals the record owner's (tx manager) epoch counter.
     staged_epoch: StagingEpoch,
 }
@@ -94,6 +95,37 @@ impl TransactionRecord {
             Some(existing) => Some(existing),
             None => {
                 self.cancellation_requested_at = Some(timestamp);
+                None
+            }
+        }
+    }
+
+    /// Mark a transaction as consumed on L1.
+    /// If tx was not already consumed (expected result), return None.
+    /// If tx was already consumed (double consumption), return the time when it was previously
+    /// consumed. Note that double consumption is a bug.
+    pub fn mark_consumed(&mut self, timestamp: BlockTimestamp) -> Option<BlockTimestamp> {
+        if self.is_committed() {
+            debug!("Marking a committed transaction {} as consumed.", self.tx.tx_hash());
+        } else {
+            // TODO(guyn): check if this situation should be an error.
+            // TODO(guyn): check other state combinations that may be worth an error/warning/debug
+            // log.
+            debug!(
+                "Marking a non-committed transaction {} as consumed. Previous state: {:?}",
+                self.tx.tx_hash(),
+                self.state
+            );
+        }
+        self.state = TransactionState::Consumed;
+        // First check if the tx was already consumed. Double consumption is a bug!
+        // If None, it wasn't previously consumed: mark the time and return None to signal
+        // everything is ok. If Some, it was already consumed: report the time when it was
+        // previously consumed, the caller decides what to do.
+        match self.consumed_at {
+            Some(existing) => Some(existing),
+            None => {
+                self.consumed_at = Some(timestamp);
                 None
             }
         }
