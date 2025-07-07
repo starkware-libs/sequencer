@@ -8,4 +8,6 @@ pub mod global_cache;
 pub mod native_class_manager;
 pub mod state_api;
 pub mod state_reader_and_contract_manager;
+#[cfg(any(feature = "testing", test))]
 pub mod stateful_compression;
+pub mod stateful_compression_test_utils;
