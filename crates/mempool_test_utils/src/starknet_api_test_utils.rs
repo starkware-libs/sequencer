@@ -8,7 +8,6 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
-use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
@@ -179,14 +178,13 @@ impl L1HandlerTransactionGenerator {
 
     /// Creates an L1 handler transaction calling the "l1_handler_set_value" entry point in
     /// [TestContract](FeatureContract::TestContract).
-    fn create_l1_to_l2_message_args(&mut self) -> L1ToL2MessageArgs {
-        let l1_tx_nonce = self.l1_tx_nonce;
+    fn create_l1_to_l2_message_args(&mut self) -> L1HandlerTransaction {
         self.l1_tx_nonce += 1;
         // TODO(Arni): Get test contract from test setup.
         let test_contract =
             FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
-        let l1_handler_tx = L1HandlerTransaction {
+        L1HandlerTransaction {
             contract_address: test_contract.get_instance_address(0),
             // TODO(Arni): Consider saving this value as a lazy constant.
             entry_point_selector: selector_from_name("l1_handler_set_value"),
@@ -197,9 +195,7 @@ impl L1HandlerTransactionGenerator {
                 felt!("0x44")   // value
             ],
             ..Default::default()
-        };
-
-        L1ToL2MessageArgs { tx: l1_handler_tx, l1_tx_nonce }
+        }
     }
 
     fn n_generated_txs(&self) -> u64 {
@@ -361,7 +357,7 @@ impl MultiAccountTransactionGenerator {
             .collect()
     }
 
-    pub fn create_l1_to_l2_message_args(&mut self) -> L1ToL2MessageArgs {
+    pub fn create_l1_to_l2_message_args(&mut self) -> L1HandlerTransaction {
         self.l1_handler_tx_generator.create_l1_to_l2_message_args()
     }
 
