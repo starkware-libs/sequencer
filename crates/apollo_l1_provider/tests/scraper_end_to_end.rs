@@ -146,7 +146,7 @@ async fn scraper_end_to_end() {
     let mut scraper = L1Scraper::new(
         l1_scraper_config,
         Arc::new(l1_provider_client),
-        base_layer.clone(),
+        base_layer.ethereum_base_layer.clone(),
         event_identifiers_to_track(),
         l1_start_block,
     )
