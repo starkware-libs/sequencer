@@ -118,6 +118,9 @@ install_dependencies() {
   else
     log_debug "GitPython is already installed ✅"
   fi
+
+  # Install all the strakware specific deps.
+  pip3 install -r "${REPO_LOCATION}/scripts/requirements.txt"
 }
 
 setup_new_venv() {
