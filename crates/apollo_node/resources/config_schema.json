@@ -1479,6 +1479,11 @@
     "privacy": "Public",
     "value": 300
   },
+  "l1_provider_config.l1_handler_consumption_timelock_seconds": {
+    "description": "How long to wait after a transaction is consumed on L1 before it can be cleared from the transaction manager.",
+    "privacy": "Public",
+    "value": 300.0
+  },
   "l1_provider_config.new_l1_handler_cooldown_seconds": {
     "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately).",
     "privacy": "Public",
