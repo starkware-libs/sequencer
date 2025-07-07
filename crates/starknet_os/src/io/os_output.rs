@@ -107,12 +107,12 @@ pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
 // An L1 to L2 message header, the message payload is concatenated to the end of the header.
 pub struct MessageToL2 {
     // The L1 address of the contract sending the message.
-    from_address: EthAddress,
+    pub from_address: EthAddress,
     // The L2 address of the contract receiving the message.
-    to_address: ContractAddress,
-    nonce: Nonce,
-    selector: EntryPointSelector,
-    payload: L1ToL2Payload,
+    pub to_address: ContractAddress,
+    pub nonce: Nonce,
+    pub selector: EntryPointSelector,
+    pub payload: L1ToL2Payload,
 }
 
 impl MessageToL2 {
@@ -155,17 +155,17 @@ fn parse_storage_changes<It: Iterator<Item = Felt> + ?Sized>(
 /// Represents the changes in a contract instance.
 pub struct ContractChanges {
     // The address of the contract.
-    addr: ContractAddress,
+    pub addr: ContractAddress,
     // The previous nonce of the contract (for account contracts, if full output).
-    prev_nonce: Option<Nonce>,
+    pub prev_nonce: Option<Nonce>,
     // The new nonce of the contract (for account contracts, if changed or full output).
-    new_nonce: Option<Nonce>,
+    pub new_nonce: Option<Nonce>,
     // The previous class hash (if full output).
-    prev_class_hash: Option<ClassHash>,
+    pub prev_class_hash: Option<ClassHash>,
     // The new class hash (if changed or full output).
-    new_class_hash: Option<ClassHash>,
+    pub new_class_hash: Option<ClassHash>,
     // A map from storage key to its prev value (optional) and new value.
-    storage_changes: Vec<ContractStorageUpdate>,
+    pub storage_changes: Vec<ContractStorageUpdate>,
 }
 
 impl ContractChanges {
