@@ -602,6 +602,7 @@ fn memory_holes_to_gas(
     vm_resource_to_gas_amount(n_memory_holes, gas_per_memory_hole, "memory_holes")
 }
 
+// TODO(Meshi): Add proving builtin_counters to this function.
 /// Calculates proving gas from builtin counters and Sierra gas.
 fn proving_gas_from_builtins_and_sierra_gas(
     builtin_counters: &BuiltinCounterMap,
