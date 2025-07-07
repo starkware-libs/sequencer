@@ -1,5 +1,6 @@
 use std::collections::BTreeSet;
 use std::env;
+use std::fs::File;
 
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
@@ -10,13 +11,16 @@ use apollo_node::config::component_execution_config::{
 };
 use apollo_node::config::config_utils::private_parameters;
 use apollo_node::config::node_config::SequencerNodeConfig;
-use serde_json::to_value;
+use serde_json::{to_value, Map};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::DEPLOYMENTS;
 use crate::service::NodeType;
 use crate::test_utils::{SecretsConfigOverride, FIX_BINARY_NAME};
+
+const SECRETS_FOR_TESTING_ENV_PATH: &str =
+    "crates/apollo_deployments/resources/testing_secrets.json";
 
 /// Test that the deployment file is up to date.
 #[test]
@@ -108,6 +112,32 @@ fn secrets_config_and_private_parameters_config_schema_compatibility() {
             "Secrets config override schema mismatch:\nSecrets provided by config: {:?}\nSecrets \
              required by schema: {:?}\nOnly in config: {:?}\nOnly in schema: {:?}",
             secrets_provided_by_config, secrets_required_by_schema, only_in_config, only_in_schema
+        );
+    }
+
+    let secrets_for_testing_file_path =
+        &resolve_project_relative_path(SECRETS_FOR_TESTING_ENV_PATH).unwrap();
+    let secrets_for_testing: BTreeSet<_> = (serde_json::from_reader::<_, Map<String, _>>(
+        File::open(secrets_for_testing_file_path).unwrap(),
+    )
+    .unwrap())
+    .keys()
+    .cloned()
+    .collect();
+
+    let only_in_secrets_for_testing: BTreeSet<_> =
+        secrets_for_testing.difference(&secrets_required_by_schema).collect();
+    let only_in_schema: BTreeSet<_> =
+        secrets_required_by_schema.difference(&secrets_for_testing).collect();
+
+    if !(only_in_secrets_for_testing.is_empty() && only_in_schema.is_empty()) {
+        panic!(
+            "Secrets for testing and schema mismatch:\nSecrets for testing: {:?}\nSecrets \
+             required by schema: {:?}\nOnly in testing: {:?}\nOnly in schema: {:?}",
+            secrets_provided_by_config,
+            secrets_required_by_schema,
+            only_in_secrets_for_testing,
+            only_in_schema
         );
     }
 }
