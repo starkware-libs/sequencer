@@ -326,9 +326,9 @@ impl SingleHeightConsensus {
                 // a network issue.
                 let old = self.proposals.insert(round, proposal_id);
                 let old = old.unwrap_or_else(|| {
-                    panic!("Proposal entry should exist from init. round: {round}")
+                    panic!("Proposal entry should exist from init. round={round}")
                 });
-                assert!(old.is_none(), "Proposal already exists for this round: {round}. {old:?}");
+                assert!(old.is_none(), "Proposal already exists for this round={round}. {old:?}");
                 let sm_events = self.state_machine.handle_event(
                     StateMachineEvent::Proposal(proposal_id, round, valid_round),
                     &leader_fn,
@@ -593,7 +593,7 @@ impl SingleHeightConsensus {
     ) -> Result<ShcReturn, ConsensusError> {
         let invalid_decision = |msg: String| {
             ConsensusError::InternalInconsistency(format!(
-                "Invalid decision: sm_proposal_id: {proposal_id}, round: {round}. {msg}",
+                "Invalid decision: sm_proposal_id={proposal_id}, round={round}. {msg}",
             ))
         };
         let block = self
