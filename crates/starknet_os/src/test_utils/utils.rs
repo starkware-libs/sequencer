@@ -4,6 +4,7 @@ use std::sync::LazyLock;
 
 use cairo_vm::hint_processor::builtin_hint_processor::dict_hint_utils::DICT_ACCESS_SIZE;
 use cairo_vm::types::layout_name::LayoutName;
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use ethnum::U256;
 use num_bigint::{BigInt, Sign};
 use rand::rngs::StdRng;
@@ -57,8 +58,9 @@ pub fn create_squashed_cairo_dict(
     sorted_new_values.sort_by_key(|(key, _)| *key);
 
     for (key, value) in sorted_new_values {
-        let prev_value: &EndpointArg =
-            prev_values.get(key).unwrap_or(&EndpointArg::Value(ValueArg::Single(Felt::ZERO)));
+        let prev_value: &EndpointArg = prev_values
+            .get(key)
+            .unwrap_or(&EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(Felt::ZERO))));
         squashed_dict.push((*key).into());
         squashed_dict.push(prev_value.clone());
         squashed_dict.push(value.clone());
