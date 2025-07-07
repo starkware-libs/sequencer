@@ -799,6 +799,15 @@
           "native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "calls_running_native_rate",
+        "description": "The rate of calls running native in the Blockifier State Reader",
+        "type": "timeseries",
+        "exprs": [
+          "100 * (increase(calls_running_native{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / increase(number_of_total_calls{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]))"
+        ],
+        "extra_params": {}
       }
     ],
     "Batcher Infra": [
