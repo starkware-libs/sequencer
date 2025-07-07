@@ -55,7 +55,14 @@ apollo_starknet_client.workspace = true
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_storage = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
+<<<<<<< HEAD
 apollo_time = { workspace = true, features = ["testing", "tokio"] }
+||||||| 511a6f78a
+=======
+assert_matches.workspace = true
+blockifier = { workspace = true, features = ["testing"] }
+blockifier_test_utils = { workspace = true }
+>>>>>>> origin/constaking
 cairo-lang-casm.workspace = true
 cairo-lang-utils.workspace = true
 cairo-vm.workspace = true

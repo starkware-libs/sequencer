@@ -54,7 +54,12 @@ const ERC20_CONTRACT_BASE: u32 = 8 * CLASS_HASH_BASE;
 const CAIRO_STEPS_TEST_CONTRACT_BASE: u32 = 9 * CLASS_HASH_BASE;
 const SIERRA_EXECUTION_INFO_V1_CONTRACT_BASE: u32 = 10 * CLASS_HASH_BASE;
 const META_TX_CONTRACT_BASE: u32 = 11 * CLASS_HASH_BASE;
+<<<<<<< HEAD
 const EMPTY_ACCOUNT_BASE: u32 = 12 * CLASS_HASH_BASE;
+||||||| 511a6f78a
+=======
+const MOCK_STAKING_CONTRACT_BASE: u32 = 12 * CLASS_HASH_BASE;
+>>>>>>> origin/constaking
 
 // Contract names.
 const ACCOUNT_LONG_VALIDATE_NAME: &str = "account_with_long_validate";
@@ -68,7 +73,7 @@ const CAIRO_STEPS_TEST_CONTRACT_NAME: &str = "cairo_steps_test_contract";
 const EXECUTION_INFO_V1_CONTRACT_NAME: &str = "test_contract_execution_info_v1";
 const EMPTY_ACCOUNT_NAME: &str = "empty_account";
 const META_TX_CONTRACT_NAME: &str = "meta_tx_test_contract";
-
+const MOCK_STAKING_CONTRACT_NAME: &str = "mock_staking";
 // ERC20 contract is in a unique location.
 const ERC20_CAIRO0_CONTRACT_SOURCE_PATH: &str =
     "./resources/ERC20/ERC20_Cairo0/ERC20_without_some_syscalls/ERC20/ERC20.cairo";
@@ -101,6 +106,7 @@ pub enum FeatureContract {
     CairoStepsTestContract,
     SierraExecutionInfoV1Contract(RunnableCairo1),
     MetaTx(RunnableCairo1),
+    MockStakingContract(RunnableCairo1),
 }
 
 impl FeatureContract {
@@ -117,8 +123,17 @@ impl FeatureContract {
                 CairoVersion::Cairo1(RunnableCairo1::Casm)
             }
             Self::SierraExecutionInfoV1Contract(runnable_version)
+<<<<<<< HEAD
             | Self::MetaTx(runnable_version)
             | Self::EmptyAccount(runnable_version) => CairoVersion::Cairo1(*runnable_version),
+||||||| 511a6f78a
+            | Self::MetaTx(runnable_version) => CairoVersion::Cairo1(*runnable_version),
+=======
+            | Self::MetaTx(runnable_version)
+            | Self::MockStakingContract(runnable_version) => {
+                CairoVersion::Cairo1(*runnable_version)
+            }
+>>>>>>> origin/constaking
         }
     }
 
@@ -130,12 +145,26 @@ impl FeatureContract {
             | Self::FaultyAccount(v)
             | Self::TestContract(v)
             | Self::ERC20(v) => *v = version,
+<<<<<<< HEAD
             Self::SierraExecutionInfoV1Contract(rv) | Self::MetaTx(rv) | Self::EmptyAccount(rv) => {
                 match version {
                     CairoVersion::Cairo0 => panic!("{self:?} must be Cairo1"),
                     CairoVersion::Cairo1(runnable) => *rv = runnable,
                 }
             }
+||||||| 511a6f78a
+            Self::SierraExecutionInfoV1Contract(rv) | Self::MetaTx(rv) => match version {
+                CairoVersion::Cairo0 => panic!("{self:?} must be Cairo1"),
+                CairoVersion::Cairo1(runnable) => *rv = runnable,
+            },
+=======
+            Self::SierraExecutionInfoV1Contract(rv)
+            | Self::MetaTx(rv)
+            | Self::MockStakingContract(rv) => match version {
+                CairoVersion::Cairo0 => panic!("{self:?} must be Cairo1"),
+                CairoVersion::Cairo1(runnable) => *rv = runnable,
+            },
+>>>>>>> origin/constaking
             Self::SecurityTests | Self::CairoStepsTestContract | Self::LegacyTestContract => {
                 panic!("{self:?} contract has no configurable version.")
             }
@@ -231,6 +260,7 @@ impl FeatureContract {
                 Self::SierraExecutionInfoV1Contract(_) => SIERRA_EXECUTION_INFO_V1_CONTRACT_BASE,
                 Self::EmptyAccount(_) => EMPTY_ACCOUNT_BASE,
                 Self::MetaTx(_) => META_TX_CONTRACT_BASE,
+                Self::MockStakingContract(_) => MOCK_STAKING_CONTRACT_BASE,
             }
     }
 
@@ -247,6 +277,7 @@ impl FeatureContract {
             Self::SierraExecutionInfoV1Contract(_) => EXECUTION_INFO_V1_CONTRACT_NAME,
             Self::EmptyAccount(_) => EMPTY_ACCOUNT_NAME,
             Self::MetaTx(_) => META_TX_CONTRACT_NAME,
+            Self::MockStakingContract(_) => MOCK_STAKING_CONTRACT_NAME,
             Self::ERC20(_) => unreachable!(),
         }
     }
@@ -341,8 +372,15 @@ impl FeatureContract {
                     | FeatureContract::LegacyTestContract
                     | FeatureContract::CairoStepsTestContract
                     | FeatureContract::SierraExecutionInfoV1Contract(_)
+<<<<<<< HEAD
                     | FeatureContract::EmptyAccount(_)
                     | FeatureContract::MetaTx(_) => None,
+||||||| 511a6f78a
+                    | FeatureContract::MetaTx(_) => None,
+=======
+                    | FeatureContract::MetaTx(_)
+                    | FeatureContract::MockStakingContract(_) => None,
+>>>>>>> origin/constaking
                     FeatureContract::ERC20(_) => unreachable!(),
                 };
                 cairo0_compile(self.get_source_path(), extra_arg, false)
@@ -381,7 +419,15 @@ impl FeatureContract {
                 self.iter_versions(&versions)
             }
 
+<<<<<<< HEAD
             Self::SierraExecutionInfoV1Contract(_) | Self::MetaTx(_) | Self::EmptyAccount(_) => {
+||||||| 511a6f78a
+            Self::SierraExecutionInfoV1Contract(_) | Self::MetaTx(_) => {
+=======
+            Self::SierraExecutionInfoV1Contract(_)
+            | Self::MetaTx(_)
+            | Self::MockStakingContract(_) => {
+>>>>>>> origin/constaking
                 #[cfg(not(feature = "cairo_native"))]
                 {
                     vec![*self]

@@ -1118,9 +1118,15 @@ dependencies = [
  "apollo_state_sync_types",
  "apollo_storage",
  "apollo_test_utils",
+<<<<<<< HEAD
  "apollo_time",
+||||||| 511a6f78a
+=======
+ "assert_matches",
+>>>>>>> origin/constaking
  "async-trait",
  "blockifier",
+ "blockifier_test_utils",
  "cairo-lang-casm",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
@@ -3328,6 +3334,7 @@ dependencies = [
  "derive_more 0.99.18",
  "expect-test",
  "glob",
+ "hex",
  "indexmap 2.9.0",
  "itertools 0.12.1",
  "keccak",
