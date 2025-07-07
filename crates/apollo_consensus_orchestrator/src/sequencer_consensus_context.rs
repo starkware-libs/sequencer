@@ -466,7 +466,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .filter(|tx| central_objects.execution_infos.contains_key(&tx.tx_hash()))
             .collect();
 
-        let gas_target = GasAmount(VersionedConstants::latest_constants().max_block_size.0 / 2);
+        let gas_target = VersionedConstants::latest_constants().gas_target;
         self.l2_gas_price =
             calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
 
