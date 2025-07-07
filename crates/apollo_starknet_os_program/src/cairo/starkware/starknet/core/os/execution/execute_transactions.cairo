@@ -568,6 +568,13 @@ func execute_l1_handler_transaction{
 }(block_context: BlockContext*) {
     alloc_locals;
 
+    %{ execution_helper.start_tx() %}
+    // Skip the execution step for reverted transaction.
+    if (nondet %{ execution_helper.tx_execution_info.is_reverted %} != FALSE) {
+        %{ execution_helper.end_tx() %}
+        return ();
+    }
+
     let (local tx_execution_context: ExecutionContext*) = get_invoke_tx_execution_context(
         block_context=block_context,
         entry_point_type=ENTRY_POINT_TYPE_L1_HANDLER,
@@ -591,13 +598,6 @@ func execute_l1_handler_transaction{
             "Computed transaction_hash is inconsistent with the hash in the transaction. "
             f"Computed hash = {ids.transaction_hash}, Expected hash = {tx.hash_value}.")
     %}
-
-    %{ execution_helper.start_tx() %}
-    // Skip the execution step for reverted transaction.
-    if (nondet %{ execution_helper.tx_execution_info.is_reverted %} != FALSE) {
-        %{ execution_helper.end_tx() %}
-        return ();
-    }
 
     // Write the transaction info and complete the ExecutionInfo struct.
     tempvar tx_info = tx_execution_info.tx_info;
