@@ -124,16 +124,14 @@ async fn events_from_other_contract() {
 
     let anvil_base_layer = AnvilBaseLayer::new().await;
     // Anvil base layer already auto-deployed a starknet contract.
-    let this_contract = anvil_base_layer.ethereum_base_layer;
+    let this_contract = &anvil_base_layer.ethereum_base_layer.contract;
 
     // Setup.
 
     // Deploy another instance of the contract to the same anvil instance.
-    let provider = this_contract.contract.provider().clone();
-    let other_contract = Starknet::deploy(provider).await.unwrap();
-
+    let other_contract = Starknet::deploy(this_contract.provider().clone()).await.unwrap();
     assert_ne!(
-        this_contract.contract.address(),
+        this_contract.address(),
         other_contract.address(),
         "The two contracts should be different."
     );
@@ -144,7 +142,7 @@ async fn events_from_other_contract() {
         calldata: calldata!(DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, felt!("0x1"), felt!("0x2")),
         ..Default::default()
     };
-    let this_receipt = this_contract.contract.send_message_to_l2(&this_l1_handler.clone()).await;
+    let this_receipt = this_contract.send_message_to_l2(&this_l1_handler.clone()).await;
     assert!(this_receipt.status());
     let this_block_number = this_receipt.block_number.unwrap();
 
@@ -162,8 +160,11 @@ async fn events_from_other_contract() {
     let max_block_number = this_block_number.max(other_block_number).saturating_add(1);
 
     // Test the events.
-    let mut events =
-        this_contract.events(min_block_number..=max_block_number, EVENT_IDENTIFIERS).await.unwrap();
+    let mut events = anvil_base_layer
+        .ethereum_base_layer
+        .events(min_block_number..=max_block_number, EVENT_IDENTIFIERS)
+        .await
+        .unwrap();
 
     assert_eq!(events.len(), 1, "Expected only events from this contract.");
     assert_matches!(events.remove(0), L1Event::LogMessageToL2 { tx, .. } if tx == this_l1_handler);
