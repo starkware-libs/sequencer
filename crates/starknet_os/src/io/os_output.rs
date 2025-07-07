@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+
+use blockifier::state::cached_state::StateMaps;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -271,6 +274,37 @@ impl OsStateDiff {
             classes.push((class_hash, (prev_compiled_class_hash, new_compiled_class_hash)));
         }
         Ok(Self { contracts, classes })
+    }
+
+    /// Returns the state diff as a [StateMaps] object.
+    pub fn as_state_maps(&self) -> StateMaps {
+        let class_hashes = self
+            .contracts
+            .iter()
+            .filter_map(|contract| {
+                contract.new_class_hash.map(|class_hash| (contract.addr, class_hash))
+            })
+            .collect();
+        let nonces = self
+            .contracts
+            .iter()
+            .filter_map(|contract| contract.new_nonce.map(|nonce| (contract.addr, nonce)))
+            .collect();
+        let mut storage = HashMap::new();
+        for contract in &self.contracts {
+            for (key, (_prev_val, new_val)) in &contract.storage_changes {
+                storage.insert((contract.addr, *key), *new_val);
+            }
+        }
+        let compiled_class_hashes = self
+            .classes
+            .iter()
+            .map(|(class_hash, (_prev_compiled_class_hash, new_compiled_class_hash))| {
+                (*class_hash, *new_compiled_class_hash)
+            })
+            .collect();
+        let declared_contracts = HashMap::new();
+        StateMaps { nonces, class_hashes, storage, compiled_class_hashes, declared_contracts }
     }
 }
 
