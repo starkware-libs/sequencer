@@ -541,15 +541,42 @@
       "severity": "p5"
     },
     {
-      "name": "gateway_add_tx_idle",
-      "title": "Gateway add_tx idle",
-      "ruleGroup": "gateway",
-      "expr": "increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
+      "name": "eth_to_strk_error_count",
+      "title": "Eth to Strk error count",
+      "ruleGroup": "l1_gas_price",
+      "expr": "increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.1
+              10.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "1m",
+      "intervalSec": 20,
+      "severity": "p5"
+    },
+    {
+      "name": "eth_to_strk_success_count",
+      "title": "Eth to Strk success count",
+      "ruleGroup": "l1_gas_price",
+      "expr": "increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
             ],
             "type": "lt"
           },
@@ -565,18 +592,18 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p3"
     },
     {
-      "name": "http_server_idle",
-      "title": "http server idle",
-      "ruleGroup": "http_server",
-      "expr": "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
+      "name": "gateway_add_tx_idle",
+      "title": "Gateway add_tx idle",
+      "ruleGroup": "gateway",
+      "expr": "increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              1.0
+              0.1
             ],
             "type": "lt"
           },
@@ -622,6 +649,33 @@
       "severity": "p2"
     },
     {
+      "name": "http_server_avg_add_tx_latency",
+      "title": "High HTTP server average add_tx latency",
+      "ruleGroup": "http_server",
+      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
       "name": "http_server_high_transaction_failure_ratio",
       "title": "http server high transaction failure ratio",
       "ruleGroup": "http_server",
@@ -647,6 +701,33 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p3"
+    },
+    {
+      "name": "http_server_idle",
+      "title": "http server idle",
+      "ruleGroup": "http_server",
+      "expr": "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
     },
     {
       "name": "http_server_internal_error_ratio",
@@ -703,6 +784,33 @@
       "severity": "p4"
     },
     {
+      "name": "http_server_low_successful_transaction_rate",
+      "title": "http server low successful transaction rate",
+      "ruleGroup": "http_server",
+      "expr": "rate(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) or vector(0)",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.05
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3"
+    },
+    {
       "name": "http_server_no_successful_transactions",
       "title": "http server no successful transactions",
       "ruleGroup": "http_server",
@@ -728,6 +836,33 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p2"
+    },
+    {
+      "name": "http_server_p95_add_tx_latency",
+      "title": "High HTTP server P95 add_tx latency",
+      "ruleGroup": "http_server",
+      "expr": "histogram_quantile(0.95, sum(rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              2.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4"
     },
     {
       "name": "l1_gas_price_provider_insufficient_history",
@@ -838,15 +973,15 @@
       "severity": "p5"
     },
     {
-      "name": "eth_to_strk_error_count",
-      "title": "Eth to Strk error count",
-      "ruleGroup": "l1_gas_price",
-      "expr": "increase(eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "name": "l1_message_scraper_baselayer_error_count",
+      "title": "L1 message scraper baselayer error count",
+      "ruleGroup": "l1_messages",
+      "expr": "increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              10.0
+              5.0
             ],
             "type": "gt"
           },
@@ -860,36 +995,9 @@
           "type": "query"
         }
       ],
-      "for": "1m",
-      "intervalSec": 20,
-      "severity": "p5"
-    },
-    {
-      "name": "eth_to_strk_success_count",
-      "title": "Eth to Strk success count",
-      "ruleGroup": "l1_gas_price",
-      "expr": "increase(eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              1.0
-            ],
-            "type": "lt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p3"
+      "severity": "p5"
     },
     {
       "name": "l1_message_no_successes",
@@ -917,33 +1025,6 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p2"
-    },
-    {
-      "name": "l1_message_scraper_baselayer_error_count",
-      "title": "L1 message scraper baselayer error count",
-      "ruleGroup": "l1_messages",
-      "expr": "increase(l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              5.0
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p5"
     },
     {
       "name": "l1_message_scraper_reorg_detected",

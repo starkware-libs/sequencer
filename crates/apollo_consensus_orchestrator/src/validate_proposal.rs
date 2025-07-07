@@ -1,3 +1,7 @@
+#[cfg(test)]
+#[path = "validate_proposal_test.rs"]
+mod validate_proposal_test;
+
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -16,12 +20,13 @@ use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderCl
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_time::time::{sleep_until, Clock, DateTime};
-use futures::channel::{mpsc, oneshot};
+use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::StarknetApiError;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, warn};
 
@@ -49,7 +54,6 @@ pub(crate) struct ProposalValidateArguments {
     pub batcher_timeout_margin: Duration,
     pub valid_proposals: Arc<Mutex<BuiltProposals>>,
     pub content_receiver: mpsc::Receiver<ProposalPart>,
-    pub fin_sender: oneshot::Sender<ProposalCommitment>,
     pub gas_price_params: GasPriceParams,
     pub cancel_token: CancellationToken,
 }
@@ -71,45 +75,74 @@ enum HandledProposalPart {
     Failed(String),
 }
 
+enum SecondProposalPart {
+    BlockInfo(ConsensusBlockInfo),
+    Fin(ProposalFin),
+}
+
 type ValidateProposalResult<T> = Result<T, ValidateProposalError>;
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum ValidateProposalError {
     #[error("Batcher error: {0}")]
-    Batcher(#[from] BatcherClientError),
+    Batcher(String, BatcherClientError),
     #[error("State sync client error: {0}")]
     StateSyncClientError(#[from] StateSyncClientError),
     #[error("State sync is not ready: {0}")]
     StateSyncNotReady(String),
+    // Consensus may exit early (e.g. sync).
+    #[error("Failed to send commitment to consensus: {0}")]
+    SendError(ProposalCommitment),
     #[error("EthToStrkOracle error: {0}")]
     EthToStrkOracle(#[from] EthToStrkOracleClientError),
     #[error("L1GasPriceProvider error: {0}")]
     L1GasPriceProvider(#[from] L1GasPriceClientError),
+    #[error("Block info conversion error: {0}")]
+    BlockInfoConversion(#[from] StarknetApiError),
+    #[error("Invalid BlockInfo: {2}. received:{0:?}, validation criteria {1:?}.")]
+    InvalidBlockInfo(ConsensusBlockInfo, BlockInfoValidation, String),
+    #[error("Validation timed out.")]
+    ValidationTimeout,
+    #[error("Proposal interrupted.")]
+    ProposalInterrupted,
+    #[error("Got an invalid second proposal part: {0:?}.")]
+    InvalidSecondProposalPart(Option<ProposalPart>),
+    #[error("Batcher returned Invalid status.")]
+    InvalidProposal,
+    #[error("Proposal part {1:?} failed validation: {0}.")]
+    ProposalPartFailed(String, Option<ProposalPart>),
+    #[error("proposal_commitment built by the batcher does not match the proposal fin.")]
+    ProposalFinMismatch,
+    #[error("Cannot calculate deadline. timeout: {timeout:?}, now: {now:?}")]
+    CannotCalculateDeadline { timeout: Duration, now: DateTime },
 }
 
-pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
+pub(crate) async fn validate_proposal(
+    mut args: ProposalValidateArguments,
+) -> ValidateProposalResult<ProposalCommitment> {
     let mut content = Vec::new();
     let mut final_n_executed_txs: Option<usize> = None;
     let now = args.deps.clock.now();
 
     let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
     else {
-        warn!("Cannot calculate deadline. Timeout: {:?}, now: {:?}", args.timeout, now);
-        return;
+        return Err(ValidateProposalError::CannotCalculateDeadline { timeout: args.timeout, now });
     };
 
-    let Some((block_info, fin_sender)) = await_second_proposal_part(
+    let block_info = match await_second_proposal_part(
         &args.cancel_token,
         deadline,
         &mut args.content_receiver,
-        args.fin_sender,
         args.deps.clock.as_ref(),
     )
-    .await
-    else {
-        return;
+    .await?
+    {
+        SecondProposalPart::BlockInfo(block_info) => block_info,
+        SecondProposalPart::Fin(ProposalFin { proposal_commitment }) => {
+            return Ok(proposal_commitment);
+        }
     };
-    if !is_block_info_valid(
+    is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
         args.deps.eth_to_strk_oracle_client,
@@ -117,11 +150,9 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.deps.l1_gas_price_provider,
         &args.gas_price_params,
     )
-    .await
-    {
-        return;
-    }
-    if let Err(e) = initiate_validation(
+    .await?;
+
+    initiate_validation(
         args.deps.batcher.as_ref(),
         args.deps.state_sync_client,
         block_info.clone(),
@@ -129,29 +160,24 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
         args.timeout + args.batcher_timeout_margin,
         args.deps.clock.as_ref(),
     )
-    .await
-    {
-        error!("Failed to initiate proposal validation. {e:?}");
-        return;
-    }
+    .await?;
+
     // Validating the rest of the proposal parts.
     let (built_block, received_fin) = loop {
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
-                warn!("Proposal interrupted during validation.");
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                return;
+                return Err(ValidateProposalError::ProposalInterrupted);
             }
             _ = sleep_until(deadline, args.deps.clock.as_ref()) => {
-                warn!("Validation timed out.");
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                return;
+                return Err(ValidateProposalError::ValidationTimeout);
             }
             proposal_part = args.content_receiver.next() => {
                 match handle_proposal_part(
                     args.proposal_id,
                     args.deps.batcher.as_ref(),
-                    proposal_part,
+                    proposal_part.clone(),
                     &mut content,
                     &mut final_n_executed_txs,
                     args.deps.transaction_converter.clone(),
@@ -161,14 +187,12 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
                     }
                     HandledProposalPart::Continue => {continue;}
                     HandledProposalPart::Invalid => {
-                        warn!("Invalid proposal.");
                         // No need to abort since the Batcher is the source of this info.
-                        return;
+                        return Err(ValidateProposalError::InvalidProposal);
                     }
                     HandledProposalPart::Failed(fail_reason) => {
-                        warn!("Failed to handle proposal part. {fail_reason}");
                         batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                        return;
+                        return Err(ValidateProposalError::ProposalPartFailed(fail_reason,proposal_part));
                     }
                 }
             }
@@ -192,14 +216,10 @@ pub(crate) async fn validate_proposal(mut args: ProposalValidateArguments) {
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
-        warn!("proposal_id built from content received does not match fin.");
-        return;
+        return Err(ValidateProposalError::ProposalFinMismatch);
     }
 
-    if fin_sender.send(built_block).is_err() {
-        // Consensus may exit early (e.g. sync).
-        warn!("Failed to send proposal content ids");
-    }
+    Ok(built_block)
 }
 
 #[instrument(level = "warn", skip_all, fields(?block_info_validation, ?block_info_proposed))]
@@ -210,19 +230,42 @@ async fn is_block_info_valid(
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: &GasPriceParams,
-) -> bool {
+) -> ValidateProposalResult<()> {
     let now: u64 = clock.unix_now();
     let last_block_timestamp =
         block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
+    if block_info_proposed.timestamp < last_block_timestamp {
+        return Err(ValidateProposalError::InvalidBlockInfo(
+            block_info_proposed.clone(),
+            block_info_validation.clone(),
+            format!(
+                "Timestamp is too old: last_block_timestamp={}, proposed={}",
+                last_block_timestamp, block_info_proposed.timestamp
+            ),
+        ));
+    }
+    if block_info_proposed.timestamp > now + block_info_validation.block_timestamp_window_seconds {
+        return Err(ValidateProposalError::InvalidBlockInfo(
+            block_info_proposed.clone(),
+            block_info_validation.clone(),
+            format!(
+                "Timestamp is in the future: now={}, block_timestamp_window_seconds={}, \
+                 proposed={}",
+                now,
+                block_info_validation.block_timestamp_window_seconds,
+                block_info_proposed.timestamp
+            ),
+        ));
+    }
     if !(block_info_proposed.height == block_info_validation.height
-        && block_info_proposed.timestamp >= last_block_timestamp
-        // Check timestamp isn't in the future (allowing for clock disagreement).
-        && block_info_proposed.timestamp <= now + block_info_validation.block_timestamp_window_seconds
         && block_info_proposed.l1_da_mode == block_info_validation.l1_da_mode
         && block_info_proposed.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
     {
-        warn!("Invalid BlockInfo. local_timestamp={now}");
-        return false;
+        return Err(ValidateProposalError::InvalidBlockInfo(
+            block_info_proposed.clone(),
+            block_info_validation.clone(),
+            "Block info validation failed".to_string(),
+        ));
     }
     let (eth_to_fri_rate, l1_gas_prices) = get_oracle_rate_and_prices(
         eth_to_strk_oracle_client,
@@ -236,12 +279,14 @@ async fn is_block_info_valid(
         VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
     debug!("L1 price info: {l1_gas_prices:?}");
 
-    let l1_gas_price_fri = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate);
-    let l1_data_gas_price_fri = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate);
+    let l1_gas_price_fri = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate)?;
+    let l1_data_gas_price_fri = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate)?;
     let l1_gas_price_fri_proposed =
-        block_info_proposed.l1_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate);
-    let l1_data_gas_price_fri_proposed =
-        block_info_proposed.l1_data_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate);
+        block_info_proposed.l1_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate)?;
+    let l1_data_gas_price_fri_proposed = block_info_proposed
+        .l1_data_gas_price_wei
+        .wei_to_fri(block_info_proposed.eth_to_fri_rate)?;
+
     if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
         && within_margin(
             l1_data_gas_price_fri_proposed,
@@ -249,23 +294,25 @@ async fn is_block_info_valid(
             l1_gas_price_margin_percent,
         ))
     {
-        warn!(
-            %l1_gas_price_fri_proposed,
-            %l1_gas_price_fri,
-            %l1_data_gas_price_fri_proposed,
-            %l1_data_gas_price_fri,
-            %l1_gas_price_margin_percent,
-            "Invalid L1 gas price proposed.",
-        );
-        return false;
+        return Err(ValidateProposalError::InvalidBlockInfo(
+            block_info_proposed,
+            block_info_validation,
+            format!(
+                "L1 gas price mismatch: expected L1 gas price FRI={l1_gas_price_fri}, \
+                 proposed={l1_gas_price_fri_proposed}, expected L1 data gas price \
+                 FRI={l1_data_gas_price_fri}, proposed={l1_data_gas_price_fri_proposed}, \
+                 l1_gas_price_margin_percent={l1_gas_price_margin_percent}"
+            ),
+        ));
     }
+    // TODO(Asmaa): consider removing after 0.14 as other validators may use other sources.
     if l1_gas_price_fri_proposed != l1_gas_price_fri {
         CONSENSUS_L1_GAS_MISMATCH.increment(1);
     }
     if l1_data_gas_price_fri_proposed != l1_data_gas_price_fri {
         CONSENSUS_L1_DATA_GAS_MISMATCH.increment(1);
     }
-    true
+    Ok(())
 }
 
 fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> bool {
@@ -280,37 +327,27 @@ async fn await_second_proposal_part(
     cancel_token: &CancellationToken,
     deadline: DateTime,
     content_receiver: &mut mpsc::Receiver<ProposalPart>,
-    fin_sender: oneshot::Sender<ProposalCommitment>,
     clock: &dyn Clock,
-) -> Option<(ConsensusBlockInfo, oneshot::Sender<ProposalCommitment>)> {
+) -> ValidateProposalResult<SecondProposalPart> {
     tokio::select! {
         _ = cancel_token.cancelled() => {
-            warn!("Proposal interrupted");
-            None
+            Err(ValidateProposalError::ProposalInterrupted)
         }
         _ = sleep_until(deadline, clock) => {
-            warn!("Validation timed out.");
-            None
+            Err(ValidateProposalError::ValidationTimeout)
         }
         proposal_part = content_receiver.next() => {
             match proposal_part {
                 Some(ProposalPart::BlockInfo(block_info)) => {
-                    Some((block_info, fin_sender))
+                    Ok(SecondProposalPart::BlockInfo(block_info))
                 }
                 Some(ProposalPart::Fin(ProposalFin { proposal_commitment })) => {
                     warn!("Received an empty proposal.");
-                    if fin_sender
-                        .send(proposal_commitment)
-                        .is_err()
-                    {
-                        // Consensus may exit early (e.g. sync).
-                        warn!("Failed to send proposal content ids");
-                    }
-                    None
+                    Ok(SecondProposalPart::Fin(ProposalFin { proposal_commitment }))
                 }
                 x => {
-                    warn!("Invalid second proposal part: {x:?}");
-                    None
+                    Err(ValidateProposalError::InvalidSecondProposalPart(x
+                    ))
                 }
             }
         }
@@ -332,10 +369,15 @@ async fn initiate_validation(
         proposal_id,
         deadline: clock.now() + chrono_timeout,
         retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info).await?,
-        block_info: convert_to_sn_api_block_info(&block_info),
+        block_info: convert_to_sn_api_block_info(&block_info)?,
     };
     debug!("Initiating validate proposal: input={input:?}");
-    batcher.validate_block(input).await?;
+    batcher.validate_block(input.clone()).await.map_err(|err| {
+        ValidateProposalError::Batcher(
+            format!("Failed to initiate validate proposal {input:?}."),
+            err,
+        )
+    })?;
     Ok(())
 }
 

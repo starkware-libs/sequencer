@@ -4,12 +4,13 @@ use std::collections::{BTreeMap, VecDeque};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra_utils::info_every_n;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderResult, PriceInfo};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
-use tracing::{debug, info, warn};
+use tracing::{info, trace, warn};
 use validator::Validate;
 
 use crate::metrics::{register_provider_metrics, L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY};
@@ -133,7 +134,9 @@ impl L1GasPriceProvider {
                 });
             }
         }
-        debug!("Received price sample for L2 block: {:?}", new_data);
+        trace!("Received price sample for L1 block: {:?}", new_data);
+        // TODO(guy.f): Replace with info_every_n_sec once implemented.
+        info_every_n!(100, "Received price sample for L1 block: {:?}", new_data);
         samples.push(new_data);
         Ok(())
     }

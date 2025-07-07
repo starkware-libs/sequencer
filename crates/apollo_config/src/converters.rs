@@ -24,11 +24,12 @@
 //! assert_eq!(loaded_config.dur.as_secs(), 1);
 //! ```
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use serde::de::Error;
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serialize};
+use url::Url;
 
 /// Deserializes milliseconds to duration object.
 pub fn deserialize_milliseconds_to_duration<'de, D>(de: D) -> Result<Duration, D::Error>
@@ -88,6 +89,51 @@ where
     Ok(Some(map))
 }
 
+/// A struct containing a URL and its associated headers.
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+pub struct UrlAndHeaders {
+    /// The base URL.
+    pub url: Url,
+    /// A map of header keyword-value pairs.
+    pub headers: BTreeMap<String, String>,
+}
+
+/// Serializes a vector containing the UrlAndHeaders struct into a space-separated string.
+pub fn serialize_optional_list_with_url_and_headers(list: &Option<Vec<UrlAndHeaders>>) -> String {
+    match list {
+        None => "".to_owned(),
+        Some(list) => list
+            .iter()
+            .map(|item| {
+                serde_json::to_string(item).expect("Failed to serialize UrlAndHeader to JSON")
+            })
+            .collect::<Vec<String>>()
+            .join(" "),
+    }
+}
+
+/// Deserializes a space-separated string into a vector of UrlAndHeaders structs.
+/// Returns an error if any of the substrings cannot be parsed into a valid struct.
+pub fn deserialize_optional_list_with_url_and_headers<'de, D>(
+    de: D,
+) -> Result<Option<Vec<UrlAndHeaders>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw: String = Deserialize::deserialize(de)?;
+    if raw.trim().is_empty() {
+        return Ok(None);
+    }
+    let number_of_items = raw.split_whitespace().count();
+    let mut output = Vec::with_capacity(number_of_items);
+    for item in raw.split_whitespace() {
+        let value: UrlAndHeaders = serde_json::from_str(item)
+            .map_err(|e| D::Error::custom(format!("Invalid JSON '{item}': {e}")))?;
+        output.push(value);
+    }
+    Ok(Some(output))
+}
+
 /// Serializes a vector to string structure. The vector is expected to be a hex string.
 pub fn serialize_optional_vec_u8(optional_vector: &Option<Vec<u8>>) -> String {
     match optional_vector {
@@ -131,4 +177,28 @@ where
         vector.push(byte);
     }
     Ok(Some(vector))
+}
+
+// TODO(Tsabary): generalize these for Vec<T> serde.
+
+/// Serializes a `&[Url]` into a single space-separated string.
+pub fn serialize_slice_url(vector: &[Url]) -> String {
+    vector.iter().map(Url::as_str).collect::<Vec<_>>().join(" ")
+}
+
+/// Deserializes a space-separated string into a `Vec<Url>`.
+/// Returns an error if any of the substrings cannot be parsed into a valid URL.
+pub fn deserialize_vec_url<'de, D>(de: D) -> Result<Vec<Url>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw: String = <String as serde::Deserialize>::deserialize(de)?;
+
+    if raw.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+
+    raw.split_whitespace()
+        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{s}': {e}"))))
+        .collect()
 }

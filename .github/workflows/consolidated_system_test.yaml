@@ -13,12 +13,13 @@ on:
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/testing/deployment_configs/deployment_test_consolidated.json
+  deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/deployments/testing/deployment_config_consolidated.json
   namespace: sequencer-consolidated-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
   cluster_name: consolidated-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
   path_triggers: ".github/workflows/consolidated_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py"
   pvc_storage_class_name: "premium-rwo"
+  anvil_port: "8545"
 
 permissions:
   contents: read
@@ -317,7 +318,22 @@ jobs:
             --interval ${{ env.check_interval_sec }}
 
       - name: Copy state and restart pod
-        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0"
+        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0/executable_0"
+
+      - name: Port-forward Anvil pod to localhost:${{ env.anvil_port }}
+        run: |
+          echo "🔌 Setting up port-forward to Anvil..."
+
+          ANVIL_POD=$(kubectl get pods -n anvil -l app=anvil -o jsonpath="{.items[0].metadata.name}")
+          echo "🌐 Found Anvil pod: $ANVIL_POD"
+
+          # Start port-forwarding in background and keep it running
+          kubectl port-forward -n anvil "$ANVIL_POD" ${{ env.anvil_port }}:${{ env.anvil_port }} &
+          echo "⏳ Waiting a few seconds to ensure port-forward is established..."
+          sleep 2
+
+      - name: Send transactions test
+        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --deployment_config_path ${{ env.deployment_config_path }} --config_dir "${{ env.config_dir }}" --node_type "consolidated" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
 
       - name: Get container logs
         if: always()

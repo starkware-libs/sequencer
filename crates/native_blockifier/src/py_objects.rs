@@ -168,7 +168,6 @@ fn hash_map_into_bouncer_weights(
     })
 }
 
-#[allow(clippy::result_large_err)]
 fn hash_map_into_builtin_weights(
     mut data: HashMap<String, usize>,
 ) -> NativeBlockifierResult<BuiltinWeights> {

@@ -229,9 +229,27 @@ impl TransfersGenerator {
         // Execution infos of transactions that were executed.
         let mut collected_execution_infos = Vec::<TransactionExecutionInfo>::new();
         for result in results {
-            let execution_info = result.unwrap().0;
+            let execution_info = &result.unwrap().0;
+
             assert!(!execution_info.is_reverted());
-            collected_execution_infos.push(execution_info);
+
+            let expected_cairo_native = self.config.cairo_version.is_cairo_native();
+
+            assert_eq!(
+                execution_info.validate_call_info.as_ref().unwrap().execution.cairo_native,
+                expected_cairo_native
+            );
+            assert_eq!(
+                execution_info.execute_call_info.as_ref().unwrap().execution.cairo_native,
+                expected_cairo_native
+            );
+            // TODO(YonatanK): after updating the sierra version the the ERC20 contract uses, change
+            // this asserts to check the actual value of `inner_call.execution.cairo_native`.
+            for inner_call in execution_info.execute_call_info.as_ref().unwrap().inner_calls.iter()
+            {
+                assert!(!inner_call.execution.cairo_native);
+            }
+            collected_execution_infos.push(execution_info.clone());
         }
 
         (block_summary, collected_execution_infos)

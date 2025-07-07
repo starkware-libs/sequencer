@@ -165,6 +165,11 @@ impl SerializedParam {
     pub fn is_required(&self) -> bool {
         self.description.starts_with(REQUIRED_PARAM_DESCRIPTION_PREFIX)
     }
+
+    /// Whether the parameter is private.
+    pub fn is_private(&self) -> bool {
+        self.privacy == ParamPrivacy::Private
+    }
 }
 
 /// A serialized type of a configuration parameter.

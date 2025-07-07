@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra_utils::info_every_n;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{
     Event,
@@ -146,7 +147,8 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        info!("Adding {} l1 events", events.len());
+        // TODO(guy.f): Replace with info_every_n_sec once implemented.
+        info_every_n!(100, "Adding {} l1 events", events.len());
         trace!("Adding events: {events:?}");
 
         for event in events {

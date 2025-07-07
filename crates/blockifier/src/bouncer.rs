@@ -162,7 +162,7 @@ impl Default for BouncerWeights {
             n_txs: 600,
             state_diff_size: 4000,
             sierra_gas: GasAmount(4000000000),
-            proving_gas: GasAmount(4000000000),
+            proving_gas: GasAmount(5000000000),
         }
     }
 }
@@ -362,14 +362,14 @@ impl BuiltinWeights {
 impl Default for BuiltinWeights {
     fn default() -> Self {
         Self {
-            pedersen: 8100,
+            pedersen: 10125,
             range_check: 70,
-            ecdsa: 1333333,
-            ec_op: 571900,
+            ecdsa: 1666666,
+            ec_op: 714875,
             bitwise: 583,
-            keccak: 408566,
-            poseidon: 8334,
-            add_mod: 250,
+            keccak: 510707,
+            poseidon: 6250,
+            add_mod: 312,
             mul_mod: 604,
             range_check96: 56,
         }
@@ -491,6 +491,7 @@ impl Bouncer {
         state_reader: &S,
         tx_state_changes_keys: &StateChangesKeys,
         tx_execution_summary: &ExecutionSummary,
+        tx_builtin_counters: &BuiltinCounterMap,
         tx_resources: &TransactionResources,
         versioned_constants: &VersionedConstants,
     ) -> TransactionExecutorResult<()> {
@@ -514,9 +515,10 @@ impl Bouncer {
             tx_resources,
             &marginal_state_changes_keys,
             versioned_constants,
-            &tx_execution_summary.builtin_counters,
+            tx_builtin_counters,
             &self.bouncer_config.builtin_weights,
         )?;
+
         let tx_bouncer_weights = tx_weights.bouncer_weights;
 
         // Check if the transaction can fit the current block available capacity.
@@ -612,15 +614,16 @@ fn proving_gas_from_builtins_and_sierra_gas(
     steps_proving_gas.checked_add_panic_on_overflow(builtins_proving_gas)
 }
 
-// TODO(AvivY): Share code with `vm_resources_to_sierra_gas`.
-/// Converts vm resources to proving gas using the builtin weights.
-fn vm_resources_to_proving_gas(
+/// Generic function to convert VM resources to gas with configurable builtin gas calculation
+fn vm_resources_to_gas<F>(
     resources: &ExecutionResources,
-    builtin_weights: &BuiltinWeights,
     versioned_constants: &VersionedConstants,
-) -> GasAmount {
-    let builtins_gas_cost =
-        builtin_weights.calc_proving_gas_from_builtin_counter(&resources.prover_builtins());
+    builtin_gas_calculator: F,
+) -> GasAmount
+where
+    F: FnOnce(&BuiltinCounterMap) -> GasAmount,
+{
+    let builtins_gas_cost = builtin_gas_calculator(&resources.prover_builtins());
     let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
     let n_memory_holes_gas_cost =
         memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
@@ -630,19 +633,24 @@ fn vm_resources_to_proving_gas(
         .checked_add_panic_on_overflow(builtins_gas_cost)
 }
 
+/// Converts vm resources to proving gas using the builtin weights.
+fn vm_resources_to_proving_gas(
+    resources: &ExecutionResources,
+    builtin_weights: &BuiltinWeights,
+    versioned_constants: &VersionedConstants,
+) -> GasAmount {
+    vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
+        builtin_weights.calc_proving_gas_from_builtin_counter(builtin_counters)
+    })
+}
+
 pub fn vm_resources_to_sierra_gas(
     resources: &ExecutionResources,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
-    let builtins_gas_cost =
-        builtins_to_sierra_gas(&resources.prover_builtins(), versioned_constants);
-    let n_steps_gas_cost = n_steps_to_gas(resources.total_n_steps(), versioned_constants);
-    let n_memory_holes_gas_cost =
-        memory_holes_to_gas(resources.n_memory_holes, versioned_constants);
-
-    n_steps_gas_cost
-        .checked_add_panic_on_overflow(n_memory_holes_gas_cost)
-        .checked_add_panic_on_overflow(builtins_gas_cost)
+    vm_resources_to_gas(resources, versioned_constants, |builtin_counters| {
+        builtins_to_sierra_gas(builtin_counters, versioned_constants)
+    })
 }
 
 /// Computes the steps gas by subtracting the builtins' contribution from the Sierra gas.
@@ -730,8 +738,6 @@ pub fn get_tx_weights<S: StateReader>(
     add_maps(&mut builtin_counters_without_casm_hash_computation, tx_builtin_counters);
     // The transaction builtin counters does not include the transaction overhead ('additional')
     // resources.
-    // TODO(AvivG): Builtins from `fee_transfer_call_info` are counted twice - in `os_vm_resources`
-    // and again in `tx_builtin_counters`. Remove the duplication.
     add_maps(
         &mut builtin_counters_without_casm_hash_computation,
         &tx_resources.computation.os_vm_resources.prover_builtins(),
@@ -805,6 +811,7 @@ pub fn get_particia_update_resources(n_visited_storage_entries: usize) -> Execut
 pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
     state_reader: &S,
     tx_execution_summary: &ExecutionSummary,
+    tx_builtin_counters: &BuiltinCounterMap,
     tx_resources: &TransactionResources,
     tx_state_changes_keys: &StateChangesKeys,
     bouncer_config: &BouncerConfig,
@@ -817,7 +824,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         tx_resources,
         tx_state_changes_keys,
         versioned_constants,
-        &tx_execution_summary.builtin_counters,
+        tx_builtin_counters,
         &bouncer_config.builtin_weights,
     )?
     .bouncer_weights;

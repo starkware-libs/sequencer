@@ -62,14 +62,19 @@ use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
-use crate::build_proposal::{build_proposal, ProposalBuildArguments};
+use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::utils::{convert_to_sn_api_block_info, GasPriceParams, StreamSender};
-use crate::validate_proposal::{validate_proposal, BlockInfoValidation, ProposalValidateArguments};
+use crate::validate_proposal::{
+    validate_proposal,
+    BlockInfoValidation,
+    ProposalValidateArguments,
+    ValidateProposalError,
+};
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
 
@@ -93,7 +98,7 @@ pub(crate) struct BuiltProposals {
 }
 
 impl BuiltProposals {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self { data: HeightToIdToContent::default() }
     }
 
@@ -260,7 +265,6 @@ impl ConsensusContext for SequencerConsensusContext {
             proposal_init,
             l1_da_mode: self.l1_da_mode,
             stream_sender,
-            fin_sender,
             gas_price_params,
             valid_proposals: Arc::clone(&self.valid_proposals),
             proposal_id,
@@ -273,7 +277,20 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         let handle = tokio::spawn(
             async move {
-                build_proposal(args).await;
+                let res = build_proposal(args).await.map(|proposal_commitment| {
+                    fin_sender
+                        .send(proposal_commitment)
+                        .map_err(|_| BuildProposalError::SendError(proposal_commitment))?;
+                    Ok::<_, BuildProposalError>(proposal_commitment)
+                });
+                match res {
+                    Ok(proposal_commitment) => {
+                        info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.");
+                    }
+                    Err(e) => {
+                        warn!("Proposal failed. Error: {e:?}");
+                    }
+                }
             }
             .instrument(
                 error_span!("consensus_build_proposal", %proposal_id, round=proposal_init.round),
@@ -430,7 +447,7 @@ impl ConsensusContext for SequencerConsensusContext {
 
             proposals.remove_proposals_below_or_at_height(&height);
         }
-        let transactions = transactions.concat();
+
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
         let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } = self
@@ -440,6 +457,15 @@ impl ConsensusContext for SequencerConsensusContext {
             .await
             .expect("Failed to get state diff.");
 
+        // Remove transactions that were not accepted by the Batcher, so `transactions` and
+        // `central_objects.execution_infos` correspond to the same list of (only accepted)
+        // transactions.
+        let transactions: Vec<InternalConsensusTransaction> = transactions
+            .concat()
+            .into_iter()
+            .filter(|tx| central_objects.execution_infos.contains_key(&tx.tx_hash()))
+            .collect();
+
         let gas_target = GasAmount(VersionedConstants::latest_constants().max_block_size.0 / 2);
         self.l2_gas_price =
             calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
@@ -447,7 +473,8 @@ impl ConsensusContext for SequencerConsensusContext {
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
 
-        let cende_block_info = convert_to_sn_api_block_info(&block_info);
+        // The conversion should never fail, if we already managed to get a decision.
+        let cende_block_info = convert_to_sn_api_block_info(&block_info)?;
         let l1_gas_price = GasPricePerToken {
             price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_gas_price.get(),
             price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_gas_price.get(),
@@ -502,6 +529,11 @@ impl ConsensusContext for SequencerConsensusContext {
         // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
         state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
 
+        // Strip the transaction hashes from `execution_infos`, since we don't use it in the blob
+        // version of `execution_infos`.
+        let stripped_execution_infos =
+            central_objects.execution_infos.into_iter().map(|(_, info)| info).collect();
+
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
@@ -513,7 +545,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
                 transactions,
-                execution_infos: central_objects.execution_infos,
+                execution_infos: stripped_execution_infos,
                 bouncer_weights: central_objects.bouncer_weights,
                 casm_hash_computation_data_sierra_gas: central_objects
                     .casm_hash_computation_data_sierra_gas,
@@ -664,13 +696,12 @@ impl SequencerConsensusContext {
         content_receiver: mpsc::Receiver<ProposalPart>,
         fin_sender: oneshot::Sender<ProposalCommitment>,
     ) {
-        let cancel_token = CancellationToken::new();
-        let cancel_token_clone = cancel_token.clone();
-        let l1_gas_tip_wei = GasPrice(self.config.l1_gas_tip_wei);
-        let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        let deps = self.deps.clone();
+        info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
+
+        let cancel_token = CancellationToken::new();
+        let cancel_token_clone = cancel_token.clone();
         let gas_price_params = GasPriceParams {
             min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
             max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
@@ -680,25 +711,30 @@ impl SequencerConsensusContext {
                 self.config.l1_data_gas_price_multiplier_ppt,
                 1000,
             ),
-            l1_gas_tip_wei,
+            l1_gas_tip_wei: GasPrice(self.config.l1_gas_tip_wei),
+        };
+        let args = ProposalValidateArguments {
+            deps: self.deps.clone(),
+            block_info_validation,
+            proposal_id,
+            timeout,
+            batcher_timeout_margin,
+            valid_proposals: Arc::clone(&self.valid_proposals),
+            content_receiver,
+            gas_price_params,
+            cancel_token: cancel_token_clone,
         };
 
-        info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
         let handle = tokio::spawn(
             async move {
-                validate_proposal(ProposalValidateArguments {
-                    deps,
-                    block_info_validation,
-                    proposal_id,
-                    timeout,
-                    batcher_timeout_margin,
-                    valid_proposals,
-                    content_receiver,
-                    fin_sender,
-                    gas_price_params,
-                    cancel_token: cancel_token_clone,
-                })
-                .await
+                match validate_and_send(args, fin_sender).await {
+                    Ok(proposal_commitment) => {
+                        info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.");
+                    }
+                    Err(e) => {
+                        warn!("Proposal failed. Error: {e:?}");
+                    }
+                }
             }
             .instrument(
                 error_span!("consensus_validate_proposal", %proposal_id, round=self.current_round),
@@ -713,4 +749,15 @@ impl SequencerConsensusContext {
             handle.await.expect("Proposal task failed");
         }
     }
+}
+
+async fn validate_and_send(
+    args: ProposalValidateArguments,
+    fin_sender: oneshot::Sender<ProposalCommitment>,
+) -> Result<ProposalCommitment, ValidateProposalError> {
+    let proposal_commitment = validate_proposal(args).await?;
+    fin_sender
+        .send(proposal_commitment)
+        .map_err(|_| ValidateProposalError::SendError(proposal_commitment))?;
+    Ok(proposal_commitment)
 }

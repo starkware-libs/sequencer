@@ -10,6 +10,7 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra_utils::info_every_n;
 use apollo_l1_gas_price_types::errors::L1GasPriceClientError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderClient, PriceInfo};
 use async_trait::async_trait;
@@ -18,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use thiserror::Error;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, trace, warn};
 use validator::Validate;
 
 use crate::metrics::{
@@ -165,7 +166,12 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
             // Not enough blocks under current finality. Try again later.
             return Ok(start_block_number);
         };
-        debug!(
+        trace!(
+            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
+        );
+        // TODO(guy.f): Replace with info_every_n_sec once implemented.
+        info_every_n!(
+            100,
             "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
         );
         for block_number in start_block_number..=last_block_number {

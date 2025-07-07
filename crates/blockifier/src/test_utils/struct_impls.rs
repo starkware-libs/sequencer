@@ -27,7 +27,7 @@ use crate::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::{BouncerConfig, BouncerWeights};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
-use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{BuiltinCounterMap, CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
 #[cfg(feature = "cairo_native")]
 use crate::execution::contract_class::CompiledClassV1;
@@ -44,6 +44,7 @@ use crate::state::state_api::State;
 use crate::transaction::objects::{
     CurrentTransactionInfo,
     DeprecatedTransactionInfo,
+    TransactionExecutionInfo,
     TransactionInfo,
 };
 
@@ -128,6 +129,29 @@ impl CallInfo {
         self.call.class_hash = Some(ClassHash::default());
         self
     }
+
+    pub fn clear_nonessential_fields_for_comparison(&mut self) {
+        for inner_call in self.inner_calls.iter_mut() {
+            inner_call.clear_nonessential_fields_for_comparison();
+        }
+        self.builtin_counters = BuiltinCounterMap::new();
+        self.execution.cairo_native = false;
+    }
+}
+
+impl TransactionExecutionInfo {
+    pub fn clear_call_infos_nonessential_fields_for_comparison(&mut self) {
+        // Clear non-essential fields for comparison.
+        if let Some(call_info) = &mut self.validate_call_info {
+            call_info.clear_nonessential_fields_for_comparison();
+        }
+        if let Some(call_info) = &mut self.execute_call_info {
+            call_info.clear_nonessential_fields_for_comparison();
+        }
+        if let Some(call_info) = &mut self.fee_transfer_call_info {
+            call_info.clear_nonessential_fields_for_comparison();
+        }
+    }
 }
 
 impl VersionedConstants {
@@ -174,7 +198,6 @@ impl BlockContext {
                     n_events: max_n_events_in_block,
                     ..BouncerWeights::max()
                 },
-                // TODO(Meshi): Check what should be the values here.
                 ..BouncerConfig::max()
             },
             ..Self::create_for_account_testing()

@@ -48,6 +48,7 @@ use crate::hints::vars::CairoStruct;
 use crate::io::os_input::{
     CachedStateInput,
     CommitmentInfo,
+    HintedClassHash,
     OsBlockInput,
     OsHintsConfig,
     OsInputError,
@@ -104,6 +105,20 @@ impl<'a, S: StateReader> ExecutionHelpersManager<'a, S> {
     pub fn n_helpers(&self) -> usize {
         self.execution_helpers.len()
     }
+
+    pub(crate) fn get_syscall_usages(&self) -> Vec<SyscallUsageMap> {
+        self.execution_helpers
+            .iter()
+            .map(|helper| helper.syscall_hint_processor.syscall_usage.clone())
+            .collect()
+    }
+
+    pub(crate) fn get_deprecated_syscall_usages(&self) -> Vec<SyscallUsageMap> {
+        self.execution_helpers
+            .iter()
+            .map(|helper| helper.deprecated_syscall_hint_processor.syscalls_usage.clone())
+            .collect()
+    }
 }
 
 pub struct SnosHintProcessor<'a, S: StateReader> {
@@ -111,7 +126,8 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) program: &'a Program,
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
-    pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, ContractClass>,
+    pub(crate) deprecated_compiled_classes_iter:
+        IntoIter<ClassHash, (HintedClassHash, ContractClass)>,
     pub(crate) deprecated_class_hashes: HashSet<ClassHash>,
     pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
@@ -135,7 +151,7 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         os_hints_config: OsHintsConfig,
         os_block_inputs: Vec<&'a OsBlockInput>,
         cached_state_inputs: Vec<CachedStateInput>,
-        deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
+        deprecated_compiled_classes: BTreeMap<ClassHash, (HintedClassHash, ContractClass)>,
         compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
         state_readers: Vec<S>,
     ) -> Result<Self, StarknetOsError> {
@@ -327,7 +343,7 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
         let state_inputs = vec![os_state_input.unwrap_or_default()];
         let os_hints_config = os_hints_config.unwrap_or_default();
 
-        SnosHintProcessor::new(
+        let mut hint_processor = SnosHintProcessor::new(
             os_program,
             os_hints_config,
             block_inputs,
@@ -335,7 +351,9 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
             BTreeMap::new(),
             BTreeMap::new(),
             vec![state_reader],
-        )
+        )?;
+        hint_processor.execution_helpers_manager.increment_current_helper_index();
+        Ok(hint_processor)
     }
 }
 

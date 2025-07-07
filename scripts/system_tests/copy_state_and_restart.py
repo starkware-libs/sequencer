@@ -27,7 +27,7 @@ def copy_state(pod_name: str, data_dir: str) -> None:
             [
                 "kubectl",
                 "cp",
-                data_dir,
+                f"{data_dir}/.",
                 f"{pod_name}:/data",
                 "--retries=3",
             ]

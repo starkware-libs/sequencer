@@ -1,0 +1,14 @@
+{
+  "base_layer_config.starknet_contract_address": "0xE2Bb56ee936fd6433DC0F6e7e3b8365C906AA057",
+  "chain_id": "SN_SEPOLIA",
+  "consensus_manager_config.context_config.num_validators": 3,
+  "consensus_manager_config.eth_to_strk_oracle_config.base_url": "https://api.devnet.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median",
+  "eth_fee_token_address": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+  "l1_provider_config.provider_startup_height_override": 0,
+  "l1_provider_config.provider_startup_height_override.#is_none": true,
+  "starknet_url": "https://feeder.alpha-sepolia.starknet.io",
+  "state_sync_config.central_sync_client_config.#is_none": false,
+  "state_sync_config.network_config.#is_none": true,
+  "state_sync_config.p2p_sync_client_config.#is_none": true,
+  "strk_fee_token_address": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d"
+}
