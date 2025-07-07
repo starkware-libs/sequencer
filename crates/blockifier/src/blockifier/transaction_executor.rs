@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::mem;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
@@ -238,7 +239,10 @@ pub(crate) fn finalize_block<S: StateReader>(
     if block_context.versioned_constants.enable_stateful_compression {
         allocate_aliases_in_storage(block_state, alias_contract_address)?;
     }
+
+    update_compiled_class_hash_migration_in_state(&lock_bouncer(bouncer), block_state);
     let state_diff = block_state.to_state_diff()?.state_maps;
+
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
         Some(compress(&state_diff, block_state, alias_contract_address)?.into())
     } else {
@@ -259,6 +263,26 @@ pub(crate) fn finalize_block<S: StateReader>(
     })
 }
 
+// Gathers the new compiled class hashes for the class hashes that need to be migrated,
+// and adds the corresponding mappings to the block state's write set.
+fn update_compiled_class_hash_migration_in_state<S: StateReader>(
+    bouncer: &Bouncer,
+    block_state: &mut CachedState<S>,
+) {
+    let class_hash_to_casm_hash_v2: HashMap<_, _> = bouncer
+        .class_hashes_to_migrate
+        .iter()
+        .map(|&class_hash| {
+            (
+                class_hash,
+                block_state
+                    .get_compiled_class_hash_v2(class_hash)
+                    .expect("Failed to get class hash."),
+            )
+        })
+        .collect();
+    block_state.cache.get_mut().writes.compiled_class_hashes.extend(class_hash_to_casm_hash_v2);
+}
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
     /// Executes the given transactions on the state maintained by the executor.
     ///
