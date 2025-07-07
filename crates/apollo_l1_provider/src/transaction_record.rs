@@ -242,4 +242,5 @@ impl From<IndexMap<TransactionHash, TransactionRecord>> for Records {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct TransactionRecordPolicy {
     pub cancellation_timelock: Duration,
+    pub consumption_timelock: Duration,
 }

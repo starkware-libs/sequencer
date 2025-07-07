@@ -410,6 +410,7 @@ impl L1ProviderBuilder {
             tx_manager: TransactionManager::new(
                 self.config.new_l1_handler_cooldown_seconds,
                 self.config.l1_handler_cancellation_timelock_seconds,
+                self.config.l1_handler_consumption_timelock_seconds,
             ),
             state: ProviderState::Bootstrap(bootstrapper),
             config: self.config,
