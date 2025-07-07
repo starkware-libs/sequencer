@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs::File;
 
@@ -11,7 +11,7 @@ use apollo_node::config::component_execution_config::{
 };
 use apollo_node::config::config_utils::private_parameters;
 use apollo_node::config::node_config::SequencerNodeConfig;
-use serde_json::{to_value, Map};
+use serde_json::{to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
@@ -65,6 +65,33 @@ fn load_and_process_service_config_files() {
             // Add the secrets config file path to the config load command.
             service_config_paths.push(temp_file_path.to_string());
 
+            // Check that there are no duplicate entries in the config files. Although the node can
+            // override such values, we keep the deployment files clean by avoiding these.
+
+            let mut key_to_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+
+            for path in &service_config_paths {
+                let file = File::open(path).unwrap();
+                let json_map: Map<String, Value> = serde_json::from_reader(file)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                    .unwrap();
+
+                for key in json_map.keys() {
+                    key_to_files.entry(key.clone()).or_default().insert(path.to_string());
+                }
+            }
+
+            // Report duplicated keys
+            let mut has_duplicates = false;
+            for (key, files) in &key_to_files {
+                if files.len() > 1 {
+                    has_duplicates = true;
+                    println!("Key '{}' found in files: {:?}", key, files);
+                }
+            }
+            assert!(!has_duplicates, "Found duplicate keys in service config files.");
+
+            // Load the config files into a command line argument format.
             let config_file_args: Vec<String> = service_config_paths
                 .clone()
                 .into_iter()

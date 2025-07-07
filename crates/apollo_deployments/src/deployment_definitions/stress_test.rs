@@ -2,7 +2,7 @@ use apollo_infra_utils::template::Template;
 use url::Url;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
-use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
+use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::{Environment, StateSyncType};
 use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
 use crate::k8s::{ExternalSecret, IngressParams};
@@ -28,7 +28,6 @@ fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
         Url::parse("http://feeder-gateway.starknet-0-14-0-stress-test-03:9713/")
             .expect("Invalid URL"),
         "0x2208cce4221df1f35943958340abc812aa79a8f6a533bff4ee00416d3d06cd6",
-        PragmaDomain::Dev,
         None,
         STRESS_TEST_NODE_IDS.len(),
         StateSyncType::Central,
