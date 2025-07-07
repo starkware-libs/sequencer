@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_node::config::component_config::ComponentConfig;
@@ -10,7 +11,7 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::Environment;
+use crate::deployment_definitions::{Environment, ServicePort};
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
@@ -265,6 +266,11 @@ impl ServiceNameInner for DistributedNodeServiceName {
             },
             _ => unimplemented!(),
         }
+    }
+
+    // TODO(Nadin): Implement this method to return the actual ports used by the service.
+    fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
+        BTreeMap::new()
     }
 }
 

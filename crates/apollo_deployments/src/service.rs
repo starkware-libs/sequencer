@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::iter::once;
 use std::path::{Path, PathBuf};
@@ -18,7 +19,7 @@ use crate::deployment::{
     build_service_namespace_domain_address,
     ComponentConfigsSerializationWrapper,
 };
-use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
+use crate::deployment_definitions::{Environment, ServicePort, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
@@ -55,6 +56,7 @@ pub struct Service {
     #[serde(skip_serializing)]
     environment: Environment,
     anti_affinity: bool,
+    ports: BTreeMap<ServicePort, u16>,
 }
 
 impl Service {
@@ -98,6 +100,7 @@ impl Service {
         let resources = node_service.get_resources(&environment);
         let replicas = node_service.get_replicas(&environment);
         let anti_affinity = node_service.get_anti_affinity(&environment);
+        let ports = node_service.get_ports();
         Self {
             node_service,
             config_paths,
@@ -113,6 +116,7 @@ impl Service {
             // TODO(Tsabary): consider removing `environment` from the `Service` struct.
             environment,
             anti_affinity,
+            ports,
         }
     }
 
@@ -223,6 +227,10 @@ impl NodeService {
             .to_string_lossy()
             .to_string()
     }
+
+    pub fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
+        self.as_inner().get_ports()
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -269,6 +277,8 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_replicas(&self, environment: &Environment) -> usize;
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool;
+
+    fn get_ports(&self) -> BTreeMap<ServicePort, u16>;
 
     // Kubernetes service name as defined by CDK8s.
     fn k8s_service_name(&self) -> String {

@@ -25,6 +25,7 @@ pub struct Deployment {
 }
 
 impl Deployment {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         node_type: NodeType,
         environment: Environment,

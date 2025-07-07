@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -8,7 +10,7 @@ use serde::Serialize;
 use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::Environment;
+use crate::deployment_definitions::{Environment, ServicePort};
 use crate::k8s::{
     get_ingress,
     Controller,
@@ -131,6 +133,11 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             | Environment::StressTest => true,
             _ => unimplemented!(),
         }
+    }
+
+    // TODO(Nadin): Implement this method to return the actual ports used by the service.
+    fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
+        BTreeMap::new()
     }
 }
 
