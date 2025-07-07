@@ -183,7 +183,7 @@ impl FlowTestSetup {
 
     pub async fn send_messages_to_l2(&self, l1_handlers: &[L1HandlerTransaction]) {
         for l1_handler in l1_handlers {
-            self.anvil_base_layer.ethereum_base_layer.contract.send_message_to_l2(l1_handler).await;
+            self.anvil_base_layer.send_message_to_l2(l1_handler).await;
         }
     }
 }
