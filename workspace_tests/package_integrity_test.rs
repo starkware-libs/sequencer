@@ -16,12 +16,21 @@ static CRATES_ALLOWED_TO_USE_TESTING_FEATURE: [&str; 6] = [
     "starknet_committer_and_os_cli",
 ];
 
-/// Tests that no member crate has itself in it's dependency tree.
-/// This may occur if, for example, a developer wants to activate a feature of a crate in tests, and
-/// adds a dependency on itself in dev-dependencies with this feature active.
-/// Note: a common (erroneous) use case would be to activate the "testing" feature of a crate in
-/// tests by adding a dependency on itself in dev-dependencies. This is not allowed; any code gated
-/// by the testing feature should also be gated by `test`.
+/// Tests that no member crate has itself in it's dependency tree - a crate cannot be published
+/// with a self dependenecy (unless one publishes with `--no-verify`). Note: dev-dependencies are
+/// not part of the published crate unless they have a version, which all our published crates have.
+/// When writing unit tests, one should feature-gate test code with `any(test, features =
+/// "testing")`, thus self deps should not be an issue. However, when writing cargo integration
+/// tests this gets murky: `test` isn't enabled so `testing` must be used, but a current limitation
+/// of cargo allows this only through self-deps:
+/// https://github.com/rust-lang/cargo/issues/2911#issuecomment-1739880593.
+/// But to make matters worse, a recent bug in cargo >= 1.84 makes this no longer work:
+/// https://github.com/rust-lang/cargo/issues/15151
+/// making it impossible to write integration tests that use the `testing` feature. Our current
+/// work around is to write integration tests that require features as integration tests inside the
+/// apollo_integration_tests crate; feature dependencies can be injected in the
+/// apollo_integration_tests Cargo.toml.
+
 #[test]
 fn test_no_self_dependencies() {
     let members_with_self_deps: Vec<String> = MEMBER_TOMLS
