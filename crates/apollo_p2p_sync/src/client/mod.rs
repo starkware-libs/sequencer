@@ -55,6 +55,8 @@ use validator::Validate;
 
 const STEP: u64 = 1;
 const ALLOWED_SIGNATURES_LENGTH: usize = 1;
+// TODO(noamsp): remove usage of this constant once network session timeout is configured properly.
+const RESPONSE_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct P2pSyncClientConfig {
