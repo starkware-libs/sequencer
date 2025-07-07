@@ -24,6 +24,7 @@ use libp2p::Multiaddr;
 use metrics::{counter, gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
 use tokio::time::Duration;
+use tracing::{info, trace, Level};
 
 mod converters;
 mod utils;
@@ -51,7 +52,7 @@ struct Args {
     #[arg(long, env)]
     bootstrap: Option<String>,
 
-    /// Set the verbosity level of the logger
+    /// Set the verbosity level of the logger, the higher the more verbose
     #[arg(short, long, env, default_value_t = 0)]
     verbosity: u8,
 
@@ -73,12 +74,6 @@ struct Args {
     timeout: u64,
 }
 
-fn log(message: &str, args: &Args, level: u8) {
-    if args.verbosity >= level {
-        println!("[{}] {}", args.id, message);
-    }
-}
-
 async fn send_stress_test_messages(
     mut broadcast_topic_client: BroadcastTopicClient<StressTestMessage>,
     args: &Args,
@@ -95,7 +90,7 @@ async fn send_stress_test_messages(
         message.time = SystemTime::now();
         // message.id = i;
         broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
-        log(&format!("Sent message {i}"), args, 1);
+        trace!("Sent message {i}: {:?}", message);
         counter!("sent_messages").increment(1);
         tokio::time::sleep(duration).await;
     }
@@ -157,6 +152,21 @@ fn create_peer_private_key(peer_index: usize) -> [u8; 32] {
 async fn main() {
     let args = Args::parse();
 
+    let level = match args.verbosity {
+        0 => None,
+        1 => Some(Level::ERROR),
+        2 => Some(Level::WARN),
+        3 => Some(Level::INFO),
+        4 => Some(Level::DEBUG),
+        _ => Some(Level::TRACE),
+    };
+    tracing::subscriber::set_global_default(
+        tracing_subscriber::FmtSubscriber::builder().with_max_level(level).finish(),
+    )
+    .expect("Failed to set global default subscriber");
+
+    println!("Starting network stress test with args:\n{args:?}");
+
     assert!(
         args.message_size_bytes >= METADATA_SIZE,
         "Message size must be at least {METADATA_SIZE} bytes"
@@ -172,7 +182,7 @@ async fn main() {
     let peer_private_key = create_peer_private_key(args.id);
     let peer_private_key_hex =
         peer_private_key.iter().map(|byte| format!("{byte:02x}")).collect::<String>();
-    log(&format!("Secret Key: 0x{peer_private_key_hex}"), &args, 1);
+    info!("Secret Key: {peer_private_key_hex:#?}");
 
     let mut network_config = NetworkConfig {
         port: args.p2p_port,
@@ -187,7 +197,7 @@ async fn main() {
     let mut network_manager = NetworkManager::new(network_config, None, None);
 
     let peer_id = network_manager.get_local_peer_id();
-    log(&format!("My PeerId: {peer_id}"), &args, 1);
+    info!("My PeerId: {peer_id}");
 
     let network_channels = network_manager
         .register_broadcast_topic::<StressTestMessage>(TOPIC.clone(), args.buffer_size)
@@ -218,7 +228,7 @@ async fn main() {
     match tokio::time::timeout(test_timeout, join_all(tasks.into_iter())).await {
         Ok(_) => unreachable!(),
         Err(e) => {
-            log(&format!("Test timeout after {e}"), &args, 1);
+            info!("Test timeout after {e}");
         }
     }
 }
