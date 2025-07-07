@@ -9,6 +9,7 @@ use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::test_utils::get_test_storage;
 use apollo_storage::{StorageError, StorageReader, StorageWriter};
+use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
 use async_stream::stream;
 use async_trait::async_trait;
@@ -26,10 +27,10 @@ use starknet_api::block::{
     BlockNumber,
     BlockSignature,
 };
-use starknet_api::core::{ClassHash, SequencerPublicKey};
+use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::crypto::utils::PublicKey;
 use starknet_api::felt;
-use starknet_api::state::StateDiff;
+use starknet_api::state::{SierraContractClass, StateDiff, StateNumber};
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::sleep;
 use tracing::{debug, error};
@@ -192,6 +193,11 @@ async fn sync_happy_flow() {
     const MAX_TIME_TO_SYNC_MS: u64 = 800;
     let _ = simple_logger::init_with_env();
 
+    let class_hash_1 = ClassHash(felt!("0x1"));
+    let compiled_class_hash_1 = CompiledClassHash(felt!("0x101"));
+    let class_hash_2 = ClassHash(felt!("0x2"));
+    let compiled_class_hash_2 = CompiledClassHash(felt!("0x102"));
+
     // Mock having N_BLOCKS chain in central.
     let mut central_mock = MockCentralSourceTrait::new();
     central_mock.expect_get_latest_block().returning(|| {
@@ -232,10 +238,28 @@ async fn sync_happy_flow() {
                 if block_number.0 >= N_BLOCKS {
                     yield Err(CentralError::BlockNotFound { block_number })
                 }
+
+                // Add declared classes to specific blocks to test compiled class hash mapping
+                let state_diff = match block_number.0 {
+                    1 => StateDiff {
+                        declared_classes: IndexMap::from([
+                            (class_hash_1, (compiled_class_hash_1, SierraContractClass::default())),
+                        ]),
+                        ..Default::default()
+                    },
+                    3 => StateDiff {
+                        declared_classes: IndexMap::from([
+                            (class_hash_2, (compiled_class_hash_2, SierraContractClass::default())),
+                        ]),
+                        ..Default::default()
+                    },
+                    _ => StateDiff::default(),
+                };
+
                 yield Ok((
                     block_number,
                     create_block_hash(block_number, false),
-                    StateDiff::default(),
+                    state_diff,
                     IndexMap::new(),
                 ));
             }
@@ -243,6 +267,41 @@ async fn sync_happy_flow() {
         .boxed();
         state_stream
     });
+
+    // Add compiled classes stream mock
+    central_mock.expect_stream_compiled_classes().returning(move |initial, up_to| {
+        let compiled_classes_stream: CompiledClassesStream<'_> = stream! {
+            for block_number in initial.iter_up_to(up_to) {
+                if block_number.0 >= N_BLOCKS {
+                    yield Err(CentralError::BlockNotFound { block_number });
+                }
+
+                // Return compiled classes for blocks that declared them
+                match block_number.0 {
+                    1 => {
+                        let mut rng = get_rng();
+                        yield Ok((
+                            class_hash_1,
+                            compiled_class_hash_1,
+                            CasmContractClass::get_test_instance(&mut rng),
+                        ));
+                    },
+                    3 => {
+                        let mut rng = get_rng();
+                        yield Ok((
+                            class_hash_2,
+                            compiled_class_hash_2,
+                            CasmContractClass::get_test_instance(&mut rng),
+                        ));
+                    },
+                    _ => {}
+                }
+            }
+        }
+        .boxed();
+        compiled_classes_stream
+    });
+
     central_mock.expect_get_block_hash().returning(|bn| Ok(Some(create_block_hash(bn, false))));
 
     // TODO(dvir): find a better way to do this.
@@ -304,6 +363,29 @@ async fn sync_happy_flow() {
                 return CheckStoragePredicateResult::Error;
             }
 
+            // Verify compiled class hash mappings are stored correctly
+            let txn = reader.begin_ro_txn().unwrap();
+            let state_reader = txn.get_state_reader().unwrap();
+
+            // Check mappings - return InProgress if not ready, otherwise assert equality
+            let state_number_1 = StateNumber::unchecked_right_after_block(BlockNumber(1));
+            let state_number_2 = StateNumber::unchecked_right_after_block(BlockNumber(3));
+            let state_number_final = StateNumber::unchecked_right_after_block(BlockNumber(4));
+
+            let hash_1 =
+                state_reader.get_compiled_class_hash_at(state_number_1, &class_hash_1).unwrap();
+            let hash_2 =
+                state_reader.get_compiled_class_hash_at(state_number_2, &class_hash_2).unwrap();
+            let hash_final =
+                state_reader.get_compiled_class_hash_at(state_number_final, &class_hash_1).unwrap();
+
+            if hash_1.is_none() || hash_2.is_none() || hash_final.is_none() {
+                return CheckStoragePredicateResult::InProgress;
+            }
+
+            assert_eq!(hash_1, Some(compiled_class_hash_1));
+            assert_eq!(hash_2, Some(compiled_class_hash_2));
+            assert_eq!(hash_final, Some(compiled_class_hash_1));
             CheckStoragePredicateResult::Passed
         });
 
