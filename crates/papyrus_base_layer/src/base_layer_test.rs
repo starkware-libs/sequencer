@@ -15,7 +15,6 @@ use crate::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
-    L1ToL2MessageArgs,
     Starknet,
 };
 use crate::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
@@ -143,10 +142,7 @@ async fn events_from_other_contract() {
         calldata: calldata!(DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, felt!("0x1"), felt!("0x2")),
         ..Default::default()
     };
-    let this_receipt = this_contract
-        .contract
-        .send_message_to_l2(&L1ToL2MessageArgs { tx: this_l1_handler.clone(), l1_tx_nonce: 2 })
-        .await;
+    let this_receipt = this_contract.contract.send_message_to_l2(&this_l1_handler.clone()).await;
     assert!(this_receipt.status());
     let this_block_number = this_receipt.block_number.unwrap();
 
@@ -156,9 +152,7 @@ async fn events_from_other_contract() {
         calldata: calldata!(DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, felt!("0x1"), felt!("0x2")),
         ..Default::default()
     };
-    let other_receipt = other_contract
-        .send_message_to_l2(&L1ToL2MessageArgs { tx: other_l1_handler.clone(), l1_tx_nonce: 3 })
-        .await;
+    let other_receipt = other_contract.send_message_to_l2(&other_l1_handler.clone()).await;
     assert!(other_receipt.status());
     let other_block_number = other_receipt.block_number.unwrap();
 
