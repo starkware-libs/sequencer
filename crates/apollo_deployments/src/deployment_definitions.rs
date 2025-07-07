@@ -91,7 +91,7 @@ impl StateSyncType {
     }
 }
 
-#[derive(Clone, Debug, Display, Serialize, PartialEq)]
+#[derive(Clone, Debug, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
 pub enum ServicePort {
     Batcher,
     ClassManager,

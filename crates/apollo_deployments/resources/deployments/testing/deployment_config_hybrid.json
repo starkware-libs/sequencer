@@ -28,7 +28,9 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "HttpServer",
@@ -68,7 +70,9 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "Gateway",
@@ -97,7 +101,9 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "Mempool",
@@ -126,7 +132,9 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "SierraCompiler",
@@ -155,7 +163,9 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     }
   ]
 }
