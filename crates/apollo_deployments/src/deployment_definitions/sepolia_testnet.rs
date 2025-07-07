@@ -1,4 +1,5 @@
 use apollo_infra_utils::template::Template;
+use url::Url;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
@@ -24,7 +25,7 @@ fn deployment_config_override() -> DeploymentConfigOverride {
         "0xE2Bb56ee936fd6433DC0F6e7e3b8365C906AA057",
         "SN_SEPOLIA",
         "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
-        "https://feeder.alpha-sepolia.starknet.io",
+        Url::parse("https://feeder.alpha-sepolia.starknet.io").expect("Invalid URL"),
         "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
         PragmaDomain::Dev,
         None,
