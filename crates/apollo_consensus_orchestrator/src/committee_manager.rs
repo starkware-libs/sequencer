@@ -208,7 +208,7 @@ where
         let result = data_chunks
             .map(|chunk| {
                 T::try_from(
-                    chunk.try_into().unwrap_or_else(|_| panic!("chunk size must be N: {}.", N)),
+                    chunk.try_into().unwrap_or_else(|_| panic!("chunk size must be N: {N}.")),
                 )
             })
             .collect::<Result<Vec<_>, _>>()?;
