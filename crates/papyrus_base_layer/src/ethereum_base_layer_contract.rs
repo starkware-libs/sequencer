@@ -43,40 +43,6 @@ sol!(
 /// L2 from this contract, which appear on the corresponding base layer.
 pub type StarknetL1Contract = Starknet::StarknetInstance<(), RootProvider>;
 
-#[cfg(any(feature = "testing", test))]
-impl StarknetL1Contract {
-    /// Converts a given [L1 handler transaction](starknet_api::transaction::L1HandlerTransaction)
-    /// to match the interface of the given [starknet l1 contract](StarknetL1Contract), and
-    /// triggers the L1 entry point which sends the message to L2.
-    pub async fn send_message_to_l2(
-        &self,
-        l1_handler: &starknet_api::transaction::L1HandlerTransaction,
-    ) -> alloy::rpc::types::TransactionReceipt {
-        use alloy::primitives::U256;
-        const PAID_FEE_ON_L1: U256 = U256::from_be_slice(b"paid"); // Arbitrary value.
-
-        let l2_contract_address =
-            l1_handler.contract_address.0.key().to_hex_string().parse().unwrap();
-        let l2_entry_point = l1_handler.entry_point_selector.0.to_hex_string().parse().unwrap();
-
-        // The calldata of an L1 handler transaction consists of the L1 sender address followed by
-        // the transaction payload. We remove the sender address to extract the message
-        // payload.
-        let payload =
-            l1_handler.calldata.0[1..].iter().map(|x| x.to_hex_string().parse().unwrap()).collect();
-        let msg = self.sendMessageToL2(l2_contract_address, l2_entry_point, payload);
-
-        msg
-            // Sets a non-zero fee to be paid on L1.
-            .value(PAID_FEE_ON_L1)
-            // Sends the transaction to the Starknet L1 contract. For debugging purposes, replace
-            // `.send()` with `.call_raw()` to retrieve detailed error messages from L1.
-            .send().await.expect("Transaction submission to Starknet L1 contract failed.")
-            // Waits until the transaction is received on L1 and then fetches its receipt.
-            .get_receipt().await.expect("Transaction was not received on L1 or receipt retrieval failed.")
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct EthereumBaseLayerContract {
     pub config: EthereumBaseLayerConfig,
