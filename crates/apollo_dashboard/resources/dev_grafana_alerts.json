@@ -436,7 +436,7 @@
       "name": "consensus_round_above_zero_ratio",
       "title": "Consensus round above zero ratio",
       "ruleGroup": "consensus",
-      "expr": "count_over_time((consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"} > 0)[1h]) / count_over_time(consensus_round{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "increase(consensus_round_above_zero{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / clamp_min(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
       "conditions": [
         {
           "evaluator": {
