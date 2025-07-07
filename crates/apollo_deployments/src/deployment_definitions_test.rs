@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::env;
 
 use apollo_config::CONFIG_FILE_ARG;
@@ -8,8 +8,8 @@ use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionMode,
     ReactiveComponentExecutionMode,
 };
+use apollo_node::config::config_utils::private_parameters;
 use apollo_node::config::node_config::SequencerNodeConfig;
-use apollo_node::config::test_utils::private_parameters;
 use serde_json::to_value;
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
@@ -95,12 +95,12 @@ fn secrets_config_and_private_parameters_config_schema_compatibility() {
         .unwrap()
         .keys()
         .cloned()
-        .collect::<HashSet<_>>();
+        .collect::<BTreeSet<_>>();
     let secrets_required_by_schema = private_parameters();
 
-    let only_in_config: HashSet<_> =
+    let only_in_config: BTreeSet<_> =
         secrets_provided_by_config.difference(&secrets_required_by_schema).collect();
-    let only_in_schema: HashSet<_> =
+    let only_in_schema: BTreeSet<_> =
         secrets_required_by_schema.difference(&secrets_provided_by_config).collect();
 
     if !(only_in_config.is_empty() && only_in_schema.is_empty()) {
