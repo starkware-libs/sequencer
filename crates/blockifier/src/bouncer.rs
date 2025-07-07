@@ -531,20 +531,6 @@ impl Bouncer {
             &self.bouncer_config.builtin_weights,
         )?;
 
-        assert_eq!(
-            tx_weights
-                .casm_hash_computation_data_sierra_gas
-                .class_hash_to_casm_hash_computation_gas
-                .keys()
-                .collect::<HashSet<_>>(),
-            tx_weights
-                .casm_hash_computation_data_proving_gas
-                .class_hash_to_casm_hash_computation_gas
-                .keys()
-                .collect::<HashSet<_>>(),
-            "Sierra and proving gas data should have the same class hashes."
-        );
-
         let tx_bouncer_weights = tx_weights.bouncer_weights;
 
         // Check if the transaction can fit the current block available capacity.
