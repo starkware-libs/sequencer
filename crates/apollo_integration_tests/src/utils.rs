@@ -55,7 +55,6 @@ use blockifier_test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
 use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
-    L1ToL2MessageArgs,
     StarknetL1Contract,
 };
 use serde::Deserialize;
@@ -65,7 +64,7 @@ use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
-use starknet_api::transaction::{TransactionHash, TransactionHasher};
+use starknet_api::transaction::{L1HandlerTransaction, TransactionHash, TransactionHasher};
 use starknet_types_core::felt::Felt;
 use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
@@ -84,7 +83,7 @@ pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
-    fn(&mut MultiAccountTransactionGenerator) -> Vec<L1ToL2MessageArgs>;
+    fn(&mut MultiAccountTransactionGenerator) -> Vec<L1HandlerTransaction>;
 pub type TestTxHashesFn = fn(&[TransactionHash]) -> Vec<TransactionHash>;
 
 pub trait TestScenario {
@@ -92,7 +91,7 @@ pub trait TestScenario {
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
-    ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>);
+    ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>);
 
     fn n_txs(&self) -> usize;
 }
@@ -107,7 +106,7 @@ impl TestScenario for ConsensusTxs {
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
-    ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
+    ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
         (
             create_invoke_txs(tx_generator, account_id, self.n_invoke_txs),
             create_l1_to_l2_messages_args(tx_generator, self.n_l1_handler_txs),
@@ -126,7 +125,7 @@ impl TestScenario for DeclareTx {
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
-    ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
+    ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
         let declare_tx = tx_generator.account_with_id_mut(account_id).generate_declare();
         (vec![declare_tx], vec![])
     }
@@ -143,7 +142,7 @@ impl TestScenario for DeployAndInvokeTxs {
         &self,
         tx_generator: &mut MultiAccountTransactionGenerator,
         account_id: AccountId,
-    ) -> (Vec<RpcTransaction>, Vec<L1ToL2MessageArgs>) {
+    ) -> (Vec<RpcTransaction>, Vec<L1HandlerTransaction>) {
         let txs = create_deploy_account_tx_and_invoke_tx(tx_generator, account_id);
         assert_eq!(
             txs.len(),
@@ -470,20 +469,17 @@ pub fn create_invoke_txs(
 pub fn create_l1_to_l2_messages_args(
     tx_generator: &mut MultiAccountTransactionGenerator,
     n_txs: usize,
-) -> Vec<L1ToL2MessageArgs> {
+) -> Vec<L1HandlerTransaction> {
     (0..n_txs).map(|_| tx_generator.create_l1_to_l2_message_args()).collect()
 }
 
 pub async fn send_message_to_l2_and_calculate_tx_hash(
-    send_message_to_l2_args: L1ToL2MessageArgs,
+    l1_handler: L1HandlerTransaction,
     starknet_l1_contract: &StarknetL1Contract,
     chain_id: &ChainId,
 ) -> TransactionHash {
-    starknet_l1_contract.send_message_to_l2(&send_message_to_l2_args).await;
-    send_message_to_l2_args
-        .tx
-        .calculate_transaction_hash(chain_id, &send_message_to_l2_args.tx.version)
-        .unwrap()
+    starknet_l1_contract.send_message_to_l2(&l1_handler).await;
+    l1_handler.calculate_transaction_hash(chain_id, &l1_handler.version).unwrap()
 }
 
 async fn send_rpc_txs<'a, Fut>(
@@ -507,7 +503,7 @@ where
 pub async fn run_test_scenario<'a, Fut>(
     tx_generator: &mut MultiAccountTransactionGenerator,
     create_rpc_txs_fn: CreateRpcTxsFn,
-    l1_to_l2_message_args: Vec<L1ToL2MessageArgs>,
+    l1_handlers: Vec<L1HandlerTransaction>,
     send_rpc_tx_fn: &'a mut dyn Fn(RpcTransaction) -> Fut,
     test_tx_hashes_fn: TestTxHashesFn,
     chain_id: &ChainId,
@@ -515,9 +511,11 @@ pub async fn run_test_scenario<'a, Fut>(
 where
     Fut: Future<Output = TransactionHash> + 'a,
 {
-    let mut tx_hashes: Vec<TransactionHash> = l1_to_l2_message_args
+    let mut tx_hashes: Vec<TransactionHash> = l1_handlers
         .iter()
-        .map(|args| args.tx.calculate_transaction_hash(chain_id, &args.tx.version).unwrap())
+        .map(|l1_handler| {
+            l1_handler.calculate_transaction_hash(chain_id, &l1_handler.version).unwrap()
+        })
         .collect();
 
     let rpc_txs = create_rpc_txs_fn(tx_generator);
@@ -531,7 +529,7 @@ pub async fn send_consensus_txs<'a, 'b, FutA, FutB>(
     account_id: AccountId,
     test_scenario: &impl TestScenario,
     send_rpc_tx_fn: &'a mut dyn Fn(RpcTransaction) -> FutA,
-    send_l1_handler_tx_fn: &'b mut dyn Fn(L1ToL2MessageArgs) -> FutB,
+    send_l1_handler_tx_fn: &'b mut dyn Fn(L1HandlerTransaction) -> FutB,
 ) -> Vec<TransactionHash>
 where
     FutA: Future<Output = TransactionHash> + 'a,
