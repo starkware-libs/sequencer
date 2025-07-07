@@ -162,6 +162,14 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    pub fn with_consumed(
+        mut self,
+        consumed: impl IntoIterator<Item = L1HandlerTransaction>,
+    ) -> Self {
+        self.tx_manager_content_builder = self.tx_manager_content_builder.with_consumed(consumed);
+        self
+    }
+
     pub fn with_timed_cancel_requested_txs(
         mut self,
         cancel_requested: impl IntoIterator<Item = (L1HandlerTransaction, u64)>,
@@ -264,6 +272,7 @@ struct TransactionManagerContent {
     pub uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     pub rejected: Option<Vec<L1HandlerTransaction>>,
     pub committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    pub consumed: Option<IndexMap<TransactionHash, TransactionPayload>>,
     pub cancel_requested: Option<Vec<CancellationRequest>>,
     pub config: Option<TransactionManagerConfig>,
 }
@@ -308,6 +317,7 @@ impl From<TransactionManagerContent> for TransactionManager {
         let pending: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
         let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
         let committed: IndexMap<_, _> = mem::take(&mut content.committed).unwrap_or_default();
+        let consumed: IndexMap<_, _> = mem::take(&mut content.consumed).unwrap_or_default();
         let cancel_requested: Vec<_> = mem::take(&mut content.cancel_requested).unwrap_or_default();
 
         let mut records = IndexMap::with_capacity(
@@ -351,6 +361,13 @@ impl From<TransactionManagerContent> for TransactionManager {
             assert_eq!(records.insert(tx_hash, record), None);
         }
 
+        for (tx_hash, consumed_tx) in consumed {
+            let mut record = TransactionRecord::from(consumed_tx);
+            record.mark_committed();
+            record.mark_consumed(0.into());
+            assert_eq!(records.insert(tx_hash, record), None);
+        }
+
         let current_epoch = StagingEpoch::new();
         TransactionManager::create_for_testing(
             records.into(),
@@ -366,6 +383,7 @@ struct TransactionManagerContentBuilder {
     uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     rejected: Option<Vec<L1HandlerTransaction>>,
     committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    consumed: Option<IndexMap<TransactionHash, TransactionPayload>>,
     config: Option<TransactionManagerConfig>,
     cancel_requested: Option<Vec<CancellationRequest>>,
 }
@@ -427,6 +445,13 @@ impl TransactionManagerContentBuilder {
         self
     }
 
+    fn with_consumed(mut self, consumed: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
+        self.consumed.get_or_insert_default().extend(consumed.into_iter().map(|tx| {
+            (tx.tx_hash, TransactionPayload::Full { tx, created_at_block_timestamp: 0.into() })
+        }));
+        self
+    }
+
     pub fn with_cancel_requested_txs(
         mut self,
         cancel_requested: impl IntoIterator<Item = CancellationRequest>,
@@ -448,6 +473,7 @@ impl TransactionManagerContentBuilder {
         Some(TransactionManagerContent {
             uncommitted: self.uncommitted,
             committed: self.committed,
+            consumed: self.consumed,
             rejected: self.rejected,
             cancel_requested: self.cancel_requested,
             config: self.config,
