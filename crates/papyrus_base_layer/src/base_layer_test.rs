@@ -10,7 +10,7 @@ use starknet_api::core::EntryPointSelector;
 use starknet_api::transaction::L1HandlerTransaction;
 use starknet_api::{calldata, contract_address, felt};
 
-use crate::anvil_base_layer::AnvilBaseLayer;
+use crate::anvil_base_layer::{send_message_to_l2, AnvilBaseLayer};
 use crate::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -142,7 +142,7 @@ async fn events_from_other_contract() {
         calldata: calldata!(DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, felt!("0x1"), felt!("0x2")),
         ..Default::default()
     };
-    let this_receipt = this_contract.send_message_to_l2(&this_l1_handler.clone()).await;
+    let this_receipt = send_message_to_l2(this_contract, &this_l1_handler.clone()).await;
     assert!(this_receipt.status());
     let this_block_number = this_receipt.block_number.unwrap();
 
@@ -152,7 +152,7 @@ async fn events_from_other_contract() {
         calldata: calldata!(DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS, felt!("0x1"), felt!("0x2")),
         ..Default::default()
     };
-    let other_receipt = other_contract.send_message_to_l2(&other_l1_handler.clone()).await;
+    let other_receipt = send_message_to_l2(&other_contract, &other_l1_handler.clone()).await;
     assert!(other_receipt.status());
     let other_block_number = other_receipt.block_number.unwrap();
 
