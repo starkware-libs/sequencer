@@ -1,10 +1,13 @@
 use std::ops::RangeInclusive;
 
 use alloy::node_bindings::NodeError as AnvilError;
+use alloy::primitives::U256;
 use alloy::providers::{DynProvider, Provider, ProviderBuilder};
+use alloy::rpc::types::TransactionReceipt;
 use async_trait::async_trait;
 use colored::*;
 use starknet_api::block::BlockHashAndNumber;
+use starknet_api::transaction::L1HandlerTransaction;
 use url::Url;
 
 use crate::ethereum_base_layer_contract::{
@@ -12,6 +15,7 @@ use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerContract,
     EthereumBaseLayerError,
     Starknet,
+    StarknetL1Contract,
 };
 use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
 
@@ -22,7 +26,7 @@ use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L
 /// unit tests is not supported and is discouraged, since unit tests should not need to run a whole
 /// L1 (and they are parallelized, which creates port issues). For unit tests, prefer using
 /// `ProviderBuilder::new().on_mocked_client` to mock L1.
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct AnvilBaseLayer {
     pub anvil_provider: DynProvider,
     pub ethereum_base_layer: EthereumBaseLayerContract,
@@ -64,6 +68,13 @@ impl AnvilBaseLayer {
             anvil_provider: anvil_client.erased(),
             ethereum_base_layer: EthereumBaseLayerContract { config, contract },
         }
+    }
+
+    pub async fn send_message_to_l2(
+        &self,
+        l1_handler: &L1HandlerTransaction,
+    ) -> TransactionReceipt {
+        send_message_to_l2(&self.ethereum_base_layer.contract, l1_handler).await
     }
 
     pub fn config() -> EthereumBaseLayerConfig {
@@ -134,4 +145,30 @@ impl BaseLayerContract for AnvilBaseLayer {
     async fn set_provider_url(&mut self, _url: Url) -> Result<(), Self::Error> {
         unimplemented!("Anvil base layer is tied to a an Anvil server, url is fixed.")
     }
+}
+
+pub async fn send_message_to_l2(
+    starknet_core_contract: &StarknetL1Contract,
+    l1_handler: &L1HandlerTransaction,
+) -> TransactionReceipt {
+    const PAID_FEE_ON_L1: U256 = U256::from_be_slice(b"paid"); // Arbitrary value.
+
+    let l2_contract_address = l1_handler.contract_address.0.key().to_hex_string().parse().unwrap();
+    let l2_entry_point = l1_handler.entry_point_selector.0.to_hex_string().parse().unwrap();
+
+    // The calldata of an L1 handler transaction consists of the L1 sender address followed by
+    // the transaction payload. We remove the sender address to extract the message
+    // payload.
+    let payload =
+        l1_handler.calldata.0[1..].iter().map(|x| x.to_hex_string().parse().unwrap()).collect();
+    let msg = starknet_core_contract.sendMessageToL2(l2_contract_address, l2_entry_point, payload);
+
+    msg
+        // Sets a non-zero fee to be paid on L1.
+        .value(PAID_FEE_ON_L1)
+        // Sends the transaction to the Starknet L1 contract. For debugging purposes, replace
+        // `.send()` with `.call_raw()` to retrieve detailed error messages from L1.
+        .send().await.expect("Transaction submission to Starknet L1 contract failed.")
+        // Waits until the transaction is received on L1 and then fetches its receipt.
+        .get_receipt().await.expect("Transaction was not received on L1 or receipt retrieval failed.")
 }
