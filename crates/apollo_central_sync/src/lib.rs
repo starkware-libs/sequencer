@@ -83,7 +83,7 @@ const SLEEP_TIME_SYNC_PROGRESS: Duration = Duration::from_secs(300);
 
 // The first starknet version where we can send sierras to the class manager without casms and it
 // will compile them, in a backward-compatible manner.
-const STARKNET_VERSION_TO_COMPILE_FROM: StarknetVersion = StarknetVersion::V0_12_0;
+const STARKNET_VERSION_TO_COMPILE_FROM: StarknetVersion = StarknetVersion::V0_14_0;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct SyncConfig {
