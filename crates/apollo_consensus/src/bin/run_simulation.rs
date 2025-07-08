@@ -4,7 +4,7 @@
 //! uses the `run_consensus` binary which is able to simulate network issues for consensus messages.
 use std::collections::HashSet;
 use std::fs::{self, File};
-use std::net::TcpListener;
+use std::net::UdpSocket;
 use std::os::unix::process::CommandExt;
 use std::process::Command;
 use std::str::FromStr;
@@ -194,7 +194,7 @@ fn find_free_port() -> u16 {
     // The socket is automatically closed when the function exits.
     // The port may still be available when accessed, but this is not guaranteed.
     // TODO(Asmaa): find a reliable way to ensure the port stays free.
-    let listener = TcpListener::bind("0.0.0.0:0").expect("Failed to bind");
+    let listener = UdpSocket::bind("0.0.0.0:0").expect("Failed to bind");
     listener.local_addr().expect("Failed to get local address").port()
 }
 
@@ -331,7 +331,7 @@ async fn build_node(data_dir: &str, logs_dir: &str, i: usize, papyrus_args: &Pap
     } else {
         cmd.push_str(&format!(
             "--network.bootstrap_peer_multiaddr.#is_none false --network.bootstrap_peer_multiaddr \
-             /ip4/127.0.0.1/tcp/{}/p2p/{} 2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > \
+             /ip4/127.0.0.1/udp/{}/quic-v1/p2p/{} 2>&1 | sed -r 's/\\x1B\\[[0-9;]*[mK]//g' > \
              {}/validator0x{:x}.txt",
             *BOOTNODE_TCP_PORT, BOOT_NODE_PEER_ID, logs_dir, validator_id
         ));
