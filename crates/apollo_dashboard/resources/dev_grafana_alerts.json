@@ -544,7 +544,7 @@
       "name": "gateway_add_tx_idle",
       "title": "Gateway add_tx idle",
       "ruleGroup": "gateway",
-      "expr": "increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
+      "expr": "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -571,7 +571,7 @@
       "name": "http_server_idle",
       "title": "http server idle",
       "ruleGroup": "http_server",
-      "expr": "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
+      "expr": "sum(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -598,7 +598,7 @@
       "name": "http_server_add_tx_idle",
       "title": "HTTP Server add_tx idle",
       "ruleGroup": "http_server",
-      "expr": "increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
+      "expr": "sum(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -706,7 +706,7 @@
       "name": "http_server_no_successful_transactions",
       "title": "http server no successful transactions",
       "ruleGroup": "http_server",
-      "expr": "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) or vector(0)",
+      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -1030,7 +1030,7 @@
       "name": "mempool_add_tx_idle",
       "title": "Mempool add_tx idle",
       "ruleGroup": "mempool",
-      "expr": "increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
+      "expr": "sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
