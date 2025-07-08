@@ -85,7 +85,7 @@
       "name": "cende_write_prev_height_blob_latency_too_high",
       "title": "Cende write prev height blob latency too high",
       "ruleGroup": "consensus",
-      "expr": "avg_over_time(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
+      "expr": "rate(cende_write_prev_height_blob_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) / clamp_min(rate(cende_write_prev_height_blob_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]), 0.0000001)",
       "conditions": [
         {
           "evaluator": {
@@ -112,7 +112,7 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus block number stuck",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
