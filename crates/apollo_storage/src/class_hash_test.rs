@@ -11,21 +11,21 @@ fn class_hash_storage() {
     // Non-existent entry.
     let class_hash = ClassHash(felt!("0x1234"));
     let executable_class_hash =
-        reader.begin_ro_txn().unwrap().get_executable_class_hash(&class_hash).unwrap();
+        reader.begin_ro_txn().unwrap().get_executable_class_hash_v2(&class_hash).unwrap();
     assert_eq!(executable_class_hash, None);
 
     // Insert an entry.
-    let expected_executable_class_hash = CompiledClassHash(felt!("0x5678"));
+    let expected_executable_class_hash_v2 = CompiledClassHash(felt!("0x5678"));
     writer
         .begin_rw_txn()
         .unwrap()
-        .set_executable_class_hash(&class_hash, expected_executable_class_hash)
+        .set_executable_class_hash_v2(&class_hash, expected_executable_class_hash_v2)
         .unwrap()
         .commit()
         .unwrap();
 
     // Read the inserted entry.
-    let executable_class_hash =
-        reader.begin_ro_txn().unwrap().get_executable_class_hash(&class_hash).unwrap();
-    assert_eq!(executable_class_hash, Some(expected_executable_class_hash));
+    let executable_class_hash_v2 =
+        reader.begin_ro_txn().unwrap().get_executable_class_hash_v2(&class_hash).unwrap();
+    assert_eq!(executable_class_hash_v2, Some(expected_executable_class_hash_v2));
 }

@@ -51,7 +51,7 @@ async fn class_manager() {
     // Prepare mock compiler.
     let mut compiler = MockSierraCompilerClient::new();
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
-    let (expected_executable_class, expected_executable_class_hash) =
+    let (expected_executable_class, expected_executable_class_hash_v2) =
         mock_compile_expectations(&mut compiler, class.clone());
 
     // Prepare class manager.
@@ -71,8 +71,10 @@ async fn class_manager() {
 
     // Add new class.
     let class_hashes = class_manager.add_class(class.clone()).await.unwrap();
-    let expected_class_hashes =
-        ClassHashes { class_hash: class_id, executable_class_hash: expected_executable_class_hash };
+    let expected_class_hashes = ClassHashes {
+        class_hash: class_id,
+        executable_class_hash_v2: expected_executable_class_hash_v2,
+    };
     assert_eq!(class_hashes, expected_class_hashes);
 
     // Get class.
@@ -110,7 +112,7 @@ async fn class_manager_get_executable() {
     // Test.
 
     // Add classes: deprecated and non-deprecated, under different hashes.
-    let ClassHashes { class_hash, executable_class_hash: _ } =
+    let ClassHashes { class_hash, executable_class_hash_v2: _ } =
         class_manager.add_class(class.clone()).await.unwrap();
 
     let deprecated_class_hash = ClassHash(felt!("0x1806"));

@@ -175,12 +175,14 @@ impl TransactionConverterTrait for TransactionConverter {
         let tx_without_hash = match tx {
             RpcTransaction::Invoke(tx) => InternalRpcTransactionWithoutTxHash::Invoke(tx),
             RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => {
-                let ClassHashes { class_hash, executable_class_hash } =
+                let ClassHashes { class_hash, executable_class_hash_v2 } =
                     self.class_manager_client.add_class(tx.contract_class).await?;
-                if tx.compiled_class_hash != executable_class_hash {
+                // TODO(Aviv): Ensure that we do not want to
+                // allow declare with compiled class hash v1.
+                if tx.compiled_class_hash != executable_class_hash_v2 {
                     return Err(TransactionConverterError::ValidateCompiledClassHashError(
                         ValidateCompiledClassHashError::CompiledClassHashMismatch {
-                            computed_class_hash: executable_class_hash,
+                            computed_class_hash: executable_class_hash_v2,
                             supplied_class_hash: tx.compiled_class_hash,
                         },
                     ));
