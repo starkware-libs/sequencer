@@ -165,7 +165,6 @@ impl SerializeConfig for CendeConfig {
 
 #[async_trait]
 impl CendeContext for CendeAmbassador {
-    #[sequencer_latency_histogram(CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, false)]
     fn write_prev_height_blob(&self, current_height: BlockNumber) -> JoinHandle<bool> {
         info!("Start writing to Aerospike previous height blob for height {current_height}.");
 
@@ -241,6 +240,7 @@ impl CendeContext for CendeAmbassador {
     }
 }
 
+#[sequencer_latency_histogram(CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY, false)]
 async fn send_write_blob(request_builder: RequestBuilder, blob: &AerospikeBlob) -> bool {
     // TODO(dvir): use compression to reduce the size of the blob in the network.
     match request_builder.json(blob).send().await {
