@@ -616,10 +616,13 @@ impl<
     async fn store_compiled_class(
         &mut self,
         class_hash: ClassHash,
-        compiled_class_hash: CompiledClassHash,
+        _compiled_class_hash_v1: CompiledClassHash,
         compiled_class: CasmContractClass,
         is_compiler_backward_compatible: bool,
     ) -> StateSyncResult {
+        // TODO(Aviv): Compute the actual compiled class hash v2.
+        let compiled_class_hash_v2 = CompiledClassHash::default();
+
         if !is_compiler_backward_compatible {
             if let Some(class_manager_client) = &self.class_manager_client {
                 let class = self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
@@ -632,7 +635,7 @@ impl<
                     .add_class_and_executable_unsafe(
                         class_hash,
                         class,
-                        compiled_class_hash,
+                        compiled_class_hash_v2,
                         contract_class,
                     )
                     .await

@@ -70,7 +70,7 @@ pub trait ClassManagerClient: Send + Sync {
         &self,
         class_id: ClassId,
         class: Class,
-        executable_class_id: ExecutableClassHash,
+        executable_class_hash_v2: ExecutableClassHash,
         executable_class: ExecutableClass,
     ) -> ClassManagerClientResult<()>;
 }
@@ -206,13 +206,13 @@ where
         &self,
         class_id: ClassId,
         class: Class,
-        executable_class_id: ExecutableClassHash,
+        executable_class_hash_v2: ExecutableClassHash,
         executable_class: ExecutableClass,
     ) -> ClassManagerClientResult<()> {
         let request = ClassManagerRequest::AddClassAndExecutableUnsafe(
             class_id,
             class,
-            executable_class_id,
+            executable_class_hash_v2,
             executable_class,
         );
         handle_all_response_variants!(
@@ -256,7 +256,7 @@ impl ClassManagerClient for EmptyClassManagerClient {
         &self,
         _class_id: ClassId,
         _class: Class,
-        _executable_class_id: ExecutableClassHash,
+        _executable_class_hash_v2: ExecutableClassHash,
         _executable_class: ExecutableClass,
     ) -> ClassManagerClientResult<()> {
         Ok(())

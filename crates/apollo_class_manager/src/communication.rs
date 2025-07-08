@@ -23,13 +23,13 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
             ClassManagerRequest::AddClassAndExecutableUnsafe(
                 class_id,
                 class,
-                executable_class_id,
+                executable_class_hash_v2,
                 executable_class,
             ) => ClassManagerResponse::AddClassAndExecutableUnsafe(
                 self.0.add_class_and_executable_unsafe(
                     class_id,
                     class.try_into().unwrap(),
-                    executable_class_id,
+                    executable_class_hash_v2,
                     executable_class.try_into().unwrap(),
                 ),
             ),
