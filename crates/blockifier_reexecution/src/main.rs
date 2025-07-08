@@ -207,25 +207,29 @@ async fn main() {
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Computing reexecution data for blocks {block_numbers:?}.");
 
-            // TODO(Aner): Execute in parallel. Requires making the function async, and only the RPC
-            // calls blocking.
+            let mut threads = vec![];
             for block_number in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
                 let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking
                 // for details), so should be executed in a blocking thread.
-                // TODO(Aner): make only the RPC calls blocking, not the whole function.
-                tokio::task::spawn_blocking(move || {
+                // TODO(Aner): make only the RPC calls blocking, not the entire function.
+                threads.push(tokio::task::spawn(async move {
                     println!("Computing reexecution data for block {block_number}.");
-                    write_block_reexecution_data_to_file(
-                        block_number,
-                        full_file_path,
-                        node_url,
-                        chain_id,
-                    )
-                })
-                .await
-                .unwrap();
+                    tokio::task::spawn_blocking(move || {
+                        write_block_reexecution_data_to_file(
+                            block_number,
+                            full_file_path,
+                            node_url,
+                            chain_id,
+                        )
+                    })
+                    .await
+                }));
+            }
+            println!("Waiting for all blocks to be processed.");
+            for thread in threads {
+                let _ = thread.await.unwrap();
             }
         }
 
