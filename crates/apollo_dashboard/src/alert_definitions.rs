@@ -204,8 +204,9 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
         title: "Cende write prev height blob latency too high",
         alert_group: AlertGroup::Consensus,
         expr: format!(
-            "avg_over_time({}[20m])",
-            CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter()
+            "rate({}[20m]) / rate({}[20m])",
+            CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_sum_with_filter(),
+            CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_count_with_filter(),
         ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
