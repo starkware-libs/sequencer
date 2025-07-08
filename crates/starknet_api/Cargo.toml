@@ -37,6 +37,7 @@ starknet-types-core = { workspace = true, features = ["hash"] }
 strum = { workspace = true, features = ["derive"] }
 strum_macros.workspace = true
 thiserror.workspace = true
+time.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
