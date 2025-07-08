@@ -40,7 +40,7 @@ pub trait ClassStorage: Send + Sync {
 
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error>;
 
-    fn get_executable_class_hash(
+    fn get_executable_class_hash_v2(
         &self,
         class_id: ClassId,
     ) -> Result<Option<ExecutableClassHash>, Self::Error>;
@@ -198,20 +198,21 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
     }
 
     #[instrument(skip(self), level = "debug", ret, err)]
-    fn get_executable_class_hash(
+    fn get_executable_class_hash_v2(
         &self,
         class_id: ClassId,
     ) -> Result<Option<ExecutableClassHash>, Self::Error> {
-        if let Some(class_hash) = self.executable_class_hashes_v2.get(&class_id) {
-            return Ok(Some(class_hash));
+        if let Some(compiled_class_hash_v2) = self.executable_class_hashes_v2.get(&class_id) {
+            return Ok(Some(compiled_class_hash_v2));
         }
 
-        let Some(class_hash) = self.storage.get_executable_class_hash(class_id)? else {
+        let Some(compiled_class_hash_v2) = self.storage.get_executable_class_hash_v2(class_id)?
+        else {
             return Ok(None);
         };
 
-        self.executable_class_hashes_v2.set(class_id, class_hash);
-        Ok(Some(class_hash))
+        self.executable_class_hashes_v2.set(class_id, compiled_class_hash_v2);
+        Ok(Some(compiled_class_hash_v2))
     }
 
     #[instrument(skip(self, class), level = "debug", ret, err)]
@@ -292,7 +293,7 @@ impl ClassHashStorage {
     }
 
     #[instrument(skip(self), level = "debug", ret, err)]
-    fn get_executable_class_hash(
+    fn get_executable_class_hash_v2(
         &self,
         class_id: ClassId,
     ) -> ClassHashStorageResult<Option<ExecutableClassHash>> {
@@ -300,7 +301,7 @@ impl ClassHashStorage {
     }
 
     #[instrument(skip(self), level = "debug", ret, err)]
-    fn set_executable_class_hash(
+    fn set_executable_class_hash_v2(
         &mut self,
         class_id: ClassId,
         executable_class_hash: ExecutableClassHash,
@@ -342,7 +343,7 @@ impl FsClassStorage {
     }
 
     fn contains_class(&self, class_id: ClassId) -> FsClassStorageResult<bool> {
-        Ok(self.get_executable_class_hash(class_id)?.is_some())
+        Ok(self.get_executable_class_hash_v2(class_id)?.is_some())
     }
 
     // TODO(Elin): make this more robust; checking file existence is not enough, since by reading
@@ -394,7 +395,7 @@ impl FsClassStorage {
         class_id: ClassId,
         executable_class_hash: ExecutableClassHash,
     ) -> FsClassStorageResult<()> {
-        Ok(self.class_hash_storage.set_executable_class_hash(class_id, executable_class_hash)?)
+        Ok(self.class_hash_storage.set_executable_class_hash_v2(class_id, executable_class_hash)?)
     }
 
     fn write_class(
@@ -513,11 +514,11 @@ impl ClassStorage for FsClassStorage {
     }
 
     #[instrument(skip(self), level = "debug", err)]
-    fn get_executable_class_hash(
+    fn get_executable_class_hash_v2(
         &self,
         class_id: ClassId,
     ) -> Result<Option<ExecutableClassHash>, Self::Error> {
-        Ok(self.class_hash_storage.get_executable_class_hash(class_id)?)
+        Ok(self.class_hash_storage.get_executable_class_hash_v2(class_id)?)
     }
 
     #[instrument(skip(self, class), level = "debug", ret, err)]

@@ -51,7 +51,7 @@ impl<S: ClassStorage> ClassManager<S> {
         let sierra_class = SierraContractClass::try_from(class.clone())?;
         let class_hash = sierra_class.calculate_class_hash();
         if let Ok(Some(executable_class_hash_v2)) =
-            self.classes.get_executable_class_hash(class_hash)
+            self.classes.get_executable_class_hash_v2(class_hash)
         {
             // Class already exists.
             return Ok(ClassHashes { class_hash, executable_class_hash_v2 });

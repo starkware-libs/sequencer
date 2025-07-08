@@ -54,24 +54,27 @@ fn fs_storage() {
     let class_id = ClassHash(felt!("0x1234"));
     assert_eq!(storage.get_sierra(class_id), Ok(None));
     assert_eq!(storage.get_executable(class_id), Ok(None));
-    assert_eq!(storage.get_executable_class_hash(class_id), Ok(None));
+    assert_eq!(storage.get_executable_class_hash_v2(class_id), Ok(None));
 
     // Add new class.
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
     let executable_class = RawExecutableClass::new_unchecked(vec![4, 5, 6].into());
-    let executable_class_hash = CompiledClassHash(felt!("0x5678"));
+    let executable_class_hash_v2 = CompiledClassHash(felt!("0x5678"));
     storage
-        .set_class(class_id, class.clone(), executable_class_hash, executable_class.clone())
+        .set_class(class_id, class.clone(), executable_class_hash_v2, executable_class.clone())
         .unwrap();
 
     // Get class.
     assert_eq!(storage.get_sierra(class_id).unwrap(), Some(class.clone()));
     assert_eq!(storage.get_executable(class_id).unwrap(), Some(executable_class.clone()));
-    assert_eq!(storage.get_executable_class_hash(class_id).unwrap(), Some(executable_class_hash));
+    assert_eq!(
+        storage.get_executable_class_hash_v2(class_id).unwrap(),
+        Some(executable_class_hash_v2)
+    );
 
     // Add existing class.
     storage
-        .set_class(class_id, class.clone(), executable_class_hash, executable_class.clone())
+        .set_class(class_id, class.clone(), executable_class_hash_v2, executable_class.clone())
         .unwrap();
 }
 
@@ -132,7 +135,7 @@ fn fs_storage_partial_write_no_atomic_marker() {
     let class = RawClass::try_from(SierraContractClass::default()).unwrap();
     let executable_class = RawExecutableClass::new_unchecked(vec![4, 5, 6].into());
     storage.write_class_atomically(class_id, class, executable_class).unwrap();
-    assert_eq!(storage.get_executable_class_hash(class_id), Ok(None));
+    assert_eq!(storage.get_executable_class_hash_v2(class_id), Ok(None));
 
     // Query class, should be considered non-existent.
     assert_eq!(storage.get_sierra(class_id), Ok(None));
