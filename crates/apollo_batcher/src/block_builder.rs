@@ -372,11 +372,12 @@ impl BlockBuilder {
             Ok(result) => result,
         };
 
-        let n_txs = next_txs.len();
-        debug!("Got {} transactions from the transaction provider.", n_txs);
         if next_txs.is_empty() {
             return Ok(AddTxsToExecutorResult::NoNewTxs);
         }
+
+        let n_txs = next_txs.len();
+        debug!("Got {} transactions from the transaction provider.", n_txs);
 
         self.send_candidate_txs(&next_txs);
 
