@@ -137,3 +137,49 @@ fn gas_price_provider_uninitialized_error() {
     let result = provider.add_price_info(GasPriceData { block_number: 42, timestamp, price_info });
     assert!(matches!(result, Err(L1GasPriceProviderError::NotInitializedError)));
 }
+
+#[test]
+fn gas_price_provider_sanity_check() {
+    const NUM_SAMPLES: usize = 10;
+    const NUM_ROUNDS: usize = 30;
+    const EXTRA_SAMPLES: usize = 5; // Extra samples to ensure the provider can handle more than NUM_SAMPLES.
+    const ETH_BLOCK_TIME: u64 = 12; // seconds
+    const LAG_TIME: u64 = 60; // seconds
+
+    let mut provider = L1GasPriceProvider::new(L1GasPriceProviderConfig {
+        number_of_blocks_for_mean: NUM_SAMPLES.try_into().unwrap(),
+        storage_limit: 10 * NUM_SAMPLES,
+        lag_margin_seconds: LAG_TIME,
+        ..Default::default()
+    });
+    provider.initialize().unwrap();
+    for i in 0..NUM_SAMPLES * NUM_ROUNDS + EXTRA_SAMPLES {
+        let block_number = 1000 + u64::try_from(i).unwrap();
+        // Around 10M gas price, with a small variation.
+        let gas_price = 10000000 + 1000000 * u128::try_from(i % 3).unwrap();
+        // Around 35 data price, with a small variation.
+        let data_price = 35 + u128::try_from(i % 6).unwrap();
+        let time = u64::try_from(i).unwrap() * ETH_BLOCK_TIME;
+        let price_info =
+            PriceInfo { base_fee_per_gas: GasPrice(gas_price), blob_fee: GasPrice(data_price) };
+        provider
+            .add_price_info(GasPriceData {
+                block_number,
+                timestamp: BlockTimestamp(time),
+                price_info,
+            })
+            .unwrap();
+    }
+    println!("Added {} samples to the provider", NUM_SAMPLES);
+    // println!("Provider state: {:#?}", provider);
+
+    let timestamp = BlockTimestamp(
+        ETH_BLOCK_TIME * u64::try_from(NUM_SAMPLES * NUM_ROUNDS + EXTRA_SAMPLES).unwrap()
+            + LAG_TIME,
+    );
+    println!(
+        "\n\n The average gas price is {} and data gas price: {}",
+        provider.get_price_info(timestamp).unwrap().base_fee_per_gas,
+        provider.get_price_info(timestamp).unwrap().blob_fee
+    );
+}
