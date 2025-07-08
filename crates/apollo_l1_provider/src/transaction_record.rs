@@ -69,6 +69,9 @@ impl TransactionRecord {
         self.rejected = true;
     }
 
+    /// Mark a cancellation request for this transaction.
+    /// Returns the existing cancellation timestamp if one exists, `None` if this is the first
+    /// request.
     pub fn mark_cancellation_request(
         &mut self,
         timestamp: BlockTimestamp,
@@ -78,7 +81,14 @@ impl TransactionRecord {
         if !self.is_committed() {
             self.state = TransactionState::CancellationStartedOnL2;
         }
-        Some(*self.cancellation_requested_at.get_or_insert(timestamp))
+
+        match self.cancellation_requested_at {
+            Some(existing) => Some(existing),
+            None => {
+                self.cancellation_requested_at = Some(timestamp);
+                None
+            }
+        }
     }
 
     /// Try to stage an l1 handler transaction, which means that we allow to include it in the
