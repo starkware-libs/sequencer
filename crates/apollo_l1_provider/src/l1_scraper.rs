@@ -8,7 +8,7 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n_sec;
+use apollo_infra_utils::{debug_every_n, info_every_n_sec};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use async_trait::async_trait;
@@ -150,7 +150,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                 )
             })
             .collect::<Vec<_>>();
-        if !formatted_pairs.is_empty() {
+        if formatted_pairs.is_empty() {
+            debug_every_n!(100, "Got Messages to L2: []");
+        } else {
             debug!("Got Messages to L2: {formatted_pairs:?}");
         }
         Ok((latest_l1_block, events))
