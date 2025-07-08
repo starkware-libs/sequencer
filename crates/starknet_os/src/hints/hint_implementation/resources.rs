@@ -36,7 +36,7 @@ pub(crate) fn debug_expected_initial_gas<S: StateReader>(
             .call_info;
         let expected_initial_gas = Felt::from(call_info.call.initial_gas);
         let call_initial_gas =
-            get_integer_from_var_name(Ids::RemainingGas.into(), vm, ids_data, ap_tracking)?;
+            get_integer_from_var_name(Ids::InnerRemainingGas.into(), vm, ids_data, ap_tracking)?;
         if expected_initial_gas != call_initial_gas {
             return Err(OsHintError::AssertionFailed {
                 message: format!(
