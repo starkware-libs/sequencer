@@ -334,7 +334,7 @@ fn get_gateway_add_tx_idle() -> Alert {
         title: "Gateway add_tx idle",
         alert_group: AlertGroup::Gateway,
         expr: format!(
-            "increase({}[20m]) or vector(0)",
+            "sum(increase({}[20m])) or vector(0)",
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
@@ -356,7 +356,7 @@ fn get_mempool_add_tx_idle() -> Alert {
         title: "Mempool add_tx idle",
         alert_group: AlertGroup::Mempool,
         expr: format!(
-            "increase({}[20m]) or vector(0)",
+            "sum(increase({}[20m])) or vector(0)",
             MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
@@ -376,7 +376,7 @@ fn get_http_server_add_tx_idle() -> Alert {
         title: "HTTP Server add_tx idle",
         alert_group: AlertGroup::HttpServer,
         expr: format!(
-            "increase({}[20m]) or vector(0)",
+            "sum(increase({}[20m])) or vector(0)",
             ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
@@ -491,7 +491,7 @@ fn get_http_server_no_successful_transactions() -> Alert {
         title: "http server no successful transactions",
         alert_group: AlertGroup::HttpServer,
         expr: format!(
-            "increase({}[1h]) or vector(0)",
+            "sum(increase({}[1h])) or vector(0)",
             ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
