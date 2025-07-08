@@ -3,6 +3,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 
 use apollo_starknet_os_program::test_programs::ALIASES_TEST_BYTES;
 use blockifier::state::stateful_compression::{ALIAS_COUNTER_STORAGE_KEY, INITIAL_AVAILABLE_ALIAS};
+use blockifier::state::stateful_compression_test_utils::decompress;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use cairo_vm::hint_processor::builtin_hint_processor::dict_hint_utils::DICT_ACCESS_SIZE;
@@ -10,7 +11,7 @@ use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use rstest::rstest;
-use starknet_api::core::L2_ADDRESS_UPPER_BOUND;
+use starknet_api::core::{ContractAddress, L2_ADDRESS_UPPER_BOUND};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
@@ -510,8 +511,8 @@ fn test_allocate_addresses_for_state_diff_and_replace(
         EndpointArg::Pointer(PointerArg::Array(flat_contract_state_changes)),
     ];
     let storage_view = initial_alias_storage
-        .into_iter()
-        .map(|(key, value)| ((*ALIAS_CONTRACT_ADDRESS, key.into()), value.into()))
+        .iter()
+        .map(|(key, value)| ((*ALIAS_CONTRACT_ADDRESS, (*key).into()), (*value).into()))
         .collect();
     let state_reader = DictStateReader { storage_view, ..Default::default() };
     let expected_aliases_storage_flat_length = expected_alias_storage.len() * DICT_ACCESS_SIZE;
@@ -557,9 +558,11 @@ fn test_allocate_addresses_for_state_diff_and_replace(
     let aliases_storage_updates_as_felts: Vec<Felt> =
         aliases_storage_updates.iter().map(|f| f.get_int().unwrap()).collect();
     let actual_alias_storage = parse_squashed_cairo_dict(&aliases_storage_updates_as_felts);
-    let expected_alias_storage: HashMap<Felt, Felt> =
-        expected_alias_storage.into_iter().map(|(key, value)| (key.into(), value.into())).collect();
-    assert_eq!(actual_alias_storage, expected_alias_storage);
+    let expected_alias_storage_felts: HashMap<Felt, Felt> = expected_alias_storage
+        .iter()
+        .map(|(key, value)| ((*key).into(), (*value).into()))
+        .collect();
+    assert_eq!(actual_alias_storage, expected_alias_storage_felts);
 
     // Parse the OS output.
     let contract_state_diff_as_felts: Vec<Felt> = contract_state_diff
@@ -583,5 +586,18 @@ fn test_allocate_addresses_for_state_diff_and_replace(
 
     // Sanity check - make sure the alias allocation is not trivial.
     assert!(os_state_diff != os_state_diff_with_aliases);
-    // TODO(Nimrod): Complete this test by verifying the decompression.
+    let state_maps_with_aliases = os_state_diff_with_aliases.as_state_maps();
+
+    // A new state reader is created because the previous one was moved into the hint processor.
+    let storage_view: HashMap<(ContractAddress, StorageKey), Felt> = initial_alias_storage
+        .into_iter()
+        .chain(expected_alias_storage.into_iter())
+        .map(|(key, value)| ((*ALIAS_CONTRACT_ADDRESS, key.into()), value.into()))
+        .collect();
+    let alias_keys = storage_view.keys().map(|(_, key)| *key).collect();
+    let state = DictStateReader { storage_view, ..Default::default() };
+    let decompressed_state_maps =
+        decompress(&state_maps_with_aliases, &state, *ALIAS_CONTRACT_ADDRESS, alias_keys);
+
+    assert_eq!(decompressed_state_maps, os_state_diff.as_state_maps());
 }
