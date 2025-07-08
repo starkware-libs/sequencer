@@ -55,6 +55,14 @@ pub enum TransactionInfo {
     Deprecated(DeprecatedTransactionInfo),
 }
 
+impl Default for TransactionInfo {
+    /// Creates a new transaction info with mostly default values, to be used for directly calling
+    /// contract entry points.
+    fn default() -> Self {
+        Self::Current(CurrentTransactionInfo::create_default_unlimited())
+    }
+}
+
 impl TransactionInfo {
     implement_getters!(
         (transaction_hash, TransactionHash),
@@ -127,18 +135,22 @@ pub struct CurrentTransactionInfo {
     pub account_deployment_data: AccountDeploymentData,
 }
 
-#[cfg(any(test, feature = "testing"))]
 impl CurrentTransactionInfo {
-    pub fn create_for_testing() -> Self {
+    pub fn create_default_unlimited() -> Self {
         Self {
             common_fields: CommonAccountFields::default(),
-            resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+            resource_bounds: ValidResourceBounds::new_unlimited_gas_no_fee_enforcement(),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L2,
             fee_data_availability_mode: DataAvailabilityMode::L2,
             paymaster_data: PaymasterData::default(),
             account_deployment_data: AccountDeploymentData::default(),
         }
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub fn create_for_testing() -> Self {
+        Self::create_default_unlimited()
     }
 }
 

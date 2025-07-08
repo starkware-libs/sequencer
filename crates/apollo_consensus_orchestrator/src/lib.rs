@@ -15,6 +15,9 @@ pub mod validate_proposal;
 #[allow(missing_docs)]
 pub mod cende;
 
+#[allow(missing_docs)]
+pub mod committee_manager;
+
 /// Fee market logic.
 pub mod fee_market;
 
