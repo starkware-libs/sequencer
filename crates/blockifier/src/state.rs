@@ -9,3 +9,5 @@ pub mod native_class_manager;
 pub mod state_api;
 pub mod state_reader_and_contract_manager;
 pub mod stateful_compression;
+#[cfg(any(feature = "testing", test))]
+pub mod stateful_compression_test_utils;
