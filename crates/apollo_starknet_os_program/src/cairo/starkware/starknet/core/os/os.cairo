@@ -160,7 +160,8 @@ func main{
     // (`[initial_range_check_ptr]`) is range-checked by ensuring
     //   `range_check_ptr != initial_range_check_ptr`,
     // which implies
-    //   `range_check_ptr >= initial_range_check_ptr + 1`.
+    //   `range_check_ptr >= initial_range_check_ptr + 1`,
+    // since the bootloader checks `range_check_ptr >= initial_range_check_ptr`.
     // Combined with the next assertion, we establish that
     //   `range_check_ptr >= reserved_range_checks_end`,
     // which confirms that all OS range checks are sound.
@@ -307,9 +308,6 @@ func execute_blocks{
 
     // All blocks inside of a multi block should be off-chain and therefore
     // should not be compressed.
-    let use_kzg_da = 0;
-    let full_output = 1;
-
     assert os_output_per_block_dst[0] = OsOutput(
         header=new OsOutputHeader(
             state_update_output=state_update_output,
@@ -319,8 +317,8 @@ func execute_blocks{
             new_block_hash=nondet %{ block_input.new_block_hash %},
             os_program_hash=0,
             starknet_os_config_hash=starknet_os_config_hash,
-            use_kzg_da=use_kzg_da,
-            full_output=full_output,
+            use_kzg_da=FALSE,
+            full_output=TRUE,
         ),
         squashed_os_state_update=squashed_os_state_update,
         initial_carried_outputs=initial_carried_outputs,
