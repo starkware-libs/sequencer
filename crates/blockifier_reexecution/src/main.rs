@@ -207,14 +207,14 @@ async fn main() {
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Computing reexecution data for blocks {block_numbers:?}.");
 
-            let mut threads = vec![];
+            let mut task_set = tokio::task::JoinSet::new();
             for block_number in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block_number);
                 let (node_url, chain_id) = (rpc_args.node_url.clone(), rpc_args.parse_chain_id());
                 // RPC calls are "synchronous IO" (see, e.g., https://stackoverflow.com/questions/74547541/when-should-you-use-tokios-spawn-blocking
                 // for details), so should be executed in a blocking thread.
                 // TODO(Aner): make only the RPC calls blocking, not the entire function.
-                threads.push(tokio::task::spawn(async move {
+                task_set.spawn(async move {
                     println!("Computing reexecution data for block {block_number}.");
                     tokio::task::spawn_blocking(move || {
                         write_block_reexecution_data_to_file(
@@ -225,12 +225,10 @@ async fn main() {
                         )
                     })
                     .await
-                }));
+                });
             }
             println!("Waiting for all blocks to be processed.");
-            for thread in threads {
-                let _ = thread.await.unwrap();
-            }
+            task_set.join_all().await;
         }
 
         Command::Reexecute { block_numbers, directory_path } => {
@@ -239,19 +237,18 @@ async fn main() {
             let block_numbers = parse_block_numbers_args(block_numbers);
             println!("Reexecuting blocks {block_numbers:?}.");
 
-            let mut threads = vec![];
+            let mut task_set = tokio::task::JoinSet::new();
             for block in block_numbers {
                 let full_file_path = block_full_file_path(directory_path.clone(), block);
-                threads.push(tokio::task::spawn(async move {
+                task_set.spawn(async move {
                     reexecute_and_verify_correctness(
                         OfflineConsecutiveStateReaders::new_from_file(&full_file_path).unwrap(),
                     );
                     println!("Reexecution test for block {block} passed successfully.");
-                }));
+                });
             }
-            for thread in threads {
-                thread.await.unwrap();
-            }
+            println!("Waiting for all blocks to be processed.");
+            task_set.join_all().await;
         }
 
         // Uploading the files requires authentication; please run
