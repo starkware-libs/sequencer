@@ -1,6 +1,6 @@
 {
   "base_layer_config.starknet_contract_address": "0x4fA369fEBf0C574ea05EC12bC0e1Bc9Cd461Dd0f",
-  "chain_id": "INTERNAL_STRESS_TEST",
+  "chain_id": "E2E_TESTNET",
   "consensus_manager_config.context_config.num_validators": 3,
   "consensus_manager_config.eth_to_strk_oracle_config.base_url": "https://api.devnet.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median",
   "eth_fee_token_address": "0x7e813ecf3e7b3e14f07bd2f68cb4a3d12110e3c75ec5a63de3d2dacf1852904",
