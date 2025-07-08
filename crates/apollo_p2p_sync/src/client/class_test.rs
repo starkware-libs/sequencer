@@ -60,13 +60,13 @@ async fn class_basic_flow() {
             let class_hash = state_diff.get_class_hash();
             match class {
                 ApiContractClass::ContractClass(class) => {
-                    let executable_class_hash = state_diff.get_compiled_class_hash();
+                    let executable_class_hash_v2 = state_diff.get_compiled_class_hash();
                     class_manager_client
                         .expect_add_class()
                         .times(1)
                         .with(eq(class.clone()))
                         .return_once(move |_| {
-                            Ok(ClassHashes { class_hash, executable_class_hash })
+                            Ok(ClassHashes { class_hash, executable_class_hash_v2 })
                         });
                 }
                 ApiContractClass::DeprecatedContractClass(class) => {
