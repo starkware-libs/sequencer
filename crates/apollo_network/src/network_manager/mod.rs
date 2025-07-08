@@ -19,7 +19,7 @@ use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
-use libp2p::identity::Keypair;
+use libp2p::identity::{self, Keypair};
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
@@ -27,6 +27,7 @@ use sqmr::Bytes;
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
+use crate::authentication::{ComposedNoiseConfig, DummyHandshakeType, Negotiator};
 use crate::gossipsub_impl::Topic;
 use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
@@ -688,6 +689,19 @@ impl NetworkManager {
         node_version: Option<String>,
         metrics: Option<NetworkMetrics>,
     ) -> Self {
+        Self::new_with_custom_handshake::<DummyHandshakeType>(config, None, node_version, metrics)
+    }
+
+    pub fn new_with_custom_handshake<T>(
+        config: NetworkConfig,
+        handshake_negotiator: Option<T>,
+        node_version: Option<String>,
+        metrics: Option<NetworkMetrics>,
+    ) -> Self
+    where
+        T: Negotiator + 'static,
+        T::Message: TryFrom<Vec<u8>> + Into<Vec<u8>>,
+    {
         let NetworkConfig {
             port,
             session_timeout,
@@ -701,6 +715,16 @@ impl NetworkManager {
             broadcasted_message_metadata_buffer_size,
             reported_peer_ids_buffer_size,
         } = config;
+
+        let composite_security_upgrade =
+            |identity: &identity::Keypair| ComposedNoiseConfig::new(identity, handshake_negotiator);
+
+        // let security_constructor: Box<
+        //     dyn Fn(&identity::Keypair) -> Result<_, _> + Send + Sync + 'static,
+        // > = match handshake_negotiator { Some(negotiator) => Box::new(|identity:
+        // > &identity::Keypair| { ComposedNoiseConfig::new(identity, negotiator) }), None =>
+        // > Box::new(noise::Config::new),
+        // };
 
         // TODO(shahak): Add quic transport.
         let listen_address_str = format!("/ip4/0.0.0.0/tcp/{port}");
@@ -716,7 +740,7 @@ impl NetworkManager {
         };
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
         .with_tokio()
-        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
+        .with_tcp(Default::default(), composite_security_upgrade, yamux::Config::default)
         .expect("Error building TCP transport")
         .with_dns()
         .expect("Error building DNS transport")
