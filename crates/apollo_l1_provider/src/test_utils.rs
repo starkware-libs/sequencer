@@ -221,6 +221,14 @@ impl L1ProviderContentBuilder {
         self
     }
 
+    pub fn with_consumed_txs(
+        mut self,
+        consumed: impl IntoIterator<Item = ConsumedTransaction>,
+    ) -> Self {
+        self.tx_manager_content_builder = self.tx_manager_content_builder.with_consumed(consumed);
+        self
+    }
+
     pub fn build(mut self) -> L1ProviderContent {
         if let Some(config) = self.config {
             self.tx_manager_content_builder =
@@ -262,6 +270,7 @@ struct TransactionManagerContent {
     pub rejected: Option<Vec<L1HandlerTransaction>>,
     pub committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
     pub cancel_requested: Option<Vec<CancellationRequest>>,
+    pub consumed: Option<Vec<ConsumedTransaction>>,
     pub config: Option<TransactionManagerConfig>,
 }
 
@@ -306,9 +315,14 @@ impl From<TransactionManagerContent> for TransactionManager {
         let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
         let committed: IndexMap<_, _> = mem::take(&mut content.committed).unwrap_or_default();
         let cancel_requested: Vec<_> = mem::take(&mut content.cancel_requested).unwrap_or_default();
+        let consumed: Vec<_> = mem::take(&mut content.consumed).unwrap_or_default();
 
         let mut records = IndexMap::with_capacity(
-            pending.len() + rejected.len() + committed.len() + cancel_requested.len(),
+            pending.len()
+                + rejected.len()
+                + committed.len()
+                + cancel_requested.len()
+                + consumed.len(),
         );
 
         let mut proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>> = BTreeMap::new();
@@ -348,12 +362,26 @@ impl From<TransactionManagerContent> for TransactionManager {
             assert_eq!(records.insert(tx_hash, record), None);
         }
 
+        let mut consumed_queue: BTreeMap<BlockTimestamp, Vec<TransactionHash>> = BTreeMap::new();
+        for consumed_tx in consumed {
+            let ConsumedTransaction { tx, timestamp } = consumed_tx;
+            let tx_hash = tx.tx_hash;
+            let mut record = TransactionRecord::new(TransactionPayload::Full {
+                tx,
+                created_at_block_timestamp: timestamp,
+            });
+            record.mark_consumed(consumed_tx.timestamp);
+            assert_eq!(records.insert(tx_hash, record), None);
+            consumed_queue.entry(timestamp).or_default().push(tx_hash);
+        }
+
         let current_epoch = StagingEpoch::new();
         TransactionManager::create_for_testing(
             records.into(),
             proposable_index,
             current_epoch,
             content.config.unwrap_or_default(),
+            consumed_queue,
         )
     }
 }
@@ -365,6 +393,7 @@ struct TransactionManagerContentBuilder {
     committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
     config: Option<TransactionManagerConfig>,
     cancel_requested: Option<Vec<CancellationRequest>>,
+    consumed: Option<Vec<ConsumedTransaction>>,
 }
 
 impl TransactionManagerContentBuilder {
@@ -437,6 +466,11 @@ impl TransactionManagerContentBuilder {
         self
     }
 
+    fn with_consumed(mut self, consumed: impl IntoIterator<Item = ConsumedTransaction>) -> Self {
+        self.consumed = Some(consumed.into_iter().collect());
+        self
+    }
+
     fn build(self) -> Option<TransactionManagerContent> {
         if self.is_default() {
             return None;
@@ -447,6 +481,7 @@ impl TransactionManagerContentBuilder {
             committed: self.committed,
             rejected: self.rejected,
             cancel_requested: self.cancel_requested,
+            consumed: self.consumed,
             config: self.config,
         })
     }
@@ -564,6 +599,18 @@ struct CancellationRequest {
 }
 
 impl From<(L1HandlerTransaction, u64)> for CancellationRequest {
+    fn from((tx, timestamp): (L1HandlerTransaction, u64)) -> Self {
+        Self { tx, timestamp: timestamp.into() }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConsumedTransaction {
+    pub tx: L1HandlerTransaction,
+    pub timestamp: BlockTimestamp,
+}
+
+impl From<(L1HandlerTransaction, u64)> for ConsumedTransaction {
     fn from((tx, timestamp): (L1HandlerTransaction, u64)) -> Self {
         Self { tx, timestamp: timestamp.into() }
     }
