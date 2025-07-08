@@ -74,7 +74,10 @@ fn get_consensus_block_number_stuck() -> Alert {
         name: "consensus_block_number_stuck",
         title: "Consensus block number stuck",
         alert_group: AlertGroup::Consensus,
-        expr: format!("increase({}[5m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
+        expr: format!(
+            "sum(increase({}[5m])) or vector(0)",
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
+        ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 10.0,
@@ -204,8 +207,9 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
         title: "Cende write prev height blob latency too high",
         alert_group: AlertGroup::Consensus,
         expr: format!(
-            "avg_over_time({}[20m])",
-            CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter()
+            "rate({}[20m]) / clamp_min(rate({}[20m]), 0.0000001)",
+            CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_sum_with_filter(),
+            CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_count_with_filter(),
         ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,

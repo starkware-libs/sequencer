@@ -85,7 +85,7 @@
       "name": "cende_write_prev_height_blob_latency_too_high",
       "title": "Cende write prev height blob latency too high",
       "ruleGroup": "consensus",
-      "expr": "avg_over_time(cende_write_prev_height_blob_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])",
+      "expr": "rate(cende_write_prev_height_blob_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) / clamp_min(rate(cende_write_prev_height_blob_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]), 0.0000001)",
       "conditions": [
         {
           "evaluator": {
@@ -112,7 +112,7 @@
       "name": "consensus_block_number_stuck",
       "title": "Consensus block number stuck",
       "ruleGroup": "consensus",
-      "expr": "increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
+      "expr": "sum(increase(consensus_block_number{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -544,7 +544,7 @@
       "name": "gateway_add_tx_idle",
       "title": "Gateway add_tx idle",
       "ruleGroup": "gateway",
-      "expr": "increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m]) or vector(0)",
+      "expr": "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -568,10 +568,10 @@
       "severity": "p2"
     },
     {
-      "name": "gateway_add_tx_idle",
-      "title": "Gateway add_tx idle",
-      "ruleGroup": "gateway",
-      "expr": "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
+      "name": "http_server_idle",
+      "title": "http server idle",
+      "ruleGroup": "http_server",
+      "expr": "sum(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -649,33 +649,6 @@
       "severity": "p3"
     },
     {
-      "name": "http_server_idle",
-      "title": "http server idle",
-      "ruleGroup": "http_server",
-      "expr": "sum(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              1.0
-            ],
-            "type": "lt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p2"
-    },
-    {
       "name": "http_server_internal_error_ratio",
       "title": "http server internal error ratio",
       "ruleGroup": "http_server",
@@ -733,7 +706,7 @@
       "name": "http_server_no_successful_transactions",
       "title": "http server no successful transactions",
       "ruleGroup": "http_server",
-      "expr": "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) or vector(0)",
+      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -760,7 +733,7 @@
       "name": "http_server_avg_add_tx_latency",
       "title": "High HTTP server average add_tx latency",
       "ruleGroup": "http_server",
-      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) or vector(0)",
+      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])",
       "conditions": [
         {
           "evaluator": {
