@@ -43,6 +43,8 @@ pub enum ValueArg {
 
 /// An arg passed as a pointer. i.e., a pointer to a felt, tuple, named tuple or struct, or a
 /// pointer to a pointer.
+// TODO(Nimrod): Extend this to be able to return an entire segment without knowing the length in
+// advance.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PointerArg {
     Array(Vec<MaybeRelocatable>),
