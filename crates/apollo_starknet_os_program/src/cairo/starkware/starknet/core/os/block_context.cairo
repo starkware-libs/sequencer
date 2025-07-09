@@ -13,6 +13,14 @@ from starkware.starknet.core.os.contract_class.deprecated_compiled_class import 
 )
 from starkware.starknet.core.os.os_config.os_config import StarknetOsConfig
 
+// Struct to group compiled class facts parameters.
+struct CompiledClassFactsBundle {
+    n_compiled_class_facts: felt,
+    compiled_class_facts: CompiledClassFact*,
+    n_deprecated_compiled_class_facts: felt,
+    deprecated_compiled_class_facts: DeprecatedCompiledClassFact*,
+}
+
 // Represents information that is the same throughout the block.
 struct BlockContext {
     // Parameters for select_builtins.
@@ -48,10 +56,7 @@ struct BlockContext {
 func get_block_context{range_check_ptr}(
     execute_syscalls_ptr: felt*,
     execute_deprecated_syscalls_ptr: felt*,
-    n_compiled_class_facts: felt,
-    compiled_class_facts: CompiledClassFact*,
-    n_deprecated_compiled_class_facts: felt,
-    deprecated_compiled_class_facts: DeprecatedCompiledClassFact*,
+    compiled_class_facts_bundle: CompiledClassFactsBundle*,
 ) -> (block_context: BlockContext*) {
     alloc_locals;
     let (builtin_params) = get_builtin_params();
@@ -65,10 +70,10 @@ func get_block_context{range_check_ptr}(
     tempvar block_timestamp_for_validate = divided_block_timestamp * VALIDATE_TIMESTAMP_ROUNDING;
     local block_context: BlockContext = BlockContext(
         builtin_params=builtin_params,
-        n_compiled_class_facts=n_compiled_class_facts,
-        compiled_class_facts=compiled_class_facts,
-        n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
-        deprecated_compiled_class_facts=deprecated_compiled_class_facts,
+        n_compiled_class_facts=compiled_class_facts_bundle.n_compiled_class_facts,
+        compiled_class_facts=compiled_class_facts_bundle.compiled_class_facts,
+        n_deprecated_compiled_class_facts=compiled_class_facts_bundle.n_deprecated_compiled_class_facts,
+        deprecated_compiled_class_facts=compiled_class_facts_bundle.deprecated_compiled_class_facts,
         block_info_for_execute=new BlockInfo(
             block_number=block_number,
             block_timestamp=block_timestamp,
