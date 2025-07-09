@@ -102,10 +102,10 @@ impl<S: ClassStorage> ClassManager<S> {
         &mut self,
         class_id: ClassId,
         class: RawClass,
-        executable_class_id: ExecutableClassHash,
+        executable_class_hash_v2: ExecutableClassHash,
         executable_class: RawExecutableClass,
     ) -> ClassManagerResult<()> {
-        Ok(self.classes.set_class(class_id, class, executable_class_id, executable_class)?)
+        Ok(self.classes.set_class(class_id, class, executable_class_hash_v2, executable_class)?)
     }
 
     fn validate_class_length(
