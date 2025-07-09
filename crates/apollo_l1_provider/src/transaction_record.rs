@@ -243,6 +243,13 @@ impl Records {
             }
         }
     }
+
+    pub fn remove(&mut self, hash: &TransactionHash) {
+        // Insertion order is not required for Records functionality, so we use `swap_remove_entry`
+        // for O(1) performance instead of `shift_remove_entry` which is O(n).
+        // The only case where the order of records might matter is for snapshot.
+        self.0.swap_remove_entry(hash);
+    }
 }
 
 impl Deref for Records {
