@@ -520,7 +520,7 @@ fn get_http_server_low_successful_transaction_rate() -> Alert {
         ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 0.05,
+            comparison_value: 0.01,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
