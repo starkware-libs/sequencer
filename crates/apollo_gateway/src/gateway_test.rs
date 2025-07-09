@@ -36,7 +36,7 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
-use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::rpc_transaction::{
     RpcDeclareTransaction,
     RpcTransaction,
@@ -48,7 +48,7 @@ use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
+use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 
@@ -79,6 +79,7 @@ fn config() -> GatewayConfig {
         stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
         block_declare: false,
+        authorized_declarer_accounts: None,
     }
 }
 
@@ -445,4 +446,31 @@ fn test_register_metrics() {
             assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().count, 0);
         }
     }
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_unauthorized_declare_config(
+    mut config: GatewayConfig,
+    state_reader_factory: TestStateReaderFactory,
+) {
+    // Only allow a random other account, not the one used by `declare_tx()`
+    config.authorized_declarer_accounts =
+        Some(vec![ContractAddress(PatriciaKey::try_from(felt!("0xdeadbeef")).unwrap())]);
+
+    let gateway = Gateway::new(
+        config,
+        Arc::new(state_reader_factory),
+        Arc::new(MockMempoolClient::new()),
+        TransactionConverter::new(
+            Arc::new(EmptyClassManagerClient),
+            ChainInfo::create_for_testing().chain_id,
+        ),
+    );
+
+    let result = gateway.add_tx(declare_tx(), None).await;
+
+    let expected_code =
+        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::UnauthorizedDeclare);
+    assert_eq!(result.unwrap_err().code, expected_code);
 }
