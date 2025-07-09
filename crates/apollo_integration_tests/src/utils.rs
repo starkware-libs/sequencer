@@ -61,6 +61,7 @@ use papyrus_base_layer::ethereum_base_layer_contract::{
 use serde::Deserialize;
 use serde_json::{json, to_value};
 use starknet_api::block::BlockNumber;
+use starknet_api::contract_address;
 use starknet_api::core::{ChainId, ContractAddress};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
@@ -564,6 +565,7 @@ pub fn create_gateway_config(
         stateful_tx_validator_config,
         chain_info,
         block_declare: false,
+        authorized_declarer_accounts: None,
     }
 }
 
