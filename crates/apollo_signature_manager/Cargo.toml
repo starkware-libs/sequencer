@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 apollo_infra.workspace = true
+apollo_network_types.workspace = true
 apollo_signature_manager_types.workspace = true
 async-trait.workspace = true
 blake2s.workspace = true
@@ -15,7 +16,9 @@ starknet-crypto.workspace = true
 starknet_api.workspace = true
 
 [dev-dependencies]
+apollo_network_types.workspace = true
 apollo_signature_manager_types.workspace = true
+hex.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
 starknet-core.workspace = true
