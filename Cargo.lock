@@ -12225,6 +12225,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_os_flow_tests"
+version = "0.15.0-rc.2"
+dependencies = [
+ "blockifier",
+ "starknet_committer",
+ "starknet_os",
+ "starknet_patricia",
+ "starknet_patricia_storage",
+]
+
+[[package]]
 name = "starknet_patricia"
 version = "0.15.0-rc.2"
 dependencies = [
