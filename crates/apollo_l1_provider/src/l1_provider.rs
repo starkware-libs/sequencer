@@ -189,6 +189,11 @@ impl L1Provider {
                             );
                         });
                 }
+                Event::TransactionConsumed { tx_hash, timestamp: consumed_at } => {
+                    if !self.tx_manager.consume_tx(tx_hash, consumed_at, self.clock.unix_now()) {
+                        info!("Failed to consume transaction {tx_hash}.");
+                    }
+                }
                 _ => return Err(L1ProviderError::unsupported_l1_event(event)),
             }
         }
