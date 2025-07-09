@@ -26,7 +26,7 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::context::ChainInfo;
-use starknet_api::executable_transaction::ValidateCompiledClassHashError;
+use starknet_api::executable_transaction::{self, ValidateCompiledClassHashError};
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -38,8 +38,11 @@ use tracing::{debug, error, info, instrument, warn, Span};
 use crate::config::GatewayConfig;
 use crate::errors::{mempool_client_result_to_deprecated_gw_result, GatewayResult};
 use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
-use crate::state_reader::StateReaderFactory;
-use crate::stateful_transaction_validator::StatefulTransactionValidator;
+use crate::state_reader::{MempoolStateReader, StateReaderFactory};
+use crate::stateful_transaction_validator::{
+    StatefulTransactionValidator,
+    StatefulTransactionValidatorTrait,
+};
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::sync_state_reader::SyncStateReaderFactory;
 
@@ -155,6 +158,45 @@ impl Gateway {
     }
 }
 
+struct StateDependentProcessTxBlockingTask<V: StatefulTransactionValidatorTrait> {
+    stateful_tx_validator: Arc<StatefulTransactionValidator>,
+    validator: V,
+    executable_tx: executable_transaction::AccountTransaction,
+    mempool_client: SharedMempoolClient,
+    runtime: tokio::runtime::Handle,
+}
+
+impl
+    StateDependentProcessTxBlockingTask<
+        blockifier::blockifier::stateful_validator::StatefulValidator<Box<dyn MempoolStateReader>>,
+    >
+{
+    fn process_tx(mut self) -> GatewayResult<AccountState> {
+        let address = self.executable_tx.contract_address();
+        let nonce = self.validator.get_nonce(address).map_err(|e| {
+            error!("Failed to get nonce for sender address {}: {}", address, e);
+            // TODO(yair): Fix this. Need to map the errors better.
+            StarknetError::internal(&e.to_string())
+        })?;
+
+        self.stateful_tx_validator
+            .run_validate(
+                &self.executable_tx,
+                nonce,
+                self.mempool_client,
+                self.validator,
+                self.runtime,
+            )
+            .map_err(|e| StarknetError {
+                code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
+                message: e.to_string(),
+            })?;
+
+        // TODO(Arni): Add the Sierra and the Casm to the mempool input.
+        Ok(AccountState { address, nonce })
+    }
+}
+
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
 /// from running.
 struct ProcessTxBlockingTask {
@@ -221,26 +263,21 @@ impl ProcessTxBlockingTask {
                 StarknetError::internal(&e.to_string())
             })?;
 
-        let mut validator = self
+        let validator = self
             .stateful_tx_validator
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
 
-        let address = executable_tx.contract_address();
-        let nonce = validator.get_nonce(address).map_err(|e| {
-            error!("Failed to get nonce for sender address {}: {}", address, e);
-            // TODO(yair): Fix this. Need to map the errors better.
-            StarknetError::internal(&e.to_string())
-        })?;
-
-        self.stateful_tx_validator
-            .run_validate(&executable_tx, nonce, self.mempool_client, validator, self.runtime)
-            .map_err(|e| StarknetError {
-                code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
-                message: e.to_string(),
-            })?;
+        let state_dependent_blocking_task = StateDependentProcessTxBlockingTask {
+            executable_tx,
+            stateful_tx_validator: self.stateful_tx_validator,
+            validator,
+            mempool_client: self.mempool_client,
+            runtime: self.runtime,
+        };
+        let account_state = state_dependent_blocking_task.process_tx()?;
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
-        Ok(AddTransactionArgs { tx: internal_tx, account_state: AccountState { address, nonce } })
+        Ok(AddTransactionArgs { tx: internal_tx, account_state })
     }
 }
 
