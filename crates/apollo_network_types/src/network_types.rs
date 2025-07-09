@@ -1,4 +1,4 @@
-use libp2p::PeerId;
+pub use libp2p::PeerId;
 use serde::{Deserialize, Serialize};
 
 // TODO(alonl): remove clone
