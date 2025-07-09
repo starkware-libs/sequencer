@@ -189,6 +189,16 @@ impl L1Provider {
                             );
                         });
                 }
+                Event::TransactionConsumed { tx_hash, timestamp: consumed_at } => {
+                    if let Err(previously_consumed_at) =
+                        self.tx_manager.consume_tx(tx_hash, consumed_at, self.clock.unix_now())
+                    {
+                        panic!(
+                            "Double consumption of {tx_hash} at {consumed_at}, previously \
+                             consumed at {previously_consumed_at}."
+                        );
+                    }
+                }
                 _ => return Err(L1ProviderError::unsupported_l1_event(event)),
             }
         }
