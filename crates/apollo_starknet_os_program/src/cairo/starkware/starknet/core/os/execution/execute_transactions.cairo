@@ -575,6 +575,8 @@ func execute_l1_handler_transaction{
         return ();
     }
 
+    // TODO(Yoni): currently, the contract state is not fetched for reverted L1 handlers.
+    //   Once block hash is supported, we should fetch the contract state for them as well.
     let (local tx_execution_context: ExecutionContext*) = get_invoke_tx_execution_context(
         block_context=block_context,
         entry_point_type=ENTRY_POINT_TYPE_L1_HANDLER,
