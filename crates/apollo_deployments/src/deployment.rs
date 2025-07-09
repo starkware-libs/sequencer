@@ -1,19 +1,12 @@
-use std::collections::BTreeMap;
 use std::iter::once;
 use std::path::PathBuf;
 
-use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
-use apollo_config::{ParamPath, SerializedParam};
-use apollo_node::config::component_config::ComponentConfig;
-use apollo_node::config::config_utils::config_to_preset;
-use indexmap::IndexMap;
 use serde::Serialize;
-use serde_json::{json, Value};
 
 use crate::config_override::ConfigOverride;
 use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH, CONFIG_BASE_DIR};
 use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfigParams};
-use crate::service::{NodeService, NodeType, Service};
+use crate::service::{NodeType, Service};
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Deployment {
@@ -67,23 +60,6 @@ impl Deployment {
 
     pub fn get_node_type(&self) -> &NodeType {
         &self.deployment_aux_data.node_type
-    }
-
-    pub fn application_config_values(&self) -> IndexMap<NodeService, Value> {
-        let component_configs = self.deployment_aux_data.node_type.get_component_configs(None);
-        let mut result = IndexMap::new();
-
-        for (service, component_config) in component_configs.into_iter() {
-            // Component configs, determined by the service.
-            let component_config_serialization_wrapper: ComponentConfigsSerializationWrapper =
-                component_config.into();
-
-            let flattened_component_config_map =
-                config_to_preset(&json!(component_config_serialization_wrapper.dump()));
-            result.insert(service, flattened_component_config_map);
-        }
-
-        result
     }
 
     pub fn get_config_file_paths(&self) -> Vec<Vec<String>> {
@@ -158,25 +134,5 @@ impl P2PCommunicationType {
 
     pub(crate) fn get_k8s_service_type(&self) -> K8SServiceType {
         K8SServiceType::LoadBalancer
-    }
-}
-
-// TODO(Tsabary): move this to the service module once refactored out of here.
-// A helper struct for serializing the components config in the same hierarchy as of its
-// serialization as part of the entire config, i.e., by prepending "components.".
-#[derive(Clone, Debug, Default, Serialize)]
-pub(crate) struct ComponentConfigsSerializationWrapper {
-    components: ComponentConfig,
-}
-
-impl From<ComponentConfig> for ComponentConfigsSerializationWrapper {
-    fn from(value: ComponentConfig) -> Self {
-        ComponentConfigsSerializationWrapper { components: value }
-    }
-}
-
-impl SerializeConfig for ComponentConfigsSerializationWrapper {
-    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        prepend_sub_config_name(self.components.dump(), "components")
     }
 }

@@ -3,7 +3,8 @@ use std::fmt::Display;
 use std::iter::once;
 use std::path::{Path, PathBuf};
 
-use apollo_config::dumping::SerializeConfig;
+use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
+use apollo_config::{ParamPath, SerializedParam};
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
@@ -15,10 +16,7 @@ use serde_json::json;
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::deployment::{
-    build_service_namespace_domain_address,
-    ComponentConfigsSerializationWrapper,
-};
+use crate::deployment::build_service_namespace_domain_address;
 use crate::deployment_definitions::{Environment, ServicePort, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
@@ -361,5 +359,24 @@ impl Serialize for NodeService {
             NodeService::Hybrid(inner) => inner.serialize(serializer),
             NodeService::Distributed(inner) => inner.serialize(serializer),
         }
+    }
+}
+
+// A helper struct for serializing the components config in the same hierarchy as of its
+// serialization as part of the entire config, i.e., by prepending "components.".
+#[derive(Clone, Debug, Default, Serialize)]
+struct ComponentConfigsSerializationWrapper {
+    components: ComponentConfig,
+}
+
+impl From<ComponentConfig> for ComponentConfigsSerializationWrapper {
+    fn from(value: ComponentConfig) -> Self {
+        ComponentConfigsSerializationWrapper { components: value }
+    }
+}
+
+impl SerializeConfig for ComponentConfigsSerializationWrapper {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        prepend_sub_config_name(self.components.dump(), "components")
     }
 }
