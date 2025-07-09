@@ -428,7 +428,9 @@ impl SyscallRequest for SendMessageToL1Request {
         let payload =
             L2ToL1Payload(read_felt_array::<DeprecatedSyscallExecutorBaseError>(vm, ptr)?);
 
-        Ok(SendMessageToL1Request { message: MessageToL1 { to_address, payload } })
+        Ok(SendMessageToL1Request {
+            message: MessageToL1 { to_address: to_address.into(), payload },
+        })
     }
 }
 
