@@ -220,8 +220,7 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
     /// # Errors
     /// Returns [`StorageError`] if there was an error opening the tables.
     fn new(txn: &'env StorageTxn<'env, Mode>) -> StorageResult<Self> {
-        let compiled_class_hash_table =
-            txn.txn.open_table(&txn.tables.stateful_class_hash_to_executable_class_hash)?;
+        let compiled_class_hash_table = txn.txn.open_table(&txn.tables.compiled_class_hash)?;
         let declared_classes_table = txn.txn.open_table(&txn.tables.declared_classes)?;
         let declared_classes_block_table =
             txn.txn.open_table(&txn.tables.declared_classes_block)?;
@@ -482,8 +481,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         let declared_classes_block_table = self.open_table(&self.tables.declared_classes_block)?;
         let deprecated_declared_classes_block_table =
             self.open_table(&self.tables.deprecated_declared_classes_block)?;
-        let compiled_class_hash_table =
-            self.open_table(&self.tables.stateful_class_hash_to_executable_class_hash)?;
+        let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
 
         // Write state.
         write_deployed_contracts(
@@ -560,8 +558,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         let nonces_table = self.open_table(&self.tables.nonces)?;
         let storage_table = self.open_table(&self.tables.contract_storage)?;
         let state_diffs_table = self.open_table(&self.tables.state_diffs)?;
-        let compiled_class_hash_table =
-            self.open_table(&self.tables.stateful_class_hash_to_executable_class_hash)?;
+        let compiled_class_hash_table = self.open_table(&self.tables.compiled_class_hash)?;
 
         let current_state_marker = self.get_state_marker()?;
 
