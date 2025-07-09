@@ -47,13 +47,26 @@ pub struct CairoContractDefinition<'a> {
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
 }
 
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AttributeScope {
+    pub name: String,
+    pub value: String,
+    pub start_pc: usize,
+    pub end_pc: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flow_tracking_data: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub accessible_scopes: Vec<serde_json::Value>,
+}
+
 // It's important that this is ordered alphabetically because the fields need to be in sorted order
 // for the keccak hashed representation.
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CairoProgram<'a> {
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub attributes: Vec<serde_json::Value>,
+    pub attributes: Vec<AttributeScope>,
 
     #[serde(borrow)]
     pub builtins: Vec<Cow<'a, str>>,
