@@ -7,6 +7,7 @@ use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
 use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
+use tracing::debug;
 
 use crate::transaction_record::{
     Records,
@@ -175,6 +176,45 @@ impl TransactionManager {
         )
     }
 
+    pub fn consume_tx(
+        &mut self,
+        tx_hash: TransactionHash,
+        consumed_at: BlockTimestamp,
+        unix_now: u64,
+    ) -> Result<(), BlockTimestamp> {
+        // Clear old consumed transactions from the queue.
+        let cutoff =
+            unix_now.saturating_sub(self.config.l1_handler_consumption_timelock_seconds.as_secs());
+
+        let still_timelocked = self.consumed_queue.split_off(&BlockTimestamp(cutoff));
+        let passed_timelock = std::mem::replace(&mut self.consumed_queue, still_timelocked);
+
+        for tx_hashes in passed_timelock.values() {
+            for tx_hash in tx_hashes {
+                self.records.remove(tx_hash);
+            }
+        }
+
+        let Some(record) = self.records.get(&tx_hash) else {
+            debug!(
+                "Attempted to consume an unknown transaction: {tx_hash}. This can happen if the \
+                 transaction was too old to be scraped (e.g. it was created before we started \
+                 scraping)."
+            );
+            return Ok(());
+        };
+
+        // Double consumption is a bug.
+        if let Some(previously_consumed_at) = record.get_consumed_at_timestamp() {
+            return Err(previously_consumed_at);
+        }
+
+        // Mark the transaction as consumed.
+        self.with_record(tx_hash, |record| record.mark_consumed(consumed_at));
+
+        Ok(())
+    }
+
     pub fn is_committed(&self, tx_hash: TransactionHash) -> bool {
         self.records.get(&tx_hash).is_some_and(|record| record.is_committed())
     }
@@ -228,7 +268,7 @@ impl TransactionManager {
     {
         let record = self.records.get_mut_unchecked(hash)?;
         let result = f(record);
-        self.maintain_index(hash);
+        self.maintain_indices(hash);
         Some(result)
     }
 
@@ -246,7 +286,7 @@ impl TransactionManager {
         self.current_staging_epoch = self.current_staging_epoch.increment();
     }
 
-    fn maintain_index(&mut self, hash: TransactionHash) {
+    fn maintain_indices(&mut self, hash: TransactionHash) {
         if let Some(record) = self.records.get(&hash) {
             let TransactionPayload::Full { created_at_block_timestamp: created_at, .. } = record.tx
             else {
@@ -276,6 +316,10 @@ impl TransactionManager {
                     }
                     Entry::Vacant(_) => {}
                 }
+            }
+
+            if let Some(consumed_at) = record.get_consumed_at_timestamp() {
+                self.consumed_queue.entry(consumed_at).or_default().push(tx_hash);
             }
         }
     }
