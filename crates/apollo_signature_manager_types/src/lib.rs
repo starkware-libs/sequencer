@@ -40,17 +40,6 @@ pub enum KeyStoreError {
     Custom(String),
 }
 
-#[derive(
-    Clone, Debug, Default, derive_more::Deref, Eq, PartialEq, Hash, Serialize, Deserialize,
-)]
-pub struct PeerId(pub Vec<u8>);
-
-impl From<Vec<u8>> for PeerId {
-    fn from(value: Vec<u8>) -> Self {
-        Self(value)
-    }
-}
-
 /// Serves as the signature manager's shared interface.
 /// Requires `Send + Sync` to allow transferring and sharing resources (inputs, futures) across
 /// threads.
