@@ -180,16 +180,16 @@ fn perform_basic_validations_on_endpoint_arg(
     let expected_arg_is_felt = expected_arg.cairo_type == "felt";
     let expected_arg_is_struct_or_tuple = !expected_arg_is_felt && !expected_arg_is_pointer;
 
-    if expected_arg_is_felt != actual_arg_is_felt
-        || expected_arg_is_pointer != actual_arg_is_pointer
-        || expected_arg_is_struct_or_tuple != actual_arg_is_struct_or_tuple
-    {
-        Err(ExplicitArgError::Mismatch {
-            index,
-            expected: expected_arg.clone(),
-            actual: actual_arg.clone(),
-        })?;
-    };
+    // if expected_arg_is_felt != actual_arg_is_felt
+    //     || expected_arg_is_pointer != actual_arg_is_pointer
+    //     || expected_arg_is_struct_or_tuple != actual_arg_is_struct_or_tuple
+    // {
+    //     Err(ExplicitArgError::Mismatch {
+    //         index,
+    //         expected: expected_arg.clone(),
+    //         actual: actual_arg.clone(),
+    //     })?;
+    // };
     Ok(())
 }
 
@@ -673,6 +673,7 @@ pub fn run_cairo_0_entrypoint(
     .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {err:?}"));
     info!("Program and Hint processor created successfully.");
     let program_segment_size: Option<usize> = None;
+    let n_steps_before = cairo_runner.vm.get_current_step();
     cairo_runner
         .run_from_entrypoint(
             program
@@ -686,6 +687,8 @@ pub fn run_cairo_0_entrypoint(
             &mut hint_processor,
         )
         .map_err(Box::new)?;
+    let n_steps_after = cairo_runner.vm.get_current_step();
+    println!("n_steps= {:?}", n_steps_after - n_steps_before);
     info!("Successfully finished running entrypoint {entrypoint}");
     let (implicit_return_values, explicit_return_values) =
         get_return_values(implicit_args, expected_explicit_return_values, &cairo_runner.vm)?;

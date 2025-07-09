@@ -16,7 +16,7 @@ from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     CompiledClassEntryPoint,
 )
 
-func compiled_class_hash{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
+func poseidon_compiled_class_hash{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
     compiled_class: CompiledClass*
 ) -> (hash: felt) {
     alloc_locals;
