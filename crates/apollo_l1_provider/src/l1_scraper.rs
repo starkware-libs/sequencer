@@ -17,6 +17,7 @@ use papyrus_base_layer::constants::EventIdentifier;
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
+use starknet_api::transaction::TransactionHasher;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tokio::time::sleep;
@@ -121,6 +122,19 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             .iter()
             .filter_map(|event| match event {
                 L1Event::LogMessageToL2 { l1_tx_hash, .. } => Some(*l1_tx_hash),
+                L1Event::ConsumedMessageToL2 { tx, timestamp } => {
+                    match tx.calculate_transaction_hash(&self.config.chain_id, &tx.version) {
+                        Ok(tx_hash) => debug!(
+                            "Consumed message to L2: tx: {:?}, timestamp: {}",
+                            tx_hash, timestamp
+                        ),
+                        Err(_) => debug!(
+                            "Failed to calculate transaction hash for consumed message to L2: {:?}",
+                            tx
+                        ),
+                    }
+                    None
+                }
                 _ => None,
             })
             .collect::<Vec<_>>();
