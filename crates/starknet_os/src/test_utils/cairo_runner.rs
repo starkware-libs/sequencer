@@ -616,44 +616,6 @@ pub fn initialize_cairo_runner(
     let program = inject_builtins(program_bytes, implicit_args)?;
     info!("Successfully injected builtins into program.");
 
-<<<<<<< HEAD
-    let (os_hints_config, os_state_input) = (None, None);
-    let os_block_input = OsBlockInput::default();
-    let mut hint_processor = SnosHintProcessor::new_for_testing(
-        state_reader,
-        &program,
-        os_hints_config,
-        &os_block_input,
-        os_state_input,
-    )
-    .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {err:?}"));
-    info!("Program and Hint processor created successfully.");
-
-    // TODO(Amos): Perform complete validations.
-    perform_basic_validations_on_explicit_args(explicit_args, &program, &entrypoint)?;
-    perform_basic_validations_on_implicit_args(implicit_args, &program, &entrypoint)?;
-    info!("Performed basic validations on explicit & implicit args.");
-
-||||||| 7a2cf4d9a
-    let (os_hints_config, os_state_input) = (None, None);
-    let os_block_input = OsBlockInput::default();
-    let mut hint_processor = SnosHintProcessor::new_for_testing(
-        state_reader,
-        &program,
-        os_hints_config,
-        &os_block_input,
-        os_state_input,
-    )
-    .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {:?}", err));
-    info!("Program and Hint processor created successfully.");
-
-    // TODO(Amos): Perform complete validations.
-    perform_basic_validations_on_explicit_args(explicit_args, &program, &entrypoint)?;
-    perform_basic_validations_on_implicit_args(implicit_args, &program, &entrypoint)?;
-    info!("Performed basic validations on explicit & implicit args.");
-
-=======
->>>>>>> origin/main-v0.14.0
     let dynamic_layout_params = None;
     let disable_trace_padding = false;
     let mut cairo_runner = CairoRunner::new(
@@ -708,7 +670,7 @@ pub fn run_cairo_0_entrypoint(
         &os_block_input,
         os_state_input,
     )
-    .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {:?}", err));
+    .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {err:?}"));
     info!("Program and Hint processor created successfully.");
     let program_segment_size: Option<usize> = None;
     cairo_runner

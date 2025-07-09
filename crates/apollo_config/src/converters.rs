@@ -200,14 +200,6 @@ where
     }
 
     raw.split_whitespace()
-<<<<<<< HEAD
-        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{s}': {e}"))))
-||||||| 7a2cf4d9a
-        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{}': {}", s, e))))
-=======
-        .map(|s| {
-            T::from_str(s).map_err(|e| D::Error::custom(format!("Invalid value '{}': {}", s, e)))
-        })
->>>>>>> origin/main-v0.14.0
+        .map(|s| T::from_str(s).map_err(|e| D::Error::custom(format!("Invalid value '{s}': {e}"))))
         .collect()
 }

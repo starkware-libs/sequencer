@@ -50,37 +50,17 @@ pub fn transfers_flow_test(
             let (tx_execution_infos, mut block_summary) = result;
 
             assert_eq!(
-<<<<<<< HEAD
-                &tx_execution_infos, expected_tx_execution_infos,
+                &tx_execution_infos, &expected_tx_execution_infos,
                 "Transaction Results differ for concurrency_enabled: {concurrency_enabled}; \
                  cairo1_version: {cairo1_version:?}"
-||||||| 7a2cf4d9a
-                &tx_execution_infos, expected_tx_execution_infos,
-                "Transaction Results differ for concurrency_enabled: {}; cairo1_version: {:?}",
-                concurrency_enabled, cairo1_version
-=======
-                &tx_execution_infos, &expected_tx_execution_infos,
-                "Transaction Results differ for concurrency_enabled: {}; cairo1_version: {:?}",
-                concurrency_enabled, cairo1_version
->>>>>>> origin/main-v0.14.0
             );
 
             block_summary.clear_nonessential_fields_for_comparison();
             expected_block_summary.clear_nonessential_fields_for_comparison();
             assert_eq!(
-<<<<<<< HEAD
-                &block_summary, expected_block_summary,
-                "Block Results differ for concurrency_enabled: {concurrency_enabled}; \
-                 cairo1_version: {cairo1_version:?}"
-||||||| 7a2cf4d9a
-                &block_summary, expected_block_summary,
-                "Block Results differ for concurrency_enabled: {}; cairo1_version: {:?}",
-                concurrency_enabled, cairo1_version
-=======
                 &block_summary, &expected_block_summary,
-                "Block Results differ for concurrency_enabled: {}; cairo1_version: {:?}",
-                concurrency_enabled, cairo1_version
->>>>>>> origin/main-v0.14.0
+                "Block Results differ for concurrency_enabled: {concurrency_enabled}; \
+                 cairo1_version: {cairo1_version:?}",
             );
         }
     }

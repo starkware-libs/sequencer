@@ -86,7 +86,7 @@ fn load_and_process_service_config_files() {
             for (key, files) in &key_to_files {
                 if files.len() > 1 {
                     has_duplicates = true;
-                    println!("Key '{}' found in files: {:?}", key, files);
+                    println!("Key '{key}' found in files: {files:?}");
                 }
             }
             assert!(!has_duplicates, "Found duplicate keys in service config files.");
@@ -160,12 +160,10 @@ fn secrets_config_and_private_parameters_config_schema_compatibility() {
 
     if !(only_in_secrets_for_testing.is_empty() && only_in_schema.is_empty()) {
         panic!(
-            "Secrets for testing and schema mismatch:\nSecrets for testing: {:?}\nSecrets \
-             required by schema: {:?}\nOnly in testing: {:?}\nOnly in schema: {:?}",
-            secrets_provided_by_config,
-            secrets_required_by_schema,
-            only_in_secrets_for_testing,
-            only_in_schema
+            "Secrets for testing and schema mismatch:\nSecrets for testing: \
+             {secrets_provided_by_config:?}\nSecrets required by schema: \
+             {secrets_required_by_schema:?}\nOnly in testing: \
+             {only_in_secrets_for_testing:?}\nOnly in schema: {only_in_schema:?}"
         );
     }
 }

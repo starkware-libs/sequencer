@@ -400,13 +400,13 @@ pub fn handle_all_response_variants(input: TokenStream) -> TokenStream {
 fn get_uniq_identifier_for_call_site(identifier_prefix: &str) -> Ident {
     // Use call site span for uniqueness
     let span = proc_macro::Span::call_site();
-    let span_str = format!("{:?}", span);
+    let span_str = format!("{span:?}");
 
     let mut hasher = DefaultHasher::new();
     span_str.hash(&mut hasher);
 
     let hash_id = format!("{:x}", hasher.finish()); // short identifier
-    let ident_str = format!("__{}_{}", identifier_prefix, hash_id);
+    let ident_str = format!("__{identifier_prefix}_{hash_id}");
     Ident::new(&ident_str, proc_macro2::Span::call_site())
 }
 
@@ -435,7 +435,6 @@ pub fn log_every_n(input: TokenStream) -> TokenStream {
     let LogEveryNMacroInput { log_macro, n, args, .. } =
         parse_macro_input!(input as LogEveryNMacroInput);
 
-<<<<<<< HEAD
     // Use call site span for uniqueness
     let span = proc_macro::Span::call_site();
     let span_str = format!("{span:?}");
@@ -446,20 +445,6 @@ pub fn log_every_n(input: TokenStream) -> TokenStream {
     let hash_id = format!("{:x}", hasher.finish()); // short identifier
     let ident_str = format!("__TRACING_COUNT_{hash_id}");
     let ident = Ident::new(&ident_str, proc_macro2::Span::call_site());
-||||||| 7a2cf4d9a
-    // Use call site span for uniqueness
-    let span = proc_macro::Span::call_site();
-    let span_str = format!("{:?}", span);
-
-    let mut hasher = DefaultHasher::new();
-    span_str.hash(&mut hasher);
-
-    let hash_id = format!("{:x}", hasher.finish()); // short identifier
-    let ident_str = format!("__TRACING_COUNT_{}", hash_id);
-    let ident = Ident::new(&ident_str, proc_macro2::Span::call_site());
-=======
-    let ident = get_uniq_identifier_for_call_site("TRACING_COUNT");
->>>>>>> origin/main-v0.14.0
 
     let args = args.into_iter().collect::<Vec<_>>();
 
