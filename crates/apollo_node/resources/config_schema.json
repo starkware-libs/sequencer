@@ -1209,6 +1209,16 @@
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
+  "gateway_config.authorized_declarer_accounts": {
+    "description": "Authorized declarer accounts. If set, only these accounts can declare new contracts. Addresses are in hex format and separated by a comma with no space.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "gateway_config.authorized_declarer_accounts.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "gateway_config.block_declare": {
     "description": "If true, the gateway will block declare transactions.",
     "privacy": "Public",

@@ -1,7 +1,11 @@
+use std::collections::HashSet;
+use std::fs::File;
 use std::sync::{Arc, LazyLock};
 
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
 use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
+use apollo_config::dumping::SerializeConfig;
+use apollo_config::loading::load_and_process_config;
 use apollo_gateway_types::deprecated_gateway_error::{KnownStarknetErrorCode, StarknetErrorCode};
 use apollo_gateway_types::gateway_types::{
     DeclareGatewayOutput,
@@ -26,6 +30,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use clap::Command;
 use mempool_test_utils::starknet_api_test_utils::{
     contract_class,
     declare_tx,
@@ -48,9 +53,16 @@ use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
+use starknet_api::{
+    contract_address,
+    declare_tx_args,
+    deploy_account_tx_args,
+    invoke_tx_args,
+    nonce,
+};
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
+use tempfile::TempDir;
 
 use crate::config::{
     GatewayConfig,
@@ -79,6 +91,7 @@ fn config() -> GatewayConfig {
         stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
         block_declare: false,
+        authorized_declarer_accounts: None,
     }
 }
 
@@ -445,4 +458,76 @@ fn test_register_metrics() {
             assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().count, 0);
         }
     }
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_unauthorized_declare_config(
+    mut config: GatewayConfig,
+    state_reader_factory: TestStateReaderFactory,
+) {
+    let authorized_address = contract_address!("0x1");
+    config.authorized_declarer_accounts = Some(vec![authorized_address]);
+
+    let gateway = Gateway::new(
+        config,
+        Arc::new(state_reader_factory),
+        Arc::new(MockMempoolClient::new()),
+        TransactionConverter::new(
+            Arc::new(EmptyClassManagerClient),
+            ChainInfo::create_for_testing().chain_id,
+        ),
+    );
+
+    let rpc_declare_tx = declare_tx();
+
+    // Ensure the sender address is different from the authorized address.
+    assert_ne!(
+        rpc_declare_tx.calculate_sender_address().unwrap(),
+        authorized_address,
+        "Sender address should not be authorized"
+    );
+
+    let gateway_output_code_error = gateway.add_tx(rpc_declare_tx, None).await.unwrap_err().code;
+    let expected_code_error =
+        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::UnauthorizedDeclare);
+
+    assert_eq!(gateway_output_code_error, expected_code_error);
+}
+
+#[rstest]
+#[case::two_addresses(
+    Some(vec![
+        contract_address!("0x1"),
+        contract_address!("0x2"),
+    ])
+)]
+#[case::one_address(
+    Some(vec![
+        contract_address!("0x1"),
+    ])
+)]
+#[case::none(None)]
+#[case::empty_string(Some(vec![
+    contract_address!(""),
+]))]
+fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
+    #[case] authorized_declarer_accounts: Option<Vec<ContractAddress>>,
+) {
+    let original_config = GatewayConfig { authorized_declarer_accounts, ..Default::default() };
+
+    // Create a temporary file to dump the config.
+    let file_path = TempDir::new().unwrap().path().join("config.json");
+    original_config.dump_to_file(&vec![], &HashSet::new(), file_path.to_str().unwrap()).unwrap();
+
+    // Load the config from the dumped config file.
+    let loaded_config = load_and_process_config::<GatewayConfig>(
+        File::open(file_path).unwrap(),
+        Command::new("Program"),
+        vec!["Testing".to_string()],
+        false,
+    )
+    .unwrap();
+
+    assert_eq!(loaded_config, original_config);
 }
