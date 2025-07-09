@@ -200,6 +200,8 @@ impl BlockContext {
 pub struct ChainInfo {
     pub chain_id: ChainId,
     pub fee_token_addresses: FeeTokenAddresses,
+    #[serde(default)]
+    pub is_l3: bool,
 }
 
 impl ChainInfo {
@@ -217,6 +219,7 @@ impl Default for ChainInfo {
             // TODO(guyn): should we remove the default value for chain_id?
             chain_id: ChainId::Other("0x0".to_string()),
             fee_token_addresses: FeeTokenAddresses::default(),
+            is_l3: false,
         }
     }
 }
