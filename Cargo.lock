@@ -1913,9 +1913,11 @@ name = "apollo_signature_manager"
 version = "0.0.0"
 dependencies = [
  "apollo_infra",
+ "apollo_network_types",
  "apollo_signature_manager_types",
  "async-trait",
  "blake2s",
+ "hex",
  "pretty_assertions",
  "rstest",
  "starknet-core",
@@ -1930,6 +1932,7 @@ name = "apollo_signature_manager_types"
 version = "0.0.0"
 dependencies = [
  "apollo_infra",
+ "apollo_network_types",
  "apollo_proc_macros",
  "async-trait",
  "derive_more 0.99.18",
