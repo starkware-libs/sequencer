@@ -555,6 +555,7 @@ pub fn create_gateway_config(
         stateful_tx_validator_config,
         chain_info,
         block_declare: false,
+        authorized_declarer_accounts: None,
     }
 }
 
