@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash as StarknetAPICompiledClassHash,
+    ContractAddress,
+};
 use starknet_patricia::impl_from_hex_for_felt_wrapper;
 use starknet_patricia::patricia_merkle_tree::filled_tree::tree::FilledTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -19,6 +23,12 @@ pub fn class_hash_into_node_index(class_hash: &ClassHash) -> NodeIndex {
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct CompiledClassHash(pub Felt);
+
+impl From<StarknetAPICompiledClassHash> for CompiledClassHash {
+    fn from(value: StarknetAPICompiledClassHash) -> Self {
+        CompiledClassHash(value.0)
+    }
+}
 
 impl_from_hex_for_felt_wrapper!(CompiledClassHash);
 
