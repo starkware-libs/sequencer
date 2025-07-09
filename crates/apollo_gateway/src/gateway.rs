@@ -32,6 +32,7 @@ use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
+    RpcDeclareTransaction,
     RpcTransaction,
 };
 use starknet_api::transaction::fields::ValidResourceBounds;
@@ -91,17 +92,7 @@ impl Gateway {
     ) -> GatewayResult<GatewayOutput> {
         debug!("Processing tx: {:?}", tx);
 
-        // TODO(noamsp): Return same error as in Python gateway.
-        if self.config.block_declare {
-            if let RpcTransaction::Declare(_) = &tx {
-                return Err(StarknetError {
-                    code: StarknetErrorCode::UnknownErrorCode(
-                        "StarknetErrorCode.BLOCKED_TRANSACTION_TYPE".to_string(),
-                    ),
-                    message: "Transaction type is temporarily blocked.".to_string(),
-                });
-            }
-        }
+        self.check_declare_permissions(&tx)?;
 
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
@@ -134,6 +125,33 @@ impl Gateway {
         metric_counters.transaction_sent_to_mempool();
 
         Ok(gateway_output)
+    }
+
+    fn check_declare_permissions(&self, tx: &RpcTransaction) -> Result<(), StarknetError> {
+        if let RpcTransaction::Declare(declare_tx) = tx {
+            // TODO(noamsp): Return same error as in Python gateway.
+            if self.config.block_declare {
+                return Err(StarknetError {
+                    code: StarknetErrorCode::UnknownErrorCode(
+                        "StarknetErrorCode.BLOCKED_TRANSACTION_TYPE".to_string(),
+                    ),
+                    message: "Transaction type is temporarily blocked.".to_string(),
+                });
+            }
+            let RpcDeclareTransaction::V3(declare_v3_tx) = declare_tx;
+            if !self.config.is_authorized_declarer(&declare_v3_tx.sender_address) {
+                return Err(StarknetError {
+                    code: StarknetErrorCode::KnownErrorCode(
+                        KnownStarknetErrorCode::UnauthorizedDeclare,
+                    ),
+                    message: format!(
+                        "Account address {} is not allowed to declare contracts.",
+                        &declare_v3_tx.sender_address
+                    ),
+                });
+            }
+        }
+        Ok(())
     }
 }
 

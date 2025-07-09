@@ -59,6 +59,7 @@ fn known_error_code_deserialization() {
             "StarknetErrorCode.TRANSACTION_LIMIT_EXCEEDED",
             KnownStarknetErrorCode::TransactionLimitExceeded,
         ),
+        ("StarknetErrorCode.UNAUTHORIZED_DECLARE", KnownStarknetErrorCode::UnauthorizedDeclare),
     ] {
         let starknet_error = deserialize_starknet_error(code_str, MESSAGE);
         let expected_starknet_error = StarknetError {
