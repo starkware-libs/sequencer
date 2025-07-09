@@ -7,7 +7,7 @@ use papyrus_common::python_json::PythonJsonFormatter;
 use serde::{Deserialize, Serialize, Serializer};
 use sha3::digest::Digest;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::deprecated_contract_class::EntryPointV0;
+use starknet_api::deprecated_contract_class::{ContractClass, EntryPointV0};
 use starknet_api::state::truncated_keccak;
 use starknet_types_core::felt::Felt;
 
@@ -116,8 +116,11 @@ impl std::io::Write for KeccakWriter {
 }
 
 pub fn compute_cairo_hinted_class_hash(
-    contract_definition: &CairoContractDefinition<'_>,
+    contract_class: &ContractClass,
 ) -> Result<Felt, HintedClassHashError> {
+    let contract_definition_vec = serde_json::to_vec(contract_class)?;
+    let contract_definition: CairoContractDefinition<'_> =
+        serde_json::from_slice(&contract_definition_vec)?;
     let mut string_buffer = vec![];
 
     let mut ser = serde_json::Serializer::with_formatter(&mut string_buffer, PythonJsonFormatter);
