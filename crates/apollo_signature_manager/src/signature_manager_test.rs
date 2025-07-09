@@ -1,4 +1,5 @@
-use apollo_signature_manager_types::PeerId;
+use apollo_network_types::network_types::PeerId;
+use hex::FromHex;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::block::BlockHash;
@@ -16,10 +17,10 @@ use crate::signature_manager::{
 
 const ALICE_IDENTITY_SIGNATURE: Signature = Signature {
     r: Felt::from_hex_unchecked(
-        "0x7687c83bdfa7474518c585f1b58a028b939764f1d2721e63bf821c4c8987299",
+        "0x7a8dd91774e806fa5e0880c77d61ccb40fc33fcb5db00fdc5585758cf95f79d",
     ),
     s: Felt::from_hex_unchecked(
-        "0x7e05746545ed1fe24fec988341d2452a4bbcebec26d73f9ee9bdc9426a372a5",
+        "0x5bdd4ddd34e2708c03c14d5872de1d541476f4af9f92f48a3d77d5ea3e16cc0",
     ),
 };
 
@@ -38,7 +39,12 @@ struct PeerIdentity {
 
 impl PeerIdentity {
     pub fn new() -> Self {
-        Self { peer_id: PeerId(b"alice".to_vec()), nonce: nonce!(0x1234) }
+        // TODO(Elin): use a test util once it's merged.
+        let peer_id =
+            Vec::from_hex("00205cccc292b9dcc77610797e5f47b23d2b0fb7b77010d76481fc2c0652f6ca2fc2")
+                .unwrap();
+
+        Self { peer_id: PeerId::from_bytes(&peer_id).unwrap(), nonce: nonce!(0x1234) }
     }
 }
 
@@ -79,7 +85,7 @@ async fn test_identify() {
     let signature_manager = SignatureManager::new(key_store);
 
     let PeerIdentity { peer_id, nonce } = PeerIdentity::new();
-    let signature = signature_manager.identify(peer_id.clone(), nonce).await;
+    let signature = signature_manager.identify(peer_id, nonce).await;
 
     assert_eq!(signature, Ok(ALICE_IDENTITY_SIGNATURE.into()));
 

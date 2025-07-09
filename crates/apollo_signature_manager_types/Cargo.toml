@@ -10,9 +10,9 @@ testing = []
 
 [dependencies]
 apollo_infra.workspace = true
+apollo_network_types.workspace = true
 apollo_proc_macros.workspace = true
 async-trait.workspace = true
-derive_more.workspace = true
 mockall.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
