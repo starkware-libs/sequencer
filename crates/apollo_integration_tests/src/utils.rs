@@ -78,6 +78,7 @@ pub const UNDEPLOYED_ACCOUNT_ID: AccountId = 2;
 // with the set [TimeoutsConfig] .
 pub const TPS: u64 = 3;
 pub const N_TXS_IN_FIRST_BLOCK: usize = 2;
+pub const N_TXS_IN_NON_GENERIC_INVOKE_TXS: usize = 15;
 
 pub type CreateRpcTxsFn = fn(&mut MultiAccountTransactionGenerator) -> Vec<RpcTransaction>;
 pub type CreateL1ToL2MessagesArgsFn =
@@ -557,7 +558,7 @@ pub fn create_gateway_config(
 ) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
         validate_resource_bounds: validate_non_zero_resource_bounds,
-        max_calldata_length: 10,
+        max_calldata_length: 19,
         max_signature_length: 2,
         ..Default::default()
     };
