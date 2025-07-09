@@ -12,7 +12,12 @@ use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPrice;
-use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{
+    ClassHash,
+    CompiledClassHash,
+    ContractAddress,
+    Nonce,
+};
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::hash::StarkHash;
@@ -471,6 +476,58 @@ impl AccountTransactionGenerator {
             compiled_class_hash,
         );
         rpc_declare_tx(declare_args, contract_class)
+    }
+
+    // pub fn generate_call_contract_invoke_tx(
+    //     &mut self,
+    //     contract_address: ContractAddress,
+    //     tip: u64,
+    // ) -> RpcTransaction {
+    //     assert!(
+    //         self.is_deployed(),
+    //         "Account must be deployed before generating invoke transactions"
+    //     );
+    //     let nonce = self.next_nonce();
+    //     let key = felt!(1948_u64);
+    //     let value = felt!(1967_u64);
+    //     let storage_write_calldata = [felt!(2_u64), key, value];
+    //     let inner_calldata = Calldata(
+    //         [
+    //             vec![*contract_address.0.key(), selector_from_name("test_storage_write").0],
+    //             storage_write_calldata.to_vec(),
+    //         ]
+    //         .concat()
+    //         .into(),
+    //     );
+    //     let invoke_args = invoke_tx_args!(
+    //         nonce,
+    //         tip: Tip(tip),
+    //         sender_address: self.sender_address(),
+    //         resource_bounds: test_valid_resource_bounds(),
+    //         calldata: create_calldata(self.test_contract_address(), "test_call_contract",
+    // &inner_calldata.0)     );
+    //     rpc_invoke_tx(invoke_args)
+    // }
+
+    pub fn generate_call_contract_invoke_tx(
+        &mut self,
+        called_contract_address: ContractAddress,
+        test_contract: &FeatureContract,
+        fn_name: &str,
+        fn_args: &[Felt],
+        tip: u64,
+    ) -> RpcTransaction {
+        let inner_calldata = Calldata(
+            [vec![*called_contract_address.0.key(), selector_from_name(fn_name).0], fn_args.to_vec()]
+                .concat()
+                .into(),
+        );
+        self.generate_generic_rpc_invoke_tx(
+            tip,
+            "test_call_contract",
+            &inner_calldata.0,
+            test_contract.get_instance_address(0),
+        )
     }
 
     pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {

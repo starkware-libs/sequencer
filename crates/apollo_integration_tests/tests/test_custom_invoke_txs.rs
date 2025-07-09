@@ -11,11 +11,12 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
-use starknet_api::core::CompiledClassHash;
+use starknet_api::core::{calculate_contract_address, CompiledClassHash};
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::felt;
 use starknet_api::rpc_transaction::RpcTransaction;
+use starknet_api::transaction::fields::ContractAddressSalt;
 use starknet_api::transaction::TransactionHash;
+use starknet_api::{calldata, felt};
 
 use crate::common::{end_to_end_flow, TestScenario};
 
@@ -71,6 +72,11 @@ pub fn create_cairo_1_syscall_test_txs(
     txs.push(generate_empty_contract_declare_tx(account_tx_generator));
     txs.extend(generate_custom_library_call_invoke_txs(account_tx_generator, &test_contract));
     txs.extend(generate_custom_not_nested_invoke_txs(account_tx_generator, &test_contract));
+    txs.extend(generate_call_contract_and_replace_class_txs(
+        account_tx_generator,
+        &test_contract,
+        DEFAULT_TIP,
+    ));
 
     txs
 }
@@ -152,7 +158,7 @@ fn generate_custom_library_call_invoke_txs(
     .collect()
 }
 
-pub fn generate_empty_contract_declare_tx(
+fn generate_empty_contract_declare_tx(
     account_tx_generator: &mut AccountTransactionGenerator,
 ) -> RpcTransaction {
     let empty_contract = FeatureContract::Empty(account_tx_generator.account.cairo_version());
@@ -162,4 +168,53 @@ pub fn generate_empty_contract_declare_tx(
         *LazyLock::new(|| CompiledClassHash(felt!(compiled_empty_class_hash_raw)));
 
     account_tx_generator.generate_declare_tx(empty_compiled_class_hash, empty_contract.get_sierra())
+}
+
+fn generate_call_contract_and_replace_class_txs(
+    account_tx_generator: &mut AccountTransactionGenerator,
+    test_contract: &FeatureContract,
+    tip: u64,
+) -> Vec<RpcTransaction> {
+    let mut txs = vec![];
+
+    let newly_deployed_salt = ContractAddressSalt(felt!(7_u64));
+    let constructor_calldata_arg1 = felt!(1_u8);
+    let constructor_calldata_arg2 = felt!(1_u8);
+
+    // get newly_deployed_address
+    let newly_deployed_contract_address = calculate_contract_address(
+        newly_deployed_salt,
+        test_contract.get_class_hash(),
+        &calldata!(constructor_calldata_arg1, constructor_calldata_arg2), /* constructor
+                                                                           * calldata */
+        test_contract.get_instance_address(0), // deployer address
+    )
+    .expect("Failed to calculate contract address");
+
+    // test_call_contract - failing now
+    let contract_address = newly_deployed_contract_address;
+    let fn_name = "test_storage_write";
+    let fn_args = &[felt!(2_u64), felt!(1948_u64), felt!(1967_u64)];
+
+    txs.push(account_tx_generator.generate_call_contract_invoke_tx(
+        contract_address,
+        test_contract,
+        fn_name,
+        fn_args,
+        tip,
+    ));
+
+    // test_replace_class
+    let empty_contract = FeatureContract::Empty(account_tx_generator.account.cairo_version());
+    let test_replace_class_args =
+        vec![empty_contract.safe_get_sierra().unwrap().calculate_class_hash().0];
+
+    txs.push(account_tx_generator.generate_generic_rpc_invoke_tx(
+        DEFAULT_TIP,
+        "test_replace_class",
+        &test_replace_class_args,
+        newly_deployed_contract_address,
+    ));
+
+    txs
 }
