@@ -6,21 +6,25 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{
+    test_resource_bounds_mapping,
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
+use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::core::{calculate_contract_address, CompiledClassHash};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::fields::ContractAddressSalt;
+use starknet_api::transaction::TransactionVersion;
 use starknet_api::{calldata, felt};
+use starknet_types_core::felt::Felt;
 
 use crate::common::{end_to_end_flow, validate_tx_count, TestScenario};
 
 mod common;
 
 const DEFAULT_TIP: u64 = 1_u64;
-const CUSTOM_INVOKE_TX_COUNT: usize = 10;
+const CUSTOM_INVOKE_TX_COUNT: usize = 15;
 
 /// Test a wide range of different kinds of invoke transactions.
 #[tokio::test]
@@ -56,6 +60,9 @@ fn create_cairo_1_syscall_test_txs(
     txs.extend(generate_custom_library_call_invoke_txs(account_tx_generator));
     txs.extend(generate_custom_not_nested_invoke_txs(account_tx_generator));
     txs.extend(generate_test_deploy_txs(account_tx_generator, DEFAULT_TIP));
+    txs.push(generate_test_get_execution_info_without_block_info_invoke_tx(
+        account_tx_generator,
+    ));
 
     txs
 }
@@ -80,11 +87,25 @@ fn generate_custom_not_nested_invoke_txs(
         felt!(153_u64),  // value 2
     ];
     let test_keccak_args = vec![];
+    let test_new_point_secp256k1_args = vec![
+        felt!("0xE3E70682C2094CAC629F6FBED82C07CD"), // Low part of x (u256).
+        felt!("0xF728B4FA42485E3A0A5D2F346BAA9455"), // High part of x (u256).
+    ];
+    let test_signature_verification_secp256k1_args = vec![]; // No arguments for this test.
+    let test_new_point_secp256r1_args = vec![
+        felt!("0x2D483FE223B12B91047D83258A958B0F"), // Low part of x (u256).
+        felt!("0x502A43CE77C6F5C736A82F847FA95F8C"), // High part of x (u256).
+    ];
+    let test_signature_verification_secp256r1_args = vec![]; // No arguments for this test.
 
     [
         ("test_send_message_to_l1", test_send_message_to_l1_args),
         ("test_emit_events", test_emit_events_args),
         ("test_keccak", test_keccak_args),
+        ("test_new_point_secp256k1", test_new_point_secp256k1_args),
+        ("test_signature_verification_secp256k1", test_signature_verification_secp256k1_args),
+        ("test_new_point_secp256r1", test_new_point_secp256r1_args),
+        ("test_signature_verification_secp256r1", test_signature_verification_secp256r1_args),
     ]
     .iter()
     .map(|(fn_name, fn_args)| {
@@ -156,8 +177,8 @@ fn generate_test_deploy_txs(
     let newly_deployed_contract_address = calculate_contract_address(
         ContractAddressSalt(salt_deployed_account),
         test_contract.get_class_hash(),
-        &calldata!(constructor_calldata_arg1, constructor_calldata_arg2), /* constructor
-                                                                           * calldata */
+        // constructor calldata
+        &calldata!(constructor_calldata_arg1, constructor_calldata_arg2),
         test_contract.get_instance_address(0), // deployer address
     )
     .expect("Failed to calculate contract address");
@@ -203,4 +224,38 @@ fn generate_test_deploy_txs(
     txs.push(account_tx_generator.generate_rpc_invoke_tx(DEFAULT_TIP, calldata));
 
     txs
+}
+
+fn generate_test_get_execution_info_without_block_info_invoke_tx(
+    account_tx_generator: &mut AccountTransactionGenerator,
+) -> RpcTransaction {
+    let fn_name = "test_get_execution_info_without_block_info";
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+
+    let resources_bounds_values = test_resource_bounds_mapping();
+    let calldata = vec![
+        TransactionVersion::THREE.0,                    // version
+        *account_tx_generator.sender_address().0.key(), // account address
+        Felt::ZERO,                                     // max fee
+        Felt::from(3_u8),                               // len of resource bounds (Span)
+        // Resource bounds values
+        Felt::from_hex(&hex::encode("L1_GAS".as_bytes())).unwrap(),
+        Felt::from(resources_bounds_values.l1_gas.max_amount.0),
+        Felt::from(resources_bounds_values.l1_gas.max_price_per_unit.0),
+        Felt::from_hex(&hex::encode("L2_GAS".as_bytes())).unwrap(),
+        Felt::from(resources_bounds_values.l2_gas.max_amount.0),
+        Felt::from(resources_bounds_values.l2_gas.max_price_per_unit.0),
+        Felt::from_hex(&hex::encode("L1_DATA".as_bytes())).unwrap(),
+        Felt::from(resources_bounds_values.l1_data_gas.max_amount.0),
+        Felt::from(resources_bounds_values.l1_data_gas.max_price_per_unit.0),
+        *account_tx_generator.sender_address().0.key(), // caller_address
+        *test_contract.get_instance_address(0).0.key(), // contract_address
+        selector_from_name("test_get_execution_info_without_block_info").0,
+    ];
+    let calldata = create_calldata(test_contract.get_instance_address(0), fn_name, &calldata);
+
+    account_tx_generator.generate_rpc_invoke_tx(
+        0, // The test checks for tip being 0.
+        calldata,
+    )
 }
