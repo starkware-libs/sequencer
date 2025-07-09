@@ -203,8 +203,8 @@ pub fn open_storage(
         stateful_class_hash_to_executable_class_hash: db_writer
             .create_common_prefix_table("stateful_class_hash_to_executable_class_hash")?,
         // TODO(Aviv): Rename it to stateless_class_hash_to_executable_class_hash.
-        class_hash_to_executable_class_hash: db_writer
-            .create_simple_table("class_hash_to_executable_class_hash")?,
+        class_hash_to_executable_class_hash_v2: db_writer
+            .create_simple_table("class_hash_to_executable_class_hash_v2")?,
     });
     let (file_writers, file_readers) = open_storage_files(
         &storage_config.db_config,
@@ -558,7 +558,7 @@ struct_field_names! {
         // Class hashes.
         stateful_class_hash_to_executable_class_hash: TableIdentifier<(ClassHash, BlockNumber), VersionZeroWrapper<CompiledClassHash>, CommonPrefix>,
         // TODO(Aviv): Rename it to stateless_class_hash_to_executable_class_hash.
-        class_hash_to_executable_class_hash: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>
+        class_hash_to_executable_class_hash_v2: TableIdentifier<ClassHash, NoVersionValueWrapper<CompiledClassHash>, SimpleTable>
     }
 }
 

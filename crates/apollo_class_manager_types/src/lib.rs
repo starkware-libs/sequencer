@@ -39,7 +39,7 @@ pub type ExecutableClassHash = CompiledClassHash;
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ClassHashes {
     pub class_hash: ClassHash,
-    pub executable_class_hash: ExecutableClassHash,
+    pub executable_class_hash_v2: ExecutableClassHash,
 }
 
 /// Serves as the class manager's shared interface.
