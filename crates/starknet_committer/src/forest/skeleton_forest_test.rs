@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_32_bytes_entry,
@@ -373,7 +374,7 @@ fn create_storage_updates(
                     .iter()
                     .map(|val| {
                         (
-                            StarknetStorageKey(Felt::from(u128::from(*val))),
+                            StarknetStorageKey(StorageKey::from(u128::from(*val))),
                             StarknetStorageValue(Felt::from(u128::from(*val))),
                         )
                     })

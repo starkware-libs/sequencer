@@ -58,16 +58,16 @@ impl TryFrom<RawInput> for InputImpl {
 
         let mut storage_updates = HashMap::new();
         for outer_entry in raw_input.state_diff.storage_updates {
-            let inner_map = outer_entry
+            let inner_map: HashMap<StarknetStorageKey, StarknetStorageValue> = outer_entry
                 .storage_updates
                 .iter()
                 .map(|inner_entry| {
-                    (
-                        StarknetStorageKey(Felt::from_bytes_be_slice(&inner_entry.key)),
+                    Ok((
+                        StarknetStorageKey(Felt::from_bytes_be_slice(&inner_entry.key).try_into()?),
                         StarknetStorageValue(Felt::from_bytes_be_slice(&inner_entry.value)),
-                    )
+                    ))
                 })
-                .collect();
+                .collect::<Result<_, Self::Error>>()?;
             add_unique(
                 &mut storage_updates,
                 "starknet storage updates",
