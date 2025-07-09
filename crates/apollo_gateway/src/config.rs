@@ -1,11 +1,17 @@
 use std::collections::BTreeMap;
+use std::str::FromStr;
 
-use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::context::ChainInfo;
-use serde::{Deserialize, Serialize};
-use starknet_api::core::Nonce;
+use serde::{de, Deserialize, Deserializer, Serialize};
+use starknet_api::core::{ContractAddress, Nonce};
 use starknet_types_core::felt::Felt;
 use validator::Validate;
 
@@ -19,6 +25,8 @@ pub struct GatewayConfig {
     pub stateful_tx_validator_config: StatefulTransactionValidatorConfig,
     pub chain_info: ChainInfo,
     pub block_declare: bool,
+    #[serde(default, deserialize_with = "deserialize_optional_contract_addresses")]
+    pub authorized_declarer_accounts: Option<Vec<ContractAddress>>,
 }
 
 impl SerializeConfig for GatewayConfig {
@@ -38,8 +46,58 @@ impl SerializeConfig for GatewayConfig {
             "stateful_tx_validator_config",
         ));
         dump.extend(prepend_sub_config_name(self.chain_info.dump(), "chain_info"));
+        dump.extend(ser_optional_param(
+            &self.authorized_declarer_accounts.as_ref().map(|accounts| {
+                accounts.iter().map(|addr| addr.0.to_string()).collect::<Vec<_>>().join(",")
+            }),
+            "".to_string(),
+            "authorized_declarer_accounts",
+            "Authorized declarer accounts. If set, only these accounts can declare new contracts. \
+             Addresses are in hex format and separated by a comma with no space.",
+            ParamPrivacyInput::Public,
+        ));
         dump
     }
+}
+
+impl GatewayConfig {
+    pub fn is_authorized_declarer(&self, declarer_address: &ContractAddress) -> bool {
+        match &self.authorized_declarer_accounts {
+            Some(allowed_accounts) => allowed_accounts.contains(declarer_address),
+            None => true,
+        }
+    }
+}
+
+fn deserialize_optional_contract_addresses<'de, D>(
+    de: D,
+) -> Result<Option<Vec<ContractAddress>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let raw: String = match Option::deserialize(de)? {
+        Some(address) => address,
+        None => return Ok(None),
+    };
+
+    if raw.is_empty() {
+        return Ok(None);
+    }
+
+    let mut result = Vec::new();
+    for address_str in raw.split(',') {
+        let felt = Felt::from_str(address_str).map_err(|err| {
+            de::Error::custom(format!("Failed to parse Felt from '{}': {}", address_str, err))
+        })?;
+
+        let addr = ContractAddress::try_from(felt).map_err(|err| {
+            de::Error::custom(format!("Invalid contract address '{}': {}", address_str, err))
+        })?;
+
+        result.push(addr);
+    }
+
+    Ok(Some(result))
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
