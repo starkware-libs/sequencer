@@ -11,6 +11,7 @@ use starknet_api::core::{
     ClassHash,
     ContractAddress,
     EntryPointSelector,
+    EthAddress,
     Nonce,
 };
 use starknet_api::state::StorageKey;
@@ -391,6 +392,9 @@ impl<'state> SyscallHandlerBase<'state> {
     }
 
     pub fn send_message_to_l1(&mut self, message: MessageToL1) -> SyscallResult<()> {
+        if !self.context.tx_context.block_context.chain_info.is_l3 {
+            EthAddress::try_from(message.to_address)?;
+        }
         let ordered_message_to_l1 =
             OrderedL2ToL1Message { order: self.context.n_sent_messages_to_l1, message };
         self.l2_to_l1_messages.push(ordered_message_to_l1);
