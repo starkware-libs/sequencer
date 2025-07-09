@@ -123,7 +123,7 @@ fn validate_happy_flow() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1)])
         .with_committed([l1_handler(2)])
-        .with_consumed([l1_handler(3)])
+        .with_consumed_txs([(l1_handler(3), 0).into()])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
 
