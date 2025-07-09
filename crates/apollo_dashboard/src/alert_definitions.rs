@@ -10,6 +10,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
+    CONSENSUS_ROUND_ABOVE_ZERO,
 };
 use apollo_consensus_manager::metrics::{
     CONSENSUS_NUM_CONNECTED_PEERS,
@@ -767,8 +768,9 @@ fn get_consensus_round_above_zero_ratio() -> Alert {
         title: "Consensus round above zero ratio",
         alert_group: AlertGroup::Consensus,
         expr: format!(
-            "count_over_time(({metric} > 0)[1h]) / count_over_time({metric}[1h])",
-            metric = CONSENSUS_ROUND.get_name_with_filter()
+            "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
+            CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter(),
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
         ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
