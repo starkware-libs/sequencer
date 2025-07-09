@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::template::Template;
@@ -14,7 +15,7 @@ use strum_macros::{AsRefStr, EnumIter};
 use crate::addresses::{get_p2p_address, get_peer_id, SecretKey};
 use crate::config_override::{InstanceConfigOverride, NetworkConfigOverride};
 use crate::deployment::{build_service_namespace_domain_address, P2PCommunicationType};
-use crate::deployment_definitions::Environment;
+use crate::deployment_definitions::{Environment, ServicePort};
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
@@ -274,6 +275,11 @@ impl ServiceNameInner for HybridNodeServiceName {
             },
             _ => unimplemented!(),
         }
+    }
+
+    // TODO(Nadin): Implement this method to return the actual ports used by the service.
+    fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
+        BTreeMap::new()
     }
 }
 

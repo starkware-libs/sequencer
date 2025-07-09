@@ -20,8 +20,6 @@ use apollo_time::time::{sleep_until, Clock, DefaultClock};
 use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
-use metrics::counter;
-use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, error, info, instrument, trace};
 
@@ -94,10 +92,8 @@ where
         run_consensus_args.quorum_type,
         run_consensus_args.timeouts,
     );
-    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
         let must_observer = current_height < run_consensus_args.start_active_height;
-        metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT).set(current_height.0 as f64);
         match manager
             .run_height(
                 &mut context,
@@ -123,7 +119,6 @@ where
             RunHeightRes::Sync => {
                 info!(height = current_height.0, "Decision learned via sync protocol.");
                 CONSENSUS_DECISIONS_REACHED_BY_SYNC.increment(1);
-                counter!(PAPYRUS_CONSENSUS_SYNC_COUNT).increment(1);
             }
         }
         current_height = current_height.unchecked_next();
