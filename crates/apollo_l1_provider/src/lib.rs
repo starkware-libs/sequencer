@@ -111,6 +111,8 @@ pub struct L1ProviderConfig {
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub l1_handler_cancellation_timelock_seconds: Duration,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub l1_handler_consumption_timelock_seconds: Duration,
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub new_l1_handler_cooldown_seconds: Duration,
 }
 
@@ -120,6 +122,7 @@ impl From<L1ProviderConfig> for TransactionManagerConfig {
             new_l1_handler_tx_cooldown_secs: config.new_l1_handler_cooldown_seconds,
             l1_handler_cancellation_timelock_seconds: config
                 .l1_handler_cancellation_timelock_seconds,
+            l1_handler_consumption_timelock_seconds: config.l1_handler_consumption_timelock_seconds,
         }
     }
 }
@@ -138,6 +141,13 @@ impl SerializeConfig for L1ProviderConfig {
                 &self.l1_handler_cancellation_timelock_seconds.as_secs_f64(),
                 "How long to allow a transaction requested for cancellation to be validated \
                  against (proposals are banned upon receiving a cancellation request).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "l1_handler_consumption_timelock_seconds",
+                &self.l1_handler_consumption_timelock_seconds.as_secs_f64(),
+                "How long to wait after a transaction is consumed on L1 before it can be cleared \
+                 from the transaction manager.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
