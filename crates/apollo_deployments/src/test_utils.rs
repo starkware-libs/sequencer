@@ -1,4 +1,4 @@
-use apollo_config::converters::{serialize_optional_vec_u8, serialize_slice_url};
+use apollo_config::converters::{serialize_optional_vec_u8, serialize_slice};
 use serde::{Serialize, Serializer};
 use url::Url;
 
@@ -19,7 +19,7 @@ pub struct SecretsConfigOverride {
     consensus_manager_config_network_config_secret_key: Option<Vec<u8>>,
     #[serde(
         rename = "l1_endpoint_monitor_config.ordered_l1_endpoint_urls",
-        serialize_with = "serialize_slice_url_wrapper"
+        serialize_with = "serialize_slice_wrapper"
     )]
     l1_endpoint_monitor_config_ordered_l1_endpoint_urls: Vec<Url>,
     #[serde(
@@ -62,15 +62,15 @@ impl Default for SecretsConfigOverride {
     }
 }
 
-// Wrapper function for the custom `serialize_slice_url` function, to be compatible with serde's
+// Wrapper function for the custom `serialize_slice` function, to be compatible with serde's
 // `serialize_with` attribute. It first applies the custom serialization logic to convert the slice
 // of `Url` into a `String`, and then serializes that string.
-fn serialize_slice_url_wrapper<S>(urls: &[Url], serializer: S) -> Result<S::Ok, S::Error>
+fn serialize_slice_wrapper<S>(urls: &[Url], serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,
 {
     // Call the implemented custom serialization function
-    let s = serialize_slice_url(urls);
+    let s = serialize_slice(urls);
     // Serialize the returned String
     serializer.serialize_str(&s)
 }
