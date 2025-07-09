@@ -7,6 +7,7 @@ use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
 use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
+use tracing::{debug, warn};
 
 use crate::transaction_record::{
     Records,
@@ -297,6 +298,54 @@ impl TransactionManager {
             config,
             consumed_queue,
         }
+    }
+
+    pub fn consume_tx(
+        &mut self,
+        tx_hash: TransactionHash,
+        consumed_at: BlockTimestamp,
+        unix_now: u64,
+    ) -> bool {
+        let Some(record) = self.records.get(&tx_hash) else {
+            debug!(
+                "Attempted to consume an unknown transaction: {tx_hash}. This can happen if the \
+                 transaction was not scraped (e.g. it was consumed before we started scraping)."
+            );
+            return true;
+        };
+
+        match &record.state {
+            TransactionState::Consumed => {
+                panic!("Attempted to consume a transaction that was already consumed: {tx_hash}.");
+            }
+            TransactionState::Committed => {
+                debug!("Consuming a committed transaction: {tx_hash}.");
+            }
+            previous_state => {
+                warn!(
+                    "Consuming an uncommitted transaction: {tx_hash}. Previous transaction state: \
+                     {:?}.",
+                    previous_state
+                );
+            }
+        }
+
+        self.with_record(tx_hash, |record| record.mark_consumed(consumed_at));
+        self.consumed_queue.entry(consumed_at).or_default().push(tx_hash);
+
+        // Clear old consumed transactions from the queue.
+        let cutoff =
+            unix_now.saturating_sub(self.config.l1_handler_consumption_timelock_seconds.as_secs());
+
+        let remaining_txs = self.consumed_queue.split_off(&BlockTimestamp(cutoff));
+        for tx_hashes in self.consumed_queue.values() {
+            for tx_hash in tx_hashes {
+                self.records.remove(tx_hash);
+            }
+        }
+        self.consumed_queue = remaining_txs;
+
+        true
     }
 }
 
