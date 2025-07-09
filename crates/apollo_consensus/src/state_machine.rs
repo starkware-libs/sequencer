@@ -10,7 +10,7 @@ mod state_machine_test;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
-use tracing::{debug, info, trace};
+use tracing::{debug, info, trace, warn};
 
 use crate::metrics::{
     TimeoutReason,
@@ -289,7 +289,7 @@ impl StateMachine {
         if self.step != Step::Propose || round != self.round {
             return VecDeque::new();
         };
-        debug!("Applying TimeoutPropose for round={round}.");
+        warn!("Proposal failed. Applying TimeoutPropose for round={round}.");
         CONSENSUS_TIMEOUTS
             .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Propose.into())]);
         let mut output = VecDeque::from([StateMachineEvent::Prevote(None, round)]);
