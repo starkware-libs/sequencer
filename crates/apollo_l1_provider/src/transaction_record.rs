@@ -144,6 +144,10 @@ impl TransactionRecord {
         self.staged_epoch == epoch
     }
 
+    pub fn get_consumed_at_timestamp(&self) -> Option<BlockTimestamp> {
+        self.consumed_at
+    }
+
     /// Update the state of the record based on the current time and policy.
     /// This updates the state based on time-based state transitions, such as moving from
     /// CancellationStartedOnL2 to CancelledOnL2 after the timelock expires.
