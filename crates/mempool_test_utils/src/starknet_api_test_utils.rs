@@ -434,7 +434,8 @@ impl AccountTransactionGenerator {
         inner_fn_name: &str,
         inner_fn_args: &[Felt],
     ) -> RpcTransaction {
-        let mut inner_calldata_args = vec![*inner_contract_pointer, selector_from_name(inner_fn_name).0];
+        let mut inner_calldata_args =
+            vec![*inner_contract_pointer, selector_from_name(inner_fn_name).0];
         inner_calldata_args.extend_from_slice(inner_fn_args);
         let inner_calldata = Calldata(inner_calldata_args.into());
 
