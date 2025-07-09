@@ -16,7 +16,11 @@ from starkware.cairo.common.math_cmp import is_nn
 from starkware.cairo.common.registers import get_label_location
 from starkware.cairo.common.segments import relocate_segment
 from starkware.starknet.core.aggregator.combine_blocks import combine_blocks
-from starkware.starknet.core.os.block_context import BlockContext, get_block_context
+from starkware.starknet.core.os.block_context import (
+    BlockContext,
+    CompiledClassFactsBundle,
+    get_block_context,
+)
 from starkware.starknet.core.os.constants import (
     BLOCK_HASH_CONTRACT_ADDRESS,
     STORED_BLOCK_HASH_BUFFER,
@@ -93,21 +97,24 @@ func main{
         from starkware.starknet.core.os.execution_helper import StateUpdatePointers
         state_update_pointers = StateUpdatePointers(segments=segments)
     %}
-    with txs_range_check_ptr {
-        execute_blocks(
-            n_blocks=n_blocks,
-            os_output_per_block_dst=os_outputs,
+    local compiled_class_facts_bundle: CompiledClassFactsBundle* = new CompiledClassFactsBundle(
             n_compiled_class_facts=n_compiled_class_facts,
             compiled_class_facts=compiled_class_facts,
             n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
             deprecated_compiled_class_facts=deprecated_compiled_class_facts,
         );
+    with txs_range_check_ptr {
+        execute_blocks(
+            n_blocks=n_blocks,
+            os_output_per_block_dst=os_outputs,
+            compiled_class_facts_bundle=compiled_class_facts_bundle,
+        );
     }
 
     // Validate the guessed compile class facts.
     validate_compiled_class_facts_post_execution(
-        n_compiled_class_facts=n_compiled_class_facts,
-        compiled_class_facts=compiled_class_facts,
+        n_compiled_class_facts=compiled_class_facts_bundle.n_compiled_class_facts,
+        compiled_class_facts=compiled_class_facts_bundle.compiled_class_facts,
         builtin_costs=builtin_costs,
     );
 
@@ -207,10 +214,7 @@ func execute_blocks{
 }(
     n_blocks: felt,
     os_output_per_block_dst: OsOutput*,
-    n_compiled_class_facts: felt,
-    compiled_class_facts: CompiledClassFact*,
-    n_deprecated_compiled_class_facts: felt,
-    deprecated_compiled_class_facts: DeprecatedCompiledClassFact*,
+    compiled_class_facts_bundle: CompiledClassFactsBundle*,
 ) {
     %{ print(f"execute_blocks: {ids.n_blocks} blocks remaining.") %}
     if (n_blocks == 0) {
@@ -253,10 +257,7 @@ func execute_blocks{
     let (block_context: BlockContext*) = get_block_context(
         execute_syscalls_ptr=execute_syscalls_ptr,
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
-        n_compiled_class_facts=n_compiled_class_facts,
-        compiled_class_facts=compiled_class_facts,
-        n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
-        deprecated_compiled_class_facts=deprecated_compiled_class_facts,
+        compiled_class_facts_bundle=compiled_class_facts_bundle,
     );
 
     // Pre-process block.
@@ -330,10 +331,7 @@ func execute_blocks{
     return execute_blocks(
         n_blocks=n_blocks - 1,
         os_output_per_block_dst=&os_output_per_block_dst[1],
-        n_compiled_class_facts=n_compiled_class_facts,
-        compiled_class_facts=compiled_class_facts,
-        n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
-        deprecated_compiled_class_facts=deprecated_compiled_class_facts,
+        compiled_class_facts_bundle=compiled_class_facts_bundle,
     );
 }
 
