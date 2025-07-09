@@ -1219,6 +1219,16 @@
     "privacy": "Public",
     "value": false
   },
+  "gateway_config.authorized_declarer_accounts": {
+    "description": "Authorized declarer account. If set, only these accounts can declare new contracts.",
+    "privacy": "Public",
+    "value": ""
+  },
+  "gateway_config.authorized_declarer_accounts.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
+  },
   "gateway_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",

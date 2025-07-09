@@ -103,6 +103,18 @@ impl Gateway {
             }
         }
 
+        if !self.config.is_declarer_authorized(&tx.calculate_sender_address().unwrap()) {
+            return Err(StarknetError {
+                code: StarknetErrorCode::KnownErrorCode(
+                    KnownStarknetErrorCode::UnauthorizedDeclare,
+                ),
+                message: format!(
+                    "Account address {} is not allowed to declare contracts.",
+                    &tx.calculate_sender_address().unwrap()
+                ),
+            });
+        }
+
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
         metric_counters.count_transaction_received();
 
