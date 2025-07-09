@@ -185,6 +185,10 @@ impl TransactionManager {
         self.records.contains_key(&tx_hash)
     }
 
+    // The snapshot is not sorted for performance optimization. This is because the Records::remove
+    // method uses swap_remove instead of shift_remove for better performance, which can change
+    // the order of remaining elements. If sorting is needed, change Records::remove to use
+    // shift_remove instead of swap_remove.
     pub(crate) fn snapshot(&self) -> TransactionManagerSnapshot {
         let mut snapshot = TransactionManagerSnapshot::default();
 
