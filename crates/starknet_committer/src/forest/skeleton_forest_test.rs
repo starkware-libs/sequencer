@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::{
     create_32_bytes_entry,
@@ -27,7 +28,6 @@ use crate::block_committer::input::{
     contract_address_into_node_index,
     ConfigImpl,
     Input,
-    StarknetStorageKey,
     StarknetStorageValue,
     StateDiff,
 };
@@ -363,7 +363,7 @@ fn create_contract_leaves(leaves: &[(u128, u128)]) -> HashMap<ContractAddress, C
 
 fn create_storage_updates(
     updates: &[(u8, &[u8])],
-) -> HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>> {
+) -> HashMap<ContractAddress, HashMap<StorageKey, StarknetStorageValue>> {
     updates
         .iter()
         .map(|(address, address_indices)| {
@@ -373,7 +373,7 @@ fn create_storage_updates(
                     .iter()
                     .map(|val| {
                         (
-                            StarknetStorageKey(Felt::from(u128::from(*val))),
+                            StorageKey::from(u128::from(*val)),
                             StarknetStorageValue(Felt::from(u128::from(*val))),
                         )
                     })

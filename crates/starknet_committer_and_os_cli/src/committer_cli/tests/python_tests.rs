@@ -4,11 +4,8 @@ use std::fmt::Debug;
 use ethnum::U256;
 use serde_json::json;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
-use starknet_committer::block_committer::input::{
-    StarknetStorageKey,
-    StarknetStorageValue,
-    StateDiff,
-};
+use starknet_api::state::StorageKey;
+use starknet_committer::block_committer::input::{StarknetStorageValue, StateDiff};
 use starknet_committer::forest::filled_forest::FilledForest;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
@@ -348,7 +345,7 @@ fn hash_state_diff(state_diff: &StateDiff) -> (Vec<u8>, Vec<u8>) {
 }
 
 fn hash_storage_updates(
-    storage_updates: &HashMap<ContractAddress, HashMap<StarknetStorageKey, StarknetStorageValue>>,
+    storage_updates: &HashMap<ContractAddress, HashMap<StorageKey, StarknetStorageValue>>,
 ) -> (Vec<u8>, Vec<u8>) {
     let mut keys_hash = vec![0; 32];
     let mut values_hash = vec![0; 32];
@@ -375,11 +372,7 @@ macro_rules! generate_storage_map_xor_hasher {
     };
 }
 
-generate_storage_map_xor_hasher!(
-    hash_storage_updates_map,
-    StarknetStorageKey,
-    StarknetStorageValue
-);
+generate_storage_map_xor_hasher!(hash_storage_updates_map, StorageKey, StarknetStorageValue);
 generate_storage_map_xor_hasher!(
     hash_class_hash_to_compiled_class_hash,
     ClassHash,

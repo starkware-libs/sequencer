@@ -134,8 +134,8 @@ impl NodeIndex {
             .expect("Illegal PathToBottom")
     }
 
-    pub fn from_leaf_felt(felt: &Felt) -> Self {
-        Self::FIRST_LEAF + Self::from_felt_value(felt)
+    pub fn from_leaf_felt<T: Into<Felt>>(value: T) -> Self {
+        Self::FIRST_LEAF + Self::from_felt_value(&value.into())
     }
 
     pub(crate) fn from_felt_value(felt: &Felt) -> Self {

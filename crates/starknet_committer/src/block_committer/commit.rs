@@ -128,7 +128,9 @@ pub(crate) fn get_all_modified_indices(
         .iter()
         .map(|address| {
             let indices: Vec<NodeIndex> = match state_diff.storage_updates.get(address) {
-                Some(updates) => updates.keys().map(NodeIndex::from).collect(),
+                Some(updates) => {
+                    updates.keys().map(|index| NodeIndex::from_leaf_felt(*index)).collect()
+                }
                 None => Vec::new(),
             };
             (**address, indices)

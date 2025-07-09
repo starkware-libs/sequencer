@@ -14,7 +14,7 @@ pub fn fixed_hex_string_no_prefix(felt: &Felt) -> String {
 }
 
 pub fn class_hash_into_node_index(class_hash: &ClassHash) -> NodeIndex {
-    NodeIndex::from_leaf_felt(&class_hash.0)
+    NodeIndex::from_leaf_felt(class_hash.0)
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
