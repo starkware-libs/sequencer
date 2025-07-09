@@ -32,6 +32,7 @@ use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
+    RpcDeclareTransaction,
     RpcTransaction,
 };
 use starknet_api::transaction::fields::ValidResourceBounds;
@@ -99,6 +100,20 @@ impl Gateway {
                         "StarknetErrorCode.BLOCKED_TRANSACTION_TYPE".to_string(),
                     ),
                     message: "Transaction type is temporarily blocked.".to_string(),
+                });
+            }
+        }
+
+        if let RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx)) = &tx {
+            if !self.config.is_declarer_authorized(&declare_tx.sender_address) {
+                return Err(StarknetError {
+                    code: StarknetErrorCode::KnownErrorCode(
+                        KnownStarknetErrorCode::UnauthorizedDeclare,
+                    ),
+                    message: format!(
+                        "Account address {} is not allowed to declare contracts.",
+                        &declare_tx.sender_address
+                    ),
                 });
             }
         }
