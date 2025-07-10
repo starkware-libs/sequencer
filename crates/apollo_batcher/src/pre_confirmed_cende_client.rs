@@ -102,13 +102,15 @@ impl PreConfirmedCendeClientTrait for PreConfirmedCendeClient {
         let block_number = pre_confirmed_block.block_number;
         let round = pre_confirmed_block.round;
         let write_iteration = pre_confirmed_block.write_iteration;
+        let number_of_txs = pre_confirmed_block.pre_confirmed_block.transactions.len();
 
         let request_builder =
             self.client.post(self.write_pre_confirmed_block_url.clone()).json(&pre_confirmed_block);
 
         trace!(
             "Sending write_pre_confirmed_block request to Cende recorder. block_number: \
-             {block_number}, round: {round}, write_iteration: {write_iteration}",
+             {block_number}, round: {round}, write_iteration: {write_iteration}. The block \
+             contains {number_of_txs} transactions.",
         );
 
         let response = request_builder.send().await?;
