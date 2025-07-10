@@ -14,8 +14,6 @@ use crate::discovery::DiscoveryConfig;
 use crate::peer_manager::PeerManagerConfig;
 use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 
-const ONE_MEGA: usize = 1 << 20;
-
 // TODO(Shahak): consider reducing the pulicity of all behaviour to pub(crate)
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
@@ -116,7 +114,8 @@ impl MixedBehaviour {
             gossipsub: gossipsub::Behaviour::new(
                 gossipsub::MessageAuthenticity::Signed(keypair),
                 gossipsub::ConfigBuilder::default()
-                    .max_transmit_size(ONE_MEGA)
+                    // TODO(shahak): try to reduce this bound.
+                    .max_transmit_size(1 << 34)
                     .build()
                     .expect("Failed to build gossipsub config"),
             )
