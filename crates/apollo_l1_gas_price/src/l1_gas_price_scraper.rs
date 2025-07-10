@@ -10,7 +10,7 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n;
+use apollo_infra_utils::info_every_n_sec;
 use apollo_l1_gas_price_types::errors::L1GasPriceClientError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderClient, PriceInfo};
 use async_trait::async_trait;
@@ -169,9 +169,8 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         trace!(
             "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
         );
-        // TODO(guy.f): Replace with info_every_n_sec once implemented.
-        info_every_n!(
-            100,
+        info_every_n_sec!(
+            1,
             "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
         );
         for block_number in start_block_number..=last_block_number {
