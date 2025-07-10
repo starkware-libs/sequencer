@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
-use blockifier_test_utils::calldata::create_trivial_calldata;
+use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
@@ -133,7 +133,7 @@ pub fn executable_invoke_tx(cairo_version: CairoVersion) -> AccountTransaction {
 
     let mut tx_generator = MultiAccountTransactionGenerator::new();
     tx_generator.register_deployed_account(default_account);
-    tx_generator.account_with_id_mut(0).generate_executable_invoke()
+    tx_generator.account_with_id_mut(0).generate_trivial_executable_invoke_tx()
 }
 
 pub fn deploy_account_tx() -> RpcTransaction {
@@ -237,9 +237,12 @@ impl L1HandlerTransactionGenerator {
 /// tx_generator.register_deployed_account(some_account_type.clone());
 /// tx_generator.register_deployed_account(some_account_type.clone());
 ///
-/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id_mut(0).generate_invoke_with_tip(1);
-/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id_mut(1).generate_invoke_with_tip(3);
-/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id_mut(0).generate_invoke_with_tip(1);
+/// let account_0_tx_with_nonce_0 =
+///     tx_generator.account_with_id_mut(0).generate_trivial_rpc_invoke_tx_with_tip(1);
+/// let account_1_tx_with_nonce_0 =
+///     tx_generator.account_with_id_mut(1).generate_trivial_rpc_invoke_tx_with_tip(3);
+/// let account_0_tx_with_nonce_1 =
+///     tx_generator.account_with_id_mut(0).generate_trivial_rpc_invoke_tx_with_tip(1);
 ///
 /// // Initialize an undeployed account.
 /// let salt = ContractAddressSalt(123_u64.into());
@@ -392,37 +395,56 @@ impl AccountTransactionGenerator {
         self.nonce_manager.borrow().get(self.sender_address()) != nonce!(0)
     }
 
-    /// Generate a valid `RpcTransaction` with default parameters.
-    pub fn generate_invoke_with_tip(&mut self, tip: u64) -> RpcTransaction {
+    pub fn generate_generic_rpc_invoke_tx(
+        &mut self,
+        tip: u64,
+        fn_name: &str,
+        fn_args: &[Felt],
+        test_contract_address: ContractAddress,
+    ) -> RpcTransaction {
         assert!(
             self.is_deployed(),
             "Cannot invoke on behalf of an undeployed account: the first transaction of every \
              account must be a deploy account transaction."
         );
         let nonce = self.next_nonce();
+
         let invoke_args = invoke_tx_args!(
             nonce,
-            tip : Tip(tip),
+            tip: Tip(tip),
             sender_address: self.sender_address(),
             resource_bounds: test_valid_resource_bounds(),
-            calldata: create_trivial_calldata(self.sender_address()),
+            calldata: create_calldata(test_contract_address, fn_name, fn_args),
         );
+
         rpc_invoke_tx(invoke_args)
     }
 
-    pub fn generate_executable_invoke(&mut self) -> AccountTransaction {
+    /// Generate a valid `RpcTransaction` with default parameters.
+    pub fn generate_trivial_rpc_invoke_tx_with_tip(&mut self, tip: u64) -> RpcTransaction {
+        let test_contract = FeatureContract::TestContract(self.account.cairo_version());
+        self.generate_generic_rpc_invoke_tx(
+            tip,
+            "return_result",
+            &[felt!(2_u8)],
+            test_contract.get_instance_address(0),
+        )
+    }
+
+    pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
         assert!(
             self.is_deployed(),
             "Cannot invoke on behalf of an undeployed account: the first transaction of every \
              account must be a deploy account transaction."
         );
         let nonce = self.next_nonce();
+        let test_contract = FeatureContract::TestContract(self.account.cairo_version());
 
         let invoke_args = invoke_tx_args!(
             sender_address: self.sender_address(),
             resource_bounds: test_valid_resource_bounds(),
             nonce,
-            calldata: create_trivial_calldata(self.sender_address()),
+            calldata: create_trivial_calldata(test_contract.get_instance_address(0)),
         );
 
         starknet_api::test_utils::invoke::executable_invoke_tx(invoke_args)
@@ -432,8 +454,8 @@ impl AccountTransactionGenerator {
     ///
     /// Caller must manually handle bumping nonce and fetching the correct sender address via
     /// [AccountTransactionGenerator::next_nonce] and [AccountTransactionGenerator::sender_address].
-    /// See [AccountTransactionGenerator::generate_invoke_with_tip] to have these filled up by
-    /// default.
+    /// See [AccountTransactionGenerator::generate_trivial_rpc_invoke_tx_with_tip] to have these
+    /// filled up by default.
     ///
     /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
     /// as needed.
