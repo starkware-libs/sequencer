@@ -231,6 +231,13 @@ impl MetricGauge {
         gauge!(self.name).set(value.into_f64());
     }
 
+    #[allow(clippy::as_conversions)]
+    pub fn set_lossy_u128(&self, value: u128) {
+        // This conversion loses precision for values larger than 2^53 ~= 10^15.
+        // Use this only to get a rough estimate of the value, e.g., in metrics.
+        gauge!(self.name).set(value as f64);
+    }
+
     #[cfg(any(feature = "testing", test))]
     #[track_caller]
     pub fn assert_eq<T: Num + FromStr + Debug>(&self, metrics_as_string: &str, expected_value: T) {
