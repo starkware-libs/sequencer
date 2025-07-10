@@ -81,6 +81,7 @@
   "consensus_manager_config.context_config.block_timestamp_window_seconds": 1,
   "consensus_manager_config.context_config.build_proposal_margin_millis": 1000,
   "consensus_manager_config.context_config.builder_address": "0x1176a1bd84444c89232ec27754698e5d2e7e1a7f1539f12027f28b23ec9f3d8",
+  "consensus_manager_config.context_config.constant_l2_gas_price": false,
   "consensus_manager_config.context_config.l1_da_mode": true,
   "consensus_manager_config.context_config.l1_data_gas_price_multiplier_ppt": 135,
   "consensus_manager_config.context_config.l1_gas_tip_wei": 1000000000,
