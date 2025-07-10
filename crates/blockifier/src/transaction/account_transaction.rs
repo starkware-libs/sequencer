@@ -431,7 +431,7 @@ impl AccountTransaction {
         charge_fee: bool,
         concurrency_mode: bool,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
-        if !charge_fee || actual_fee == Fee(0) {
+        if !charge_fee {
             // Fee charging is not enforced in some tests.
             // TODO(Yoni): consider setting the actual fee to zero when the flag is off.
             return Ok(None);
