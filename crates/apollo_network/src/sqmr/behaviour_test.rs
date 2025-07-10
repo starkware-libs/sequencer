@@ -1,6 +1,7 @@
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use apollo_network_types::test_utils::DUMMY_PEER_ID;
 use assert_matches::assert_matches;
 use futures::{FutureExt, Stream, StreamExt};
 use lazy_static::lazy_static;
@@ -275,7 +276,7 @@ fn validate_no_events(behaviour: &mut Behaviour) {
 async fn process_inbound_session() {
     let mut behaviour = Behaviour::new(Config::get_test_config());
 
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     let inbound_session_id = InboundSessionId::default();
 
     simulate_new_inbound_session(&mut behaviour, peer_id, inbound_session_id, QUERY.clone());
@@ -313,7 +314,7 @@ async fn process_inbound_session() {
 async fn create_and_process_outbound_session() {
     let mut behaviour = Behaviour::new(Config::get_test_config());
 
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
 
     let outbound_session_id = behaviour.start_query(QUERY.clone(), PROTOCOL_NAME.clone());
 
@@ -347,7 +348,7 @@ async fn create_and_process_outbound_session() {
 async fn connection_closed() {
     let mut behaviour = Behaviour::new(Config::get_test_config());
 
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
 
     // Add an outbound session on the connection.
     let outbound_session_id = behaviour.start_query(QUERY.clone(), PROTOCOL_NAME.clone());
@@ -394,7 +395,7 @@ async fn connection_closed() {
 async fn drop_outbound_session() {
     let mut behaviour = Behaviour::new(Config::get_test_config());
 
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
 
     let outbound_session_id = behaviour.start_query(QUERY.clone(), PROTOCOL_NAME.clone());
     // Consume the event to request peer assignment.
@@ -426,7 +427,7 @@ async fn drop_outbound_session() {
 async fn drop_inbound_session() {
     let mut behaviour = Behaviour::new(Config::get_test_config());
 
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     let inbound_session_id = InboundSessionId::default();
 
     simulate_new_inbound_session(&mut behaviour, peer_id, inbound_session_id, QUERY.clone());

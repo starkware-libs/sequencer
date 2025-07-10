@@ -1,10 +1,7 @@
-use std::net::Ipv4Addr;
-
+use apollo_network_types::test_utils::DUMMY_MULTI_ADDRESS;
 use libp2p::{identity, multiaddr, Multiaddr, PeerId};
 use validator::Validate;
 
-use crate::test_utils::DUMMY_MULTI_ADDRESS;
-use crate::utils::make_quic_multiaddr;
 use crate::NetworkConfig;
 
 #[test]
