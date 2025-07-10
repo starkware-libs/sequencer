@@ -28,7 +28,7 @@ on:
       - 'build_native_in_docker.sh'
       - 'Cargo.lock'
       - 'Cargo.toml'
-      - 'crates/blockifier/**'
+      - 'crates/**'
       - 'crates/blockifier_test_utils/**'
       - 'crates/native_blockifier/**'
       - 'crates/apollo_sierra_multicompile/build.rs'
