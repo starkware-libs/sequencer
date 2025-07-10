@@ -48,7 +48,7 @@ use starknet_api::test_utils::invoke::InvokeTxArgs;
 use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
-use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
+use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce, patricia_key};
 use starknet_types_core::felt::Felt;
 use strum::VariantNames;
 
@@ -79,6 +79,7 @@ fn config() -> GatewayConfig {
         stateful_tx_validator_config: StatefulTransactionValidatorConfig::default(),
         chain_info: ChainInfo::create_for_testing(),
         block_declare: false,
+        authorized_declarer_accounts: None,
     }
 }
 
@@ -445,4 +446,30 @@ fn test_register_metrics() {
             assert_eq!(GATEWAY_ADD_TX_LATENCY.parse_histogram_metric(&metrics).unwrap().count, 0);
         }
     }
+}
+
+#[rstest]
+#[tokio::test]
+async fn test_unauthorized_declare_config(
+    mut config: GatewayConfig,
+    state_reader_factory: TestStateReaderFactory,
+) {
+    let authorized_address = ContractAddress(patricia_key!("0xdeadbeef"));
+    config.authorized_declarer_accounts = Some(vec![authorized_address]);
+
+    let gateway = Gateway::new(
+        config,
+        Arc::new(state_reader_factory),
+        Arc::new(MockMempoolClient::new()),
+        TransactionConverter::new(
+            Arc::new(EmptyClassManagerClient),
+            ChainInfo::create_for_testing().chain_id,
+        ),
+    );
+
+    let gateway_output_code_error = gateway.add_tx(declare_tx(), None).await.unwrap_err().code;
+    let expected_code_error =
+        StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::UnauthorizedDeclare);
+
+    assert_eq!(gateway_output_code_error, expected_code_error);
 }
