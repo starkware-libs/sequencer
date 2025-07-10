@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use thiserror::Error;
-use tracing::{error, info, trace, warn};
+use tracing::{error, info, trace};
 use validator::Validate;
 
 use crate::metrics::{
@@ -135,7 +135,7 @@ pub struct L1GasPriceScraper<B: BaseLayerContract> {
     pub last_l1_header: Option<L1BlockHeader>,
 }
 
-impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
+impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
     pub fn new(
         config: L1GasPriceScraperConfig,
         l1_gas_price_provider: SharedL1GasPriceProvider,
@@ -151,7 +151,19 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
             .await
             .map_err(L1GasPriceScraperError::GasPriceClientError)?;
         loop {
-            block_number = self.update_prices(block_number).await?;
+            // If we get an Ok() we just keep going with the loop.
+            if let Err(e) = self.update_prices(&mut block_number).await {
+                error!("Error while scraping gas prices: {e:?}");
+
+                match e {
+                    L1GasPriceScraperError::BaseLayerError(_) => {
+                        L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
+                    }
+                    // If we had a reorg, we must stop and restart the scraper.
+                    L1GasPriceScraperError::L1ReorgDetected { .. } => return Err(e),
+                    _ => {}
+                }
+            }
             tokio::time::sleep(self.config.polling_interval).await;
         }
     }
@@ -160,12 +172,13 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     /// Returns the next `block_number` to be scraped.
     async fn update_prices(
         &mut self,
-        start_block_number: L1BlockNumber,
-    ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
+        block_number: &mut L1BlockNumber,
+    ) -> L1GasPriceScraperResult<(), B> {
         let Some(last_block_number) = self.latest_l1_block_number().await? else {
             // Not enough blocks under current finality. Try again later.
-            return Ok(start_block_number);
+            return Ok(());
         };
+<<<<<<< HEAD
         trace!(
             "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
         );
@@ -173,16 +186,26 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
         info_every_n!(
             100,
             "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
+||||||| parent of 0912d8a47 (apollo_l1_gas_price: scraper baselayer errors do not cause crash)
+        trace!(
+            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
         );
-        for block_number in start_block_number..=last_block_number {
-            let header = match self.base_layer.get_block_header(block_number).await {
+        info_every_n_sec!(
+            1,
+            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
+=======
+        trace!("Scraping gas prices starting from block {} to {last_block_number}.", *block_number,);
+        info_every_n_sec!(
+            1,
+            "Scraping gas prices starting from block {} to {last_block_number}.",
+            *block_number,
+>>>>>>> 0912d8a47 (apollo_l1_gas_price: scraper baselayer errors do not cause crash)
+        );
+        while *block_number <= last_block_number {
+            let header = match self.base_layer.get_block_header(*block_number).await {
                 Ok(Some(header)) => header,
-                Ok(None) => return Ok(block_number),
-                Err(e) => {
-                    warn!("BaseLayerError during scraping: {e:?}");
-                    L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
-                    return Ok(block_number);
-                }
+                Ok(None) => return Ok(()), // No more blocks to scrape.
+                Err(e) => return Err(L1GasPriceScraperError::BaseLayerError(e)),
             };
             let timestamp = header.timestamp;
             let price_info = PriceInfo {
@@ -195,12 +218,13 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
             self.last_l1_header = Some(header);
 
             self.l1_gas_price_provider
-                .add_price_info(GasPriceData { block_number, timestamp, price_info })
+                .add_price_info(GasPriceData { block_number: *block_number, timestamp, price_info })
                 .await
                 .map_err(L1GasPriceScraperError::GasPriceClientError)?;
             L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.increment(1);
+            *block_number += 1;
         }
-        Ok(last_block_number + 1)
+        Ok(())
     }
     async fn assert_no_l1_reorgs(
         &self,

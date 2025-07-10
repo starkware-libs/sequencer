@@ -76,7 +76,8 @@ async fn run_l1_gas_price_scraper_single_block() {
     const END_BLOCK: u64 = 1;
     const EXPECT_NUMBER: usize = 1;
     let mut scraper = setup_scraper(END_BLOCK, EXPECT_NUMBER);
-    scraper.update_prices(START_BLOCK).await.unwrap();
+    let mut block_number = START_BLOCK;
+    scraper.update_prices(&mut block_number).await.unwrap();
 }
 
 #[tokio::test]
@@ -122,9 +123,10 @@ async fn run_l1_gas_price_scraper_two_blocks() {
         mock_contract,
     );
 
-    let block_number = scraper.update_prices(START_BLOCK).await.unwrap();
+    let mut block_number = START_BLOCK;
+    scraper.update_prices(&mut block_number).await.unwrap();
     assert_eq!(block_number, END_BLOCK1);
-    let block_number = scraper.update_prices(block_number).await.unwrap();
+    scraper.update_prices(&mut block_number).await.unwrap();
     assert_eq!(block_number, END_BLOCK2);
 }
 
@@ -136,7 +138,8 @@ async fn run_l1_gas_price_scraper_multiple_blocks() {
     let mut scraper = setup_scraper(END_BLOCK, EXPECT_NUMBER);
 
     // Should update prices from 5 to 10 (not inclusive) and on 10 get a None from base layer.
-    scraper.update_prices(START_BLOCK).await.unwrap();
+    let mut block_number = START_BLOCK;
+    scraper.update_prices(&mut block_number).await.unwrap();
 }
 
 #[tokio::test]
@@ -193,10 +196,11 @@ async fn l1_reorg_gas_price_scraper_error() {
         mock_contract,
     );
     // The first call should succeed.
-    let result = scraper.update_prices(START_BLOCK).await;
+    let mut block_number = START_BLOCK;
+    let result = scraper.update_prices(&mut block_number).await;
     assert!(result.is_ok());
     // The second call should fail with a reorg error.
-    let result = scraper.update_prices(END_BLOCK1).await;
+    let result = scraper.update_prices(&mut block_number).await;
     assert!(matches!(result, Err(L1GasPriceScraperError::L1ReorgDetected { .. })));
 }
 
@@ -252,23 +256,23 @@ async fn l1_short_reorg_gas_price_scraper_is_fine(#[case] finality: u64) {
         mock_contract,
     );
     // The first call should succeed.
-    let result = scraper.update_prices(START_BLOCK).await;
+    let mut block_number = START_BLOCK;
+    scraper.update_prices(&mut block_number).await.unwrap();
     // Successfully scraped the first blocks (we don't reach END_BLOCK, because of finality).
-    let new_block_number = result.unwrap();
-    assert_eq!(new_block_number, END_BLOCK - finality + 1);
+    assert_eq!(block_number, END_BLOCK - finality + 1);
 
     // Now we simulate a reorg by setting has_reorg_happened to true.
     has_reorg_happened.store(true, Ordering::SeqCst);
     // We allow the chain to keep going to a higher block number.
     end_of_chain.store(END_BLOCK + finality * 2, Ordering::SeqCst);
     // The second call should succeed, as the scraper will handle the reorg.
-    let result = scraper.update_prices(new_block_number).await;
+    let result = scraper.update_prices(&mut block_number).await;
 
     if finality > 1 {
         // High finality case, means we can safely skip over this short reorg.
-        let final_block_number = result.unwrap();
+        result.unwrap();
         // The final block number should be one after the end of the chain minus finality.
-        assert_eq!(final_block_number, end_of_chain.load(Ordering::SeqCst) - finality + 1);
+        assert_eq!(block_number, end_of_chain.load(Ordering::SeqCst) - finality + 1);
     } else {
         // Low finality case, means we will trigger a reorg error.
         assert!(matches!(result, Err(L1GasPriceScraperError::L1ReorgDetected { .. })));
