@@ -10,7 +10,8 @@ testing = ["apollo_test_utils", "rand_chacha"]
 
 [dependencies]
 apollo_test_utils = { workspace = true, optional = true }
-libp2p = { workspace = true, features = ["serde"] }
+lazy_static.workspace = true
+libp2p = { workspace = true, features = ["dns", "serde", "tcp"] }
 rand_chacha = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 
