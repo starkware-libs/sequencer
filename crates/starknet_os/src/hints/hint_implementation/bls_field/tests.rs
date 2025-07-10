@@ -30,8 +30,6 @@ use crate::test_utils::utils::{
 
 const REDUCED_MUL_LIMB_BOUND: i128 = 2_i128.pow(104);
 
-// TODO(Nimrod): Move this next to the BLS hints implementation.
-
 fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) {
     let explicit_args = [
         EndpointArg::Value(ValueArg::Array(a_split.iter().map(MaybeRelocatable::from).collect())),
