@@ -28,7 +28,7 @@ use crate::hints::hint_implementation::block_context::{
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
-use crate::hints::hint_implementation::bls_field::compute_ids_low;
+use crate::hints::hint_implementation::bls_field::implementation::compute_ids_low;
 use crate::hints::hint_implementation::builtins::{
     select_builtin,
     selected_builtins,
