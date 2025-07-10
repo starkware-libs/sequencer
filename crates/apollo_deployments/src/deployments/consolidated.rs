@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -137,7 +138,9 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
 
     // TODO(Nadin): Implement this method to return the actual ports used by the service.
     fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
-        BTreeMap::new()
+        let mut ports = BTreeMap::new();
+        ports.insert(ServicePort::MonitoringEndpoint, MONITORING_ENDPOINT_DEFAULT_PORT);
+        ports
     }
 }
 

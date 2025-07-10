@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 pub(crate) const MONITORING_ENDPOINT_DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
-pub(crate) const MONITORING_ENDPOINT_DEFAULT_PORT: u16 = 8082;
+pub const MONITORING_ENDPOINT_DEFAULT_PORT: u16 = 8082;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct MonitoringEndpointConfig {

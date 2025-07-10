@@ -28,7 +28,9 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     }
   ]
 }
