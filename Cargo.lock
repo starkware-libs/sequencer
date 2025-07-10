@@ -1363,6 +1363,7 @@ dependencies = [
  "anyhow",
  "apollo_batcher",
  "apollo_class_manager",
+ "apollo_config",
  "apollo_consensus",
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
