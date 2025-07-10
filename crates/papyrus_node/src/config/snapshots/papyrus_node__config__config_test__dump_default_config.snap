@@ -191,6 +191,11 @@ expression: dumped_default_config
     "value": "SN_MAIN",
     "privacy": "Public"
   },
+  "context.constant_l2_gas_price": {
+    "description": "If true, sets STRK gas price to its minimum price in versioned constants.",
+    "value": false,
+    "privacy": "Public"
+  },
   "context.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "value": true,
