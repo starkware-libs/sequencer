@@ -262,7 +262,7 @@ macro_rules! into_f64 {
         )*
     };
 }
-into_f64!(u64, usize, i64);
+into_f64!(u64, usize, i64, u128);
 
 pub struct LabeledMetricGauge {
     scope: MetricScope,
