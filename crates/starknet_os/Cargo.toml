@@ -53,6 +53,7 @@ starknet_patricia.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 apollo_starknet_os_program = { workspace = true, features = ["test_programs"] }
