@@ -2,10 +2,6 @@ use std::collections::HashSet;
 
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 
-// TODO(Tsabary): test no conflicts between config entries defined in each of the override types.
-// TODO(Tsabary): delete duplicates from the base app config, and add a test that there are no
-// conflicts between all the override config entries and the values in the base app config.
-
 pub(crate) fn get_secret_key(id: usize) -> String {
     format!("0x010101010101010101010101010101010101010101010101010101010101010{}", id + 1)
 }
