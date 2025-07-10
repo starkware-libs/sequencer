@@ -112,7 +112,7 @@ def merge_branches(src_branch: str, dst_branch: Optional[str]):
 
     run_command(f"git checkout origin/{dst_branch} {' '.join(FILES_TO_PRESERVE) }")
 
-    run_command("git status -s | grep -E \"^UU|^AA\" | awk '{ print $2 }' | tee /tmp/conflicts")
+    run_command("git status -s | grep -E \"^UU|^AA|^UD\" | awk '{ print $2 }' | tee /tmp/conflicts")
 
     conflicts_file = "/tmp/conflicts"
     conflicts = [line.strip() for line in open(conflicts_file).readlines() if line.strip() != ""]
