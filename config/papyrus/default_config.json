@@ -159,6 +159,11 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
+  "context.constant_l2_gas_price": {
+    "description": "If true, sets STRK gas price to its minimum price in versioned constants.",
+    "privacy": "Public",
+    "value": false
+  },
   "context.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
