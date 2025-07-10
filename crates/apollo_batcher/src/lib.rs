@@ -11,6 +11,8 @@ pub mod metrics;
 pub mod pre_confirmed_block_writer;
 pub mod pre_confirmed_cende_client;
 #[cfg(test)]
+mod pre_confirmed_cende_client_test;
+#[cfg(test)]
 mod test_utils;
 mod transaction_executor;
 mod transaction_provider;
