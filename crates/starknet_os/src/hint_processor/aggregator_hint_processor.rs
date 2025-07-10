@@ -17,6 +17,7 @@ use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use serde::Deserialize;
 use starknet_types_core::felt::Felt;
+use tracing::level_filters::LevelFilter;
 
 use crate::hint_processor::common_hint_processor::{
     CommonHintProcessor,
@@ -42,6 +43,13 @@ pub struct AggregatorInput {
     pub bootloader_output: Vec<Felt>,
     pub full_output: bool,
     pub da: DataAvailability,
+    pub debug_mode: bool,
+}
+
+impl AggregatorInput {
+    pub fn log_level(&self) -> LevelFilter {
+        if self.debug_mode { LevelFilter::DEBUG } else { LevelFilter::INFO }
+    }
 }
 
 pub struct AggregatorHintProcessor<'a> {

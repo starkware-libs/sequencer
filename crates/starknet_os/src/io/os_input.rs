@@ -13,6 +13,7 @@ use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
+use tracing::level_filters::LevelFilter;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Debug)]
@@ -139,6 +140,12 @@ pub struct OsHintsConfig {
     pub full_output: bool,
     pub use_kzg_da: bool,
     pub chain_info: OsChainInfo,
+}
+
+impl OsHintsConfig {
+    pub fn log_level(&self) -> LevelFilter {
+        if self.debug_mode { LevelFilter::DEBUG } else { LevelFilter::INFO }
+    }
 }
 
 #[derive(Default, Debug)]
