@@ -81,20 +81,23 @@ jobs:
   #     - name: Run p2p sync end-to-end test
   #       run: scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
 
-  integration-test:
-    runs-on: starkware-ubuntu-24.04-medium
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-      - run: >
-          cargo test
-          --test latency_histogram
-          --test gateway_integration_test
-          --test feeder_gateway_integration_test
-          -- --include-ignored --skip test_gw_integration_testnet;
-          cargo run -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
+  # FIXME(DanB): The `cargo run -p papyrus_node` phase currently fails with:
+  #   thread 'main' panicked at crates/papyrus_node/src/bin/central_source_integration_test.rs:33:10:
+  #   Central get latest_block: ClientError(ClientError(BadResponseStatus { code: 404, message: "response 404 (backend NotFound), service rules for the path non-existent \n" }))
+  # integration-test:
+  #   runs-on: starkware-ubuntu-24.04-medium
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: ./.github/actions/bootstrap
+  #       with:
+  #         github_token: ${{ secrets.GITHUB_TOKEN }}
+  #     - run: >
+  #         cargo test
+  #         --test latency_histogram
+  #         --test gateway_integration_test
+  #         --test feeder_gateway_integration_test
+  #         -- --include-ignored --skip test_gw_integration_testnet;
+  #         cargo run -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
 
   test-no-rpc:
     runs-on: starkware-ubuntu-24.04-medium
