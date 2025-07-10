@@ -199,13 +199,15 @@ fn setup_class_manager_client_mock(
     let contract_class = declare_tx.contract_class;
     let class_hash = contract_class.calculate_class_hash();
     let casm = default_compiled_contract_class();
-    let executable_class_hash = casm.compiled_class_hash();
+
+    // TODO(Aviv): use the new compiled class hash.
+    let executable_class_hash_v2 = casm.compiled_class_hash();
 
     mock_class_manager_client
         .expect_add_class()
         .once()
         .with(eq(contract_class.clone()))
-        .return_once(move |_| Ok(ClassHashes { class_hash, executable_class_hash }));
+        .return_once(move |_| Ok(ClassHashes { class_hash, executable_class_hash_v2 }));
     mock_class_manager_client
         .expect_get_sierra()
         .once()

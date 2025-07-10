@@ -40,7 +40,7 @@ pub trait ClassStorage: Send + Sync {
 
     fn get_executable(&self, class_id: ClassId) -> Result<Option<RawExecutableClass>, Self::Error>;
 
-    fn get_executable_class_hash(
+    fn get_executable_class_hash_v2(
         &self,
         class_id: ClassId,
     ) -> Result<Option<ExecutableClassHash>, Self::Error>;
@@ -95,7 +95,7 @@ pub struct CachedClassStorage<S: ClassStorage> {
     // Cache.
     classes: GlobalContractCache<RawClass>,
     executable_classes: GlobalContractCache<RawExecutableClass>,
-    executable_class_hashes: GlobalContractCache<ExecutableClassHash>,
+    executable_class_hashes_v2: GlobalContractCache<ExecutableClassHash>,
     deprecated_classes: GlobalContractCache<RawExecutableClass>,
 }
 
@@ -105,13 +105,13 @@ impl<S: ClassStorage> CachedClassStorage<S> {
             storage,
             classes: GlobalContractCache::new(config.class_cache_size),
             executable_classes: GlobalContractCache::new(config.class_cache_size),
-            executable_class_hashes: GlobalContractCache::new(config.class_cache_size),
+            executable_class_hashes_v2: GlobalContractCache::new(config.class_cache_size),
             deprecated_classes: GlobalContractCache::new(config.deprecated_class_cache_size),
         }
     }
 
     pub fn class_cached(&self, class_id: ClassId) -> bool {
-        self.executable_class_hashes.get(&class_id).is_some()
+        self.executable_class_hashes_v2.get(&class_id).is_some()
     }
 
     pub fn deprecated_class_cached(&self, class_id: ClassId) -> bool {
@@ -127,7 +127,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         &mut self,
         class_id: ClassId,
         class: RawClass,
-        executable_class_hash: ExecutableClassHash,
+        executable_class_hash_v2: ExecutableClassHash,
         executable_class: RawExecutableClass,
     ) -> Result<(), Self::Error> {
         if self.class_cached(class_id) {
@@ -137,7 +137,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         self.storage.set_class(
             class_id,
             class.clone(),
-            executable_class_hash,
+            executable_class_hash_v2,
             executable_class.clone(),
         )?;
 
@@ -151,7 +151,7 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
         self.classes.set(class_id, class);
         self.executable_classes.set(class_id, executable_class);
         // Cache the executable class hash last; acts as an existence marker.
-        self.executable_class_hashes.set(class_id, executable_class_hash);
+        self.executable_class_hashes_v2.set(class_id, executable_class_hash_v2);
 
         Ok(())
     }
@@ -198,20 +198,21 @@ impl<S: ClassStorage> ClassStorage for CachedClassStorage<S> {
     }
 
     #[instrument(skip(self), level = "debug", ret, err)]
-    fn get_executable_class_hash(
+    fn get_executable_class_hash_v2(
         &self,
         class_id: ClassId,
     ) -> Result<Option<ExecutableClassHash>, Self::Error> {
-        if let Some(class_hash) = self.executable_class_hashes.get(&class_id) {
-            return Ok(Some(class_hash));
+        if let Some(compiled_class_hash_v2) = self.executable_class_hashes_v2.get(&class_id) {
+            return Ok(Some(compiled_class_hash_v2));
         }
 
-        let Some(class_hash) = self.storage.get_executable_class_hash(class_id)? else {
+        let Some(compiled_class_hash_v2) = self.storage.get_executable_class_hash_v2(class_id)?
+        else {
             return Ok(None);
         };
 
-        self.executable_class_hashes.set(class_id, class_hash);
-        Ok(Some(class_hash))
+        self.executable_class_hashes_v2.set(class_id, compiled_class_hash_v2);
+        Ok(Some(compiled_class_hash_v2))
     }
 
     #[instrument(skip(self, class), level = "debug", ret, err)]
@@ -258,7 +259,7 @@ impl Clone for CachedClassStorage<FsClassStorage> {
             storage: self.storage.clone(),
             classes: self.classes.clone(),
             executable_classes: self.executable_classes.clone(),
-            executable_class_hashes: self.executable_class_hashes.clone(),
+            executable_class_hashes_v2: self.executable_class_hashes_v2.clone(),
             deprecated_classes: self.deprecated_classes.clone(),
         }
     }
@@ -292,22 +293,23 @@ impl ClassHashStorage {
     }
 
     #[instrument(skip(self), level = "debug", ret, err)]
-    fn get_executable_class_hash(
+    fn get_executable_class_hash_v2(
         &self,
         class_id: ClassId,
     ) -> ClassHashStorageResult<Option<ExecutableClassHash>> {
-        Ok(self.reader.begin_ro_txn()?.get_executable_class_hash(&class_id)?)
+        Ok(self.reader.begin_ro_txn()?.get_executable_class_hash_v2(&class_id)?)
     }
 
     #[instrument(skip(self), level = "debug", ret, err)]
-    fn set_executable_class_hash(
+    fn set_executable_class_hash_v2(
         &mut self,
         class_id: ClassId,
-        executable_class_hash: ExecutableClassHash,
+        executable_class_hash_v2: ExecutableClassHash,
     ) -> ClassHashStorageResult<()> {
         let mut writer = self.writer()?;
-        let txn =
-            writer.begin_rw_txn()?.set_executable_class_hash(&class_id, executable_class_hash)?;
+        let txn = writer
+            .begin_rw_txn()?
+            .set_executable_class_hash_v2(&class_id, executable_class_hash_v2)?;
         txn.commit()?;
 
         Ok(())
@@ -341,7 +343,7 @@ impl FsClassStorage {
     }
 
     fn contains_class(&self, class_id: ClassId) -> FsClassStorageResult<bool> {
-        Ok(self.get_executable_class_hash(class_id)?.is_some())
+        Ok(self.get_executable_class_hash_v2(class_id)?.is_some())
     }
 
     // TODO(Elin): make this more robust; checking file existence is not enough, since by reading
@@ -391,9 +393,11 @@ impl FsClassStorage {
     fn mark_class_id_as_existent(
         &mut self,
         class_id: ClassId,
-        executable_class_hash: ExecutableClassHash,
+        executable_class_hash_v2: ExecutableClassHash,
     ) -> FsClassStorageResult<()> {
-        Ok(self.class_hash_storage.set_executable_class_hash(class_id, executable_class_hash)?)
+        Ok(self
+            .class_hash_storage
+            .set_executable_class_hash_v2(class_id, executable_class_hash_v2)?)
     }
 
     fn write_class(
@@ -512,11 +516,11 @@ impl ClassStorage for FsClassStorage {
     }
 
     #[instrument(skip(self), level = "debug", err)]
-    fn get_executable_class_hash(
+    fn get_executable_class_hash_v2(
         &self,
         class_id: ClassId,
     ) -> Result<Option<ExecutableClassHash>, Self::Error> {
-        Ok(self.class_hash_storage.get_executable_class_hash(class_id)?)
+        Ok(self.class_hash_storage.get_executable_class_hash_v2(class_id)?)
     }
 
     #[instrument(skip(self, class), level = "debug", ret, err)]

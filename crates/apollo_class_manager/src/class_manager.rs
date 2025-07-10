@@ -50,13 +50,14 @@ impl<S: ClassStorage> ClassManager<S> {
         // TODO(Elin): think how to not clone the class to deserialize.
         let sierra_class = SierraContractClass::try_from(class.clone())?;
         let class_hash = sierra_class.calculate_class_hash();
-        if let Ok(Some(executable_class_hash)) = self.classes.get_executable_class_hash(class_hash)
+        if let Ok(Some(executable_class_hash_v2)) =
+            self.classes.get_executable_class_hash_v2(class_hash)
         {
             // Class already exists.
-            return Ok(ClassHashes { class_hash, executable_class_hash });
+            return Ok(ClassHashes { class_hash, executable_class_hash_v2 });
         }
 
-        let (raw_executable_class, executable_class_hash) =
+        let (raw_executable_class, executable_class_hash_v2) =
             self.compiler.compile(class.clone()).await.map_err(|err| match err {
                 SierraCompilerClientError::SierraCompilerError(error) => {
                     ClassManagerError::SierraCompiler { class_hash, error }
@@ -68,9 +69,14 @@ impl<S: ClassStorage> ClassManager<S> {
 
         self.validate_class_length(&raw_executable_class)?;
 
-        self.classes.set_class(class_hash, class, executable_class_hash, raw_executable_class)?;
+        self.classes.set_class(
+            class_hash,
+            class,
+            executable_class_hash_v2,
+            raw_executable_class,
+        )?;
 
-        let class_hashes = ClassHashes { class_hash, executable_class_hash };
+        let class_hashes = ClassHashes { class_hash, executable_class_hash_v2 };
         Ok(class_hashes)
     }
 
