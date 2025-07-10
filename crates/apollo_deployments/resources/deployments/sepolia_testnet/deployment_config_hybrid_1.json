@@ -112,6 +112,37 @@
       "ports": {}
     },
     {
+      "name": "L1",
+      "controller": "Deployment",
+      "config_paths": [
+        "base_app_config.json",
+        "deployments/sepolia_testnet/deployment_config_override.json",
+        "deployments/sepolia_testnet/hybrid_1.json",
+        "services/hybrid/l1.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": "apollo-general-service",
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 2,
+          "memory": 4
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "apollo-sepolia-alpha-1"
+      },
+      "anti_affinity": false,
+      "ports": {}
+    },
+    {
       "name": "Mempool",
       "controller": "Deployment",
       "config_paths": [
