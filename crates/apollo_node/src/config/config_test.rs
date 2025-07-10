@@ -1,9 +1,12 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::time::Duration;
 
 use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file_test;
+use apollo_l1_provider::l1_scraper::L1ScraperConfig;
+use apollo_l1_provider::L1ProviderConfig;
 use rstest::rstest;
 use validator::Validate;
 
@@ -106,6 +109,22 @@ fn default_config_file_is_up_to_date() {
 fn validate_config_success() {
     let config = SequencerNodeConfig::default();
     assert!(config.validate().is_ok());
+}
+
+#[test]
+fn validate_config_failure() {
+    let config = SequencerNodeConfig {
+        l1_scraper_config: L1ScraperConfig {
+            polling_interval_seconds: Duration::from_secs(2),
+            ..L1ScraperConfig::default()
+        },
+        l1_provider_config: L1ProviderConfig {
+            new_l1_handler_cooldown_seconds: Duration::from_secs(1),
+            ..L1ProviderConfig::default()
+        },
+        ..SequencerNodeConfig::default()
+    };
+    config.validate().unwrap_err();
 }
 
 #[rstest]

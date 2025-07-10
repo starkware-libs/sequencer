@@ -35,7 +35,7 @@ use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::config::component_config::ComponentConfig;
 use crate::config::monitoring::MonitoringConfig;
@@ -156,6 +156,7 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 
 /// The configurations of the various components of the node.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[validate(schema(function = "validate_l1_handler_cooldown"))]
 pub struct SequencerNodeConfig {
     // Infra related configs.
     #[validate]
@@ -254,4 +255,20 @@ pub(crate) fn node_command() -> Command {
     Command::new("Sequencer")
         .version(VERSION_FULL)
         .about("A Starknet sequencer node written in Rust.")
+}
+
+fn validate_l1_handler_cooldown(config: &SequencerNodeConfig) -> Result<(), ValidationError> {
+    if config.l1_scraper_config.polling_interval_seconds
+        < config.l1_provider_config.new_l1_handler_cooldown_seconds
+    {
+        Ok(())
+    } else {
+        let mut error = ValidationError::new("L1 handler cooldown validation failed.");
+        error.message = Some(std::borrow::Cow::from(
+            "L1 provider's new L1 handler cooldown must be greater than the L1 scraper polling \
+             interval. Otherwise, the cooldown might not be relevant: a transaction might be \
+             provided to the proposer before it is scraped by a validator.",
+        ));
+        Err(error)
+    }
 }
