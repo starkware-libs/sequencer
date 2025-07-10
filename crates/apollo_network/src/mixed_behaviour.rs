@@ -116,7 +116,8 @@ impl MixedBehaviour {
             gossipsub: gossipsub::Behaviour::new(
                 gossipsub::MessageAuthenticity::Signed(keypair),
                 gossipsub::ConfigBuilder::default()
-                    .max_transmit_size(ONE_MEGA)
+                    // TODO(shahak): try to reduce this bound.
+                    .max_transmit_size(100 * ONE_MEGA)
                     .build()
                     .expect("Failed to build gossipsub config"),
             )
