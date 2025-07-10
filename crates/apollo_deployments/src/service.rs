@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::iter::once;
 use std::path::{Path, PathBuf};
 
-use apollo_config::dumping::SerializeConfig;
+use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
+use apollo_config::{ParamPath, SerializedParam};
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
@@ -14,11 +16,8 @@ use serde_json::json;
 use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
-use crate::deployment::{
-    build_service_namespace_domain_address,
-    ComponentConfigsSerializationWrapper,
-};
-use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
+use crate::deployment::build_service_namespace_domain_address;
+use crate::deployment_definitions::{Environment, ServicePort, CONFIG_BASE_DIR};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
@@ -41,7 +40,6 @@ const SERVICES_DIR_NAME: &str = "services/";
 pub struct Service {
     #[serde(rename = "name")]
     node_service: NodeService,
-    // TODO(Tsabary): change config path to PathBuf type.
     controller: Controller,
     config_paths: Vec<String>,
     ingress: Option<Ingress>,
@@ -55,6 +53,7 @@ pub struct Service {
     #[serde(skip_serializing)]
     environment: Environment,
     anti_affinity: bool,
+    ports: BTreeMap<ServicePort, u16>,
 }
 
 impl Service {
@@ -70,8 +69,6 @@ impl Service {
         // We first list the base config, and then follow with the overrides, and finally, the
         // service config file.
 
-        // TODO(Tsabary): the deployment override file can be in a higher directory.
-        // TODO(Tsabary): delete redundant directories in the path.
         // TODO(Tsabary): reduce visibility of relevant functions and consts.
 
         let service_file_path = node_service.get_service_file_path();
@@ -98,6 +95,7 @@ impl Service {
         let resources = node_service.get_resources(&environment);
         let replicas = node_service.get_replicas(&environment);
         let anti_affinity = node_service.get_anti_affinity(&environment);
+        let ports = node_service.get_ports();
         Self {
             node_service,
             config_paths,
@@ -113,6 +111,7 @@ impl Service {
             // TODO(Tsabary): consider removing `environment` from the `Service` struct.
             environment,
             anti_affinity,
+            ports,
         }
     }
 
@@ -223,6 +222,10 @@ impl NodeService {
             .to_string_lossy()
             .to_string()
     }
+
+    pub fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
+        self.as_inner().get_ports()
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -269,6 +272,8 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_replicas(&self, environment: &Environment) -> usize;
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool;
+
+    fn get_ports(&self) -> BTreeMap<ServicePort, u16>;
 
     // Kubernetes service name as defined by CDK8s.
     fn k8s_service_name(&self) -> String {
@@ -351,5 +356,24 @@ impl Serialize for NodeService {
             NodeService::Hybrid(inner) => inner.serialize(serializer),
             NodeService::Distributed(inner) => inner.serialize(serializer),
         }
+    }
+}
+
+// A helper struct for serializing the components config in the same hierarchy as of its
+// serialization as part of the entire config, i.e., by prepending "components.".
+#[derive(Clone, Debug, Default, Serialize)]
+struct ComponentConfigsSerializationWrapper {
+    components: ComponentConfig,
+}
+
+impl From<ComponentConfig> for ComponentConfigsSerializationWrapper {
+    fn from(value: ComponentConfig) -> Self {
+        ComponentConfigsSerializationWrapper { components: value }
+    }
+}
+
+impl SerializeConfig for ComponentConfigsSerializationWrapper {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        prepend_sub_config_name(self.components.dump(), "components")
     }
 }

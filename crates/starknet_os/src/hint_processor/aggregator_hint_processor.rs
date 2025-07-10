@@ -13,6 +13,7 @@ use cairo_vm::stdlib::collections::HashMap;
 use cairo_vm::types::exec_scope::ExecutionScopes;
 use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
+use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use serde::Deserialize;
 use starknet_types_core::felt::Felt;
@@ -72,6 +73,9 @@ impl<'a> AggregatorHintProcessor<'a> {
         }
     }
 }
+
+/// Default implementation (required for the VM to use the type as a hint processor).
+impl ResourceTracker for AggregatorHintProcessor<'_> {}
 
 impl HintProcessorLogic for AggregatorHintProcessor<'_> {
     impl_common_hint_processor_logic!();

@@ -6,6 +6,7 @@ use indexmap::IndexMap;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
+use tracing::{info, warn};
 
 use crate::transaction_manager::StagingEpoch;
 
@@ -69,16 +70,33 @@ impl TransactionRecord {
         self.rejected = true;
     }
 
+    /// Mark a cancellation request for this transaction.
+    /// Returns the existing cancellation timestamp if one exists, `None` if this is the first
+    /// request.
     pub fn mark_cancellation_request(
         &mut self,
         timestamp: BlockTimestamp,
     ) -> Option<BlockTimestamp> {
+        let tx_hash = self.tx.tx_hash();
         // Once committed on L2, cancellation requests are only recorded for debugging purposes, but
         // not processed.
-        if !self.is_committed() {
+        if self.is_committed() {
+            warn!(
+                "L1 handler transaction {tx_hash} was not marked for cancellation started on L2 \
+                 as it is already commited."
+            )
+        } else {
+            info!("Marking L1 handler transaction {tx_hash} as cancellation started on L2.");
             self.state = TransactionState::CancellationStartedOnL2;
         }
-        Some(*self.cancellation_requested_at.get_or_insert(timestamp))
+
+        match self.cancellation_requested_at {
+            Some(existing) => Some(existing),
+            None => {
+                self.cancellation_requested_at = Some(timestamp);
+                None
+            }
+        }
     }
 
     /// Try to stage an l1 handler transaction, which means that we allow to include it in the

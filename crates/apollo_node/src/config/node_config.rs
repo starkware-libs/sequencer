@@ -43,6 +43,8 @@ use crate::version::VERSION_FULL;
 
 // The path of the default configuration file, provided as part of the crate.
 pub const CONFIG_SCHEMA_PATH: &str = "crates/apollo_node/resources/config_schema.json";
+pub const CONFIG_SECRETS_SCHEMA_PATH: &str =
+    "crates/apollo_node/resources/config_secrets_schema.json";
 pub(crate) const POINTER_TARGET_VALUE: &str = "PointerTarget";
 
 // Configuration parameters that share the same value across multiple components.
