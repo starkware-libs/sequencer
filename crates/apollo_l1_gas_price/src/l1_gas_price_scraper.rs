@@ -178,28 +178,12 @@ impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
             // Not enough blocks under current finality. Try again later.
             return Ok(());
         };
-<<<<<<< HEAD
-        trace!(
-            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
-        );
+        trace!("Scraping gas prices starting from block {} to {last_block_number}.", *block_number);
         // TODO(guy.f): Replace with info_every_n_sec once implemented.
         info_every_n!(
             100,
-            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
-||||||| parent of 0912d8a47 (apollo_l1_gas_price: scraper baselayer errors do not cause crash)
-        trace!(
-            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
-        );
-        info_every_n_sec!(
-            1,
-            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
-=======
-        trace!("Scraping gas prices starting from block {} to {last_block_number}.", *block_number,);
-        info_every_n_sec!(
-            1,
             "Scraping gas prices starting from block {} to {last_block_number}.",
             *block_number,
->>>>>>> 0912d8a47 (apollo_l1_gas_price: scraper baselayer errors do not cause crash)
         );
         while *block_number <= last_block_number {
             let header = match self.base_layer.get_block_header(*block_number).await {
