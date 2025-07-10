@@ -40,7 +40,6 @@ const SERVICES_DIR_NAME: &str = "services/";
 pub struct Service {
     #[serde(rename = "name")]
     node_service: NodeService,
-    // TODO(Tsabary): change config path to PathBuf type.
     controller: Controller,
     config_paths: Vec<String>,
     ingress: Option<Ingress>,
@@ -70,8 +69,6 @@ impl Service {
         // We first list the base config, and then follow with the overrides, and finally, the
         // service config file.
 
-        // TODO(Tsabary): the deployment override file can be in a higher directory.
-        // TODO(Tsabary): delete redundant directories in the path.
         // TODO(Tsabary): reduce visibility of relevant functions and consts.
 
         let service_file_path = node_service.get_service_file_path();
