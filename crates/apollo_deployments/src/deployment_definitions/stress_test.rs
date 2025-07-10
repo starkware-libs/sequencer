@@ -23,7 +23,7 @@ pub(crate) fn stress_test_hybrid_deployments() -> Vec<Deployment> {
 fn stress_test_deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
         "0x4fA369fEBf0C574ea05EC12bC0e1Bc9Cd461Dd0f",
-        "INTERNAL_STRESS_TEST",
+        "E2E_TESTNET",
         "0x7e813ecf3e7b3e14f07bd2f68cb4a3d12110e3c75ec5a63de3d2dacf1852904",
         Url::parse("http://feeder-gateway.starknet-0-14-0-stress-test-03:9713/")
             .expect("Invalid URL"),
