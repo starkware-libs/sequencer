@@ -1417,7 +1417,7 @@
   "l1_provider_config.new_l1_handler_cooldown_seconds": {
     "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately).",
     "privacy": "Public",
-    "value": 0.0
+    "value": 2e-9
   },
   "l1_provider_config.provider_startup_height_override": {
     "description": "Override height at which the provider should start",
@@ -1447,7 +1447,7 @@
   "l1_scraper_config.polling_interval_seconds": {
     "description": "Interval in Seconds between each scraping attempt of L1.",
     "privacy": "Public",
-    "value": 1
+    "value": 0
   },
   "l1_scraper_config.startup_rewind_time_seconds": {
     "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
