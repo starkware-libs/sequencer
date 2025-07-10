@@ -23,7 +23,7 @@ use libp2p::gossipsub::{Sha256Topic, Topic};
 use libp2p::Multiaddr;
 use metrics::{counter, gauge};
 use metrics_exporter_prometheus::PrometheusBuilder;
-use tokio::time::Duration;
+use tokio::time::{sleep, Duration};
 use tracing::{info, trace, Level};
 
 mod converters;
@@ -86,13 +86,21 @@ async fn send_stress_test_messages(
     );
     let duration = Duration::from_millis(args.heartbeat_millis);
 
+    // Avoid sending the first message immediately to not get WARNs about InsufficientPeers
+    sleep(Duration::from_secs(10)).await;
+
     for i in 0.. {
         message.time = SystemTime::now();
         // message.id = i;
-        broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
+        let span = tracing::error_span!("ignore WARN of InsufficientPeers");
+        span.in_scope(async || {
+            broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
+        })
+        .await;
+
         trace!("Sent message {i}: {:?}", message);
         counter!("sent_messages").increment(1);
-        tokio::time::sleep(duration).await;
+        sleep(duration).await;
     }
 }
 
@@ -157,7 +165,7 @@ async fn main_aux(args: Args) {
     );
 
     let builder = PrometheusBuilder::new().with_http_listener(SocketAddr::V4(SocketAddrV4::new(
-        Ipv4Addr::LOCALHOST,
+        Ipv4Addr::UNSPECIFIED,
         args.metric_port,
     )));
 
