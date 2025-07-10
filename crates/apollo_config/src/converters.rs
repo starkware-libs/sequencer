@@ -25,6 +25,7 @@
 //! ```
 
 use std::collections::{BTreeMap, HashMap};
+use std::str::FromStr;
 use std::time::Duration;
 
 use serde::de::Error;
@@ -179,18 +180,18 @@ where
     Ok(Some(vector))
 }
 
-// TODO(Tsabary): generalize these for Vec<T> serde.
-
 /// Serializes a `&[Url]` into a single space-separated string.
-pub fn serialize_slice_url(vector: &[Url]) -> String {
-    vector.iter().map(Url::as_str).collect::<Vec<_>>().join(" ")
+pub fn serialize_slice<T: AsRef<str>>(vector: &[T]) -> String {
+    vector.iter().map(|item| item.as_ref()).collect::<Vec<_>>().join(" ")
 }
 
-/// Deserializes a space-separated string into a `Vec<Url>`.
-/// Returns an error if any of the substrings cannot be parsed into a valid URL.
-pub fn deserialize_vec_url<'de, D>(de: D) -> Result<Vec<Url>, D::Error>
+/// Deserializes a space-separated string into a `Vec<T>`.
+/// Returns an error if any of the substrings cannot be parsed into `T`.
+pub fn deserialize_vec<'de, D, T>(de: D) -> Result<Vec<T>, D::Error>
 where
     D: Deserializer<'de>,
+    T: FromStr,
+    T::Err: std::fmt::Display,
 {
     let raw: String = <String as serde::Deserialize>::deserialize(de)?;
 
@@ -199,6 +200,14 @@ where
     }
 
     raw.split_whitespace()
+<<<<<<< HEAD
         .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{s}': {e}"))))
+||||||| 7a2cf4d9a
+        .map(|s| Url::parse(s).map_err(|e| D::Error::custom(format!("Invalid URL '{}': {}", s, e))))
+=======
+        .map(|s| {
+            T::from_str(s).map_err(|e| D::Error::custom(format!("Invalid value '{}': {}", s, e)))
+        })
+>>>>>>> origin/main-v0.14.0
         .collect()
 }

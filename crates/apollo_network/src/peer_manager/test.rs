@@ -5,6 +5,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
+use apollo_network_types::test_utils::{get_peer_id, DUMMY_PEER_ID};
 use assert_matches::assert_matches;
 use futures::future::poll_fn;
 use futures::{FutureExt, Stream, StreamExt};
@@ -61,8 +62,8 @@ fn peer_assignment_round_robin() {
     let mut peer_manager = PeerManager::new(PeerManagerConfig::default());
 
     // Add two peers to the peer manager
-    let peer1 = Peer::new(PeerId::random(), Multiaddr::empty());
-    let peer2 = Peer::new(PeerId::random(), Multiaddr::empty());
+    let peer1 = Peer::new(get_peer_id(1), Multiaddr::empty());
+    let peer2 = Peer::new(get_peer_id(2), Multiaddr::empty());
     let connection_id1 = ConnectionId::new_unchecked(1);
     let connection_id2 = ConnectionId::new_unchecked(2);
     peer_manager.add_peer(peer1.clone());
@@ -159,7 +160,7 @@ async fn peer_assignment_no_peers() {
 
     // Now the peer manager finds a new peer and can assign the session.
     let connection_id = ConnectionId::new_unchecked(0);
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     let mut peer = Peer::new(peer_id, Multiaddr::empty());
     peer.add_connection_id(connection_id);
     peer_manager.add_peer(peer);
@@ -191,7 +192,7 @@ async fn peer_assignment_no_unblocked_peers() {
 
     // Create a peer
     let connection_id = ConnectionId::new_unchecked(0);
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     let mut peer = Peer::new(peer_id, Multiaddr::empty());
     peer.add_connection_id(connection_id);
 
@@ -238,7 +239,7 @@ fn report_peer_calls_update_reputation_and_notifies_kad() {
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     let peer = Peer::new(peer_id, Multiaddr::empty());
 
     peer_manager.add_peer(peer);
@@ -259,7 +260,7 @@ fn report_peer_calls_update_reputation_and_notifies_kad() {
 #[tokio::test]
 async fn peer_block_released_after_timeout() {
     const DURATION_IN_MILLIS: u64 = 50;
-    let mut peer = Peer::new(PeerId::random(), Multiaddr::empty());
+    let mut peer = Peer::new(*DUMMY_PEER_ID, Multiaddr::empty());
     peer.blacklist_peer(Duration::from_millis(DURATION_IN_MILLIS));
     assert!(peer.is_blocked());
     sleep(time::Duration::from_millis(DURATION_IN_MILLIS)).await;
@@ -272,7 +273,7 @@ fn report_peer_on_unknown_peer_id() {
     let mut peer_manager: PeerManager = PeerManager::new(PeerManagerConfig::default());
 
     // report peer on an unknown peer_id
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     peer_manager
         .report_peer(peer_id, ReputationModifier::Unstable {})
         .expect_err("report_peer on unknown peer_id should return an error");
@@ -285,7 +286,7 @@ fn report_session_calls_update_reputation() {
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     let mut peer = Peer::new(peer_id, Multiaddr::empty());
     peer.add_connection_id(ConnectionId::new_unchecked(0));
 
@@ -327,7 +328,7 @@ async fn timed_out_peer_not_assignable_to_queries() {
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     let peer = Peer::new(peer_id, Multiaddr::empty());
 
     // Add the peer to the peer manager
@@ -355,7 +356,7 @@ fn wrap_around_in_peer_assignment() {
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
-    let peer_id1 = PeerId::random();
+    let peer_id1 = get_peer_id(1);
     let mut peer1 = Peer::new(peer_id1, Multiaddr::empty());
     peer1.add_connection_id(ConnectionId::new_unchecked(0));
 
@@ -371,7 +372,7 @@ fn wrap_around_in_peer_assignment() {
         .unwrap();
 
     // Create a peer
-    let peer_id2 = PeerId::random();
+    let peer_id2 = get_peer_id(2);
     let mut peer2 = Peer::new(peer_id2, Multiaddr::empty());
     peer2.add_connection_id(ConnectionId::new_unchecked(0));
 
@@ -394,11 +395,11 @@ fn block_and_allow_inbound_connection() {
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer - report as malicious
-    let peer_id1 = PeerId::random();
+    let peer_id1 = get_peer_id(1);
     let peer1 = Peer::new(peer_id1, Multiaddr::empty());
 
     // Create a peer - not blocked
-    let peer_id2 = PeerId::random();
+    let peer_id2 = get_peer_id(2);
     let peer2 = Peer::new(peer_id2, Multiaddr::empty());
 
     peer_manager.add_peer(peer1);
@@ -439,7 +440,7 @@ async fn if_all_peers_have_no_connection_assign_only_once_a_peer_connects() {
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Create a peer
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     let peer = Peer::new(peer_id, Multiaddr::empty());
 
     // Add the peer to the peer manager
@@ -470,7 +471,7 @@ fn identify_on_unknown_peer_is_added_to_peer_manager() {
     let mut peer_manager: PeerManager = PeerManager::new(config.clone());
 
     // Send Identify event
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     let address = Multiaddr::empty().with_p2p(peer_id).unwrap();
     peer_manager.on_other_behaviour_event(&mixed_behaviour::ToOtherBehaviourEvent::Identify(
         IdentifyToOtherBehaviourEvent::FoundListenAddresses {

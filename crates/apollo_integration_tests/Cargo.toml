@@ -44,7 +44,7 @@ axum.workspace = true
 blockifier.workspace = true
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
-clap.workspace = true
+clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 hex.workspace = true
 indexmap.workspace = true

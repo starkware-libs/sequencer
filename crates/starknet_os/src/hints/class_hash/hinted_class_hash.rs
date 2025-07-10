@@ -7,7 +7,7 @@ use papyrus_common::python_json::PythonJsonFormatter;
 use serde::{Deserialize, Serialize, Serializer};
 use sha3::digest::Digest;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::deprecated_contract_class::EntryPointV0;
+use starknet_api::deprecated_contract_class::{ContractClass, EntryPointV0};
 use starknet_api::state::truncated_keccak;
 use starknet_types_core::felt::Felt;
 
@@ -47,13 +47,29 @@ pub struct CairoContractDefinition<'a> {
     pub entry_points_by_type: HashMap<EntryPointType, Vec<EntryPointV0>>,
 }
 
+/// This struct is used to define specific serialization behavior for the `CairoProgram::attributes`
+/// field, to ensure the hinted class hash matches the original implementation in older versions of
+/// Starknet.
+#[derive(Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AttributeScope {
+    pub name: String,
+    pub value: String,
+    pub start_pc: usize,
+    pub end_pc: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flow_tracking_data: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub accessible_scopes: Vec<serde_json::Value>,
+}
+
 // It's important that this is ordered alphabetically because the fields need to be in sorted order
 // for the keccak hashed representation.
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct CairoProgram<'a> {
     #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub attributes: Vec<serde_json::Value>,
+    pub attributes: Vec<AttributeScope>,
 
     #[serde(borrow)]
     pub builtins: Vec<Cow<'a, str>>,
@@ -116,8 +132,11 @@ impl std::io::Write for KeccakWriter {
 }
 
 pub fn compute_cairo_hinted_class_hash(
-    contract_definition: &CairoContractDefinition<'_>,
+    contract_class: &ContractClass,
 ) -> Result<Felt, HintedClassHashError> {
+    let contract_definition_vec = serde_json::to_vec(contract_class)?;
+    let contract_definition: CairoContractDefinition<'_> =
+        serde_json::from_slice(&contract_definition_vec)?;
     let mut string_buffer = vec![];
 
     let mut ser = serde_json::Serializer::with_formatter(&mut string_buffer, PythonJsonFormatter);

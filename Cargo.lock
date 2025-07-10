@@ -1049,16 +1049,11 @@ dependencies = [
  "apollo_test_utils",
  "apollo_time",
  "async-trait",
- "clap",
  "enum-as-inner",
- "fs2",
  "futures",
  "lazy_static",
  "lru 0.12.5",
- "metrics 0.24.1",
  "mockall",
- "nix 0.20.2",
- "papyrus_common",
  "prost",
  "serde",
  "starknet-types-core",
@@ -1726,6 +1721,7 @@ name = "apollo_network_types"
 version = "0.0.0"
 dependencies = [
  "apollo_test_utils",
+ "lazy_static",
  "libp2p",
  "rand_chacha 0.3.1",
  "serde",
@@ -1821,6 +1817,7 @@ dependencies = [
 name = "apollo_proc_macros"
 version = "0.0.0"
 dependencies = [
+ "lazy_static",
  "proc-macro2",
  "quote",
  "syn 2.0.100",

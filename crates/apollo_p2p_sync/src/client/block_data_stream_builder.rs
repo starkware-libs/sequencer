@@ -271,6 +271,8 @@ pub(crate) enum BadPeerError {
     ClassNotInStateDiff { class_hash: ClassHash },
     #[error("Received two classes with the same hash: {class_hash}.")]
     DuplicateClass { class_hash: ClassHash },
+    #[error("Response timeout while waiting for data from the network.")]
+    ResponseTimeout,
 }
 
 #[derive(thiserror::Error, Debug)]

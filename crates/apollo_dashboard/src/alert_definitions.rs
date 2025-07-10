@@ -10,6 +10,7 @@ use apollo_consensus::metrics::{
     CONSENSUS_INBOUND_STREAM_EVICTED,
     CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
+    CONSENSUS_ROUND_ABOVE_ZERO,
 };
 use apollo_consensus_manager::metrics::{
     CONSENSUS_NUM_CONNECTED_PEERS,
@@ -73,7 +74,10 @@ fn get_consensus_block_number_stuck() -> Alert {
         name: "consensus_block_number_stuck",
         title: "Consensus block number stuck",
         alert_group: AlertGroup::Consensus,
-        expr: format!("increase({}[5m])", CONSENSUS_BLOCK_NUMBER.get_name_with_filter()),
+        expr: format!(
+            "sum(increase({}[5m])) or vector(0)",
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
+        ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 10.0,
@@ -203,8 +207,9 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
         title: "Cende write prev height blob latency too high",
         alert_group: AlertGroup::Consensus,
         expr: format!(
-            "avg_over_time({}[20m])",
-            CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_with_filter()
+            "rate({}[20m]) / clamp_min(rate({}[20m]), 0.0000001)",
+            CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_sum_with_filter(),
+            CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY.get_name_count_with_filter(),
         ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
@@ -333,7 +338,7 @@ fn get_gateway_add_tx_idle() -> Alert {
         title: "Gateway add_tx idle",
         alert_group: AlertGroup::Gateway,
         expr: format!(
-            "increase({}[20m]) or vector(0)",
+            "sum(increase({}[20m])) or vector(0)",
             GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
@@ -355,7 +360,7 @@ fn get_mempool_add_tx_idle() -> Alert {
         title: "Mempool add_tx idle",
         alert_group: AlertGroup::Mempool,
         expr: format!(
-            "increase({}[20m]) or vector(0)",
+            "sum(increase({}[20m])) or vector(0)",
             MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
@@ -375,32 +380,12 @@ fn get_http_server_add_tx_idle() -> Alert {
         title: "HTTP Server add_tx idle",
         alert_group: AlertGroup::HttpServer,
         expr: format!(
-            "increase({}[20m]) or vector(0)",
+            "sum(increase({}[20m])) or vector(0)",
             ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 0.1,
-            logical_op: AlertLogicalOp::And,
-        }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
-    }
-}
-
-fn get_http_server_idle() -> Alert {
-    Alert {
-        name: "http_server_idle",
-        title: "http server idle",
-        alert_group: AlertGroup::HttpServer,
-        expr: format!(
-            "increase({}[20m]) or vector(0)",
-            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
-        ),
-        conditions: &[AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
@@ -510,7 +495,7 @@ fn get_http_server_no_successful_transactions() -> Alert {
         title: "http server no successful transactions",
         alert_group: AlertGroup::HttpServer,
         expr: format!(
-            "increase({}[1h]) or vector(0)",
+            "sum(increase({}[1h])) or vector(0)",
             ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
@@ -787,8 +772,9 @@ fn get_consensus_round_above_zero_ratio() -> Alert {
         title: "Consensus round above zero ratio",
         alert_group: AlertGroup::Consensus,
         expr: format!(
-            "count_over_time(({metric} > 0)[1h]) / count_over_time({metric}[1h])",
-            metric = CONSENSUS_ROUND.get_name_with_filter()
+            "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
+            CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter(),
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
         ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
@@ -1054,7 +1040,6 @@ pub fn get_apollo_alerts() -> Alerts {
         get_http_server_add_tx_idle(),
         get_http_server_avg_add_tx_latency_alert(),
         get_http_server_high_transaction_failure_ratio(),
-        get_http_server_idle(),
         get_http_server_internal_error_ratio(),
         get_http_server_internal_error_once(),
         get_http_server_low_successful_transaction_rate(),
