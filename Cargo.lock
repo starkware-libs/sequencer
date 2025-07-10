@@ -12102,6 +12102,7 @@ dependencies = [
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
+ "chrono",
  "derive_more 0.99.18",
  "flate2",
  "hex",

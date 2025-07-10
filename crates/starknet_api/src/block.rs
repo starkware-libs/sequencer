@@ -5,6 +5,7 @@ mod block_test;
 use std::fmt::Display;
 use std::ops::Deref;
 
+use chrono::DateTime;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use size_of::SizeOf;
@@ -563,6 +564,16 @@ impl BlockTimestamp {
 
     pub fn saturating_sub(self, rhs: &u64) -> Self {
         Self(self.0.saturating_sub(*rhs))
+    }
+
+    /// Converts the timestamp to a human-readable string format
+    /// Returns format: "YYYY-MM-DD HH:MM:SS UTC"
+    pub fn to_human_readable(&self) -> String {
+        let secs = self.0.try_into().unwrap_or(0);
+        match DateTime::from_timestamp(secs, 0) {
+            Some(dt) => dt.format("%Y-%m-%d %H:%M:%S UTC").to_string(),
+            None => "Invalid timestamp".to_string(),
+        }
     }
 }
 
