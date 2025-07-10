@@ -12,6 +12,7 @@ use crate::execution::call_info::{
     BuiltinCounterMap,
     CallExecution,
     CallInfo,
+    CallSummary,
     ChargedResources,
     EventSummary,
     ExecutionSummary,
@@ -33,6 +34,7 @@ pub struct TestExecutionSummary {
     pub storage_key: StorageKey,
     pub builtin_counters: BuiltinCounterMap,
     pub inner_builtin_counters: BuiltinCounterMap,
+    pub cairo_native: bool,
 }
 
 impl TestExecutionSummary {
@@ -43,6 +45,7 @@ impl TestExecutionSummary {
         class_hash: ClassHash,
         storage_address: &str,
         storage_key: &str,
+        cairo_native: bool,
     ) -> Self {
         TestExecutionSummary {
             gas_consumed: GasAmount(gas_consumed),
@@ -53,6 +56,7 @@ impl TestExecutionSummary {
             storage_key: storage_key!(storage_key),
             builtin_counters: BuiltinCounterMap::new(),
             inner_builtin_counters: BuiltinCounterMap::new(),
+            cairo_native,
         }
     }
 
@@ -83,6 +87,7 @@ impl TestExecutionSummary {
                     })
                     .collect(),
                 gas_consumed: self.gas_consumed.0,
+                cairo_native: self.cairo_native,
                 ..Default::default()
             },
             storage_access_tracker: StorageAccessTracker {
@@ -90,7 +95,7 @@ impl TestExecutionSummary {
                 ..Default::default()
             },
             builtin_counters: self.builtin_counters.clone(),
-            inner_calls: vec![inner_call_info(&self.inner_builtin_counters)],
+            inner_calls: vec![inner_call_info(&self.inner_builtin_counters, self.cairo_native)],
             ..Default::default()
         }
     }
@@ -103,10 +108,11 @@ fn shared_call_info() -> CallInfo {
     }
 }
 
-fn inner_call_info(builtin_counters: &BuiltinCounterMap) -> CallInfo {
+fn inner_call_info(builtin_counters: &BuiltinCounterMap, cairo_native: bool) -> CallInfo {
     CallInfo {
         call: CallEntryPoint { class_hash: Some(class_hash!("0x1")), ..Default::default() },
         builtin_counters: builtin_counters.clone(),
+        execution: CallExecution { cairo_native, ..Default::default() },
         ..Default::default()
     }
 }
@@ -225,9 +231,9 @@ fn update_builtin_counters_for_summary_test(
 
 #[rstest]
 #[case(
-    &mut TestExecutionSummary::new(10, 1, 2, class_hash!("0x1"), "0x1", "0x1"),
-    &mut TestExecutionSummary::new(20, 2, 3, class_hash!("0x2"), "0x2", "0x2"),
-    &mut TestExecutionSummary::new(30, 3, 4, class_hash!("0x3"), "0x3", "0x3")
+    &mut TestExecutionSummary::new(10, 1, 2, class_hash!("0x1"), "0x1", "0x1", false),
+    &mut TestExecutionSummary::new(20, 2, 3, class_hash!("0x2"), "0x2", "0x2", true),
+    &mut TestExecutionSummary::new(30, 3, 4, class_hash!("0x3"), "0x3", "0x3", true)
 )]
 fn test_summarize(
     #[case] validate_params: &mut TestExecutionSummary,
@@ -288,6 +294,7 @@ fn test_summarize(
             total_event_keys: 0,
             total_event_data_size: 0,
         },
+        call_summary: CallSummary { n_calls: 6, n_calls_running_native: 4 },
     };
 
     // Omit the fee transfer builtin counters as done in `summarize_builtins`.
