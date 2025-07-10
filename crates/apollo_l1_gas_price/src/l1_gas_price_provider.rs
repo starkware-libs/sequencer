@@ -13,7 +13,12 @@ use starknet_api::block::BlockTimestamp;
 use tracing::{info, trace, warn};
 use validator::Validate;
 
-use crate::metrics::{register_provider_metrics, L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY};
+use crate::metrics::{
+    register_provider_metrics,
+    L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
+    L1_GAS_PRICE_LATEST_MEAN_VALUE,
+    L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
+};
 
 #[cfg(test)]
 #[path = "l1_gas_price_provider_test.rs"]
@@ -217,6 +222,8 @@ impl L1GasPriceProvider {
             samples[first_index].block_number,
             samples[last_index - 1].block_number,
         );
+        L1_GAS_PRICE_LATEST_MEAN_VALUE.set_lossy(price_info_out.base_fee_per_gas.0);
+        L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE.set_lossy(price_info_out.blob_fee.0);
         Ok(price_info_out)
     }
 }
