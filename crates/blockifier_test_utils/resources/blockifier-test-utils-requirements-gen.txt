@@ -10,4 +10,4 @@
 # deactivate
 # rm -r reqs_venv
 # ```
-cairo-lang==0.14.0a1
+cairo-lang==0.14.0.1
