@@ -52,6 +52,9 @@ pub struct ContextConfig {
     pub l1_data_gas_price_multiplier_ppt: u128,
     /// This additional gas is added to the L1 gas price.
     pub l1_gas_tip_wei: u128,
+    /// If true, sets ETH gas price and STRK gas price to their minimum price configurations,
+    /// regardless of the sampled gas prices.
+    pub constant_gas_price: bool,
 }
 
 impl SerializeConfig for ContextConfig {
@@ -145,6 +148,13 @@ impl SerializeConfig for ContextConfig {
                 "This additional gas is added to the L1 gas price.",
                 ParamPrivacyInput::Public,
             ),
+            ser_param(
+                "constant_gas_price",
+                &self.constant_gas_price,
+                "If true, sets ETH gas price and STRK gas price to their minimum price \
+                 configurations, regardless of the sampled gas prices.",
+                ParamPrivacyInput::Public,
+            ),
         ])
     }
 }
@@ -166,6 +176,7 @@ impl Default for ContextConfig {
             max_l1_data_gas_price_wei: ETH_FACTOR,
             l1_data_gas_price_multiplier_ppt: 135,
             l1_gas_tip_wei: GWEI_FACTOR,
+            constant_gas_price: false,
         }
     }
 }
