@@ -106,8 +106,8 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
             self.client.post(self.write_pre_confirmed_block_url.clone()).json(&pre_confirmed_block);
 
         trace!(
-            "Sending write_pre_confirmed_block request to Cende recorder. block_number: \
-             {block_number}, round: {round}, write_iteration: {write_iteration}",
+            "Sending write_pre_confirmed_block request to Cende recorder. \
+             block_number={block_number}, round={round}, write_iteration={write_iteration}",
         );
 
         let response = request_builder.send().await?;
@@ -115,15 +115,15 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
         let response_status = response.status();
         if response_status.is_success() {
             debug!(
-                "write_pre_confirmed_block request succeeded. block_number: {block_number}, \
-                 round: {round}, write_iteration: {write_iteration}, status: {response_status}",
+                "write_pre_confirmed_block request succeeded. block_number={block_number}, \
+                 round={round}, write_iteration={write_iteration}, status={response_status}",
             );
             PRECONFIRMED_BLOCK_WRITTEN.increment(1);
             Ok(())
         } else {
             let error_msg = format!(
-                "write_pre_confirmed_block request failed. block_number: {block_number}, round: \
-                 {round}, write_iteration: {write_iteration}, status: {response_status}",
+                "write_pre_confirmed_block request failed. block_number={block_number}, \
+                 round={round}, write_iteration={write_iteration}, status={response_status}",
             );
             warn!("{error_msg}");
             Err(PreconfirmedCendeClientError::CendeRecorderError(error_msg))

@@ -54,7 +54,7 @@ macro_rules! define_hint_enum_helper {
                 match self {
                     $(Self::$hint_name => {
                         #[cfg(any(test, feature = "testing"))]
-                        $hp_arg.get_unused_hints().remove(&Self::$hint_name.into());
+                        $hp_arg.get_mut_unused_hints().remove(&Self::$hint_name.into());
                         $implementation($($passed_arg, )? hint_args)
                     })+
                 }

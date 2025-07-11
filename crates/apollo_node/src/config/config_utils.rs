@@ -1,8 +1,11 @@
+use std::collections::BTreeSet;
+use std::fs::File;
 use std::path::Path;
 
 use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, SerializeConfig};
-use apollo_config::CONFIG_FILE_ARG;
+use apollo_config::{ParamPath, SerializedParam, CONFIG_FILE_ARG};
 use apollo_infra_utils::dumping::serialize_to_file;
+use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use serde_json::{to_value, Map, Value};
 use tracing::error;
@@ -14,9 +17,42 @@ use crate::config::node_config::{
     SequencerNodeConfig,
     CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
+    CONFIG_SCHEMA_PATH,
     POINTER_TARGET_VALUE,
 };
 use crate::utils::load_and_validate_config;
+
+/// Returns the set of all non-pointer private parameters and all pointer target parameters pointed
+/// by private parameters.
+pub fn private_parameters() -> BTreeSet<ParamPath> {
+    let config_file_name = &resolve_project_relative_path(CONFIG_SCHEMA_PATH).unwrap();
+    let config_schema_file = File::open(config_file_name).unwrap();
+    let deserialized_config_schema: Map<ParamPath, Value> =
+        serde_json::from_reader(config_schema_file).unwrap();
+
+    let mut private_values = BTreeSet::new();
+    for (param_path, stored_param) in deserialized_config_schema.into_iter() {
+        let ser_param = serde_json::from_value::<SerializedParam>(stored_param).unwrap();
+        // Find all private parameters.
+        if ser_param.is_private() {
+            let mut included_as_a_pointer = false;
+            for ((pointer_target_param_path, _ser_param), pointing_params) in CONFIG_POINTERS.iter()
+            {
+                // If the parameter is a pointer, add its pointer target value.
+                if pointing_params.contains(&param_path) {
+                    private_values.insert(pointer_target_param_path.clone());
+                    included_as_a_pointer = true;
+                    continue;
+                }
+            }
+            if !included_as_a_pointer {
+                // If the parameter is not a pointer, add it directly.
+                private_values.insert(param_path);
+            }
+        }
+    }
+    private_values
+}
 
 pub(crate) fn create_validation_error(
     error_msg: String,

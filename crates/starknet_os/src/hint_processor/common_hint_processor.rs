@@ -27,9 +27,13 @@ pub(crate) trait CommonHintProcessor<'a> {
     fn get_builtin_hint_processor(&mut self) -> &mut BuiltinHintProcessor;
     // For testing, track hint coverage.
     #[cfg(any(test, feature = "testing"))]
-    fn get_unused_hints(
+    fn get_mut_unused_hints(
         &mut self,
     ) -> &mut std::collections::HashSet<crate::hints::enum_definition::AllHints>;
+
+    #[cfg(any(test, feature = "testing"))]
+    fn get_unused_hints(self)
+    -> std::collections::HashSet<crate::hints::enum_definition::AllHints>;
 
     fn execute_cairo0_unique_hint(
         &mut self,
@@ -150,8 +154,13 @@ macro_rules! impl_common_hint_processor_getters {
         }
 
         #[cfg(any(test, feature = "testing"))]
-        fn get_unused_hints(&mut self) -> &mut std::collections::HashSet<AllHints> {
+        fn get_mut_unused_hints(&mut self) -> &mut std::collections::HashSet<AllHints> {
             &mut self.unused_hints
+        }
+
+        #[cfg(any(test, feature = "testing"))]
+        fn get_unused_hints(self) -> std::collections::HashSet<AllHints> {
+            self.unused_hints
         }
     };
 }

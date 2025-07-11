@@ -199,6 +199,6 @@ impl From<HeightAndRound> for Vec<u8> {
 
 impl std::fmt::Display for HeightAndRound {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "(height: {}, round: {})", self.0, self.1)
+        write!(f, "(height={}, round={})", self.0, self.1)
     }
 }

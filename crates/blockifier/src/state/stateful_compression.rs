@@ -14,8 +14,8 @@ use super::state_api::{State, StateReader, StateResult};
 #[path = "stateful_compression_test.rs"]
 pub mod stateful_compression_test;
 
-type Alias = Felt;
-type AliasKey = StorageKey;
+pub(crate) type Alias = Felt;
+pub(crate) type AliasKey = StorageKey;
 
 #[derive(Debug, Error)]
 pub enum CompressionError {

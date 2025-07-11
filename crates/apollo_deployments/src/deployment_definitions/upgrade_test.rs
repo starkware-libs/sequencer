@@ -1,7 +1,8 @@
 use apollo_infra_utils::template::Template;
+use url::Url;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
-use crate::deployment::{Deployment, P2PCommunicationType, PragmaDomain};
+use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::{Environment, StateSyncType};
 use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
@@ -27,9 +28,9 @@ fn upgrade_test_deployment_config_override() -> DeploymentConfigOverride {
         "0x9b8A6361d204a0C1F93d5194763538057444d958",
         "SN_GOERLI",
         "0x7c07a3eec8ff611328722c3fc3e5d2e4ef2f60740c0bf86c756606036b74c16",
-        "https://feeder.sn-alpha-test-upgrade.gateway-proxy.sw-dev.io",
+        Url::parse("https://feeder.sn-alpha-test-upgrade.gateway-proxy.sw-dev.io")
+            .expect("Invalid URL"),
         "0x54a93d918d62b2fb62b25e77d9cb693bd277ab7e6fa236e53af263f1adb40e4",
-        PragmaDomain::Dev,
         None,
         UPGRADE_TEST_NODE_IDS.len(),
         StateSyncType::Central,

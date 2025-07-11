@@ -1,4 +1,5 @@
 use starknet_api::block::BlockNumber;
+use url::Url;
 
 use crate::config_override::{
     ConfigOverride,
@@ -6,7 +7,7 @@ use crate::config_override::{
     InstanceConfigOverride,
     NetworkConfigOverride,
 };
-use crate::deployment::{Deployment, PragmaDomain};
+use crate::deployment::Deployment;
 use crate::deployment_definitions::{Environment, StateSyncType};
 use crate::k8s::IngressParams;
 use crate::service::NodeType;
@@ -27,9 +28,8 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         "0x5FbDB2315678afecb367f032d93F642f64180aa3",
         "CHAIN_ID_SUBDIR",
         "0x1001",
-        "https://integration-sepolia.starknet.io/",
+        Url::parse("https://integration-sepolia.starknet.io/").expect("Invalid URL"),
         "0x1002",
-        PragmaDomain::Dev,
         Some(BlockNumber(1)),
         TESTING_NODE_IDS.len(),
         StateSyncType::P2P,

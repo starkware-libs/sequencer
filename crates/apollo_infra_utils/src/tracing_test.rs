@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 use std::io::Write;
 use std::sync::{Arc, Mutex};
+use std::thread::sleep;
+use std::time::Duration;
 
 use tracing::field::{Field, Visit};
 use tracing::span::{Attributes, Id, Record};
@@ -9,7 +11,18 @@ use tracing::{Event, Level, Metadata, Subscriber};
 use tracing_subscriber::fmt::SubscriberBuilder;
 
 use crate::tracing::{CustomLogger, TraceLevel};
-use crate::{debug_every_n, error_every_n, info_every_n, trace_every_n, warn_every_n};
+use crate::{
+    debug_every_n,
+    debug_every_n_sec,
+    error_every_n,
+    error_every_n_sec,
+    info_every_n,
+    info_every_n_sec,
+    trace_every_n,
+    trace_every_n_sec,
+    warn_every_n,
+    warn_every_n_sec,
+};
 
 #[test]
 fn test_dynamic_logger_without_base_message() {
@@ -335,6 +348,144 @@ fn test_error_every_n_logs_to_error() {
     let (buffer, _guard) = redirect_logs_to_buffer();
 
     error_every_n!(2, LOG_MESSAGE);
+
+    assert_eq!(
+        buffer.content().matches("ERROR").count(),
+        1,
+        "Log did not contain expected ERROR content:\n{}",
+        buffer.content()
+    );
+}
+
+#[test]
+fn test_log_every_n_sec_logs_first_time() {
+    let (buffer, _guard) = redirect_logs_to_buffer();
+
+    warn_every_n_sec!(1000, LOG_MESSAGE);
+
+    assert_eq!(
+        buffer.content().matches(LOG_MESSAGE).count(),
+        1,
+        "Log did not contain expected content:\n{}",
+        buffer.content()
+    );
+}
+
+// TODO(guy.f): Refactor the code so we can inject the time and don't need to use `sleep` in the
+// tests below.
+
+#[test]
+fn test_log_every_n_sec_does_not_log_more_than_every_n() {
+    let (buffer, _guard) = redirect_logs_to_buffer();
+
+    for _ in 0..2 {
+        warn_every_n_sec!(1, LOG_MESSAGE);
+    }
+
+    assert_eq!(
+        buffer.content().matches(LOG_MESSAGE).count(),
+        1,
+        "Log did not contain expected content:\n{}",
+        buffer.content()
+    );
+}
+
+#[test]
+fn test_log_every_n_logs_every_n_sec() {
+    let (buffer, _guard) = redirect_logs_to_buffer();
+
+    for _ in 0..5 {
+        warn_every_n_sec!(2, LOG_MESSAGE);
+        // Every second log should be logged due to the sleep.
+        sleep(Duration::from_secs(1));
+    }
+
+    assert_eq!(
+        buffer.content().matches(LOG_MESSAGE).count(),
+        3,
+        "Log did not contain expected content:\n{}",
+        buffer.content()
+    );
+}
+
+#[test]
+fn test_log_every_n_sec_different_lines_count_separately() {
+    let (buffer, _guard) = redirect_logs_to_buffer();
+
+    warn_every_n_sec!(1, LOG_MESSAGE);
+    warn_every_n_sec!(1, LOG_MESSAGE);
+
+    assert_eq!(
+        buffer.content().matches(LOG_MESSAGE).count(),
+        2,
+        "Log did not contain expected content:\n{}",
+        buffer.content()
+    );
+}
+
+const ARBITRARY_TIME_SECS: u64 = 2;
+
+#[test]
+fn test_trace_every_n_logs_to_trace_sec() {
+    let (buffer, _guard) = redirect_logs_to_buffer();
+
+    trace_every_n_sec!(ARBITRARY_TIME_SECS, LOG_MESSAGE);
+
+    assert_eq!(
+        buffer.content().matches("TRACE").count(),
+        1,
+        "Log did not contain expected TRACE content:\n{}",
+        buffer.content()
+    );
+}
+
+#[test]
+fn test_debug_every_n_logs_to_debug_sec() {
+    let (buffer, _guard) = redirect_logs_to_buffer();
+
+    debug_every_n_sec!(ARBITRARY_TIME_SECS, LOG_MESSAGE);
+
+    assert_eq!(
+        buffer.content().matches("DEBUG").count(),
+        1,
+        "Log did not contain expected DEBUG content:\n{}",
+        buffer.content()
+    );
+}
+
+#[test]
+fn test_info_every_n_logs_to_info_sec() {
+    let (buffer, _guard) = redirect_logs_to_buffer();
+
+    info_every_n_sec!(ARBITRARY_TIME_SECS, LOG_MESSAGE);
+
+    assert_eq!(
+        buffer.content().matches("INFO").count(),
+        1,
+        "Log did not contain expected INFO content:\n{}",
+        buffer.content()
+    );
+}
+
+#[test]
+fn test_warn_every_n_logs_to_warn_sec() {
+    let (buffer, _guard) = redirect_logs_to_buffer();
+
+    warn_every_n_sec!(ARBITRARY_TIME_SECS, LOG_MESSAGE);
+
+    assert_eq!(
+        buffer.content().matches("WARN").count(),
+        1,
+        "Log did not contain expected WARN content:\n{}",
+        buffer.content()
+    );
+}
+
+#[test]
+fn test_error_every_n_logs_to_error_sec() {
+    let (buffer, _guard) = redirect_logs_to_buffer();
+
+    error_every_n_sec!(ARBITRARY_TIME_SECS, LOG_MESSAGE);
 
     assert_eq!(
         buffer.content().matches("ERROR").count(),

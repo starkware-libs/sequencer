@@ -27,7 +27,8 @@
         }
       },
       "external_secret": null,
-      "anti_affinity": false
+      "anti_affinity": false,
+      "ports": {}
     }
   ]
 }

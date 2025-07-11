@@ -243,12 +243,14 @@ impl TransfersGenerator {
                 execution_info.execute_call_info.as_ref().unwrap().execution.cairo_native,
                 expected_cairo_native
             );
-            // TODO(YonatanK): after updating the sierra version the the ERC20 contract uses, change
-            // this asserts to check the actual value of `inner_call.execution.cairo_native`.
             for inner_call in execution_info.execute_call_info.as_ref().unwrap().inner_calls.iter()
             {
-                assert!(!inner_call.execution.cairo_native);
+                assert_eq!(inner_call.execution.cairo_native, expected_cairo_native);
             }
+            assert_eq!(
+                execution_info.fee_transfer_call_info.as_ref().unwrap().execution.cairo_native,
+                expected_cairo_native
+            );
             collected_execution_infos.push(execution_info.clone());
         }
 

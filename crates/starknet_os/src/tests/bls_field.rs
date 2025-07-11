@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use apollo_starknet_os_program::OS_PROGRAM_BYTES;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::program::Program;
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use ethnum::U256;
 use num_bigint::{BigInt, BigUint, RandBigInt, RandomBits, Sign, ToBigInt};
 use num_integer::Integer;
@@ -13,7 +14,7 @@ use starknet_types_core::felt::Felt;
 
 use crate::hints::hint_implementation::kzg::utils::{split_bigint3, BASE, BLS_PRIME};
 use crate::test_utils::cairo_runner::{
-    run_cairo_0_entry_point,
+    initialize_and_run_cairo_0_entry_point,
     EndpointArg,
     ImplicitArg,
     PointerArg,
@@ -33,8 +34,8 @@ const REDUCED_MUL_LIMB_BOUND: i128 = 2_i128.pow(104);
 
 fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) {
     let explicit_args = [
-        EndpointArg::Value(ValueArg::Array(a_split.to_vec())),
-        EndpointArg::Value(ValueArg::Array(b_split.to_vec())),
+        EndpointArg::Value(ValueArg::Array(a_split.iter().map(MaybeRelocatable::from).collect())),
+        EndpointArg::Value(ValueArg::Array(b_split.iter().map(MaybeRelocatable::from).collect())),
     ];
     let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
     let expected_implicit_args: [EndpointArg; 1] = [11.into()];
@@ -42,7 +43,9 @@ fn run_reduced_mul_test(a_split: &[Felt], b_split: &[Felt]) {
         (pack_bigint3(a_split) * pack_bigint3(b_split)).mod_floor(&BLS_PRIME.to_bigint().unwrap()),
     )
     .unwrap();
-    let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(expected_result.to_vec()))];
+    let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(
+        expected_result.iter().map(MaybeRelocatable::from).collect(),
+    ))];
     test_cairo_function(
         &get_entrypoint_runner_config(),
         OS_PROGRAM_BYTES,
@@ -61,7 +64,11 @@ fn test_bigint3_to_uint256() {
     let random_u256_big_uint: BigUint = rng.sample(RandomBits::new(256));
     let random_u256_bigint = BigInt::from_biguint(Sign::Plus, random_u256_big_uint);
     let cairo_bigin3 = EndpointArg::Value(ValueArg::Array(
-        split_bigint3(random_u256_bigint.clone()).unwrap().to_vec(),
+        split_bigint3(random_u256_bigint.clone())
+            .unwrap()
+            .iter()
+            .map(MaybeRelocatable::from)
+            .collect(),
     ));
     let explicit_args = [cairo_bigin3];
     let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
@@ -69,7 +76,8 @@ fn test_bigint3_to_uint256() {
     let two_to_128 = BigInt::from_bytes_be(Sign::Plus, &U256::from(2_u32).pow(128).to_be_bytes());
     let low = Felt::from(random_u256_bigint.clone() % two_to_128);
     let high = Felt::from(random_u256_bigint >> 128);
-    let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(vec![low, high]))];
+    let expected_explicit_args =
+        [EndpointArg::Value(ValueArg::Array(vec![low.into(), high.into()]))];
     let expected_implicit_args: [EndpointArg; 1] = [4.into()];
 
     let entrypoint_runner_config = get_entrypoint_runner_config();
@@ -105,8 +113,9 @@ fn test_felt_to_bigint3(
     let explicit_args: [EndpointArg; 1] = [Felt::from(value.clone()).into()];
     let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
 
-    let split_value = split_bigint3(value.clone()).unwrap();
-    let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(split_value.to_vec()))];
+    let split_value =
+        split_bigint3(value.clone()).unwrap().iter().map(MaybeRelocatable::from).collect();
+    let expected_explicit_args = [EndpointArg::Value(ValueArg::Array(split_value))];
     let n_range_checks = if value == DEFAULT_PRIME.clone() - 1 { 0 } else { 6 };
     let expected_implicit_args: [EndpointArg; 1] = [n_range_checks.into()];
 
@@ -134,22 +143,28 @@ fn test_horner_eval() {
             .map(|_| Felt::from(RandBigInt::gen_bigint_range(&mut rng, &0.into(), &DEFAULT_PRIME)))
             .collect();
 
-        explicit_args.push(EndpointArg::Pointer(PointerArg::Array(coefficients.clone())));
+        explicit_args.push(EndpointArg::Pointer(PointerArg::Array(
+            coefficients.iter().cloned().map(MaybeRelocatable::from).collect(),
+        )));
         let point =
             RandBigInt::gen_bigint_range(&mut rng, &0.into(), &BLS_PRIME.to_bigint().unwrap());
         explicit_args.push(EndpointArg::Value(ValueArg::Array(
-            split_bigint3(point.clone()).unwrap().into(),
+            split_bigint3(point.clone()).unwrap().iter().map(MaybeRelocatable::from).collect(),
         )));
         let implicit_args = [ImplicitArg::Builtin(BuiltinName::range_check)];
 
         let state_reader = None;
-        let (_, explicit_retdata, _) = run_cairo_0_entry_point(
+        let (_, explicit_retdata, _) = initialize_and_run_cairo_0_entry_point(
             &entrypoint_runner_config,
             OS_PROGRAM_BYTES,
             "starkware.starknet.core.os.data_availability.bls_field.horner_eval",
             &explicit_args,
             &implicit_args,
-            &[EndpointArg::Value(ValueArg::Array(vec![Felt::ZERO, Felt::ZERO, Felt::ZERO]))],
+            &[EndpointArg::Value(ValueArg::Array(vec![
+                Felt::ZERO.into(),
+                Felt::ZERO.into(),
+                Felt::ZERO.into(),
+            ]))],
             HashMap::new(),
             state_reader,
         )
@@ -179,12 +194,13 @@ fn test_horner_eval() {
                 explicit_retdata.first().unwrap()
             );
         };
-        let actual_result = (BigUint::from_bytes_be(&split_actual_result[0].to_bytes_be())
-            + BigUint::from_bytes_be(&split_actual_result[1].to_bytes_be())
-                * BASE.to_biguint().unwrap()
-            + BigUint::from_bytes_be(&split_actual_result[2].to_bytes_be())
-                * BASE.to_biguint().unwrap().pow(2))
-        .mod_floor(&BLS_PRIME.clone());
+        let actual_result =
+            (BigUint::from_bytes_be(&split_actual_result[0].get_int().unwrap().to_bytes_be())
+                + BigUint::from_bytes_be(&split_actual_result[1].get_int().unwrap().to_bytes_be())
+                    * BASE.to_biguint().unwrap()
+                + BigUint::from_bytes_be(&split_actual_result[2].get_int().unwrap().to_bytes_be())
+                    * BASE.to_biguint().unwrap().pow(2))
+            .mod_floor(&BLS_PRIME.clone());
 
         // Calculate expected result.
         let expected_result =

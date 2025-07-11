@@ -173,8 +173,11 @@ impl Resources {
 #[serde(rename_all = "kebab-case")]
 pub enum Toleration {
     ApolloCoreService,
+    #[serde(rename = "apollo-core-service-c2d-16")]
     ApolloCoreServiceC2D16,
+    #[serde(rename = "apollo-core-service-c2d-32")]
     ApolloCoreServiceC2D32,
+    #[serde(rename = "apollo-core-service-c2d-56")]
     ApolloCoreServiceC2D56,
     ApolloGeneralService,
 }

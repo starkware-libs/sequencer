@@ -90,3 +90,19 @@ impl StateSyncType {
         }
     }
 }
+
+#[derive(Clone, Debug, Display, Serialize, PartialEq)]
+pub enum ServicePort {
+    Batcher,
+    ClassManager,
+    Gateway,
+    L1EndpointMonitor,
+    L1GasPriceProvider,
+    L1Provider,
+    Mempool,
+    MempoolP2p,
+    SierraCompiler,
+    StateSync,
+    HttpServer,
+    MonitoringEndpoint,
+}

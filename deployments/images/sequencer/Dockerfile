@@ -49,6 +49,7 @@ ENV ID=1001
 WORKDIR /app
 COPY --from=builder /app/target/${BUILD_MODE}/apollo_node ./target/${BUILD_MODE}/apollo_node
 COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra-compile
+COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-native-compile ./target/${BUILD_MODE}/shared_executables/starknet-native-compile
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
 # Copy apollo config schema, used when it loads its configuration.

@@ -1,4 +1,4 @@
-pub use apollo_proc_macros::log_every_n;
+pub use apollo_proc_macros::{log_every_n, log_every_n_sec};
 use tracing::{debug, error, info, trace, warn};
 
 #[cfg(test)]
@@ -127,6 +127,92 @@ macro_rules! trace_every_n {
     ($n:expr, $($arg:tt)*) => {
         {
             $crate::_apollo_proc_macros::log_every_n!(::tracing::trace, $n, $($arg)*);
+        }
+    };
+}
+
+/// Logs an INFO message once every `n` seconds.
+///
+/// Each call site of this macro maintains its own independent timer.
+///
+/// # Arguments
+///
+/// * `$n`: Number of seconds (e.g., `2` for not logging a message again for `2`` seconds from when
+///   it last logged).
+/// * `$($arg:tt)*`: The arguments to pass to `tracing::info!`, e.g., a format string and its
+///   corresponding values.
+///
+/// # Example
+/// ```rust
+/// use apollo_infra_utils::info_every_n_sec;
+///
+/// fn do_something(i: u32) {
+///     // Work...
+///     info_every_n_sec!(5, "Processing item: {}", i);
+///     // Work...
+/// }
+///
+/// do_something(0);
+/// // 2 seconds pass.
+/// do_something(1); // No log, only 2 seconds passed.
+/// // 4 seconds pass.
+/// do_something(2); // Logs: "Processing item: 2" (6 seconds passed since last log).
+/// // 4 seconds pass.
+/// do_something(3); // No log, only 4 seconds passed since **last** log.
+///
+/// // This will log twice since these are two different call sites.
+/// info_every_n_sec!(2, "call site");
+/// info_every_n_sec!(2, "call site");
+/// ```
+#[macro_export]
+macro_rules! info_every_n_sec {
+    ($n:expr, $($arg:tt)*) => {
+        {
+            $crate::_apollo_proc_macros::log_every_n_sec!(::tracing::info, $n, $($arg)*);
+        }
+    };
+}
+
+/// Logs a WARN message once every `n` seconds.
+/// See `info_every_n_sec!` for detailed usage and behavior.
+#[macro_export]
+macro_rules! warn_every_n_sec {
+    ($n:expr, $($arg:tt)*) => {
+        {
+            $crate::_apollo_proc_macros::log_every_n_sec!(::tracing::warn, $n, $($arg)*);
+        }
+    };
+}
+
+/// Logs an ERROR message once every `n` seconds.
+/// See `info_every_n_sec!` for detailed usage and behavior.
+#[macro_export]
+macro_rules! error_every_n_sec {
+    ($n:expr, $($arg:tt)*) => {
+        {
+            $crate::_apollo_proc_macros::log_every_n_sec!(::tracing::error, $n, $($arg)*);
+        }
+    };
+}
+
+/// Logs a DEBUG message once every `n` seconds.
+/// See `info_every_n_sec!` for detailed usage and behavior.
+#[macro_export]
+macro_rules! debug_every_n_sec {
+    ($n:expr, $($arg:tt)*) => {
+        {
+            $crate::_apollo_proc_macros::log_every_n_sec!(::tracing::debug, $n, $($arg)*);
+        }
+    };
+}
+
+/// Logs a TRACE message once every `n` seconds.
+/// See `info_every_n_sec!` for detailed usage and behavior.
+#[macro_export]
+macro_rules! trace_every_n_sec {
+    ($n:expr, $($arg:tt)*) => {
+        {
+            $crate::_apollo_proc_macros::log_every_n_sec!(::tracing::trace, $n, $($arg)*);
         }
     };
 }

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use alloy::primitives::U64;
 use alloy::providers::{Provider, ProviderBuilder};
-use apollo_config::converters::{deserialize_vec_url, serialize_slice_url};
+use apollo_config::converters::{deserialize_vec, serialize_slice};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
@@ -90,7 +90,7 @@ impl ComponentStarter for L1EndpointMonitor {}
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1EndpointMonitorConfig {
-    #[serde(deserialize_with = "deserialize_vec_url")]
+    #[serde(deserialize_with = "deserialize_vec")]
     pub ordered_l1_endpoint_urls: Vec<Url>,
 }
 
@@ -109,7 +109,7 @@ impl SerializeConfig for L1EndpointMonitorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from([ser_param(
             "ordered_l1_endpoint_urls",
-            &serialize_slice_url(&self.ordered_l1_endpoint_urls),
+            &serialize_slice(&self.ordered_l1_endpoint_urls),
             "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the \
              current one is non-operational.",
             ParamPrivacyInput::Private,

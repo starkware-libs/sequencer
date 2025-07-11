@@ -4,7 +4,7 @@ use deprecated_syscall_executor::{
     DeprecatedSyscallExecutorBaseError,
     DeprecatedSyscallExecutorBaseResult,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::state::StorageKey;
@@ -37,8 +37,7 @@ pub mod hint_processor;
 pub type DeprecatedSyscallResult<T> = Result<T, DeprecatedSyscallExecutionError>;
 pub type WriteResponseResult = DeprecatedSyscallExecutorBaseResult<()>;
 
-#[cfg_attr(any(test, feature = "testing"), derive(serde::Serialize))]
-#[derive(Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
 pub enum DeprecatedSyscallSelector {
     CallContract,
     DelegateCall,
