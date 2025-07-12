@@ -106,7 +106,7 @@ pub fn is_localhost(address: &Multiaddr) -> bool {
 }
 
 /// Creates a `Multiaddr` from an `Ipv4Addr`, a port, and a `PeerId`.
-pub fn make_tcp_multiaddr(ip: Ipv4Addr, port: u16, peer_id: PeerId) -> Multiaddr {
+pub fn make_quic_multiaddr(ip: Ipv4Addr, port: u16, peer_id: PeerId) -> Multiaddr {
     Multiaddr::empty()
         .with(Protocol::Ip4(ip))
         .with(Protocol::Udp(port))

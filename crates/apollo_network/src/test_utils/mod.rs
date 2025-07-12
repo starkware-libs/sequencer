@@ -2,19 +2,20 @@ mod get_stream;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
+use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use futures::future::Either;
 use lazy_static::lazy_static;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 use libp2p::swarm::{ConnectionId, NetworkBehaviour, Swarm, SwarmEvent};
-use libp2p::{identity, multiaddr, Multiaddr, PeerId, Stream, StreamProtocol};
+use libp2p::{identity, Multiaddr, PeerId, Stream, StreamProtocol};
 use libp2p_swarm_test::SwarmExt;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
 
 use crate::sqmr::Bytes;
-use crate::utils::StreamMap;
+use crate::utils::{make_quic_multiaddr, StreamMap};
 
 lazy_static! {
     #[cfg(test)]
@@ -25,7 +26,7 @@ lazy_static! {
     };
     #[cfg(test)]
     pub static ref DUMMY_MULTI_ADDRESS: Multiaddr = {
-        Multiaddr::empty().with(multiaddr::Protocol::P2p(*DUMMY_PEER_ID))
+        make_quic_multiaddr(Ipv4Addr::LOCALHOST, 10000, *DUMMY_PEER_ID)
     };
 }
 
