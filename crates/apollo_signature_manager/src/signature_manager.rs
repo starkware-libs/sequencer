@@ -50,6 +50,7 @@ impl<KS: KeyStore> SignatureManager<KS> {
         Self { keystore }
     }
 
+    // TODO(Elin): sign both peer IDs.
     pub async fn identify(
         &self,
         peer_id: PeerId,
