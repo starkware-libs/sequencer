@@ -1,10 +1,10 @@
 use std::ops::Deref;
 
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_network_types::network_types::PeerId;
 use apollo_signature_manager_types::{
     KeyStore,
     KeyStoreResult,
-    PeerId,
     SignatureManagerError,
     SignatureManagerResult,
 };
@@ -113,6 +113,7 @@ impl KeyStore for LocalKeyStore {
 
 fn build_peer_identity_message_digest(peer_id: PeerId, nonce: Nonce) -> MessageDigest {
     let nonce = nonce.to_bytes_be();
+    let peer_id = peer_id.to_bytes();
     let mut message = Vec::with_capacity(INIT_PEER_ID.len() + peer_id.len() + nonce.len());
     message.extend_from_slice(INIT_PEER_ID);
     message.extend_from_slice(&peer_id);

@@ -3,6 +3,7 @@ use std::sync::Arc;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
 use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_network_types::network_types::PeerId;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
@@ -38,17 +39,6 @@ pub trait KeyStore: Clone + Send + Sync {
 pub enum KeyStoreError {
     #[error("Failed to fetch key: {0}")]
     Custom(String),
-}
-
-#[derive(
-    Clone, Debug, Default, derive_more::Deref, Eq, PartialEq, Hash, Serialize, Deserialize,
-)]
-pub struct PeerId(pub Vec<u8>);
-
-impl From<Vec<u8>> for PeerId {
-    fn from(value: Vec<u8>) -> Self {
-        Self(value)
-    }
 }
 
 /// Serves as the signature manager's shared interface.
