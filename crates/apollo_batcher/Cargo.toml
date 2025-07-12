@@ -57,7 +57,9 @@ mempool_test_utils.workspace = true
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
 mockall.workspace = true
+mockito.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+serde_json.workspace = true
 starknet-types-core.workspace = true
 starknet_api = { workspace = true, features = ["testing"] }
