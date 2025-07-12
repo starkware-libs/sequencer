@@ -94,20 +94,23 @@ func main{
         state_update_pointers = StateUpdatePointers(segments=segments)
     %}
     with txs_range_check_ptr {
-        execute_blocks(
-            n_blocks=n_blocks,
-            os_output_per_block_dst=os_outputs,
+        tempvar class_facts_bundle = new CompiledClassFactsBundle(
             n_compiled_class_facts=n_compiled_class_facts,
             compiled_class_facts=compiled_class_facts,
             n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
             deprecated_compiled_class_facts=deprecated_compiled_class_facts,
         );
+        execute_blocks(
+            n_blocks=n_blocks,
+            os_output_per_block_dst=os_outputs,
+            class_facts_bundle=class_facts_bundle,
+        );
     }
 
     // Validate the guessed compile class facts.
     validate_compiled_class_facts_post_execution(
-        n_compiled_class_facts=n_compiled_class_facts,
-        compiled_class_facts=compiled_class_facts,
+        n_compiled_class_facts=class_facts_bundle.n_compiled_class_facts,
+        compiled_class_facts=class_facts_bundle.compiled_class_facts,
         builtin_costs=builtin_costs,
     );
 
@@ -182,6 +185,14 @@ func main{
     return ();
 }
 
+// Struct to group compiled class facts parameters
+struct CompiledClassFactsBundle {
+    n_compiled_class_facts: felt,
+    compiled_class_facts: CompiledClassFact*,
+    n_deprecated_compiled_class_facts: felt,
+    deprecated_compiled_class_facts: DeprecatedCompiledClassFact*,
+}
+
 // Executes `n_blocks` blocks. For each block,
 //   * Runs the transactions,
 //   * Updates the state,
@@ -207,10 +218,7 @@ func execute_blocks{
 }(
     n_blocks: felt,
     os_output_per_block_dst: OsOutput*,
-    n_compiled_class_facts: felt,
-    compiled_class_facts: CompiledClassFact*,
-    n_deprecated_compiled_class_facts: felt,
-    deprecated_compiled_class_facts: DeprecatedCompiledClassFact*,
+    class_facts_bundle: CompiledClassFactsBundle*,
 ) {
     %{ print(f"execute_blocks: {ids.n_blocks} blocks remaining.") %}
     if (n_blocks == 0) {
@@ -253,10 +261,10 @@ func execute_blocks{
     let (block_context: BlockContext*) = get_block_context(
         execute_syscalls_ptr=execute_syscalls_ptr,
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
-        n_compiled_class_facts=n_compiled_class_facts,
-        compiled_class_facts=compiled_class_facts,
-        n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
-        deprecated_compiled_class_facts=deprecated_compiled_class_facts,
+        n_compiled_class_facts=class_facts_bundle.n_compiled_class_facts,
+        compiled_class_facts=class_facts_bundle.compiled_class_facts,
+        n_deprecated_compiled_class_facts=class_facts_bundle.n_deprecated_compiled_class_facts,
+        deprecated_compiled_class_facts=class_facts_bundle.deprecated_compiled_class_facts,
     );
 
     // Pre-process block.
@@ -330,10 +338,7 @@ func execute_blocks{
     return execute_blocks(
         n_blocks=n_blocks - 1,
         os_output_per_block_dst=&os_output_per_block_dst[1],
-        n_compiled_class_facts=n_compiled_class_facts,
-        compiled_class_facts=compiled_class_facts,
-        n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
-        deprecated_compiled_class_facts=deprecated_compiled_class_facts,
+        class_facts_bundle=class_facts_bundle,
     );
 }
 
