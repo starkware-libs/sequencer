@@ -12,10 +12,11 @@ use async_trait::async_trait;
 use blake2s::blake2s_to_felt;
 use starknet_api::block::BlockHash;
 use starknet_api::core::Nonce;
-use starknet_api::crypto::utils::{PrivateKey, PublicKey, RawSignature};
-use starknet_core::crypto::{ecdsa_sign, ecdsa_verify};
+use starknet_api::crypto::utils::{PrivateKey, PublicKey, RawSignature, SignatureConversionError};
+use starknet_core::crypto::{ecdsa_sign, ecdsa_verify, EcdsaVerifyError};
 use starknet_core::types::Felt;
 use starknet_crypto::get_public_key;
+use thiserror::Error;
 
 #[cfg(test)]
 #[path = "signature_manager_test.rs"]
@@ -24,6 +25,8 @@ pub mod signature_manager_test;
 // Message domain separators.
 pub(crate) const INIT_PEER_ID: &[u8] = b"INIT_PEER_ID";
 pub(crate) const PRECOMMIT_VOTE: &[u8] = b"PRECOMMIT_VOTE";
+
+pub type SignatureVerificationResult<T> = Result<T, SignatureVerificationError>;
 
 #[derive(Debug, Default, Eq, PartialEq, Hash)]
 struct MessageDigest(pub Felt);
@@ -135,9 +138,8 @@ fn verify_signature(
     message_digest: MessageDigest,
     signature: RawSignature,
     public_key: PublicKey,
-) -> SignatureManagerResult<bool> {
-    ecdsa_verify(&public_key, &message_digest, &signature.try_into()?)
-        .map_err(|e| SignatureManagerError::Verify(e.to_string()))
+) -> SignatureVerificationResult<bool> {
+    Ok(ecdsa_verify(&public_key, &message_digest, &signature.try_into()?)?)
 }
 
 // Library functions for signature verification.
@@ -145,12 +147,21 @@ fn verify_signature(
 /// Verification is a local operation, not requiring access to a keystore (hence remote
 /// communication).
 /// It is also much faster than signing, so that clients can invoke a simple library call.
+
+#[derive(Debug, Error)]
+pub enum SignatureVerificationError {
+    #[error(transparent)]
+    EcdsaVerify(#[from] EcdsaVerifyError),
+    #[error(transparent)]
+    SignatureConversion(#[from] SignatureConversionError),
+}
+
 pub fn verify_identity(
     peer_id: PeerId,
     nonce: Nonce,
     signature: RawSignature,
     public_key: PublicKey,
-) -> SignatureManagerResult<bool> {
+) -> SignatureVerificationResult<bool> {
     let message_digest = build_peer_identity_message_digest(peer_id, nonce);
     verify_signature(message_digest, signature, public_key)
 }
@@ -159,7 +170,7 @@ pub fn verify_precommit_vote_signature(
     block_hash: BlockHash,
     signature: RawSignature,
     public_key: PublicKey,
-) -> SignatureManagerResult<bool> {
+) -> SignatureVerificationResult<bool> {
     let message_digest = build_precommit_vote_message_digest(block_hash);
     verify_signature(message_digest, signature, public_key)
 }

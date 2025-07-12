@@ -69,8 +69,6 @@ pub enum SignatureManagerError {
     Sign(String),
     #[error(transparent)]
     SignatureConversion(#[from] SignatureConversionError),
-    #[error("Failed to verify: {0}")]
-    Verify(String),
 }
 
 #[derive(Clone, Debug, Error)]

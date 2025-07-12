@@ -58,7 +58,7 @@ fn test_verify_identity(#[case] signature: Signature, #[case] expected: bool) {
     let PeerIdentity { peer_id, nonce } = PeerIdentity::new();
     let public_key = LocalKeyStore::new_for_testing().public_key;
 
-    assert_eq!(verify_identity(peer_id, nonce, signature.into(), public_key), Ok(expected));
+    assert_eq!(verify_identity(peer_id, nonce, signature.into(), public_key).unwrap(), expected);
 }
 
 #[rstest]
@@ -74,8 +74,8 @@ fn test_verify_precommit_vote_signature(#[case] signature: Signature, #[case] ex
     let public_key = LocalKeyStore::new_for_testing().public_key;
 
     assert_eq!(
-        verify_precommit_vote_signature(block_hash, signature.into(), public_key),
-        Ok(expected)
+        verify_precommit_vote_signature(block_hash, signature.into(), public_key).unwrap(),
+        expected
     );
 }
 
@@ -90,7 +90,10 @@ async fn test_identify() {
     assert_eq!(signature, Ok(ALICE_IDENTITY_SIGNATURE.into()));
 
     // Test alignment with verification function.
-    assert_eq!(verify_identity(peer_id, nonce, signature.unwrap(), key_store.public_key), Ok(true));
+    assert_eq!(
+        verify_identity(peer_id, nonce, signature.unwrap(), key_store.public_key).unwrap(),
+        true
+    );
 }
 
 #[tokio::test]
@@ -105,7 +108,8 @@ async fn test_sign_precommit_vote() {
 
     // Test alignment with verification function.
     assert_eq!(
-        verify_precommit_vote_signature(block_hash, signature.unwrap(), key_store.public_key),
-        Ok(true)
+        verify_precommit_vote_signature(block_hash, signature.unwrap(), key_store.public_key)
+            .unwrap(),
+        true
     );
 }
