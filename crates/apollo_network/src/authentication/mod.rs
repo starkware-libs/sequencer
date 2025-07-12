@@ -1,3 +1,5 @@
+pub mod stark_authentication;
+
 use std::fmt::Debug;
 
 use apollo_network_types::network_types::PeerId;
