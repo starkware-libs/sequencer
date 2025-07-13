@@ -1064,6 +1064,11 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
+  "consensus_manager_config.context_config.constant_l2_gas_price": {
+    "description": "If true, sets STRK gas price to its minimum price from the versioned constants.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.context_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
