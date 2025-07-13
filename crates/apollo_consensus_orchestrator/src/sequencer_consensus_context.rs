@@ -6,7 +6,7 @@
 mod sequencer_consensus_context_test;
 
 use std::cmp::max;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -551,6 +551,9 @@ impl ConsensusContext for SequencerConsensusContext {
                     .casm_hash_computation_data_sierra_gas,
                 casm_hash_computation_data_proving_gas: central_objects
                     .casm_hash_computation_data_proving_gas,
+                // TODO(AvivG): Either derive from `central_objects::compressed_state_diff` or find
+                // a better way to pass the compiled_class_hashes_for_migration.
+                compiled_class_hashes_for_migration: HashMap::new(),
                 fee_market_info: FeeMarketInfo {
                     l2_gas_consumed: l2_gas_used,
                     next_l2_gas_price: self.l2_gas_price,
