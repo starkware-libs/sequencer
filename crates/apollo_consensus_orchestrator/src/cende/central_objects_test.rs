@@ -129,6 +129,7 @@ use starknet_types_core::felt::Felt;
 use super::{
     CentralBouncerWeights,
     CentralCasmHashComputationData,
+    CentralCompiledClassHashesForMigration,
     CentralCompressedStateDiff,
     CentralDeclareTransaction,
     CentralDeployAccountTransaction,
@@ -163,6 +164,8 @@ pub const CENTRAL_BLOB_JSON_PATH: &str = "central_blob.json";
 pub const CENTRAL_CASM_HASH_COMPUTATION_DATA_JSON_PATH: &str =
     "central_casm_hash_computation_data.json";
 pub const CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH: &str = "central_preconfirmed_block.json";
+pub const CENTRAL_COMPILED_CLASS_HASHES_FOR_MIGRATION_JSON_PATH: &str =
+    "central_compiled_class_hashes_for_migration.json";
 
 fn resource_bounds() -> AllResourceBounds {
     AllResourceBounds {
@@ -410,6 +413,13 @@ fn central_casm_hash_computation_data() -> CentralCasmHashComputationData {
     }
 }
 
+fn central_compiled_class_hashes_for_migration() -> CentralCompiledClassHashesForMigration {
+    CentralCompiledClassHashesForMigration::from([
+        (CompiledClassHash(felt!("0x2")), CompiledClassHash(felt!("0x1"))),
+        (CompiledClassHash(felt!("0x4")), CompiledClassHash(felt!("0x3"))),
+    ])
+}
+
 fn central_sierra_contract_class() -> CentralSierraContractClass {
     CentralSierraContractClass { contract_class: sierra_contract_class() }
 }
@@ -651,6 +661,7 @@ fn central_blob() -> AerospikeBlob {
         execution_infos: vec![transaction_execution_info()],
         casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
         casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),
+        compiled_class_hashes_for_migration: central_compiled_class_hashes_for_migration(),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the
@@ -961,6 +972,10 @@ fn starknet_preconfiremd_block() -> CendePreconfirmedBlock {
 #[case::starknet_preconfirmed_block(
     starknet_preconfiremd_block(),
     CENTRAL_PRECONFIRMED_BLOCK_JSON_PATH
+)]
+#[case::compiled_class_hashes_for_migration(
+    central_compiled_class_hashes_for_migration(),
+    CENTRAL_COMPILED_CLASS_HASHES_FOR_MIGRATION_JSON_PATH
 )]
 fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_json_path: &str) {
     let python_json: serde_json::Value = read_json_file(python_json_path);

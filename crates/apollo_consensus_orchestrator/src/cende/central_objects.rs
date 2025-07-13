@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::str::FromStr;
 
 use apollo_class_manager_types::SharedClassManagerClient;
@@ -63,6 +64,8 @@ pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
 pub(crate) type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
 pub(crate) type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
 pub(crate) type CentralCasmHashComputationData = CasmHashComputationData;
+pub(crate) type CentralCompiledClassHashesForMigration =
+    HashMap<CompiledClassHash, CompiledClassHash>;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 struct CentralResourcePrice {
