@@ -20,7 +20,7 @@ use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransacti
 use blockifier::blockifier::config::WorkerPoolConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
-    CompiledClassHashesForMigration,
+    CompiledClassHashesToMigrate,
     TransactionExecutionOutput,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
@@ -108,7 +108,7 @@ pub struct BlockExecutionArtifacts {
     pub l2_gas_used: GasAmount,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
-    pub compiled_class_hashes_to_migrate: CompiledClassHashesForMigration,
+    pub compiled_class_hashes_to_migrate: CompiledClassHashesToMigrate,
     // The number of transactions executed by the proposer out of the transactions that were sent.
     // This value includes rejected transactions.
     pub final_n_executed_txs: usize,

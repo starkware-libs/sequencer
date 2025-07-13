@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use blockifier::blockifier::transaction_executor::CompiledClassHashesToMigrate;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
@@ -107,6 +108,7 @@ pub struct CentralObjects {
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
+    pub compiled_class_hashes_to_migrate: CompiledClassHashesToMigrate,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
