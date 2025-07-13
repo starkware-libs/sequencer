@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use apollo_class_manager_types::transaction_converter::TransactionConverter;
@@ -93,6 +94,7 @@ fn block_execution_artifacts(
         l2_gas_used,
         casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
         casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
+        compiled_class_hashes_for_migration: HashMap::new(),
         final_n_executed_txs,
     }
 }
