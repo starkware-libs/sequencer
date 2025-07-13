@@ -9,11 +9,11 @@ use libp2p::swarm::{ConnectionClosed, ConnectionId, FromSwarm, NetworkBehaviour,
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
 
 use super::super::handler::{RequestFromBehaviourEvent, RequestToBehaviourEvent};
-use super::super::{Bytes, Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
+use super::super::{Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
 use super::{Behaviour, Event, ExternalEvent, SessionError, ToOtherBehaviourEvent};
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::test_utils::dummy_data;
-use crate::{mixed_behaviour, peer_manager};
+use crate::{mixed_behaviour, peer_manager, Bytes};
 
 impl Unpin for Behaviour {}
 

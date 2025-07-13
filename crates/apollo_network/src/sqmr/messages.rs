@@ -8,7 +8,7 @@ use futures::io::{ReadHalf, WriteHalf};
 use futures::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use unsigned_varint::encode::usize_buffer;
 
-use super::Bytes;
+use crate::Bytes;
 
 pub const MAX_MESSAGE_SIZE: usize = 1 << 20;
 

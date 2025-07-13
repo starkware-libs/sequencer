@@ -18,7 +18,7 @@ use libp2p::swarm::{ConnectionHandler, ConnectionHandlerEvent, Stream, StreamUpg
 use libp2p::{PeerId, StreamProtocol};
 
 use super::super::messages::{read_message, write_message};
-use super::super::{Bytes, Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
+use super::super::{Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
 use super::{
     Handler,
     HandlerEvent,
@@ -28,6 +28,7 @@ use super::{
 };
 use crate::sqmr::handler;
 use crate::test_utils::{dummy_data, get_connected_streams};
+use crate::Bytes;
 
 impl Unpin for Handler {}
 

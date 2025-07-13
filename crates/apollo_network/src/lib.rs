@@ -43,6 +43,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::ChainId;
 use validator::{Validate, ValidationError};
 
+pub(crate) type Bytes = Vec<u8>;
+
 // TODO(AndrewL): Fix this
 /// This function considers `""` to be `None` and
 /// `"multiaddr1,multiaddr2"` to be `Some(vec![multiaddr1, multiaddr2])`.
