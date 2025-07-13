@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Instant;
 
 use cairo_vm::serde::deserialize_program::{
     deserialize_array_of_bigint_hex,
@@ -115,7 +116,9 @@ pub fn execute_entry_point_call(
     state: &mut dyn State,
     context: &mut EntryPointExecutionContext,
 ) -> EntryPointExecutionResult<CallInfo> {
-    match compiled_class {
+    let pre_execution_instant = Instant::now();
+
+    let mut call_info = match compiled_class {
         RunnableCompiledClass::V0(compiled_class) => {
             deprecated_entry_point_execution::execute_entry_point_call(
                 call,
@@ -147,7 +150,10 @@ pub fn execute_entry_point_call(
                 )
             }
         }
-    }
+    }?;
+
+    call_info.time = Some(pre_execution_instant.elapsed());
+    Ok(call_info)
 }
 
 pub fn update_remaining_gas(remaining_gas: &mut u64, call_info: &CallInfo) {

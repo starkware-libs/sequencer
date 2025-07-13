@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
@@ -210,6 +211,9 @@ pub struct TransactionExecutionInfo {
     /// (including L1 gas and additional OS resources estimation),
     /// and total gas consumed.
     pub receipt: TransactionReceipt,
+    /// Total execution time of the transaction.
+    /// None implies that the time was not measured.
+    pub time: Option<Duration>,
 }
 
 impl TransactionExecutionInfo {
