@@ -63,15 +63,8 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
 
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
         match environment {
-            Environment::Testing => None,
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
-                ConsolidatedNodeServiceName::Node => Some(Toleration::ApolloCoreService),
-            },
-            _ => unimplemented!(),
+            Environment::CloudK8s(_) => Some(Toleration::ApolloCoreService),
+            Environment::LocalK8s => None,
         }
     }
 
@@ -81,13 +74,8 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         ingress_params: IngressParams,
     ) -> Option<Ingress> {
         match environment {
-            Environment::Testing => None,
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => get_ingress(ingress_params, false),
-            _ => unimplemented!(),
+            Environment::CloudK8s(_) => get_ingress(ingress_params, false),
+            Environment::LocalK8s => None,
         }
     }
 
@@ -97,25 +85,15 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
 
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
-            Environment::Testing => Some(TESTING_NODE_STORAGE),
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => Some(NODE_STORAGE),
-            _ => unimplemented!(),
+            Environment::CloudK8s(_) => Some(NODE_STORAGE),
+            Environment::LocalK8s => Some(TESTING_NODE_STORAGE),
         }
     }
 
     fn get_resources(&self, environment: &Environment) -> Resources {
         match environment {
-            Environment::Testing => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
-            _ => unimplemented!(),
+            Environment::CloudK8s(_) => Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
+            Environment::LocalK8s => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
         }
     }
 
@@ -125,13 +103,8 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool {
         match environment {
-            Environment::Testing => false,
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => true,
-            _ => unimplemented!(),
+            Environment::CloudK8s(_) => true,
+            Environment::LocalK8s => false,
         }
     }
 
