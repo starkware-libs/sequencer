@@ -15,7 +15,7 @@ use strum_macros::{AsRefStr, EnumIter};
 use crate::addresses::{get_p2p_address, get_peer_id, SecretKey};
 use crate::config_override::{InstanceConfigOverride, NetworkConfigOverride};
 use crate::deployment::{build_service_namespace_domain_address, P2PCommunicationType};
-use crate::deployment_definitions::{Environment, ServicePort};
+use crate::deployment_definitions::{CloudK8sEnvironment, Environment, ServicePort};
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
@@ -143,27 +143,34 @@ impl ServiceNameInner for HybridNodeServiceName {
 
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
         match environment {
-            Environment::Testing => None,
-            Environment::SepoliaIntegration
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree => match self {
-                HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => {
-                    Some(Toleration::ApolloCoreService)
-                }
-                HybridNodeServiceName::HttpServer
-                | HybridNodeServiceName::Gateway
-                | HybridNodeServiceName::L1
-                | HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
+            Environment::CloudK8s(cloud_env) => match cloud_env {
+                CloudK8sEnvironment::SepoliaIntegration
+                | CloudK8sEnvironment::UpgradeTest
+                | CloudK8sEnvironment::TestingEnvThree => match self {
+                    HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => {
+                        Some(Toleration::ApolloCoreService)
+                    }
+                    HybridNodeServiceName::HttpServer
+                    | HybridNodeServiceName::Gateway
+                    | HybridNodeServiceName::L1
+                    | HybridNodeServiceName::SierraCompiler => {
+                        Some(Toleration::ApolloGeneralService)
+                    }
+                },
+                CloudK8sEnvironment::StressTest | CloudK8sEnvironment::SepoliaTestnet => match self
+                {
+                    HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
+                    HybridNodeServiceName::HttpServer
+                    | HybridNodeServiceName::Gateway
+                    | HybridNodeServiceName::L1
+                    | HybridNodeServiceName::SierraCompiler => {
+                        Some(Toleration::ApolloGeneralService)
+                    }
+                    HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                },
+                _ => unimplemented!(),
             },
-            Environment::StressTest | Environment::SepoliaTestnet => match self {
-                HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
-                HybridNodeServiceName::HttpServer
-                | HybridNodeServiceName::Gateway
-                | HybridNodeServiceName::L1
-                | HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
-                HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
-            },
-            _ => unimplemented!(),
+            Environment::LocalK8s => None,
         }
     }
 
@@ -196,80 +203,80 @@ impl ServiceNameInner for HybridNodeServiceName {
 
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
-            Environment::Testing => None,
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
-                HybridNodeServiceName::Core => Some(CORE_STORAGE),
-                HybridNodeServiceName::HttpServer
-                | HybridNodeServiceName::Gateway
-                | HybridNodeServiceName::L1
-                | HybridNodeServiceName::Mempool
-                | HybridNodeServiceName::SierraCompiler => None,
+            Environment::CloudK8s(cloud_env) => match cloud_env {
+                CloudK8sEnvironment::SepoliaIntegration
+                | CloudK8sEnvironment::SepoliaTestnet
+                | CloudK8sEnvironment::UpgradeTest
+                | CloudK8sEnvironment::TestingEnvThree
+                | CloudK8sEnvironment::StressTest => match self {
+                    HybridNodeServiceName::Core => Some(CORE_STORAGE),
+                    HybridNodeServiceName::HttpServer
+                    | HybridNodeServiceName::Gateway
+                    | HybridNodeServiceName::L1
+                    | HybridNodeServiceName::Mempool
+                    | HybridNodeServiceName::SierraCompiler => None,
+                },
+                _ => unimplemented!(),
             },
-            _ => unimplemented!(),
+            Environment::LocalK8s => None,
         }
     }
 
     fn get_resources(&self, environment: &Environment) -> Resources {
         match environment {
-            Environment::Testing => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-            Environment::SepoliaIntegration
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree => match self {
-                HybridNodeServiceName::Core => {
-                    Resources::new(Resource::new(2, 4), Resource::new(7, 14))
-                }
-                HybridNodeServiceName::HttpServer => {
-                    Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-                }
-                HybridNodeServiceName::Gateway => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
-                HybridNodeServiceName::L1 => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
-                HybridNodeServiceName::Mempool => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
-                HybridNodeServiceName::SierraCompiler => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
+            Environment::CloudK8s(cloud_env) => match cloud_env {
+                CloudK8sEnvironment::SepoliaIntegration
+                | CloudK8sEnvironment::UpgradeTest
+                | CloudK8sEnvironment::TestingEnvThree => match self {
+                    HybridNodeServiceName::Core => {
+                        Resources::new(Resource::new(2, 4), Resource::new(7, 14))
+                    }
+                    HybridNodeServiceName::HttpServer => {
+                        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+                    }
+                    HybridNodeServiceName::Gateway => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::L1 => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::Mempool => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::SierraCompiler => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                },
+                CloudK8sEnvironment::StressTest | CloudK8sEnvironment::SepoliaTestnet => match self
+                {
+                    HybridNodeServiceName::Core => {
+                        Resources::new(Resource::new(50, 200), Resource::new(50, 220))
+                    }
+                    HybridNodeServiceName::HttpServer => {
+                        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+                    }
+                    HybridNodeServiceName::Gateway => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::L1 => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::Mempool => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::SierraCompiler => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                },
+                _ => unimplemented!(),
             },
-            Environment::StressTest | Environment::SepoliaTestnet => match self {
-                HybridNodeServiceName::Core => {
-                    Resources::new(Resource::new(50, 200), Resource::new(50, 220))
-                }
-                HybridNodeServiceName::HttpServer => {
-                    Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-                }
-                HybridNodeServiceName::Gateway => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
-                HybridNodeServiceName::L1 => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
-                HybridNodeServiceName::Mempool => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
-                HybridNodeServiceName::SierraCompiler => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
-            },
-            _ => unimplemented!(),
+            Environment::LocalK8s => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
         }
     }
 
     fn get_replicas(&self, environment: &Environment) -> usize {
         match environment {
-            Environment::Testing => 1,
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
+            Environment::CloudK8s(_) => match self {
                 HybridNodeServiceName::Core => 1,
                 HybridNodeServiceName::HttpServer => 1,
                 HybridNodeServiceName::Gateway => 2,
@@ -277,18 +284,13 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Mempool => 1,
                 HybridNodeServiceName::SierraCompiler => 2,
             },
-            _ => unimplemented!(),
+            Environment::LocalK8s => 1,
         }
     }
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool {
         match environment {
-            Environment::Testing => false,
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
+            Environment::CloudK8s(_) => match self {
                 HybridNodeServiceName::Core => true,
                 HybridNodeServiceName::HttpServer => false,
                 HybridNodeServiceName::Gateway => false,
@@ -296,7 +298,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Mempool => true,
                 HybridNodeServiceName::SierraCompiler => false,
             },
-            _ => unimplemented!(),
+            Environment::LocalK8s => false,
         }
     }
 
