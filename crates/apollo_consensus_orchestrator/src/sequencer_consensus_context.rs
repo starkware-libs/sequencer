@@ -551,8 +551,8 @@ impl ConsensusContext for SequencerConsensusContext {
                     .casm_hash_computation_data_sierra_gas,
                 casm_hash_computation_data_proving_gas: central_objects
                     .casm_hash_computation_data_proving_gas,
-                // TODO(AvivG): add `compiled_class_hashes_for_migration` to `central_objects`.
-                compiled_class_hashes_for_migration: HashMap::new(),
+                compiled_class_hashes_for_migration: central_objects
+                    .compiled_class_hashes_for_migration,
                 fee_market_info: FeeMarketInfo {
                     l2_gas_consumed: l2_gas_used,
                     next_l2_gas_price: self.l2_gas_price,
