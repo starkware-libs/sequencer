@@ -124,7 +124,13 @@ fn validate_config_failure() {
         },
         ..SequencerNodeConfig::default()
     };
-    config.validate().unwrap_err();
+    let error = config.validate().unwrap_err();
+
+    assert!(
+        error.to_string().contains("L1 handler cooldown validation failed."),
+        "Unexpected error: \n{}",
+        error
+    );
 }
 
 #[rstest]
