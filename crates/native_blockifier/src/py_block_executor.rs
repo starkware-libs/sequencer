@@ -55,6 +55,7 @@ type FinalizeResult = (
     Py<PyBytes>,
     PyCasmHashComputationData,
     PyCasmHashComputationData,
+    PyCompiledClassHashesMapping,
 );
 
 #[cfg(test)]
@@ -233,6 +234,7 @@ impl PyBlockExecutor {
         let py_casm_hash_computation_data_sierra_gas = casm_hash_computation_data_sierra_gas.into();
         let py_casm_hash_computation_data_proving_gas =
             casm_hash_computation_data_proving_gas.into();
+        let py_compiled_class_hashes_to_migrate = compiled_class_hashes_to_migrate.into();
 
         let serialized_block_weights =
             serde_json::to_vec(&bouncer_weights).expect("Failed serializing bouncer weights.");
@@ -247,6 +249,7 @@ impl PyBlockExecutor {
             raw_block_weights,
             py_casm_hash_computation_data_sierra_gas,
             py_casm_hash_computation_data_proving_gas,
+            py_compiled_class_hashes_to_migrate,
         ))
     }
 
