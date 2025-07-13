@@ -48,16 +48,17 @@ pub type VmUtilsResult<T> = Result<T, VmUtilsError>;
 
 pub(crate) trait LoadCairoObject<IG: IdentifierGetter> {
     /// Inserts the cairo 0 representation of `self` into the VM at the given address.
+    /// Returns the next address after the inserted object.
     fn load_into(
         &self,
         vm: &mut VirtualMachine,
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()>;
+    ) -> VmUtilsResult<Relocatable>;
 }
 
-pub(crate) trait CairoSized<IG: IdentifierGetter>: LoadCairoObject<IG> {
+pub(crate) trait CairoSized<IG: IdentifierGetter> {
     fn cairo_struct() -> CairoStruct;
 
     /// Returns the size of the cairo object.
@@ -225,20 +226,19 @@ pub(crate) fn insert_values_to_fields<IG: IdentifierGetter>(
     Ok(())
 }
 
-impl<IG: IdentifierGetter, T: LoadCairoObject<IG> + CairoSized<IG>> LoadCairoObject<IG> for Vec<T> {
+impl<IG: IdentifierGetter, T: LoadCairoObject<IG>> LoadCairoObject<IG> for Vec<T> {
     fn load_into(
         &self,
         vm: &mut VirtualMachine,
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()> {
+    ) -> VmUtilsResult<Relocatable> {
         let mut next_address = address;
         for t in self.iter() {
-            t.load_into(vm, identifier_getter, next_address, constants)?;
-            next_address += T::size(identifier_getter)?;
+            next_address = t.load_into(vm, identifier_getter, next_address, constants)?;
         }
-        Ok(())
+        Ok(next_address)
     }
 }
 

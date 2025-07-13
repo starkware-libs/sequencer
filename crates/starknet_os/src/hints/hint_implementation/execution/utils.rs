@@ -36,6 +36,7 @@ use crate::vm_utils::{
     VmUtilsResult,
 };
 
+/// Corresponds to the ResourceBounds struct in Cairo.
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for ResourceAsFelts {
     fn load_into(
         &self,
@@ -43,7 +44,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ResourceAsFelts {
         identifier_getter: &IG,
         address: Relocatable,
         _constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()> {
+    ) -> VmUtilsResult<Relocatable> {
         let resource_bounds_list = vec![
             ("resource", self.resource_name.into()),
             ("max_amount", self.max_amount.into()),
@@ -55,7 +56,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ResourceAsFelts {
             vm,
             &resource_bounds_list,
             identifier_getter,
-        )
+        )?;
+        Ok((address + Self::size(identifier_getter)?)?)
     }
 }
 
@@ -65,6 +67,7 @@ impl<IG: IdentifierGetter> CairoSized<IG> for ResourceAsFelts {
     }
 }
 
+/// Corresponds to the ResourceBounds struct in Cairo.
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for ValidResourceBounds {
     fn load_into(
         &self,
@@ -72,10 +75,17 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ValidResourceBounds {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()> {
+    ) -> VmUtilsResult<Relocatable> {
         valid_resource_bounds_as_felts(self, false)
             .map_err(VmUtilsError::ResourceBoundsParsing)?
-            .load_into(vm, identifier_getter, address, constants)
+            .load_into(vm, identifier_getter, address, constants)?;
+        Ok((address + Self::size(identifier_getter)?)?)
+    }
+}
+
+impl<IG: IdentifierGetter> CairoSized<IG> for ValidResourceBounds {
+    fn cairo_struct() -> CairoStruct {
+        CairoStruct::ResourceBounds
     }
 }
 
