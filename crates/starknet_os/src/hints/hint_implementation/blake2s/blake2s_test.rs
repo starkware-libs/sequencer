@@ -19,8 +19,6 @@ use crate::test_utils::cairo_runner::{
 };
 
 /// Helper function to compile the blake_compiled_class_hash.cairo file.
-/// This compiles the specific Cairo file containing the
-/// encode_felt252_data_and_calc_224_bit_blake_hash function.
 fn compile_blake_hash_program() -> Vec<u8> {
     // Get the path to the cairo source files
     let cairo_root_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -45,6 +43,7 @@ fn compile_blake_hash_program() -> Vec<u8> {
 /// Test that compares Cairo and Rust implementations of
 /// encode_felt252_data_and_calc_blake_hash.
 #[rstest]
+#[case::empty(vec![])]
 #[case::boundary_under_2_63(vec![Felt::from((1u64 << 63) - 1)])]
 #[case::boundary_at_2_63(vec![Felt::from(1u64 << 63)])]
 #[case::very_large_felt(vec![Felt::from_hex("0x800000000000011000000000000000000000000000000000000000000000000").unwrap()])]
@@ -98,12 +97,12 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
             match &explicit_return_values[0] {
                 EndpointArg::Value(ValueArg::Single(cairo_hash)) => {
                     if let MaybeRelocatable::Int(cairo_hash_felt) = cairo_hash {
-                        println!("Rust hash: {}, Cairo hash: {}", rust_hash, cairo_hash_felt);
                         assert_eq!(
                             rust_hash, *cairo_hash_felt,
                             "Blake2s hash mismatch: Rust={}, Cairo={}",
                             rust_hash, cairo_hash_felt
                         );
+                        println!("{}", format!("Blake2s hash mismatch: Rust={}, Cairo={}", rust_hash, cairo_hash_felt));
                     } else {
                         panic!("Expected an integer value, got a relocatable");
                     }
@@ -115,6 +114,4 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
             panic!("Failed to run Cairo blake2s function: {:?}", e);
         }
     }
-
-    println!("✅ Test case passed! Cairo and Rust Blake2s implementations match.");
 }
