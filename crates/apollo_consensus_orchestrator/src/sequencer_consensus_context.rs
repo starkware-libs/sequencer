@@ -55,7 +55,6 @@ use starknet_api::block::{
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::SequencerContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::TransactionHash;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
@@ -466,9 +465,13 @@ impl ConsensusContext for SequencerConsensusContext {
             .filter(|tx| central_objects.execution_infos.contains_key(&tx.tx_hash()))
             .collect();
 
-        let gas_target = GasAmount(VersionedConstants::latest_constants().max_block_size.0 / 2);
-        self.l2_gas_price =
-            calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
+        let gas_target = VersionedConstants::latest_constants().gas_target;
+        if self.config.constant_l2_gas_price {
+            self.l2_gas_price = VersionedConstants::latest_constants().min_gas_price;
+        } else {
+            self.l2_gas_price =
+                calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
+        }
 
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
