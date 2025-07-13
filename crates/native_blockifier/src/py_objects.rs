@@ -17,7 +17,7 @@ use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANN
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::execution_resources::{Builtin, GasAmount};
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
@@ -309,6 +309,25 @@ impl From<PyContractClassManagerConfig> for ContractClassManagerConfig {
                 .cairo_native_run_config
                 .into(),
             native_compiler_config: py_contract_class_manager_config.native_compiler_config.into(),
+        }
+    }
+}
+
+// Python wrapper for compiled class hashes mapping.
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct PyCompiledClassHashesMapping {
+    #[pyo3(get)]
+    pub mapping: HashMap<PyFelt, PyFelt>,
+}
+
+impl From<HashMap<CompiledClassHash, CompiledClassHash>> for PyCompiledClassHashesMapping {
+    fn from(mapping: HashMap<CompiledClassHash, CompiledClassHash>) -> Self {
+        Self {
+            mapping: mapping
+                .into_iter()
+                .map(|(v2_hash, v1_hash)| (PyFelt::from(v2_hash), PyFelt::from(v1_hash)))
+                .collect(),
         }
     }
 }
