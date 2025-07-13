@@ -6,7 +6,10 @@ use rstest::rstest;
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::class_hash::hinted_class_hash::compute_cairo_hinted_class_hash;
+use crate::hints::class_hash::hinted_class_hash::{
+    add_backward_compatibility_space,
+    compute_cairo_hinted_class_hash,
+};
 
 #[track_caller]
 fn hinted_hash_from_file(file_path: &str) -> Felt {
@@ -43,4 +46,22 @@ fn test_hinted_hash_equivalence(#[case] contract_0: &str, #[case] contract_1: &s
         current_dir().unwrap().join(format!("resources/{contract_1}")).to_str().unwrap(),
     );
     assert_eq!(hash_0, hash_1, "{contract_0} and {contract_1} hinted hashes do not match.");
+}
+
+#[rstest]
+#[case::basic("\"cairo_type\": \"(a: felt)\"", "\"cairo_type\": \"(a : felt)\"")]
+#[case::basic_ptr("\"cairo_type\": \"(a: felt*)\"", "\"cairo_type\": \"(a : felt*)\"")]
+#[case::two_tuple(
+    "\"cairo_type\": \"(a: felt, b: felt)\"",
+    "\"cairo_type\": \"(a : felt, b : felt)\""
+)]
+#[case::nested_tuple(
+    "\"cairo_type\": \"(a: felt, b: (felt, felt), c: felt)\"",
+    "\"cairo_type\": \"(a : felt, b : (felt, felt), c : felt)\""
+)]
+#[case::empty_tuple("\"cairo_type\": \"()\"", "\"cairo_type\": \"()\"")]
+fn test_add_backward_compatibility_space(#[case] input: &str, #[case] expected_result: &str) {
+    let mut input = input.to_string();
+    add_backward_compatibility_space(&mut input);
+    assert_eq!(input, expected_result, "The result does not match the expected result");
 }
