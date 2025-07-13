@@ -23,6 +23,7 @@ use crate::vm_utils::{
 #[path = "utils_test.rs"]
 pub mod utils_test;
 
+/// Corresponds to the CompiledClassEntryPoint struct in Cairo.
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractEntryPoint {
     fn load_into(
         &self,
@@ -30,7 +31,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractEntryPoint {
         identifier_getter: &IG,
         address: Relocatable,
         _constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()> {
+    ) -> VmUtilsResult<Relocatable> {
         // Allocate a segment for the builtin list.
         let builtin_list_base = vm.add_memory_segment();
         let mut next_builtin_address = builtin_list_base;
@@ -55,7 +56,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractEntryPoint {
             identifier_getter,
         )?;
 
-        Ok(())
+        Ok((address + Self::size(identifier_getter)?)?)
     }
 }
 
@@ -65,6 +66,7 @@ impl<IG: IdentifierGetter> CairoSized<IG> for CasmContractEntryPoint {
     }
 }
 
+/// Corresponds to the CompiledClass struct in Cairo.
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractClass {
     fn load_into(
         &self,
@@ -72,7 +74,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractClass {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()> {
+    ) -> VmUtilsResult<Relocatable> {
         // Insert compiled class version field.
         let compiled_class_version = Const::CompiledClassVersion.fetch(constants)?;
 
@@ -129,7 +131,13 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CasmContractClass {
             identifier_getter,
         )?;
 
-        Ok(())
+        Ok((address + Self::size(identifier_getter)?)?)
+    }
+}
+
+impl<IG: IdentifierGetter> CairoSized<IG> for CasmContractClass {
+    fn cairo_struct() -> CairoStruct {
+        CairoStruct::CompiledClass
     }
 }
 
@@ -145,7 +153,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CompiledClassFact<'_> {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()> {
+    ) -> VmUtilsResult<Relocatable> {
         let compiled_class_address = vm.add_memory_segment();
         self.compiled_class.load_into(vm, identifier_getter, compiled_class_address, constants)?;
         let nested_fields_and_value =
@@ -156,7 +164,8 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CompiledClassFact<'_> {
             vm,
             &nested_fields_and_value,
             identifier_getter,
-        )
+        )?;
+        Ok((address + Self::size(identifier_getter)?)?)
     }
 }
 
