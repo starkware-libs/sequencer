@@ -4,7 +4,7 @@
 //! * Custom config files, separated by ',' (comma), from last to first.
 //! * Default config file.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs::File;
 use std::ops::IndexMut;
 use std::path::PathBuf;
@@ -17,6 +17,7 @@ use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use tracing::{info, instrument};
 
+use crate::dumping::ConfigPointers;
 use crate::validators::validate_path_exists;
 use crate::{
     command,
