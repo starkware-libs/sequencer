@@ -141,6 +141,7 @@ use super::{
     CentralTransaction,
     CentralTransactionWritten,
 };
+use crate::cende::central_objects::CentralCasmContractClass;
 use crate::cende::{AerospikeBlob, BlobParameters};
 
 // TODO(yael, dvir): add default object serialization tests.
