@@ -8,6 +8,7 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::core::ContractAddress;
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
+use strum_macros::EnumIter;
 
 use crate::hints::error::OsHintError;
 
@@ -278,7 +279,7 @@ impl Ids {
 }
 
 define_string_enum! {
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy, Debug, EnumIter)]
     pub enum Const {
         (AliasContractAddress, "starkware.starknet.core.os.constants.ALIAS_CONTRACT_ADDRESS"),
         (
