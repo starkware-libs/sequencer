@@ -49,11 +49,11 @@ const MESSAGE_TO_L2_CONST_FIELD_SIZE: usize = 5;
 pub enum OsOutputError {
     #[error("Missing expected field: {0}.")]
     MissingFieldInOutput(String),
-    #[error("Invalid output in field: {0}. Error: {1}")]
-    InvalidOsOutputField(String, String),
+    #[error("Invalid output in field: {0}. Val: {1}. Error: {2}")]
+    InvalidOsOutputField(String, Felt, String),
 }
 
-fn wrap_missing(val: Option<Felt>, val_name: &str) -> Result<Felt, OsOutputError> {
+pub(crate) fn wrap_missing<T>(val: Option<T>, val_name: &str) -> Result<T, OsOutputError> {
     val.ok_or_else(|| OsOutputError::MissingFieldInOutput(val_name.to_string()))
 }
 
@@ -62,43 +62,45 @@ where
     <T as TryFrom<Felt>>::Error: std::fmt::Display,
 {
     val.try_into().map_err(|e: <T as TryFrom<Felt>>::Error| {
-        OsOutputError::InvalidOsOutputField(val_name.to_string(), e.to_string())
+        OsOutputError::InvalidOsOutputField(val_name.to_string(), val, e.to_string())
     })
 }
 
-fn wrap_missing_as<T: TryFrom<Felt>>(val: Option<Felt>, val_name: &str) -> Result<T, OsOutputError>
+pub(crate) fn wrap_missing_as<T: TryFrom<Felt>>(
+    val: Option<Felt>,
+    val_name: &str,
+) -> Result<T, OsOutputError>
 where
     <T as TryFrom<Felt>>::Error: std::fmt::Display,
 {
     try_into_custom_error(wrap_missing(val, val_name)?, val_name)
 }
 
-fn felt_as_bool(felt_val: Felt, val_name: &str) -> Result<bool, OsOutputError> {
+pub(crate) fn felt_as_bool(felt_val: Felt, val_name: &str) -> Result<bool, OsOutputError> {
     if felt_val == Felt::ZERO || felt_val == Felt::ONE {
         return Ok(felt_val == Felt::ONE);
     }
     Err(OsOutputError::InvalidOsOutputField(
         val_name.to_string(),
-        format!("Expected a bool felt, got {felt_val}"),
+        felt_val,
+        format!("Expected a bool felt"),
     ))
 }
-fn wrap_missing_as_bool(val: Option<Felt>, val_name: &str) -> Result<bool, OsOutputError> {
+
+pub(crate) fn wrap_missing_as_bool(
+    val: Option<Felt>,
+    val_name: &str,
+) -> Result<bool, OsOutputError> {
     let felt_val = wrap_missing(val, val_name)?;
-    if felt_val == Felt::ZERO || felt_val == Felt::ONE {
-        return Ok(felt_val == Felt::ONE);
-    }
-    Err(OsOutputError::InvalidOsOutputField(
-        val_name.to_string(),
-        format!("Expected a bool felt, got {felt_val}"),
-    ))
+    felt_as_bool(felt_val, val_name)
 }
 
 pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
     iter: &mut It,
 ) -> Result<MessageToL1, OsOutputError> {
-    let from_address = wrap_missing_as(iter.next(), "from_address")?;
-    let to_address = wrap_missing_as(iter.next(), "to_address")?;
-    let payload_size = wrap_missing_as(iter.next(), "payload_size")?;
+    let from_address = wrap_missing_as(iter.next(), "MessageToL1::from_address")?;
+    let to_address = wrap_missing_as(iter.next(), "MessageToL1::to_address")?;
+    let payload_size = wrap_missing_as(iter.next(), "MessageToL1::payload_size")?;
     let payload = L2ToL1Payload(iter.take(payload_size).collect());
 
     Ok(MessageToL1 { from_address, to_address, payload })
@@ -122,11 +124,11 @@ impl MessageToL2 {
     pub fn from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
-        let from_address = wrap_missing_as(iter.next(), "from_address")?;
-        let to_address = wrap_missing_as(iter.next(), "to_address")?;
-        let nonce = Nonce(wrap_missing(iter.next(), "nonce")?);
-        let selector = EntryPointSelector(wrap_missing(iter.next(), "selector")?);
-        let payload_size = wrap_missing_as(iter.next(), "payload_size")?;
+        let from_address = wrap_missing_as(iter.next(), "MessageToL2::from_address")?;
+        let to_address = wrap_missing_as(iter.next(), "MessageToL2::to_address")?;
+        let nonce = Nonce(wrap_missing(iter.next(), "MessageToL2::nonce")?);
+        let selector = EntryPointSelector(wrap_missing(iter.next(), "MessageToL2::selector")?);
+        let payload_size = wrap_missing_as(iter.next(), "MessageToL2::payload_size")?;
         let payload = L1ToL2Payload(iter.take(payload_size).collect());
 
         Ok(Self { from_address, to_address, nonce, selector, payload })
