@@ -21,6 +21,7 @@ use central_objects::{
     CentralBouncerWeights,
     CentralCasmContractClassEntry,
     CentralCasmHashComputationData,
+    CentralCompiledClassHashesForMigration,
     CentralCompressedStateDiff,
     CentralFeeMarketInfo,
     CentralSierraContractClassEntry,
@@ -34,7 +35,7 @@ use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
@@ -79,6 +80,7 @@ pub(crate) struct AerospikeBlob {
     compiled_classes: Vec<CentralCasmContractClassEntry>,
     casm_hash_computation_data_sierra_gas: CentralCasmHashComputationData,
     casm_hash_computation_data_proving_gas: CentralCasmHashComputationData,
+    compiled_class_hashes_for_migration: CentralCompiledClassHashesForMigration,
 }
 
 #[cfg_attr(test, automock)]
@@ -341,7 +343,8 @@ impl AerospikeBlob {
                 .casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas: blob_parameters
                 .casm_hash_computation_data_proving_gas,
-            // TODO(AvivG): add `compiled_class_hashes_for_migration` to `AerospikeBlob`.
+            compiled_class_hashes_for_migration: blob_parameters
+                .compiled_class_hashes_for_migration,
         })
     }
 }

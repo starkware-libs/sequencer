@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use apollo_class_manager_types::SharedClassManagerClient;
+use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
@@ -63,6 +64,7 @@ pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
 pub(crate) type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
 pub(crate) type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
 pub(crate) type CentralCasmHashComputationData = CasmHashComputationData;
+pub(crate) type CentralCompiledClassHashesForMigration = CompiledClassHashesForMigration;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 struct CentralResourcePrice {
