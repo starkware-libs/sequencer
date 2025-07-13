@@ -54,14 +54,14 @@ pub struct CairoContractDefinition<'a> {
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct AttributeScope {
-    pub name: String,
-    pub value: String,
-    pub start_pc: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty", default)]
+    pub accessible_scopes: Vec<serde_json::Value>,
     pub end_pc: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flow_tracking_data: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Vec::is_empty", default)]
-    pub accessible_scopes: Vec<serde_json::Value>,
+    pub name: String,
+    pub start_pc: usize,
+    pub value: String,
 }
 
 // It's important that this is ordered alphabetically because the fields need to be in sorted order
