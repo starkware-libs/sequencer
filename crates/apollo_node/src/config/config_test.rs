@@ -7,6 +7,7 @@ use apollo_infra::component_server::LocalServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
+use assert_matches::assert_matches;
 use rstest::rstest;
 use validator::Validate;
 
@@ -124,7 +125,11 @@ fn validate_config_failure() {
         },
         ..SequencerNodeConfig::default()
     };
-    config.validate().unwrap_err();
+
+    assert_matches!(
+        config.validate(),
+        Err(e) if e.to_string().contains("L1 handler cooldown validation failed.")
+    );
 }
 
 #[rstest]
