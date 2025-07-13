@@ -13,11 +13,17 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::core::ChainId;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
+use crate::l1_scraper::L1_BLOCK_TIME;
 use crate::transaction_manager::TransactionManagerConfig;
 
+#[cfg(test)]
+#[path = "config_test.rs"]
+pub mod config_test;
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "validate_cooldown"))]
 pub struct L1MessageProviderConfig {
     pub l1_provider_config: L1ProviderConfig,
     pub l1_scraper_config: L1ScraperConfig,
@@ -169,5 +175,33 @@ impl SerializeConfig for L1ScraperConfig {
                 ParamPrivacyInput::Public,
             ),
         ])
+    }
+}
+
+pub fn validate_cooldown(config: &L1MessageProviderConfig) -> Result<(), ValidationError> {
+    let message_to_scrape_time_diff_lowerbound =
+        Duration::from_secs(L1_BLOCK_TIME * config.l1_scraper_config.finality)
+            + config.l1_scraper_config.polling_interval_seconds;
+    if message_to_scrape_time_diff_lowerbound
+        <= config.l1_provider_config.new_l1_handler_cooldown_seconds
+    {
+        Ok(())
+    } else {
+        let mut error = ValidationError::new("L1 handler cooldown validation failed.");
+        error.message = Some(
+            format!(
+                "L1 provider's new L1 handler cooldown must be greater than the lower bound on \
+                 the time between when a transaction is accepted on L1 and when it is scraped. \
+                 Otherwise, the cooldown might not be effective: a transaction could be provided \
+                 to the proposer before it is scraped by a validator.\nRelevant parameters:\n- L1 \
+                 scraper finality: {}.\n- L1 scraper polling interval (seconds): {}.\n- L1 \
+                 provider's new L1 handler cooldown (seconds): {}.",
+                config.l1_scraper_config.finality,
+                config.l1_scraper_config.polling_interval_seconds.as_secs(),
+                config.l1_provider_config.new_l1_handler_cooldown_seconds.as_secs()
+            )
+            .into(),
+        );
+        Err(error)
     }
 }
