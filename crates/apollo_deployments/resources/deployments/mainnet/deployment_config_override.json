@@ -1,0 +1,13 @@
+{
+  "base_layer_config.starknet_contract_address": "0xdeadbeef",
+  "chain_id": "SN_PLACEHOLDER",
+  "consensus_manager_config.context_config.num_validators": 3,
+  "eth_fee_token_address": "0xdeadbeef",
+  "l1_provider_config.provider_startup_height_override": 0,
+  "l1_provider_config.provider_startup_height_override.#is_none": true,
+  "starknet_url": "https://feeder.placeholder.starknet.io/",
+  "state_sync_config.central_sync_client_config.#is_none": false,
+  "state_sync_config.network_config.#is_none": true,
+  "state_sync_config.p2p_sync_client_config.#is_none": true,
+  "strk_fee_token_address": "0xdeadbeef"
+}
