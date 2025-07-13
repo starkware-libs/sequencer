@@ -11,6 +11,7 @@ use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier::test_utils::maybe_dummy_block_hash_and_number;
+use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction;
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
@@ -21,6 +22,7 @@ use starknet_committer::block_committer::input::{
     StateDiff,
 };
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+use starknet_os::io::os_input::StarknetOsInput;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
@@ -134,4 +136,20 @@ pub(crate) async fn flow_test_body(initial_state: InitialState, txs: &[Transacti
     filled_forest.write_to_storage(&mut map_storage);
     let _new_contracts_trie_root_hash = filled_forest.get_contract_root_hash();
     let _new_classes_trie_root_hash = filled_forest.get_compiled_class_root_hash();
+
+    // Prepare the OS input.
+}
+
+#[allow(dead_code, clippy::too_many_arguments, unused_variables)]
+pub(crate) fn create_os_input(
+    previous_contract_trie_root: HashOutput,
+    new_contract_trie_root: HashOutput,
+    previous_class_trie_root: HashOutput,
+    new_class_trie_root: HashOutput,
+    fact_storage: &HashMap<DbKey, DbValue>,
+    current_state: CachedState<DictStateReader>,
+    txs: &[Transaction],
+    tx_execution_infos: Vec<TransactionExecutionInfo>,
+) -> StarknetOsInput {
+    todo!()
 }
