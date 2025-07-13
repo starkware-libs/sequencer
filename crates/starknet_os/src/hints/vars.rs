@@ -278,6 +278,7 @@ impl Ids {
 }
 
 define_string_enum! {
+    #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
     #[derive(Clone, Copy, Debug)]
     pub enum Const {
         (AliasContractAddress, "starkware.starknet.core.os.constants.ALIAS_CONTRACT_ADDRESS"),
