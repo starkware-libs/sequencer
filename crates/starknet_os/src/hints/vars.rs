@@ -356,7 +356,7 @@ impl Const {
 }
 
 define_string_enum! {
-    #[derive(Copy, Clone)]
+    #[derive(Copy, Clone, EnumIter)]
     pub enum CairoStruct {
         (BigInt3, "starkware.starknet.core.os.data_availability.bls_field.BigInt3"),
         (BlockInfo, "starkware.starknet.common.new_syscalls.BlockInfo"),
