@@ -688,18 +688,21 @@ fn test_commit_block_includes_all_proposed_txs() {
 // Fee escalation tests.
 
 #[rstest]
-#[case::pool(false, false)]
-#[case::pool_and_priority_queue(true, false)]
-#[case::pool_and_pending_queue(false, true)]
+#[case::pool(false, false, false)]
+#[case::pool_and_priority_queue(true, false, false)]
+#[case::pool_and_pending_queue(false, true, false)]
+#[case::pool_and_pending_queue_escelated_to_priority(false, true, true)]
 fn test_fee_escalation_valid_replacement(
     #[case] in_priority_queue: bool,
     #[case] in_pending_queue: bool,
+    #[case] escalate_to_priority: bool,
 ) {
     let increased_values = [
         99,  // Exactly increase percentage.
         100, // More than increase percentage,
         180, // More than 100% increase, to check percentage calculation.
     ];
+
     for increased_value in increased_values {
         // Setup.
         let tx = tx!(tx_hash: 0, tip: 90, max_l2_gas_price: 90);
@@ -708,19 +711,27 @@ fn test_fee_escalation_valid_replacement(
             .with_fee_escalation_percentage(10);
 
         if in_pending_queue {
-            builder = builder.with_gas_price_threshold(1000);
+            // An arbitrary threashold such that the added transaction enters the appropriate queue.
+            let gas_price_threshold = if escalate_to_priority { 91 } else { 1000 };
+            builder = builder.with_gas_price_threshold(gas_price_threshold);
         }
 
         let mempool = builder.with_pool([tx]).build_full_mempool();
 
-        let valid_replacement_input = add_tx_input!(tx_hash: 1, tip: increased_value, max_l2_gas_price: u128::from(increased_value));
+        let valid_replacement_input = add_tx_input!(
+            tx_hash: 1,
+            tip: increased_value,
+            max_l2_gas_price: u128::from(increased_value)
+        );
 
         // Test and assert.
+        let expected_in_priority_queue = in_priority_queue || escalate_to_priority;
+        let expected_in_pending_queue = in_pending_queue && !escalate_to_priority;
         add_tx_and_verify_replacement(
             mempool,
             valid_replacement_input,
-            in_priority_queue,
-            in_pending_queue,
+            expected_in_priority_queue,
+            expected_in_pending_queue,
         );
     }
 }
@@ -740,7 +751,9 @@ fn test_fee_escalation_invalid_replacement(
         .with_fee_escalation_percentage(10);
 
     if in_pending_queue {
-        builder = builder.with_gas_price_threshold(1000);
+        // The threshold is so that the existing transaction is in pending queue but the input
+        // transaction would have entered the priority queue.
+        builder = builder.with_gas_price_threshold(101);
     }
 
     let mempool = builder.with_pool([existing_tx.clone()]).build_full_mempool();
