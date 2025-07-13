@@ -304,6 +304,7 @@ impl BlockBuilder {
             bouncer_weights,
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
+            compiled_class_hashes_for_migration: _,
         } = block_summary;
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {

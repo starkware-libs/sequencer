@@ -6,6 +6,7 @@ use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
 use starknet_api::block::BlockHashAndNumber;
+use starknet_api::core::CompiledClassHash;
 use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;
@@ -47,6 +48,8 @@ pub enum TransactionExecutorError {
 impl LogCompatibleToStringExt for TransactionExecutorError {}
 
 pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
+pub type CompiledClassHashV2ToV1 = (CompiledClassHash, CompiledClassHash);
+pub type CompiledClassHashesForMigration = Vec<CompiledClassHashV2ToV1>;
 
 #[cfg_attr(test, derive(PartialEq))]
 #[derive(Debug)]
@@ -56,6 +59,7 @@ pub struct BlockExecutionSummary {
     pub bouncer_weights: BouncerWeights,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
+    pub compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
 }
 
 /// A transaction executor, used for building a single block.
@@ -270,6 +274,8 @@ pub(crate) fn finalize_block<S: StateReader>(
         bouncer_weights: *bouncer.get_accumulated_weights(),
         casm_hash_computation_data_sierra_gas,
         casm_hash_computation_data_proving_gas,
+        // TODO(Meshi): derive from bouncer once migration is supported.
+        compiled_class_hashes_for_migration: vec![],
     })
 }
 
