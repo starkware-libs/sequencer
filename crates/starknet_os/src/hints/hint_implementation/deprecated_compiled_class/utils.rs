@@ -18,6 +18,13 @@ use crate::vm_utils::{
     VmUtilsResult,
 };
 
+impl<IG: IdentifierGetter> CairoSized<IG> for ContractClass {
+    fn cairo_struct() -> CairoStruct {
+        CairoStruct::DeprecatedCompiledClass
+    }
+}
+
+/// Corresponds to the DeprecatedCompiledClass struct in Cairo.
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
     fn load_into(
         &self,
@@ -25,7 +32,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()> {
+    ) -> VmUtilsResult<Relocatable> {
         // Insert compiled class version field.
         let compiled_class_version = Const::DeprecatedCompiledClassVersion.fetch(constants)?;
 
@@ -99,7 +106,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
             identifier_getter,
         )?;
 
-        Ok(())
+        Ok((address + Self::size(identifier_getter)?)?)
     }
 }
 
@@ -122,6 +129,7 @@ fn insert_entry_points<IG: IdentifierGetter>(
     Ok((list_base, n_entry_points))
 }
 
+/// Corresponds to the DeprecatedContractEntryPoint struct in Cairo.
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV0 {
     fn load_into(
         &self,
@@ -129,7 +137,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV0 {
         identifier_getter: &IG,
         address: Relocatable,
         _constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()> {
+    ) -> VmUtilsResult<Relocatable> {
         // Insert the fields.
         let nested_fields_and_value =
             [("selector", self.selector.0.into()), ("offset", self.offset.0.into())];
@@ -141,7 +149,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV0 {
             identifier_getter,
         )?;
 
-        Ok(())
+        Ok((address + Self::size(identifier_getter)?)?)
     }
 }
 

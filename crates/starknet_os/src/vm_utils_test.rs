@@ -2,11 +2,14 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use apollo_starknet_os_program::OS_PROGRAM;
+use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_vm::serde::deserialize_program::Identifier;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use rstest::rstest;
 use serde_json;
+use starknet_api::deprecated_contract_class::{ContractClass, EntryPointV0};
+use starknet_api::transaction::fields::ResourceAsFelts;
 
 use super::{
     fetch_nested_fields_address,
@@ -14,7 +17,9 @@ use super::{
     IdentifierGetter,
     VmUtilsResult,
 };
+use crate::hints::hint_implementation::compiled_class::utils::CompiledClassFact;
 use crate::hints::vars::CairoStruct;
+use crate::vm_utils::CairoSized;
 
 static IDENTIFIERS: LazyLock<HashMap<String, Identifier>> = LazyLock::new(|| {
     OS_PROGRAM
@@ -127,4 +132,15 @@ fn get_address_of_nested_fields_without_ptrs(
 fn size_of_cairo_structs(#[case] expected_size: usize, #[case] cairo_struct: CairoStruct) {
     let size = get_size_of_cairo_struct(cairo_struct, &*IDENTIFIERS).unwrap();
     assert_eq!(size, expected_size)
+}
+
+#[rstest]
+fn test_cairo_sized_structs() {
+    let identifier_getter = &*IDENTIFIERS;
+    assert_eq!(CasmContractEntryPoint::size(identifier_getter).unwrap(), 4);
+    assert_eq!(CasmContractClass::size(identifier_getter).unwrap(), 9);
+    assert_eq!(CompiledClassFact::size(identifier_getter).unwrap(), 2);
+    assert_eq!(ContractClass::size(identifier_getter).unwrap(), 12);
+    assert_eq!(EntryPointV0::size(identifier_getter).unwrap(), 2);
+    assert_eq!(ResourceAsFelts::size(identifier_getter).unwrap(), 3);
 }
