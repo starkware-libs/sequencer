@@ -21,6 +21,7 @@ use central_objects::{
     CentralBouncerWeights,
     CentralCasmContractClassEntry,
     CentralCasmHashComputationData,
+    CentralCompiledClassHashesForMigration,
     CentralCompressedStateDiff,
     CentralFeeMarketInfo,
     CentralSierraContractClassEntry,
@@ -79,6 +80,7 @@ pub(crate) struct AerospikeBlob {
     compiled_classes: Vec<CentralCasmContractClassEntry>,
     casm_hash_computation_data_sierra_gas: CentralCasmHashComputationData,
     casm_hash_computation_data_proving_gas: CentralCasmHashComputationData,
+    compiled_class_hashes_for_migration: CentralCompiledClassHashesForMigration,
 }
 
 #[cfg_attr(test, automock)]
@@ -327,9 +329,6 @@ impl AerospikeBlob {
             .map(CentralTransactionExecutionInfo::from)
             .collect();
 
-        // TODO(AvivG): add `compiled_class_hashes_for_migration` to `AerospikeBlob`.
-        let _ = blob_parameters.compiled_class_hashes_for_migration;
-
         Ok(AerospikeBlob {
             block_number,
             state_diff,
@@ -344,6 +343,8 @@ impl AerospikeBlob {
                 .casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas: blob_parameters
                 .casm_hash_computation_data_proving_gas,
+            compiled_class_hashes_for_migration: blob_parameters
+                .compiled_class_hashes_for_migration,
         })
     }
 }
