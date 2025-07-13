@@ -129,6 +129,7 @@ use starknet_types_core::felt::Felt;
 use super::{
     CentralBouncerWeights,
     CentralCasmHashComputationData,
+    CentralCompiledClassHashesForMigration,
     CentralCompressedStateDiff,
     CentralDeclareTransaction,
     CentralDeployAccountTransaction,
