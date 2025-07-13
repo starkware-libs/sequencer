@@ -25,12 +25,18 @@ const EPOCH_LENGTH: u64 = 100; // Number of heights in an epoch.
 #[path = "committee_manager_test.rs"]
 mod committee_manager_test;
 
+struct CommitteeData {
+    committee_members: Arc<Committee>,
+    _cumulative_weights: Vec<u128>,
+    _total_weight: u128,
+}
+
 // Holds committee data for the highest known epochs, limited in size by `capacity``.
 struct CommitteeDataCache {
     // The maximum number of epochs to cache.
     capacity: usize,
     // A map of epoch to the epoch's data.
-    cache: BTreeMap<u64, Arc<Committee>>,
+    cache: BTreeMap<u64, Arc<CommitteeData>>,
 }
 
 impl CommitteeDataCache {
@@ -38,11 +44,11 @@ impl CommitteeDataCache {
         Self { capacity, cache: BTreeMap::new() }
     }
 
-    pub fn get(&self, epoch: u64) -> Option<&Arc<Committee>> {
+    pub fn get(&self, epoch: u64) -> Option<&Arc<CommitteeData>> {
         self.cache.get(&epoch)
     }
 
-    pub fn insert(&mut self, epoch: u64, data: Arc<Committee>) {
+    pub fn insert(&mut self, epoch: u64, data: Arc<CommitteeData>) {
         self.cache.insert(epoch, data);
         if self.cache.len() > self.capacity {
             self.cache.pop_first();
@@ -114,24 +120,8 @@ impl CommitteeManager {
         epoch: u64,
         execution_context: ExecutionContext<S>,
     ) -> CommitteeManagerResult<Arc<Committee>> {
-        if let Some(committee_data) = self.committee_data_cache.get(epoch) {
-            return Ok(committee_data.clone());
-        }
-
-        let call_info = call_view_entry_point(
-            execution_context.state_reader,
-            execution_context.block_context,
-            self.config.staking_contract_address,
-            GET_STAKERS_ENTRY_POINT,
-            Calldata(vec![Felt::from(epoch)].into()),
-        )?;
-
-        let stakers = Staker::from_retdata_many(call_info.execution.retdata)?;
-
-        let committee = Arc::new(self.select_committee(stakers));
-        self.committee_data_cache.insert(epoch, committee.clone());
-
-        Ok(committee)
+        let committee_data = self.committee_data_at_epoch(epoch, execution_context)?;
+        Ok(committee_data.committee_members.clone())
     }
 
     // Returns the address of the proposer for the specified height and round.
@@ -162,9 +152,70 @@ impl CommitteeManager {
         Ok(proposer.address)
     }
 
+    // Returns the committee data for the given epoch.
+    // If the data is not cached, it is fetched from the state and cached.
+    fn committee_data_at_epoch<S: StateReader>(
+        &mut self,
+        epoch: u64,
+        execution_context: ExecutionContext<S>,
+    ) -> CommitteeManagerResult<Arc<CommitteeData>> {
+        // Attempt to read from cache.
+        if let Some(committee_data) = self.committee_data_cache.get(epoch) {
+            return Ok(committee_data.clone());
+        }
+
+        // Otherwise, build the committee from state, and cache the result.
+        let committee_data =
+            Arc::new(self.fetch_and_build_committee_data(epoch, execution_context)?);
+        self.committee_data_cache.insert(epoch, committee_data.clone());
+
+        Ok(committee_data)
+    }
+
+    // Queries the state to fetch stakers for the given epoch and builds the full committee data.
+    // This includes selecting the committee and preparing cumulative weights for proposer
+    // selection.
+    fn fetch_and_build_committee_data<S: StateReader>(
+        &self,
+        epoch: u64,
+        execution_context: ExecutionContext<S>,
+    ) -> CommitteeManagerResult<CommitteeData> {
+        let call_info = call_view_entry_point(
+            execution_context.state_reader,
+            execution_context.block_context,
+            self.config.staking_contract_address,
+            GET_STAKERS_ENTRY_POINT,
+            Calldata(vec![Felt::from(epoch)].into()),
+        )?;
+
+        let stakers = Staker::from_retdata_many(call_info.execution.retdata)?;
+        let committee_members = self.select_committee(stakers);
+
+        // Prepare the data needed for proposer selection.
+        let cumulative_weights: Vec<u128> = committee_members
+            .iter()
+            .scan(0, |acc, staker| {
+                *acc = u128::checked_add(*acc, staker.weight.0).expect("Total weight overflow.");
+                Some(*acc)
+            })
+            .collect();
+        let total_weight = *cumulative_weights.last().unwrap_or(&0);
+
+        Ok(CommitteeData {
+            committee_members: Arc::new(committee_members),
+            _cumulative_weights: cumulative_weights,
+            _total_weight: total_weight,
+        })
+    }
+
+    // Selects the committee from the provided stakers and ensures a canonical ordering.
     fn select_committee(&self, mut stakers: StakerSet) -> Committee {
+        // Ensure a consistent and deterministic committee ordering.
+        // This is important for proposer selection logic to be deterministic and consistent across
+        // all nodes.
+        stakers.sort_by_key(|staker| (staker.weight, staker.address));
+
         // Take the top `committee_size` stakers by weight.
-        stakers.sort_by_key(|staker| staker.weight);
         stakers.into_iter().rev().take(self.config.committee_size).collect()
     }
 
