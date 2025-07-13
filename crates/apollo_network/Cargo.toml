@@ -6,7 +6,7 @@ repository.workspace = true
 license-file.workspace = true
 
 [features]
-testing = []
+testing = ["mockall"]
 
 [dependencies]
 apollo_config.workspace = true
@@ -14,6 +14,7 @@ apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
+asynchronous-codec.workspace = true
 bytes.workspace = true
 clap = { workspace = true, features = ["derive"] }
 derive_more.workspace = true
@@ -34,6 +35,7 @@ libp2p = { workspace = true, features = [
 ] }
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
+mockall = { workspace = true, optional = true }
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
