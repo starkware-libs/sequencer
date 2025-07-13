@@ -17,7 +17,7 @@ use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANN
 use blockifier::state::global_cache::GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pyo3::prelude::*;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash};
 use starknet_api::execution_resources::{Builtin, GasAmount};
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};

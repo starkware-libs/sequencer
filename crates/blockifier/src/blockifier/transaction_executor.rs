@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::mem;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
@@ -6,6 +7,7 @@ use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
 use starknet_api::block::BlockHashAndNumber;
+use starknet_api::core::CompiledClassHash;
 use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;
@@ -56,6 +58,7 @@ pub struct BlockExecutionSummary {
     pub bouncer_weights: BouncerWeights,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
+    pub compiled_class_hashes_for_migration: HashMap<CompiledClassHash, CompiledClassHash>,
 }
 
 /// A transaction executor, used for building a single block.
@@ -270,6 +273,8 @@ pub(crate) fn finalize_block<S: StateReader>(
         bouncer_weights: *bouncer.get_accumulated_weights(),
         casm_hash_computation_data_sierra_gas,
         casm_hash_computation_data_proving_gas,
+        // TODO(AvivG): derive from bouncer.
+        compiled_class_hashes_for_migration: HashMap::new(),
     })
 }
 

@@ -305,6 +305,7 @@ impl BlockBuilder {
             bouncer_weights,
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
+            compiled_class_hashes_for_migration,
         } = block_summary;
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
@@ -326,7 +327,7 @@ impl BlockBuilder {
             casm_hash_computation_data_proving_gas,
             final_n_executed_txs: final_n_executed_txs_nonopt,
             // TODO(AvivG): derive from `block_summary`
-            compiled_class_hashes_for_migration: HashMap::new(),
+            compiled_class_hashes_for_migration,
         })
     }
 
