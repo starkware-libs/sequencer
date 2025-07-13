@@ -25,9 +25,10 @@ use papyrus_base_layer::constants::{
 };
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::bootstrapper::Bootstrapper;
+use crate::l1_scraper::{L1ScraperConfig, L1_BLOCK_TIME};
 use crate::transaction_manager::TransactionManagerConfig;
 
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
@@ -181,4 +182,33 @@ impl SerializeConfig for L1ProviderConfig {
 
 pub const fn event_identifiers_to_track() -> &'static [EventIdentifier] {
     &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER, MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER]
+}
+
+pub fn validate_cooldown(
+    l1_scraper_config: &L1ScraperConfig,
+    l1_provider_config: &L1ProviderConfig,
+) -> Result<(), ValidationError> {
+    let message_to_scrape_time_diff_upperbound = l1_scraper_config.polling_interval_seconds
+        + Duration::from_secs(L1_BLOCK_TIME * l1_scraper_config.finality);
+    if message_to_scrape_time_diff_upperbound <= l1_provider_config.new_l1_handler_cooldown_seconds
+    {
+        Ok(())
+    } else {
+        let mut error = ValidationError::new("L1 handler cooldown validation failed.");
+        error.message = Some(
+            format!(
+                "L1 provider's new L1 handler cooldown must be greater than the upper bound on \
+                 the time between when a transaction is accepted on L1 and when it is scraped. \
+                 Otherwise, the cooldown might not be effective: a transaction could be provided \
+                 to the proposer before it is scraped by a validator.\nRelevant parameters:\n- L1 \
+                 scraper finality: {}.\n- L1 scraper polling interval (seconds): {}.\n- L1 \
+                 provider's new L1 handler cooldown (seconds): {}.",
+                l1_scraper_config.finality,
+                l1_scraper_config.polling_interval_seconds.as_secs(),
+                l1_provider_config.new_l1_handler_cooldown_seconds.as_secs()
+            )
+            .into(),
+        );
+        Err(error)
+    }
 }
