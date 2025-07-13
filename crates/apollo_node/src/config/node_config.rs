@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::fs::File;
 use std::sync::LazyLock;
+use std::time::Duration;
 use std::vec::Vec;
 
 use apollo_batcher::config::BatcherConfig;
@@ -25,7 +26,7 @@ use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
-use apollo_l1_provider::l1_scraper::L1ScraperConfig;
+use apollo_l1_provider::l1_scraper::{L1ScraperConfig, L1_BLOCK_TIME};
 use apollo_l1_provider::L1ProviderConfig;
 use apollo_mempool::config::MempoolConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
@@ -35,7 +36,7 @@ use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::config::component_config::ComponentConfig;
 use crate::config::monitoring::MonitoringConfig;
@@ -156,6 +157,7 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 
 /// The configurations of the various components of the node.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[validate(schema(function = "validate_l1_handler_cooldown"))]
 pub struct SequencerNodeConfig {
     // Infra related configs.
     #[validate]
@@ -254,4 +256,31 @@ pub(crate) fn node_command() -> Command {
     Command::new("Sequencer")
         .version(VERSION_FULL)
         .about("A Starknet sequencer node written in Rust.")
+}
+
+fn validate_l1_handler_cooldown(config: &SequencerNodeConfig) -> Result<(), ValidationError> {
+    let message_to_scrape_time_diff_upperbound = config.l1_scraper_config.polling_interval_seconds
+        + Duration::from_secs(L1_BLOCK_TIME * config.l1_scraper_config.finality);
+    if message_to_scrape_time_diff_upperbound
+        <= config.l1_provider_config.new_l1_handler_cooldown_seconds
+    {
+        Ok(())
+    } else {
+        let mut error = ValidationError::new("L1 handler cooldown validation failed.");
+        error.message = Some(
+            format!(
+                "L1 provider's new L1 handler cooldown must be greater than the upper bound on \
+                 the time between when a transaction is accepted on L1 and when it is scraped. \
+                 Otherwise, the cooldown might not be effective: a transaction could be provided \
+                 to the proposer before it is scraped by a validator.\nRelevant parameters:\n- L1 \
+                 scraper finality: {}.\n- L1 scraper polling interval (seconds): {}.\n- L1 \
+                 provider's new L1 handler cooldown (seconds): {}.",
+                config.l1_scraper_config.finality,
+                config.l1_scraper_config.polling_interval_seconds.as_secs(),
+                config.l1_provider_config.new_l1_handler_cooldown_seconds.as_secs()
+            )
+            .into(),
+        );
+        Err(error)
+    }
 }
