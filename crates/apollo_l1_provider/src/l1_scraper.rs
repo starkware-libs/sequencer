@@ -272,7 +272,7 @@ impl Default for L1ScraperConfig {
             startup_rewind_time_seconds: Duration::from_secs(0),
             chain_id: ChainId::Mainnet,
             finality: 0,
-            polling_interval_seconds: Duration::from_secs(1),
+            polling_interval_seconds: Duration::from_nanos(1),
         }
     }
 }
@@ -282,7 +282,7 @@ impl SerializeConfig for L1ScraperConfig {
         BTreeMap::from([
             ser_param(
                 "startup_rewind_time_seconds",
-                &self.startup_rewind_time_seconds.as_secs(),
+                &self.startup_rewind_time_seconds.as_secs_f64(),
                 "Duration in seconds to rewind from latest L1 block when starting scraping.",
                 ParamPrivacyInput::Public,
             ),
@@ -294,7 +294,7 @@ impl SerializeConfig for L1ScraperConfig {
             ),
             ser_param(
                 "polling_interval_seconds",
-                &self.polling_interval_seconds.as_secs(),
+                &self.polling_interval_seconds.as_secs_f64(),
                 "Interval in Seconds between each scraping attempt of L1.",
                 ParamPrivacyInput::Public,
             ),
