@@ -1,5 +1,6 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::env;
+use std::fs::File;
 
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
@@ -8,15 +9,18 @@ use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionMode,
     ReactiveComponentExecutionMode,
 };
+use apollo_node::config::config_utils::private_parameters;
 use apollo_node::config::node_config::SequencerNodeConfig;
-use apollo_node::config::test_utils::private_parameters;
-use serde_json::to_value;
+use serde_json::{to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
 use crate::deployment_definitions::DEPLOYMENTS;
 use crate::service::NodeType;
 use crate::test_utils::{SecretsConfigOverride, FIX_BINARY_NAME};
+
+const SECRETS_FOR_TESTING_ENV_PATH: &str =
+    "crates/apollo_deployments/resources/testing_secrets.json";
 
 /// Test that the deployment file is up to date.
 #[test]
@@ -61,6 +65,33 @@ fn load_and_process_service_config_files() {
             // Add the secrets config file path to the config load command.
             service_config_paths.push(temp_file_path.to_string());
 
+            // Check that there are no duplicate entries in the config files. Although the node can
+            // override such values, we keep the deployment files clean by avoiding these.
+
+            let mut key_to_files: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+
+            for path in &service_config_paths {
+                let file = File::open(path).unwrap();
+                let json_map: Map<String, Value> = serde_json::from_reader(file)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+                    .unwrap();
+
+                for key in json_map.keys() {
+                    key_to_files.entry(key.clone()).or_default().insert(path.to_string());
+                }
+            }
+
+            // Report duplicated keys
+            let mut has_duplicates = false;
+            for (key, files) in &key_to_files {
+                if files.len() > 1 {
+                    has_duplicates = true;
+                    println!("Key '{key}' found in files: {files:?}");
+                }
+            }
+            assert!(!has_duplicates, "Found duplicate keys in service config files.");
+
+            // Load the config files into a command line argument format.
             let config_file_args: Vec<String> = service_config_paths
                 .clone()
                 .into_iter()
@@ -95,12 +126,12 @@ fn secrets_config_and_private_parameters_config_schema_compatibility() {
         .unwrap()
         .keys()
         .cloned()
-        .collect::<HashSet<_>>();
+        .collect::<BTreeSet<_>>();
     let secrets_required_by_schema = private_parameters();
 
-    let only_in_config: HashSet<_> =
+    let only_in_config: BTreeSet<_> =
         secrets_provided_by_config.difference(&secrets_required_by_schema).collect();
-    let only_in_schema: HashSet<_> =
+    let only_in_schema: BTreeSet<_> =
         secrets_required_by_schema.difference(&secrets_provided_by_config).collect();
 
     if !(only_in_config.is_empty() && only_in_schema.is_empty()) {
@@ -109,6 +140,30 @@ fn secrets_config_and_private_parameters_config_schema_compatibility() {
              {secrets_provided_by_config:?}\nSecrets required by schema: \
              {secrets_required_by_schema:?}\nOnly in config: {only_in_config:?}\nOnly in schema: \
              {only_in_schema:?}"
+        );
+    }
+
+    let secrets_for_testing_file_path =
+        &resolve_project_relative_path(SECRETS_FOR_TESTING_ENV_PATH).unwrap();
+    let secrets_for_testing: BTreeSet<_> = (serde_json::from_reader::<_, Map<String, _>>(
+        File::open(secrets_for_testing_file_path).unwrap(),
+    )
+    .unwrap())
+    .keys()
+    .cloned()
+    .collect();
+
+    let only_in_secrets_for_testing: BTreeSet<_> =
+        secrets_for_testing.difference(&secrets_required_by_schema).collect();
+    let only_in_schema: BTreeSet<_> =
+        secrets_required_by_schema.difference(&secrets_for_testing).collect();
+
+    if !(only_in_secrets_for_testing.is_empty() && only_in_schema.is_empty()) {
+        panic!(
+            "Secrets for testing and schema mismatch:\nSecrets for testing: \
+             {secrets_provided_by_config:?}\nSecrets required by schema: \
+             {secrets_required_by_schema:?}\nOnly in testing: \
+             {only_in_secrets_for_testing:?}\nOnly in schema: {only_in_schema:?}"
         );
     }
 }

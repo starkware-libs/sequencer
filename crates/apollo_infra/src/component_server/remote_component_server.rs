@@ -12,7 +12,7 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tower::limit::ConcurrencyLimitLayer;
 use tower::ServiceBuilder;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, trace, warn};
 
 use crate::component_client::{ClientError, LocalComponentClient};
 use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
@@ -166,9 +166,9 @@ where
         local_client: LocalComponentClient<Request, Response>,
         metrics: Arc<RemoteServerMetrics>,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
-        debug!("Received HTTP request: {:?}", http_request);
+        trace!("Received HTTP request: {:?}", http_request);
         let body_bytes = to_bytes(http_request.into_body()).await?;
-        debug!("Extracted {} bytes from HTTP request body", body_bytes.len());
+        trace!("Extracted {} bytes from HTTP request body", body_bytes.len());
 
         metrics.increment_total_received();
 
@@ -217,7 +217,7 @@ where
             }
         }
         .expect("Response building should succeed");
-        debug!("Built HTTP response: {:?}", http_response);
+        trace!("Built HTTP response: {:?}", http_response);
 
         Ok(http_response)
     }

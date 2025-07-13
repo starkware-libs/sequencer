@@ -27,7 +27,8 @@
         }
       },
       "external_secret": null,
-      "anti_affinity": false
+      "anti_affinity": false,
+      "ports": {}
     },
     {
       "name": "HttpServer",
@@ -66,7 +67,8 @@
         }
       },
       "external_secret": null,
-      "anti_affinity": false
+      "anti_affinity": false,
+      "ports": {}
     },
     {
       "name": "Gateway",
@@ -94,7 +96,8 @@
         }
       },
       "external_secret": null,
-      "anti_affinity": false
+      "anti_affinity": false,
+      "ports": {}
     },
     {
       "name": "Mempool",
@@ -122,7 +125,8 @@
         }
       },
       "external_secret": null,
-      "anti_affinity": false
+      "anti_affinity": false,
+      "ports": {}
     },
     {
       "name": "SierraCompiler",
@@ -150,7 +154,8 @@
         }
       },
       "external_secret": null,
-      "anti_affinity": false
+      "anti_affinity": false,
+      "ports": {}
     }
   ]
 }
