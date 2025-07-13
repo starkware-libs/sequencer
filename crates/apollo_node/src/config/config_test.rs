@@ -7,8 +7,9 @@ use apollo_infra::component_server::LocalServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file_test;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
+use assert_matches::assert_matches;
 use rstest::rstest;
-use validator::Validate;
+use validator::{Validate, ValidationErrorsKind};
 
 use crate::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
@@ -124,7 +125,24 @@ fn validate_config_failure() {
         },
         ..SequencerNodeConfig::default()
     };
-    config.validate().unwrap_err();
+    let validation_errors = config.validate().unwrap_err();
+    let errors = validation_errors.into_errors();
+    assert_eq!(errors.len(), 1);
+    for (param_path, error) in errors {
+        assert_eq!(param_path, "__all__");
+        let validation_error = assert_matches!(
+            error,
+            ValidationErrorsKind::Field(errors)
+            if errors.len() == 1 => errors.into_iter().next().unwrap()
+        );
+        assert_eq!(validation_error.code, "L1 handler cooldown validation failed.");
+        assert_eq!(
+            validation_error.message.unwrap(),
+            "L1 provider's new L1 handler cooldown must be greater than the L1 scraper polling \
+             interval. Otherwise, the cooldown might not be relevant: a transaction might be \
+             provided to the proposer before it is scraped by a validator."
+        );
+    }
 }
 
 #[rstest]
