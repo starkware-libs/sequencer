@@ -111,13 +111,8 @@ pub(crate) fn get_ingress(ingress_params: IngressParams, internal: bool) -> Opti
 
 pub(crate) fn get_environment_ingress_internal(environment: &Environment) -> bool {
     match environment {
-        Environment::Testing => true,
-        Environment::SepoliaIntegration
-        | Environment::SepoliaTestnet
-        | Environment::UpgradeTest
-        | Environment::TestingEnvThree
-        | Environment::StressTest => false,
-        _ => unimplemented!(),
+        Environment::CloudK8s(_) => false,
+        Environment::LocalK8s => true,
     }
 }
 

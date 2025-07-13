@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter, Result};
 use std::path::PathBuf;
 
 use serde::Serialize;
@@ -10,7 +11,6 @@ use crate::deployment_definitions::stress_test::stress_test_hybrid_deployments;
 use crate::deployment_definitions::testing::system_test_deployments;
 use crate::deployment_definitions::testing_env_3::testing_env_3_hybrid_deployments;
 use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments;
-
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
@@ -38,24 +38,42 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
     sepolia_testnet_hybrid_deployments,
 ];
 
+#[derive(Clone, Debug, PartialEq)]
+pub enum Environment {
+    CloudK8s(CloudK8sEnvironment),
+    LocalK8s,
+}
+
+impl Display for Environment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Environment::CloudK8s(e) => write!(f, "{e}"),
+            Environment::LocalK8s => write!(f, "testing"),
+        }
+    }
+}
+
 #[derive(EnumString, Clone, Display, PartialEq, Debug)]
 #[strum(serialize_all = "snake_case")]
-pub enum Environment {
+pub enum CloudK8sEnvironment {
     Mainnet,
     SepoliaIntegration,
     SepoliaTestnet,
     #[strum(serialize = "stress_test")]
     StressTest,
-    Testing,
-    #[strum(serialize = "upgrade_test")]
-    UpgradeTest,
     #[strum(serialize = "testing_env_3")]
     TestingEnvThree,
+    #[strum(serialize = "upgrade_test")]
+    UpgradeTest,
 }
 
 impl Environment {
-    pub(crate) fn env_dir_path(&self) -> PathBuf {
-        PathBuf::from(CONFIG_BASE_DIR).join(DEPLOYMENT_CONFIG_DIR_NAME).join(self.to_string())
+    pub fn env_dir_path(&self) -> PathBuf {
+        let env_str = match self {
+            Environment::CloudK8s(env) => env.to_string(),
+            Environment::LocalK8s => "testing".to_string(),
+        };
+        PathBuf::from(CONFIG_BASE_DIR).join(DEPLOYMENT_CONFIG_DIR_NAME).join(env_str)
     }
 }
 
