@@ -41,6 +41,7 @@ pub struct L1Provider {
     // and we see how well it handles consuming the L1Provider when moving between states.
     pub state: ProviderState,
     pub clock: Arc<dyn Clock>,
+    pub start_height: BlockNumber,
 }
 
 impl L1Provider {
@@ -50,7 +51,10 @@ impl L1Provider {
         height: BlockNumber,
         state: SessionState,
     ) -> L1ProviderResult<()> {
-        self.validate_height(height)?;
+        if self.validate_height(height)? == HeightValidation::Historical {
+            return Ok(());
+        }
+
         self.state = state.into();
         self.tx_manager.start_block();
         Ok(())
@@ -77,7 +81,9 @@ impl L1Provider {
         n_txs: usize,
         height: BlockNumber,
     ) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
-        self.validate_height(height)?;
+        if self.validate_height(height)? == HeightValidation::Historical {
+            return Ok(vec![]);
+        }
 
         match self.state {
             ProviderState::Propose => {
@@ -108,7 +114,10 @@ impl L1Provider {
         tx_hash: TransactionHash,
         height: BlockNumber,
     ) -> L1ProviderResult<ValidationStatus> {
-        self.validate_height(height)?;
+        if self.validate_height(height)? == HeightValidation::Historical {
+            return Ok(ValidationStatus::Validated);
+        }
+
         match self.state {
             ProviderState::Validate => {
                 Ok(self.tx_manager.validate_tx(tx_hash, self.clock.unix_now()))
@@ -134,7 +143,10 @@ impl L1Provider {
             return self.bootstrap(committed_txs, height);
         }
 
-        self.validate_height(height)?;
+        if self.validate_height(height)? == HeightValidation::Historical {
+            return Ok(());
+        }
+
         self.apply_commit_block(committed_txs, rejected_txs);
 
         self.state = self.state.transition_to_pending();
@@ -207,14 +219,26 @@ impl L1Provider {
         })
     }
 
-    fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<()> {
+    fn validate_height(&mut self, height: BlockNumber) -> L1ProviderResult<HeightValidation> {
+        // Likely re-execution, which ignores L1 handlers, or some weird edge case in the batcher.
+        if height < self.start_height {
+            if height.0 % 100 == 0 {
+                debug!(
+                    "Ignoring query with height {}, it's smaller than start height: {}",
+                    height, self.start_height
+                );
+            }
+            return Ok(HeightValidation::Historical);
+        }
+
         if height != self.current_height {
             return Err(L1ProviderError::UnexpectedHeight {
                 expected_height: self.current_height,
                 got: height,
             });
         }
-        Ok(())
+
+        Ok(HeightValidation::Valid)
     }
 
     fn apply_commit_block(
@@ -239,6 +263,16 @@ impl L1Provider {
         match new_height.cmp(&current_height) {
             // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
             Less => {
+                if new_height < self.start_height {
+                    // Very unlikely to get here, the bootstrapper short-circuits really quickly
+                    // when the catchup_height is smaller than the start_height.
+                    debug!(
+                        "Ignoring commit block with height {}, it's smaller than start height: {}",
+                        new_height, self.start_height
+                    );
+                    return Ok(());
+                }
+
                 let diff_from_already_committed: Vec<_> = committed_txs
                     .iter()
                     .copied()
@@ -407,6 +441,7 @@ impl L1ProviderBuilder {
         );
 
         L1Provider {
+            start_height: l1_provider_startup_height,
             current_height: l1_provider_startup_height,
             tx_manager: TransactionManager::new(
                 self.config.new_l1_handler_cooldown_seconds,
@@ -417,4 +452,10 @@ impl L1ProviderBuilder {
             clock: self.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
         }
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum HeightValidation {
+    Historical,
+    Valid,
 }
