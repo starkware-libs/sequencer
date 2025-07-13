@@ -40,10 +40,10 @@ const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid mo
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
 pub enum HybridNodeServiceName {
-    Core, /* Comprises the batcher, class manager, consensus manager, l1 components, and state
-           * sync. */
+    Core, // Comprises the batcher, class manager, consensus manager, and state sync.
     HttpServer,
     Gateway,
+    L1, // Comprises the various l1 components.
     Mempool,
     SierraCompiler,
 }
@@ -66,6 +66,9 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
         let l1_gas_price_provider = HybridNodeServiceName::Core.component_config_pair(ports[3]);
         let l1_provider = HybridNodeServiceName::Core.component_config_pair(ports[4]);
+        // TODO(Tsabary): l1_endpoint_monitor is only used locally, hence does not require a port
+        // assignment nor a definition in this hierarchy. Instead, instantiate a local variant in
+        // `get_l1_component_config`.
         let l1_endpoint_monitor = HybridNodeServiceName::Core.component_config_pair(ports[5]);
         let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[6]);
         let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
@@ -77,9 +80,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
                 HybridNodeServiceName::Core => get_core_component_config(
                     batcher.local(),
                     class_manager.local(),
-                    l1_gas_price_provider.local(),
-                    l1_provider.local(),
-                    l1_endpoint_monitor.local(),
+                    l1_gas_price_provider.remote(),
+                    l1_provider.remote(),
                     state_sync.local(),
                     mempool.remote(),
                     sierra_compiler.remote(),
@@ -92,6 +94,13 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     gateway.local(),
                     class_manager.remote(),
                     mempool.remote(),
+                    state_sync.remote(),
+                ),
+                HybridNodeServiceName::L1 => get_l1_component_config(
+                    l1_gas_price_provider.local(),
+                    l1_provider.local(),
+                    l1_endpoint_monitor.local(),
+                    batcher.remote(),
                     state_sync.remote(),
                 ),
                 HybridNodeServiceName::Mempool => get_mempool_component_config(
@@ -117,6 +126,7 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::Core => Controller::StatefulSet,
             HybridNodeServiceName::HttpServer => Controller::Deployment,
             HybridNodeServiceName::Gateway => Controller::Deployment,
+            HybridNodeServiceName::L1 => Controller::Deployment,
             HybridNodeServiceName::Mempool => Controller::Deployment,
             HybridNodeServiceName::SierraCompiler => Controller::Deployment,
         }
@@ -127,6 +137,7 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::Core => false,
             HybridNodeServiceName::HttpServer => false,
             HybridNodeServiceName::Gateway => true,
+            HybridNodeServiceName::L1 => false,
             HybridNodeServiceName::Mempool => false,
             HybridNodeServiceName::SierraCompiler => true,
         }
@@ -138,18 +149,21 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::SepoliaIntegration
             | Environment::UpgradeTest
             | Environment::TestingEnvThree => match self {
-                HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
-                HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
-                HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
-                HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
-                HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => {
+                    Some(Toleration::ApolloCoreService)
+                }
+                HybridNodeServiceName::HttpServer
+                | HybridNodeServiceName::Gateway
+                | HybridNodeServiceName::L1
+                | HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
             Environment::StressTest | Environment::SepoliaTestnet => match self {
                 HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
-                HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
-                HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::HttpServer
+                | HybridNodeServiceName::Gateway
+                | HybridNodeServiceName::L1
+                | HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
                 HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
-                HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
             _ => unimplemented!(),
         }
@@ -166,6 +180,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 get_ingress(ingress_params, get_environment_ingress_internal(environment))
             }
             HybridNodeServiceName::Gateway => None,
+            HybridNodeServiceName::L1 => None,
             HybridNodeServiceName::Mempool => None,
             HybridNodeServiceName::SierraCompiler => None,
         }
@@ -176,6 +191,7 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => true,
             HybridNodeServiceName::HttpServer
             | HybridNodeServiceName::Gateway
+            | HybridNodeServiceName::L1
             | HybridNodeServiceName::SierraCompiler => false,
         }
     }
@@ -189,10 +205,11 @@ impl ServiceNameInner for HybridNodeServiceName {
             | Environment::TestingEnvThree
             | Environment::StressTest => match self {
                 HybridNodeServiceName::Core => Some(CORE_STORAGE),
-                HybridNodeServiceName::HttpServer => None,
-                HybridNodeServiceName::Gateway => None,
-                HybridNodeServiceName::Mempool => None,
-                HybridNodeServiceName::SierraCompiler => None,
+                HybridNodeServiceName::HttpServer
+                | HybridNodeServiceName::Gateway
+                | HybridNodeServiceName::L1
+                | HybridNodeServiceName::Mempool
+                | HybridNodeServiceName::SierraCompiler => None,
             },
             _ => unimplemented!(),
         }
@@ -213,6 +230,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Gateway => {
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                 }
+                HybridNodeServiceName::L1 => {
+                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                }
                 HybridNodeServiceName::Mempool => {
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                 }
@@ -228,6 +248,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                     Resources::new(Resource::new(1, 2), Resource::new(4, 8))
                 }
                 HybridNodeServiceName::Gateway => {
+                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                }
+                HybridNodeServiceName::L1 => {
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                 }
                 HybridNodeServiceName::Mempool => {
@@ -252,6 +275,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Core => 1,
                 HybridNodeServiceName::HttpServer => 1,
                 HybridNodeServiceName::Gateway => 2,
+                HybridNodeServiceName::L1 => 1,
                 HybridNodeServiceName::Mempool => 1,
                 HybridNodeServiceName::SierraCompiler => 2,
             },
@@ -270,6 +294,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Core => true,
                 HybridNodeServiceName::HttpServer => false,
                 HybridNodeServiceName::Gateway => false,
+                HybridNodeServiceName::L1 => false,
                 HybridNodeServiceName::Mempool => true,
                 HybridNodeServiceName::SierraCompiler => false,
             },
@@ -423,6 +448,7 @@ impl HybridNodeServiceName {
             }
             HybridNodeServiceName::Core
             | HybridNodeServiceName::HttpServer
+            | HybridNodeServiceName::L1
             | HybridNodeServiceName::Mempool => {}
         };
         base
@@ -458,9 +484,8 @@ impl HybridNodeServiceConfigPair {
 fn get_core_component_config(
     batcher_local_config: ReactiveComponentExecutionConfig,
     class_manager_local_config: ReactiveComponentExecutionConfig,
-    l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
-    l1_provider_local_config: ReactiveComponentExecutionConfig,
-    l1_endpoint_monitor_local_config: ReactiveComponentExecutionConfig,
+    l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
+    l1_provider_remote_config: ReactiveComponentExecutionConfig,
     state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
@@ -470,11 +495,8 @@ fn get_core_component_config(
     config.batcher = batcher_local_config;
     config.class_manager = class_manager_local_config;
     config.consensus_manager = ActiveComponentExecutionConfig::enabled();
-    config.l1_gas_price_provider = l1_gas_price_provider_local_config;
-    config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
-    config.l1_provider = l1_provider_local_config;
-    config.l1_scraper = ActiveComponentExecutionConfig::enabled();
-    config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
+    config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
+    config.l1_provider = l1_provider_remote_config;
     config.sierra_compiler = sierra_compiler_remote_config;
     config.signature_manager = signature_manager_remote_config;
     config.state_sync = state_sync_local_config;
@@ -495,6 +517,25 @@ fn get_gateway_component_config(
     config.mempool = mempool_remote_config;
     config.state_sync = state_sync_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config
+}
+
+fn get_l1_component_config(
+    l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
+    l1_provider_local_config: ReactiveComponentExecutionConfig,
+    l1_endpoint_monitor_local_config: ReactiveComponentExecutionConfig,
+    batcher_remote_config: ReactiveComponentExecutionConfig,
+    state_sync_remote_config: ReactiveComponentExecutionConfig,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.batcher = batcher_remote_config;
+    config.l1_gas_price_provider = l1_gas_price_provider_local_config;
+    config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
+    config.l1_provider = l1_provider_local_config;
+    config.l1_scraper = ActiveComponentExecutionConfig::enabled();
+    config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config.state_sync = state_sync_remote_config;
     config
 }
 
