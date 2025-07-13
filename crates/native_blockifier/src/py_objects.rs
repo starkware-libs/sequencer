@@ -11,6 +11,7 @@ use blockifier::blockifier::config::{
     ContractClassManagerConfig,
     NativeClassesWhitelist,
 };
+use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::blockifier_versioned_constants::VersionedConstantsOverrides;
 use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinWeights, CasmHashComputationData};
 use blockifier::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
@@ -309,6 +310,25 @@ impl From<PyContractClassManagerConfig> for ContractClassManagerConfig {
                 .cairo_native_run_config
                 .into(),
             native_compiler_config: py_contract_class_manager_config.native_compiler_config.into(),
+        }
+    }
+}
+
+// Python wrapper for compiled class hashes mapping.
+#[pyclass]
+#[derive(Clone, Default)]
+pub struct PyCompiledClassHashesForMigration {
+    #[pyo3(get)]
+    pub compiled_class_hash_v2_to_v1: Vec<(PyFelt, PyFelt)>,
+}
+
+impl From<CompiledClassHashesForMigration> for PyCompiledClassHashesForMigration {
+    fn from(hashes: CompiledClassHashesForMigration) -> Self {
+        Self {
+            compiled_class_hash_v2_to_v1: hashes
+                .into_iter()
+                .map(|(v2_hash, v1_hash)| (PyFelt(v2_hash.0), PyFelt(v1_hash.0)))
+                .collect(),
         }
     }
 }
