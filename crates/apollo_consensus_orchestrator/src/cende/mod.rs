@@ -2,7 +2,7 @@
 mod cende_test;
 mod central_objects;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::future::ready;
 use std::sync::Arc;
 
@@ -33,7 +33,7 @@ use serde::{Deserialize, Serialize};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockInfo, BlockNumber, StarknetVersion};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::ThinStateDiff;
 use tokio::sync::Mutex;
 use tokio::task::{self, JoinHandle};
@@ -78,6 +78,8 @@ pub(crate) struct AerospikeBlob {
     compiled_classes: Vec<CentralCasmContractClassEntry>,
     casm_hash_computation_data_sierra_gas: CentralCasmHashComputationData,
     casm_hash_computation_data_proving_gas: CentralCasmHashComputationData,
+    // Mapping from compiled_class_hash_v2 to compiled_class_hash_v1 for classes for migration.
+    compiled_class_hashes_for_migration: HashMap<CompiledClassHash, CompiledClassHash>,
 }
 
 #[cfg_attr(test, automock)]
@@ -294,6 +296,8 @@ pub struct BlobParameters {
     pub(crate) transactions: Vec<InternalConsensusTransaction>,
     pub(crate) casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub(crate) casm_hash_computation_data_proving_gas: CasmHashComputationData,
+    // Mapping from compiled_class_hash_v2 to compiled_class_hash_v1 for classes for migration.
+    pub(crate) compiled_class_hashes_for_migration: HashMap<CompiledClassHash, CompiledClassHash>,
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
@@ -339,6 +343,8 @@ impl AerospikeBlob {
                 .casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas: blob_parameters
                 .casm_hash_computation_data_proving_gas,
+            compiled_class_hashes_for_migration: blob_parameters
+                .compiled_class_hashes_for_migration,
         })
     }
 }
