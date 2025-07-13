@@ -26,7 +26,7 @@ use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
-use apollo_l1_provider::L1ProviderConfig;
+use apollo_l1_provider::{validate_cooldown, L1ProviderConfig};
 use apollo_mempool::config::MempoolConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -35,7 +35,7 @@ use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::config::component_config::ComponentConfig;
 use crate::config::monitoring::MonitoringConfig;
@@ -156,6 +156,7 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 
 /// The configurations of the various components of the node.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[validate(schema(function = "validate_l1_handler_cooldown"))]
 pub struct SequencerNodeConfig {
     // Infra related configs.
     #[validate]
@@ -254,4 +255,8 @@ pub(crate) fn node_command() -> Command {
     Command::new("Sequencer")
         .version(VERSION_FULL)
         .about("A Starknet sequencer node written in Rust.")
+}
+
+fn validate_l1_handler_cooldown(config: &SequencerNodeConfig) -> Result<(), ValidationError> {
+    validate_cooldown(&config.l1_scraper_config, &config.l1_provider_config)
 }

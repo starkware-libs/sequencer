@@ -1753,6 +1753,7 @@ dependencies = [
  "apollo_reverts",
  "apollo_state_sync",
  "apollo_state_sync_types",
+ "assert_matches",
  "clap",
  "const_format",
  "futures",
