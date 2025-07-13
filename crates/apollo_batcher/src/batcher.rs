@@ -597,6 +597,9 @@ impl Batcher {
                     .casm_hash_computation_data_sierra_gas,
                 casm_hash_computation_data_proving_gas: block_execution_artifacts
                     .casm_hash_computation_data_proving_gas,
+                // TODO(AvivG): add `compiled_class_hashes_for_migration` to block execution
+                // artifacts.
+                compiled_class_hashes_for_migration: HashMap::new(),
             },
         })
     }

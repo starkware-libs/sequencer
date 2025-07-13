@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -8,7 +9,7 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
-use starknet_api::core::StateDiffCommitment;
+use starknet_api::core::{CompiledClassHash, StateDiffCommitment};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
@@ -107,6 +108,7 @@ pub struct CentralObjects {
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
+    pub compiled_class_hashes_for_migration: HashMap<CompiledClassHash, CompiledClassHash>,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
