@@ -14,8 +14,8 @@ use libp2p_swarm_test::SwarmExt;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
 
-use crate::sqmr::Bytes;
 use crate::utils::{make_quic_multiaddr, StreamMap};
+use crate::Bytes;
 
 lazy_static! {
     #[cfg(test)]

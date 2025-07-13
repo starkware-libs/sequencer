@@ -9,11 +9,11 @@ use libp2p::swarm::{ConnectionId, NetworkBehaviour, SwarmEvent};
 use libp2p::{PeerId, StreamProtocol, Swarm};
 
 use super::behaviour::{Behaviour, Event, ExternalEvent, ToOtherBehaviourEvent};
-use super::{Bytes, Config, InboundSessionId, OutboundSessionId, SessionId};
+use super::{Config, InboundSessionId, OutboundSessionId, SessionId};
 use crate::mixed_behaviour::BridgedBehaviour;
 use crate::test_utils::create_fully_connected_swarms_stream;
 use crate::utils::StreamMap;
-use crate::{mixed_behaviour, peer_manager};
+use crate::{mixed_behaviour, peer_manager, Bytes};
 
 const NUM_PEERS: usize = 3;
 const NUM_MESSAGES_PER_SESSION: usize = 5;

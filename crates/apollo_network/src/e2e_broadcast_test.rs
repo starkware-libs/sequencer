@@ -12,8 +12,7 @@ use crate::gossipsub_impl::Topic;
 use crate::mixed_behaviour::MixedBehaviour;
 use crate::network_manager::{BroadcastTopicClientTrait, GenericNetworkManager};
 use crate::peer_manager::PeerManagerConfig;
-use crate::sqmr;
-use crate::sqmr::Bytes;
+use crate::{sqmr, Bytes};
 
 const TIMEOUT: Duration = Duration::from_secs(5);
 

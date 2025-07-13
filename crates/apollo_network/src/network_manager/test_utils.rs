@@ -27,9 +27,8 @@ use super::{
     SqmrServerReceiver,
     Topic,
 };
-use crate::sqmr::Bytes;
 use crate::utils::make_quic_multiaddr;
-use crate::NetworkConfig;
+use crate::{Bytes, NetworkConfig};
 
 pub fn mock_register_sqmr_protocol_client<Query, Response>(
     buffer_size: usize,

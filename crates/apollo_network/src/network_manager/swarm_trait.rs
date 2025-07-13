@@ -8,11 +8,10 @@ use tracing::{info, warn};
 use super::BroadcastedMessageMetadata;
 use crate::gossipsub_impl::Topic;
 use crate::misconduct_score::MisconductScore;
-use crate::mixed_behaviour;
 use crate::peer_manager::ReputationModifier;
 use crate::sqmr::behaviour::SessionIdNotFoundError;
-use crate::sqmr::{Bytes, InboundSessionId, OutboundSessionId, SessionId};
-
+use crate::sqmr::{InboundSessionId, OutboundSessionId, SessionId};
+use crate::{mixed_behaviour, Bytes};
 pub type Event = SwarmEvent<<mixed_behaviour::MixedBehaviour as NetworkBehaviour>::ToSwarm>;
 
 pub trait SwarmTrait: Stream<Item = Event> + Unpin {

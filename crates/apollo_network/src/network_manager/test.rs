@@ -24,10 +24,10 @@ use super::swarm_trait::{Event, SwarmTrait};
 use super::{BroadcastTopicChannels, GenericNetworkManager};
 use crate::gossipsub_impl::{self, Topic};
 use crate::misconduct_score::MisconductScore;
-use crate::mixed_behaviour;
 use crate::network_manager::{BroadcastTopicClientTrait, ServerQueryManager};
 use crate::sqmr::behaviour::SessionIdNotFoundError;
-use crate::sqmr::{Bytes, GenericEvent, InboundSessionId, OutboundSessionId};
+use crate::sqmr::{GenericEvent, InboundSessionId, OutboundSessionId};
+use crate::{mixed_behaviour, Bytes};
 
 const TIMEOUT: Duration = Duration::from_secs(1);
 

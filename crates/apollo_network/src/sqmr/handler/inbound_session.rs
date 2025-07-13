@@ -11,7 +11,7 @@ use libp2p::swarm::Stream;
 use replace_with::replace_with_or_abort;
 
 use super::super::messages::write_message;
-use super::super::Bytes;
+use crate::Bytes;
 
 pub(super) struct InboundSession {
     pending_messages: VecDeque<Bytes>,
