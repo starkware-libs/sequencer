@@ -29,9 +29,9 @@ use super::handler::{
     RequestToBehaviourEvent,
     SessionError as HandlerSessionError,
 };
-use super::{Bytes, Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
+use super::{Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
 use crate::mixed_behaviour::{self, BridgedBehaviour};
-use crate::peer_manager;
+use crate::{peer_manager, Bytes};
 
 #[derive(thiserror::Error, Debug)]
 pub enum SessionError {

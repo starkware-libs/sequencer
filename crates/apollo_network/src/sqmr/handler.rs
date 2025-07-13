@@ -31,7 +31,8 @@ use tracing::debug;
 use self::inbound_session::InboundSession;
 use super::messages::read_message;
 use super::protocol::{InboundProtocol, OutboundProtocol};
-use super::{Bytes, Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
+use super::{Config, GenericEvent, InboundSessionId, OutboundSessionId, SessionId};
+use crate::Bytes;
 
 #[derive(Debug)]
 pub enum RequestFromBehaviourEvent {

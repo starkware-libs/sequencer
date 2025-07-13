@@ -23,7 +23,6 @@ use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
-use sqmr::Bytes;
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
@@ -33,7 +32,7 @@ use crate::mixed_behaviour::{self, BridgedBehaviour};
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
 use crate::utils::{is_localhost, StreamMap};
-use crate::{gossipsub_impl, NetworkConfig};
+use crate::{gossipsub_impl, Bytes, NetworkConfig};
 
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkError {

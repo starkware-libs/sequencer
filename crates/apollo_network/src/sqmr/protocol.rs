@@ -11,7 +11,7 @@ use libp2p::core::upgrade::{InboundUpgrade, OutboundUpgrade, UpgradeInfo};
 use libp2p::StreamProtocol;
 
 use super::messages::{read_message_without_length_prefix, write_message_without_length_prefix};
-use super::Bytes;
+use crate::Bytes;
 
 pub struct InboundProtocol {
     supported_protocols: Vec<StreamProtocol>,

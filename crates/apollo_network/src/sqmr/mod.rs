@@ -11,7 +11,7 @@ use std::time::Duration;
 pub use behaviour::{Behaviour, ToOtherBehaviourEvent};
 use libp2p::{PeerId, StreamProtocol};
 
-pub type Bytes = Vec<u8>;
+use crate::Bytes;
 
 #[derive(Clone, Copy, Debug, Default, derive_more::Display, Eq, Hash, PartialEq)]
 pub struct OutboundSessionId {

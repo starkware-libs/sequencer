@@ -2,9 +2,8 @@ use libp2p::gossipsub::TopicHash;
 use libp2p::{gossipsub, PeerId};
 use tracing::error;
 
-use crate::mixed_behaviour;
 use crate::mixed_behaviour::BridgedBehaviour;
-use crate::sqmr::Bytes;
+use crate::{mixed_behaviour, Bytes};
 
 #[cfg(test)]
 pub type Topic = gossipsub::IdentTopic;
