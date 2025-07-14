@@ -186,9 +186,10 @@ impl L1GasPriceProvider {
             last_index - num_blocks
         } else {
             warn!(
-                "Not enough history to calculate the mean gas price. Using only {} blocks instead \
-                 of {}.",
-                last_index, num_blocks
+                "Not enough history to calculate the mean gas price. Using blocks {}-{}, \
+                 inclusive.",
+                samples[0].block_number,
+                samples[last_index - 1].block_number,
             );
             L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY.increment(1);
             0
@@ -208,6 +209,14 @@ impl L1GasPriceProvider {
         let price_info_out = price_info_summed
             .checked_div(actual_number_of_blocks)
             .expect("Actual number of blocks should be non-zero");
+        info_every_n_sec!(
+            1,
+            "Calculated L1 gas price for timestamp {}: {:?} (based on blocks {}-{}, inclusive)",
+            timestamp.0,
+            price_info_out,
+            samples[first_index].block_number,
+            samples[last_index - 1].block_number,
+        );
         Ok(price_info_out)
     }
 }
