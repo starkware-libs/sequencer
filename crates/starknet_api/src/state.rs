@@ -252,6 +252,29 @@ impl SierraContractClass {
     }
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct ContractClassComponentHashes {
+    contract_class_version: Felt,
+    external_functions_hash: PoseidonHash,
+    l1_handlers_hash: PoseidonHash,
+    constructors_hash: PoseidonHash,
+    abi_hash: Felt,
+    sierra_program_hash: Felt,
+}
+
+impl ContractClassComponentHashes {
+    pub fn flatten(&self) -> Vec<Felt> {
+        vec![
+            self.contract_class_version,
+            self.external_functions_hash.0,
+            self.l1_handlers_hash.0,
+            self.constructors_hash.0,
+            self.abi_hash,
+            self.sierra_program_hash,
+        ]
+    }
+}
+
 #[cfg(any(test, feature = "testing"))]
 impl From<cairo_lang_starknet_classes::contract_class::ContractClass> for SierraContractClass {
     fn from(

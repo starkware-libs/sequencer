@@ -9,7 +9,7 @@ use starknet_api::core::deserialize_chain_id_from_hex;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::state::StorageKey;
+use starknet_api::state::{ContractClassComponentHashes, StorageKey};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
@@ -38,30 +38,6 @@ impl Default for CommitmentInfo {
             tree_height: SubTreeHeight::ACTUAL_HEIGHT,
             commitment_facts: HashMap::default(),
         }
-    }
-}
-
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[derive(Clone, Debug)]
-pub struct ContractClassComponentHashes {
-    contract_class_version: Felt,
-    external_functions_hash: HashOutput,
-    l1_handlers_hash: HashOutput,
-    constructors_hash: HashOutput,
-    abi_hash: HashOutput,
-    sierra_program_hash: HashOutput,
-}
-
-impl ContractClassComponentHashes {
-    pub(crate) fn flatten(&self) -> Vec<Felt> {
-        vec![
-            self.contract_class_version,
-            self.external_functions_hash.0,
-            self.l1_handlers_hash.0,
-            self.constructors_hash.0,
-            self.abi_hash.0,
-            self.sierra_program_hash.0,
-        ]
     }
 }
 
