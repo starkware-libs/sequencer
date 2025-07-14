@@ -233,22 +233,29 @@ impl Default for SierraContractClass {
 
 impl SierraContractClass {
     pub fn calculate_class_hash(&self) -> ClassHash {
-        let external_entry_points_hash = entry_points_hash(self, &EntryPointType::External);
-        let l1_handler_entry_points_hash = entry_points_hash(self, &EntryPointType::L1Handler);
-        let constructor_entry_points_hash = entry_points_hash(self, &EntryPointType::Constructor);
+        let class_hash = Poseidon::hash_array(&self.get_component_hashes(*API_VERSION).flatten());
+        ClassHash(class_hash)
+    }
+
+    // TODO(Nimrod): Don't take `contract_class_version` as an argument, use the version of self.
+    pub fn get_component_hashes(
+        &self,
+        contract_class_version: Felt,
+    ) -> ContractClassComponentHashes {
+        let external_functions_hash = entry_points_hash(self, &EntryPointType::External);
+        let l1_handlers_hash = entry_points_hash(self, &EntryPointType::L1Handler);
+        let constructors_hash = entry_points_hash(self, &EntryPointType::Constructor);
         let abi_keccak = sha3::Keccak256::default().chain_update(self.abi.as_bytes()).finalize();
         let abi_hash = truncated_keccak(abi_keccak.into());
-        let program_hash = Poseidon::hash_array(self.sierra_program.as_slice());
-
-        let class_hash = Poseidon::hash_array(&[
-            *API_VERSION,
-            external_entry_points_hash.0,
-            l1_handler_entry_points_hash.0,
-            constructor_entry_points_hash.0,
+        let sierra_program_hash = Poseidon::hash_array(self.sierra_program.as_slice());
+        ContractClassComponentHashes {
+            contract_class_version,
+            external_functions_hash,
+            l1_handlers_hash,
+            constructors_hash,
             abi_hash,
-            program_hash,
-        ]);
-        ClassHash(class_hash)
+            sierra_program_hash,
+        }
     }
 }
 
