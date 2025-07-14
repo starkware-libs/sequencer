@@ -1469,6 +1469,11 @@
     "privacy": "TemporaryValue",
     "value": true
   },
+  "l1_provider_config.dummy_mode": {
+    "description": "When true, the L1 provider operates in dummy mode.",
+    "privacy": "Public",
+    "value": false
+  },
   "l1_provider_config.l1_handler_cancellation_timelock_seconds": {
     "description": "How long to allow a transaction requested for cancellation to be validated against (proposals are banned upon receiving a cancellation request).",
     "privacy": "Public",
