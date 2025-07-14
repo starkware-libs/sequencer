@@ -3298,6 +3298,7 @@ version = "0.0.0"
 dependencies = [
  "blake2",
  "digest 0.10.7",
+ "rstest",
  "starknet-types-core",
 ]
 
