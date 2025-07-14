@@ -295,6 +295,20 @@ pub(crate) struct TransactionManagerSnapshot {
     pub cancelled_on_l2: Vec<TransactionHash>,
 }
 
+#[cfg(any(test, feature = "testing"))]
+impl TransactionManagerSnapshot {
+    pub fn is_empty(&self) -> bool {
+        self.uncommitted.is_empty()
+            && self.uncommitted_staged.is_empty()
+            && self.rejected.is_empty()
+            && self.rejected_staged.is_empty()
+            && self.committed.is_empty()
+            && self.cancellation_started_on_l2.is_empty()
+            && self.cancelled_on_l2.is_empty()
+        // This is a comment.
+    }
+}
+
 // Invariant: Monotone-increasing.
 #[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord)]
 pub struct StagingEpoch(u128);
