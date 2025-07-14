@@ -46,6 +46,7 @@ use strum_macros::EnumCount as EnumCountMacro;
 
 use crate::abi::constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::ExecutionSummary;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::CallEntryPoint;
@@ -413,4 +414,18 @@ pub fn maybe_dummy_block_hash_and_number(block_number: BlockNumber) -> Option<Bl
         number: BlockNumber(block_number.0 - constants::STORED_BLOCK_HASH_BUFFER),
         hash: BlockHash(StarkHash::ONE),
     })
+}
+
+pub fn test_gas_from_resources(resources: &ExecutionResources) -> GasAmount {
+    let versioned_constants = VersionedConstants::latest_constants();
+    vm_resources_to_sierra_gas(resources, versioned_constants)
+}
+
+pub fn test_gas_from_steps(steps: usize) -> GasAmount {
+    let resources = ExecutionResources {
+        n_steps: steps,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::new(),
+    };
+    test_gas_from_resources(&resources)
 }

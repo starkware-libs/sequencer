@@ -47,6 +47,10 @@ use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::utils::u64_from_usize;
 
+#[cfg(test)]
+#[path = "execution_utils_test.rs"]
+pub mod test;
+
 pub type Args = Vec<CairoArg>;
 
 pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
@@ -386,7 +390,7 @@ mod blake_cost {
 /// Estimates the number of VM steps needed to hash the given felts with Blake in Starknet OS.
 /// Each small felt unpacks into 2 u32s, and each big felt into 8 u32s.
 /// Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
-fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
+pub fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
     let total_u32s =
         n_big_felts * blake_cost::N_U32S_BIG_FELT + n_small_felts * blake_cost::N_U32S_SMALL_FELT;
     let rem_u32s = total_u32s % blake_cost::N_U32S_MESSAGE;
@@ -407,7 +411,7 @@ fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
 
 /// Returns the number of BLAKE opcodes needed to hash the given felts.
 /// Each BLAKE opcode processes 16 u32s (partial messages are padded).
-fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
+pub fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
     // Count the total number of u32s to be hashed.
     let total_u32s =
         n_big_felts * blake_cost::N_U32S_BIG_FELT + n_small_felts * blake_cost::N_U32S_SMALL_FELT;
