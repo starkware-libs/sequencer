@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 
+use apollo_http_server::config::HTTP_SERVER_PORT;
 use apollo_infra_utils::template::Template;
 use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use apollo_node::config::component_config::ComponentConfig;
@@ -287,7 +288,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                     ports.insert(ServicePort::MonitoringEndpoint, MONITORING_ENDPOINT_DEFAULT_PORT)
                 }
                 ServicePort::HttpServer => match self {
-                    HybridNodeServiceName::HttpServer => None,
+                    HybridNodeServiceName::HttpServer => {
+                        ports.insert(ServicePort::HttpServer, HTTP_SERVER_PORT)
+                    }
                     _ => None,
                 },
                 ServicePort::Batcher => match self {

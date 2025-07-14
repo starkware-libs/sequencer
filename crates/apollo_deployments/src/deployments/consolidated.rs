@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 
+use apollo_http_server::config::HTTP_SERVER_PORT;
 use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
@@ -144,7 +145,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ServicePort::MonitoringEndpoint => {
                     ports.insert(ServicePort::MonitoringEndpoint, MONITORING_ENDPOINT_DEFAULT_PORT)
                 }
-                ServicePort::HttpServer => None,
+                ServicePort::HttpServer => ports.insert(ServicePort::HttpServer, HTTP_SERVER_PORT),
                 ServicePort::Batcher => None,
                 ServicePort::Mempool => None,
                 ServicePort::ClassManager => None,
