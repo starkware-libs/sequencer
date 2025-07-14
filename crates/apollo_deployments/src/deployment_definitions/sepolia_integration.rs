@@ -3,7 +3,7 @@ use url::Url;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, P2PCommunicationType};
-use crate::deployment_definitions::{Environment, StateSyncType};
+use crate::deployment_definitions::{CloudK8sEnvironment, Environment, StateSyncType};
 use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
 use crate::k8s::{ExternalSecret, IngressParams};
 use crate::service::NodeType;
@@ -40,7 +40,7 @@ fn sepolia_integration_hybrid_deployment_node(
 ) -> Deployment {
     Deployment::new(
         NodeType::Hybrid,
-        Environment::SepoliaIntegration,
+        Environment::CloudK8s(CloudK8sEnvironment::SepoliaIntegration),
         &INSTANCE_NAME_FORMAT.format(&[&id]),
         Some(ExternalSecret::new(SECRET_NAME_FORMAT.format(&[&id]))),
         ConfigOverride::new(

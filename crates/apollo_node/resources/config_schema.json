@@ -1064,6 +1064,11 @@
     "pointer_target": "chain_id",
     "privacy": "Public"
   },
+  "consensus_manager_config.context_config.constant_l2_gas_price": {
+    "description": "If true, sets STRK gas price to its minimum price from the versioned constants.",
+    "privacy": "Public",
+    "value": false
+  },
   "consensus_manager_config.context_config.l1_da_mode": {
     "description": "The data availability mode, true: Blob, false: Calldata.",
     "privacy": "Public",
@@ -1114,18 +1119,8 @@
     "privacy": "Public",
     "value": 10000
   },
-  "consensus_manager_config.eth_to_strk_oracle_config.base_url": {
-    "description": "URL to query. The `timestamp` parameter is appended dynamically when making requests, in order to have a stable mapping from block timestamp to conversion rate.",
-    "privacy": "Private",
-    "value": "https://example.com/api"
-  },
-  "consensus_manager_config.eth_to_strk_oracle_config.headers": {
-    "description": "HTTP headers for the eth to strk oracle, formatted as 'k1:v1 k2:v2 ...'.",
-    "privacy": "Private",
-    "value": ""
-  },
   "consensus_manager_config.eth_to_strk_oracle_config.lag_interval_seconds": {
-    "description": "The size of the interval (seconds) that the eth to strk rate is taken on. The lag refers to the fact that the interval `[T, T+k)` contains the conversion rate for queries in the interval `[T+k, T+2k)`. Should be configured in alignment with relevant query parameters in `base_url`, if required.",
+    "description": "The size of the interval (seconds) that the eth to strk rate is taken on. The lag refers to the fact that the interval `[T, T+k)` contains the conversion rate for queries in the interval `[T+k, T+2k)`. Should be configured in alignment with relevant query parameters in `url_header_list`, if required.",
     "privacy": "Public",
     "value": 1
   },
@@ -1138,6 +1133,11 @@
     "description": "The timeout (seconds) for the query to the eth to strk oracle.",
     "privacy": "Public",
     "value": 3
+  },
+  "consensus_manager_config.eth_to_strk_oracle_config.url_header_list": {
+    "description": "A list of Url+HTTP headers for the eth to strk oracle. The url is followed by a comma and then headers as key^value pairs, separated by commas. For example: `https://api.example.com/api,key1^value1,key2^value2`. Each URL+headers is separated by a pipe `|` character. The `timestamp` parameter is appended dynamically when making requests, in order to have a stable mapping from block timestamp to conversion rate. ",
+    "privacy": "Private",
+    "value": "https://api.example.com/api"
   },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
@@ -1467,12 +1467,12 @@
   "l1_provider_config.l1_handler_cancellation_timelock_seconds": {
     "description": "How long to allow a transaction requested for cancellation to be validated against (proposals are banned upon receiving a cancellation request).",
     "privacy": "Public",
-    "value": 0.0
+    "value": 300
   },
   "l1_provider_config.new_l1_handler_cooldown_seconds": {
     "description": "How long to wait before allowing new L1 handler transactions to be proposed (validation is available immediately).",
     "privacy": "Public",
-    "value": 0.0
+    "value": 135
   },
   "l1_provider_config.provider_startup_height_override": {
     "description": "Override height at which the provider should start",
@@ -1487,7 +1487,7 @@
   "l1_provider_config.startup_sync_sleep_retry_interval_seconds": {
     "description": "Interval in seconds between each retry of syncing with L2 during startup.",
     "privacy": "Public",
-    "value": 0.0
+    "value": 2
   },
   "l1_scraper_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
@@ -1502,12 +1502,12 @@
   "l1_scraper_config.polling_interval_seconds": {
     "description": "Interval in Seconds between each scraping attempt of L1.",
     "privacy": "Public",
-    "value": 1
+    "value": 120
   },
   "l1_scraper_config.startup_rewind_time_seconds": {
     "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
     "privacy": "Public",
-    "value": 0
+    "value": 3600
   },
   "mempool_config.capacity_in_bytes": {
     "description": "Maximum size of the mempool, in bytes.",

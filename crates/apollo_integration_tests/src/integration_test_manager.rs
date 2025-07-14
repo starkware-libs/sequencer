@@ -876,9 +876,8 @@ pub async fn get_sequencer_setup_configs(
         let state_sync_config = state_sync_configs.remove(0);
 
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
-        consensus_manager_config.eth_to_strk_oracle_config.base_url =
-            eth_to_strk_oracle_url.clone();
-
+        consensus_manager_config.eth_to_strk_oracle_config.url_header_list =
+            Some(vec![eth_to_strk_oracle_url.clone()]);
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
         let chain_info = chain_info.clone();
 
