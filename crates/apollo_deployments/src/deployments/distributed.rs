@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 
+use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -273,7 +274,55 @@ impl ServiceNameInner for DistributedNodeServiceName {
 
     // TODO(Nadin): Implement this method to return the actual ports used by the service.
     fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
-        BTreeMap::new()
+        let mut ports = BTreeMap::new();
+
+        for service_port in ServicePort::iter() {
+            match service_port {
+                ServicePort::MonitoringEndpoint => {
+                    ports.insert(ServicePort::MonitoringEndpoint, MONITORING_ENDPOINT_DEFAULT_PORT)
+                }
+                ServicePort::HttpServer => match self {
+                    DistributedNodeServiceName::HttpServer => None,
+                    _ => None,
+                },
+                ServicePort::Batcher => match self {
+                    DistributedNodeServiceName::Batcher => None,
+                    _ => None,
+                },
+                ServicePort::Mempool => match self {
+                    DistributedNodeServiceName::Mempool => None,
+                    _ => None,
+                },
+                ServicePort::ClassManager => match self {
+                    DistributedNodeServiceName::ClassManager => None,
+                    _ => None,
+                },
+                ServicePort::Gateway => match self {
+                    DistributedNodeServiceName::Gateway => None,
+                    _ => None,
+                },
+                ServicePort::L1EndpointMonitor
+                | ServicePort::L1GasPriceProvider
+                | ServicePort::L1Provider => match self {
+                    DistributedNodeServiceName::L1 => None,
+                    _ => None,
+                },
+                ServicePort::SierraCompiler => match self {
+                    DistributedNodeServiceName::SierraCompiler => None,
+                    _ => None,
+                },
+                ServicePort::StateSync => match self {
+                    DistributedNodeServiceName::StateSync => None,
+                    _ => None,
+                },
+                ServicePort::MempoolP2p => match self {
+                    DistributedNodeServiceName::Mempool => None,
+                    _ => None,
+                },
+            };
+        }
+
+        ports
     }
 }
 

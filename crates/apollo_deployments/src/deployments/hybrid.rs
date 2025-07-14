@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::template::Template;
+use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -279,7 +280,53 @@ impl ServiceNameInner for HybridNodeServiceName {
 
     // TODO(Nadin): Implement this method to return the actual ports used by the service.
     fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
-        BTreeMap::new()
+        let mut ports = BTreeMap::new();
+        for service_port in ServicePort::iter() {
+            match service_port {
+                ServicePort::MonitoringEndpoint => {
+                    ports.insert(ServicePort::MonitoringEndpoint, MONITORING_ENDPOINT_DEFAULT_PORT)
+                }
+                ServicePort::HttpServer => match self {
+                    HybridNodeServiceName::HttpServer => None,
+                    _ => None,
+                },
+                ServicePort::Batcher => match self {
+                    HybridNodeServiceName::Core => None,
+                    _ => None,
+                },
+                ServicePort::Mempool => match self {
+                    HybridNodeServiceName::Mempool => None,
+                    _ => None,
+                },
+                ServicePort::ClassManager => match self {
+                    HybridNodeServiceName::Core => None,
+                    _ => None,
+                },
+                ServicePort::Gateway => match self {
+                    HybridNodeServiceName::Gateway => None,
+                    _ => None,
+                },
+                ServicePort::L1EndpointMonitor
+                | ServicePort::L1GasPriceProvider
+                | ServicePort::L1Provider => match self {
+                    HybridNodeServiceName::Core => None,
+                    _ => None,
+                },
+                ServicePort::SierraCompiler => match self {
+                    HybridNodeServiceName::SierraCompiler => None,
+                    _ => None,
+                },
+                ServicePort::StateSync => match self {
+                    HybridNodeServiceName::Core => None,
+                    _ => None,
+                },
+                ServicePort::MempoolP2p => match self {
+                    HybridNodeServiceName::Mempool => None,
+                    _ => None,
+                },
+            };
+        }
+        ports
     }
 }
 
