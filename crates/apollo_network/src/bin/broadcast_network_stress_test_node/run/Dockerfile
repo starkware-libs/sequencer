@@ -1,18 +1,37 @@
 # syntax = devthefuture/dockerfile-x
 #
 # Run with the project root context:
-# docker build -f crates/apollo_network/src/bin/network_stress_test/cluster/Dockerfile .
+# docker build -f crates/apollo_network/src/bin/broadcast_network_stress_test_node/cluster/Dockerfile .
+#
+# For time synchronization, you can either:
+# 1. Use the built-in chrony service (configured below), or
+# 2. Mount host time at runtime with: -v /etc/localtime:/etc/localtime:ro -v /etc/timezone:/etc/timezone:ro
 
 INCLUDE deployments/images/base/Dockerfile
 
-FROM base AS builder
-WORKDIR /usr/src/rust_code
+# --- Stage 1: Install cargo-chef and prepare recipe ---
+FROM base AS planner
+WORKDIR /app
 COPY . .
-# TODO(AndrewL): use cargo chef for better caching
-RUN cargo build --release --bin network_stress_test
+RUN cargo chef prepare --recipe-path recipe.json
 
+# --- Stage 2: Build dependencies ---
+FROM base AS builder
+WORKDIR /app
+COPY --from=planner /app/recipe.json recipe.json
+RUN cargo chef cook --recipe-path recipe.json
+COPY . .
+# using tokio_unstable to get additional tokio metrics
+RUN RUSTFLAGS="--cfg tokio_unstable" cargo build --release --bin broadcast_network_stress_test_node
+
+# --- Final Stage: Runtime image ---
 FROM ubuntu:24.04 AS final_stage
-COPY --from=builder /usr/src/rust_code/target/release/network_stress_test /usr/local/bin/network_stress_test
 
+RUN apt update && apt -y install iproute2 kmod chrony && apt clean && rm -rf /var/lib/apt/lists/*
 
-ENTRYPOINT  ["network_stress_test"]
+COPY --from=builder /app/target/release/broadcast_network_stress_test_node /usr/local/bin/broadcast_network_stress_test_node
+COPY --from=builder /app/crates/apollo_network/src/bin/broadcast_network_stress_test_node/run/entrypoint.sh /entrypoint.sh
+
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]

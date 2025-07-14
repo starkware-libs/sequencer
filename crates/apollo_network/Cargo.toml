@@ -37,8 +37,10 @@ metrics-exporter-prometheus.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
+sysinfo.workspace = true
 thiserror.workspace = true
 tokio = { workspace = true, features = ["full", "sync"] }
+tokio-metrics.workspace = true
 tokio-retry.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
