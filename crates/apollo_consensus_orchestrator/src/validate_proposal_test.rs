@@ -163,7 +163,7 @@ async fn interrupt_proposal() {
     proposal_args.cancel_token.cancel();
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(ValidateProposalError::ProposalInterrupted)));
+    assert!(matches!(res, Err(ValidateProposalError::ProposalInterrupted(_))));
 }
 
 #[tokio::test]
@@ -173,7 +173,7 @@ async fn validation_timeout() {
     proposal_args.timeout = Duration::from_micros(1);
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(ValidateProposalError::ValidationTimeout)));
+    assert!(matches!(res, Err(ValidateProposalError::ValidationTimeout(_))));
 }
 
 #[tokio::test]
