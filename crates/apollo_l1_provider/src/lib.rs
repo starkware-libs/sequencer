@@ -112,6 +112,8 @@ pub struct L1ProviderConfig {
     pub l1_handler_cancellation_timelock_seconds: Duration,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub new_l1_handler_cooldown_seconds: Duration,
+    /// When true, the L1 provider operates in dummy mode.
+    pub dummy_mode: bool,
 }
 
 impl Default for L1ProviderConfig {
@@ -122,6 +124,7 @@ impl Default for L1ProviderConfig {
             startup_sync_sleep_retry_interval_seconds: Duration::from_secs(2),
             l1_handler_cancellation_timelock_seconds: Duration::from_secs(5 * 60),
             new_l1_handler_cooldown_seconds: Duration::from_secs(4 * 60 + 5),
+            dummy_mode: false,
         }
     }
 }
@@ -157,6 +160,12 @@ impl SerializeConfig for L1ProviderConfig {
                 &self.new_l1_handler_cooldown_seconds.as_secs(),
                 "How long to wait before allowing new L1 handler transactions to be proposed \
                  (validation is available immediately).",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "dummy_mode",
+                &self.dummy_mode,
+                "When true, the L1 provider operates in dummy mode.",
                 ParamPrivacyInput::Public,
             ),
         ]);
