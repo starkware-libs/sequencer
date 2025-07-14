@@ -14,6 +14,7 @@ use futures::channel::mpsc;
 use futures::SinkExt;
 use num_rational::Ratio;
 use starknet_api::block::{
+    BlockHash,
     BlockHashAndNumber,
     BlockNumber,
     BlockTimestamp,
@@ -51,7 +52,7 @@ pub(crate) struct GasPriceParams {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub(crate) enum StateSyncError {
+pub enum StateSyncError {
     #[error("State sync is not ready: {0}")]
     NotReady(String),
     #[error("State sync client error: {0}")]
@@ -182,36 +183,36 @@ pub(crate) fn convert_to_sn_api_block_info(
     })
 }
 
+pub(crate) async fn get_block_hash(
+    state_sync_client: Arc<dyn StateSyncClient>,
+    block_number: BlockNumber,
+) -> Result<BlockHash, StateSyncError> {
+    // Getting the next block because the Sync block only contains parent hash.
+    let block = state_sync_client.get_block(block_number.unchecked_next()).await?;
+    let block =
+        block.ok_or(StateSyncError::NotReady(format!("Block {block_number} not found",)))?;
+    Ok(block.block_header_without_hash.parent_hash)
+}
+
 pub(crate) async fn retrospective_block_hash(
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: &ConsensusBlockInfo,
 ) -> Result<Option<BlockHashAndNumber>, StateSyncError> {
     let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
-    let retrospective_block_hash = match retrospective_block_number {
+    match retrospective_block_number {
         Some(block_number) => {
             let block_number = BlockNumber(block_number);
-            let block = state_sync_client
-                // Getting the next block hash because the Sync block only contains parent hash.
-                .get_block(block_number.unchecked_next())
-                .await
-                .map_err(StateSyncError::ClientError)?
-                .ok_or(StateSyncError::NotReady(format!(
-                "Failed to get retrospective block number {block_number}"
-            )))?;
-            Some(BlockHashAndNumber {
-                number: block_number,
-                hash: block.block_header_without_hash.parent_hash,
-            })
+            let block_hash = get_block_hash(state_sync_client, block_number).await?;
+            Ok(Some(BlockHashAndNumber { number: block_number, hash: block_hash }))
         }
         None => {
             info!(
                 "Retrospective block number is less than {STORED_BLOCK_HASH_BUFFER}, setting None \
                  as expected."
             );
-            None
+            Ok(None)
         }
-    };
-    Ok(retrospective_block_hash)
+    }
 }
 
 pub(crate) fn truncate_to_executed_txs(

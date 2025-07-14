@@ -15,6 +15,8 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
+use crate::utils::{get_block_hash, StateSyncError};
+
 pub type Committee = Vec<Staker>;
 pub type StakerSet = Vec<Staker>;
 
@@ -56,6 +58,8 @@ impl CommitteeDataCache {
     }
 }
 
+// TODO(Dafna): implement SerializeConfig and Validate for this struct. Specifically, the Validate
+// should check that proposer_prediction_window_in_heights >= STORED_BLOCK_HASH_BUFFER.
 pub struct CommitteeManagerConfig {
     pub staking_contract_address: ContractAddress,
     pub max_cached_epochs: usize,
@@ -84,6 +88,8 @@ pub enum CommitteeManagerError {
     EntryPointExecutionError(#[from] EntryPointExecutionError),
     #[error(transparent)]
     RetdataDeserializationError(#[from] RetdataDeserializationError),
+    #[error(transparent)]
+    StateSyncError(#[from] StateSyncError),
 }
 
 #[derive(Debug, Error)]
@@ -221,10 +227,22 @@ impl CommitteeManager {
 
     async fn proposer_randomness_block_hash(
         &self,
-        _block_number: BlockNumber,
-        _state_sync_client: SharedStateSyncClient,
+        current_block_number: BlockNumber,
+        state_sync_client: SharedStateSyncClient,
     ) -> CommitteeManagerResult<Option<BlockHash>> {
-        todo!()
+        let randomness_source_block =
+            current_block_number.0.checked_sub(self.config.proposer_prediction_window_in_heights);
+
+        match randomness_source_block {
+            None => {
+                Ok(None) // Not enough history to look back; return None.
+            }
+            Some(block_number) => {
+                let block_hash =
+                    get_block_hash(state_sync_client, BlockNumber(block_number)).await?;
+                Ok(Some(block_hash))
+            }
+        }
     }
 
     fn choose_proposer(&self, _committee: &Committee, _random: u64) -> &Staker {
