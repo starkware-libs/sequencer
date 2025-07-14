@@ -7,6 +7,7 @@ use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra_utils::test_utils::AvailablePorts;
+use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceSharedConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -268,8 +269,10 @@ impl FlowSequencerSetup {
             allow_bootstrap_txs,
         );
         let num_l1_txs = u64::try_from(NUM_L1_TRANSACTIONS).unwrap();
-        node_config.l1_gas_price_scraper_config.number_of_blocks_for_mean = num_l1_txs;
-        node_config.l1_gas_price_provider_config.number_of_blocks_for_mean = num_l1_txs;
+        let l1_gas_price_shared_config =
+            L1GasPriceSharedConfig { number_of_blocks_for_mean: num_l1_txs };
+        node_config.l1_gas_price_scraper_config.shared_config = l1_gas_price_shared_config.clone();
+        node_config.l1_gas_price_provider_config.shared_config = l1_gas_price_shared_config;
 
         debug!("Sequencer config: {:#?}", node_config);
         let (clients, servers) = create_node_modules(&node_config).await;
