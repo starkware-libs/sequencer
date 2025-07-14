@@ -183,20 +183,10 @@ where
     let items = raw.split('|');
     let number_of_items = items.clone().count();
     let mut output = Vec::with_capacity(number_of_items);
-<<<<<<< HEAD
-    for item in raw.split_whitespace() {
-        let value: UrlAndHeaders = serde_json::from_str(item)
-            .map_err(|e| D::Error::custom(format!("Invalid JSON '{item}': {e}")))?;
-||||||| 199fa631c
-    for item in raw.split_whitespace() {
-        let value: UrlAndHeaders = serde_json::from_str(item)
-            .map_err(|e| D::Error::custom(format!("Invalid JSON '{}': {}", item, e)))?;
-=======
     for item in items {
         let value: UrlAndHeaders = UrlAndHeaders::from_custom_string(item).map_err(|e| {
-            D::Error::custom(format!("Invalid UrlAndHeaders formatting '{}': {}", item, e))
+            D::Error::custom(format!("Invalid UrlAndHeaders formatting '{item}': {e}"))
         })?;
->>>>>>> origin/main-v0.14.0
         output.push(value);
     }
     Ok(Some(output))
