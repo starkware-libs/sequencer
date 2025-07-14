@@ -20,57 +20,76 @@ pub fn encode_felts_to_u32s(felts: Vec<Felt>) -> Vec<u32> {
     for felt in felts {
         let felt_as_be_bytes = felt.to_bytes_be();
         if felt < SMALL_THRESHOLD {
-            // small: 2 limbs only, high‐32 then low‐32 of the last 8 bytes
+            // small: 2 limbs only, high‐32 then low‐32 of the last 8 bytes.
             let hi = u32::from_be_bytes(felt_as_be_bytes[24..28].try_into().unwrap());
             let lo = u32::from_be_bytes(felt_as_be_bytes[28..32].try_into().unwrap());
             unpacked_u32s.push(hi);
             unpacked_u32s.push(lo);
         } else {
-            // big: 8 limbs, big‐endian order
+            // big: 8 limbs, big‐endian order.
             let start = unpacked_u32s.len();
             for chunk in felt_as_be_bytes.chunks_exact(4) {
                 unpacked_u32s.push(u32::from_be_bytes(chunk.try_into().unwrap()));
             }
-            // set the MSB of the very first limb as the Cairo hint does with "+ 2**255"
+            // set the MSB of the very first limb as the Cairo hint does with "+ 2**255".
             unpacked_u32s[start] |= BIG_MARKER;
         }
     }
     unpacked_u32s
 }
 
-/// Packs the first 7 little-endian 32-bit words (28 bytes) of `bytes`
-/// into a single 224-bit Felt.
-fn pack_224_le_to_felt(bytes: &[u8]) -> Felt {
-    assert!(bytes.len() >= 28, "need at least 28 bytes to pack 7 words");
+/// Packs the first 8 little-endian 32-bit words (32 bytes) of `bytes` into a single long Felt
+/// by summing each word shifted by multiples of 32 bits:
+///
+/// `result = word_0 + (word_1 << 32) + (word_2 << 64) + ... + (word_7 << 224) (mod P)`
+///
+/// # Panics
+///
+/// Panics if `bytes.len() < 32`.
+pub fn pack_256_le_to_felt(bytes: &[u8]) -> Felt {
+    const BYTES_PER_WORD: usize = 4;
+    const WORD_COUNT: usize = 8;
+    assert!(
+        bytes.len() >= BYTES_PER_WORD * WORD_COUNT,
+        "pack_256_le_to_felt: need at least {} bytes, got {}",
+        BYTES_PER_WORD * WORD_COUNT,
+        bytes.len()
+    );
 
-    // 1) copy your 28-byte LE-hash into the low 28 bytes of a 32-byte buffer
-    let mut buf = [0u8; 32];
-    buf[..28].copy_from_slice(&bytes[..28]);
+    let mut result = Felt::ZERO;
+    let mut current_factor = Felt::ONE;
+    let shift_factor = Felt::from(1u64 << 32);
 
-    // 2) interpret the whole 32-byte buffer as a little-endian Felt
-    Felt::from_bytes_le(&buf)
+    for chunk in bytes[..BYTES_PER_WORD * WORD_COUNT].chunks_exact(BYTES_PER_WORD) {
+        // Each chunk is exactly 4 bytes, little-endian order.
+        let word = u32::from_le_bytes(chunk.try_into().unwrap());
+        result += Felt::from(word) * current_factor;
+        current_factor *= shift_factor;
+    }
+
+    result
 }
 
 pub fn blake2s_to_felt(data: &[u8]) -> Felt {
     let mut hasher = Blake2s256::new();
     hasher.update(data);
     let hash32 = hasher.finalize();
-    pack_224_le_to_felt(hash32.as_slice())
+    pack_256_le_to_felt(hash32.as_slice())
 }
 
 /// Encodes a slice of `Felt` values into 32-bit words exactly as Cairo’s
 /// `encode_felt252_to_u32s` hint does, then hashes the resulting byte stream
-/// with Blake2s-256 and returns the 224-bit truncated digest as a `Felt`.
-pub fn encode_felt252_data_and_calc_224_bit_blake_hash(data: &[Felt]) -> Felt {
+/// with Blake2s-256 and returns the 256-bit truncated digest as a `Felt`.
+pub fn encode_felt252_data_and_calc_blake_hash(data: &[Felt]) -> Felt {
     // 1) Unpack each Felt into 2 or 8 u32 limbs
     let u32_words = encode_felts_to_u32s(data.to_vec());
 
-    // 2) Serialize the u32 limbs into a little-endian byte stream
+    // 2) Serialize the u32 limbs into a little-endian byte stream.
     let mut byte_stream = Vec::with_capacity(u32_words.len() * 4);
     for word in u32_words {
         byte_stream.extend_from_slice(&word.to_le_bytes());
     }
 
-    // 3) Compute Blake2s-256 over the bytes and pack the first 224 bits into a Felt
+    // 3) Compute Blake2s-256 over the bytes and pack the result into a Felt.
     blake2s_to_felt(&byte_stream)
 }
