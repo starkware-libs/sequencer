@@ -423,7 +423,7 @@ async fn handle_proposal_part(
             });
             let response_id = match response.response {
                 ProposalStatus::Finished(id) => id,
-                ProposalStatus::InvalidProposal => return HandledProposalPart::Invalid,
+                ProposalStatus::InvalidProposal(_) => return HandledProposalPart::Invalid,
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             };
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
@@ -475,7 +475,7 @@ async fn handle_proposal_part(
             });
             match response.response {
                 ProposalStatus::Processing => HandledProposalPart::Continue,
-                ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
+                ProposalStatus::InvalidProposal(_) => HandledProposalPart::Invalid,
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
         }

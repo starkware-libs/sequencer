@@ -361,6 +361,7 @@ impl BlockBuilder {
             Err(e @ TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
                 if self.execution_params.is_validator =>
             {
+                warn!("Failed to validate L1 Handler transaction: {:?}", e);
                 return Err(BlockBuilderError::FailOnError(L1HandlerTransactionValidationFailed(
                     e,
                 )));
