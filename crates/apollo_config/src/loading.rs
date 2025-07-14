@@ -2,9 +2,8 @@
 //! * Command line arguments.
 //! * Environment variables (capital letters).
 //! * Custom config files, separated by ',' (comma), from last to first.
-//! * Default config file.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::fs::File;
 use std::ops::IndexMut;
 use std::path::PathBuf;
@@ -15,7 +14,7 @@ use command::{get_command_matches, update_config_map_by_command_args};
 use itertools::any;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use tracing::{info, instrument};
+use tracing::{error, info, instrument};
 
 use crate::validators::validate_path_exists;
 use crate::{
@@ -79,8 +78,63 @@ pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
     update_config_map_by_pointers(&mut values_map, &pointers_map)?;
     // Set values according to the is-none marks.
     update_optional_values(&mut values_map);
-    // Build and return a Config object.
-    load(&values_map)
+    // Build the Config object.
+    let load_result = load(&values_map);
+    // In case of an error, print the error and the missing keys.
+    if load_result.is_err() {
+        error!("Loading the config resulted with an error: {:?}", load_result.as_ref().err());
+        // Obtain the loaded and schema keys.
+        let loaded_config_keys = values_map.keys().cloned().collect::<HashSet<_>>();
+        let schema_keys = deserialized_config_schema.keys().cloned().collect::<HashSet<_>>();
+
+        // Obtain the loaded and schema keys that are not in the other.
+        let mut keys_only_in_loaded_config: HashSet<_> =
+            loaded_config_keys.difference(&schema_keys).collect();
+        let mut keys_only_in_schema: HashSet<_> =
+            schema_keys.difference(&loaded_config_keys).collect();
+
+        // Address optional None value discrepancies:
+        // 1. Find None (null) values in the config entries.
+        let null_config_entries = values_map
+            .iter()
+            .filter(|(_, value)| value.is_null())
+            .map(|(key, _)| key.clone())
+            .collect::<HashSet<_>>();
+
+        // 2. Filter out None-value keys in the loaded config entries.
+        keys_only_in_loaded_config.retain(|item| !null_config_entries.contains(item.as_str()));
+
+        // 3. Filter out None-value keys in the schema entries.
+        let optional_param_suffix = format!("{FIELD_SEPARATOR}{IS_NONE_MARK}");
+        keys_only_in_schema.retain(|item| {
+            // Consider a schema key only if both:
+            // - it does NOT start with any prefix in `null_config_entries` (i.e., a None value)
+            // - it does NOT end with the optional param suffix (i.e., a None value indicator)
+            let has_prefix = null_config_entries.iter().any(|prefix| item.starts_with(prefix));
+            let has_suffix = item.ends_with(optional_param_suffix.as_str());
+            !has_prefix && !has_suffix
+        });
+
+        // Log the keys that are only in the loaded config.
+        if !keys_only_in_loaded_config.is_empty() {
+            error!(
+                "Detected loaded-schema config difference.
+                keys missing in schema: {:?}",
+                keys_only_in_loaded_config
+            );
+        }
+
+        // Log the keys that are only in the schema.
+        if !keys_only_in_schema.is_empty() {
+            error!(
+                "Detected loaded-schema config difference.
+                Keys missing in loaded config: {:?}",
+                keys_only_in_schema
+            );
+        }
+    }
+    // Return the loaded config result.
+    load_result
 }
 
 // Separates a json map into config map of the raw values and pointers map.
@@ -206,7 +260,7 @@ pub(crate) fn update_config_map(
     new_value: Value,
 ) -> Result<(), ConfigError> {
     let Some(serialization_type) = types_map.get(param_path) else {
-        return Err(ConfigError::ParamNotFound { param_path: param_path.to_string() });
+        return Err(ConfigError::UnexpectedParam { param_path: param_path.to_string() });
     };
     let is_type_matched = match serialization_type {
         SerializationType::Boolean => new_value.is_boolean(),
