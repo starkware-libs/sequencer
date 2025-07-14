@@ -533,10 +533,10 @@ async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) 
 }
 
 #[rstest]
-#[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal)]
+#[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal("test error".to_string()))]
 #[case::send_finish(
     SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
-    ProposalStatus::InvalidProposal
+    ProposalStatus::InvalidProposal("test error".to_string())
 )]
 #[case::send_abort(SendProposalContent::Abort, ProposalStatus::Aborted)]
 #[tokio::test]
