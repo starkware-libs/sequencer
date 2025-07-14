@@ -2,10 +2,6 @@ use std::collections::HashSet;
 
 use apollo_protobuf::consensus::DEFAULT_VALIDATOR_ID;
 
-pub(crate) fn get_secret_key(id: usize) -> String {
-    format!("0x010101010101010101010101010101010101010101010101010101010101010{}", id + 1)
-}
-
 pub(crate) fn get_validator_id(id: usize) -> String {
     format!("0x{:x}", id + usize::try_from(DEFAULT_VALIDATOR_ID).unwrap())
 }
