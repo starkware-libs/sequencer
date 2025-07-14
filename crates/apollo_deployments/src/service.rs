@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 use std::iter::once;
 use std::path::{Path, PathBuf};
@@ -276,7 +276,17 @@ pub(crate) trait ServiceNameInner: Display {
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool;
 
-    fn get_ports(&self) -> BTreeMap<ServicePort, u16>;
+    fn get_service_ports(&self) -> BTreeSet<ServicePort>;
+
+    fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
+        let mut ports = BTreeMap::new();
+
+        for service_port in self.get_service_ports() {
+            let port = service_port.get_port();
+            ports.insert(service_port, port);
+        }
+        ports
+    }
 
     // Kubernetes service name as defined by CDK8s.
     fn k8s_service_name(&self) -> String {
