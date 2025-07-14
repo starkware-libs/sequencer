@@ -269,10 +269,10 @@ pub struct L1ScraperConfig {
 impl Default for L1ScraperConfig {
     fn default() -> Self {
         Self {
-            startup_rewind_time_seconds: Duration::from_secs(0),
+            startup_rewind_time_seconds: Duration::from_secs(60 * 60),
             chain_id: ChainId::Mainnet,
             finality: 0,
-            polling_interval_seconds: Duration::from_secs(1),
+            polling_interval_seconds: Duration::from_secs(120),
         }
     }
 }

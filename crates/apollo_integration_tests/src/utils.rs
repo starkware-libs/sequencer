@@ -186,10 +186,17 @@ pub fn create_node_config(
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
     let gateway_config =
         create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);
-    let l1_scraper_config =
-        L1ScraperConfig { chain_id: chain_info.chain_id.clone(), ..Default::default() };
+    let l1_scraper_config = L1ScraperConfig {
+        chain_id: chain_info.chain_id.clone(),
+        startup_rewind_time_seconds: Duration::from_secs(0),
+        polling_interval_seconds: Duration::from_secs(0),
+        ..Default::default()
+    };
     let l1_provider_config = L1ProviderConfig {
         provider_startup_height_override: Some(BlockNumber(1)),
+        startup_sync_sleep_retry_interval_seconds: Duration::from_secs(0),
+        l1_handler_cancellation_timelock_seconds: Duration::from_secs(0),
+        new_l1_handler_cooldown_seconds: Duration::from_secs(0),
         ..Default::default()
     };
     let l1_endpoint_monitor_config = L1EndpointMonitorConfig {
@@ -301,7 +308,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             eth_to_strk_oracle_config: EthToStrkOracleConfig {
                 url_header_list: Some(vec![
                     UrlAndHeaders{
-                        url: Url::parse("https://eth_to_strk_oracle_url").expect("Should be a valid URL"), 
+                        url: Url::parse("https://eth_to_strk_oracle_url").expect("Should be a valid URL"),
                         headers: Default::default(),
                     }
                 ]),
