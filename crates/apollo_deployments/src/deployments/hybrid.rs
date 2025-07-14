@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::template::Template;
@@ -277,9 +277,122 @@ impl ServiceNameInner for HybridNodeServiceName {
         }
     }
 
-    // TODO(Nadin): Implement this method to return the actual ports used by the service.
-    fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
-        BTreeMap::new()
+    fn get_service_ports(&self) -> BTreeSet<ServicePort> {
+        let mut service_ports = BTreeSet::new();
+
+        match self {
+            HybridNodeServiceName::Core => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            HybridNodeServiceName::HttpServer => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            HybridNodeServiceName::Gateway => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            HybridNodeServiceName::Mempool => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            HybridNodeServiceName::SierraCompiler => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+        };
+        service_ports
     }
 }
 

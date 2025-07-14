@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
+use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::Serialize;
+use strum::EnumIter;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
@@ -91,7 +93,7 @@ impl StateSyncType {
     }
 }
 
-#[derive(Clone, Debug, Display, Serialize, PartialEq)]
+#[derive(Clone, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
 pub enum ServicePort {
     Batcher,
     ClassManager,
@@ -105,4 +107,23 @@ pub enum ServicePort {
     StateSync,
     HttpServer,
     MonitoringEndpoint,
+}
+
+impl ServicePort {
+    pub fn get_port(&self) -> u16 {
+        match self {
+            ServicePort::Batcher => 0,
+            ServicePort::ClassManager => 0,
+            ServicePort::Gateway => 0,
+            ServicePort::L1EndpointMonitor => 0,
+            ServicePort::L1GasPriceProvider => 0,
+            ServicePort::L1Provider => 0,
+            ServicePort::Mempool => 0,
+            ServicePort::MempoolP2p => 0,
+            ServicePort::SierraCompiler => 0,
+            ServicePort::StateSync => 0,
+            ServicePort::HttpServer => 0,
+            ServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
+        }
+    }
 }
