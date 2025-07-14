@@ -47,6 +47,10 @@ use crate::state::errors::StateError;
 use crate::state::state_api::State;
 use crate::utils::u64_from_usize;
 
+#[cfg(test)]
+#[path = "execution_utils_test.rs"]
+pub mod test;
+
 pub type Args = Vec<CairoArg>;
 
 pub const SEGMENT_ARENA_BUILTIN_SIZE: usize = 3;
