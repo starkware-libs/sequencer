@@ -20,7 +20,6 @@ use super::block_data_stream_builder::{
     ParseDataError,
 };
 use super::{P2pSyncClientError, ALLOWED_SIGNATURES_LENGTH};
-use crate::client::RESPONSE_TIMEOUT;
 
 impl BlockData for SignedBlockHeader {
     #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
@@ -86,13 +85,11 @@ impl BlockDataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
         _storage_reader: &'a StorageReader,
     ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>> {
         async move {
-            let maybe_signed_header =
-                tokio::time::timeout(RESPONSE_TIMEOUT, signed_headers_response_manager.next())
-                    .await
-                    .map_err(|_| ParseDataError::BadPeer(BadPeerError::ResponseTimeout))?
-                    .ok_or(ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
-                        type_description: Self::TYPE_DESCRIPTION,
-                    }))?;
+            let maybe_signed_header = signed_headers_response_manager.next().await.ok_or(
+                ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
+                    type_description: Self::TYPE_DESCRIPTION,
+                }),
+            )?;
             let Some(signed_block_header) = maybe_signed_header?.0 else {
                 return Ok(None);
             };
