@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
@@ -7,7 +7,7 @@ use apollo_node::config::component_execution_config::{
 };
 use indexmap::IndexMap;
 use serde::Serialize;
-use strum::Display;
+use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
 use crate::deployment_definitions::{Environment, ServicePort};
@@ -21,7 +21,6 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-
 const NODE_STORAGE: usize = 1000;
 const TESTING_NODE_STORAGE: usize = 1;
 
@@ -135,9 +134,27 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         }
     }
 
-    // TODO(Nadin): Implement this method to return the actual ports used by the service.
-    fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
-        BTreeMap::new()
+    fn get_service_ports(&self) -> BTreeSet<ServicePort> {
+        let mut service_ports = BTreeSet::new();
+        for service_port in ServicePort::iter() {
+            match service_port {
+                ServicePort::MonitoringEndpoint => {
+                    service_ports.insert(ServicePort::MonitoringEndpoint);
+                }
+                ServicePort::HttpServer
+                | ServicePort::Batcher
+                | ServicePort::Mempool
+                | ServicePort::ClassManager
+                | ServicePort::Gateway
+                | ServicePort::L1EndpointMonitor
+                | ServicePort::L1GasPriceProvider
+                | ServicePort::L1Provider
+                | ServicePort::SierraCompiler
+                | ServicePort::StateSync
+                | ServicePort::MempoolP2p => {}
+            }
+        }
+        service_ports
     }
 }
 
