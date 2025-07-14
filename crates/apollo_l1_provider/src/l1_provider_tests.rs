@@ -1014,3 +1014,295 @@ async fn commit_block_historical_height_short_circuits_bootstrap() {
     let expected_unchanged = l1_provider_builder.build();
     expected_unchanged.assert_eq(&l1_provider);
 }
+
+#[test]
+fn consuming_committed_tx() {
+    // Setup.
+    let tx = l1_handler(1);
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_committed([tx.clone()]).build_into_l1_provider();
+
+    l1_provider
+        .add_events(vec![Event::TransactionConsumed {
+            tx_hash: tx.tx_hash,
+            timestamp: BlockTimestamp(0),
+        }])
+        .unwrap();
+
+    let expected = L1ProviderContentBuilder::new()
+        .with_consumed_txs([ConsumedTransaction { tx: tx.clone(), timestamp: BlockTimestamp(0) }])
+        .build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn consuming_tx_marked_for_cancellation() {
+    // Setup.
+    let tx = l1_handler(1);
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_cancel_requested_txs([tx.clone()])
+        .build_into_l1_provider();
+
+    l1_provider
+        .add_events(vec![Event::TransactionConsumed {
+            tx_hash: tx.tx_hash,
+            timestamp: BlockTimestamp(0),
+        }])
+        .unwrap();
+
+    let expected = L1ProviderContentBuilder::new()
+        .with_consumed_txs([ConsumedTransaction { tx: tx.clone(), timestamp: BlockTimestamp(0) }])
+        .build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn consuming_tx_cancelled_on_l2() {
+    // Setup.
+    let tx = l1_handler(1);
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_cancelled_txs([tx.clone()]).build_into_l1_provider();
+
+    l1_provider
+        .add_events(vec![Event::TransactionConsumed {
+            tx_hash: tx.tx_hash,
+            timestamp: BlockTimestamp(0),
+        }])
+        .unwrap();
+
+    let expected = L1ProviderContentBuilder::new()
+        .with_consumed_txs([ConsumedTransaction { tx: tx.clone(), timestamp: BlockTimestamp(0) }])
+        .build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn consuming_pending_tx() {
+    // Setup.
+    let tx = l1_handler(1);
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_txs([tx.clone()]).build_into_l1_provider();
+
+    l1_provider
+        .add_events(vec![Event::TransactionConsumed {
+            tx_hash: tx.tx_hash,
+            timestamp: BlockTimestamp(0),
+        }])
+        .unwrap();
+
+    let expected = L1ProviderContentBuilder::new()
+        .with_consumed_txs([ConsumedTransaction { tx: tx.clone(), timestamp: BlockTimestamp(0) }])
+        .build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn consuming_rejected_tx() {
+    // Setup.
+    let tx = l1_handler(1);
+    let mut l1_provider =
+        L1ProviderContentBuilder::new().with_rejected([tx.clone()]).build_into_l1_provider();
+
+    l1_provider
+        .add_events(vec![Event::TransactionConsumed {
+            tx_hash: tx.tx_hash,
+            timestamp: BlockTimestamp(0),
+        }])
+        .unwrap();
+
+    let expected = L1ProviderContentBuilder::new()
+        .with_consumed_txs([ConsumedTransaction { tx: tx.clone(), timestamp: BlockTimestamp(0) }])
+        .build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+#[should_panic]
+fn consuming_consumed_tx_panics() {
+    // Setup.
+    let tx = l1_handler(1);
+    let consumed_tx = ConsumedTransaction { tx: tx.clone(), timestamp: BlockTimestamp(0) };
+    let timelock = 1000;
+    let config = L1ProviderConfig {
+        l1_handler_consumption_timelock_seconds: Duration::from_secs(timelock),
+        ..Default::default()
+    };
+    let clock = Arc::new(FakeClock::new(5));
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(clock)
+        .with_consumed_txs([consumed_tx])
+        .build_into_l1_provider();
+
+    assert!(l1_provider.tx_manager.records.contains_key(&tx.tx_hash));
+
+    l1_provider
+        .add_events(vec![Event::TransactionConsumed {
+            tx_hash: tx.tx_hash,
+            timestamp: BlockTimestamp(1),
+        }])
+        .unwrap();
+}
+
+#[test]
+fn consuming_unkown_tx_does_not_change_the_provider_state() {
+    // Setup.
+    let cancellation_request_tx = l1_handler(1);
+    let cancelled_on_l2_tx = l1_handler(2);
+    let committed_tx = l1_handler(3);
+    let rejected_tx = l1_handler(4);
+    let pending_tx = l1_handler(5);
+    let consumed_tx = ConsumedTransaction { tx: l1_handler(6), timestamp: BlockTimestamp(0) };
+    let unknown_tx = l1_handler(7);
+
+    let timelock = 1000;
+    let config = L1ProviderConfig {
+        l1_handler_consumption_timelock_seconds: Duration::from_secs(timelock),
+        ..Default::default()
+    };
+    let clock = Arc::new(FakeClock::new(5));
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(clock)
+        .with_cancel_requested_txs([cancellation_request_tx.clone()])
+        .with_cancelled_txs([cancelled_on_l2_tx.clone()])
+        .with_committed([committed_tx.clone()])
+        .with_rejected([rejected_tx.clone()])
+        .with_txs([pending_tx.clone()])
+        .with_consumed_txs([consumed_tx.clone()])
+        .build_into_l1_provider();
+
+    l1_provider
+        .add_events(vec![Event::TransactionConsumed {
+            tx_hash: unknown_tx.tx_hash,
+            timestamp: BlockTimestamp(0),
+        }])
+        .unwrap();
+
+    let expected = L1ProviderContentBuilder::new()
+        .with_cancel_requested_txs([cancellation_request_tx])
+        .with_cancelled_txs([cancelled_on_l2_tx])
+        .with_committed([committed_tx])
+        .with_rejected([rejected_tx])
+        .with_txs([pending_tx])
+        .with_consumed_txs([consumed_tx])
+        .build();
+    expected.assert_eq(&l1_provider);
+}
+
+#[test]
+fn consuming_tx_deletes_after_timelock() {
+    // Setup.
+    let tx = l1_handler(1);
+    let dummy_tx = ConsumedTransaction { tx: l1_handler(999), timestamp: BlockTimestamp(1200) }; // tx to consume to trigger the timelock
+    let timelock = 1000;
+    let config = L1ProviderConfig {
+        l1_handler_consumption_timelock_seconds: Duration::from_secs(timelock),
+        ..Default::default()
+    };
+    let clock = Arc::new(FakeClock::new(5));
+
+    // Creating a provider with a pending tx.
+
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(clock.clone())
+        .with_txs([tx.clone()])
+        .build_into_l1_provider();
+
+    // Marking the tx as consumed.
+
+    l1_provider
+        .add_events(vec![Event::TransactionConsumed {
+            tx_hash: tx.tx_hash,
+            timestamp: BlockTimestamp(0),
+        }])
+        .unwrap();
+
+    // Assert it is marked as consumed, but not deleted.
+
+    let l1_provider_with_consumed = L1ProviderContentBuilder::new()
+        .with_consumed_txs([ConsumedTransaction { tx: tx.clone(), timestamp: BlockTimestamp(0) }])
+        .build();
+
+    l1_provider_with_consumed.assert_eq(&l1_provider);
+
+    // Advance the clock and assert the tx is deleted.
+
+    clock.advance(l1_provider.config.l1_handler_consumption_timelock_seconds);
+
+    // Consume the dummy tx to trigger the deletion past the timelock.
+    l1_provider
+        .add_events(vec![Event::TransactionConsumed {
+            tx_hash: dummy_tx.tx.tx_hash,
+            timestamp: dummy_tx.timestamp,
+        }])
+        .unwrap();
+
+    let l1_provider_with_consumed_deleted = L1ProviderContentBuilder::new().build();
+    l1_provider_with_consumed_deleted.assert_eq(&l1_provider);
+}
+
+#[test]
+fn consuming_multiple_txs_selective_deletion_after_timelock() {
+    // Test that only transactions past the timelock are deleted, while newer ones remain
+    // - Consume tx1 at timestamp 100
+    // - Consume tx2 at timestamp 1000
+    // - Set timelock to 500 and clock at 1200
+    // - Verify tx1 is deleted but tx2 remains after consuming a dummy tx (to trigger the deletion)
+
+    // Setup.
+    let tx1 = l1_handler(1);
+    let tx2 = l1_handler(2);
+    let dummy_tx = ConsumedTransaction { tx: l1_handler(999), timestamp: BlockTimestamp(1200) }; // tx to consume to trigger the timelock
+    let timelock = 500; // 500 seconds timelock
+    let early_consumption_timestamp = 100;
+    let late_consumption_timestamp = 1000;
+
+    let config = L1ProviderConfig {
+        l1_handler_consumption_timelock_seconds: Duration::from_secs(timelock),
+        ..Default::default()
+    };
+
+    // Start time at 1200, which is past timelock for tx1 but not tx2
+    // tx1 consumed at 100, timelock passes at 100 + 500 = 600
+    // tx2 consumed at 1000, timelock passes at 1000 + 500 = 1500
+    // So at time 1200, only tx1 should be deleted
+    let clock = Arc::new(FakeClock::new(1200));
+
+    let mut l1_provider = L1ProviderContentBuilder::new()
+        .with_config(config)
+        .with_clock(clock.clone())
+        .with_txs([dummy_tx.tx.clone()])
+        .with_consumed_txs([
+            ConsumedTransaction {
+                tx: tx1.clone(),
+                timestamp: BlockTimestamp(early_consumption_timestamp),
+            },
+            ConsumedTransaction {
+                tx: tx2.clone(),
+                timestamp: BlockTimestamp(late_consumption_timestamp),
+            },
+        ])
+        .build_into_l1_provider();
+
+    // Consume the dummy tx to trigger the deletion past the timelock.
+    l1_provider
+        .add_events(vec![Event::TransactionConsumed {
+            tx_hash: dummy_tx.tx.tx_hash,
+            timestamp: dummy_tx.timestamp,
+        }])
+        .unwrap();
+
+    // Only tx2 should remain consumed, tx1 should be deleted
+    let expected_with_tx1_deleted = L1ProviderContentBuilder::new()
+        .with_consumed_txs([
+            ConsumedTransaction { tx: dummy_tx.tx, timestamp: dummy_tx.timestamp },
+            ConsumedTransaction {
+                tx: tx2.clone(),
+                timestamp: BlockTimestamp(late_consumption_timestamp),
+            },
+        ])
+        .build();
+    expected_with_tx1_deleted.assert_eq(&l1_provider);
+}
