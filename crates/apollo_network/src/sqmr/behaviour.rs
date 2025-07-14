@@ -359,8 +359,16 @@ impl BridgedBehaviour for Behaviour {
         else {
             error!(
                 "Outbound session assigned peer but it isn't in \
-                 outbound_sessions_pending_peer_assignment. Not running query."
+                 outbound_sessions_pending_peer_assignment. Emitting SessionFailed event for \
+                 cleanup."
             );
+            // Emit SessionFailed event to trigger cleanup in network manager
+            self.add_event_to_queue(ToSwarm::GenerateEvent(Event::External(
+                ExternalEvent::SessionFailed {
+                    session_id: (*outbound_session_id).into(),
+                    error: SessionError::ConnectionClosed,
+                },
+            )));
             return;
         };
 
