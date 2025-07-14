@@ -3,7 +3,7 @@ use url::Url;
 
 use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
 use crate::deployment::{Deployment, P2PCommunicationType};
-use crate::deployment_definitions::{Environment, StateSyncType};
+use crate::deployment_definitions::{CloudK8sEnvironment, Environment, StateSyncType};
 use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
 use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
 use crate::service::NodeType;
@@ -36,7 +36,7 @@ fn deployment_config_override() -> DeploymentConfigOverride {
 fn hybrid_deployments(id: usize, p2p_communication_type: P2PCommunicationType) -> Deployment {
     Deployment::new(
         NodeType::Hybrid,
-        Environment::SepoliaTestnet,
+        Environment::CloudK8s(CloudK8sEnvironment::SepoliaTestnet),
         &INSTANCE_NAME_FORMAT.format(&[&id]),
         Some(ExternalSecret::new(SECRET_NAME_FORMAT.format(&[&id]))),
         ConfigOverride::new(

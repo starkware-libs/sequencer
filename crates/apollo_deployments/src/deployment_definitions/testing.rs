@@ -55,7 +55,7 @@ fn get_ingress_params() -> IngressParams {
 fn system_test_distributed_deployment() -> Deployment {
     Deployment::new(
         NodeType::Distributed,
-        Environment::Testing,
+        Environment::LocalK8s,
         "distributed",
         None,
         testing_config_override(),
@@ -67,7 +67,7 @@ fn system_test_distributed_deployment() -> Deployment {
 fn system_test_hybrid_deployment() -> Deployment {
     Deployment::new(
         NodeType::Hybrid,
-        Environment::Testing,
+        Environment::LocalK8s,
         "hybrid",
         None,
         testing_config_override(),
@@ -79,7 +79,7 @@ fn system_test_hybrid_deployment() -> Deployment {
 fn system_test_consolidated_deployment() -> Deployment {
     Deployment::new(
         NodeType::Consolidated,
-        Environment::Testing,
+        Environment::LocalK8s,
         "consolidated",
         None,
         testing_config_override(),

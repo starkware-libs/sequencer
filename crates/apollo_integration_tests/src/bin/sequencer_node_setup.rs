@@ -8,8 +8,6 @@ use clap::Parser;
 use tokio::fs::create_dir_all;
 use tracing::info;
 
-// TODO(Tsabary): unify the constants throughout this code with their respective usages.
-
 #[tokio::main]
 async fn main() {
     configure_tracing().await;
