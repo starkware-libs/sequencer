@@ -17,17 +17,17 @@ use crate::signature_manager::{
 
 const ALICE_IDENTITY_SIGNATURE: Signature = Signature {
     r: Felt::from_hex_unchecked(
-        "0x7a8dd91774e806fa5e0880c77d61ccb40fc33fcb5db00fdc5585758cf95f79d",
+        "0x4c275c7fae888bf8ce0f43e938ee63b48a719a82c44f5991bf8be407ebfb390",
     ),
     s: Felt::from_hex_unchecked(
-        "0x5bdd4ddd34e2708c03c14d5872de1d541476f4af9f92f48a3d77d5ea3e16cc0",
+        "0x41640caf231352af1efa2f7d608f99a3a93e58ece2edcd2cdf200c86bf17232",
     ),
 };
 
 const ALICE_PRECOMMIT_SIGNATURE: Signature = Signature {
-    r: Felt::from_hex_unchecked("0xcd59947811bac7c33d3dae3d50b1de243710b05f285455ada6823e23871a2b"),
+    r: Felt::from_hex_unchecked("0xe16ecc38c135735e8aed7ffdb150ebb956a93ec19ac53e8295cdbd04d552b2"),
     s: Felt::from_hex_unchecked(
-        "0x33817fd47c5253c4979999afe0dd6b275498d9c7b96dd7705b84c2113228f11",
+        "0x4de081a9459b0e7defc49f7166f8869b33313020a20ffcc97506b8df6c42a7b",
     ),
 };
 
