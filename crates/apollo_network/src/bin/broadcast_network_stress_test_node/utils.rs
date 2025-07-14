@@ -10,6 +10,7 @@ use apollo_network::NetworkConfig;
 use libp2p::identity::Keypair;
 use serde::{Deserialize, Serialize, Serializer};
 
+
 pub const BOOTSTRAP_CONFIG_FILE_PATH: &str =
     "crates/apollo_network/src/bin/network_stress_test/bootstrap_test_config.json";
 pub const BOOTSTRAP_OUTPUT_FILE_PATH: &str =
@@ -129,3 +130,4 @@ where
     let millis = duration_since_epoch.as_millis();
     serializer.serialize_u128(millis)
 }
+
