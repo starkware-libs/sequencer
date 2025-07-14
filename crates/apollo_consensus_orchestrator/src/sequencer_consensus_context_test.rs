@@ -820,9 +820,8 @@ async fn constant_l2_gas_price_behavior(
     } else {
         assert!(
             actual_l2_gas_price > min_gas_price,
-            "Expected L2 gas price > min ({}) due to high usage (EIP-1559), but got {}",
-            min_gas_price,
-            actual_l2_gas_price
+            "Expected L2 gas price > min ({min_gas_price}) due to high usage (EIP-1559), but got \
+             {actual_l2_gas_price}"
         );
     }
 }

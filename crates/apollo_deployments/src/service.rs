@@ -119,8 +119,7 @@ where
             seq.serialize_element(stripped)?;
         } else {
             return Err(serde::ser::Error::custom(format!(
-                "Expected all items to start with '{}', got '{}'",
-                CONFIG_BASE_DIR, s
+                "Expected all items to start with '{CONFIG_BASE_DIR}', got '{s}'"
             )));
         }
     }

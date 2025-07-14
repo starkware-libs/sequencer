@@ -6,15 +6,29 @@ use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use futures::future::Either;
+use lazy_static::lazy_static;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 use libp2p::swarm::{ConnectionId, NetworkBehaviour, Swarm, SwarmEvent};
-use libp2p::{PeerId, Stream, StreamProtocol};
+use libp2p::{identity, Multiaddr, PeerId, Stream, StreamProtocol};
 use libp2p_swarm_test::SwarmExt;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
 
 use crate::utils::{make_quic_multiaddr, StreamMap};
 use crate::Bytes;
+
+lazy_static! {
+    #[cfg(test)]
+    pub static ref DUMMY_PEER_ID: PeerId = {
+        let key = [0u8; 32];
+        let keypair = identity::Keypair::ed25519_from_bytes(key).unwrap();
+        PeerId::from_public_key(&keypair.public())
+    };
+    #[cfg(test)]
+    pub static ref DUMMY_MULTI_ADDRESS: Multiaddr = {
+        make_quic_multiaddr(Ipv4Addr::LOCALHOST, 10000, *DUMMY_PEER_ID)
+    };
+}
 
 /// Create two streams that are connected to each other. Return them and a join handle for a thread
 /// that will perform the sends between the streams (this thread will run forever so it shouldn't
