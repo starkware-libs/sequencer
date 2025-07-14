@@ -1,6 +1,7 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
 
+use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -271,9 +272,235 @@ impl ServiceNameInner for DistributedNodeServiceName {
         }
     }
 
+    fn get_service_ports(&self) -> BTreeSet<ServicePort> {
+        let mut service_ports = BTreeSet::new();
+
+        match self {
+            DistributedNodeServiceName::Batcher => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            DistributedNodeServiceName::ClassManager => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            DistributedNodeServiceName::ConsensusManager => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            DistributedNodeServiceName::HttpServer => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            DistributedNodeServiceName::Gateway => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            DistributedNodeServiceName::L1 => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            DistributedNodeServiceName::Mempool => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            DistributedNodeServiceName::SierraCompiler => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            DistributedNodeServiceName::StateSync => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+        };
+
+        service_ports
+    }
+
     // TODO(Nadin): Implement this method to return the actual ports used by the service.
     fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
-        BTreeMap::new()
+        let mut ports = BTreeMap::new();
+
+        for service_port in self.get_service_ports() {
+            let port = match service_port {
+                ServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
+                ServicePort::HttpServer
+                | ServicePort::Batcher
+                | ServicePort::Mempool
+                | ServicePort::ClassManager
+                | ServicePort::Gateway
+                | ServicePort::L1EndpointMonitor
+                | ServicePort::L1GasPriceProvider
+                | ServicePort::L1Provider
+                | ServicePort::SierraCompiler
+                | ServicePort::StateSync
+                | ServicePort::MempoolP2p => 0,
+            };
+            ports.insert(service_port, port);
+        }
+        ports
     }
 }
 

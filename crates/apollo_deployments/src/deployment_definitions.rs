@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use serde::Serialize;
+use strum::EnumIter;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
@@ -91,7 +92,7 @@ impl StateSyncType {
     }
 }
 
-#[derive(Clone, Debug, Display, Serialize, PartialEq)]
+#[derive(Clone, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
 pub enum ServicePort {
     Batcher,
     ClassManager,

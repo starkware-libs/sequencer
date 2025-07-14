@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 use std::iter::once;
 use std::path::{Path, PathBuf};
@@ -275,6 +275,8 @@ pub(crate) trait ServiceNameInner: Display {
     fn get_replicas(&self, environment: &Environment) -> usize;
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool;
+
+    fn get_service_ports(&self) -> BTreeSet<ServicePort>;
 
     fn get_ports(&self) -> BTreeMap<ServicePort, u16>;
 

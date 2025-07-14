@@ -34,7 +34,9 @@
         "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": true,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "HttpServer",
@@ -78,7 +80,9 @@
         "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "Gateway",
@@ -109,7 +113,9 @@
         "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "Mempool",
@@ -144,7 +150,9 @@
         "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": true,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "SierraCompiler",
@@ -175,7 +183,9 @@
         "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     }
   ]
 }
