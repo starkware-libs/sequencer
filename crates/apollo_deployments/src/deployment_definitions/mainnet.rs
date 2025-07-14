@@ -9,26 +9,24 @@ use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
 use crate::service::NodeType;
 
 const NODE_IDS: [usize; 3] = [0, 1, 2];
-const HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "placeholder.starknet.io";
+const HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "alpha-mainnet.starknet.io";
 const INGRESS_DOMAIN: &str = "starknet.io";
-const SECRET_NAME_FORMAT: Template = Template("placeholder-{}");
-const NODE_NAMESPACE_FORMAT: Template = Template("placeholder-{}");
+const SECRET_NAME_FORMAT: Template = Template("apollo-mainnet-{}");
+const NODE_NAMESPACE_FORMAT: Template = Template("apollo-mainnet-{}");
 
 pub(crate) fn mainnet_hybrid_deployments() -> Vec<Deployment> {
     NODE_IDS.map(|i| hybrid_deployments(i, P2PCommunicationType::External)).to_vec()
 }
 
-// TODO(Tsabary): currently set with testnet values, need to be updated.
-
 // TODO(Tsabary): for all envs, define the values as constants at the top of the module, and cancel
 // the inner function calls.
 fn deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
-        "0x4737c0c1B4D5b1A687B42610DdabEE781152359c",
-        "SN_MAIN",
-        "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
-        Url::parse("https://feeder.placeholder.starknet.io").expect("Invalid URL"),
+        "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4",
+        "MAINNET",
         "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+        Url::parse("https://feeder.alpha-mainnet.starknet.io").expect("Invalid URL"),
+        "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
         None,
         NODE_IDS.len(),
         StateSyncType::Central,
