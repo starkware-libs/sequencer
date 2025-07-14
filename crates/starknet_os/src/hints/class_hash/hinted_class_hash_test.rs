@@ -23,19 +23,26 @@ fn hinted_hash_from_file(file_path: &str) -> Felt {
 }
 
 // The contract and the expected hash are taken from the python side.
-#[test]
-fn test_compute_cairo_hinted_class_hash() {
-    let contract_path = current_dir().unwrap().join("resources/test_contract.json");
+#[rstest]
+#[case("test_contract.json", "0x3D64E035186B556B0B88C52684FDDF6A9251944E763DCCA6637159C9FBC2D66")]
+#[case("account.json", "0xBFE8D78D97512C3C321FAA6FC578E3DBBC6ECAD0F2948087C77187A66BD1B")]
+#[case(
+    "deprecated_proxy.json",
+    "0x3F256EA66406A20C9E1C6A7DA6BD5443923200291A832DAF5F111D5357B469E"
+)]
+fn test_compute_cairo_hinted_class_hash(
+    #[case] contract_path_string: &str,
+    #[case] expected_hash_hex: &str,
+) {
+    let expected_hash = Felt::from_hex_unchecked(expected_hash_hex);
+    let contract_path = current_dir().unwrap().join(format!("resources/{contract_path_string}"));
     let computed_hash = hinted_hash_from_file(contract_path.to_str().unwrap());
-    let expected_hash = Felt::from_hex_unchecked(
-        "0x3D64E035186B556B0B88C52684FDDF6A9251944E763DCCA6637159C9FBC2D66",
-    );
     assert_eq!(computed_hash, expected_hash, "Computed hash does not match expected hash");
 }
 
 #[rstest]
 #[case::empty_tracking_data_and_scopes(
-    "deprecated_proxy_original.json",
+    "deprecated_proxy.json",
     "deprecated_proxy_reserialized.json"
 )]
 fn test_hinted_hash_equivalence(#[case] contract_0: &str, #[case] contract_1: &str) {
