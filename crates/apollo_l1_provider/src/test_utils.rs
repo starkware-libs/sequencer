@@ -53,6 +53,8 @@ impl L1ProviderContent {
     pub fn assert_eq(&self, l1_provider: &L1Provider) {
         if let Some(tx_manager_content) = &self.tx_manager_content {
             tx_manager_content.assert_eq(&l1_provider.tx_manager);
+        } else {
+            assert!(l1_provider.tx_manager.snapshot().is_empty());
         }
 
         if let Some(state) = &self.state {
