@@ -8,6 +8,7 @@ use strum::EnumIter;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
+use crate::deployment_definitions::mainnet::mainnet_hybrid_deployments;
 use crate::deployment_definitions::sepolia_integration::sepolia_integration_hybrid_deployments;
 use crate::deployment_definitions::sepolia_testnet::sepolia_testnet_hybrid_deployments;
 use crate::deployment_definitions::stress_test::stress_test_hybrid_deployments;
@@ -18,6 +19,7 @@ use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
 
+mod mainnet;
 mod sepolia_integration;
 mod sepolia_testnet;
 mod stress_test;
@@ -33,12 +35,13 @@ pub(crate) const BASE_APP_CONFIG_PATH: &str =
 type DeploymentFn = fn() -> Vec<Deployment>;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
-    system_test_deployments,
+    mainnet_hybrid_deployments,
     sepolia_integration_hybrid_deployments,
-    upgrade_test_hybrid_deployments,
-    testing_env_3_hybrid_deployments,
-    stress_test_hybrid_deployments,
     sepolia_testnet_hybrid_deployments,
+    stress_test_hybrid_deployments,
+    system_test_deployments,
+    testing_env_3_hybrid_deployments,
+    upgrade_test_hybrid_deployments,
 ];
 
 #[derive(Clone, Debug, PartialEq)]
