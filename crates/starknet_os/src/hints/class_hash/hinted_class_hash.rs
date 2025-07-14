@@ -163,13 +163,31 @@ pub fn compute_cairo_hinted_class_hash(
 /// For example, use "(a : felt)" instead of "(a: felt)".
 pub fn add_backward_compatibility_space(input: &mut String) {
     let cairo_regex = Regex::new(r#""cairo_type"\s*:\s*"\(([^"]*)\)""#).unwrap();
+    let value_regex = Regex::new(r#""value"\s*:\s*"(.*?)""#).unwrap();
+    let paren_regex = Regex::new(r"\(([^()]+)\)").unwrap();
     let pair_regex = Regex::new(r"([^:\s,]+):\s*([^,\s)]+)").unwrap();
 
+    // Fix cairo_type, which must be a single type (either a simple type or a tuple).
     *input = cairo_regex
         .replace_all(input, |caps: &regex::Captures<'_>| {
             let inner = &caps[1];
             let fixed = pair_regex.replace_all(inner, "$1 : $2");
             format!("\"cairo_type\": \"({fixed})\"")
+        })
+        .into_owned();
+
+    // Fix only (key: value) pairs inside (...) in "value".
+    *input = value_regex
+        .replace_all(input, |caps: &regex::Captures<'_>| {
+            let raw_value = &caps[1];
+            let fixed = paren_regex
+                .replace_all(raw_value, |paren_caps: &regex::Captures<'_>| {
+                    let inner = &paren_caps[1];
+                    let fixed_inner = pair_regex.replace_all(inner, "$1 : $2");
+                    format!("({fixed_inner})")
+                })
+                .into_owned();
+            format!("\"value\": \"{fixed}\"")
         })
         .into_owned();
 }
