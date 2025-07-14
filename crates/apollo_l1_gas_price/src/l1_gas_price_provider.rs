@@ -4,13 +4,12 @@ use std::collections::{BTreeMap, VecDeque};
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderResult, PriceInfo};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
-use tracing::{info, trace, warn};
+use tracing::{info, warn};
 use validator::Validate;
 
 use crate::metrics::{register_provider_metrics, L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY};
@@ -20,38 +19,53 @@ use crate::metrics::{register_provider_metrics, L1_GAS_PRICE_PROVIDER_INSUFFICIE
 pub mod l1_gas_price_provider_test;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct L1GasPriceProviderConfig {
-    // TODO(guyn): these two fields need to go into VersionedConstants.
+pub struct L1GasPriceSharedConfig {
+    // TODO(guyn): this field needs to go into VersionedConstants.
     pub number_of_blocks_for_mean: u64,
+}
+
+impl Default for L1GasPriceSharedConfig {
+    fn default() -> Self {
+        const MEAN_NUMBER_OF_BLOCKS: u64 = 300;
+        Self { number_of_blocks_for_mean: MEAN_NUMBER_OF_BLOCKS }
+    }
+}
+
+impl SerializeConfig for L1GasPriceSharedConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "number_of_blocks_for_mean",
+            &self.number_of_blocks_for_mean,
+            "Number of blocks to use for the mean gas price calculation",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct L1GasPriceProviderConfig {
+    pub shared: L1GasPriceSharedConfig,
     // Use seconds not Duration since seconds is the basic quanta of time for both Starknet and
     // Ethereum.
     pub lag_margin_seconds: u64,
     pub storage_limit: usize,
-    // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
-    pub max_time_gap_seconds: u64,
 }
 
 impl Default for L1GasPriceProviderConfig {
     fn default() -> Self {
-        const MEAN_NUMBER_OF_BLOCKS: u64 = 300;
+        let shared = L1GasPriceSharedConfig::default();
         Self {
-            number_of_blocks_for_mean: MEAN_NUMBER_OF_BLOCKS,
+            shared: shared.clone(),
             lag_margin_seconds: 60,
-            storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
-            max_time_gap_seconds: 900, // 15 minutes
+            storage_limit: usize::try_from(10 * shared.number_of_blocks_for_mean).unwrap(),
         }
     }
 }
 
 impl SerializeConfig for L1GasPriceProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
-            ser_param(
-                "number_of_blocks_for_mean",
-                &self.number_of_blocks_for_mean,
-                "Number of blocks to use for the mean gas price calculation",
-                ParamPrivacyInput::Public,
-            ),
+        let mut config = self.shared.dump();
+        config.extend(BTreeMap::from([
             ser_param(
                 "lag_margin_seconds",
                 &self.lag_margin_seconds,
@@ -65,14 +79,8 @@ impl SerializeConfig for L1GasPriceProviderConfig {
                 "Maximum number of L1 blocks to keep cached",
                 ParamPrivacyInput::Public,
             ),
-            ser_param(
-                "max_time_gap_seconds",
-                &self.max_time_gap_seconds,
-                "Maximum valid time gap between the requested timestamp and the last price sample \
-                 in seconds",
-                ParamPrivacyInput::Public,
-            ),
-        ])
+        ]));
+        config
     }
 }
 
@@ -134,9 +142,7 @@ impl L1GasPriceProvider {
                 });
             }
         }
-        trace!("Received price sample for L1 block: {:?}", new_data);
-        // TODO(guy.f): Replace with info_every_n_sec once implemented.
-        info_every_n!(100, "Received price sample for L1 block: {:?}", new_data);
+        info!("Received price sample for L1 block: {:?}", new_data);
         samples.push(new_data);
         Ok(())
     }
@@ -145,23 +151,6 @@ impl L1GasPriceProvider {
         let Some(samples) = &self.price_samples_by_block else {
             return Err(L1GasPriceProviderError::NotInitializedError);
         };
-        // timestamp of the newest price sample
-        let last_timestamp = samples
-            .back()
-            .ok_or(L1GasPriceProviderError::MissingDataError {
-                timestamp: timestamp.0,
-                lag: self.config.lag_margin_seconds,
-            })?
-            .timestamp;
-
-        // Check if the prices are stale.
-        if timestamp.0 > (*last_timestamp + self.config.max_time_gap_seconds) {
-            return Err(L1GasPriceProviderError::StaleL1GasPricesError {
-                current_timestamp: timestamp.0,
-                last_valid_price_timestamp: *last_timestamp,
-            });
-        }
-
         // This index is for the last block in the mean (inclusive).
         let index_last_timestamp_rev = samples.iter().rev().position(|data| {
             data.timestamp <= timestamp.saturating_sub(&self.config.lag_margin_seconds)
@@ -180,7 +169,7 @@ impl L1GasPriceProvider {
         // so `last_index` is guaranteed to be >= 1.
         let last_index = samples.len() - last_index_rev;
 
-        let num_blocks = usize::try_from(self.config.number_of_blocks_for_mean)
+        let num_blocks = usize::try_from(self.config.shared.number_of_blocks_for_mean)
             .expect("number_of_blocks_for_mean is too large to fit into a usize");
 
         let first_index = if last_index >= num_blocks {

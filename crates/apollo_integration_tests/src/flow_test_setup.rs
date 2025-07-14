@@ -268,8 +268,8 @@ impl FlowSequencerSetup {
             allow_bootstrap_txs,
         );
         let num_l1_txs = u64::try_from(NUM_L1_TRANSACTIONS).unwrap();
-        node_config.l1_gas_price_scraper_config.number_of_blocks_for_mean = num_l1_txs;
-        node_config.l1_gas_price_provider_config.number_of_blocks_for_mean = num_l1_txs;
+        node_config.l1_gas_price_scraper_config.shared.number_of_blocks_for_mean = num_l1_txs;
+        node_config.l1_gas_price_provider_config.shared.number_of_blocks_for_mean = num_l1_txs;
 
         debug!("Sequencer config: {:#?}", node_config);
         let (clients, servers) = create_node_modules(&node_config).await;
@@ -382,11 +382,12 @@ impl TxCollector {
 
         assert_eq!(
             incoming_message_id, 0,
-            "Expected the first message in the stream to have id 0, got {incoming_message_id}"
+            "Expected the first message in the stream to have id 0, got {}",
+            incoming_message_id
         );
         let StreamMessageBody::Content(ProposalPart::Init(incoming_proposal_init)) = init_message
         else {
-            panic!("Expected an init message. Got: {init_message:?}")
+            panic!("Expected an init message. Got: {:?}", init_message)
         };
 
         self.accumulated_txs
@@ -402,7 +403,7 @@ impl TxCollector {
             assert_eq!(stream_id, first_stream_id, "Expected the same stream id for all messages");
             match message {
                 StreamMessageBody::Content(ProposalPart::Init(init)) => {
-                    panic!("Unexpected init: {init:?}")
+                    panic!("Unexpected init: {:?}", init)
                 }
                 StreamMessageBody::Content(ProposalPart::Fin(..)) => {
                     got_proposal_fin = true;

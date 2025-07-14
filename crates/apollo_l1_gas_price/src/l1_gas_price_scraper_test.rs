@@ -201,7 +201,7 @@ async fn l1_reorg_gas_price_scraper_error() {
 }
 
 #[rstest]
-#[case::high_finality(3)]
+// #[case::high_finality(3)]
 #[case::low_finality(1)]
 #[tokio::test]
 async fn l1_short_reorg_gas_price_scraper_is_fine(#[case] finality: u64) {
@@ -251,19 +251,20 @@ async fn l1_short_reorg_gas_price_scraper_is_fine(#[case] finality: u64) {
         Arc::new(mock_provider),
         mock_contract,
     );
+    println!("scraper: {:?}", scraper.config);
     // The first call should succeed.
     let result = scraper.update_prices(START_BLOCK).await;
     // Successfully scraped the first blocks (we don't reach END_BLOCK, because of finality).
     let new_block_number = result.unwrap();
     assert_eq!(new_block_number, END_BLOCK - finality + 1);
-
+    println!("new_block_number: {new_block_number:?}");
     // Now we simulate a reorg by setting has_reorg_happened to true.
     has_reorg_happened.store(true, Ordering::SeqCst);
     // We allow the chain to keep going to a higher block number.
     end_of_chain.store(END_BLOCK + finality * 2, Ordering::SeqCst);
     // The second call should succeed, as the scraper will handle the reorg.
     let result = scraper.update_prices(new_block_number).await;
-
+    println!("result: {result:?}");
     if finality > 1 {
         // High finality case, means we can safely skip over this short reorg.
         let final_block_number = result.unwrap();

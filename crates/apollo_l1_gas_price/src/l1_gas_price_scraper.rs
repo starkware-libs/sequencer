@@ -1,6 +1,5 @@
 use std::any::type_name;
 use std::collections::BTreeMap;
-use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -10,7 +9,6 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n;
 use apollo_l1_gas_price_types::errors::L1GasPriceClientError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderClient, PriceInfo};
 use async_trait::async_trait;
@@ -19,14 +17,14 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ChainId;
 use thiserror::Error;
-use tracing::{error, info, trace, warn};
+use tracing::{error, info, warn};
 use validator::Validate;
 
+use crate::l1_gas_price_provider::L1GasPriceSharedConfig;
 use crate::metrics::{
     register_scraper_metrics,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_GAS_PRICE_SCRAPER_REORG_DETECTED,
-    L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT,
 };
 
 #[cfg(test)]
@@ -49,11 +47,11 @@ pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     NetworkError(ClientError),
 }
 
-// TODO(guyn): find a way to synchronize the value of number_of_blocks_for_mean
-// with the one in L1GasPriceProviderConfig. In the end they should both be loaded
-// from VersionedConstants.
+// TODO(guyn): this configuration should be synchronized with L1GasPriceProviderConfig
+// by using L1GasPriceSharedConfig which is now part of both configs.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1GasPriceScraperConfig {
+    pub shared: L1GasPriceSharedConfig,
     /// This field is ignored by the L1Scraper.
     /// Manual override to specify where the scraper should start.
     /// If None, the node will start scraping from 2*number_of_blocks_for_mean before the tip of
@@ -64,7 +62,6 @@ pub struct L1GasPriceScraperConfig {
     pub finality: u64,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub polling_interval: Duration,
-    pub number_of_blocks_for_mean: u64,
     // How many sets of config.num_blocks_for_mean blocks to go back
     // on the chain when starting to scrape.
     pub startup_num_blocks_multiplier: u64,
@@ -73,11 +70,11 @@ pub struct L1GasPriceScraperConfig {
 impl Default for L1GasPriceScraperConfig {
     fn default() -> Self {
         Self {
+            shared: L1GasPriceSharedConfig::default(),
             starting_block: None,
             chain_id: ChainId::Other("0x0".to_string()),
             finality: 0,
             polling_interval: Duration::from_secs(1),
-            number_of_blocks_for_mean: 300,
             startup_num_blocks_multiplier: 2,
         }
     }
@@ -85,7 +82,8 @@ impl Default for L1GasPriceScraperConfig {
 
 impl SerializeConfig for L1GasPriceScraperConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        let mut config = BTreeMap::from([
+        let mut config = self.shared.dump();
+        config.extend(BTreeMap::from([
             ser_param(
                 "chain_id",
                 &self.chain_id,
@@ -105,18 +103,12 @@ impl SerializeConfig for L1GasPriceScraperConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "number_of_blocks_for_mean",
-                &self.number_of_blocks_for_mean,
-                "Number of blocks to use for the mean gas price calculation",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
                 "startup_num_blocks_multiplier",
                 &self.startup_num_blocks_multiplier,
                 "How many sets of config.num_blocks_for_mean blocks to go back on the chain when starting to scrape.",
                 ParamPrivacyInput::Public,
             ),
-        ]);
+        ]));
         config.extend(ser_optional_param(
             &self.starting_block,
             0, // This value is never used, since #is_none turns it to a None.
@@ -160,21 +152,10 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
     /// Returns the next `block_number` to be scraped.
     async fn update_prices(
         &mut self,
-        start_block_number: L1BlockNumber,
+        mut block_number: L1BlockNumber,
     ) -> L1GasPriceScraperResult<L1BlockNumber, B> {
-        let Some(last_block_number) = self.latest_l1_block_number().await? else {
-            // Not enough blocks under current finality. Try again later.
-            return Ok(start_block_number);
-        };
-        trace!(
-            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
-        );
-        // TODO(guy.f): Replace with info_every_n_sec once implemented.
-        info_every_n!(
-            100,
-            "Scraping gas prices starting from block {start_block_number} to {last_block_number}."
-        );
-        for block_number in start_block_number..=last_block_number {
+        info!("Scraping gas prices starting from block {block_number}");
+        loop {
             let header = match self.base_layer.get_block_header(block_number).await {
                 Ok(Some(header)) => header,
                 Ok(None) => return Ok(block_number),
@@ -198,9 +179,9 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
                 .add_price_info(GasPriceData { block_number, timestamp, price_info })
                 .await
                 .map_err(L1GasPriceScraperError::GasPriceClientError)?;
-            L1_GAS_PRICE_SCRAPER_SUCCESS_COUNT.increment(1);
+
+            block_number += 1;
         }
-        Ok(last_block_number + 1)
     }
     async fn assert_no_l1_reorgs(
         &self,
@@ -226,17 +207,10 @@ impl<B: BaseLayerContract + Send + Sync> L1GasPriceScraper<B> {
 
         Ok(())
     }
-
-    async fn latest_l1_block_number(&self) -> L1GasPriceScraperResult<Option<L1BlockNumber>, B> {
-        self.base_layer
-            .latest_l1_block_number(self.config.finality)
-            .await
-            .map_err(L1GasPriceScraperError::BaseLayerError)
-    }
 }
 
 #[async_trait]
-impl<B: BaseLayerContract + Send + Sync + Debug> ComponentStarter for L1GasPriceScraper<B>
+impl<B: BaseLayerContract + Send + Sync> ComponentStarter for L1GasPriceScraper<B>
 where
     B::Error: Send,
 {
@@ -247,21 +221,23 @@ where
             Some(block) => block,
             None => {
                 let latest = self
-                    .latest_l1_block_number()
+                    .base_layer
+                    .latest_l1_block_number(self.config.finality)
                     .await
-                    .expect("Failed to get the latest L1 block number at startup")
-                    .expect("Failed to get the latest L1 block number at startup");
-
+                    .expect("Failed to get the latest L1 block number")
+                    .expect("Failed to get the latest L1 block number");
                 // If no starting block is provided, the default is to start from
                 // startup_num_blocks_multiplier * number_of_blocks_for_mean before the tip of L1.
                 // Note that for new chains this subtraction may be negative,
                 // hence the use of saturating_sub.
                 latest.saturating_sub(
-                    self.config.number_of_blocks_for_mean
+                    self.config.shared.number_of_blocks_for_mean
                         * self.config.startup_num_blocks_multiplier,
                 )
             }
         };
-        self.run(start_from).await.unwrap_or_else(|e| panic!("L1 gas price scraper failed: {e}"))
+        self.run(start_from)
+            .await
+            .unwrap_or_else(|e| panic!("Failed to start L1Scraper component: {}", e))
     }
 }

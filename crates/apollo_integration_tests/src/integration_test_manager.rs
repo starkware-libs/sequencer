@@ -121,7 +121,10 @@ impl NodeSetup {
         fn validate_index(index: usize, len: usize, label: &str) {
             assert!(
                 index < len,
-                "{label} index {index} is out of range. There are {len} executables."
+                "{} index {} is out of range. There are {} executables.",
+                label,
+                index,
+                len
             );
         }
 
@@ -271,13 +274,14 @@ impl IntegrationTestManager {
         let (anvil, starknet_l1_contract) =
             spawn_anvil_and_deploy_starknet_l1_contract(base_layer_config).await;
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
-        let l1_config = sequencers_setup[0].executables[0]
+        let num_blocks_needed_on_l1 = sequencers_setup[0].executables[0]
             .base_app_config
             .get_config()
             .l1_gas_price_scraper_config
-            .clone();
-        let num_blocks_needed_on_l1 =
-            (l1_config.number_of_blocks_for_mean + l1_config.finality).try_into().unwrap();
+            .shared
+            .number_of_blocks_for_mean
+            .try_into()
+            .unwrap();
         let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
         let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
 
@@ -324,12 +328,13 @@ impl IntegrationTestManager {
             let node_setup = self
                 .idle_nodes
                 .remove(&index)
-                .unwrap_or_else(|| panic!("Node {index} does not exist in idle_nodes."));
+                .unwrap_or_else(|| panic!("Node {} does not exist in idle_nodes.", index));
             info!("Running node {}.", index);
             let running_node = node_setup.run();
             assert!(
                 self.running_nodes.insert(index, running_node).is_none(),
-                "Node {index} is already in the running map."
+                "Node {} is already in the running map.",
+                index
             );
         });
 
@@ -350,7 +355,7 @@ impl IntegrationTestManager {
             let node_setup = self
                 .idle_nodes
                 .get_mut(&node_index)
-                .unwrap_or_else(|| panic!("Node {node_index} does not exist in idle_nodes."));
+                .unwrap_or_else(|| panic!("Node {} does not exist in idle_nodes.", node_index));
             node_setup.executables.iter_mut().for_each(|executable| {
                 info!("Modifying {} config.", executable.node_execution_id);
                 executable.modify_config(modify_config_fn);
@@ -371,7 +376,7 @@ impl IntegrationTestManager {
             let node_setup = self
                 .idle_nodes
                 .get_mut(&node_index)
-                .unwrap_or_else(|| panic!("Node {node_index} does not exist in idle_nodes."));
+                .unwrap_or_else(|| panic!("Node {} does not exist in idle_nodes.", node_index));
             node_setup.executables.iter_mut().for_each(|executable| {
                 info!("Modifying {} config pointers.", executable.node_execution_id);
                 executable.modify_config_pointers(modify_config_pointers_fn);
@@ -451,14 +456,15 @@ impl IntegrationTestManager {
             let running_node = self
                 .running_nodes
                 .remove(&index)
-                .unwrap_or_else(|| panic!("Node {index} is not in the running map."));
+                .unwrap_or_else(|| panic!("Node {} is not in the running map.", index));
             running_node.executable_handles.iter().for_each(|handle| {
-                assert!(!handle.is_finished(), "Node {index} should still be running.");
+                assert!(!handle.is_finished(), "Node {} should still be running.", index);
                 handle.abort();
             });
             assert!(
                 self.idle_nodes.insert(index, running_node.node_setup).is_none(),
-                "Node {index} is already in the idle map."
+                "Node {} is already in the idle map.",
+                index
             );
             info!("Node {} has been shut down.", index);
         });
