@@ -30,6 +30,7 @@ fn hinted_hash_from_file(file_path: &str) -> Felt {
     "deprecated_proxy.json",
     "0x3F256EA66406A20C9E1C6A7DA6BD5443923200291A832DAF5F111D5357B469E"
 )]
+#[case("cairo0_contract.json", "0x24CB45DE406D17148C9C3DDEC7BB80ADBABFFBB64F9D7A521AD3F83285444CD")]
 fn test_compute_cairo_hinted_class_hash(
     #[case] contract_path_string: &str,
     #[case] expected_hash_hex: &str,
