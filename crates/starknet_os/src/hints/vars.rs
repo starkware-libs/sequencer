@@ -356,6 +356,7 @@ impl Const {
 }
 
 define_string_enum! {
+    #[cfg_attr(any(test, feature = "testing"), derive(strum_macros::EnumIter))]
     #[derive(Copy, Clone)]
     pub enum CairoStruct {
         (BigInt3, "starkware.starknet.core.os.data_availability.bls_field.BigInt3"),
