@@ -173,7 +173,7 @@ async fn main() {
     );
 
     let builder = PrometheusBuilder::new().with_http_listener(SocketAddr::V4(SocketAddrV4::new(
-        Ipv4Addr::LOCALHOST,
+        Ipv4Addr::UNSPECIFIED,
         args.metric_port,
     )));
 
