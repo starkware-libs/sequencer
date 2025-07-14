@@ -29,7 +29,7 @@ pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig
     info!("Finished loading configuration.");
 
     if let Err(error) = config_validate(&config) {
-        panic!("{}", error);
+        panic!("Config validation failed: {}", error);
     }
     info!("Finished validating configuration.");
 

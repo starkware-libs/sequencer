@@ -192,8 +192,8 @@ pub enum ConfigError {
     CommandMatches(#[from] MatchesError),
     #[error(transparent)]
     IOError(#[from] std::io::Error),
-    #[error("Param does not exist: {param_path}.")]
-    ParamNotFound { param_path: String },
+    #[error("Received an unexpected parameter: {param_path}.")]
+    UnexpectedParam { param_path: String },
     #[error("{target_param} is not found.")]
     PointerTargetNotFound { target_param: String },
     #[error("{pointing_param} is not found.")]
