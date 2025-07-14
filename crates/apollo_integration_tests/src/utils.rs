@@ -11,6 +11,7 @@ use apollo_class_manager::config::{
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
+use apollo_config::converters::UrlAndHeaders;
 use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use apollo_consensus::types::ValidatorId;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
@@ -185,10 +186,17 @@ pub fn create_node_config(
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
     let gateway_config =
         create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);
-    let l1_scraper_config =
-        L1ScraperConfig { chain_id: chain_info.chain_id.clone(), ..Default::default() };
+    let l1_scraper_config = L1ScraperConfig {
+        chain_id: chain_info.chain_id.clone(),
+        startup_rewind_time_seconds: Duration::from_secs(0),
+        polling_interval_seconds: Duration::from_secs(0),
+        ..Default::default()
+    };
     let l1_provider_config = L1ProviderConfig {
         provider_startup_height_override: Some(BlockNumber(1)),
+        startup_sync_sleep_retry_interval_seconds: Duration::from_secs(0),
+        l1_handler_cancellation_timelock_seconds: Duration::from_secs(0),
+        new_l1_handler_cooldown_seconds: Duration::from_secs(0),
         ..Default::default()
     };
     let l1_endpoint_monitor_config = L1EndpointMonitorConfig {
@@ -298,9 +306,13 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 ..Default::default()
             },
             eth_to_strk_oracle_config: EthToStrkOracleConfig {
-                base_url: Url::parse("https://eth_to_strk_oracle_url")
-                    .expect("Should be a valid URL"),
-                    ..Default::default()
+                url_header_list: Some(vec![
+                    UrlAndHeaders{
+                        url: Url::parse("https://eth_to_strk_oracle_url").expect("Should be a valid URL"),
+                        headers: Default::default(),
+                    }
+                ]),
+                ..Default::default()
             },
             assume_no_malicious_validators: true,
             ..Default::default()
@@ -376,11 +388,21 @@ pub fn spawn_eth_to_strk_oracle_server(socket_address: SocketAddr) -> JoinHandle
 }
 
 /// Starts the fake eth to fri oracle server and returns its URL and handle.
-pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (Url, JoinHandle<()>) {
+pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (UrlAndHeaders, JoinHandle<()>) {
     let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
+<<<<<<< HEAD
     let url = Url::parse(&format!("http://{socket_address}{ETH_TO_STRK_ORACLE_PATH}")).unwrap();
+||||||| 199fa631c
+    let url = Url::parse(&format!("http://{}{}", socket_address, ETH_TO_STRK_ORACLE_PATH)).unwrap();
+=======
+    let url = Url::parse(&format!("http://{}{}", socket_address, ETH_TO_STRK_ORACLE_PATH)).unwrap();
+    let url_and_headers = UrlAndHeaders {
+        url,
+        headers: Default::default(), // No additional headers needed for this test.
+    };
+>>>>>>> origin/main-v0.14.0
     let join_handle = spawn_eth_to_strk_oracle_server(socket_address);
-    (url, join_handle)
+    (url_and_headers, join_handle)
 }
 
 pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<MempoolP2pConfig> {

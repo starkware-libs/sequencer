@@ -8,10 +8,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::{ContractClass, EntryPointV0};
 use starknet_types_core::felt::Felt;
 
-use crate::hints::class_hash::hinted_class_hash::{
-    compute_cairo_hinted_class_hash,
-    CairoContractDefinition,
-};
+use crate::hints::class_hash::hinted_class_hash::compute_cairo_hinted_class_hash;
 use crate::hints::vars::{CairoStruct, Const};
 use crate::io::os_input::HintedClassHash;
 use crate::vm_utils::{
@@ -84,11 +81,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClassWithHintedHash<'
         vm.load_data(builtin_list_base, &builtins)?;
 
         // Insert hinted class hash.
-        let contract_definition_vec = serde_json::to_vec(&contract_class)?;
-        let contract_definition: CairoContractDefinition<'_> =
-            serde_json::from_slice(&contract_definition_vec).map_err(VmUtilsError::SerdeJson)?;
-
-        let computed_hinted_class_hash = compute_cairo_hinted_class_hash(&contract_definition)?;
+        let computed_hinted_class_hash = compute_cairo_hinted_class_hash(contract_class)?;
         if hinted_class_hash != &computed_hinted_class_hash {
             log::warn!(
                 "Hinted class hash mismatch for class {class_hash}: expected {hinted_class_hash}, \

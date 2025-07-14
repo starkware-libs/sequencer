@@ -28,7 +28,7 @@ use crate::hints::hint_implementation::block_context::{
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
-use crate::hints::hint_implementation::bls_field::compute_ids_low;
+use crate::hints::hint_implementation::bls_field::implementation::compute_ids_low;
 use crate::hints::hint_implementation::builtins::{
     select_builtin,
     selected_builtins,
@@ -187,7 +187,7 @@ use crate::hints::hint_implementation::state::{
     update_classes_ptr,
     update_state_ptr,
 };
-use crate::hints::hint_implementation::stateful_compression::{
+use crate::hints::hint_implementation::stateful_compression::implementation::{
     assert_key_big_enough_for_alias,
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,

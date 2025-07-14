@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
@@ -38,7 +39,7 @@ pub fn contract_address_into_node_index(address: &ContractAddress) -> NodeIndex 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 // TODO(Nimrod, 1/6/2025):  Use the StarknetStorageValue defined in starknet-types-core when
 // available.
-pub struct StarknetStorageKey(pub Felt);
+pub struct StarknetStorageKey(pub StorageKey);
 
 impl From<&StarknetStorageKey> for NodeIndex {
     fn from(key: &StarknetStorageKey) -> NodeIndex {

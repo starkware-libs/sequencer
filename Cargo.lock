@@ -1365,6 +1365,7 @@ dependencies = [
  "anyhow",
  "apollo_batcher",
  "apollo_class_manager",
+ "apollo_config",
  "apollo_consensus",
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
@@ -1721,6 +1722,7 @@ name = "apollo_network_types"
 version = "0.0.0"
 dependencies = [
  "apollo_test_utils",
+ "lazy_static",
  "libp2p",
  "rand_chacha 0.3.1",
  "serde",
@@ -12248,6 +12250,7 @@ dependencies = [
  "papyrus_common",
  "paste",
  "rand 0.8.5",
+ "regex",
  "rstest",
  "serde",
  "serde_json",
@@ -12261,6 +12264,7 @@ dependencies = [
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]
