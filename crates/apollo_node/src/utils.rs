@@ -25,7 +25,7 @@ pub async fn create_node_modules(
 pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
     let config_load_result = SequencerNodeConfig::load_and_process(args);
     let config =
-        config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {}", err));
+        config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {err}"));
     info!("Finished loading configuration.");
 
     if let Err(error) = config_validate(&config) {
