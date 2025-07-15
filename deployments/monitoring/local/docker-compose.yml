@@ -84,6 +84,7 @@ services:
       # These are here to avoid using an L1 baselayer. This is because anvil was deliberately disabled in the docker test. 
       jq '.\"components.l1_scraper.execution_mode\" = \"Disabled\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"l1_provider_config.provider_startup_height_override.#is_none\" = true' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
+      jq '.\"l1_provider_config.dummy_mode\" = true' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       jq '.\"components.l1_gas_price_scraper.execution_mode\" = \"Disabled\"' ${SEQUENCER_CONFIG_PATH} | sponge ${SEQUENCER_CONFIG_PATH} && \
       echo 'Printing final config:' && \
       echo '----------------------------------------' && \
