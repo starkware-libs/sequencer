@@ -19,6 +19,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::{fixture, rstest};
+use starknet_api::block::BlockNumber;
 use starknet_api::core::{ContractAddress, PatriciaKey, CONTRACT_ADDRESS_DOMAIN_SIZE};
 use starknet_api::staking::StakingWeight;
 use starknet_api::{contract_address, invoke_tx_args};
@@ -28,11 +29,13 @@ use crate::committee_manager::{
     Committee,
     CommitteeManager,
     CommitteeManagerConfig,
+    CommitteeManagerError,
     ExecutionContext,
     RetdataDeserializationError,
     Staker,
     StakerSet,
 };
+use crate::utils::MockBlockRandomGenerator;
 
 const STAKING_CONTRACT: FeatureContract =
     FeatureContract::MockStakingContract(RunnableCairo1::Casm);
@@ -115,12 +118,15 @@ fn get_committee_success(
 ) {
     set_stakers(&mut state, &block_context, &stakers);
 
-    let mut committee_manager = CommitteeManager::new(CommitteeManagerConfig {
-        staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
-        max_cached_epochs: 10,
-        committee_size: 3,
-        proposer_prediction_window_in_heights: 10,
-    });
+    let mut committee_manager = CommitteeManager::new(
+        CommitteeManagerConfig {
+            staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
+            max_cached_epochs: 10,
+            committee_size: 3,
+            proposer_prediction_window_in_heights: 10,
+        },
+        Box::new(MockBlockRandomGenerator::new()),
+    );
 
     let context = ExecutionContext {
         state_reader: state.clone(),
@@ -134,12 +140,15 @@ fn get_committee_success(
 
 #[rstest]
 fn get_committee_cache(mut state: State, block_context: Context) {
-    let mut committee_manager = CommitteeManager::new(CommitteeManagerConfig {
-        staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
-        max_cached_epochs: 1,
-        committee_size: 10,
-        proposer_prediction_window_in_heights: 10,
-    });
+    let mut committee_manager = CommitteeManager::new(
+        CommitteeManagerConfig {
+            staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
+            max_cached_epochs: 1,
+            committee_size: 10,
+            proposer_prediction_window_in_heights: 10,
+        },
+        Box::new(MockBlockRandomGenerator::new()),
+    );
 
     // Case 1: Get committee for epoch 1. Cache miss – STAKER_1 fetched from contract.
     set_stakers(&mut state, &block_context, vec![STAKER_1].as_slice());
@@ -170,6 +179,79 @@ fn get_committee_cache(mut state: State, block_context: Context) {
     // from contract.
     let committee = committee_manager.get_committee(1, context).unwrap();
     assert_eq!(*committee, vec![STAKER_2]);
+}
+
+#[rstest]
+#[case(9999, STAKER_1)]
+#[case(9000, STAKER_1)]
+#[case(8999, STAKER_2)]
+#[case(7000, STAKER_2)]
+#[case(6999, STAKER_3)]
+#[case(4000, STAKER_3)]
+#[case(3999, STAKER_4)]
+#[case(0, STAKER_4)]
+#[tokio::test]
+async fn get_proposer_success(
+    mut state: State,
+    block_context: Context,
+    #[case] random_value: u128,
+    #[case] expected_proposer: Staker,
+) {
+    // The staker weights are 1000, 2000, 3000, and 4000, totaling 10,000.
+    // Based on the cumulative weight ranges:
+    // - Random values in [0–3999] → STAKER_4
+    // - [4000–6999] → STAKER_3
+    // - [7000–8999] → STAKER_2
+    // - [9000–9999] → STAKER_1
+
+    set_stakers(&mut state, &block_context, &vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4]);
+
+    let mut random_generator = MockBlockRandomGenerator::new();
+    random_generator.expect_generate().returning(move |_, _, _, _| random_value);
+
+    let mut committee_manager = CommitteeManager::new(
+        CommitteeManagerConfig {
+            staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
+            max_cached_epochs: 10,
+            committee_size: 4, // All stakers are in the committee
+            proposer_prediction_window_in_heights: 10,
+        },
+        Box::new(random_generator),
+    );
+
+    let context = ExecutionContext {
+        state_reader: state.clone(),
+        block_context: block_context.clone(),
+        state_sync_client: Arc::new(MockStateSyncClient::new()),
+    };
+    let proposer = committee_manager.get_proposer(BlockNumber(1), 0, context).await.unwrap();
+
+    assert_eq!(proposer, expected_proposer.address);
+}
+
+#[rstest]
+#[tokio::test]
+async fn get_proposer_empty_committee(state: State, block_context: Context) {
+    let mut random_generator = MockBlockRandomGenerator::new();
+    random_generator.expect_generate().returning(move |_, _, _, _| 0);
+
+    let mut committee_manager = CommitteeManager::new(
+        CommitteeManagerConfig {
+            staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
+            max_cached_epochs: 10,
+            committee_size: 0,
+            proposer_prediction_window_in_heights: 10,
+        },
+        Box::new(random_generator),
+    );
+
+    let context = ExecutionContext {
+        state_reader: state.clone(),
+        block_context: block_context.clone(),
+        state_sync_client: Arc::new(MockStateSyncClient::new()),
+    };
+    let err = committee_manager.get_proposer(BlockNumber(1), 0, context).await.unwrap_err();
+    assert_matches!(err, CommitteeManagerError::EmptyCommittee);
 }
 
 // --- TryFrom tests for Staker and ArrayRetdata ---
