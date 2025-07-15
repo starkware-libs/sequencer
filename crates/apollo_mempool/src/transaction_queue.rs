@@ -30,12 +30,12 @@ pub struct TransactionQueue {
 impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
-    /// If `override_gas_price_threshold_check` is true, the transaction is added to the priority
-    /// queue, regardless of it's L2 gas price bound.
+    /// If `validate_resource_bounds_above_threshold` is false, the transaction is added to the
+    /// priority queue, regardless of it's L2 gas price bound.
     pub fn insert(
         &mut self,
         tx_reference: TransactionReference,
-        override_gas_price_threshold_check: bool,
+        validate_resource_bounds_above_threshold: bool,
     ) {
         assert_eq!(
             self.address_to_tx.insert(tx_reference.address, tx_reference),
@@ -44,7 +44,7 @@ impl TransactionQueue {
              time."
         );
 
-        let to_pending_queue = !override_gas_price_threshold_check
+        let to_pending_queue = validate_resource_bounds_above_threshold
             && tx_reference.max_l2_gas_price < self.gas_price_threshold;
         let new_tx_successfully_inserted = if to_pending_queue {
             self.pending_queue.insert(tx_reference.into())
