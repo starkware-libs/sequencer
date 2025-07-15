@@ -116,7 +116,8 @@ pub(crate) fn get_environment_ingress_internal(environment: &Environment) -> boo
         | Environment::SepoliaTestnet
         | Environment::UpgradeTest
         | Environment::TestingEnvThree
-        | Environment::StressTest => false,
+        | Environment::StressTest
+        | Environment::Potc2 => false,
         _ => unimplemented!(),
     }
 }
