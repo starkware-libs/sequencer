@@ -18,7 +18,7 @@ from imports.dashboards.co.starkware.grafana import (
     SharedGrafanaDashboardSpec,
 )
 from services.config import GrafanaAlertRuleGroupConfig, GrafanaDashboardConfig
-from services.helpers import sanitize_name, generate_random_hash
+from services.helpers import generate_random_hash, sanitize_name
 
 
 class MonitoringApp(Construct):

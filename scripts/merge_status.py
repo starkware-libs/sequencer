@@ -1,10 +1,10 @@
 #!/usr/bin/env python3.9
 
-from enum import Enum
 import json
 import os
 import subprocess
 from datetime import datetime
+from enum import Enum
 
 from merge_branches import MERGE_PATHS_FILE
 

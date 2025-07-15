@@ -1,11 +1,11 @@
 #!/bin/env python3
 
 import argparse
-from enum import Enum
 import subprocess
-from typing import List, Set, Optional
-from tests_utils import get_tested_packages
+from enum import Enum
+from typing import List, Optional, Set
 
+from tests_utils import get_tested_packages
 
 # Set of crates which - if changed - should trigger the integration tests.
 INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"apollo_integration_tests"}

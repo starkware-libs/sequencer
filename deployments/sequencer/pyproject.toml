@@ -1,5 +1,0 @@
-[tool.isort]
-known_third_party = ["cdk8s", "constructs"]
-line_length = 100
-profile = "black"
-skip = ["imports"]
