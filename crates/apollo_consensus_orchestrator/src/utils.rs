@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use apollo_consensus::types::Round;
 use apollo_l1_gas_price_types::{
     EthToStrkOracleClientTrait,
     L1GasPriceProviderClient,
@@ -12,6 +13,8 @@ use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientErr
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
 use futures::SinkExt;
+#[cfg(test)]
+use mockall::automock;
 use num_rational::Ratio;
 use starknet_api::block::{
     BlockHash,
@@ -238,4 +241,30 @@ pub(crate) fn truncate_to_executed_txs(
     }
 
     executed_content
+}
+
+#[cfg_attr(test, automock)]
+pub trait BlockRandomGenerator {
+    fn generate(
+        &self,
+        height: BlockNumber,
+        round: Round,
+        block_hash: Option<BlockHash>,
+        range: u128,
+    ) -> u128;
+}
+
+#[allow(dead_code)]
+pub struct BlockPseudorandomGenerator;
+
+impl BlockRandomGenerator for BlockPseudorandomGenerator {
+    fn generate(
+        &self,
+        _height: BlockNumber,
+        _round: Round,
+        _block_hash: Option<BlockHash>,
+        _range: u128,
+    ) -> u128 {
+        todo!()
+    }
 }
