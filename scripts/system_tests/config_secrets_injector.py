@@ -45,9 +45,7 @@ def main(deployment_config_path: str):
     for service in services:
         cfgs = service.get("config_paths")
         if not cfgs:
-            print(
-                f"⚠️ No config paths defined for service: {service.get('name', 'unknown')}"
-            )
+            print(f"⚠️ No config paths defined for service: {service.get('name', 'unknown')}")
             continue
         config_files.extend(cfgs)
 
@@ -55,9 +53,7 @@ def main(deployment_config_path: str):
     for cfg_file in config_files:
         full_path = config_dir_path / cfg_file
         if not full_path.is_file():
-            print(
-                f"❌ Config file {full_path} not found. Available files in {config_dir_path}:"
-            )
+            print(f"❌ Config file {full_path} not found. Available files in {config_dir_path}:")
             for file in config_dir_path.iterdir():
                 print(" -", file.name)
             sys.exit(1)
