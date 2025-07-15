@@ -5,21 +5,33 @@ pub struct Staker {
     pub pubkey: felt252,
 }
 
+#[derive(Drop, Serde, starknet::Store)]
+pub struct Epoch {
+    pub epoch: u64,
+    pub start_block: u64,
+    pub end_block: u64,
+}
+
 #[starknet::interface]
 pub trait IStaking<TContractState> {
     fn add_staker(ref self: TContractState, staker: Staker);
     fn set_stakers(ref self: TContractState, stakers: Array<Staker>);
     fn get_stakers(self: @TContractState, epoch: u64) -> Array<Staker>;
+    fn set_current_epoch(ref self: TContractState, epoch: Epoch);
+    fn get_current_epoch(self: @TContractState) -> Epoch;
 }
 
 #[starknet::contract]
 mod Staking {
-    use starknet::storage::{MutableVecTrait, StoragePointerReadAccess, Vec, VecTrait};
-    use super::Staker;
+    use starknet::storage::{
+        MutableVecTrait, StoragePointerReadAccess, StoragePointerWriteAccess, Vec, VecTrait,
+    };
+    use super::{Epoch, Staker};
 
     #[storage]
     struct Storage {
         stakers: Vec<Staker>,
+        current_epoch: Epoch,
     }
 
     #[abi(embed_v0)]
@@ -45,6 +57,14 @@ mod Staking {
                 stakers.append(self.stakers.at(i).read());
             }
             stakers
+        }
+
+        fn set_current_epoch(ref self: ContractState, epoch: Epoch) {
+            self.current_epoch.write(epoch);
+        }
+
+        fn get_current_epoch(self: @ContractState) -> Epoch {
+            self.current_epoch.read()
         }
     }
 }
