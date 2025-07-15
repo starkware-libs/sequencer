@@ -69,6 +69,9 @@ members = [
   "crates/papyrus_monitoring_gateway",
   "crates/papyrus_node",
   "crates/shared_execution_objects",
+  "crates/sizeof",
+  "crates/sizeof/sizeof_internal",
+  "crates/sizeof/sizeof_macro",
   "crates/starknet_api",
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
@@ -282,6 +285,9 @@ sha3 = "0.10.8"
 shared_execution_objects.path = "crates/shared_execution_objects"
 simple_logger = "4.0.0"
 size-of = "0.1.5"
+sizeof = { path = "crates/sizeof" }
+sizeof_internal = { path = "crates/sizeof/sizeof_internal" }
+sizeof_macro = { path = "crates/sizeof/sizeof_macro" }
 socket2 = "0.5.8"
 starknet-core = "0.12.1"
 starknet-crypto = "0.7.1"

@@ -92,5 +92,3 @@ fn test_felt_size_of() {
     assert_eq!(Felt::from(1600000000).size_bytes(), 32);
     assert_eq!(Felt::MAX.size_bytes(), 32);
 }
-
-
