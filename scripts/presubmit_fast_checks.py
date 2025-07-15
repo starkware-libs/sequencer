@@ -6,7 +6,6 @@ It can be used to run these checks locally or part of the CI.
 """
 
 import argparse
-import subprocess
 from abc import ABC, abstractmethod
 from enum import Enum
 from os import path
