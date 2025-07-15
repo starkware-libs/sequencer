@@ -358,7 +358,9 @@ async fn batcher_returns_invalid_proposal() {
                 && input.content == SendProposalContent::Finish(n_executed)
         })
         .returning(|_| {
-            Ok(SendProposalContentResponse { response: ProposalStatus::InvalidProposal })
+            Ok(SendProposalContentResponse {
+                response: ProposalStatus::InvalidProposal("test error".to_string()),
+            })
         });
     // Send a valid block info.
     let block_info = block_info(BlockNumber(0));
