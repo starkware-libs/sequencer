@@ -59,6 +59,13 @@ fn get_panel_eth_to_strk_success_count() -> Panel {
     Panel::from_counter(ETH_TO_STRK_SUCCESS_COUNT, PanelType::Stat)
 }
 
+fn get_panel_l1_gas_price_scraper_latest_scraped_block() -> Panel {
+    Panel::from_gauge(
+        apollo_l1_gas_price::metrics::L1_GAS_PRICE_SCRAPER_LATEST_SCRAPED_BLOCK,
+        PanelType::TimeSeries,
+    )
+}
+
 pub(crate) fn get_l1_gas_price_row() -> Row {
     Row::new(
         "L1 Gas Price",
@@ -69,6 +76,7 @@ pub(crate) fn get_l1_gas_price_row() -> Row {
             get_panel_l1_gas_price_scraper_success_count(),
             get_panel_l1_gas_price_scraper_baselayer_error_count(),
             get_panel_l1_gas_price_scraper_reorg_detected(),
+            get_panel_l1_gas_price_scraper_latest_scraped_block(),
         ],
     )
 }

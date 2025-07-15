@@ -1223,6 +1223,15 @@
           "l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_scraper_latest_scraped_block",
+        "description": "The latest block number that the L1 gas price scraper has scraped",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_scraper_latest_scraped_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
       }
     ],
     "Mempool Infra": [
