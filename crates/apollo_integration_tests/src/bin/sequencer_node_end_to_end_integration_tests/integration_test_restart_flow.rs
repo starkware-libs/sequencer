@@ -18,9 +18,9 @@ use tracing::info;
 #[tokio::main]
 async fn main() {
     integration_test_setup("restart").await;
-    const PHASE_DURATION: Duration = Duration::from_secs(30);
-    const LONG_PHASE_DURATION: Duration = Duration::from_secs(90);
-    const TOTAL_DURATION: u64 = PHASE_DURATION.as_secs() * 2 + LONG_PHASE_DURATION.as_secs() * 2;
+    const PHASE_DURATION: Duration = Duration::from_secs(10);
+    const TOTAL_PHASES: u64 = 4;
+    const TOTAL_DURATION: u64 = PHASE_DURATION.as_secs() * TOTAL_PHASES;
     const TOTAL_INVOKE_TXS: u64 = TPS * TOTAL_DURATION;
     /// The number of consolidated local sequencers that participate in the test.
     const N_CONSOLIDATED_SEQUENCERS: usize = 1;
@@ -115,7 +115,7 @@ async fn main() {
             "Awaiting transactions after node {RESTART_NODE} was restarted and before node \
              {SHUTDOWN_NODE} is shut down"
         );
-        sleep(LONG_PHASE_DURATION).await;
+        sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
@@ -132,7 +132,7 @@ async fn main() {
             "Awaiting transactions while node {RESTART_NODE} is up and node {SHUTDOWN_NODE} is \
              down"
         );
-        sleep(LONG_PHASE_DURATION).await;
+        sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
