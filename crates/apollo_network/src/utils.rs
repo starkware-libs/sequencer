@@ -1,6 +1,7 @@
 use core::net::Ipv4Addr;
 use std::collections::btree_map::{Keys, ValuesMut};
 use std::collections::BTreeMap;
+use std::net::{TcpListener, UdpSocket};
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 
@@ -105,11 +106,60 @@ pub fn is_localhost(address: &Multiaddr) -> bool {
     ip4_address == Ipv4Addr::LOCALHOST
 }
 
+/// Decides if QUIC over UDP or TCP should be used...
+/// When changing this, change config files and yaml files by dumping
+pub(super) const USE_QUIC: bool = true;
+
+pub enum NetworkAddress {
+    Ip4(Ipv4Addr),
+    Dns(String),
+}
+
+impl NetworkAddress {
+    pub const LOCALHOST: Self = NetworkAddress::Ip4(Ipv4Addr::LOCALHOST);
+    pub const UNSPECIFIED: Self = NetworkAddress::Ip4(Ipv4Addr::UNSPECIFIED);
+}
+
 /// Creates a `Multiaddr` from an `Ipv4Addr`, a port, and a `PeerId`.
-pub fn make_quic_multiaddr(ip: Ipv4Addr, port: u16, peer_id: PeerId) -> Multiaddr {
-    Multiaddr::empty()
-        .with(Protocol::Ip4(ip))
-        .with(Protocol::Udp(port))
-        .with(Protocol::QuicV1)
-        .with(Protocol::P2p(peer_id))
+pub fn make_multiaddr(ip: NetworkAddress, port: u16, peer_id: Option<PeerId>) -> Multiaddr {
+    let mut address = Multiaddr::empty();
+
+    address = match ip {
+        NetworkAddress::Ip4(ip) => address.with(Protocol::Ip4(ip)),
+        NetworkAddress::Dns(url) => address.with(Protocol::Dns(std::borrow::Cow::Owned(url))),
+    };
+
+    address = if USE_QUIC {
+        address.with(Protocol::Udp(port)).with(Protocol::QuicV1)
+    } else {
+        address.with(Protocol::Tcp(port))
+    };
+
+    if let Some(peer_id) = peer_id {
+        address = address.with(Protocol::P2p(peer_id));
+    };
+    address
+}
+
+// WARNING(Tsabary): This is not a reliable way to obtain a free port; most notably it fails when
+// multiple concurrent instances try to obtain ports using this function. Do NOT use this in
+// production code, nor in tests, as they run concurrently.
+pub fn find_free_port() -> u16 {
+    // The socket is automatically closed when the function exits.
+    // The port may still be available when accessed, but this is not guaranteed.
+    // TODO(Asmaa): find a reliable way to ensure the port stays free.
+    if USE_QUIC {
+        let listener = UdpSocket::bind("0.0.0.0:0").expect("Failed to bind");
+        listener.local_addr().expect("Failed to get local address").port()
+    } else {
+        let listener = TcpListener::bind("0.0.0.0:0").expect("Failed to bind");
+        listener.local_addr().expect("Failed to get local address").port()
+    }
+}
+
+pub fn port_description() -> String {
+    format!(
+        "The port that the node listens on for incoming {}.",
+        if USE_QUIC { "udp connections for quic" } else { "tcp connections" }
+    )
 }
