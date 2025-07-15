@@ -285,9 +285,9 @@ sha3 = "0.10.8"
 shared_execution_objects.path = "crates/shared_execution_objects"
 simple_logger = "4.0.0"
 size-of = "0.1.5"
-sizeof = { path = "crates/sizeof" }
-sizeof_internal = { path = "crates/sizeof/sizeof_internal" }
-sizeof_macro = { path = "crates/sizeof/sizeof_macro" }
+sizeof = { path = "crates/sizeof", version = "0.15.0-rc.2" }
+sizeof_internal = { path = "crates/sizeof/sizeof_internal", version = "0.15.0-rc.2" }
+sizeof_macro = { path = "crates/sizeof/sizeof_macro", version = "0.15.0-rc.2" }
 socket2 = "0.5.8"
 starknet-core = "0.12.1"
 starknet-crypto = "0.7.1"
