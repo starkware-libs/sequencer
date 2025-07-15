@@ -108,7 +108,7 @@ pub fn is_localhost(address: &Multiaddr) -> bool {
 
 /// Decides if QUIC over UDP or TCP should be used...
 /// When changing this, change config files and yaml files by dumping
-pub(super) const USE_QUIC: bool = true;
+pub(super) const USE_QUIC: bool = false;
 
 pub enum NetworkAddress {
     Ip4(Ipv4Addr),
