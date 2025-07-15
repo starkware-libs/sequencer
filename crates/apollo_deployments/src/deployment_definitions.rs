@@ -4,6 +4,7 @@ use serde::Serialize;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
+use crate::deployment_definitions::potc2_sepolia::potc2_sepolia_hybrid_deployments;
 use crate::deployment_definitions::sepolia_integration::sepolia_integration_hybrid_deployments;
 use crate::deployment_definitions::sepolia_testnet::sepolia_testnet_hybrid_deployments;
 use crate::deployment_definitions::stress_test::stress_test_hybrid_deployments;
@@ -15,6 +16,7 @@ use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
 
+mod potc2_sepolia;
 mod sepolia_integration;
 mod sepolia_testnet;
 mod stress_test;
@@ -36,11 +38,13 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
     testing_env_3_hybrid_deployments,
     stress_test_hybrid_deployments,
     sepolia_testnet_hybrid_deployments,
+    potc2_sepolia_hybrid_deployments,
 ];
 
 #[derive(EnumString, Clone, Display, PartialEq, Debug)]
 #[strum(serialize_all = "snake_case")]
 pub enum Environment {
+    Potc2,
     Mainnet,
     SepoliaIntegration,
     SepoliaTestnet,

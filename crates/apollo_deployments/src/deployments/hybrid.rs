@@ -148,6 +148,13 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
+            Environment::Potc2 => match self {
+                HybridNodeServiceName::Core => Some(Toleration::Batcher864),
+                HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
+            },
             _ => unimplemented!(),
         }
     }
@@ -181,6 +188,7 @@ impl ServiceNameInner for HybridNodeServiceName {
         match environment {
             Environment::Testing => None,
             Environment::SepoliaIntegration
+            | Environment::Potc2
             | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
@@ -217,23 +225,25 @@ impl ServiceNameInner for HybridNodeServiceName {
                     Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                 }
             },
-            Environment::StressTest | Environment::SepoliaTestnet => match self {
-                HybridNodeServiceName::Core => {
-                    Resources::new(Resource::new(50, 200), Resource::new(50, 220))
+            Environment::Potc2 | Environment::StressTest | Environment::SepoliaTestnet => {
+                match self {
+                    HybridNodeServiceName::Core => {
+                        Resources::new(Resource::new(50, 200), Resource::new(50, 220))
+                    }
+                    HybridNodeServiceName::HttpServer => {
+                        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+                    }
+                    HybridNodeServiceName::Gateway => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::Mempool => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
+                    HybridNodeServiceName::SierraCompiler => {
+                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                    }
                 }
-                HybridNodeServiceName::HttpServer => {
-                    Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-                }
-                HybridNodeServiceName::Gateway => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
-                HybridNodeServiceName::Mempool => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
-                HybridNodeServiceName::SierraCompiler => {
-                    Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                }
-            },
+            }
             _ => unimplemented!(),
         }
     }
@@ -245,7 +255,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
+            | Environment::StressTest
+            | Environment::Potc2 => match self {
                 HybridNodeServiceName::Core => 1,
                 HybridNodeServiceName::HttpServer => 1,
                 HybridNodeServiceName::Gateway => 2,
@@ -263,7 +274,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             | Environment::SepoliaTestnet
             | Environment::UpgradeTest
             | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
+            | Environment::StressTest
+            | Environment::Potc2 => match self {
                 HybridNodeServiceName::Core => true,
                 HybridNodeServiceName::HttpServer => false,
                 HybridNodeServiceName::Gateway => false,

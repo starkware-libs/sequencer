@@ -116,7 +116,8 @@ pub(crate) fn get_environment_ingress_internal(environment: &Environment) -> boo
         | Environment::SepoliaTestnet
         | Environment::UpgradeTest
         | Environment::TestingEnvThree
-        | Environment::StressTest => false,
+        | Environment::StressTest
+        | Environment::Potc2 => false,
         _ => unimplemented!(),
     }
 }
@@ -177,4 +178,6 @@ pub enum Toleration {
     ApolloCoreServiceC2D32,
     ApolloCoreServiceC2D56,
     ApolloGeneralService,
+    #[serde(rename = "batcher-8-64")]
+    Batcher864,
 }
