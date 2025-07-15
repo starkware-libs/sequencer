@@ -6,7 +6,7 @@ use std::collections::HashMap;
 
 use cairo_lang_starknet_classes::contract_class::ContractEntryPoints as CairoLangContractEntryPoints;
 use serde::{Deserialize, Serialize};
-use size_of::SizeOf;
+use sizeof::SizeOf;
 use strum::EnumVariantNames;
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
@@ -230,8 +230,7 @@ impl InternalRpcTransaction {
     }
 
     pub fn total_bytes(&self) -> u64 {
-        self.size_of()
-            .total_bytes()
+        self.size_bytes()
             .try_into()
             .expect("The transaction size in bytes should fit in a u64 value.")
     }
