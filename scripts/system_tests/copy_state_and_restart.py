@@ -14,10 +14,7 @@ def run(
 def load_services(deployment_config_path: str) -> List[Tuple[str, str]]:
     with open(deployment_config_path, "r", encoding="utf-8") as f:
         deployment_config = json.load(f)
-    return [
-        (svc["name"], svc["controller"])
-        for svc in deployment_config.get("services", [])
-    ]
+    return [(svc["name"], svc["controller"]) for svc in deployment_config.get("services", [])]
 
 
 def copy_state(pod_name: str, data_dir: str) -> None:
@@ -78,7 +75,6 @@ def build_resource_name(service_name: str, controller: str) -> str:
 
 
 def main(deployment_config_path: str, data_dir: str) -> None:
-
     config.load_kube_config()
     services: List[Tuple[str, str]] = load_services(deployment_config_path)
 

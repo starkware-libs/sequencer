@@ -22,11 +22,7 @@ DEPENDENCY_PATTERN = r"([a-zA-Z0-9_]+) [^(]* \(([^)]+)\)"
 
 def get_workspace_tree() -> Dict[str, str]:
     tree = dict()
-    res = (
-        subprocess.check_output("cargo tree --depth 0".split())
-        .decode("utf-8")
-        .splitlines()
-    )
+    res = subprocess.check_output("cargo tree --depth 0".split()).decode("utf-8").splitlines()
     for l in res:
         m = re.match(PATTERN, l)
         if m is not None:
@@ -92,9 +88,7 @@ def get_tested_packages(
     If commit_id is provided, compares against that commit; otherwise, compares against HEAD.
     """
     if not changes_only:
-        assert (
-            not include_dependencies
-        ), "include_dependencies can only be set with changes_only."
+        assert not include_dependencies, "include_dependencies can only be set with changes_only."
     tested_packages = set()
     if changes_only:
         local_changes = get_local_changes(".", commit_id=commit_id)
