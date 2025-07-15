@@ -24,14 +24,10 @@ def check_manifest_files(deployment_config_path: str, workspace: str) -> None:
         )
 
         if not manifest_path.exists():
-            print(
-                f"❌ Manifest {manifest_path} for {service_name_lower} not found. Aborting..."
-            )
+            print(f"❌ Manifest {manifest_path} for {service_name_lower} not found. Aborting...")
             try:
                 dir_listing = list(manifest_path.parent.iterdir())
-                print(
-                    f"Contents of {manifest_path.parent}: {[str(f) for f in dir_listing]}"
-                )
+                print(f"Contents of {manifest_path.parent}: {[str(f) for f in dir_listing]}")
             except FileNotFoundError:
                 print(f"(Directory {manifest_path.parent} does not exist)")
             sys.exit(1)
@@ -62,13 +58,9 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
 
         try:
             if controller_lower == "statefulset":
-                obj = apps_v1.read_namespaced_stateful_set(
-                    name=resource_name, namespace=namespace
-                )
+                obj = apps_v1.read_namespaced_stateful_set(name=resource_name, namespace=namespace)
             elif controller_lower == "deployment":
-                obj = apps_v1.read_namespaced_deployment(
-                    name=resource_name, namespace=namespace
-                )
+                obj = apps_v1.read_namespaced_deployment(name=resource_name, namespace=namespace)
             else:
                 print(f"❌ Unknown controller: {controller}. Skipping...")
                 sys.exit(1)
@@ -113,9 +105,7 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
             time.sleep(poll_interval)
             elapsed += poll_interval
         else:
-            print(
-                f"❌ Timeout waiting for {controller} {resource_name} to become ready."
-            )
+            print(f"❌ Timeout waiting for {controller} {resource_name} to become ready.")
             sys.exit(1)
 
 

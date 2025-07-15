@@ -50,12 +50,6 @@ jobs:
       - name: Install cdk8s-cli
         run: npm install -g cdk8s-cli@2.198.334
 
-      - name: Black all files
-        uses: psf/black@stable
-        with:
-          options: "--check --verbose -l 100 -t py310 --diff --color --exclude imports"
-          src: deployments/sequencer
-
       # Synthesize the CDK8s Sequencer app.
       - name: CDk8s synth
         working-directory: deployments/sequencer
