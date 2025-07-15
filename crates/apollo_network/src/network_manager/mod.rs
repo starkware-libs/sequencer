@@ -7,7 +7,6 @@ pub mod test_utils;
 
 use std::collections::{BTreeMap, HashMap};
 use std::pin::Pin;
-use std::str::FromStr;
 use std::task::{Context, Poll};
 
 use apollo_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
@@ -21,7 +20,7 @@ use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
-use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
 use tracing::{debug, error, trace, warn};
 
@@ -31,7 +30,7 @@ use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
-use crate::utils::{is_localhost, StreamMap};
+use crate::utils::{is_localhost, make_multiaddr, NetworkAddress, StreamMap, USE_QUIC};
 use crate::{gossipsub_impl, Bytes, NetworkConfig};
 
 #[derive(thiserror::Error, Debug)]
@@ -701,9 +700,7 @@ impl NetworkManager {
             reported_peer_ids_buffer_size,
         } = config;
 
-        let listen_address_str = format!("/ip4/0.0.0.0/udp/{port}/quic-v1");
-        let listen_address = Multiaddr::from_str(&listen_address_str)
-            .unwrap_or_else(|_| panic!("Unable to parse address {listen_address_str}"));
+        let listen_address = make_multiaddr(NetworkAddress::UNSPECIFIED, port, None);
         debug!("Creating swarm with listen address: {listen_address:?}");
 
         let key_pair = match secret_key {
@@ -712,25 +709,41 @@ impl NetworkManager {
             }
             None => Keypair::generate_ed25519(),
         };
-        let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
-            .with_tokio()
-            .with_quic()
-            .with_dns()
-            .expect("Error building DNS transport")
-            .with_behaviour(|key| {
-                mixed_behaviour::MixedBehaviour::new(
-                    key.clone(),
-                    bootstrap_peer_multiaddr,
-                    sqmr::Config { session_timeout },
-                    chain_id,
-                    node_version,
-                    discovery_config,
-                    peer_manager_config,
-                )
-            })
-            .expect("Error while building the swarm")
-            .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
-            .build();
+        let behaviour_maker = |key: &Keypair| {
+            mixed_behaviour::MixedBehaviour::new(
+                key.clone(),
+                bootstrap_peer_multiaddr,
+                sqmr::Config { session_timeout },
+                chain_id,
+                node_version,
+                discovery_config,
+                peer_manager_config,
+            )
+        };
+        let config_constructor =
+            |cfg: libp2p::swarm::Config| cfg.with_idle_connection_timeout(idle_connection_timeout);
+        let mut swarm = if USE_QUIC {
+            SwarmBuilder::with_existing_identity(key_pair)
+                .with_tokio()
+                .with_quic()
+                .with_dns()
+                .expect("Error building DNS transport")
+                .with_behaviour(behaviour_maker)
+                .expect("Error while building the swarm")
+                .with_swarm_config(config_constructor)
+                .build()
+        } else {
+            SwarmBuilder::with_existing_identity(key_pair)
+                .with_tokio()
+                .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
+                .expect("Error building TCP transport")
+                .with_dns()
+                .expect("Error building DNS transport")
+                .with_behaviour(behaviour_maker)
+                .expect("Error while building the swarm")
+                .with_swarm_config(config_constructor)
+                .build()
+        };
 
         swarm
             .listen_on(listen_address.clone())

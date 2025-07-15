@@ -2,7 +2,6 @@ mod get_stream;
 
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
-use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use futures::future::Either;
@@ -14,7 +13,7 @@ use libp2p_swarm_test::SwarmExt;
 use tokio::task::JoinHandle;
 use tokio_stream::StreamExt;
 
-use crate::utils::{make_quic_multiaddr, StreamMap};
+use crate::utils::{make_multiaddr, NetworkAddress, StreamMap};
 use crate::Bytes;
 
 lazy_static! {
@@ -26,7 +25,7 @@ lazy_static! {
     };
     #[cfg(test)]
     pub static ref DUMMY_MULTI_ADDRESS: Multiaddr = {
-        make_quic_multiaddr(Ipv4Addr::LOCALHOST, 10000, *DUMMY_PEER_ID)
+        make_multiaddr(NetworkAddress::LOCALHOST, 10000, Some(*DUMMY_PEER_ID))
     };
 }
 
