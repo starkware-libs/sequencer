@@ -13,9 +13,7 @@ apollo_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_node.workspace = true
 apollo_protobuf.workspace = true
-hex.workspace = true
 indexmap.workspace = true
-libp2p = { workspace = true, features = ["identify"] }
 serde.workspace = true
 serde_json.workspace = true
 serde_with.workspace = true

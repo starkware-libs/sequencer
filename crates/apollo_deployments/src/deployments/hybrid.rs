@@ -12,7 +12,7 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::addresses::{get_p2p_address, get_peer_id, SecretKey};
+use crate::addresses::{get_p2p_address, get_peer_id};
 use crate::config_override::{InstanceConfigOverride, NetworkConfigOverride};
 use crate::deployment::{build_service_namespace_domain_address, P2PCommunicationType};
 use crate::deployment_definitions::{CloudK8sEnvironment, Environment, ServicePort};
@@ -28,7 +28,7 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-use crate::utils::{determine_port_numbers, get_secret_key, get_validator_id};
+use crate::utils::{determine_port_numbers, get_validator_id};
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
 pub(crate) const INSTANCE_NAME_FORMAT: Template = Template("hybrid_{}");
@@ -467,12 +467,8 @@ pub(crate) fn create_hybrid_instance_config_override(
     const MEMPOOL_SERVICE_PORT: u16 = 53200;
 
     let bootstrap_node_id = 0;
-    let bootstrap_node_secret_key = get_secret_key(bootstrap_node_id);
-    let node_secret_key = get_secret_key(node_id);
-
-    let bootstrap_peer_id =
-        get_peer_id(SecretKey::try_from(bootstrap_node_secret_key.as_ref()).unwrap());
-    let node_peer_id = get_peer_id(SecretKey::try_from(node_secret_key.as_ref()).unwrap());
+    let bootstrap_peer_id = get_peer_id(bootstrap_node_id);
+    let node_peer_id = get_peer_id(node_id);
 
     let sanitized_domain = p2p_communication_type.get_p2p_domain(domain);
 
