@@ -41,7 +41,7 @@ static MAX_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new
 
 static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValidatorConfig> =
     LazyLock::new(|| StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: false,
+        validate_resource_bounds_above_threshold: false,
         min_gas_price: 0,
         max_calldata_length: 1,
         max_signature_length: 1,
@@ -54,7 +54,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 #[rstest]
 #[case::valid_l1_gas(
     StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
+        validate_resource_bounds_above_threshold: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
     RpcTransactionArgs {
@@ -67,7 +67,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 )]
 #[case::valid_l2_gas(
     StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
+        validate_resource_bounds_above_threshold: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
     RpcTransactionArgs {
@@ -80,7 +80,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 )]
 #[case::valid_l1_and_l2_gas(
     StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
+        validate_resource_bounds_above_threshold: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
     RpcTransactionArgs {
@@ -94,7 +94,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 )]
 #[case::valid_l1_data_gas(
     StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
+        validate_resource_bounds_above_threshold: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
     RpcTransactionArgs {

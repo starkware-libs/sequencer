@@ -1334,8 +1334,8 @@
     "privacy": "Public",
     "value": 0
   },
-  "gateway_config.stateless_tx_validator_config.validate_non_zero_resource_bounds": {
-    "description": "If true, validates that at least one resource bound (L1, L2, or L1 Data) is non-zero.",
+  "gateway_config.stateless_tx_validator_config.validate_resource_bounds_above_threshold": {
+    "description": "If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.",
     "privacy": "Public",
     "value": true
   },
