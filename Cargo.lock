@@ -11845,6 +11845,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sizeof_internal"
+version = "0.15.0-rc.2"
+dependencies = [
+ "starknet-types-core",
+]
+
+[[package]]
 name = "sketches-ddsketch"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
