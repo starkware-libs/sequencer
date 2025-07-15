@@ -27,7 +27,7 @@ def build_command(project_name: str, start_tag: str, end_tag: str) -> str:
     return (
         f"git-cliff {start_tag}..{end_tag} -o changelog_{start_tag}_{end_tag}.md "
         f'--ignore-tags ".*-dev.[0-9]+" --tag {end_tag} '
-        f'--config scripts/git-cliff.toml {include_paths}'
+        f"--config scripts/git-cliff.toml {include_paths}"
     )
 
 

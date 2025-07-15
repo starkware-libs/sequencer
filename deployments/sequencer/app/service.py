@@ -397,7 +397,6 @@ class ServiceApp(Construct):
         timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS,
         path: str = const.PROBE_MONITORING_ALIVE_PATH,
     ) -> k8s.Probe:
-
         return k8s.Probe(
             http_get=k8s.HttpGetAction(
                 path=path,

@@ -176,10 +176,13 @@ if __name__ == "__main__":
         ),
     )
     parser.add_argument(
-        "--auto-delete-from-dst", 
+        "--auto-delete-from-dst",
         default=False,
         action="store_true",
-        help="If files were updated on source but deleted on destination, delete the files.")
+        help="If files were updated on source but deleted on destination, delete the files.",
+    )
     args = parser.parse_args()
 
-    merge_branches(src_branch=args.src, dst_branch=args.dst, auto_delete_from_dst=args.auto_delete_from_dst)
+    merge_branches(
+        src_branch=args.src, dst_branch=args.dst, auto_delete_from_dst=args.auto_delete_from_dst
+    )

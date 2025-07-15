@@ -33,7 +33,7 @@ def argument_parser():
         "--image",
         required=False,
         default=IMAGE,
-        help="Docker image to deploy. Defaults to the latest dummy recorder image."
+        help="Docker image to deploy. Defaults to the latest dummy recorder image.",
     )
 
     args = parser.parse_args()

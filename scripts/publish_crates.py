@@ -10,7 +10,6 @@ import asyncio
 
 
 async def crate_version_exists(crate_name: str, version: str) -> bool:
-
     response = subprocess.run(
         ["curl", "-s", f"https://crates.io/api/v1/crates/{crate_name}"],
         capture_output=True,
