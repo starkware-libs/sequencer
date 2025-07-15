@@ -1250,6 +1250,24 @@
           "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_latest_mean_value",
+        "description": "The latest L1 gas price, calculated as an average by the provider client",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_latest_mean_value{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_data_gas_price_latest_mean_value",
+        "description": "The latest L1 data gas price, calculated as an average by the provider client",
+        "type": "timeseries",
+        "exprs": [
+          "l1_data_gas_price_latest_mean_value{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
       }
     ],
     "Mempool Infra": [

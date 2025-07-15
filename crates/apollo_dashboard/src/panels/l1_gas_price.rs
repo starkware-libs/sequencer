@@ -71,6 +71,20 @@ fn get_panel_eth_to_strk_rate() -> Panel {
     Panel::from_gauge(ETH_TO_STRK_RATE, PanelType::TimeSeries)
 }
 
+fn get_panel_l1_gas_price_latest_mean_value() -> Panel {
+    Panel::from_gauge(
+        apollo_l1_gas_price::metrics::L1_GAS_PRICE_LATEST_MEAN_VALUE,
+        PanelType::TimeSeries,
+    )
+}
+
+fn get_panel_l1_data_gas_price_latest_mean_value() -> Panel {
+    Panel::from_gauge(
+        apollo_l1_gas_price::metrics::L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
+        PanelType::TimeSeries,
+    )
+}
+
 pub(crate) fn get_l1_gas_price_row() -> Row {
     Row::new(
         "L1 Gas Price",
@@ -84,6 +98,8 @@ pub(crate) fn get_l1_gas_price_row() -> Row {
             get_panel_l1_gas_price_scraper_reorg_detected(),
             get_panel_l1_gas_price_scraper_latest_scraped_block(),
             get_panel_eth_to_strk_rate(),
+            get_panel_l1_gas_price_latest_mean_value(),
+            get_panel_l1_data_gas_price_latest_mean_value(),
         ],
     )
 }
