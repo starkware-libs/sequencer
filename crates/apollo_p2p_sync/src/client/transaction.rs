@@ -23,7 +23,6 @@ use super::block_data_stream_builder::{
     ParseDataError,
 };
 use super::P2pSyncClientError;
-use crate::client::RESPONSE_TIMEOUT;
 
 impl BlockData for (BlockBody, BlockNumber) {
     fn write_to_storage<'a>(
@@ -66,13 +65,11 @@ impl BlockDataStreamBuilder<FullTransaction> for TransactionStreamFactory {
                 .expect("A header with number lower than the header marker is missing")
                 .n_transactions;
             while current_transaction_len < target_transaction_len {
-                let maybe_transaction =
-                    tokio::time::timeout(RESPONSE_TIMEOUT, transactions_response_manager.next())
-                        .await
-                        .map_err(|_| ParseDataError::BadPeer(BadPeerError::ResponseTimeout))?
-                        .ok_or(ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
-                            type_description: Self::TYPE_DESCRIPTION,
-                        }))?;
+                let maybe_transaction = transactions_response_manager.next().await.ok_or(
+                    ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
+                        type_description: Self::TYPE_DESCRIPTION,
+                    }),
+                )?;
                 let Some(FullTransaction { transaction, transaction_output, transaction_hash }) =
                     maybe_transaction?.0
                 else {
