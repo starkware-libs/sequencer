@@ -2,8 +2,9 @@ import argparse
 import hashlib
 import random
 import re
-import string
 from typing import Optional
+
+import string
 
 
 def argument_parser():

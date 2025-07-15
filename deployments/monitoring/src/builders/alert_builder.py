@@ -5,6 +5,7 @@ import json
 import os
 from typing import Optional
 
+from common import const
 from common.grafana10_objects import (
     alert_expression_model_object,
     alert_query_model_object,
@@ -19,7 +20,6 @@ from grafana_client.client import (
     GrafanaException,
     GrafanaServerError,
 )
-from common import const
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 

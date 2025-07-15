@@ -4,7 +4,6 @@ import argparse
 import os
 import subprocess
 
-
 ROOT_PROJECT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 
 
@@ -23,9 +22,17 @@ def run_black(fix: bool):
     subprocess.check_output(command)
 
 
+def run_isort(fix: bool):
+    command = ["isort", "--settings-path", ROOT_PROJECT_DIR, ROOT_PROJECT_DIR]
+    if not fix:
+        command.append("-c")
+    subprocess.check_output(command)
+
+
 def main():
     args = parse_args()
     run_black(fix=args.fix)
+    run_isort(fix=args.fix)
 
 
 if __name__ == "__main__":

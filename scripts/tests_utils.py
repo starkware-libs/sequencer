@@ -1,10 +1,11 @@
 #!/bin/env python3
 
-from calendar import c
+import os
 import re
 import subprocess
-import os
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Optional, Set
+
+from calendar import c
 from git import Repo
 
 # Set of files which - if changed - should trigger tests for all packages.

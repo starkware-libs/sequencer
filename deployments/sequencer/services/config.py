@@ -1,10 +1,9 @@
 import json
+import jsonschema
 import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Any, Dict, List
-
-import jsonschema
 
 
 class Config(ABC):
