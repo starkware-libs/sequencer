@@ -70,7 +70,7 @@ pub(crate) struct BlockInfoValidation {
 
 enum HandledProposalPart {
     Continue,
-    Invalid,
+    Invalid(String),
     Finished(ProposalCommitment, ProposalFin),
     Failed(String),
 }
@@ -107,8 +107,8 @@ pub(crate) enum ValidateProposalError {
     ProposalInterrupted(String),
     #[error("Got an invalid second proposal part: {0:?}.")]
     InvalidSecondProposalPart(Option<ProposalPart>),
-    #[error("Batcher returned Invalid status.")]
-    InvalidProposal,
+    #[error("Batcher returned Invalid status: {0}.")]
+    InvalidProposal(String),
     #[error("Proposal part {1:?} failed validation: {0}.")]
     ProposalPartFailed(String, Option<ProposalPart>),
     #[error("proposal_commitment built by the batcher does not match the proposal fin.")]
@@ -190,9 +190,9 @@ pub(crate) async fn validate_proposal(
                         break (built_block, received_fin);
                     }
                     HandledProposalPart::Continue => {continue;}
-                    HandledProposalPart::Invalid => {
+                    HandledProposalPart::Invalid(err) => {
                         // No need to abort since the Batcher is the source of this info.
-                        return Err(ValidateProposalError::InvalidProposal);
+                        return Err(ValidateProposalError::InvalidProposal(err));
                     }
                     HandledProposalPart::Failed(fail_reason) => {
                         batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
@@ -423,7 +423,7 @@ async fn handle_proposal_part(
             });
             let response_id = match response.response {
                 ProposalStatus::Finished(id) => id,
-                ProposalStatus::InvalidProposal(_) => return HandledProposalPart::Invalid,
+                ProposalStatus::InvalidProposal(err) => return HandledProposalPart::Invalid(err),
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             };
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
@@ -475,7 +475,7 @@ async fn handle_proposal_part(
             });
             match response.response {
                 ProposalStatus::Processing => HandledProposalPart::Continue,
-                ProposalStatus::InvalidProposal(_) => HandledProposalPart::Invalid,
+                ProposalStatus::InvalidProposal(err) => HandledProposalPart::Invalid(err),
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
         }

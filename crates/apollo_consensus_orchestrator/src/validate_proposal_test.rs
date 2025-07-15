@@ -375,5 +375,5 @@ async fn batcher_returns_invalid_proposal() {
         .unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(ValidateProposalError::InvalidProposal)));
+    assert!(matches!(res, Err(ValidateProposalError::InvalidProposal(_))));
 }
