@@ -2,6 +2,18 @@ import os
 import subprocess
 from typing import List
 
+from git import Repo
+
+
+def git_files(extension: str) -> List[str]:
+    """
+    Returns a list of files in the current git repository with the specified extension.
+    """
+    repo = Repo(".")
+    return [
+        item.path for item in repo.commit().tree.traverse() if item.path.endswith(f".{extension}")
+    ]
+
 
 def run_command(
     command: str, allow_error: bool = False, print_output_on_error: bool = False

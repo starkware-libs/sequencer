@@ -5,7 +5,6 @@ import re
 import subprocess
 from typing import Dict, List, Optional, Set
 
-from calendar import c
 from git import Repo
 
 # Set of files which - if changed - should trigger tests for all packages.
