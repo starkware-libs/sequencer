@@ -141,15 +141,20 @@ impl ServiceNameInner for HybridNodeServiceName {
                 HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
             },
-            Environment::Potc2 | Environment::StressTest | Environment::SepoliaTestnet => {
-                match self {
-                    HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
-                    HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
-                    HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
-                    HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
-                    HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
-                }
-            }
+            Environment::StressTest | Environment::SepoliaTestnet => match self {
+                HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
+                HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
+            },
+            Environment::Potc2 => match self {
+                HybridNodeServiceName::Core => Some(Toleration::Batcher864),
+                HybridNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
+                HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                HybridNodeServiceName::SierraCompiler => Some(Toleration::ApolloGeneralService),
+            },
             _ => unimplemented!(),
         }
     }

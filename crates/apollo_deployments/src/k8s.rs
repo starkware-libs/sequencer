@@ -178,4 +178,6 @@ pub enum Toleration {
     ApolloCoreServiceC2D32,
     ApolloCoreServiceC2D56,
     ApolloGeneralService,
+    #[serde(rename = "batcher-8-64")]
+    Batcher864,
 }

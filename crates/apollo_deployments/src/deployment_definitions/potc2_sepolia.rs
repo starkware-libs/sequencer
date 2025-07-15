@@ -14,7 +14,7 @@ const SECRET_NAME_FORMAT: Template = Template("apollo-potc-2-sepolia-mock-sharp-
 const NODE_NAMESPACE_FORMAT: Template = Template("apollo-potc-2-sepolia-mock-sharp-{}");
 
 pub(crate) fn potc2_sepolia_hybrid_deployments() -> Vec<Deployment> {
-    NODE_IDS.map(|i| hybrid_deployments(i, P2PCommunicationType::External)).to_vec()
+    NODE_IDS.map(|i| hybrid_deployments(i, P2PCommunicationType::Internal)).to_vec()
 }
 
 // TODO(Tsabary): for all envs, define the values as constants at the top of the module, and cancel
@@ -44,7 +44,7 @@ fn hybrid_deployments(id: usize, p2p_communication_type: P2PCommunicationType) -
             create_hybrid_instance_config_override(
                 id,
                 NODE_NAMESPACE_FORMAT,
-                p2p_communication_type,
+                p2p_communication_type.clone(),
                 INGRESS_DOMAIN,
             ),
         ),
@@ -55,7 +55,7 @@ fn hybrid_deployments(id: usize, p2p_communication_type: P2PCommunicationType) -
         Some(K8sServiceConfigParams::new(
             NODE_NAMESPACE_FORMAT.format(&[&id]),
             INGRESS_DOMAIN.to_string(),
-            P2PCommunicationType::External,
+            p2p_communication_type,
         )),
     )
 }

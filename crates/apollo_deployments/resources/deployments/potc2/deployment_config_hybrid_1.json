@@ -19,7 +19,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": 1000,
-      "toleration": "apollo-core-service-c2-d56",
+      "toleration": "batcher-8-64",
       "resources": {
         "requests": {
           "cpu": 50,
