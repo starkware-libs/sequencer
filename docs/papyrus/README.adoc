@@ -231,12 +231,12 @@ cargo run --release --package papyrus_node --bin papyrus_node -- \
 cargo run --release --package papyrus_node --bin papyrus_node -- \
         --base_layer.node_url <ethereum_node_url> \
         --network.bootstrap_peer_multiaddr.#is_none false \
-        --network.bootstrap_peer_multiaddr /ip4/<other_peer_ip_address>/udp/<port>/quic-v1/p2p/<peer_id>
+        --network.bootstrap_peer_multiaddr /ip4/<other_peer_ip_address>/tcp/<port>/p2p/<peer_id>
 ----
 
 You can also use DNS instead of ip4 by typing 
 ----
-        --network.bootstrap_peer_multiaddr /dns/<other_peer_dns_address>/udp/<port>/quic-v1/p2p/<peer_id>
+        --network.bootstrap_peer_multiaddr /dns/<other_peer_dns_address>/tcp/<port>/p2p/<peer_id>
 ----
 
 ==== P2p Sync (with bootstrap connection)
@@ -245,7 +245,7 @@ You can also use DNS instead of ip4 by typing
 cargo run --release --package papyrus_node --bin papyrus_node -- \
         --base_layer.node_url <ethereum_node_url> \
         --network.bootstrap_peer_multiaddr.#is_none false \
-        --network.bootstrap_peer_multiaddr /ip4/<other_peer_ip_address>/udp/<port>/quic-v1/p2p/<peer_id> \
+        --network.bootstrap_peer_multiaddr /ip4/<other_peer_ip_address>/tcp/<port>/p2p/<peer_id> \
         --sync.#is_none true \
         --p2p_sync.#is_none false
 ----

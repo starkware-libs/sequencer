@@ -112,7 +112,7 @@ pub fn is_localhost(address: &Multiaddr) -> bool {
 /// * Config files
 /// * Yaml files
 /// * README files
-pub(super) const USE_QUIC: bool = true;
+pub(super) const USE_QUIC: bool = false;
 
 pub enum NetworkAddress {
     Ip4(Ipv4Addr),

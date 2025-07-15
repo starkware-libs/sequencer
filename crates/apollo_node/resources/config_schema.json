@@ -1210,7 +1210,7 @@
     "value": 1000
   },
   "consensus_manager_config.network_config.port": {
-    "description": "The port that the node listens on for incoming udp connections for quic.",
+    "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
     "value": 10000
   },
@@ -1620,7 +1620,7 @@
     "value": 1000
   },
   "mempool_p2p_config.network_config.port": {
-    "description": "The port that the node listens on for incoming udp connections for quic.",
+    "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
     "value": 11111
   },
@@ -1860,7 +1860,7 @@
     "value": 1000
   },
   "state_sync_config.network_config.port": {
-    "description": "The port that the node listens on for incoming udp connections for quic.",
+    "description": "The port that the node listens on for incoming tcp connections.",
     "privacy": "Public",
     "value": 12345
   },
