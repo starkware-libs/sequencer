@@ -28,14 +28,10 @@ class PresubmitArg(Enum):
         "The commit hash of the top change, i.e. the most recent commit to be checked."
     )
 
-    EXTRA_RUST_TOOLCHAINS = (
-        "Extra rust toolchains to use. Required for the rust formatting checks."
-    )
+    EXTRA_RUST_TOOLCHAINS = "Extra rust toolchains to use. Required for the rust formatting checks."
 
     def add_args(self, parser: argparse.ArgumentParser):
-        parser.add_argument(
-            f"--{self.name.lower()}", required=True, type=str, help=self.value
-        )
+        parser.add_argument(f"--{self.name.lower()}", required=True, type=str, help=self.value)
 
 
 class Check(ABC):
@@ -81,9 +77,7 @@ class ExternalCommandCheck(Check):
 
     def run_check(self):
         for cmd in self.commands:
-            run_command(
-                command=" ".join(cmd), allow_error=False, print_output_on_error=True
-            )
+            run_command(command=" ".join(cmd), allow_error=False, print_output_on_error=True)
 
 
 class ClippyCheck(RunTestsCheck):
@@ -116,9 +110,7 @@ class CommitLintCheck(ExternalCommandCheck):
         assert from_commit_hash, "from_commit_hash is required for commit lint check."
         assert to_commit_hash, "to_commit_hash is required for commit lint check."
         super().__init__(
-            commands=[
-                ["commitlint"] + ["--from", from_commit_hash] + ["--to", to_commit_hash]
-            ]
+            commands=[["commitlint"] + ["--from", from_commit_hash] + ["--to", to_commit_hash]]
         )
 
     @classmethod
@@ -218,9 +210,7 @@ def parse_args(all_checks: dict[str, type[Check]]) -> argparse.Namespace:
     return parser.parse_args()
 
 
-def get_checks_to_run(
-    args: argparse.Namespace, all_checks: dict[str, type[Check]]
-) -> list[Check]:
+def get_checks_to_run(args: argparse.Namespace, all_checks: dict[str, type[Check]]) -> list[Check]:
     if args.command == "all":
         stages_to_run = all_checks.values()
     else:

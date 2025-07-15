@@ -64,9 +64,7 @@ def check_service_alive(
     time.sleep(initial_delay)
 
     start_time = time.time()
-    print(
-        f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}"
-    )
+    print(f"Start time: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(start_time))}")
     print(f"Address: {address}")
     print(f"Timeout: {timeout}s")
     print(f"Interval: {interval}s")
@@ -148,9 +146,7 @@ def main(
         # so we offset the local port to avoid conflicts when running multiple sequencers locally.
         # This ensures unique local ports per instance.
         local_port = monitoring_port + i
-        print(
-            f"🚀 Starting port-forwarding for {service_name} on local port {local_port}..."
-        )
+        print(f"🚀 Starting port-forwarding for {service_name} on local port {local_port}...")
         pf_process = subprocess.Popen(
             ["kubectl", "port-forward", pod_name, f"{local_port}:{monitoring_port}"],
             stdout=subprocess.DEVNULL,
@@ -181,9 +177,7 @@ def main(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Run liveness checks on Kubernetes services."
-    )
+    parser = argparse.ArgumentParser(description="Run liveness checks on Kubernetes services.")
     parser.add_argument(
         "--deployment-config-path",
         type=str,

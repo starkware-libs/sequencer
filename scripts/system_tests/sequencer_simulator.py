@@ -52,9 +52,7 @@ def get_pod_name(service_label):
         "-o",
         "jsonpath={.items[0].metadata.name}",
     ]
-    return subprocess.run(
-        cmd, capture_output=True, check=True, text=True
-    ).stdout.strip()
+    return subprocess.run(cmd, capture_output=True, check=True, text=True).stdout.strip()
 
 
 def port_forward(pod_name, local_port, remote_port):
@@ -74,9 +72,7 @@ def run_simulator(http_port, monitoring_port, sender_address, receiver_address):
         "--receiver-address",
         receiver_address,
     ]
-    proc = subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
-    )
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
     with open("sequencer_simulator.log", "w", encoding="utf-8") as log_file:
         for line in proc.stdout:
             print(line, end="")
@@ -84,9 +80,7 @@ def run_simulator(http_port, monitoring_port, sender_address, receiver_address):
     return proc.wait()
 
 
-def setup_port_forwarding(
-    service_name, deployment_config_path, config_dir, config_key, node_type
-):
+def setup_port_forwarding(service_name, deployment_config_path, config_dir, config_key, node_type):
     ports = get_config_ports(
         service_name,
         deployment_config_path,
@@ -105,9 +99,7 @@ def setup_port_forwarding(
     return port
 
 
-def main(
-    deployment_config_path, config_dir, node_type_str, sender_address, receiver_address
-):
+def main(deployment_config_path, config_dir, node_type_str, sender_address, receiver_address):
     print("🚀 Running sequencer simulator....")
 
     try:
@@ -146,9 +138,7 @@ def main(
     print(
         f"Running the simulator with http port: {http_server_port} and monitoring port: {state_sync_port}"
     )
-    exit_code = run_simulator(
-        http_server_port, state_sync_port, sender_address, receiver_address
-    )
+    exit_code = run_simulator(http_server_port, state_sync_port, sender_address, receiver_address)
 
     if exit_code != 0:
         print("❌ Sequencer simulator failed!")
