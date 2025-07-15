@@ -30,7 +30,7 @@ use crate::k8s::{
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
 use crate::utils::{determine_port_numbers, get_secret_key, get_validator_id};
 
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 8;
 pub(crate) const INSTANCE_NAME_FORMAT: Template = Template("hybrid_{}");
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
@@ -66,13 +66,9 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
         let l1_gas_price_provider = HybridNodeServiceName::Core.component_config_pair(ports[3]);
         let l1_provider = HybridNodeServiceName::Core.component_config_pair(ports[4]);
-        // TODO(Tsabary): l1_endpoint_monitor is only used locally, hence does not require a port
-        // assignment nor a definition in this hierarchy. Instead, instantiate a local variant in
-        // `get_l1_component_config`.
-        let l1_endpoint_monitor = HybridNodeServiceName::Core.component_config_pair(ports[5]);
-        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[6]);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
-        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[8]);
+        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5]);
+        let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6]);
+        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7]);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -97,7 +93,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
                 HybridNodeServiceName::L1 => get_l1_component_config(
                     l1_gas_price_provider.local(),
                     l1_provider.local(),
-                    l1_endpoint_monitor.local(),
                     batcher.remote(),
                     state_sync.remote(),
                 ),
@@ -399,7 +394,6 @@ fn get_gateway_component_config(
 fn get_l1_component_config(
     l1_gas_price_provider_local_config: ReactiveComponentExecutionConfig,
     l1_provider_local_config: ReactiveComponentExecutionConfig,
-    l1_endpoint_monitor_local_config: ReactiveComponentExecutionConfig,
     batcher_remote_config: ReactiveComponentExecutionConfig,
     state_sync_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -409,7 +403,7 @@ fn get_l1_component_config(
     config.l1_gas_price_scraper = ActiveComponentExecutionConfig::enabled();
     config.l1_provider = l1_provider_local_config;
     config.l1_scraper = ActiveComponentExecutionConfig::enabled();
-    config.l1_endpoint_monitor = l1_endpoint_monitor_local_config;
+    config.l1_endpoint_monitor = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config.state_sync = state_sync_remote_config;
     config
