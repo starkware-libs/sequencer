@@ -19,6 +19,7 @@ from yaml_maker import (
     # get_network_stress_test_service_yaml_file,
     get_network_stress_test_headless_service_yaml_file,
 )
+from args import add_broadcast_stress_test_node_arguments_to_parser
 
 
 def login_to_docker_registry():
@@ -51,16 +52,17 @@ def write_yaml_file(file_name: str, file_content: str):
         f.write(file_content)
 
 
-def write_yaml_files(image_tag: str, num_nodes: int, namespace: str) -> list[str]:
+def write_yaml_files(
+    image_tag: str,
+    args: argparse.Namespace,
+) -> list[str]:
+    num_nodes = args.num_nodes
     files = {
         "prometheus-config.yaml": get_prometheus_yaml_file(num_nodes),
         "prometheus-deployment.yaml": get_prometheus_deployment_yaml_file(),
         "prometheus-service.yaml": get_prometheus_service_yaml_file(),
         "network-stress-test-deployment.yaml": get_network_stress_test_deployment_yaml_file(
-            image_tag,
-            num_nodes,
-            namespace,
-            verbosity=3,
+            image_tag, args=args
         ),
         # "network-stress-test-service.yaml": get_network_stress_test_service_yaml_file(),
         "network-stress-test-headless-service.yaml": get_network_stress_test_headless_service_yaml_file(),
@@ -123,9 +125,7 @@ class ExperimentRunner:
 
         namespace_name = f"network-stress-test-{self.time_stamp}"
         self.create_namespace(namespace_name)
-        file_names = write_yaml_files(
-            image_tag, num_nodes=args.num_nodes, namespace=namespace_name
-        )
+        file_names = write_yaml_files(image_tag, args=args)
         self.deployment_file["yaml_files"] = file_names
         self.deploy_yaml_files(namespace_name)
 
@@ -155,6 +155,7 @@ def main():
         type=str,
         default=None,
     )
+    add_broadcast_stress_test_node_arguments_to_parser(parser=parser)
     args = parser.parse_args()
 
     assert not os.path.exists(

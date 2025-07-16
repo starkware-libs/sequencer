@@ -1,3 +1,4 @@
+from args import get_arguments
 from utils import prometheus_service_name, bootstrap_peer_id, get_prometheus_config
 
 
@@ -73,11 +74,16 @@ spec:
 
 def get_network_stress_test_deployment_yaml_file(
     image_tag: str,
-    num_nodes: int,
-    namespace: str,
-    verbosity: int = 3,
-    heartbeat_millis: int = 1000,
+    args,
 ):
+    num_nodes = args.num_nodes
+    arguments = get_arguments(
+        id="$NODE_ID",
+        metric_port=2000,
+        p2p_port=10000,
+        bootstrap=f"/dns/network-stress-test-0.network-stress-test-headless/udp/10000/quic-v1/p2p/{bootstrap_peer_id}",
+        args=args,
+    )
     return f"""
 apiVersion: apps/v1
 kind: StatefulSet
@@ -116,7 +122,7 @@ spec:
         - |
           export NODE_ID=$(hostname | grep -o '[0-9]*$')
           echo "Starting node with ID: $NODE_ID"
-          exec broadcast_network_stress_test_node --heartbeat-millis {heartbeat_millis} --id $NODE_ID -v {verbosity} --bootstrap /dns/network-stress-test-0.network-stress-test-headless/udp/10000/quic-v1/p2p/{bootstrap_peer_id} 
+          exec broadcast_network_stress_test_node {' '.join(arguments)} 
 """
 
 
