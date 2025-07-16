@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use apollo_batcher_types::batcher_types::Round;
 use apollo_starknet_client::reader::StateDiff;
 use assert_matches::assert_matches;
+use indexmap::IndexMap;
 use reqwest::StatusCode;
 use starknet_api::block::{BlockNumber, BlockTimestamp, GasPricePerToken};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
@@ -28,9 +30,11 @@ use crate::cende_client_types::{
 };
 use crate::pre_confirmed_block_writer::{
     is_round_mismatch_error,
+    PreconfirmedBlockWriter,
     PreconfirmedBlockWriterConfig,
     PreconfirmedBlockWriterFactory,
     PreconfirmedBlockWriterFactoryTrait,
+    PreconfirmedBlockWriterInput,
 };
 use crate::pre_confirmed_cende_client::{
     MockPreconfirmedCendeClientTrait,
@@ -387,4 +391,73 @@ fn test_is_round_mismatch_error_with_wrong_iteration() {
 
     let next_write_iteration = 10;
     assert!(!is_round_mismatch_error(&error, next_write_iteration));
+}
+
+fn create_test_writer(
+    block_number: BlockNumber,
+    round: Round,
+    block_metadata: CendeBlockMetadata,
+) -> PreconfirmedBlockWriter {
+    let writer_input = PreconfirmedBlockWriterInput { block_number, round, block_metadata };
+    let cende_client = Arc::new(MockPreconfirmedCendeClientTrait::new());
+    let (_, candidate_tx_receiver) = tokio::sync::mpsc::channel(1);
+    let (_, preconfirmed_tx_receiver) = tokio::sync::mpsc::channel(1);
+    let config = PreconfirmedBlockWriterConfig::default();
+
+    PreconfirmedBlockWriter::new(
+        writer_input,
+        candidate_tx_receiver,
+        preconfirmed_tx_receiver,
+        cende_client,
+        config.write_block_interval_millis,
+    )
+}
+
+fn create_test_pre_confirmed_tx(tx_hash: TransactionHash) -> CendePreconfirmedTransaction {
+    CendePreconfirmedTransaction::from(create_test_internal_consensus_tx(tx_hash))
+}
+
+#[test]
+fn test_create_pre_confirmed_block() {
+    let block_metadata = create_test_block_metadata();
+    let writer =
+        create_test_writer(BlockNumber(TEST_BLOCK_NUMBER), TEST_ROUND, block_metadata.clone());
+
+    // Setup test transactions
+    let tx1_hash = tx_hash!(1);
+    let tx1_pre_confirmed = create_test_pre_confirmed_tx(tx1_hash);
+    let tx1_receipt = Some(create_test_transaction_receipt(tx1_hash));
+    let tx1_state_diff = Some(create_test_state_diff());
+
+    let tx2_hash = tx_hash!(2);
+    let tx2_pre_confirmed = create_test_pre_confirmed_tx(tx2_hash);
+
+    let mut transactions_map = IndexMap::new();
+    transactions_map
+        .insert(tx1_hash, (tx1_pre_confirmed.clone(), tx1_receipt.clone(), tx1_state_diff.clone()));
+    transactions_map.insert(tx2_hash, (tx2_pre_confirmed.clone(), None, None));
+
+    let write_iteration = 5;
+    let result = writer.create_pre_confirmed_block(&transactions_map, write_iteration);
+
+    // Verify block structure
+    assert_eq!(result.block_number, BlockNumber(TEST_BLOCK_NUMBER));
+    assert_eq!(result.round, TEST_ROUND);
+    assert_eq!(result.write_iteration, write_iteration);
+    assert_eq!(result.pre_confirmed_block.metadata, block_metadata);
+
+    // Verify transaction data
+    assert_eq!(result.pre_confirmed_block.transactions.len(), 2);
+    assert_eq!(result.pre_confirmed_block.transaction_receipts.len(), 2);
+    assert_eq!(result.pre_confirmed_block.transaction_state_diffs.len(), 2);
+
+    // Verify first transaction (with receipt and state diff)
+    assert_eq!(result.pre_confirmed_block.transactions[0], tx1_pre_confirmed);
+    assert_eq!(result.pre_confirmed_block.transaction_receipts[0], tx1_receipt);
+    assert_eq!(result.pre_confirmed_block.transaction_state_diffs[0], tx1_state_diff);
+
+    // Verify second transaction (without receipt and state diff)
+    assert_eq!(result.pre_confirmed_block.transactions[1], tx2_pre_confirmed);
+    assert_eq!(result.pre_confirmed_block.transaction_receipts[1], None);
+    assert_eq!(result.pre_confirmed_block.transaction_state_diffs[1], None);
 }
