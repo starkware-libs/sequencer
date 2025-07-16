@@ -1,4 +1,5 @@
 use apollo_infra_utils::test_utils::assert_json_eq;
+use apollo_metrics::metrics::{MetricCounter, MetricScope};
 
 use crate::alerts::{
     Alert,
@@ -8,6 +9,7 @@ use crate::alerts::{
     AlertLogicalOp,
     AlertSeverity,
 };
+use crate::dashboard::Panel;
 
 #[test]
 fn serialize_alert() {
@@ -45,4 +47,39 @@ fn serialize_alert() {
         "severity": "p1"
     });
     assert_json_eq(&serialized, &expected, "Json Comparison failed".to_string());
+}
+
+#[test]
+fn test_from_ratio() {
+    let duration = "5m";
+    let metric_1 = MetricCounter::new(MetricScope::Batcher, "r", "r_f", "desc", 0);
+    let metric_2 = MetricCounter::new(MetricScope::Batcher, "p", "p_f", "desc", 0);
+    let metric_3 = MetricCounter::new(MetricScope::Batcher, "a", "a_f", "desc", 0);
+
+    let panel =
+        Panel::_from_ratio("x", "x", &metric_1, &[&metric_1, &metric_2, &metric_3], duration);
+
+    let expected = format!(
+        "100 * (increase({}[{}]) / (increase({}[{}]) + increase({}[{}]) + increase({}[{}])))",
+        metric_1.get_name_with_filter(),
+        duration,
+        metric_1.get_name_with_filter(),
+        duration,
+        metric_2.get_name_with_filter(),
+        duration,
+        metric_3.get_name_with_filter(),
+        duration,
+    );
+
+    assert_eq!(panel.exprs, vec![expected]);
+
+    let expected = format!(
+        "100 * (increase({}[{}]) / (increase({}[{}])))",
+        metric_1.get_name_with_filter(),
+        duration,
+        metric_2.get_name_with_filter(),
+        duration,
+    );
+    let panel = Panel::_from_ratio("y", "y", &metric_1, &[&metric_2], duration);
+    assert_eq!(panel.exprs, vec![expected]);
 }
