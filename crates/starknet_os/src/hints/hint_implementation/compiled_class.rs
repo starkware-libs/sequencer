@@ -1,2 +1,4 @@
+#[cfg(test)]
+mod compiled_class_test;
 pub mod implementation;
-mod utils;
+pub(crate) mod utils;
