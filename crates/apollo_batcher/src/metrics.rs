@@ -17,6 +17,7 @@ define_metrics!(
         // Transactions
         MetricCounter { BATCHED_TRANSACTIONS, "batcher_batched_transactions", "Counter of batched transactions across all forks", init = 0 },
         MetricCounter { REJECTED_TRANSACTIONS, "batcher_rejected_transactions", "Counter of rejected transactions", init = 0 },
+        MetricCounter { REVERTED_TRANSACTIONS, "batcher_reverted_transactions", "Counter of reverted transactions across all forks", init = 0 },
         MetricCounter { SYNCED_TRANSACTIONS, "batcher_synced_transactions", "Counter of synced transactions", init = 0 },
 
         MetricCounter { FULL_BLOCKS, "batcher_full_blocks", "Counter of blocks closed on full capacity", init = 0 },
@@ -39,6 +40,7 @@ pub fn register_metrics(storage_height: BlockNumber) {
 
     BATCHED_TRANSACTIONS.register();
     REJECTED_TRANSACTIONS.register();
+    REVERTED_TRANSACTIONS.register();
     SYNCED_TRANSACTIONS.register();
 
     FULL_BLOCKS.register();

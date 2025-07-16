@@ -64,6 +64,7 @@ use crate::metrics::{
     PROPOSAL_SUCCEEDED,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
+    REVERTED_TRANSACTIONS,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
@@ -1053,6 +1054,17 @@ async fn decision_reached() {
     assert_eq!(
         REJECTED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
         Some(expected_artifacts.execution_data.rejected_tx_hashes.len())
+    );
+    assert_eq!(
+        REVERTED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
+        Some(
+            expected_artifacts
+                .execution_data
+                .execution_infos
+                .values()
+                .filter(|info| info.revert_error.is_some())
+                .count(),
+        )
     );
 }
 
