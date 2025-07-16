@@ -93,6 +93,14 @@ impl<S: ClassStorage> ClassManager<S> {
         Ok(self.classes.get_sierra(class_id)?)
     }
 
+    #[instrument(skip(self), err)]
+    pub fn get_executable_class_hash_v2(
+        &self,
+        class_id: ClassId,
+    ) -> ClassManagerResult<Option<ExecutableClassHash>> {
+        Ok(self.classes.get_executable_class_hash_v2(class_id)?)
+    }
+
     #[instrument(skip(self, class), ret, err)]
     pub fn add_deprecated_class(
         &mut self,
