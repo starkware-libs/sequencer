@@ -6,24 +6,10 @@ use cairo_lang_starknet_classes::contract_class::ContractClass;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 
 use crate::compiler::SierraToNativeCompiler;
-use crate::config::{
-    SierraCompilationConfig,
-    DEFAULT_MAX_CPU_TIME,
-    DEFAULT_MAX_FILE_SIZE,
-    DEFAULT_MAX_MEMORY_USAGE,
-    DEFAULT_OPTIMIZATION_LEVEL,
-};
-
-const SIERRA_COMPILATION_CONFIG: SierraCompilationConfig = SierraCompilationConfig {
-    compiler_binary_path: None,
-    max_file_size: Some(DEFAULT_MAX_FILE_SIZE),
-    max_cpu_time: Some(DEFAULT_MAX_CPU_TIME),
-    max_memory_usage: Some(DEFAULT_MAX_MEMORY_USAGE),
-    optimization_level: DEFAULT_OPTIMIZATION_LEVEL,
-};
+use crate::config::SierraCompilationConfig;
 
 fn compiler() -> SierraToNativeCompiler {
-    SierraToNativeCompiler::new(SIERRA_COMPILATION_CONFIG)
+    SierraToNativeCompiler::new(SierraCompilationConfig::create_for_testing())
 }
 
 fn get_test_contract() -> ContractClass {
