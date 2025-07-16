@@ -1,6 +1,8 @@
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
+use std::time::Duration;
 
+use anyhow::Result;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_metrics::metrics::parse_numeric_metric;
@@ -11,6 +13,7 @@ use hyper::client::HttpConnector;
 use hyper::Client;
 use num_traits::Num;
 use thiserror::Error;
+use tokio::time::{sleep, Instant};
 use tracing::info;
 
 use crate::monitoring_endpoint::{ALIVE, METRICS, MONITORING_PREFIX};
@@ -23,6 +26,27 @@ pub enum MonitoringClientError {
     ResponseStatusError { status: String },
     #[error("Missing metric name: {}", metric_name)]
     MetricNotFound { metric_name: String },
+}
+
+pub async fn retry_with_timeout<F, Fut, T, E>(
+    max_duration: Duration,
+    delay: Duration,
+    mut op: F,
+) -> Result<T, E>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Result<T, E>>,
+{
+    let deadline = Instant::now() + max_duration;
+    loop {
+        match op().await {
+            Ok(value) => return Ok(value),
+            Err(_err) if Instant::now() < deadline => {
+                sleep(delay).await;
+            }
+            Err(err) => return Err(err),
+        }
+    }
 }
 
 /// Client for querying 'alive' status of an http server.
@@ -63,14 +87,19 @@ impl MonitoringClient {
     }
 
     pub async fn get_metrics(&self) -> Result<String, MonitoringClientError> {
+        let max_retry = Duration::from_secs(5);
+        let delay = Duration::from_millis(200);
+
         // Query the server for metrics.
-        let response = self
-            .client
-            .request(build_request(&self.socket.ip(), self.socket.port(), METRICS))
-            .await
-            .map_err(|err| MonitoringClientError::ConnectionError {
-                connection_error: err.to_string(),
-            })?;
+        let response = retry_with_timeout(max_retry, delay, || async {
+            self.client
+                .request(build_request(&self.socket.ip(), self.socket.port(), METRICS))
+                .await
+                .map_err(|err| MonitoringClientError::ConnectionError {
+                    connection_error: err.to_string(),
+                })
+        })
+        .await?;
 
         // Check response status.
         if !response.status().is_success() {
