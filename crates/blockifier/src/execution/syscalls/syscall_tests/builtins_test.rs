@@ -76,3 +76,44 @@ fn change_builtins_gas_cost(block_context: &mut BlockContext, selector_name: &st
         _ => panic!("Unknown selector name: {}", selector_name),
     }
 }
+
+#[test]
+fn test_builtin_counts() {
+    let test_contract_casm =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let chain_info = &ChainInfo::create_for_testing();
+    let mut casm_state = test_state(chain_info, BALANCE, &[(test_contract_casm, 1)]);
+
+    let entry_point_call_casm = CallEntryPoint {
+        entry_point_selector: selector_from_name("test_builtin_counts"),
+        calldata: calldata![],
+        ..trivial_external_entry_point_new(test_contract_casm)
+    };
+
+    let casm_call_info = entry_point_call_casm.execute_directly(&mut casm_state).unwrap();
+    assert!(!casm_call_info.execution.failed, "CASM execution failed, {:?}", casm_call_info);
+
+    #[cfg(feature = "cairo_native")]
+    {
+        let test_contract_native =
+            FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Native));
+        let mut native_state = test_state(chain_info, BALANCE, &[(test_contract_native, 1)]);
+
+        let entry_point_call_native = CallEntryPoint {
+            entry_point_selector: selector_from_name("test_builtin_counts"),
+            calldata: calldata![],
+            ..trivial_external_entry_point_new(test_contract_native)
+        };
+
+        let native_call_info = entry_point_call_native.execute_directly(&mut native_state).unwrap();
+        assert!(!native_call_info.execution.failed, "Native execution failed");
+
+        // TODO(Einat): Uncomment this when native builtins are supported.
+        // let casm_builtins = &casm_call_info.builtin_counters;
+        // let native_builtins = &native_call_info.builtin_counters;
+        // assert_eq!(
+        //     casm_builtins, native_builtins,
+        //     "Builtin usage should be identical between CASM and Native"
+        // );
+    }
+}

@@ -798,5 +798,72 @@ mod TestContract {
         let mut s: ec::EcState = ec::ec_state_init();
         ec::ec_state_add_mul(ref s, m, p);
     }
+
+    #[external(v0)]
+    fn test_builtin_counts(ref self: ContractState) {
+        // Range_check builtin
+        let x: u32 = 1;
+        let y: u32 = 2;
+        let _ = x < y;
+
+        // Pedersen builtin
+        let mut pedersen_state = PedersenTrait::new(0);
+        pedersen_state = pedersen_state.update(1);
+        let _hash = pedersen_state.finalize();
+
+        // Poseidon hash builtin
+        let mut poseidon_state = PoseidonTrait::new();
+        poseidon_state = poseidon_state.update(1);
+        let _poseidon_hash = poseidon_state.finalize();
+
+        // Keccak builtin
+        let mut input: Array::<u256> = Default::default();
+        input.append(u256 { low: 1, high: 0 });
+        let _keccak_res = keccak::keccak_u256s_le_inputs(input.span());
+
+        // Bitwise builtin
+        let x: u32 = 0x1;
+        let y: u32 = 0x2;
+        let _z = x & y;
+
+        // EC_OP builtin
+        let p = EcPointTrait::new(
+            0x654fd7e67a123dd13868093b3b7777f1ffef596c2e324f25ceaf9146698482c,
+            0x4fad269cbf860980e38768fe9cb6b0b9ab03ee3fe84cfde2eccce597c874fd8
+        )
+            .unwrap();
+        let q = EcPointTrait::new(
+            0x3dbce56de34e1cfe252ead5a1f14fd261d520d343ff6b7652174e62976ef44d,
+            0x4b5810004d9272776dec83ecc20c19353453b956e594188890b48467cb53c19
+        )
+            .unwrap();
+        let m: felt252 = 0x6d232c016ef1b12aec4b7f88cc0b3ab662be3b7dd7adbce5209fcfdbd42a504;
+        let res = q.mul(m) + p;
+        let res_nz = res.try_into().unwrap();
+        self.ec_point.write(res_nz.coordinates());
+
+        // Add_mod and Mul_mod builtins
+        let in1 = CircuitElement::<CircuitInput<0>> {};
+        let in2 = CircuitElement::<CircuitInput<1>> {};
+        let add = circuit_add(in1, in2);
+        let mul = circuit_mul(in1, in2);
+        let modulus = TryInto::<_, CircuitModulus>::try_into([7, 0, 0, 0]).unwrap();
+        let outputs = (add, mul)
+            .new_inputs()
+            .next([3, 0, 0, 0])
+            .next([6, 0, 0, 0])
+            .done()
+            .eval(modulus);
+
+        // Range_check96 builtin
+        match outputs {
+            Result::Ok(circuit_outputs) => {
+                let _add_result = circuit_outputs.get_output(add);
+                let _mul_result = circuit_outputs.get_output(mul);
+            },
+            Result::Err(_) => {},
+        }
+    }
+
 }
 
