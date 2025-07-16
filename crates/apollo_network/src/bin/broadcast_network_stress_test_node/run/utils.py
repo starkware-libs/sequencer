@@ -55,6 +55,6 @@ def get_prometheus_config(self_scrape: bool, metric_urls: list[str]) -> str:
         result += f"    static_configs:\n"
         result += f"      - targets: ['{url}']\n"
         result += f"        labels:\n"
-        result += f"          application: 'network_stress_test'\n"
+        result += f"          application: 'broadcast_network_stress_test_node'\n"
         result += f"          environment: 'test'\n"
     return result

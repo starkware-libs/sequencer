@@ -116,7 +116,7 @@ spec:
         - |
           export NODE_ID=$(hostname | grep -o '[0-9]*$')
           echo "Starting node with ID: $NODE_ID"
-          exec network_stress_test --heartbeat-millis {heartbeat_millis} --id $NODE_ID -v {verbosity} --bootstrap /dns/network-stress-test-0.network-stress-test-headless/udp/10000/quic-v1/p2p/{bootstrap_peer_id} 
+          exec broadcast_network_stress_test_node --heartbeat-millis {heartbeat_millis} --id $NODE_ID -v {verbosity} --bootstrap /dns/network-stress-test-0.network-stress-test-headless/udp/10000/quic-v1/p2p/{bootstrap_peer_id} 
 """
 
 
