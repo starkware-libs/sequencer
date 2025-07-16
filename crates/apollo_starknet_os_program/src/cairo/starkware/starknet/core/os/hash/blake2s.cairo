@@ -670,6 +670,20 @@ const BLAKE2S_FINALIZE_INSTRUCTION = OFF_MINUS_1 * COUNTER_OFFSET + OFF_MINUS_3 
 // Note: this function guarantees that len > 0.
 func blake_with_opcode{range_check_ptr}(len: felt, data: felt*, out: felt*) {
     alloc_locals;
+    if (len == 0) {
+        // hash32 = [105,33,122,48, 121,144,128,148, 225,17,33,208, 66,53,74,124,
+        //           31,85,182,72, 44,161,165,30, 27,37,13,253, 30,208,238,249]
+        // as little-endian u32s:
+        assert [out + 0] =  813310313;  // 0x307A2169
+        assert [out + 1] = 2491453561;  // 0x94809079
+        assert [out + 2] = 3491828193;  // 0xD02111E1
+        assert [out + 3] = 2085238082;  // 0x7C4A3542
+        assert [out + 4] = 1219908895;  // 0x48B6551F
+        assert [out + 5] =  514171180;  // 0x1EA5A12C
+        assert [out + 6] = 4245497115;  // 0xFD0D251B
+        assert [out + 7] = 4193177630;  // 0xF9EED01E
+        return ();
+    }
 
     let (local state: felt*) = alloc();
     assert state[0] = 0x6B08E647;  // IV[0] ^ 0x01010020 (config: no key, 32 bytes output).
@@ -680,24 +694,6 @@ func blake_with_opcode{range_check_ptr}(len: felt, data: felt*, out: felt*) {
     assert state[5] = 0x9B05688C;
     assert state[6] = 0x1F83D9AB;
     assert state[7] = 0x5BE0CD19;
-
-    local range_check_ptr = range_check_ptr;
-
-    // Handle empty array case
-    if (len == 0) {
-        // For empty input, go directly to finalization
-        let (local final_data: felt*) = alloc();
-        memset(final_data, 0, 16);  // Pad with 16 zeros
-
-        [ap] = state, ap++;
-        [ap] = final_data, ap++;
-        [ap] = 0, ap++;  // counter = 0 for empty input
-        [ap] = out;
-        dw BLAKE2S_FINALIZE_INSTRUCTION;
-        ap += 1;
-        let range_check_ptr = [fp + 3];
-        return ();
-    }
 
     // Express the length in bytes, subtract the remainder for finalize.
     let (_, rem) = unsigned_div_rem(len - 1, 16);
@@ -727,7 +723,7 @@ func blake_with_opcode{range_check_ptr}(len: felt, data: felt*, out: felt*) {
         // Increment AP after blake opcode.
         ap += 1;
 
-        let range_check_ptr = [fp + 4];
+        let range_check_ptr = [fp + 3];
         return ();
     }
 
