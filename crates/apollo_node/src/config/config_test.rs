@@ -1,11 +1,14 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::time::Duration;
 
 use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file_test;
+use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
+use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use rstest::rstest;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
 use crate::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
@@ -106,6 +109,36 @@ fn default_config_file_is_up_to_date() {
 fn validate_config_success() {
     let config = SequencerNodeConfig::default();
     assert!(config.validate().is_ok());
+}
+
+#[rstest]
+#[case::number_of_blocks_ok(L1GasPriceScraperConfig { number_of_blocks_for_mean: 300, ..Default::default() }, true)]
+#[case::number_of_blocks_fail(L1GasPriceScraperConfig { number_of_blocks_for_mean: 301, ..Default::default() }, false)]
+#[case::lag_margin_ok(L1GasPriceScraperConfig { finality: 10, polling_interval: Duration::from_secs(1), ..Default::default() }, true)]
+#[case::lag_margin_finality_fail(L1GasPriceScraperConfig { finality: 30, polling_interval: Duration::from_secs(1), ..Default::default() }, false)]
+#[case::lag_margin_polling_fail(L1GasPriceScraperConfig { finality: 10, polling_interval: Duration::from_secs(200), ..Default::default() }, false)]
+#[case::lag_margin_finality_0_ok(L1GasPriceScraperConfig { finality: 0, polling_interval: Duration::from_secs(1), ..Default::default() }, true)]
+fn validate_l1_gas_price_configs(
+    #[case] scraper_config: L1GasPriceScraperConfig,
+    #[case] expect_success: bool,
+) {
+    let config = SequencerNodeConfig {
+        l1_gas_price_scraper_config: scraper_config,
+        l1_gas_price_provider_config: L1GasPriceProviderConfig {
+            number_of_blocks_for_mean: 300,
+            lag_margin_seconds: 250,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    if expect_success {
+        assert!(config.validate().is_ok());
+    } else {
+        assert!(
+            matches!(config.validate(), Err(ValidationErrors { .. })),
+            "Expected validation error"
+        );
+    }
 }
 
 #[rstest]
