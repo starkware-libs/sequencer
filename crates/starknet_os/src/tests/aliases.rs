@@ -540,6 +540,7 @@ fn test_allocate_addresses_for_state_diff_and_replace(
         &program,
         &runner_config,
         &expected_explicit_return_values,
+        true,
     )
     .unwrap();
 

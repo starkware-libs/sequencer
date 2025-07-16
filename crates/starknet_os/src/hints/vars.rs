@@ -92,6 +92,7 @@ define_string_enum! {
         (InitialDict),
         (IsDeprecated),
         (LeftChild),
+        (LeafAlwaysAccessed),
         (NSelectedBuiltins),
         (Node),
         (RightChild),
