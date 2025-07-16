@@ -7,12 +7,15 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_sec;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
 use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderResult, PriceInfo};
+// TODO(guyn): the L1 block time should be a config item, with a pointer value.
+use apollo_l1_provider::l1_scraper::L1_BLOCK_TIME;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
 use tracing::{info, trace, warn};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
+use crate::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use crate::metrics::{
     register_provider_metrics,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
@@ -233,5 +236,44 @@ impl ComponentStarter for L1GasPriceProvider {
     async fn start(&mut self) {
         info!("Starting component {}.", type_name::<Self>());
         register_provider_metrics();
+    }
+}
+
+// TODO(guyn): remove this once we have a shared config for the two components.
+pub fn validate_provider_and_scraper_configs(
+    provider_config: &L1GasPriceProviderConfig,
+    scraper_config: &L1GasPriceScraperConfig,
+) -> Result<(), ValidationError> {
+    if provider_config.number_of_blocks_for_mean != scraper_config.number_of_blocks_for_mean {
+        let mut error = ValidationError::new("l1_gas_price number_of_blocks_for_mean mismatch");
+        error.message = Some(
+            format!(
+                "l1_gas_price_provider_config.number_of_blocks_for_mean={} should be equal to \
+                 l1_gas_price_scraper_config.number_of_blocks_for_mean={}",
+                provider_config.number_of_blocks_for_mean, scraper_config.number_of_blocks_for_mean
+            )
+            .into(),
+        );
+        return Err(error);
+    }
+    let lag_margin_lowerbound =
+        scraper_config.finality * L1_BLOCK_TIME + scraper_config.polling_interval.as_secs();
+    if lag_margin_lowerbound < provider_config.lag_margin_seconds {
+        Ok(())
+    } else {
+        let mut error = ValidationError::new("l1_gas_price lag_margin_seconds too low");
+        error.message = Some(
+            format!(
+                "l1_gas_price_provider_config.lag_margin_seconds={} should be greater than {} \
+                 seconds, as set by finality={}s times L1_BLOCK_TIME={}s + polling_interval={}s",
+                provider_config.lag_margin_seconds,
+                lag_margin_lowerbound,
+                scraper_config.finality,
+                L1_BLOCK_TIME,
+                scraper_config.polling_interval.as_secs()
+            )
+            .into(),
+        );
+        Err(error)
     }
 }
