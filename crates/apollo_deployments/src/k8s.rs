@@ -17,8 +17,11 @@ pub enum Controller {
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 pub enum K8SServiceType {
+    // TODO(Tsabary): remove dead_code annotations when instances require these variants.
+    #[allow(dead_code)]
     ClusterIp,
     LoadBalancer,
+    #[allow(dead_code)]
     NodePort,
 }
 
