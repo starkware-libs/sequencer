@@ -5,6 +5,7 @@ import os
 import subprocess
 
 from merge_branches import FINAL_BRANCH, MERGE_PATHS_FILE, load_merge_paths
+from utils import git_files
 
 CURRENT_DIR = os.path.dirname(__file__)
 ROOT_PROJECT_DIR = os.path.abspath(os.path.join(CURRENT_DIR, ".."))
@@ -71,8 +72,28 @@ def merge_branches_checks():
     verify_parent_branch_is_on_path()
 
 
+def run_autoflake(fix: bool):
+    files = git_files("py")
+    flavor = "--in-place" if fix else "--check-diff"
+    command = [
+        "autoflake",
+        "--remove-all-unused-imports",
+        "--remove-unused-variables",
+        "--ignore-init-module-imports",
+        "--recursive",
+        flavor,
+        *files,
+    ]
+    try:
+        subprocess.check_output(command)
+    except subprocess.CalledProcessError as error:
+        print(f"Autoflake found issues:\n{error.output.decode()}")
+        raise error
+
+
 def main():
     args = parse_args()
+    run_autoflake(fix=args.fix)
     run_black(fix=args.fix)
     run_isort(fix=args.fix)
     if not args.fix:
