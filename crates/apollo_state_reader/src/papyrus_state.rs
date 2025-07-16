@@ -160,6 +160,26 @@ impl PapyrusReader {
 
         class_reader.read_optional_deprecated_casm(class_hash)
     }
+
+    // TODO(Meshi): Move this to the new trait once implemented.
+    fn _get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        match &self.class_reader {
+            Some(cr) => {
+                let fut_class_hash_v2 = cr.reader.get_executable_class_hash_v2(class_hash);
+                let class_hash_v2 = cr
+                    .runtime
+                    .block_on(fut_class_hash_v2)
+                    .map_err(|err| StateError::StateReadError(err.to_string()))?;
+                match class_hash_v2 {
+                    Some(hash) => Ok(hash),
+                    None => Err(StateError::StateReadError(
+                        "Executable class hash v2 not found".to_string(),
+                    )),
+                }
+            }
+            None => Err(StateError::StateReadError("ClassReader is None".to_string())),
+        }
+    }
 }
 
 // Currently unused - will soon replace the same `impl` for `PapyrusStateReader`.

@@ -60,7 +60,7 @@ pub trait ClassManagerClient: Send + Sync {
 
     async fn get_executable_class_hash_v2(
         &self,
-        _class_id: ClassId,
+        class_id: ClassId,
     ) -> ClassManagerClientResult<Option<ExecutableClassHash>>;
 
     async fn add_deprecated_class(
