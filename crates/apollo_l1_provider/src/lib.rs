@@ -20,6 +20,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_l1_provider_types::SessionState;
 use papyrus_base_layer::constants::{
     EventIdentifier,
+    CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
     LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
     MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
 };
@@ -190,5 +191,9 @@ impl SerializeConfig for L1ProviderConfig {
 }
 
 pub const fn event_identifiers_to_track() -> &'static [EventIdentifier] {
-    &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER, MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER]
+    &[
+        LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER,
+        MESSAGE_TO_L2_CANCELLATION_STARTED_EVENT_IDENTIFIER,
+        CONSUMED_MESSAGE_TO_L1_EVENT_IDENTIFIER,
+    ]
 }
