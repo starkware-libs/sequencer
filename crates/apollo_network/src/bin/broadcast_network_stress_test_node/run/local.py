@@ -13,6 +13,7 @@ from utils import (
     check_docker,
     get_prometheus_config,
 )
+from args import add_broadcast_stress_test_node_arguments_to_parser, get_arguments
 
 
 class ExperimentRunner:
@@ -102,20 +103,15 @@ class ExperimentRunner:
         exe: str = os.path.abspath(
             f"{project_root}/target/release/broadcast_network_stress_test_node"
         )
-        args = [
-            exe,
-            "--metric-port",
-            str(metric_port),
-            "--p2p-port",
-            str(p2p_port),
-            "--id",
-            str(i),
-            "--verbosity",
-            str(args.verbosity),
-            "--bootstrap",
-            f"/ip4/127.0.0.1/udp/{self.p2p_port_base}/quic-v1/p2p/{bootstrap_peer_id}",
-        ]
-        p = subprocess.Popen(args=args)
+        arguments = [exe]
+        arguments += get_arguments(
+            id=i,
+            metric_port=metric_port,
+            p2p_port=p2p_port,
+            bootstrap=f"/ip4/127.0.0.1/udp/{self.p2p_port_base}/quic-v1/p2p/{bootstrap_peer_id}",
+            args=args,
+        )
+        p = subprocess.Popen(args=arguments)
         self.running_processes.append(p)
         self.metric_ports.append((i, metric_port))
 
@@ -152,12 +148,7 @@ def main():
     parser.add_argument(
         "--num-nodes", help="Number of nodes to run", type=int, default=3
     )
-    parser.add_argument(
-        "--verbosity",
-        help="Verbosity level for logging (0: None, 1: ERROR, 2: WARN, 3: INFO, 4: DEBUG, 5..: TRACE)",
-        type=int,
-        default=2,
-    )
+    add_broadcast_stress_test_node_arguments_to_parser(parser=parser)
     args = parser.parse_args()
 
     pr("Starting network stress test experiment...")
