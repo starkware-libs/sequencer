@@ -107,6 +107,7 @@ impl Default for OsChainInfo {
 
 /// All input needed to initialize the execution helper.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct OsBlockInput {
