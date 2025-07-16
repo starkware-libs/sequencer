@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use apollo_starknet_client::reader::StateDiff;
 use assert_matches::assert_matches;
+use reqwest::StatusCode;
 use starknet_api::block::{BlockNumber, BlockTimestamp, GasPricePerToken};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
@@ -26,11 +27,15 @@ use crate::cende_client_types::{
     TransactionExecutionStatus,
 };
 use crate::pre_confirmed_block_writer::{
+    is_round_mismatch_error,
     PreconfirmedBlockWriterConfig,
     PreconfirmedBlockWriterFactory,
     PreconfirmedBlockWriterFactoryTrait,
 };
-use crate::pre_confirmed_cende_client::MockPreconfirmedCendeClientTrait;
+use crate::pre_confirmed_cende_client::{
+    MockPreconfirmedCendeClientTrait,
+    PreconfirmedCendeClientError,
+};
 
 // Test constants
 const TEST_L1_GAS_PRICE: u128 = 100;
@@ -285,4 +290,101 @@ async fn test_preconfirmed_before_candidate_no_extra_write() {
     drop(preconfirmed_tx_sender);
 
     assert_matches!(writer_task.await, Ok(Ok(())));
+}
+
+#[tokio::test]
+async fn test_round_mismatch_error_stops_writer() {
+    let mut mock_client = MockPreconfirmedCendeClientTrait::new();
+
+    // First call succeeds (write_iteration 0)
+    let (iter_0_done_sender, iter_0_done_receiver) = tokio::sync::oneshot::channel::<()>();
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .withf(|block| block.write_iteration == 0)
+        .return_once(move |_| {
+            Box::pin(async move {
+                let _ = iter_0_done_sender.send(());
+                Ok(())
+            })
+        });
+
+    // Second call returns round mismatch error (write_iteration 1)
+    let (iter_1_done_sender, iter_1_done_receiver) = tokio::sync::oneshot::channel::<()>();
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .withf(|block| block.write_iteration == 1)
+        .return_once(move |_| {
+            Box::pin(async move {
+                let _ = iter_1_done_sender.send(());
+                Err(PreconfirmedCendeClientError::CendeRecorderError {
+                    block_number: BlockNumber(TEST_BLOCK_NUMBER),
+                    round: TEST_ROUND,
+                    write_iteration: 1,
+                    status_code: StatusCode::BAD_REQUEST,
+                })
+            })
+        });
+
+    let factory = PreconfirmedBlockWriterFactory {
+        config: PreconfirmedBlockWriterConfig::default(),
+        cende_client: Arc::new(mock_client),
+    };
+
+    let (mut writer, candidate_tx_sender, _preconfirmed_tx_sender) =
+        factory.create(BlockNumber(TEST_BLOCK_NUMBER), TEST_ROUND, create_test_block_metadata());
+
+    let writer_task = task::spawn(async move { writer.run().await });
+
+    // Wait for initial empty write
+    iter_0_done_receiver.await.unwrap();
+
+    // Add transaction to trigger another write that will fail
+    let candidate_tx = create_test_internal_consensus_tx(TransactionHash::default());
+    candidate_tx_sender.send(vec![candidate_tx]).await.unwrap();
+    iter_1_done_receiver.await.unwrap();
+
+    // Writer should return an error due to round mismatch
+    let result = writer_task.await.unwrap();
+    assert_matches!(result, Err(_));
+}
+
+#[test]
+fn test_is_round_mismatch_error_with_bad_request() {
+    let error = PreconfirmedCendeClientError::CendeRecorderError {
+        block_number: BlockNumber(TEST_BLOCK_NUMBER),
+        round: TEST_ROUND,
+        write_iteration: 9,
+        status_code: StatusCode::BAD_REQUEST,
+    };
+
+    let next_write_iteration = 10;
+    assert!(is_round_mismatch_error(&error, next_write_iteration));
+}
+
+#[test]
+fn test_is_round_mismatch_error_with_different_status() {
+    let error = PreconfirmedCendeClientError::CendeRecorderError {
+        block_number: BlockNumber(TEST_BLOCK_NUMBER),
+        round: TEST_ROUND,
+        write_iteration: 9,
+        status_code: StatusCode::INTERNAL_SERVER_ERROR,
+    };
+
+    let next_write_iteration = 10;
+    assert!(!is_round_mismatch_error(&error, next_write_iteration));
+}
+
+#[test]
+fn test_is_round_mismatch_error_with_wrong_iteration() {
+    let error = PreconfirmedCendeClientError::CendeRecorderError {
+        block_number: BlockNumber(TEST_BLOCK_NUMBER),
+        round: TEST_ROUND,
+        write_iteration: 8, // Different from expected
+        status_code: StatusCode::BAD_REQUEST,
+    };
+
+    let next_write_iteration = 10;
+    assert!(!is_round_mismatch_error(&error, next_write_iteration));
 }
