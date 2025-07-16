@@ -1,17 +1,23 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::time::Duration;
 
 use apollo_config::converters::deserialize_float_seconds_to_duration;
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_l1_provider::l1_scraper::L1_BLOCK_TIME;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
-use validator::Validate;
+use validator::{Validate, ValidationError};
+
+#[cfg(test)]
+#[path = "config_test.rs"]
+pub mod config_test;
 
 // TODO(guyn): This is not yet used. We'll use it in the next PR, when removing the individual
 // configs.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+#[validate(schema(function = "validate_config"))]
 pub struct L1GasPriceConfig {
     // TODO(guyn): these two fields need to go into VersionedConstants.
     pub number_of_blocks_for_mean: u64,
@@ -111,5 +117,32 @@ impl SerializeConfig for L1GasPriceConfig {
             ParamPrivacyInput::Public,
         ));
         config
+    }
+}
+
+fn validate_config(config: &L1GasPriceConfig) -> Result<(), ValidationError> {
+    let lag_margin_lowerbound = config.finality * L1_BLOCK_TIME + config.polling_interval.as_secs();
+    if lag_margin_lowerbound <= config.lag_margin_seconds {
+        Ok(())
+    } else {
+        let mut error = ValidationError::new("l1_gas_price lag_margin_seconds too low");
+        let mut params = HashMap::new();
+        params.insert("lag_margin_seconds".into(), config.lag_margin_seconds.into());
+        params.insert("polling_interval".into(), config.polling_interval.as_secs().into());
+        params.insert("finality".into(), config.finality.into());
+        error.params = params;
+        error.message = Some(
+            format!(
+                "lag_margin_seconds={} should be greater than {} seconds, as set by finality={} \
+                 times L1_BLOCK_TIME={} + polling_interval={}s",
+                config.lag_margin_seconds,
+                lag_margin_lowerbound,
+                config.finality,
+                L1_BLOCK_TIME,
+                config.polling_interval.as_secs(),
+            )
+            .into(),
+        );
+        Err(error)
     }
 }

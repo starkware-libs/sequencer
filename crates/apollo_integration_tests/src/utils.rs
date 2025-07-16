@@ -207,6 +207,7 @@ pub fn create_node_config(
     let l1_gas_price_config = L1GasPriceProviderConfig {
         // Use newly minted blocks on Anvil to be used for gas price calculations.
         lag_margin_seconds: 0,
+        polling_interval: Duration::from_secs(0),
         ..Default::default()
     };
     let http_server_config =
