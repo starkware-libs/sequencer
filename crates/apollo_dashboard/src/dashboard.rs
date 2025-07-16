@@ -114,7 +114,7 @@ impl Panel {
         )
     }
 
-    pub(crate) fn _from_ratio(
+    pub(crate) fn from_ratio(
         name: &'static str,
         description: &'static str,
         numerator: &MetricCounter,

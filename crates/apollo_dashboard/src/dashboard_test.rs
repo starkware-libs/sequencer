@@ -57,7 +57,7 @@ fn test_from_ratio() {
     let metric_3 = MetricCounter::new(MetricScope::Batcher, "a", "a_f", "desc", 0);
 
     let panel =
-        Panel::_from_ratio("x", "x", &metric_1, &[&metric_1, &metric_2, &metric_3], duration);
+        Panel::from_ratio("x", "x", &metric_1, &[&metric_1, &metric_2, &metric_3], duration);
 
     let expected = format!(
         "100 * (increase({}[{}]) / (increase({}[{}]) + increase({}[{}]) + increase({}[{}])))",
@@ -80,6 +80,6 @@ fn test_from_ratio() {
         metric_2.get_name_with_filter(),
         duration,
     );
-    let panel = Panel::_from_ratio("y", "y", &metric_1, &[&metric_2], duration);
+    let panel = Panel::from_ratio("y", "y", &metric_1, &[&metric_2], duration);
     assert_eq!(panel.exprs, vec![expected]);
 }

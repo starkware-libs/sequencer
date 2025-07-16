@@ -58,18 +58,13 @@ fn get_panel_batcher_local_queue_depth() -> Panel {
 fn get_panel_batcher_remote_client_send_attempts() -> Panel {
     Panel::from_hist(BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
-
 fn get_panel_rejection_ratio() -> Panel {
-    Panel::new(
+    Panel::from_ratio(
         "rejection_ratio",
         "Ratio of rejected transactions out of all processed, over the last 5 minutes",
-        vec![format!(
-            "100 * (increase({}[5m]) / (increase({}[5m]) + increase({}[5m])))",
-            REJECTED_TRANSACTIONS.get_name_with_filter(),
-            REJECTED_TRANSACTIONS.get_name_with_filter(),
-            BATCHED_TRANSACTIONS.get_name_with_filter(),
-        )],
-        PanelType::TimeSeries,
+        &REJECTED_TRANSACTIONS,
+        &[&REJECTED_TRANSACTIONS, &BATCHED_TRANSACTIONS],
+        "5m",
     )
 }
 
