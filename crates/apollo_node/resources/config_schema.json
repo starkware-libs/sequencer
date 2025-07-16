@@ -202,7 +202,7 @@
   "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
     "privacy": "Public",
-    "value": 20
+    "value": 600
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": {
     "description": "Flag for an optional field.",
@@ -212,7 +212,7 @@
   "batcher_config.contract_class_manager_config.native_compiler_config.max_file_size": {
     "description": "Limitation of compiled Cairo Native file size (bytes).",
     "privacy": "Public",
-    "value": 15728640
+    "value": 52428800
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": {
     "description": "Flag for an optional field.",
@@ -222,7 +222,7 @@
   "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
     "privacy": "Public",
-    "value": 5368709120
+    "value": 16106127360
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": {
     "description": "Flag for an optional field.",
