@@ -587,6 +587,8 @@ pub fn initialize_and_run_cairo_0_entry_point(
         implicit_args,
         hint_locals,
     )?;
+    // Run the entrypoint with validations on the explicit & implicit args.
+    let do_validations = true;
     let (explicit_return_values, implicit_return_values) = run_cairo_0_entrypoint(
         entrypoint,
         explicit_args,
@@ -596,6 +598,7 @@ pub fn initialize_and_run_cairo_0_entry_point(
         &program,
         runner_config,
         expected_explicit_return_values,
+        do_validations,
     )?;
     Ok((explicit_return_values, implicit_return_values, cairo_runner))
 }
@@ -648,11 +651,14 @@ pub fn run_cairo_0_entrypoint(
     program: &Program,
     runner_config: &EntryPointRunnerConfig,
     expected_explicit_return_values: &[EndpointArg],
+    do_validations: bool,
 ) -> Cairo0EntryPointRunnerResult<(Vec<EndpointArg>, Vec<EndpointArg>)> {
     // TODO(Amos): Perform complete validations.
-    perform_basic_validations_on_explicit_args(explicit_args, program, &entrypoint)?;
-    perform_basic_validations_on_implicit_args(implicit_args, program, &entrypoint)?;
-    info!("Performed basic validations on explicit & implicit args.");
+    if do_validations {
+        perform_basic_validations_on_explicit_args(explicit_args, program, &entrypoint)?;
+        perform_basic_validations_on_implicit_args(implicit_args, program, &entrypoint)?;
+        info!("Performed basic validations on explicit & implicit args.");
+    }
 
     let explicit_cairo_args: Vec<CairoArg> =
         explicit_args.iter().flat_map(EndpointArg::to_cairo_arg_vec).collect();
@@ -686,6 +692,12 @@ pub fn run_cairo_0_entrypoint(
             &mut hint_processor,
         )
         .map_err(Box::new)?;
+    let execution_resources_after = cairo_runner.get_execution_resources().unwrap();
+    info!(
+        "execution resources after running entrypoint {entrypoint}: is \
+         {execution_resources_after:?}"
+    );
+
     info!("Successfully finished running entrypoint {entrypoint}");
     let (implicit_return_values, explicit_return_values) =
         get_return_values(implicit_args, expected_explicit_return_values, &cairo_runner.vm)?;
