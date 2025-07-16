@@ -1282,6 +1282,7 @@ dependencies = [
  "axum",
  "base64 0.13.1",
  "blockifier",
+ "blockifier_reexecution",
  "blockifier_test_utils",
  "flate2",
  "futures",
