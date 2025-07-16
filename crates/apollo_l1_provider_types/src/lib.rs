@@ -238,7 +238,10 @@ pub enum Event {
         tx_hash: TransactionHash,
         cancellation_request_timestamp: BlockTimestamp,
     },
-    TransactionConsumed(TransactionHash),
+    TransactionConsumed {
+        tx_hash: TransactionHash,
+        timestamp: BlockTimestamp,
+    },
 }
 
 impl Event {
@@ -258,12 +261,12 @@ impl Event {
                 Self::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp }
             }
             L1Event::MessageToL2Canceled(event_data) => Self::TransactionCanceled(event_data),
-            L1Event::ConsumedMessageToL2(tx) => {
+            L1Event::ConsumedMessageToL2 { tx, timestamp } => {
                 let tx_hash = tx.calculate_transaction_hash(
                     chain_id,
                     &starknet_api::transaction::L1HandlerTransaction::VERSION,
                 )?;
-                Self::TransactionConsumed(tx_hash)
+                Self::TransactionConsumed { tx_hash, timestamp }
             }
         })
     }
@@ -288,7 +291,9 @@ impl Display for Event {
                     tx_hash, cancellation_request_timestamp
                 )
             }
-            Event::TransactionConsumed(data) => write!(f, "TransactionConsumed({})", data),
+            Event::TransactionConsumed { tx_hash, timestamp } => {
+                write!(f, "TransactionConsumed(tx_hash={}, block_timestamp={})", tx_hash, timestamp)
+            }
         }
     }
 }
