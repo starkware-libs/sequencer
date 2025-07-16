@@ -62,7 +62,7 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
-use crate::cende::{BlobParameters, CendeContext};
+use crate::cende::{BlobParameters, CendeContext, ExecutedTransactionInfo};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
@@ -459,11 +459,23 @@ impl ConsensusContext for SequencerConsensusContext {
         // Remove transactions that were not accepted by the Batcher, so `transactions` and
         // `central_objects.execution_infos` correspond to the same list of (only accepted)
         // transactions.
-        let transactions: Vec<InternalConsensusTransaction> = transactions
-            .concat()
+        let executed_transaction_infos: Vec<ExecutedTransactionInfo> = transactions
             .into_iter()
-            .filter(|tx| central_objects.execution_infos.contains_key(&tx.tx_hash()))
+            .flat_map(|inner_vec| inner_vec.into_iter())
+            .filter_map(|tx| {
+                central_objects.execution_infos.get(&tx.tx_hash()).map(|execution_info| {
+                    ExecutedTransactionInfo {
+                        internal_tx: tx,
+                        execution_info: execution_info.clone(),
+                    }
+                })
+            })
             .collect();
+
+        let transactions = executed_transaction_infos
+            .into_iter()
+            .map(|info| info.internal_tx)
+            .collect::<Vec<InternalConsensusTransaction>>();
 
         let gas_target = VersionedConstants::latest_constants().gas_target;
         self.l2_gas_price =
@@ -543,8 +555,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 block_info: cende_block_info,
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
-                transactions,
-                execution_infos: stripped_execution_infos,
+                executed_transaction_infos,
                 bouncer_weights: central_objects.bouncer_weights,
                 casm_hash_computation_data_sierra_gas: central_objects
                     .casm_hash_computation_data_sierra_gas,
