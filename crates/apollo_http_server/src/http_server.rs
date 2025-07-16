@@ -21,9 +21,11 @@ use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
+use blockifier_reexecution::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
+use starknet_api::transaction::fields::ValidResourceBounds;
 use tracing::{debug, info, instrument};
 
 use crate::config::HttpServerConfig;
@@ -31,6 +33,7 @@ use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::{HttpServerError, HttpServerRunError};
 use crate::metrics::{
     init_metrics,
+    ADDED_TRANSACTIONS_DEPRECATED_ERROR,
     ADDED_TRANSACTIONS_FAILURE,
     ADDED_TRANSACTIONS_INTERNAL_ERROR,
     ADDED_TRANSACTIONS_SUCCESS,
@@ -123,7 +126,7 @@ async fn add_tx(
     })?;
     let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx).inspect_err(|e| {
         debug!("Error while parsing transaction: {}", e);
-        ADDED_TRANSACTIONS_FAILURE.increment(1);
+        check_supported_resource_bounds_and_increment_metrics(&tx);
     })?;
     let rpc_tx = tx.try_into().inspect_err(|e| {
         debug!("Error while converting deprecated gateway transaction into RPC transaction: {}", e);
@@ -148,6 +151,7 @@ fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
             ))
         })?);
     if !SUPPORTED_TRANSACTION_VERSIONS.contains(&tx_version) {
+        ADDED_TRANSACTIONS_DEPRECATED_ERROR.increment(1);
         return Err(HttpServerError::GatewayClientError(GatewayClientError::GatewayError(
             GatewayError::DeprecatedGatewayError {
                 source: StarknetError {
@@ -164,6 +168,17 @@ fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
         )));
     }
     Ok(())
+}
+
+fn check_supported_resource_bounds_and_increment_metrics(tx: &str) {
+    if let Ok(tx_json_value) = serde_json::from_str(tx) {
+        if let Ok(transaction) = deserialize_transaction_json_to_starknet_api_tx(tx_json_value) {
+            if let Some(ValidResourceBounds::L1Gas(_)) = transaction.resource_bounds() {
+                ADDED_TRANSACTIONS_DEPRECATED_ERROR.increment(1);
+            }
+        }
+    }
+    ADDED_TRANSACTIONS_FAILURE.increment(1);
 }
 
 async fn add_tx_inner(

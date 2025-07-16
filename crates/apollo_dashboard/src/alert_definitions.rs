@@ -23,6 +23,7 @@ use apollo_consensus_orchestrator::metrics::{
 };
 use apollo_gateway::metrics::GATEWAY_TRANSACTIONS_RECEIVED;
 use apollo_http_server::metrics::{
+    ADDED_TRANSACTIONS_DEPRECATED_ERROR,
     ADDED_TRANSACTIONS_FAILURE,
     ADDED_TRANSACTIONS_INTERNAL_ERROR,
     ADDED_TRANSACTIONS_SUCCESS,
@@ -535,8 +536,9 @@ fn get_http_server_high_transaction_failure_ratio() -> Alert {
         title: "http server high transaction failure ratio",
         alert_group: AlertGroup::HttpServer,
         expr: format!(
-            "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
+            "(increase({}[1h]) - increase({}[1h])) / clamp_min(increase({}[1h]), 1)",
             ADDED_TRANSACTIONS_FAILURE.get_name_with_filter(),
+            ADDED_TRANSACTIONS_DEPRECATED_ERROR.get_name_with_filter(),
             ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
