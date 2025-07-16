@@ -52,7 +52,7 @@ class ExperimentRunner:
             cont.remove()
         self.docker_containers.clear()
 
-        pr("Stopping network_stress_test nodes...")
+        pr("Stopping broadcast_network_stress_test_node nodes...")
         for p in self.running_processes:
             pr(f"Stopping process {p}...")
             p.kill()
@@ -88,9 +88,9 @@ class ExperimentRunner:
         self.docker_containers.append(cont)
 
     def compile_network_stress_test_node(self):
-        pr("Compiling network_stress_test node without Docker...")
+        pr("Compiling broadcast_network_stress_test_node node without Docker...")
         run_cmd(
-            "cargo build --release --bin network_stress_test",
+            "cargo build --release --bin broadcast_network_stress_test_node",
             hint="Make sure you have Rust and Cargo installed.",
         )
 
@@ -99,7 +99,9 @@ class ExperimentRunner:
         assert i >= 0
         metric_port = self.metric_port_base + i
         p2p_port = self.p2p_port_base + i
-        exe: str = os.path.abspath(f"{project_root}/target/release/network_stress_test")
+        exe: str = os.path.abspath(
+            f"{project_root}/target/release/broadcast_network_stress_test_node"
+        )
         args = [
             exe,
             "--metric-port",
@@ -118,12 +120,12 @@ class ExperimentRunner:
         self.metric_ports.append((i, metric_port))
 
     def run_network_stress_test_nodes(self, args: argparse.Namespace):
-        pr("Running network_stress_test nodes without Docker...")
+        pr("Running broadcast_network_stress_test_node nodes without Docker...")
         for i in range(args.num_nodes):
             self.run_network_stress_test_node(i, args=args)
 
     def check_still_running(self):
-        pr("Checking if network_stress_test nodes are still running...")
+        pr("Checking if broadcast_network_stress_test_node nodes are still running...")
         for p in self.running_processes:
             if p.poll() is not None:
                 raise Exception(f"Process {p} has stopped.")
