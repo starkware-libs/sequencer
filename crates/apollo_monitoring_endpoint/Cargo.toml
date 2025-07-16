@@ -18,6 +18,7 @@ apollo_infra_utils.workspace = true
 apollo_l1_provider_types.workspace = true
 apollo_mempool_types.workspace = true
 apollo_metrics.workspace = true
+anyhow.workspace = true
 axum.workspace = true
 hyper = { workspace = true }
 metrics-exporter-prometheus.workspace = true
