@@ -61,6 +61,7 @@ assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 ethnum.workspace = true
+expect-test.workspace = true
 rand.workspace = true
 rstest.workspace = true
 starknet_committer.workspace = true
