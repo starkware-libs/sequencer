@@ -1,3 +1,5 @@
+#[cfg(test)]
+use std::cell::Cell;
 use std::collections::{BTreeMap, HashMap};
 use std::vec::IntoIter;
 
@@ -30,6 +32,26 @@ use crate::vm_utils::{
     CairoSized,
     LoadCairoObject,
 };
+
+#[cfg(test)]
+// This is a thread local variable that is used to determine if we should load every leaf
+// of the bytecode segment structure.
+// The reason we need thread local variable is because we want to be able to set the value
+// for each test separately.
+// Default = false.
+thread_local! {
+    static LOAD_EVERY_BYTECODE_SEGMENT_LEAF: Cell<bool> = Cell::new(false);
+}
+
+#[cfg(test)]
+pub(crate) fn set_load_every_bytecode_segment_leaf(value: bool) {
+    LOAD_EVERY_BYTECODE_SEGMENT_LEAF.with(|f| f.set(value));
+}
+
+#[cfg(test)]
+fn get_load_every_bytecode_segment_leaf() -> bool {
+    LOAD_EVERY_BYTECODE_SEGMENT_LEAF.with(|f| f.get())
+}
 
 pub(crate) fn assign_bytecode_segments(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let bytecode_segment_structure: BytecodeSegmentNode =
@@ -129,7 +151,12 @@ pub(crate) fn iter_current_segment_info(
         .ok_or(OsHintError::EndOfIterator { item_type: "Bytecode segments".to_string() })?;
 
     let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
+
+    #[cfg(test)]
+    let is_used = get_load_every_bytecode_segment_leaf() || vm.is_accessed(&data_ptr)?;
+    #[cfg(not(test))]
     let is_used = vm.is_accessed(&data_ptr)?;
+
     if !is_used {
         for i in 0..current_segment_info.length() {
             let pc = (data_ptr + i)?;
