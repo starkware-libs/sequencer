@@ -2,10 +2,10 @@
 
 import argparse
 from typing import Optional
+
 from cdk8s import App, Chart, Names, YamlOutputType
 from constructs import Construct
 from imports import k8s
-
 
 SERVICE_PORT = 8545
 IMAGE = "ghcr.io/foundry-rs/foundry:v0.3.0"

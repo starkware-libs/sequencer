@@ -1,6 +1,6 @@
-import pytest
 from typing import Dict
 
+import pytest
 from merge_branches import FINAL_BRANCH, MERGE_PATHS_FILE, load_merge_paths
 
 
