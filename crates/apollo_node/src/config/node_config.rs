@@ -25,7 +25,7 @@ use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
-use apollo_l1_provider::l1_scraper::L1ScraperConfig;
+use apollo_l1_provider::l1_scraper::{L1ScraperConfig, L1_BLOCK_TIME};
 use apollo_l1_provider::L1ProviderConfig;
 use apollo_mempool::config::MempoolConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
@@ -35,7 +35,7 @@ use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::config::component_config::ComponentConfig;
 use crate::config::monitoring::MonitoringConfig;
@@ -156,6 +156,7 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 
 /// The configurations of the various components of the node.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[validate(schema(function = "validate_l1_gas_price_configs"))]
 pub struct SequencerNodeConfig {
     // Infra related configs.
     #[validate]
@@ -254,4 +255,42 @@ pub(crate) fn node_command() -> Command {
     Command::new("Sequencer")
         .version(VERSION_FULL)
         .about("A Starknet sequencer node written in Rust.")
+}
+
+// TODO(guyn): remove this once we have a shared config for the two components.
+fn validate_l1_gas_price_configs(config: &SequencerNodeConfig) -> Result<(), ValidationError> {
+    if config.l1_gas_price_provider_config.number_of_blocks_for_mean
+        != config.l1_gas_price_scraper_config.number_of_blocks_for_mean
+    {
+        let mut error = ValidationError::new("l1_gas_price number_of_blocks_for_mean mismatch");
+        error.message = Some(
+            format!(
+                "l1_gas_price_provider_config.number_of_blocks_for_mean={} should be equal to \
+                 l1_gas_price_scraper_config.number_of_blocks_for_mean={}",
+                config.l1_gas_price_provider_config.number_of_blocks_for_mean,
+                config.l1_gas_price_scraper_config.number_of_blocks_for_mean
+            )
+            .into(),
+        );
+        return Err(error);
+    }
+    let lag_margin_lowerbound = config.l1_gas_price_scraper_config.finality * L1_BLOCK_TIME
+        + config.l1_gas_price_scraper_config.polling_interval.as_secs();
+    if config.l1_gas_price_provider_config.lag_margin_seconds <= lag_margin_lowerbound {
+        let mut error = ValidationError::new("l1_gas_price lag_margin_seconds too low");
+        error.message = Some(
+            format!(
+                "l1_gas_price_provider_config.lag_margin_seconds={} should be greater than {} \
+                 seconds, as set by finality={}s times L1_BLOCK_TIME={}s + polling_interval={}s",
+                config.l1_gas_price_provider_config.lag_margin_seconds,
+                lag_margin_lowerbound,
+                config.l1_gas_price_scraper_config.finality,
+                L1_BLOCK_TIME,
+                config.l1_gas_price_scraper_config.polling_interval.as_secs()
+            )
+            .into(),
+        );
+        return Err(error);
+    }
+    Ok(())
 }

@@ -37,7 +37,7 @@ pub mod l1_scraper_tests;
 type L1ScraperResult<T, B> = Result<T, L1ScraperError<B>>;
 
 // Sensible lower bound.
-const L1_BLOCK_TIME: u64 = 10;
+pub const L1_BLOCK_TIME: u64 = 10;
 
 pub struct L1Scraper<B: BaseLayerContract> {
     pub config: L1ScraperConfig,
