@@ -19,6 +19,7 @@ use crate::test_utils::cairo_runner::{
 /// Test that compares Cairo and Rust implementations of
 /// encode_felt252_data_and_calc_224_bit_blake_hash.
 #[rstest]
+#[case::empty(vec![])]
 #[case::boundary_under_2_63(vec![Felt::from((1u64 << 63) - 1)])]
 #[case::boundary_at_2_63(vec![Felt::from(1u64 << 63)])]
 #[case::very_large_felt(vec![Felt::from_hex("0x800000000000011000000000000000000000000000000000000000000000000").unwrap()])]
@@ -58,8 +59,7 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
     let result = run_cairo_0_entry_point(
         &runner_config,
         program_bytes,
-        "starkware.cairo.common.cairo_blake2s.blake2s.\
-         encode_felt252_data_and_calc_224_bit_blake_hash",
+        "starkware.starknet.core.os.hash.blake2s.encode_felt252_data_and_calc_224_bit_blake_hash",
         &explicit_args,
         &implicit_args,
         &expected_return_values,
