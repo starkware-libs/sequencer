@@ -208,7 +208,7 @@ pub fn create_node_config(
     let mempool_config = create_mempool_config(override_gas_price_threshold_check);
     let l1_gas_price_provider_config = L1GasPriceProviderConfig {
         // Use newly minted blocks on Anvil to be used for gas price calculations.
-        lag_margin_seconds: 0,
+        lag_margin_seconds: 1,
         ..Default::default()
     };
     let http_server_config =

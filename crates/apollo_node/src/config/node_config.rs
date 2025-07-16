@@ -23,7 +23,10 @@ use apollo_gateway::config::GatewayConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
-use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
+use apollo_l1_gas_price::l1_gas_price_provider::{
+    validate_provider_and_scraper_configs,
+    L1GasPriceProviderConfig,
+};
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
@@ -35,7 +38,7 @@ use apollo_state_sync::config::StateSyncConfig;
 use clap::Command;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::{Deserialize, Serialize};
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 use crate::config::component_config::ComponentConfig;
 use crate::config::monitoring::MonitoringConfig;
@@ -156,6 +159,8 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
 
 /// The configurations of the various components of the node.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
+// TODO(guyn): remove this once we have a shared config for the two l1 gas price components.
+#[validate(schema(function = "validate_l1_gas_price_configs"))]
 pub struct SequencerNodeConfig {
     // Infra related configs.
     #[validate]
@@ -254,4 +259,11 @@ pub(crate) fn node_command() -> Command {
     Command::new("Sequencer")
         .version(VERSION_FULL)
         .about("A Starknet sequencer node written in Rust.")
+}
+
+fn validate_l1_gas_price_configs(config: &SequencerNodeConfig) -> Result<(), ValidationError> {
+    validate_provider_and_scraper_configs(
+        &config.l1_gas_price_provider_config,
+        &config.l1_gas_price_scraper_config,
+    )
 }
