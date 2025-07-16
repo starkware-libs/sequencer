@@ -579,6 +579,10 @@ func blake2s_felts{range_check_ptr, bitwise_ptr: BitwiseBuiltin*, blake2s_ptr: f
 // Note: This function can nondeterministically choose between several encodings of felts,
 //      x < PRIME can be encoded as x + PRIME, x + 2 * PRIME, etc. The canonical encoding is
 //      given when x < PRIME.
+// TODO(alont): Write custom hints and integrate with VM.
+// TODO(alont): Consider adding cases for 1 u32 (small immediates, including negatives)
+//      and 3 u32s (extended opcodes).
+// TODO(alont): Consider unrolling this loop to avoid state copy overhead.
 func encode_felt252_to_u32s{range_check_ptr: felt}(
     packed_values_len: felt, packed_values: felt*, unpacked_u32s: felt*
 ) -> felt {
@@ -667,23 +671,8 @@ const BLAKE2S_FINALIZE_INSTRUCTION = OFF_MINUS_1 * COUNTER_OFFSET + OFF_MINUS_3 
     OPCODE_EXT_OFFSET;
 
 // Computes blake2s of `input` of size `len` felts, representing 32 bits each.
-// Note: this function guarantees that len > 0.
 func blake_with_opcode{range_check_ptr}(len: felt, data: felt*, out: felt*) {
     alloc_locals;
-    if (len == 0) {
-        // hash32 = [105,33,122,48, 121,144,128,148, 225,17,33,208, 66,53,74,124,
-        //           31,85,182,72, 44,161,165,30, 27,37,13,253, 30,208,238,249]
-        // as little-endian u32s:
-        assert [out + 0] =  813310313;  // 0x307A2169
-        assert [out + 1] = 2491453561;  // 0x94809079
-        assert [out + 2] = 3491828193;  // 0xD02111E1
-        assert [out + 3] = 2085238082;  // 0x7C4A3542
-        assert [out + 4] = 1219908895;  // 0x48B6551F
-        assert [out + 5] =  514171180;  // 0x1EA5A12C
-        assert [out + 6] = 4245497115;  // 0xFD0D251B
-        assert [out + 7] = 4193177630;  // 0xF9EED01E
-        return ();
-    }
 
     let (local state: felt*) = alloc();
     assert state[0] = 0x6B08E647;  // IV[0] ^ 0x01010020 (config: no key, 32 bytes output).
@@ -696,8 +685,16 @@ func blake_with_opcode{range_check_ptr}(len: felt, data: felt*, out: felt*) {
     assert state[7] = 0x5BE0CD19;
 
     // Express the length in bytes, subtract the remainder for finalize.
-    let (_, rem) = unsigned_div_rem(len - 1, 16);
-    local rem = rem + 1;
+    local rem;
+    if (len == 0) {
+        assert rem = 0;
+        tempvar range_check_ptr = range_check_ptr;
+    } else {
+        let (_, r) = unsigned_div_rem(len - 1, 16);
+        assert rem = r + 1;
+        tempvar range_check_ptr = range_check_ptr;
+    }
+
     local len_in_bytes = (len - rem) * 4;
 
     local range_check_ptr = range_check_ptr;
@@ -745,8 +742,8 @@ func blake_with_opcode{range_check_ptr}(len: felt, data: felt*, out: felt*) {
 
 // Given `data_len` felt252s at `data`, encodes them as u32s as defined in `encode_felt252_to_u32s`
 // and computes the blake2s hash of the result using the dedicated opcodes.
-// The result is then returned as a 224-bit felt, ignoring the last 32 bits.
-func encode_felt252_data_and_calc_224_bit_blake_hash{range_check_ptr: felt}(
+// The 256 bit result is then returned as a felt252 (i.e. modulo PRIME).
+func encode_felt252_data_and_calc_blake_hash{range_check_ptr: felt}(
     data_len: felt, data: felt*
 ) -> (hash: felt) {
     alloc_locals;
@@ -757,8 +754,8 @@ func encode_felt252_data_and_calc_224_bit_blake_hash{range_check_ptr: felt}(
     let (local blake_output: felt*) = alloc();
     blake_with_opcode(len=encoded_data_len, data=encoded_data, out=blake_output);
     return (
-        hash=blake_output[6] * 2 ** 192 + blake_output[5] * 2 ** 160 + blake_output[4] * 2 ** 128 +
-        blake_output[3] * 2 ** 96 + blake_output[2] * 2 ** 64 + blake_output[1] * 2 ** 32 +
-        blake_output[0],
+        hash=blake_output[7] * 2 ** 224 + blake_output[6] * 2 ** 192 + blake_output[5] * 2 ** 160 +
+        blake_output[4] * 2 ** 128 + blake_output[3] * 2 ** 96 + blake_output[2] * 2 ** 64 +
+        blake_output[1] * 2 ** 32 + blake_output[0],
     );
 }

@@ -46,7 +46,7 @@ from starkware.starknet.core.os.output import (
 )
 from starkware.starknet.core.os.state.commitment import StateEntry
 from starkware.starknet.core.os.state.state import OsStateUpdate, state_update
-from starkware.starknet.core.os.hash.blake2s import encode_felt252_data_and_calc_224_bit_blake_hash
+from starkware.starknet.core.os.hash.blake2s import encode_felt252_data_and_calc_blake_hash
 
 // Executes transactions on Starknet.
 func main{

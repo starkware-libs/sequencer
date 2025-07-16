@@ -79,7 +79,7 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
     let result = initialize_and_run_cairo_0_entry_point(
         &runner_config,
         program_bytes,
-        "starkware.starknet.core.os.hash.blake2s.encode_felt252_data_and_calc_224_bit_blake_hash",
+        "starkware.starknet.core.os.hash.blake2s.encode_felt252_data_and_calc_blake_hash",
         &explicit_args,
         &implicit_args,
         &expected_return_values,
