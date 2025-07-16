@@ -129,6 +129,7 @@ use starknet_types_core::felt::Felt;
 use super::{
     CentralBouncerWeights,
     CentralCasmHashComputationData,
+    CentralCompiledClassHashesToMigrate,
     CentralCompressedStateDiff,
     CentralDeclareTransaction,
     CentralDeployAccountTransaction,
@@ -410,6 +411,13 @@ fn central_casm_hash_computation_data() -> CentralCasmHashComputationData {
     }
 }
 
+fn central_compiled_class_hashes_to_migrate() -> CentralCompiledClassHashesToMigrate {
+    CentralCompiledClassHashesToMigrate::from([
+        (CompiledClassHash(felt!("0x2")), CompiledClassHash(felt!("0x1"))),
+        (CompiledClassHash(felt!("0x4")), CompiledClassHash(felt!("0x3"))),
+    ])
+}
+
 fn central_sierra_contract_class() -> CentralSierraContractClass {
     CentralSierraContractClass { contract_class: sierra_contract_class() }
 }
@@ -651,6 +659,7 @@ fn central_blob() -> AerospikeBlob {
         execution_infos: vec![transaction_execution_info()],
         casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
         casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),
+        compiled_class_hashes_to_migrate: central_compiled_class_hashes_to_migrate(),
     };
 
     // This is to make the function sync (not async) so that it can be used as a case in the

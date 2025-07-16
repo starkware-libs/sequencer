@@ -11,6 +11,7 @@ use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
+use blockifier::blockifier::transaction_executor::CompiledClassHashesToMigrate;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
@@ -297,6 +298,7 @@ pub struct BlobParameters {
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
+    pub(crate) compiled_class_hashes_to_migrate: CompiledClassHashesToMigrate,
 }
 
 impl AerospikeBlob {
@@ -324,6 +326,9 @@ impl AerospikeBlob {
             .into_iter()
             .map(CentralTransactionExecutionInfo::from)
             .collect();
+
+        // TODO(AvivG): add `compiled_class_hashes_to_migrate` to `AerospikeBlob`.
+        let _ = blob_parameters.compiled_class_hashes_to_migrate;
 
         Ok(AerospikeBlob {
             block_number,
