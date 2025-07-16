@@ -114,7 +114,7 @@ impl Panel {
         )
     }
 
-    pub(crate) fn _ratio_time_series(
+    pub(crate) fn ratio_time_series(
         name: &'static str,
         description: &'static str,
         numerator: &MetricCounter,

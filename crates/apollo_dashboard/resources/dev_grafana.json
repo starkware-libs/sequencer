@@ -820,10 +820,10 @@
       },
       {
         "title": "native_execution_ratio",
-        "description": "The fraction of calls running Cairo Native in the Blockifier",
+        "description": "The ratio of calls running Cairo Native in the Blockifier",
         "type": "timeseries",
         "exprs": [
-          "100 * (increase(calls_running_native{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / increase(number_of_total_calls{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]))"
+          "100 * (increase(calls_running_native{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(number_of_total_calls{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
       }
