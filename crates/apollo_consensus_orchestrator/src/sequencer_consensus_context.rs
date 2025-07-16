@@ -39,7 +39,7 @@ use apollo_protobuf::consensus::{
 };
 use apollo_state_sync_types::communication::StateSyncClient;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
-use apollo_time::time::Clock;
+use apollo_time::time::ClockExt;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
 use futures::SinkExt;
@@ -167,7 +167,7 @@ pub struct SequencerConsensusContextDeps {
     pub eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     /// Use DefaultClock if you don't want to inject timestamps.
-    pub clock: Arc<dyn Clock>,
+    pub clock: Arc<dyn ClockExt>,
     // Used to initiate new outbound proposal streams.
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     // Used to broadcast votes to other consensus nodes.

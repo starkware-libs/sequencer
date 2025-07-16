@@ -33,7 +33,7 @@ use apollo_network::network_manager::test_utils::{
 use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, HeightAndRound, ProposalPart, Vote};
 use apollo_state_sync_types::communication::MockStateSyncClient;
-use apollo_time::time::{Clock, DefaultClock};
+use apollo_time::time::{ClockExt, DefaultClock};
 use futures::channel::mpsc;
 use futures::executor::block_on;
 use starknet_api::block::{
@@ -95,7 +95,7 @@ pub(crate) struct TestDeps {
     pub cende_ambassador: MockCendeContext,
     pub eth_to_strk_oracle_client: MockEthToStrkOracleClientTrait,
     pub l1_gas_price_provider: MockL1GasPriceProviderClient,
-    pub clock: Arc<dyn Clock>,
+    pub clock: Arc<dyn ClockExt>,
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
     pub vote_broadcast_client: BroadcastTopicClient<Vote>,
 }

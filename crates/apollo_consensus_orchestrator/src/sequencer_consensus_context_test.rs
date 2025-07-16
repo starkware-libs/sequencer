@@ -18,7 +18,7 @@ use apollo_l1_gas_price_types::{
     DEFAULT_ETH_TO_FRI_RATE,
 };
 use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, TransactionBatch, Vote};
-use apollo_time::time::MockClock;
+use apollo_time::time::MockTestClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
 use futures::channel::oneshot::Canceled;
@@ -532,7 +532,7 @@ async fn decision_reached_sends_correct_values() {
     deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len());
 
     const BLOCK_TIME_STAMP_SECONDS: u64 = 123456;
-    let mut clock = MockClock::new();
+    let mut clock = MockTestClock::new();
     clock.expect_unix_now().return_const(BLOCK_TIME_STAMP_SECONDS);
     clock
         .expect_now()

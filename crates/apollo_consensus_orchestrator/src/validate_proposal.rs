@@ -19,7 +19,7 @@ use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceCl
 use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
-use apollo_time::time::{sleep_until, Clock, DateTime};
+use apollo_time::time::{Clock, ClockExt, DateTime};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
@@ -171,7 +171,7 @@ pub(crate) async fn validate_proposal(
                     "validating proposal parts".to_string(),
                 ));
             }
-            _ = sleep_until(deadline, args.deps.clock.as_ref()) => {
+            _ = args.deps.clock.sleep_until(deadline) => {
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
                 return Err(ValidateProposalError::ValidationTimeout(
                     "validating proposal parts".to_string(),
@@ -334,7 +334,7 @@ async fn await_second_proposal_part(
     cancel_token: &CancellationToken,
     deadline: DateTime,
     content_receiver: &mut mpsc::Receiver<ProposalPart>,
-    clock: &dyn Clock,
+    clock: &dyn ClockExt,
 ) -> ValidateProposalResult<SecondProposalPart> {
     tokio::select! {
         _ = cancel_token.cancelled() => {
@@ -342,7 +342,7 @@ async fn await_second_proposal_part(
                 "waiting for second proposal part".to_string(),
             ))
         }
-        _ = sleep_until(deadline, clock) => {
+        _ = clock.sleep_until(deadline) => {
             Err(ValidateProposalError::ValidationTimeout(
                 "waiting for second proposal part".to_string(),
             ))
