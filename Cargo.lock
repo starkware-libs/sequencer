@@ -12242,6 +12242,7 @@ dependencies = [
  "cairo-vm",
  "derive_more 0.99.18",
  "ethnum",
+ "expect-test",
  "indexmap 2.9.0",
  "indoc 2.0.5",
  "log",
