@@ -19,7 +19,14 @@ cairo_native = [
 native_blockifier = []
 node_api = []
 reexecution = ["transaction_serde"]
-testing = ["blockifier_test_utils", "rand", "rstest", "rstest_reuse", "starknet_api/testing"]
+testing = [
+  "apollo_compile_to_native/testing",
+  "blockifier_test_utils",
+  "rand",
+  "rstest",
+  "rstest_reuse",
+  "starknet_api/testing",
+]
 tracing = []
 transaction_serde = []
 
@@ -70,6 +77,7 @@ thiserror.workspace = true
 dashmap.workspace = true
 
 [dev-dependencies]
+apollo_compile_to_native = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier_test_utils.workspace = true
 criterion = { workspace = true, features = ["html_reports"] }
