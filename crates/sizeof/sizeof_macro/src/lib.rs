@@ -32,6 +32,55 @@ use syn::{
 /// 2. Even if a pointer type `P<T>` implements `SizeOf` (for example `Rc<T>` or `Arc<T>`), it is
 ///    possible to count the same memory location twice if multiple pointers point to the same data.
 ///    In such cases it is recommended to implement `SizeOf` manually for the type.
+/// 
+/// Example usage for structs:
+/// ```rust
+/// #[derive(SizeOf)]
+/// struct MyStruct {
+///     a: u32,
+///     b: String,
+/// }
+/// ```
+/// This will implement the following for `MyStruct`:
+/// ```rust
+/// impl SizeOf for MyStruct {
+///     fn dynamic_size(&self) -> usize {
+///         let mut size = 0;
+///         size += self.a.dynamic_size();
+///         size += self.b.dynamic_size();
+///         size
+///     }
+/// }
+/// ```
+///
+/// Example usage for enums:
+/// ```rust
+/// #[derive(SizeOf)]
+/// enum MyEnum {
+///     VariantA(u32),
+///     VariantB { x: u64, y: String },
+/// }
+/// ```
+/// This will implement the following for `MyEnum`:
+/// ```rust
+/// impl SizeOf for MyEnum {
+///     fn dynamic_size(&self) -> usize {
+///         match self {
+///             MyEnum::VariantA(value) => {
+///                 let mut size = 0;
+///                 size += value.dynamic_size();
+///                 size
+///             }
+///             MyEnum::VariantB { x, y } => {
+///                 let mut size = 0;
+///                 size += x.dynamic_size();
+///                 size += y.dynamic_size();
+///                 size
+///             }
+///         }
+///     }
+/// }
+/// ```
 #[proc_macro_derive(SizeOf)]
 pub fn derive_dynamic_size(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
