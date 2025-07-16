@@ -798,5 +798,14 @@ mod TestContract {
         let mut s: ec::EcState = ec::ec_state_init();
         ec::ec_state_add_mul(ref s, m, p);
     }
-}
 
+    #[external(v0)]
+    fn test_builtin_counts_consistency(ref self: ContractState) {
+        test_bitwise(ref self);
+        test_pedersen(ref self);
+        test_poseidon(ref self);
+        test_ecop(ref self);
+        test_keccak(ref self);
+        test_circuit(ref self);
+    }
+}
