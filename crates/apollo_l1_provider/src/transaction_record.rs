@@ -203,6 +203,7 @@ pub enum TransactionState {
     CancellationStartedOnL2,
     CancelledOnL2,
     Committed,
+    Consumed,
     #[default]
     Pending,
     Rejected,
