@@ -12,6 +12,7 @@ testing = ["apollo_metrics/testing", "num-traits", "thiserror", "tokio", "tower"
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
 apollo_config.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true

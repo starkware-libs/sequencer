@@ -1655,6 +1655,7 @@ dependencies = [
 name = "apollo_monitoring_endpoint"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",

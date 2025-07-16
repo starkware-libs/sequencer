@@ -29,7 +29,7 @@ pub async fn run_until<T, F, C, Fut>(
     logger: Option<CustomLogger>,
 ) -> Option<T>
 where
-    T: Clone + Send + std::fmt::Debug + 'static,
+    T: Send + std::fmt::Debug + 'static,
     F: FnMut() -> Fut,
     Fut: Future<Output = T>,
     C: Fn(&T) -> bool + Send + Sync,
