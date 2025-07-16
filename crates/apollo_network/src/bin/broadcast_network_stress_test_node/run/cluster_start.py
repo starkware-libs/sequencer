@@ -64,7 +64,6 @@ def write_yaml_files(
         "network-stress-test-deployment.yaml": get_network_stress_test_deployment_yaml_file(
             image_tag, args=args
         ),
-        # "network-stress-test-service.yaml": get_network_stress_test_service_yaml_file(),
         "network-stress-test-headless-service.yaml": get_network_stress_test_headless_service_yaml_file(),
     }
     for file_name, file_content in files.items():
@@ -75,7 +74,8 @@ def write_yaml_files(
 class ExperimentRunner:
     def __enter__(self):
         self.time_stamp = make_time_stamp()
-        self.deployment_file = {}
+        self.actual_time_stamp = self.time_stamp
+        self.deployment_file = {"actual_time_stamp": self.actual_time_stamp}
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -129,14 +129,14 @@ class ExperimentRunner:
         self.deployment_file["yaml_files"] = file_names
         self.deploy_yaml_files(namespace_name)
 
-        sleep(5)
+        sleep(10)
 
-        # for i in range(args.num_nodes):
-        #     run_cmd(
-        #         f"kubectl logs -n {namespace_name} network-stress-test-{i}",
-        #         hint=f"Check logs for node {i}",
-        #     )
-
+        for i in range(args.num_nodes):
+            run_cmd(
+                f"timeout 5 kubectl logs -n {namespace_name} network-stress-test-{i} > /tmp/network-stress-test-{i}.logs.txt",
+                hint=f"Check logs for node {i}",
+                may_fail=True,
+            )
         run_cmd(
             f"kubectl get pods -n {namespace_name}", hint="Check if pods are running"
         )
@@ -155,6 +155,19 @@ def main():
         type=str,
         default=None,
     )
+    parser.add_argument(
+        "--latency",
+        help="Min latency to use when gating the network in milliseconds.",
+        type=int,
+        default=None,
+    )
+    parser.add_argument(
+        "--throughput",
+        help="Max throughput to use when gating the network in KB/s.",
+        type=int,
+        default=None,
+    )
+
     add_broadcast_stress_test_node_arguments_to_parser(parser=parser)
     args = parser.parse_args()
 

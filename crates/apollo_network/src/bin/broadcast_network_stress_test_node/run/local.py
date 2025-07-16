@@ -104,13 +104,14 @@ class ExperimentRunner:
             f"{project_root}/target/release/broadcast_network_stress_test_node"
         )
         arguments = [exe]
-        arguments += get_arguments(
+        arguments_tuples = get_arguments(
             id=i,
             metric_port=metric_port,
             p2p_port=p2p_port,
             bootstrap=f"/ip4/127.0.0.1/udp/{self.p2p_port_base}/quic-v1/p2p/{bootstrap_peer_id}",
             args=args,
         )
+        arguments += [s for pair in arguments_tuples for s in pair]
         p = subprocess.Popen(args=arguments)
         self.running_processes.append(p)
         self.metric_ports.append((i, metric_port))
