@@ -54,6 +54,15 @@
           "100 * (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "reverted_transactions_ratio",
+        "description": "Ratio of reverted transactions out of all processed, over the last 5 minutes",
+        "type": "timeseries",
+        "exprs": [
+          "100 * (increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
       }
     ],
     "Consensus": [

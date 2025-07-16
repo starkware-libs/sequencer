@@ -5,6 +5,7 @@ use apollo_batcher::metrics::{
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
     REJECTED_TRANSACTIONS,
+    REVERTED_TRANSACTIONS,
 };
 use apollo_infra::metrics::{
     BATCHER_LOCAL_MSGS_PROCESSED,
@@ -63,6 +64,15 @@ fn get_panel_rejection_ratio() -> Panel {
         "5m",
     )
 }
+fn get_panel_reverted_transaction_ratio() -> Panel {
+    Panel::ratio_time_series(
+        "reverted_transactions_ratio",
+        "Ratio of reverted transactions out of all processed, over the last 5 minutes",
+        &REVERTED_TRANSACTIONS,
+        &[&REJECTED_TRANSACTIONS, &BATCHED_TRANSACTIONS],
+        "5m",
+    )
+}
 
 pub(crate) fn get_batcher_row() -> Row {
     Row::new(
@@ -74,6 +84,7 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_batched_transactions(),
             get_panel_last_batched_block(),
             get_panel_rejection_ratio(),
+            get_panel_reverted_transaction_ratio(),
         ],
     )
 }
