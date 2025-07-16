@@ -70,6 +70,7 @@ thiserror.workspace = true
 dashmap.workspace = true
 
 [dev-dependencies]
+apollo_compile_to_native = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 blockifier_test_utils.workspace = true
 criterion = { workspace = true, features = ["html_reports"] }

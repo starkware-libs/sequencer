@@ -15,6 +15,7 @@ cairo_native = [
   "dep:cairo-native",
   "dep:tempfile",
 ]
+testing = []
 
 [lints]
 workspace = true
