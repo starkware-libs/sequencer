@@ -26,7 +26,8 @@ from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     CompiledClassEntryPoint,
     CompiledClassFact,
 )
-from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import compiled_class_hash
+
+from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import blake_compiled_class_hash
 
 // Checks that the list of selectors is sorted.
 func validate_entry_points{range_check_ptr}(
@@ -194,7 +195,8 @@ func validate_compiled_class_facts{range_check_ptr}(
             "is_segment_used_callback": is_segment_used_callback
         })
     %}
-    let (hash) = compiled_class_hash(compiled_class);
+    let (hash) = blake_compiled_class_hash(compiled_class);
+
     %{
         vm_exit_scope()
 

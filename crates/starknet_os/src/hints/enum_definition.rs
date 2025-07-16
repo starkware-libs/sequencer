@@ -19,7 +19,10 @@ use crate::hints::hint_implementation::aggregator::{
     set_state_update_pointers_to_none,
     write_da_segment,
 };
-use crate::hints::hint_implementation::blake2s::implementation::{check_packed_values_end_and_size, unpack_felts_to_u32s};
+use crate::hints::hint_implementation::blake2s::implementation::{
+    check_packed_values_end_and_size,
+    unpack_felts_to_u32s,
+};
 use crate::hints::hint_implementation::block_context::{
     block_number,
     block_timestamp,

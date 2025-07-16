@@ -129,7 +129,7 @@ pub(crate) fn iter_current_segment_info(
         .ok_or(OsHintError::EndOfIterator { item_type: "Bytecode segments".to_string() })?;
 
     let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
-    let is_used = vm.is_accessed(&data_ptr)?;
+    let is_used = true;
     if !is_used {
         for i in 0..current_segment_info.length() {
             let pc = (data_ptr + i)?;
