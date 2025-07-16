@@ -1295,6 +1295,33 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p2"
+    },
+    {
+      "name": "state_sync_fork_from_central",
+      "title": "State sync fork from central",
+      "ruleGroup": "state_sync",
+      "expr": "increase(apollo_central_sync_forks_from_central{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p1"
     }
   ]
 }

@@ -26,6 +26,7 @@ define_metrics!(
         // Counters
         MetricCounter { STATE_SYNC_PROCESSED_TRANSACTIONS, "apollo_state_sync_processed_transactions", "The number of transactions processed by the state sync component", init = 0 },
         MetricCounter { STATE_SYNC_REVERTED_TRANSACTIONS, "apollo_state_sync_reverted_transactions", "The number of transactions reverted by the state sync component", init = 0 },
+        MetricCounter { CENTRAL_SYNC_FORKS_FROM_CENTRAL, "apollo_central_sync_forks_from_central", "The number of times central has diverged from the sync's storage", init = 0 },
     },
 );
 
@@ -38,6 +39,7 @@ pub fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     STATE_SYNC_PROCESSED_TRANSACTIONS.register();
     STATE_SYNC_REVERTED_TRANSACTIONS.register();
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.register();
+    CENTRAL_SYNC_FORKS_FROM_CENTRAL.register();
     update_marker_metrics(txn);
     reconstruct_processed_transactions_metric(txn);
 }

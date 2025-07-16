@@ -50,6 +50,7 @@ use apollo_mempool::metrics::{
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
+    CENTRAL_SYNC_FORKS_FROM_CENTRAL,
     STATE_SYNC_CLASS_MANAGER_MARKER,
 };
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
@@ -842,6 +843,23 @@ fn get_state_sync_stuck() -> Alert {
     }
 }
 
+fn get_state_sync_fork_from_central() -> Alert {
+    Alert {
+        name: "state_sync_fork_from_central",
+        title: "State sync fork from central",
+        alert_group: AlertGroup::StateSync,
+        expr: format!("increase({}[1m])", CENTRAL_SYNC_FORKS_FROM_CENTRAL.get_name_with_filter()), /* Alert is triggered when the class manager marker is not updated for 5m */
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::Sos,
+    }
+}
+
 fn get_batched_transactions_stuck() -> Alert {
     Alert {
         name: "batched_transactions_stuck",
@@ -1062,6 +1080,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_preconfirmed_block_not_written(),
         get_state_sync_lag(),
         get_state_sync_stuck(),
+        get_state_sync_fork_from_central(),
     ];
     verify_unique_names(&alerts);
     Alerts::new(alerts)
