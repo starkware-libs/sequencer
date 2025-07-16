@@ -58,6 +58,11 @@ pub trait ClassManagerClient: Send + Sync {
 
     async fn get_sierra(&self, class_id: ClassId) -> ClassManagerClientResult<Option<Class>>;
 
+    async fn get_executable_class_hash_v2(
+        &self,
+        _class_id: ClassId,
+    ) -> ClassManagerClientResult<Option<ExecutableClassHash>>;
+
     async fn add_deprecated_class(
         &self,
         class_id: ClassId,
@@ -133,6 +138,7 @@ pub enum ClassManagerRequest {
     AddDeprecatedClass(ClassId, DeprecatedClass),
     GetExecutable(ClassId),
     GetSierra(ClassId),
+    GetExecutableClassHashV2(ClassId),
 }
 impl_debug_for_infra_requests_and_responses!(ClassManagerRequest);
 
@@ -143,6 +149,7 @@ pub enum ClassManagerResponse {
     AddDeprecatedClass(ClassManagerResult<()>),
     GetExecutable(ClassManagerResult<Option<ExecutableClass>>),
     GetSierra(ClassManagerResult<Option<Class>>),
+    GetExecutableClassHashV2(ClassManagerResult<Option<ExecutableClassHash>>),
 }
 impl_debug_for_infra_requests_and_responses!(ClassManagerResponse);
 
@@ -202,6 +209,20 @@ where
         )
     }
 
+    async fn get_executable_class_hash_v2(
+        &self,
+        class_id: ClassId,
+    ) -> ClassManagerClientResult<Option<ExecutableClassHash>> {
+        let request = ClassManagerRequest::GetExecutableClassHashV2(class_id);
+        handle_all_response_variants!(
+            ClassManagerResponse,
+            GetExecutableClassHashV2,
+            ClassManagerClientError,
+            ClassManagerError,
+            Direct
+        )
+    }
+
     async fn add_class_and_executable_unsafe(
         &self,
         class_id: ClassId,
@@ -250,6 +271,13 @@ impl ClassManagerClient for EmptyClassManagerClient {
 
     async fn get_sierra(&self, _class_id: ClassId) -> ClassManagerClientResult<Option<Class>> {
         Ok(Some(Default::default()))
+    }
+
+    async fn get_executable_class_hash_v2(
+        &self,
+        _class_id: ClassId,
+    ) -> ClassManagerClientResult<Option<ExecutableClassHash>> {
+        Ok(Some(ExecutableClassHash::default()))
     }
 
     async fn add_class_and_executable_unsafe(
