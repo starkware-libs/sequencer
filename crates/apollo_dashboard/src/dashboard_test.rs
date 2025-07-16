@@ -56,13 +56,8 @@ fn test_ratio_time_series() {
     let metric_2 = MetricCounter::new(MetricScope::Batcher, "p", "p_f", "desc", 0);
     let metric_3 = MetricCounter::new(MetricScope::Batcher, "a", "a_f", "desc", 0);
 
-    let panel = Panel::_ratio_time_series(
-        "x",
-        "x",
-        &metric_1,
-        &[&metric_1, &metric_2, &metric_3],
-        duration,
-    );
+    let panel =
+        Panel::ratio_time_series("x", "x", &metric_1, &[&metric_1, &metric_2, &metric_3], duration);
 
     let expected = format!(
         "100 * (increase({}[{}]) / (increase({}[{}]) + increase({}[{}]) + increase({}[{}])))",
@@ -85,6 +80,6 @@ fn test_ratio_time_series() {
         metric_2.get_name_with_filter(),
         duration,
     );
-    let panel = Panel::_ratio_time_series("y", "y", &metric_1, &[&metric_2], duration);
+    let panel = Panel::ratio_time_series("y", "y", &metric_1, &[&metric_2], duration);
     assert_eq!(panel.exprs, vec![expected]);
 }
