@@ -145,6 +145,7 @@
   "l1_provider_config.bootstrap_catch_up_height_override.#is_none": true,
   "l1_provider_config.startup_sync_sleep_retry_interval_seconds": 2,
   "l1_provider_config.l1_handler_cancellation_timelock_seconds": 300,
+  "l1_provider_config.l1_handler_consumption_timelock_seconds": 300.0,
   "l1_provider_config.new_l1_handler_cooldown_seconds": 135,
   "l1_scraper_config.finality": 10,
   "l1_scraper_config.polling_interval_seconds": 120,
