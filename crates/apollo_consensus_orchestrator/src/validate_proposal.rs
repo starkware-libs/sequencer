@@ -46,6 +46,8 @@ use crate::utils::{
     GasPriceParams,
 };
 
+const GAS_PRICE_ABS_DIFF_MARGIN: u128 = 1;
+
 pub(crate) struct ProposalValidateArguments {
     pub deps: SequencerConsensusContextDeps,
     pub block_info_validation: BlockInfoValidation,
@@ -323,6 +325,13 @@ async fn is_block_info_valid(
 }
 
 fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> bool {
+    // For small numbers (e.g., less than 10 wei, if margin is 10%), even an off-by-one
+    // error might be bigger than the margin, even if it is just a rounding error.
+    // We make an exception for such mismatch, and don't bother checking percentages
+    // if the difference in price is only one wei.
+    if number1.0.abs_diff(number2.0) <= GAS_PRICE_ABS_DIFF_MARGIN {
+        return true;
+    }
     let margin = (number1.0 * margin_percent) / 100;
     number1.0.abs_diff(number2.0) <= margin
 }
