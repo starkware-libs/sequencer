@@ -418,13 +418,22 @@ async fn handle_proposal_part(
                 proposal_id,
                 content: SendProposalContent::Finish(final_n_executed_txs_nonopt),
             };
-            let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
-                panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
-            });
+            let response = match batcher.send_proposal_content(input).await {
+                Ok(response) => response,
+                Err(e) => {
+                    return HandledProposalPart::Failed(format!(
+                        "Failed to send Fin to batcher: {e:?}"
+                    ));
+                }
+            };
             let response_id = match response.response {
                 ProposalStatus::Finished(id) => id,
                 ProposalStatus::InvalidProposal(err) => return HandledProposalPart::Invalid(err),
-                status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
+                status => {
+                    return HandledProposalPart::Failed(format!(
+                        "Unexpected batcher status for fin: {status:?}"
+                    ));
+                }
             };
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
 
@@ -470,13 +479,22 @@ async fn handle_proposal_part(
             content.push(txs.clone());
             let input =
                 SendProposalContentInput { proposal_id, content: SendProposalContent::Txs(txs) };
-            let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
-                panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
-            });
+            let response = match batcher.send_proposal_content(input).await {
+                Ok(response) => response,
+                Err(e) => {
+                    return HandledProposalPart::Failed(format!(
+                        "Failed to send transactions to batcher: {e:?}"
+                    ));
+                }
+            };
             match response.response {
                 ProposalStatus::Processing => HandledProposalPart::Continue,
                 ProposalStatus::InvalidProposal(err) => HandledProposalPart::Invalid(err),
-                status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
+                status => {
+                    return HandledProposalPart::Failed(format!(
+                        "Unexpected batcher status for transactions: {status:?}"
+                    ));
+                }
             }
         }
         Some(ProposalPart::ExecutedTransactionCount(executed_txs_count)) => {
@@ -503,8 +521,9 @@ async fn handle_proposal_part(
 
 async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: ProposalId) {
     let input = SendProposalContentInput { proposal_id, content: SendProposalContent::Abort };
-    batcher
+    let _ = batcher
         .send_proposal_content(input)
         .await
-        .unwrap_or_else(|e| panic!("Failed to send Abort to batcher: {proposal_id:?}. {e:?}"));
+        // This can occur if the batcher already aborted the proposal itself.
+        .inspect_err(|e| warn!("Failed to send Abort to batcher: {e:?}"));
 }
