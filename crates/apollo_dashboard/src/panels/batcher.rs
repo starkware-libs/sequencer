@@ -24,9 +24,6 @@ fn get_panel_proposal_started() -> Panel {
 fn get_panel_proposal_succeeded() -> Panel {
     Panel::from_counter(PROPOSAL_SUCCEEDED, PanelType::Stat)
 }
-fn get_panel_proposal_aborted() -> Panel {
-    Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat)
-}
 fn get_panel_proposal_failed() -> Panel {
     Panel::from_counter(PROPOSAL_FAILED, PanelType::Stat)
 }
@@ -36,7 +33,6 @@ fn get_panel_batched_transactions() -> Panel {
 fn get_panel_last_batched_block() -> Panel {
     Panel::from_gauge(LAST_BATCHED_BLOCK, PanelType::Stat)
 }
-
 fn get_panel_batcher_local_msgs_received() -> Panel {
     Panel::from_counter(BATCHER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
@@ -77,7 +73,6 @@ pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
         vec![
-            get_panel_proposal_aborted(),
             get_panel_proposal_started(),
             get_panel_proposal_succeeded(),
             get_panel_proposal_failed(),

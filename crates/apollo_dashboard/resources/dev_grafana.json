@@ -2,15 +2,6 @@
   "Sequencer Node Dashboard": {
     "Batcher": [
       {
-        "title": "batcher_proposal_failed",
-        "description": "Counter of failed proposals",
-        "type": "stat",
-        "exprs": [
-          "batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
         "title": "batcher_proposal_started",
         "description": "Counter of proposals started",
         "type": "stat",
