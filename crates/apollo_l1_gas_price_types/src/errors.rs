@@ -27,14 +27,14 @@ pub enum L1GasPriceClientError {
     L1GasPriceProviderError(#[from] L1GasPriceProviderError),
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, Error, Clone)]
 pub enum EthToStrkOracleClientError {
-    #[error(transparent)]
-    JoinError(#[from] tokio::task::JoinError),
-    #[error(transparent)]
-    RequestError(#[from] reqwest::Error),
-    #[error(transparent)]
-    ParseError(#[from] serde_json::Error),
+    #[error("Join error: {0}")]
+    JoinError(String),
+    #[error("Request error: {0}")]
+    RequestError(String),
+    #[error("Parse error: {0}")]
+    ParseError(String),
     #[error("Missing or invalid field: {0}. Body: {1}")]
     MissingFieldError(&'static str, String),
     #[error("Invalid decimals value: expected {0}, got {1}")]
