@@ -12,6 +12,8 @@ testing = []
 apollo_config.workspace = true
 apollo_metrics.workspace = true
 apollo_network_types.workspace = true
+apollo_signature_manager.workspace = true
+apollo_signature_manager_types.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
 bincode.workspace = true
@@ -48,12 +50,17 @@ validator = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 assert_matches.workspace = true
+apollo_signature_manager_types = { workspace = true, features = ["testing"] }
 deadqueue = { workspace = true, features = ["unlimited"] }
 defaultmap.workspace = true
+hex.workspace = true
 libp2p-swarm-test.workspace = true
 mockall.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+starknet-core.workspace = true
+starknet-types-core.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
 tokio = { workspace = true, features = ["full", "sync", "test-util"] }
 tokio-stream.workspace = true
 void.workspace = true
