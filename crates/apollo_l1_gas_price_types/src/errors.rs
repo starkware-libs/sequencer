@@ -36,7 +36,7 @@ pub enum EthToStrkOracleClientError {
     #[error("Parse error: {0}")]
     ParseError(String),
     #[error("Missing or invalid field: {0}. Body: {1}")]
-    MissingFieldError(&'static str, String),
+    MissingFieldError(String, String),
     #[error("Invalid decimals value: expected {0}, got {1}")]
     InvalidDecimalsError(u64, u64),
     #[error("Query not yet resolved: timestamp={0}")]
