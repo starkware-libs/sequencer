@@ -25,6 +25,7 @@ use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
 use starknet_api::transaction::constants::TRANSFER_ENTRY_POINT_NAME;
 use starknet_api::transaction::fields::{
     AllResourceBounds,
+    Calldata,
     ContractAddressSalt,
     Fee,
     ResourceBounds,
@@ -133,7 +134,7 @@ pub fn executable_invoke_tx(cairo_version: CairoVersion) -> AccountTransaction {
 
     let mut tx_generator = MultiAccountTransactionGenerator::new();
     tx_generator.register_deployed_account(default_account);
-    tx_generator.account_with_id_mut(0).generate_executable_invoke()
+    tx_generator.account_with_id_mut(0).generate_trivial_executable_invoke_tx()
 }
 
 pub fn deploy_account_tx() -> RpcTransaction {
@@ -237,9 +238,12 @@ impl L1HandlerTransactionGenerator {
 /// tx_generator.register_deployed_account(some_account_type.clone());
 /// tx_generator.register_deployed_account(some_account_type.clone());
 ///
-/// let account_0_tx_with_nonce_0 = tx_generator.account_with_id_mut(0).generate_invoke_with_tip(1);
-/// let account_1_tx_with_nonce_0 = tx_generator.account_with_id_mut(1).generate_invoke_with_tip(3);
-/// let account_0_tx_with_nonce_1 = tx_generator.account_with_id_mut(0).generate_invoke_with_tip(1);
+/// let account_0_tx_with_nonce_0 =
+///     tx_generator.account_with_id_mut(0).generate_trivial_rpc_invoke_tx_with_tip(1);
+/// let account_1_tx_with_nonce_0 =
+///     tx_generator.account_with_id_mut(1).generate_trivial_rpc_invoke_tx_with_tip(3);
+/// let account_0_tx_with_nonce_1 =
+///     tx_generator.account_with_id_mut(0).generate_trivial_rpc_invoke_tx_with_tip(1);
 ///
 /// // Initialize an undeployed account.
 /// let salt = ContractAddressSalt(123_u64.into());
@@ -393,7 +397,11 @@ impl AccountTransactionGenerator {
     }
 
     /// Generate a valid `RpcTransaction` with default parameters.
-    pub fn generate_invoke_with_tip(&mut self, tip: u64) -> RpcTransaction {
+    pub fn generate_generic_rpc_invoke_tx(
+        &mut self,
+        tip: u64,
+        calldata: Calldata,
+    ) -> RpcTransaction {
         assert!(
             self.is_deployed(),
             "Cannot invoke on behalf of an undeployed account: the first transaction of every \
@@ -402,15 +410,20 @@ impl AccountTransactionGenerator {
         let nonce = self.next_nonce();
         let invoke_args = invoke_tx_args!(
             nonce,
-            tip : Tip(tip),
+            tip: Tip(tip),
             sender_address: self.sender_address(),
             resource_bounds: test_valid_resource_bounds(),
-            calldata: create_trivial_calldata(self.sender_address()),
+            calldata,
         );
         rpc_invoke_tx(invoke_args)
     }
 
-    pub fn generate_executable_invoke(&mut self) -> AccountTransaction {
+    /// Generate a valid `RpcTransaction` with default parameters.
+    pub fn generate_trivial_rpc_invoke_tx_with_tip(&mut self, tip: u64) -> RpcTransaction {
+        self.generate_generic_rpc_invoke_tx(tip, create_trivial_calldata(self.sender_address()))
+    }
+
+    pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
         assert!(
             self.is_deployed(),
             "Cannot invoke on behalf of an undeployed account: the first transaction of every \
@@ -432,8 +445,8 @@ impl AccountTransactionGenerator {
     ///
     /// Caller must manually handle bumping nonce and fetching the correct sender address via
     /// [AccountTransactionGenerator::next_nonce] and [AccountTransactionGenerator::sender_address].
-    /// See [AccountTransactionGenerator::generate_invoke_with_tip] to have these filled up by
-    /// default.
+    /// See [AccountTransactionGenerator::generate_trivial_rpc_invoke_tx_with_tip] to have these
+    /// filled up by default.
     ///
     /// Note: This is a best effort attempt to make the API more useful; amend or add new methods
     /// as needed.
