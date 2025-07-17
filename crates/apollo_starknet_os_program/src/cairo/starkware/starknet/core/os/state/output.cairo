@@ -72,6 +72,8 @@ struct FullContractHeader {
 }
 
 // Outputs the entries that were changed in `update_ptr` into `state_updates_ptr`.
+// If `full_output == 0`, outputs partial entries: (key, new_value).
+// Otherwise, outputs full entries: (key, prev_value, new_value).
 // Returns the number of such entries.
 func serialize_da_changes{state_updates_ptr: felt*}(
     update_ptr: DictAccess*, n_updates: felt, full_output: felt

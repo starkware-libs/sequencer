@@ -24,7 +24,8 @@ const INITIAL_AVAILABLE_ALIAS = MIN_VALUE_FOR_ALIAS_ALLOC;
 // The storage key of the alias counter in the alias contract.
 const ALIAS_COUNTER_STORAGE_KEY = 0;
 
-// Finalized, read-only aliases.
+// Finalized (squashed), aliases.
+// May contain the alias counter as well.
 struct Aliases {
     len: felt,
     ptr: DictAccess*,
@@ -101,6 +102,20 @@ func get_next_available_alias{aliases_storage_updates: DictAccess*, range_check_
     }
 }
 
+// Returns a pointer to the first storage diff entry whose key is >= MIN_VALUE_FOR_ALIAS_ALLOC.
+func get_storage_diff_big_keys_start{range_check_ptr}(
+    storage_diff_start: FullStateUpdateEntry*, storage_diff_end: FullStateUpdateEntry*
+) -> FullStateUpdateEntry* {
+    static_assert FullStateUpdateEntry.key == 0;
+    let storage_diff_start: FullStateUpdateEntry* = search_sorted_lower(
+        array_ptr=storage_diff_start,
+        elm_size=FullStateUpdateEntry.SIZE,
+        n_elms=(storage_diff_end - storage_diff_start) / FullStateUpdateEntry.SIZE,
+        key=MIN_VALUE_FOR_ALIAS_ALLOC,
+    );
+    return storage_diff_start;
+}
+
 // Allocates aliases for storage diff, which is expected to contain only modified storage keys,
 // without trivial updates.
 func allocate_aliases_for_storage_diff{
@@ -167,6 +182,18 @@ func allocate_aliases{aliases_storage_updates: DictAccess*, range_check_ptr}(
     );
     let aliases_storage_updates = &aliases_storage_updates[1];
     return ();
+}
+
+// Returns whether the contract at the given address should be skipped when assigning/replacing
+// aliases.
+func should_skip_contract{range_check_ptr}(contract_address: felt) -> felt {
+    if (nondet %{ ids.contract_address <= ids.MAX_NON_COMPRESSED_CONTRACT_ADDRESS %} != FALSE) {
+        // Don't give any aliases for contracts <= MAX_NON_COMPRESSED_CONTRACT_ADDRESS.
+        assert_nn_le(a=contract_address, b=MAX_NON_COMPRESSED_CONTRACT_ADDRESS);
+        return TRUE;
+    }
+    assert_le_felt(a=MAX_NON_COMPRESSED_CONTRACT_ADDRESS + 1, b=contract_address);
+    return FALSE;
 }
 
 // Allocates aliases for contract state diff, which is expected to contain only modified
@@ -387,30 +414,4 @@ func get_full_contract_state_diff{range_check_ptr}(
         );
     }
     return contract_state_diff_start;
-}
-
-// Reutrns whether the contract at the given address should be skipped when assigning/replacing
-// aliases.
-func should_skip_contract{range_check_ptr}(contract_address: felt) -> felt {
-    if (nondet %{ ids.contract_address <= ids.MAX_NON_COMPRESSED_CONTRACT_ADDRESS %} != FALSE) {
-        // Don't give any aliases for contracts <= MAX_NON_COMPRESSED_CONTRACT_ADDRESS.
-        assert_nn_le(a=contract_address, b=MAX_NON_COMPRESSED_CONTRACT_ADDRESS);
-        return TRUE;
-    }
-    assert_le_felt(a=MAX_NON_COMPRESSED_CONTRACT_ADDRESS + 1, b=contract_address);
-    return FALSE;
-}
-
-// Returns a pointer to the first storage diff entry whose key is >= MIN_VALUE_FOR_ALIAS_ALLOC.
-func get_storage_diff_big_keys_start{range_check_ptr}(
-    storage_diff_start: FullStateUpdateEntry*, storage_diff_end: FullStateUpdateEntry*
-) -> FullStateUpdateEntry* {
-    static_assert FullStateUpdateEntry.key == 0;
-    let storage_diff_start: FullStateUpdateEntry* = search_sorted_lower(
-        array_ptr=storage_diff_start,
-        elm_size=FullStateUpdateEntry.SIZE,
-        n_elms=(storage_diff_end - storage_diff_start) / FullStateUpdateEntry.SIZE,
-        key=MIN_VALUE_FOR_ALIAS_ALLOC,
-    );
-    return storage_diff_start;
 }
