@@ -14,6 +14,7 @@ apollo_metrics.workspace = true
 apollo_network_types.workspace = true
 async-stream.workspace = true
 async-trait.workspace = true
+bincode.workspace = true
 bytes.workspace = true
 clap = { workspace = true, features = ["derive"] }
 derive_more.workspace = true
