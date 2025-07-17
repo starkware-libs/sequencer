@@ -49,7 +49,7 @@ impl LogCompatibleToStringExt for TransactionExecutorError {}
 
 pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
 pub type CompiledClassHashV2ToV1 = (CompiledClassHash, CompiledClassHash);
-pub type CompiledClassHashesToMigrate = Vec<CompiledClassHashV2ToV1>;
+pub type CompiledClassHashesForMigration = Vec<CompiledClassHashV2ToV1>;
 
 #[cfg_attr(test, derive(PartialEq))]
 #[derive(Debug)]
@@ -59,7 +59,7 @@ pub struct BlockExecutionSummary {
     pub bouncer_weights: BouncerWeights,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
-    pub compiled_class_hashes_to_migrate: CompiledClassHashesToMigrate,
+    pub compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
 }
 
 /// A transaction executor, used for building a single block.
@@ -275,7 +275,7 @@ pub(crate) fn finalize_block<S: StateReader>(
         casm_hash_computation_data_sierra_gas,
         casm_hash_computation_data_proving_gas,
         // TODO(Meshi): derive from bouncer once migration is supported.
-        compiled_class_hashes_to_migrate: vec![],
+        compiled_class_hashes_for_migration: vec![],
     })
 }
 

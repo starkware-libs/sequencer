@@ -225,8 +225,8 @@ impl PyBlockExecutor {
             bouncer_weights,
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
-            // TODO(AvivG): add py object of compiled_class_hashes_to_migrate.
-            compiled_class_hashes_to_migrate: _,
+            // TODO(AvivG): add py object of compiled_class_hashes_for_migration.
+            compiled_class_hashes_for_migration: _,
         } = self.tx_executor().finalize()?;
         let py_state_diff = PyStateDiff::from(state_diff);
         let py_compressed_state_diff = compressed_state_diff.map(PyStateDiff::from);
