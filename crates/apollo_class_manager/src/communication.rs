@@ -53,6 +53,10 @@ impl ComponentRequestHandler<ClassManagerRequest, ClassManagerResponse> for Clas
                     .map(|optional_class| optional_class.map(|class| class.try_into().unwrap()));
                 ClassManagerResponse::GetSierra(result)
             }
+            ClassManagerRequest::GetExecutableClassHashV2(class_id) => {
+                let result = self.0.get_executable_class_hash_v2(class_id);
+                ClassManagerResponse::GetExecutableClassHashV2(result)
+            }
         }
     }
 }
