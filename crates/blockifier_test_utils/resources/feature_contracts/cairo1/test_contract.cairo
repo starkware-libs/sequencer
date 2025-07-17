@@ -767,6 +767,13 @@ mod TestContract {
     fn empty_function(ref self: ContractState) {}
 
     #[external(v0)]
+    fn test_range_check(ref self: ContractState) {
+        let x: u32 = 1;
+        let y: u32 = 2;
+        let _ = x < y;
+    }
+
+    #[external(v0)]
     fn test_bitwise(ref self: ContractState) {
         let x: u32 = 0x1;
         let y: u32 = 0x2;
@@ -798,5 +805,16 @@ mod TestContract {
         let mut s: ec::EcState = ec::ec_state_init();
         ec::ec_state_add_mul(ref s, m, p);
     }
-}
 
+    #[external(v0)]
+    fn test_builtin_counts_consistency(ref self: ContractState) {
+        test_range_check(ref self);
+        test_bitwise(ref self);
+        test_pedersen(ref self);
+        test_poseidon(ref self);
+        test_ecop(ref self);
+        test_keccak(ref self);
+        // Test add_mod, mul_mod and range_check96.
+        test_circuit(ref self);
+    }
+}
