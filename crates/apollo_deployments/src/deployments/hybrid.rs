@@ -13,21 +13,28 @@ use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
 use crate::addresses::{get_p2p_address, get_peer_id};
-use crate::config_override::{InstanceConfigOverride, NetworkConfigOverride};
-use crate::deployment::{build_service_namespace_domain_address, P2PCommunicationType};
+use crate::config_override::{
+    ConfigOverride,
+    DeploymentConfigOverride,
+    InstanceConfigOverride,
+    NetworkConfigOverride,
+};
+use crate::deployment::{build_service_namespace_domain_address, Deployment, P2PCommunicationType};
 use crate::deployment_definitions::{CloudK8sEnvironment, Environment, ServicePort};
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
     Controller,
+    ExternalSecret,
     Ingress,
     IngressParams,
+    K8sServiceConfigParams,
     Resource,
     Resources,
     Toleration,
 };
-use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
+use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
 use crate::utils::{determine_port_numbers, get_validator_id};
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 8;
@@ -453,9 +460,45 @@ fn get_http_server_component_config(
     config
 }
 
+// TODO(Tsaabry): unify these into inner structs.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn hybrid_deployment(
+    id: usize,
+    p2p_communication_type: P2PCommunicationType,
+    environment: Environment,
+    instance_name_format: &Template,
+    secret_name_format: &Template,
+    deployment_config_override: DeploymentConfigOverride,
+    node_namespace_format: &Template,
+    ingress_domain: &str,
+    http_server_ingress_alternative_name: &str,
+    k8s_service_config_params: Option<K8sServiceConfigParams>,
+) -> Deployment {
+    Deployment::new(
+        NodeType::Hybrid,
+        environment,
+        &instance_name_format.format(&[&id]),
+        Some(ExternalSecret::new(secret_name_format.format(&[&id]))),
+        ConfigOverride::new(
+            deployment_config_override,
+            create_hybrid_instance_config_override(
+                id,
+                node_namespace_format,
+                p2p_communication_type,
+                ingress_domain,
+            ),
+        ),
+        IngressParams::new(
+            ingress_domain.to_string(),
+            Some(vec![http_server_ingress_alternative_name.into()]),
+        ),
+        k8s_service_config_params,
+    )
+}
+
 pub(crate) fn create_hybrid_instance_config_override(
     node_id: usize,
-    node_namespace_format: Template,
+    node_namespace_format: &Template,
     p2p_communication_type: P2PCommunicationType,
     domain: &str,
 ) -> InstanceConfigOverride {
