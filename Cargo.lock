@@ -1188,6 +1188,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_config",
  "apollo_infra_utils",
+ "apollo_monitoring_endpoint",
  "apollo_node",
  "apollo_protobuf",
  "hex",
