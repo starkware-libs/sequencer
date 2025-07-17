@@ -404,6 +404,15 @@
         "extra_params": {}
       },
       {
+        "title": "http_server_added_transactions_deprecated_error",
+        "description": "Number of faulty added transactions failing on deprecated error",
+        "type": "timeseries",
+        "exprs": [
+          "http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "http_server_add_tx_latency",
         "description": "Latency of HTTP add_tx endpoint in secs",
         "type": "timeseries",
