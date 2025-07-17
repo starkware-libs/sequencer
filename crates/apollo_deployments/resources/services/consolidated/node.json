@@ -108,6 +108,7 @@
   "components.state_sync.remote_client_config.retry_interval_ms": 1000,
   "components.state_sync.url": "localhost",
   "consensus_manager_config.#is_none": false,
+  "eth_to_strk_oracle_config.#is_none": false,
   "gateway_config.#is_none": false,
   "http_server_config.#is_none": false,
   "l1_endpoint_monitor_config.#is_none": false,
