@@ -70,10 +70,34 @@ pub const DEV_ALERTS_JSON_PATH: &str = "crates/apollo_dashboard/resources/dev_gr
 const PENDING_DURATION_DEFAULT: &str = "30s";
 const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 
+/// Block number is stuck for more than 2 minutes.
 fn get_consensus_block_number_stuck() -> Alert {
     Alert {
         name: "consensus_block_number_stuck",
         title: "Consensus block number stuck",
+        alert_group: AlertGroup::Consensus,
+        expr: format!(
+            "sum(increase({}[2m])) or vector(0)",
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::DayOnly,
+    }
+}
+
+/// Block number progressed slowly (< 10) in the last 5 minutes.
+fn get_consensus_block_number_progress_is_slow() -> Alert {
+    Alert {
+        name: "get_consensus_block_number_progress_is_slow",
+        title: "Consensus block number progress is slow",
         alert_group: AlertGroup::Consensus,
         expr: format!(
             "sum(increase({}[5m])) or vector(0)",
@@ -86,7 +110,9 @@ fn get_consensus_block_number_stuck() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::WorkingHours,
     }
 }
 
@@ -298,6 +324,7 @@ fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
     }
 }
 
+/// The was a round larger than zero in the last hour.
 fn get_consensus_round_above_zero() -> Alert {
     Alert {
         name: "consensus_round_above_zero",
@@ -311,7 +338,28 @@ fn get_consensus_round_above_zero() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Informational,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::WorkingHours,
+    }
+}
+
+/// The were 5 times in the last 30 minutes that the round was larger than zero.
+fn get_consensus_round_above_zero_multiple_times() -> Alert {
+    Alert {
+        name: "consensus_round_above_zero_multiple_times",
+        title: "Consensus round above zero multiple times",
+        alert_group: AlertGroup::Consensus,
+        expr: format!("increase({}[30m])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 5.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        severity: AlertSeverity::WorkingHours,
     }
 }
 
@@ -349,6 +397,8 @@ fn get_gateway_add_tx_idle() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
         severity: AlertSeverity::Regular,
     }
 }
@@ -371,6 +421,8 @@ fn get_mempool_add_tx_idle() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
         severity: AlertSeverity::Regular,
     }
 }
@@ -466,7 +518,9 @@ fn get_eth_to_strk_success_count_alert() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::DayOnly,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::WorkingHours,
     }
 }
 
@@ -486,7 +540,9 @@ fn get_l1_gas_price_scraper_success_count_alert() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::DayOnly,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::WorkingHours,
     }
 }
 
@@ -548,12 +604,38 @@ fn get_http_server_high_transaction_failure_ratio() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::DayOnly,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::WorkingHours,
+    }
+}
+
+fn get_http_server_high_deprecated_transaction_failure_ratio() -> Alert {
+    Alert {
+        name: "http_server_high_deprecated_transaction_failure_ratio",
+        title: "http server high deprecated transaction failure ratio",
+        alert_group: AlertGroup::HttpServer,
+        expr: format!(
+            "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
+            ADDED_TRANSACTIONS_DEPRECATED_ERROR.get_name_with_filter(),
+            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
+        ),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            // TODO(guy.f): Replace with value given from leo@
+            comparison_value: 0.2,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::WorkingHours,
     }
 }
 
 /// Triggers if the average latency of `add_tx` calls, across all HTTP servers, exceeds 2 seconds
-/// over a 5-minute window.
+/// over a 2-minute window.
 fn get_http_server_avg_add_tx_latency_alert() -> Alert {
     let sum_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_sum_with_filter();
     let count_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_count_with_filter();
@@ -562,7 +644,7 @@ fn get_http_server_avg_add_tx_latency_alert() -> Alert {
         name: "http_server_avg_add_tx_latency",
         title: "High HTTP server average add_tx latency",
         alert_group: AlertGroup::HttpServer,
-        expr: format!("rate({sum_metric}[5m]) / rate({count_metric}[5m])"),
+        expr: format!("rate({sum_metric}[2m]) / rate({count_metric}[2m])"),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 2.0,
@@ -570,7 +652,9 @@ fn get_http_server_avg_add_tx_latency_alert() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::WorkingHours,
     }
 }
 
@@ -661,7 +745,7 @@ fn get_l1_message_scraper_no_successes_alert() -> Alert {
         name: "l1_message_no_successes",
         title: "L1 message no successes",
         alert_group: AlertGroup::L1GasPrice,
-        expr: format!("increase({}[20m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
+        expr: format!("increase({}[5m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
@@ -669,7 +753,9 @@ fn get_l1_message_scraper_no_successes_alert() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::DayOnly,
     }
 }
 
@@ -768,27 +854,6 @@ fn get_consensus_round_high() -> Alert {
     }
 }
 
-fn get_consensus_round_above_zero_ratio() -> Alert {
-    Alert {
-        name: "consensus_round_above_zero_ratio",
-        title: "Consensus round above zero ratio",
-        alert_group: AlertGroup::Consensus,
-        expr: format!(
-            "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
-            CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter(),
-            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
-        ),
-        conditions: &[AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.05,
-            logical_op: AlertLogicalOp::And,
-        }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: 10,
-        severity: AlertSeverity::DayOnly,
-    }
-}
-
 fn get_native_compilation_error_increase() -> Alert {
     Alert {
         name: "native_compilation_error",
@@ -861,12 +926,13 @@ fn get_batched_transactions_stuck() -> Alert {
     }
 }
 
+/// No preconfirmed block was written in the last 10 minutes.
 fn get_preconfirmed_block_not_written() -> Alert {
     Alert {
         name: "preconfirmed_block_not_written",
         title: "Preconfirmed block not written",
         alert_group: AlertGroup::Batcher,
-        expr: format!("increase({}[1h])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
+        expr: format!("increase({}[10m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
@@ -874,7 +940,9 @@ fn get_preconfirmed_block_not_written() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::DayOnly,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::WorkingHours,
     }
 }
 
@@ -950,7 +1018,7 @@ fn get_mempool_p2p_peer_down() -> Alert {
         title: "Mempool p2p peer down",
         alert_group: AlertGroup::Mempool,
         expr: format!(
-            "max_over_time({}[1h])",
+            "max_over_time({}[2m])",
             MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()
         ),
         conditions: &[AlertCondition {
@@ -961,7 +1029,9 @@ fn get_mempool_p2p_peer_down() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::DayOnly,
+        // TODO(guy.f): Update severity once we can set different severities for different StarkNet
+        // instances.
+        severity: AlertSeverity::WorkingHours,
     }
 }
 
@@ -1021,6 +1091,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_cende_write_blob_failure_once_alert(),
         get_cende_write_prev_height_blob_latency_too_high(),
         get_consensus_block_number_stuck(),
+        get_consensus_block_number_progress_is_slow(),
         get_consensus_build_proposal_failed_alert(),
         get_consensus_build_proposal_failed_once_alert(),
         get_consensus_conflicting_votes(),
@@ -1032,7 +1103,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_consensus_p2p_not_enough_peers_for_quorum(),
         get_consensus_p2p_peer_down(),
         get_consensus_round_above_zero(),
-        get_consensus_round_above_zero_ratio(),
+        get_consensus_round_above_zero_multiple_times(),
         get_consensus_round_high(),
         get_consensus_validate_proposal_failed_alert(),
         get_consensus_votes_num_sent_messages_alert(),
@@ -1042,6 +1113,7 @@ pub fn get_apollo_alerts() -> Alerts {
         get_http_server_add_tx_idle(),
         get_http_server_avg_add_tx_latency_alert(),
         get_http_server_high_transaction_failure_ratio(),
+        get_http_server_high_deprecated_transaction_failure_ratio(),
         get_http_server_internal_error_ratio(),
         get_http_server_internal_error_once(),
         get_http_server_low_successful_transaction_rate(),
