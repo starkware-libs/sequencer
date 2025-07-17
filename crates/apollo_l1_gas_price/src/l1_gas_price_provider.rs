@@ -2,7 +2,7 @@ use std::any::type_name;
 use std::collections::{BTreeMap, VecDeque};
 use std::sync::Arc;
 
-use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_sec;
@@ -19,6 +19,7 @@ use starknet_api::block::BlockTimestamp;
 use tracing::{info, trace, warn};
 use validator::Validate;
 
+use crate::eth_to_strk_oracle::EthToStrkOracleConfig;
 use crate::metrics::{
     register_provider_metrics,
     L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE,
@@ -40,6 +41,8 @@ pub struct L1GasPriceProviderConfig {
     pub storage_limit: usize,
     // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
     pub max_time_gap_seconds: u64,
+    #[validate]
+    pub eth_to_strk_oracle_config: EthToStrkOracleConfig,
 }
 
 impl Default for L1GasPriceProviderConfig {
@@ -50,13 +53,14 @@ impl Default for L1GasPriceProviderConfig {
             lag_margin_seconds: 60,
             storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
             max_time_gap_seconds: 900, // 15 minutes
+            eth_to_strk_oracle_config: EthToStrkOracleConfig::default(),
         }
     }
 }
 
 impl SerializeConfig for L1GasPriceProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from([
+        let mut config = BTreeMap::from([
             ser_param(
                 "number_of_blocks_for_mean",
                 &self.number_of_blocks_for_mean,
@@ -83,7 +87,12 @@ impl SerializeConfig for L1GasPriceProviderConfig {
                  in seconds",
                 ParamPrivacyInput::Public,
             ),
-        ])
+        ]);
+        config.extend(prepend_sub_config_name(
+            self.eth_to_strk_oracle_config.dump(),
+            "eth_to_strk_oracle_config",
+        ));
+        config
     }
 }
 
