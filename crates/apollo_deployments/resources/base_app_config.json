@@ -111,6 +111,8 @@
   "consensus_manager_config.stream_handler_config.channel_buffer_capacity": 1000,
   "consensus_manager_config.stream_handler_config.max_streams": 100,
   "consensus_manager_config.votes_topic": "consensus_votes",
+  "gateway_config.authorized_declarer_accounts": "",
+  "gateway_config.authorized_declarer_accounts.#is_none": true,
   "gateway_config.block_declare": false,
   "gateway_config.stateful_tx_validator_config.max_allowed_nonce_gap": 50,
   "gateway_config.stateful_tx_validator_config.max_nonce_for_validation_skip": "0x1",
