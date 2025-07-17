@@ -1,12 +1,18 @@
 use std::any::type_name;
 use std::collections::{BTreeMap, VecDeque};
+use std::sync::Arc;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_sec;
 use apollo_l1_gas_price_types::errors::L1GasPriceProviderError;
-use apollo_l1_gas_price_types::{GasPriceData, L1GasPriceProviderResult, PriceInfo};
+use apollo_l1_gas_price_types::{
+    EthToStrkOracleClientTrait,
+    GasPriceData,
+    L1GasPriceProviderResult,
+    PriceInfo,
+};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockTimestamp;
@@ -111,11 +117,15 @@ pub struct L1GasPriceProvider {
     config: L1GasPriceProviderConfig,
     // If received data before initialization (is None), it means the scraper has restarted.
     price_samples_by_block: Option<RingBuffer<GasPriceData>>,
+    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
 }
 
 impl L1GasPriceProvider {
-    pub fn new(config: L1GasPriceProviderConfig) -> Self {
-        Self { config, price_samples_by_block: None }
+    pub fn new(
+        config: L1GasPriceProviderConfig,
+        eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
+    ) -> Self {
+        Self { config, price_samples_by_block: None, eth_to_strk_oracle_client }
     }
 
     pub fn initialize(&mut self) -> L1GasPriceProviderResult<()> {
@@ -225,6 +235,13 @@ impl L1GasPriceProvider {
         L1_GAS_PRICE_LATEST_MEAN_VALUE.set_lossy(price_info_out.base_fee_per_gas.0);
         L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE.set_lossy(price_info_out.blob_fee.0);
         Ok(price_info_out)
+    }
+
+    pub async fn eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderResult<u128> {
+        self.eth_to_strk_oracle_client
+            .eth_to_fri_rate(timestamp)
+            .await
+            .map_err(L1GasPriceProviderError::EthToStrkOracleClientError)
     }
 }
 
