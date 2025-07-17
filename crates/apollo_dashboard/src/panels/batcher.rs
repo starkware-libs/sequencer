@@ -4,6 +4,7 @@ use apollo_batcher::metrics::{
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
     PROPOSAL_SUCCEEDED,
+    REJECTED_TRANSACTIONS,
 };
 use apollo_infra::metrics::{
     BATCHER_LOCAL_MSGS_PROCESSED,
@@ -58,6 +59,20 @@ fn get_panel_batcher_remote_client_send_attempts() -> Panel {
     Panel::from_hist(BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 
+fn get_panel_rejection_ratio() -> Panel {
+    Panel::new(
+        "rejection_ratio",
+        "Ratio of rejected transactions out of all processed, over the last 5 minutes",
+        vec![format!(
+            "100 * (increase({}[5m]) / (increase({}[5m]) + increase({}[5m])))",
+            REJECTED_TRANSACTIONS.get_name_with_filter(),
+            REJECTED_TRANSACTIONS.get_name_with_filter(),
+            BATCHED_TRANSACTIONS.get_name_with_filter(),
+        )],
+        PanelType::TimeSeries,
+    )
+}
+
 pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
@@ -68,6 +83,7 @@ pub(crate) fn get_batcher_row() -> Row {
             get_panel_proposal_failed(),
             get_panel_batched_transactions(),
             get_panel_last_batched_block(),
+            get_panel_rejection_ratio(),
         ],
     )
 }
