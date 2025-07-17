@@ -1172,3 +1172,78 @@ async fn decision_reached_return_error_when_l1_commit_block_fails(
     let result = batcher_propose_and_commit_block(mock_dependencies).await;
     assert!(result.is_err());
 }
+
+#[tokio::test]
+async fn test_proposal_flow_provides_preconfirmed_channels() {
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+
+    // Expect the block builder factory to be called with Some channels for preconfirmed block
+    // writer
+    block_builder_factory
+        .expect_create_block_builder()
+        .times(1)
+        .withf(|_, _, _, _, candidate_tx_sender, pre_confirmed_tx_sender, _| {
+            // Verify that both channels are provided (Some) during proposal flow
+            candidate_tx_sender.is_some() && pre_confirmed_tx_sender.is_some()
+        })
+        .return_once(|_, _, _, _, _, _, _| {
+            let block_builder = FakeProposeBlockBuilder {
+                output_content_sender: tokio::sync::mpsc::unbounded_channel().0,
+                output_txs: vec![],
+                build_block_result: Some(Ok(BlockExecutionArtifacts::create_for_testing())),
+            };
+            Ok((Box::new(block_builder), abort_signal_sender()))
+        });
+
+    let mut l1_provider_client = MockL1ProviderClient::new();
+    l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+
+    let mut batcher = create_batcher(MockDependencies {
+        block_builder_factory,
+        l1_provider_client,
+        ..Default::default()
+    })
+    .await;
+
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    // This should call create_block_builder with Some channels
+    batcher.propose_block(propose_block_input(PROPOSAL_ID)).await.unwrap();
+}
+
+#[tokio::test]
+async fn test_validation_flow_provides_no_preconfirmed_channels() {
+    let mut block_builder_factory = MockBlockBuilderFactoryTrait::new();
+
+    // Expect the block builder factory to be called with None channels for preconfirmed block
+    // writer
+    block_builder_factory
+        .expect_create_block_builder()
+        .times(1)
+        .withf(|_, _, _, _, candidate_tx_sender, pre_confirmed_tx_sender, _| {
+            // Verify that both channels are None during validation flow
+            candidate_tx_sender.is_none() && pre_confirmed_tx_sender.is_none()
+        })
+        .return_once(|_, _, tx_provider, _, _, _, _| {
+            let block_builder = FakeValidateBlockBuilder {
+                tx_provider,
+                build_block_result: Some(Ok(BlockExecutionArtifacts::create_for_testing())),
+            };
+            Ok((Box::new(block_builder), abort_signal_sender()))
+        });
+
+    let mut l1_provider_client = MockL1ProviderClient::new();
+    l1_provider_client.expect_start_block().returning(|_, _| Ok(()));
+
+    let mut batcher = create_batcher(MockDependencies {
+        block_builder_factory,
+        l1_provider_client,
+        ..Default::default()
+    })
+    .await;
+
+    batcher.start_height(StartHeightInput { height: INITIAL_HEIGHT }).await.unwrap();
+
+    // This should call create_block_builder with None channels
+    batcher.validate_block(validate_block_input(PROPOSAL_ID)).await.unwrap();
+}
