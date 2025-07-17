@@ -14,7 +14,7 @@ pub struct SecretsConfigOverride {
     #[serde(rename = "base_layer_config.node_url")]
     base_layer_config_node_url: Url,
     #[serde(
-        rename = "consensus_manager_config.eth_to_strk_oracle_config.url_header_list",
+        rename = "eth_to_strk_oracle_config.url_header_list",
         serialize_with = "serialize_optional_list_with_url_and_headers_wrapper"
     )]
     consensus_manager_config_eth_to_strk_oracle_config_url_header_list: Option<Vec<UrlAndHeaders>>,

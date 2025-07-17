@@ -441,12 +441,11 @@ pub async fn create_node_components(
                 .as_ref()
                 .expect("L1 Gas Price Provider config should be set");
             let eth_to_strk_oracle_config = config
-                .consensus_manager_config
-                .as_ref()
-                .expect("Consensus Manager config should be set")
                 .eth_to_strk_oracle_config
-                .clone();
-            let eth_to_strk_oracle_client = EthToStrkOracleClient::new(eth_to_strk_oracle_config);
+                .as_ref()
+                .expect("Eth to Strk oracle config should be set");
+            let eth_to_strk_oracle_client =
+                EthToStrkOracleClient::new(eth_to_strk_oracle_config.clone());
             Some(L1GasPriceProvider::new(
                 l1_gas_price_provider_config.clone(),
                 Arc::new(eth_to_strk_oracle_client),
