@@ -1,7 +1,10 @@
 use std::convert::TryFrom;
 use std::fmt;
+use std::str::FromStr;
 
+use apollo_network::utils::{make_multiaddr, NetworkAddress};
 use libp2p::identity::Keypair;
+use libp2p::PeerId;
 
 // TODO(Tsabary): Get rid of the secret key type and its usage; there should be a precomputed map
 // from node index to its peer id.
@@ -55,5 +58,10 @@ pub(crate) fn get_peer_id(secret_key: SecretKey) -> String {
 }
 
 pub(crate) fn get_p2p_address(dns: &str, port: u16, peer_id: &str) -> String {
-    format!("/dns/{dns}/udp/{port}/quic-v1/p2p/{peer_id}")
+    make_multiaddr(
+        NetworkAddress::Dns(dns.to_string()),
+        port,
+        Some(PeerId::from_str(peer_id).unwrap()),
+    )
+    .to_string()
 }

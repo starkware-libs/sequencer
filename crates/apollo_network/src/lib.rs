@@ -43,6 +43,8 @@ use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::ChainId;
 use validator::{Validate, ValidationError};
 
+use crate::utils::port_description;
+
 pub(crate) type Bytes = Vec<u8>;
 
 // TODO(AndrewL): Fix this
@@ -113,7 +115,7 @@ impl SerializeConfig for NetworkConfig {
             ser_param(
                 "port",
                 &self.port,
-                "The port that the node listens on for incoming udp connections for quic.",
+                &port_description(),
                 ParamPrivacyInput::Public,
             ),
             ser_param(
