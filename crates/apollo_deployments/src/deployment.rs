@@ -108,7 +108,7 @@ pub(crate) fn build_service_namespace_domain_address(
 
 // TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be
 // removed, and the p2p address should always be `External`.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum P2PCommunicationType {
     Internal,
     External,

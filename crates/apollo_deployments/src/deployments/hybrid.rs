@@ -139,19 +139,19 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
         match environment {
             Environment::CloudK8s(cloud_env) => match cloud_env {
-                CloudK8sEnvironment::SepoliaIntegration
-                | CloudK8sEnvironment::TestingEnvThree
-                | CloudK8sEnvironment::UpgradeTest => match self {
-                    HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => {
-                        Some(Toleration::ApolloCoreService)
+                CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
+                    match self {
+                        HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => {
+                            Some(Toleration::ApolloCoreService)
+                        }
+                        HybridNodeServiceName::HttpServer
+                        | HybridNodeServiceName::Gateway
+                        | HybridNodeServiceName::L1
+                        | HybridNodeServiceName::SierraCompiler => {
+                            Some(Toleration::ApolloGeneralService)
+                        }
                     }
-                    HybridNodeServiceName::HttpServer
-                    | HybridNodeServiceName::Gateway
-                    | HybridNodeServiceName::L1
-                    | HybridNodeServiceName::SierraCompiler => {
-                        Some(Toleration::ApolloGeneralService)
-                    }
-                },
+                }
                 CloudK8sEnvironment::Mainnet
                 | CloudK8sEnvironment::SepoliaTestnet
                 | CloudK8sEnvironment::StressTest => match self {
@@ -223,28 +223,28 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_resources(&self, environment: &Environment) -> Resources {
         match environment {
             Environment::CloudK8s(cloud_env) => match cloud_env {
-                CloudK8sEnvironment::SepoliaIntegration
-                | CloudK8sEnvironment::UpgradeTest
-                | CloudK8sEnvironment::TestingEnvThree => match self {
-                    HybridNodeServiceName::Core => {
-                        Resources::new(Resource::new(2, 4), Resource::new(7, 14))
+                CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
+                    match self {
+                        HybridNodeServiceName::Core => {
+                            Resources::new(Resource::new(2, 4), Resource::new(7, 14))
+                        }
+                        HybridNodeServiceName::HttpServer => {
+                            Resources::new(Resource::new(1, 2), Resource::new(4, 8))
+                        }
+                        HybridNodeServiceName::Gateway => {
+                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        }
+                        HybridNodeServiceName::L1 => {
+                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        }
+                        HybridNodeServiceName::Mempool => {
+                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        }
+                        HybridNodeServiceName::SierraCompiler => {
+                            Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        }
                     }
-                    HybridNodeServiceName::HttpServer => {
-                        Resources::new(Resource::new(1, 2), Resource::new(4, 8))
-                    }
-                    HybridNodeServiceName::Gateway => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                    HybridNodeServiceName::L1 => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                    HybridNodeServiceName::Mempool => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                    HybridNodeServiceName::SierraCompiler => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
-                    }
-                },
+                }
                 CloudK8sEnvironment::Potc2
                 | CloudK8sEnvironment::Mainnet
                 | CloudK8sEnvironment::SepoliaTestnet
