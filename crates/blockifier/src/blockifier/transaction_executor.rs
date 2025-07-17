@@ -245,7 +245,8 @@ pub(crate) fn finalize_block<S: StateReader>(
         allocate_aliases_in_storage(block_state, alias_contract_address)?;
     }
 
-    update_compiled_class_hash_migration_in_state(&lock_bouncer(bouncer), block_state)?;
+    let compiled_class_hashes_to_migrate =
+        update_compiled_class_hash_migration_in_state(&lock_bouncer(bouncer), block_state)?;
     let state_diff = block_state.to_state_diff()?.state_maps;
 
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
@@ -278,8 +279,7 @@ pub(crate) fn finalize_block<S: StateReader>(
         bouncer_weights: *bouncer.get_accumulated_weights(),
         casm_hash_computation_data_sierra_gas,
         casm_hash_computation_data_proving_gas,
-        // TODO(Meshi): derive from bouncer once migration is supported.
-        compiled_class_hashes_to_migrate: vec![],
+        compiled_class_hashes_to_migrate,
     })
 }
 
@@ -288,14 +288,27 @@ pub(crate) fn finalize_block<S: StateReader>(
 fn update_compiled_class_hash_migration_in_state<S: StateReader>(
     bouncer: &Bouncer,
     block_state: &mut CachedState<S>,
-) -> StateResult<()> {
+) -> StateResult<CompiledClassHashesToMigrate> {
+    let mut compiled_class_hashes_v2_to_v1: CompiledClassHashesToMigrate = Vec::new();
     for &class_hash in &bouncer.class_hashes_to_migrate {
+        let compiled_class_hash_v1 = block_state
+            .get_compiled_class_hash(class_hash)
+            .expect("Failed to get current compiled class hash for migration");
+
         let compiled_class_hash_v2 = get_compiled_class_hash_v2(block_state, class_hash)
             .expect("Failed to get compiled class hash v2 for migration");
+
+        // Sanity check: the compiled class hashes should not be equal.
+        assert_ne!(
+            compiled_class_hash_v1, compiled_class_hash_v2,
+            "Classes for migration should hold v1 (Poseidon) hash in the state."
+        );
+
         // TODO(Meshi): Consider panic here instead of returning an error.
         block_state.set_compiled_class_hash(class_hash, compiled_class_hash_v2)?;
+        compiled_class_hashes_v2_to_v1.push((compiled_class_hash_v2, compiled_class_hash_v1));
     }
-    Ok(())
+    Ok(compiled_class_hashes_v2_to_v1)
 }
 
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
