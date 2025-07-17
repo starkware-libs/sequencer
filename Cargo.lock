@@ -1482,13 +1482,10 @@ dependencies = [
  "async-trait",
  "mockall",
  "papyrus_base_layer",
- "reqwest 0.11.27",
  "serde",
- "serde_json",
  "starknet_api",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
- "tokio",
  "tracing",
 ]
 
