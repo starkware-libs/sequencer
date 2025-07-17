@@ -257,7 +257,7 @@ pub async fn create_node_components(
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
-            let l1_scraper_config = config.l1_scraper_config.clone();
+            let l1_scraper_config = config.l1_message_provider_config.l1_scraper_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
             let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config)
                 .await
@@ -290,7 +290,7 @@ pub async fn create_node_components(
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let mut l1_provider_builder = L1ProviderBuilder::new(
-                config.l1_provider_config,
+                config.l1_message_provider_config.l1_provider_config,
                 clients.get_l1_provider_shared_client().unwrap(),
                 clients.get_batcher_shared_client().unwrap(),
                 clients.get_state_sync_shared_client().unwrap(),
@@ -339,19 +339,33 @@ pub async fn create_node_components(
                     );
 
                     // Helps keep override use more structured, prevents bugs.
+                    // TODO(Arni): Consider replacing this assertion with a validation on
+                    // l1_message_provider_config.
                     assert!(
                         config
+                            .l1_message_provider_config
                             .l1_provider_config
                             .provider_startup_height_override
-                            .xor(config.l1_provider_config.bootstrap_catch_up_height_override)
+                            .xor(
+                                config
+                                    .l1_message_provider_config
+                                    .l1_provider_config
+                                    .bootstrap_catch_up_height_override
+                            )
                             .is_none(),
                         "Configuration error: overriding only one of startup_height={startup:?} \
                          or catchup_height={catchup:?} is not supported in l1 provider's dummy \
                          mode. Either set neither (this is the preferred way) which sets both \
                          values to the batcher height, or set both if you have a specific startup \
                          flow in mind.",
-                        startup = config.l1_provider_config.provider_startup_height_override,
-                        catchup = config.l1_provider_config.bootstrap_catch_up_height_override
+                        startup = config
+                            .l1_message_provider_config
+                            .l1_provider_config
+                            .provider_startup_height_override,
+                        catchup = config
+                            .l1_message_provider_config
+                            .l1_provider_config
+                            .bootstrap_catch_up_height_override
                     );
                     Some(
                         l1_provider_builder

@@ -25,7 +25,7 @@ use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
-use apollo_l1_provider::config::{L1ProviderConfig, L1ScraperConfig};
+use apollo_l1_provider::config::L1MessageProviderConfig;
 use apollo_mempool::config::MempoolConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -61,7 +61,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "consensus_manager_config.context_config.chain_id",
                 "consensus_manager_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
-                "l1_scraper_config.chain_id",
+                "l1_message_provider_config.l1_scraper_config.chain_id",
                 "l1_gas_price_scraper_config.chain_id",
                 "mempool_p2p_config.network_config.chain_id",
                 "state_sync_config.storage_config.db_config.chain_id",
@@ -180,11 +180,11 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub l1_endpoint_monitor_config: L1EndpointMonitorConfig,
     #[validate]
-    pub l1_provider_config: L1ProviderConfig,
-    #[validate]
     pub l1_gas_price_provider_config: L1GasPriceProviderConfig,
+    // TODO(Arni): This causes a discrepancy with the structure of [ComponentConfig]. Address this
+    // issue.
     #[validate]
-    pub l1_scraper_config: L1ScraperConfig,
+    pub l1_message_provider_config: L1MessageProviderConfig,
     #[validate]
     pub mempool_config: MempoolConfig,
     #[validate]
@@ -223,8 +223,10 @@ impl SerializeConfig for SequencerNodeConfig {
                 self.l1_endpoint_monitor_config.dump(),
                 "l1_endpoint_monitor_config",
             ),
-            prepend_sub_config_name(self.l1_provider_config.dump(), "l1_provider_config"),
-            prepend_sub_config_name(self.l1_scraper_config.dump(), "l1_scraper_config"),
+            prepend_sub_config_name(
+                self.l1_message_provider_config.dump(),
+                "l1_message_provider_config",
+            ),
             prepend_sub_config_name(
                 self.l1_gas_price_provider_config.dump(),
                 "l1_gas_price_provider_config",
