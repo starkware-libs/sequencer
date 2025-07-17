@@ -164,6 +164,16 @@ impl ServiceNameInner for HybridNodeServiceName {
                     }
                     HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 },
+                CloudK8sEnvironment::Potc2 => match self {
+                    HybridNodeServiceName::Core => Some(Toleration::Batcher864),
+                    HybridNodeServiceName::HttpServer
+                    | HybridNodeServiceName::Gateway
+                    | HybridNodeServiceName::L1
+                    | HybridNodeServiceName::SierraCompiler => {
+                        Some(Toleration::ApolloGeneralService)
+                    }
+                    HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                },
             },
             Environment::LocalK8s => None,
         }
@@ -235,7 +245,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                         Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                     }
                 },
-                CloudK8sEnvironment::Mainnet
+                CloudK8sEnvironment::Potc2
+                | CloudK8sEnvironment::Mainnet
                 | CloudK8sEnvironment::SepoliaTestnet
                 | CloudK8sEnvironment::StressTest => match self {
                     HybridNodeServiceName::Core => {

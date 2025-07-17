@@ -6,17 +6,20 @@ use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
 use crate::deployment_definitions::mainnet::mainnet_hybrid_deployments;
+use crate::deployment_definitions::potc2_sepolia::potc2_sepolia_hybrid_deployments;
 use crate::deployment_definitions::sepolia_integration::sepolia_integration_hybrid_deployments;
 use crate::deployment_definitions::sepolia_testnet::sepolia_testnet_hybrid_deployments;
 use crate::deployment_definitions::stress_test::stress_test_hybrid_deployments;
 use crate::deployment_definitions::testing::system_test_deployments;
 use crate::deployment_definitions::testing_env_3::testing_env_3_hybrid_deployments;
 use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments;
+
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
 
 mod mainnet;
+mod potc2_sepolia;
 mod sepolia_integration;
 mod sepolia_testnet;
 mod stress_test;
@@ -32,6 +35,7 @@ pub(crate) const BASE_APP_CONFIG_PATH: &str =
 type DeploymentFn = fn() -> Vec<Deployment>;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
+    potc2_sepolia_hybrid_deployments,
     mainnet_hybrid_deployments,
     sepolia_integration_hybrid_deployments,
     sepolia_testnet_hybrid_deployments,
@@ -59,6 +63,7 @@ impl Display for Environment {
 #[derive(EnumString, Clone, Display, PartialEq, Debug)]
 #[strum(serialize_all = "snake_case")]
 pub enum CloudK8sEnvironment {
+    Potc2,
     Mainnet,
     SepoliaIntegration,
     SepoliaTestnet,

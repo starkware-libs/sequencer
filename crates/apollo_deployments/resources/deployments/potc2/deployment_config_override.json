@@ -1,0 +1,13 @@
+{
+  "base_layer_config.starknet_contract_address": "0xd8A5518cf4AC3ECD3b4cec772478109679a73E78",
+  "chain_id": "PRIVATE_SN_POTC_MOCK_SEPOLIA",
+  "consensus_manager_config.context_config.num_validators": 3,
+  "eth_fee_token_address": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+  "l1_provider_config.provider_startup_height_override": 0,
+  "l1_provider_config.provider_startup_height_override.#is_none": true,
+  "starknet_url": "https://feeder.potc-mock-sepolia-fgw.starknet.io/",
+  "state_sync_config.central_sync_client_config.#is_none": false,
+  "state_sync_config.network_config.#is_none": true,
+  "state_sync_config.p2p_sync_client_config.#is_none": true,
+  "strk_fee_token_address": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7"
+}
