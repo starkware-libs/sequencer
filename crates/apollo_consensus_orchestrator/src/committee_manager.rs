@@ -15,7 +15,7 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
-use crate::utils::{get_block_hash, StateSyncError};
+use crate::utils::{get_block_hash, BlockRandomGenerator, StateSyncError};
 
 pub type Committee = Vec<Staker>;
 pub type StakerSet = Vec<Staker>;
@@ -29,8 +29,8 @@ mod committee_manager_test;
 
 struct CommitteeData {
     committee_members: Arc<Committee>,
-    _cumulative_weights: Vec<u128>,
-    _total_weight: u128,
+    cumulative_weights: Vec<u128>,
+    total_weight: u128,
 }
 
 // Holds committee data for the highest known epochs, limited in size by `capacity``.
@@ -79,6 +79,7 @@ pub struct CommitteeManagerConfig {
 // the consensus at a given epoch, responsible for proposing blocks and voting on them.
 pub struct CommitteeManager {
     committee_data_cache: CommitteeDataCache,
+    random_generator: Box<dyn BlockRandomGenerator>,
     config: CommitteeManagerConfig,
 }
 
@@ -90,6 +91,8 @@ pub enum CommitteeManagerError {
     RetdataDeserializationError(#[from] RetdataDeserializationError),
     #[error(transparent)]
     StateSyncError(#[from] StateSyncError),
+    #[error("Committee is empty.")]
+    EmptyCommittee,
 }
 
 #[derive(Debug, Error)]
@@ -115,8 +118,15 @@ pub struct ExecutionContext<S: StateReader> {
 pub type CommitteeManagerResult<T> = Result<T, CommitteeManagerError>;
 
 impl CommitteeManager {
-    pub fn new(config: CommitteeManagerConfig) -> Self {
-        Self { committee_data_cache: CommitteeDataCache::new(config.max_cached_epochs), config }
+    pub fn new(
+        random_generator: Box<dyn BlockRandomGenerator>,
+        config: CommitteeManagerConfig,
+    ) -> Self {
+        Self {
+            committee_data_cache: CommitteeDataCache::new(config.max_cached_epochs),
+            random_generator,
+            config,
+        }
     }
 
     // Returns a list of the committee members at the given epoch.
@@ -146,15 +156,17 @@ impl CommitteeManager {
             .proposer_randomness_block_hash(height, execution_context.state_sync_client.clone())
             .await?;
 
-        // Generate a pseudorandom value based on the height, round, and block hash.
-        let random_value = get_pseudorandom_value(height, round, block_hash);
-
         // Get the committee for the epoch this height belongs to.
         let epoch = height.0 / EPOCH_LENGTH; // TODO(Dafna): export to a utility function.
-        let committee = self.get_committee(epoch, execution_context)?;
+        let committee_data = self.committee_data_at_epoch(epoch, execution_context)?;
+
+        // Generate a pseudorandom value in the range [0, total_weight) based on the height, round,
+        // and block hash.
+        let random_value =
+            self.random_generator.generate(height, round, block_hash, committee_data.total_weight);
 
         // Select a proposer from the committee using the generated random.
-        let proposer = self.choose_proposer(&committee, random_value);
+        let proposer = self.choose_proposer(&committee_data, random_value)?;
         Ok(proposer.address)
     }
 
@@ -209,8 +221,8 @@ impl CommitteeManager {
 
         Ok(CommitteeData {
             committee_members: Arc::new(committee_members),
-            _cumulative_weights: cumulative_weights,
-            _total_weight: total_weight,
+            cumulative_weights,
+            total_weight,
         })
     }
 
@@ -245,17 +257,44 @@ impl CommitteeManager {
         }
     }
 
-    fn choose_proposer(&self, _committee: &Committee, _random: u64) -> &Staker {
-        todo!()
-    }
-}
+    // Chooses a proposer from the committee using a weighted random selection.
+    // The selection is based on the provided random value, where a staker's chance of selection is
+    // proportional to its weight.
+    // Note: the random value must be in the range [0, committee_data.total_weight).
+    fn choose_proposer<'a>(
+        &self,
+        committee_data: &'a CommitteeData,
+        random: u128,
+    ) -> CommitteeManagerResult<&'a Staker> {
+        if committee_data.committee_members.is_empty() {
+            return Err(CommitteeManagerError::EmptyCommittee);
+        }
 
-fn get_pseudorandom_value(
-    _height: BlockNumber,
-    _round: Round,
-    _block_hash: Option<BlockHash>,
-) -> u64 {
-    todo!()
+        let total_weight = committee_data.total_weight;
+        assert!(
+            random < committee_data.total_weight,
+            "Invalid random value {random}: exceeds total weight limit of {total_weight}."
+        );
+
+        // Iterates over stakers and selects staker `i` if `random < cumulative_weights[i]`.
+        // Each staker occupies a range of values proportional to their weight, defined as:
+        //     [cumulative_weights[i - 1], cumulative_weights[i])
+        // Since we iterate in order, the first staker whose cumulative weight exceeds `random`
+        // is the one whose range contains it.
+        for (i, cum_weight) in committee_data.cumulative_weights.iter().enumerate() {
+            if random < *cum_weight {
+                return committee_data.committee_members.get(i).ok_or_else(|| {
+                    panic!(
+                        "Inconsistent committee data; cumulative_weights and committee_members \
+                         are not the same length."
+                    )
+                });
+            }
+        }
+
+        // We should never reach this point.
+        panic!("Inconsistent committee data; cumulative_weights inconsistent with total weight.")
+    }
 }
 
 #[cfg_attr(test, derive(Clone))]
