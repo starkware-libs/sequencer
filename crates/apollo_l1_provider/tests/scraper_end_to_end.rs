@@ -2,8 +2,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use apollo_l1_provider::config::L1ScraperConfig;
 use apollo_l1_provider::event_identifiers_to_track;
-use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper, L1ScraperConfig};
+use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
 use mockall::predicate::eq;
 use mockall::Sequence;
