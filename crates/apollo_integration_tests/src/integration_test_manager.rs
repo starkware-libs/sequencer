@@ -11,6 +11,7 @@ use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
+use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -895,6 +896,7 @@ pub async fn get_sequencer_setup_configs(
 
     let mut nodes = Vec::new();
 
+    // TODO(tsabary): Move these to the start of the test and propagate their values when relevant.
     // All nodes use the same recorder_url and eth_to_strk_oracle_url.
     let (recorder_url, _join_handle) =
         spawn_local_success_recorder(base_layer_ports.get_next_port());
@@ -917,8 +919,11 @@ pub async fn get_sequencer_setup_configs(
         let state_sync_config = state_sync_configs.remove(0);
 
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
-        consensus_manager_config.eth_to_strk_oracle_config.url_header_list =
-            Some(vec![eth_to_strk_oracle_url.clone()]);
+        let eth_to_strk_oracle_config = EthToStrkOracleConfig {
+            url_header_list: Some(vec![eth_to_strk_oracle_url.clone()]),
+            ..Default::default()
+        };
+
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
         let chain_info = chain_info.clone();
 
@@ -940,6 +945,7 @@ pub async fn get_sequencer_setup_configs(
             storage_setup.storage_config.clone(),
             state_sync_config,
             consensus_manager_config,
+            eth_to_strk_oracle_config,
             mempool_p2p_config,
             MonitoringEndpointConfig::default(),
             ComponentConfig::default(),

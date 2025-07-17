@@ -179,7 +179,6 @@ pub struct SequencerNodeConfig {
     pub components: ComponentConfig,
     #[validate]
     pub monitoring_config: MonitoringConfig,
-
     // Business-logic component configs.
     #[validate]
     pub base_layer_config: Option<EthereumBaseLayerConfig>,

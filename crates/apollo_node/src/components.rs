@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use apollo_batcher::batcher::{create_batcher, Batcher};
 use apollo_batcher::pre_confirmed_cende_client::PreconfirmedCendeClient;
 use apollo_class_manager::class_manager::create_class_manager;
@@ -9,7 +7,6 @@ use apollo_consensus_manager::consensus_manager::ConsensusManager;
 use apollo_gateway::gateway::{create_gateway, Gateway};
 use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitor;
-use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleClient;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
 use apollo_l1_provider::event_identifiers_to_track;
@@ -440,17 +437,7 @@ pub async fn create_node_components(
                 .l1_gas_price_provider_config
                 .as_ref()
                 .expect("L1 Gas Price Provider config should be set");
-            let eth_to_strk_oracle_config = config
-                .consensus_manager_config
-                .as_ref()
-                .expect("Consensus Manager config should be set")
-                .eth_to_strk_oracle_config
-                .clone();
-            let eth_to_strk_oracle_client = EthToStrkOracleClient::new(eth_to_strk_oracle_config);
-            Some(L1GasPriceProvider::new(
-                l1_gas_price_provider_config.clone(),
-                Arc::new(eth_to_strk_oracle_client),
-            ))
+            Some(L1GasPriceProvider::new_with_oracle(l1_gas_price_provider_config.clone()))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
             // TODO(tsabary): assert config is not set.
