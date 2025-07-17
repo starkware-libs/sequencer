@@ -284,6 +284,12 @@ async fn print_write_blob_response(response: Response) {
     }
 }
 
+#[derive(Debug)]
+pub struct ExecutedTransactionInfo {
+    pub internal_tx: &InternalConsensusTransaction,
+    pub execution_info: &TransactionExecutionInfo,
+}
+
 #[derive(Debug, Default)]
 pub struct BlobParameters {
     pub(crate) block_info: BlockInfo,
@@ -291,12 +297,9 @@ pub struct BlobParameters {
     pub(crate) compressed_state_diff: Option<CommitmentStateDiff>,
     pub(crate) bouncer_weights: BouncerWeights,
     pub(crate) fee_market_info: FeeMarketInfo,
-    pub(crate) transactions: Vec<InternalConsensusTransaction>,
+    pub(crate) executed_transaction_infos: Vec<ExecutedTransactionInfo>,
     pub(crate) casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub(crate) casm_hash_computation_data_proving_gas: CasmHashComputationData,
-    // TODO(dvir): consider passing the execution_infos from the batcher as a string that
-    // serialized in the correct format from the batcher.
-    pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
 }
 
 impl AerospikeBlob {
@@ -316,12 +319,13 @@ impl AerospikeBlob {
             });
 
         let (central_transactions, contract_classes, compiled_classes) =
-            process_transactions(class_manager, blob_parameters.transactions, block_timestamp)
+            process_transactions(class_manager, blob_parameters.executed_transaction_infos.into_iter().map(|info|info.internal_tx).collect(), block_timestamp)
                 .await?;
 
         let execution_infos = blob_parameters
-            .execution_infos
+            .executed_transaction_infos
             .into_iter()
+            .map(|info| info.execution_info)
             .map(CentralTransactionExecutionInfo::from)
             .collect();
 
