@@ -2,17 +2,15 @@ use apollo_infra_utils::template::Template;
 use starknet_api::block::BlockNumber;
 use url::Url;
 
-use crate::config_override::{ConfigOverride, DeploymentConfigOverride};
+use crate::config_override::DeploymentConfigOverride;
 use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::{CloudK8sEnvironment, Environment, StateSyncType};
-use crate::deployments::hybrid::{create_hybrid_instance_config_override, INSTANCE_NAME_FORMAT};
-use crate::k8s::{ExternalSecret, IngressParams, K8sServiceConfigParams};
-use crate::service::NodeType;
+use crate::deployments::hybrid::{hybrid_deployment, INSTANCE_NAME_FORMAT};
+use crate::k8s::K8sServiceConfigParams;
 
 const NODE_IDS: [usize; 3] = [0, 1, 2];
-const UPGRADE_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str =
-    "sn-alpha-test-upgrade.gateway-proxy.sw-dev.io";
-const UPGRADE_TEST_INGRESS_DOMAIN: &str = "sw-dev.io";
+const HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "sn-alpha-test-upgrade.gateway-proxy.sw-dev.io";
+const INGRESS_DOMAIN: &str = "sw-dev.io";
 const SECRET_NAME_FORMAT: Template = Template("apollo-alpha-test-{}");
 const NODE_NAMESPACE_FORMAT: Template = Template("apollo-alpha-test-{}");
 
@@ -26,51 +24,37 @@ const STRK_FEE_TOKEN_ADDRESS: &str =
 const L1_STARTUP_HEIGHT_OVERRIDE: Option<BlockNumber> = None;
 const STATE_SYNC_TYPE: StateSyncType = StateSyncType::Central;
 
+const P2P_COMMUNICATION_TYPE: P2PCommunicationType = P2PCommunicationType::External;
+const DEPLOYMENT_ENVIRONMENT: Environment = Environment::CloudK8s(CloudK8sEnvironment::UpgradeTest);
+
 pub(crate) fn upgrade_test_hybrid_deployments() -> Vec<Deployment> {
     NODE_IDS
-        .map(|i| upgrade_test_hybrid_deployment_node(i, P2PCommunicationType::External))
+        .map(|i| {
+            hybrid_deployment(
+                i,
+                P2P_COMMUNICATION_TYPE,
+                DEPLOYMENT_ENVIRONMENT,
+                &INSTANCE_NAME_FORMAT,
+                &SECRET_NAME_FORMAT,
+                DeploymentConfigOverride::new(
+                    STARKNET_CONTRACT_ADDRESS,
+                    CHAIN_ID,
+                    ETH_FEE_TOKEN_ADDRESS,
+                    Url::parse(STARKNET_GATEWAY_URL).expect("Invalid URL"),
+                    STRK_FEE_TOKEN_ADDRESS,
+                    L1_STARTUP_HEIGHT_OVERRIDE,
+                    NODE_IDS.len(),
+                    STATE_SYNC_TYPE,
+                ),
+                &NODE_NAMESPACE_FORMAT,
+                INGRESS_DOMAIN,
+                HTTP_SERVER_INGRESS_ALTERNATIVE_NAME,
+                Some(K8sServiceConfigParams::new(
+                    NODE_NAMESPACE_FORMAT.format(&[&i]),
+                    INGRESS_DOMAIN.to_string(),
+                    P2P_COMMUNICATION_TYPE,
+                )),
+            )
+        })
         .to_vec()
-}
-
-fn deployment_config_override() -> DeploymentConfigOverride {
-    DeploymentConfigOverride::new(
-        STARKNET_CONTRACT_ADDRESS,
-        CHAIN_ID,
-        ETH_FEE_TOKEN_ADDRESS,
-        Url::parse(STARKNET_GATEWAY_URL).expect("Invalid URL"),
-        STRK_FEE_TOKEN_ADDRESS,
-        L1_STARTUP_HEIGHT_OVERRIDE,
-        NODE_IDS.len(),
-        STATE_SYNC_TYPE,
-    )
-}
-
-fn upgrade_test_hybrid_deployment_node(
-    id: usize,
-    p2p_communication_type: P2PCommunicationType,
-) -> Deployment {
-    Deployment::new(
-        NodeType::Hybrid,
-        Environment::CloudK8s(CloudK8sEnvironment::UpgradeTest),
-        &INSTANCE_NAME_FORMAT.format(&[&id]),
-        Some(ExternalSecret::new(SECRET_NAME_FORMAT.format(&[&id]))),
-        ConfigOverride::new(
-            deployment_config_override(),
-            create_hybrid_instance_config_override(
-                id,
-                NODE_NAMESPACE_FORMAT,
-                p2p_communication_type,
-                UPGRADE_TEST_INGRESS_DOMAIN,
-            ),
-        ),
-        IngressParams::new(
-            UPGRADE_TEST_INGRESS_DOMAIN.to_string(),
-            Some(vec![UPGRADE_TEST_HTTP_SERVER_INGRESS_ALTERNATIVE_NAME.into()]),
-        ),
-        Some(K8sServiceConfigParams::new(
-            NODE_NAMESPACE_FORMAT.format(&[&id]),
-            UPGRADE_TEST_INGRESS_DOMAIN.to_string(),
-            P2PCommunicationType::External,
-        )),
-    )
 }
