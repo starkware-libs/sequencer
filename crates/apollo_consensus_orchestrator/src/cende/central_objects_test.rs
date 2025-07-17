@@ -222,7 +222,7 @@ fn block_info() -> BlockInfo {
 fn central_state_diff() -> CentralStateDiff {
     let state_diff = thin_state_diff();
     let block_info = block_info();
-    let starknet_version = StarknetVersion::V0_14_1;
+    let starknet_version = StarknetVersion::V0_15_0;
 
     (state_diff, (block_info, starknet_version).into()).into()
 }
@@ -242,7 +242,7 @@ fn commitment_state_diff() -> CommitmentStateDiff {
 fn central_compressed_state_diff() -> CentralCompressedStateDiff {
     let state_diff = commitment_state_diff();
     let block_info = block_info();
-    let starknet_version = StarknetVersion::V0_14_1;
+    let starknet_version = StarknetVersion::V0_15_0;
 
     (state_diff, (block_info, starknet_version).into()).into()
 }
