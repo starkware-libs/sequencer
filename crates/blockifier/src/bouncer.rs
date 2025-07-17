@@ -282,11 +282,24 @@ impl CasmHashComputationData {
     }
 }
 
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(test, derive(Clone))]
 pub struct TxWeights {
     pub bouncer_weights: BouncerWeights,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
     pub class_hashes_to_migrate: HashSet<ClassHash>,
+}
+
+impl TxWeights {
+    fn empty() -> Self {
+        Self {
+            bouncer_weights: BouncerWeights::empty(),
+            casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
+            casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
+            class_hashes_to_migrate: HashSet::default(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
@@ -451,11 +464,8 @@ pub struct Bouncer {
     // to the accumulated weights.
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub state_changes_keys: StateChangesKeys,
-    pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
-    pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
-    pub class_hashes_to_migrate: HashSet<ClassHash>,
     pub bouncer_config: BouncerConfig,
-    accumulated_weights: BouncerWeights,
+    accumulated_weights: TxWeights,
 }
 
 impl Bouncer {
@@ -468,19 +478,29 @@ impl Bouncer {
             visited_storage_entries: HashSet::default(),
             state_changes_keys: StateChangesKeys::default(),
             bouncer_config: BouncerConfig::empty(),
-            accumulated_weights: BouncerWeights::empty(),
-            casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
-            casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
-            class_hashes_to_migrate: HashSet::default(),
+            accumulated_weights: TxWeights::empty(),
         }
     }
 
-    pub fn get_accumulated_weights(&self) -> &BouncerWeights {
-        &self.accumulated_weights
+    pub fn get_bouncer_weights(&self) -> &BouncerWeights {
+        &self.accumulated_weights.bouncer_weights
+    }
+
+    pub fn get_mut_casm_hash_computation_data_sierra_gas(
+        &mut self,
+    ) -> &mut CasmHashComputationData {
+        &mut self.accumulated_weights.casm_hash_computation_data_sierra_gas
+    }
+
+    pub fn get_mut_casm_hash_computation_data_proving_gas(
+        &mut self,
+    ) -> &mut CasmHashComputationData {
+        &mut self.accumulated_weights.casm_hash_computation_data_proving_gas
     }
 
     pub fn get_executed_class_hashes(&self) -> HashSet<ClassHash> {
-        self.casm_hash_computation_data_sierra_gas
+        self.accumulated_weights
+            .casm_hash_computation_data_sierra_gas
             .class_hash_to_casm_hash_computation_gas
             .keys()
             .cloned()
@@ -526,17 +546,17 @@ impl Bouncer {
         // Check if the transaction can fit the current block available capacity.
         let err_msg = format!(
             "Addition overflow. Transaction weights: {tx_bouncer_weights:?}, block weights: {:?}.",
-            self.accumulated_weights
+            self.get_bouncer_weights()
         );
         if !self
             .bouncer_config
-            .has_room(self.accumulated_weights.checked_add(tx_bouncer_weights).expect(&err_msg))
+            .has_room(self.get_bouncer_weights().checked_add(tx_bouncer_weights).expect(&err_msg))
         {
             log::debug!(
                 "Transaction cannot be added to the current block, block capacity reached; \
                  transaction weights: {:?}, block weights: {:?}.",
                 tx_weights.bouncer_weights,
-                self.accumulated_weights
+                self.get_bouncer_weights()
             );
             Err(TransactionExecutorError::BlockFull)?
         }
@@ -555,24 +575,29 @@ impl Bouncer {
         let bouncer_weights = &tx_weights.bouncer_weights;
         let err_msg = format!(
             "Addition overflow. Transaction weights: {bouncer_weights:?}, block weights: {:?}.",
-            self.accumulated_weights
+            self.get_bouncer_weights()
         );
-        self.accumulated_weights =
-            self.accumulated_weights.checked_add(tx_weights.bouncer_weights).expect(&err_msg);
-        self.casm_hash_computation_data_sierra_gas
+        self.accumulated_weights.bouncer_weights = self
+            .accumulated_weights
+            .bouncer_weights
+            .checked_add(tx_weights.bouncer_weights)
+            .expect(&err_msg);
+        self.accumulated_weights
+            .casm_hash_computation_data_sierra_gas
             .extend(tx_weights.casm_hash_computation_data_sierra_gas);
-        self.casm_hash_computation_data_proving_gas
+        self.accumulated_weights
+            .casm_hash_computation_data_proving_gas
             .extend(tx_weights.casm_hash_computation_data_proving_gas);
         self.visited_storage_entries.extend(&tx_execution_summary.visited_storage_entries);
         // Note: cancelling writes (0 -> 1 -> 0) will not be removed, but it's fine since fee was
         // charged for them.
         self.state_changes_keys.extend(state_changes_keys);
-        self.class_hashes_to_migrate.extend(tx_weights.class_hashes_to_migrate);
+        self.accumulated_weights.class_hashes_to_migrate.extend(tx_weights.class_hashes_to_migrate);
     }
 
     #[cfg(test)]
-    pub fn set_accumulated_weights(&mut self, weights: BouncerWeights) {
-        self.accumulated_weights = weights;
+    pub fn set_bouncer_weights(&mut self, weights: BouncerWeights) {
+        self.accumulated_weights.bouncer_weights = weights;
     }
 }
 
