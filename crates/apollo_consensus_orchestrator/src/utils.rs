@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use apollo_l1_gas_price_types::{
-    EthToStrkOracleClientTrait,
-    L1GasPriceProviderClient,
-    PriceInfo,
-    DEFAULT_ETH_TO_FRI_RATE,
-};
+use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
@@ -77,14 +72,13 @@ impl From<StateSyncError> for ValidateProposalError {
 }
 
 pub(crate) async fn get_oracle_rate_and_prices(
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     timestamp: u64,
     previous_block_info: Option<&ConsensusBlockInfo>,
     gas_price_params: &GasPriceParams,
 ) -> (u128, PriceInfo) {
     let (eth_to_strk_rate, price_info) = tokio::join!(
-        eth_to_strk_oracle_client.eth_to_fri_rate(timestamp),
+        l1_gas_price_provider_client.get_eth_to_fri_rate(timestamp),
         l1_gas_price_provider_client.get_price_info(BlockTimestamp(timestamp))
     );
     if price_info.is_err() {
