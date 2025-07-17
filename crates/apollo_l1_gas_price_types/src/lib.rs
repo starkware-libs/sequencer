@@ -1,5 +1,5 @@
 pub mod errors;
-
+use std::fmt::Debug;
 use std::iter::Sum;
 use std::sync::Arc;
 
@@ -61,6 +61,7 @@ pub enum L1GasPriceRequest {
     Initialize,
     GetGasPrice(BlockTimestamp),
     AddGasPrice(GasPriceData),
+    GetEthToFriRate(u64),
 }
 impl_debug_for_infra_requests_and_responses!(L1GasPriceRequest);
 
@@ -69,6 +70,7 @@ pub enum L1GasPriceResponse {
     Initialize(L1GasPriceProviderResult<()>),
     GetGasPrice(L1GasPriceProviderResult<PriceInfo>),
     AddGasPrice(L1GasPriceProviderResult<()>),
+    GetEthToFriRate(L1GasPriceProviderResult<u128>),
 }
 impl_debug_for_infra_requests_and_responses!(L1GasPriceResponse);
 
@@ -85,11 +87,13 @@ pub trait L1GasPriceProviderClient: Send + Sync {
         &self,
         timestamp: BlockTimestamp,
     ) -> L1GasPriceProviderClientResult<PriceInfo>;
+
+    async fn get_eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
 }
 
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
-pub trait EthToStrkOracleClientTrait: Send + Sync {
+pub trait EthToStrkOracleClientTrait: Send + Sync + Debug {
     /// Fetches the eth to fri rate for a given timestamp.
     async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError>;
 }
@@ -130,6 +134,17 @@ where
         handle_all_response_variants!(
             L1GasPriceResponse,
             GetGasPrice,
+            L1GasPriceClientError,
+            L1GasPriceProviderError,
+            Direct
+        )
+    }
+    #[instrument(skip(self))]
+    async fn get_eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128> {
+        let request = L1GasPriceRequest::GetEthToFriRate(timestamp);
+        handle_all_response_variants!(
+            L1GasPriceResponse,
+            GetEthToFriRate,
             L1GasPriceClientError,
             L1GasPriceProviderError,
             Direct

@@ -11,12 +11,7 @@ use apollo_l1_gas_price_types::errors::{
     L1GasPriceClientError,
     L1GasPriceProviderError,
 };
-use apollo_l1_gas_price_types::{
-    MockEthToStrkOracleClientTrait,
-    MockL1GasPriceProviderClient,
-    PriceInfo,
-    DEFAULT_ETH_TO_FRI_RATE,
-};
+use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, TransactionBatch, Vote};
 use apollo_time::time::MockClock;
 use chrono::{TimeZone, Utc};
@@ -474,6 +469,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
         0
     };
     let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
     l1_gas_price_provider.expect_get_price_info().returning(move |_| {
         Ok(PriceInfo { base_fee_per_gas: GasPrice(price), blob_fee: GasPrice(price) })
     });
@@ -586,6 +582,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
 
     if l1_oracle_failure {
         let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+        l1_prices_oracle_client.expect_get_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
         l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
             L1GasPriceClientError::L1GasPriceProviderError(
                 // random error, these parameters don't mean anything
@@ -594,11 +591,19 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
         ));
         deps.l1_gas_price_provider = l1_prices_oracle_client;
     } else {
-        let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-        eth_to_strk_oracle_client.expect_eth_to_fri_rate().times(1).return_once(|_| {
-            Err(EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()))
+        let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+        l1_prices_oracle_client.expect_get_price_info().returning(|_| {
+            Ok(PriceInfo {
+                base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+                blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
+            })
         });
-        deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
+        l1_prices_oracle_client.expect_get_eth_to_fri_rate().times(1).return_once(|_| {
+            Err(L1GasPriceClientError::EthToStrkOracleClientError(
+                EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()),
+            ))
+        });
+        deps.l1_gas_price_provider = l1_prices_oracle_client;
     }
 
     let mut context = deps.build_context();
@@ -667,6 +672,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     // set the oracle to succeed on first block and fail on second
     if l1_oracle_failure {
         let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+        l1_prices_oracle_client.expect_get_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
         l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Ok(PriceInfo {
             base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
             blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
@@ -679,15 +685,36 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
         ));
         deps.l1_gas_price_provider = l1_prices_oracle_client;
     } else {
-        let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-        eth_to_strk_oracle_client
-            .expect_eth_to_fri_rate()
+        let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+        // Make sure the L1 gas price always returns with good values.
+        l1_prices_oracle_client.expect_get_price_info().returning(|_| {
+            Ok(PriceInfo {
+                base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+                blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
+            })
+        });
+        // Set the eth_to_fri_rate to succeed on first block and fail on second.
+        l1_prices_oracle_client
+            .expect_get_eth_to_fri_rate()
             .times(1)
             .return_once(|_| Ok(ETH_TO_FRI_RATE));
-        eth_to_strk_oracle_client.expect_eth_to_fri_rate().times(1).return_once(|_| {
-            Err(EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()))
+        // Set the eth_to_fri_rate to fail on second block.
+        l1_prices_oracle_client.expect_get_eth_to_fri_rate().times(1).return_once(|_| {
+            Err(L1GasPriceClientError::EthToStrkOracleClientError(
+                EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()),
+            ))
         });
-        deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
+        deps.l1_gas_price_provider = l1_prices_oracle_client;
+
+        // let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
+        // eth_to_strk_oracle_client
+        //     .expect_eth_to_fri_rate()
+        //     .times(1)
+        //     .return_once(|_| Ok(ETH_TO_FRI_RATE));
+        // eth_to_strk_oracle_client.expect_eth_to_fri_rate().times(1).return_once(|_| {
+        //     Err(EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()))
+        // });
+        // deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
     }
 
     let mut context = deps.build_context();
