@@ -20,7 +20,7 @@ use blockifier::blockifier::concurrent_transaction_executor::ConcurrentTransacti
 use blockifier::blockifier::config::WorkerPoolConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
-    CompiledClassHashesToMigrate,
+    CompiledClassHashesForMigration,
     TransactionExecutionOutput,
     TransactionExecutorError as BlockifierTransactionExecutorError,
     TransactionExecutorResult,
@@ -108,7 +108,7 @@ pub struct BlockExecutionArtifacts {
     pub l2_gas_used: GasAmount,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
-    pub compiled_class_hashes_to_migrate: CompiledClassHashesToMigrate,
+    pub compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
     // The number of transactions executed by the proposer out of the transactions that were sent.
     // This value includes rejected transactions.
     pub final_n_executed_txs: usize,
@@ -306,7 +306,7 @@ impl BlockBuilder {
             bouncer_weights,
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
-            compiled_class_hashes_to_migrate,
+            compiled_class_hashes_for_migration,
         } = block_summary;
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
@@ -327,7 +327,7 @@ impl BlockBuilder {
             casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas,
             final_n_executed_txs: final_n_executed_txs_nonopt,
-            compiled_class_hashes_to_migrate,
+            compiled_class_hashes_for_migration,
         })
     }
 

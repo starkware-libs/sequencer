@@ -93,7 +93,7 @@ fn block_execution_artifacts(
         l2_gas_used,
         casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
         casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
-        compiled_class_hashes_to_migrate: vec![],
+        compiled_class_hashes_for_migration: vec![],
         final_n_executed_txs,
     }
 }
@@ -414,8 +414,8 @@ fn transaction_failed_test_expectations() -> TestExpectations {
                 .casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas: expected_block_artifacts_copy
                 .casm_hash_computation_data_proving_gas,
-            compiled_class_hashes_to_migrate: expected_block_artifacts_copy
-                .compiled_class_hashes_to_migrate,
+            compiled_class_hashes_for_migration: expected_block_artifacts_copy
+                .compiled_class_hashes_for_migration,
         })
     });
 
@@ -463,8 +463,8 @@ fn set_close_block_expectations(
                 .casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas: output_block_artifacts
                 .casm_hash_computation_data_proving_gas,
-            compiled_class_hashes_to_migrate: output_block_artifacts
-                .compiled_class_hashes_to_migrate,
+            compiled_class_hashes_for_migration: output_block_artifacts
+                .compiled_class_hashes_for_migration,
         })
     });
     output_block_artifacts_copy
@@ -956,7 +956,7 @@ async fn failed_l1_handler_transaction_consumed() {
             bouncer_weights: BouncerWeights::empty(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
-            compiled_class_hashes_to_migrate: vec![],
+            compiled_class_hashes_for_migration: vec![],
         })
     });
 
@@ -1014,8 +1014,8 @@ async fn partial_chunk_execution_proposer() {
                 .casm_hash_computation_data_sierra_gas,
             casm_hash_computation_data_proving_gas: expected_block_artifacts
                 .casm_hash_computation_data_proving_gas,
-            compiled_class_hashes_to_migrate: expected_block_artifacts
-                .compiled_class_hashes_to_migrate,
+            compiled_class_hashes_for_migration: expected_block_artifacts
+                .compiled_class_hashes_for_migration,
         })
     });
 
