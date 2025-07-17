@@ -10,5 +10,8 @@ blake2.workspace = true
 digest.workspace = true
 starknet-types-core.workspace = true
 
+[dev-dependencies]
+rstest.workspace = true
+
 [lints]
 workspace = true
