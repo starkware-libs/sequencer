@@ -371,9 +371,8 @@ pub async fn create_node_components(
     let l1_gas_price_provider = match config.components.l1_gas_price_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let eth_to_strk_oracle_client = EthToStrkOracleClient::new(
-                config.consensus_manager_config.eth_to_strk_oracle_config.clone(),
-            );
+            let eth_to_strk_oracle_client =
+                EthToStrkOracleClient::new(config.eth_to_strk_oracle_config.clone());
             Some(L1GasPriceProvider::new(
                 config.l1_gas_price_provider_config.clone(),
                 Arc::new(eth_to_strk_oracle_client),
