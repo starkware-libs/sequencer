@@ -96,16 +96,16 @@ class ExperimentRunner:
             )
 
     def run_experiment(self, args: argparse.Namespace):
-
-        if args.time_stamp:
-            self.time_stamp = args.time_stamp
+        self.deployment_file["args"] = vars(args)
+        if args.timestamp:
+            self.time_stamp = args.timestamp
             pr(f"Using provided timestamp: {self.time_stamp}")
         else:
             pr(f"Using current timestamp: {self.time_stamp}")
         self.deployment_file["time_stamp"] = self.time_stamp
 
         image_tag = make_image_tag(self.time_stamp)
-        if args.time_stamp:
+        if args.timestamp:
             pr(f"Using existing image with tag: {image_tag}")
             self.deployment_file["was_image_built"] = False
         else:
@@ -147,10 +147,7 @@ class ExperimentRunner:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--num-nodes", help="Number of nodes to run", type=int, default=3
-    )
-    parser.add_argument(
-        "--time-stamp",
+        "--timestamp",
         help="Previously compiled image timestamp to use instead of re-building the docker image.",
         type=str,
         default=None,
