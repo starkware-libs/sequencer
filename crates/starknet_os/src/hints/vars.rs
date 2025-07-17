@@ -294,7 +294,7 @@ define_string_enum! {
         ),
         (
             CompiledClassVersion,
-            "starkware.starknet.core.os.contract_class.compiled_class.COMPILED_CLASS_VERSION"
+            "starkware.starknet.core.os.contract_class.compiled_class_struct.COMPILED_CLASS_VERSION"
         ),
         (
             DeprecatedCompiledClassVersion,
@@ -364,14 +364,14 @@ define_string_enum! {
         (BuiltinParamsPtr, "starkware.starknet.core.os.builtins.BuiltinParams*"),
         (BuiltinPointersPtr, "starkware.starknet.core.os.builtins.BuiltinPointers*"),
         (CallContractResponse, "starkware.starknet.common.new_syscalls.CallContractResponse"),
-        (CompiledClass, "starkware.starknet.core.os.contract_class.compiled_class.CompiledClass"),
+        (CompiledClass, "starkware.starknet.core.os.contract_class.compiled_class_struct.CompiledClass"),
         (
             CompiledClassEntryPoint,
-            "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassEntryPoint"
+            "starkware.starknet.core.os.contract_class.compiled_class_struct.CompiledClassEntryPoint"
         ),
         (
             CompiledClassFact,
-            "starkware.starknet.core.os.contract_class.compiled_class.CompiledClassFact"
+            "starkware.starknet.core.os.contract_class.compiled_class_struct.CompiledClassFact"
         ),
         (DeployResponse, "starkware.starknet.common.new_syscalls.DeployResponse"),
         (DeprecatedCallContractResponse, "starkware.starknet.common.syscalls.CallContractResponse"),
