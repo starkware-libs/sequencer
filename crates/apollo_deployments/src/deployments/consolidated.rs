@@ -142,8 +142,10 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ServicePort::MonitoringEndpoint => {
                     service_ports.insert(ServicePort::MonitoringEndpoint);
                 }
-                ServicePort::HttpServer
-                | ServicePort::Batcher
+                ServicePort::HttpServer => {
+                    service_ports.insert(ServicePort::HttpServer);
+                }
+                ServicePort::Batcher
                 | ServicePort::Mempool
                 | ServicePort::ClassManager
                 | ServicePort::Gateway

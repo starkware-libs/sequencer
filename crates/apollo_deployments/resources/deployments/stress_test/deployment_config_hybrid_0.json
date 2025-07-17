@@ -77,6 +77,7 @@
       },
       "anti_affinity": false,
       "ports": {
+        "HttpServer": 8080,
         "MonitoringEndpoint": 8082
       }
     },
