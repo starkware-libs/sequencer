@@ -23,6 +23,7 @@ use crate::concurrency::versioned_state::{
 };
 use crate::concurrency::TxIndex;
 use crate::context::BlockContext;
+use crate::metrics::{CALLS_RUNNING_NATIVE, TOTAL_CALLS};
 use crate::state::cached_state::{ContractClassMapping, StateMaps, TransactionalState};
 use crate::state::state_api::{StateReader, UpdatableState};
 use crate::transaction::objects::{TransactionExecutionInfo, TransactionExecutionResult};
@@ -331,11 +332,17 @@ impl<S: StateReader> WorkerExecutor<S> {
                 tx_execution_info,
                 concurrency_mode,
             );
+            let execution_summary =
+                tx_execution_info.summarize(&self.block_context.versioned_constants);
+
+            let call_summary = execution_summary.call_summary;
+            TOTAL_CALLS.increment(call_summary.n_calls);
+            CALLS_RUNNING_NATIVE.increment(call_summary.n_calls_running_native);
             // Ask the bouncer if there is room for the transaction in the block.
             let bouncer_result = self.bouncer.lock().expect("Bouncer lock failed.").try_update(
                 &tx_versioned_state,
                 &tx_state_changes_keys,
-                &tx_execution_info.summarize(&self.block_context.versioned_constants),
+                &execution_summary,
                 &tx_execution_info.summarize_builtins(),
                 &tx_execution_info.receipt.resources,
                 &self.block_context.versioned_constants,
@@ -349,6 +356,7 @@ impl<S: StateReader> WorkerExecutor<S> {
                     }
                 }
             }
+
             complete_fee_transfer_flow(
                 &tx_context,
                 tx_execution_info,

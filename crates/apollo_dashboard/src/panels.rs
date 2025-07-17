@@ -1,4 +1,5 @@
 pub(crate) mod batcher;
+pub(crate) mod blockifier;
 pub(crate) mod class_manager;
 pub(crate) mod consensus;
 pub(crate) mod gateway;
@@ -8,5 +9,4 @@ pub(crate) mod l1_provider;
 pub(crate) mod mempool;
 pub(crate) mod mempool_p2p;
 pub(crate) mod sierra_compiler;
-pub(crate) mod state_reader;
 pub(crate) mod state_sync;

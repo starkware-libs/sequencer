@@ -1,9 +1,11 @@
+use std::collections::BTreeMap;
+
 use apollo_l1_gas_price_types::EthToStrkOracleClientTrait;
 use serde_json::json;
 use tokio::{self};
 use url::Url;
 
-use crate::eth_to_strk_oracle::{EthToStrkOracleClient, EthToStrkOracleConfig};
+use crate::eth_to_strk_oracle::{EthToStrkOracleClient, EthToStrkOracleConfig, UrlAndHeaders};
 
 #[tokio::test]
 async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
@@ -31,8 +33,13 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
             .to_string(),
         )
         .create();
-    let base_url = Url::parse(&server.url()).unwrap();
-    let config = EthToStrkOracleConfig { base_url, lag_interval_seconds, ..Default::default() };
+    let url_and_headers = UrlAndHeaders {
+        url: Url::parse(&server.url()).unwrap(),
+        headers: BTreeMap::new(), // No additional headers needed for this test.
+    };
+    let url_header_list = Some(vec![url_and_headers]);
+    let config =
+        EthToStrkOracleConfig { url_header_list, lag_interval_seconds, ..Default::default() };
     let client = EthToStrkOracleClient::new(config.clone());
 
     // First request should fail because the cache is empty.
