@@ -11,7 +11,6 @@ use crate::deployment_definitions::sepolia_integration::sepolia_integration_hybr
 use crate::deployment_definitions::sepolia_testnet::sepolia_testnet_hybrid_deployments;
 use crate::deployment_definitions::stress_test::stress_test_hybrid_deployments;
 use crate::deployment_definitions::testing::system_test_deployments;
-use crate::deployment_definitions::testing_env_3::testing_env_3_hybrid_deployments;
 use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments;
 
 #[cfg(test)]
@@ -24,7 +23,6 @@ mod sepolia_integration;
 mod sepolia_testnet;
 mod stress_test;
 mod testing;
-mod testing_env_3;
 mod upgrade_test;
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
@@ -41,7 +39,6 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
     sepolia_testnet_hybrid_deployments,
     stress_test_hybrid_deployments,
     system_test_deployments,
-    testing_env_3_hybrid_deployments,
     upgrade_test_hybrid_deployments,
 ];
 
@@ -69,8 +66,6 @@ pub enum CloudK8sEnvironment {
     SepoliaTestnet,
     #[strum(serialize = "stress_test")]
     StressTest,
-    #[strum(serialize = "testing_env_3")]
-    TestingEnvThree,
     #[strum(serialize = "upgrade_test")]
     UpgradeTest,
 }
