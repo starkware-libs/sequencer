@@ -6,6 +6,8 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
+pub const HTTP_SERVER_PORT: u16 = 8080;
+
 /// The http server connection related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct HttpServerConfig {
@@ -24,6 +26,6 @@ impl SerializeConfig for HttpServerConfig {
 
 impl Default for HttpServerConfig {
     fn default() -> Self {
-        Self { ip: IpAddr::from(Ipv4Addr::UNSPECIFIED), port: 8080 }
+        Self { ip: IpAddr::from(Ipv4Addr::UNSPECIFIED), port: HTTP_SERVER_PORT }
     }
 }
