@@ -22,6 +22,7 @@ use thiserror::Error;
 use tracing::{error, info, trace, warn};
 use validator::Validate;
 
+use crate::l1_gas_price_provider::L1GasPriceSharedConfig;
 use crate::metrics::{
     register_scraper_metrics,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
@@ -49,12 +50,8 @@ pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
     NetworkError(ClientError),
 }
 
-// TODO(guyn): find a way to synchronize the value of number_of_blocks_for_mean
-// with the one in L1GasPriceProviderConfig. In the end they should both be loaded
-// from VersionedConstants.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct L1GasPriceScraperConfig {
-    /// This field is ignored by the L1Scraper.
     /// Manual override to specify where the scraper should start.
     /// If None, the node will start scraping from 2*number_of_blocks_for_mean before the tip of
     /// L1.
@@ -64,10 +61,10 @@ pub struct L1GasPriceScraperConfig {
     pub finality: u64,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub polling_interval: Duration,
-    pub number_of_blocks_for_mean: u64,
-    // How many sets of config.num_blocks_for_mean blocks to go back
+    // How many sets of shared_config.number_of_blocks_for_mean blocks to go back
     // on the chain when starting to scrape.
     pub startup_num_blocks_multiplier: u64,
+    pub shared_config: L1GasPriceSharedConfig,
 }
 
 impl Default for L1GasPriceScraperConfig {
@@ -77,8 +74,8 @@ impl Default for L1GasPriceScraperConfig {
             chain_id: ChainId::Other("0x0".to_string()),
             finality: 0,
             polling_interval: Duration::from_secs(1),
-            number_of_blocks_for_mean: 300,
             startup_num_blocks_multiplier: 2,
+            shared_config: L1GasPriceSharedConfig::default(),
         }
     }
 }
@@ -105,15 +102,9 @@ impl SerializeConfig for L1GasPriceScraperConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "number_of_blocks_for_mean",
-                &self.number_of_blocks_for_mean,
-                "Number of blocks to use for the mean gas price calculation",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
                 "startup_num_blocks_multiplier",
                 &self.startup_num_blocks_multiplier,
-                "How many sets of config.num_blocks_for_mean blocks to go back on the chain when starting to scrape.",
+                "How many sets of config.number_of_blocks_for_mean blocks to go back on the chain when starting to scrape.",
                 ParamPrivacyInput::Public,
             ),
         ]);
@@ -257,7 +248,7 @@ where
                 // Note that for new chains this subtraction may be negative,
                 // hence the use of saturating_sub.
                 latest.saturating_sub(
-                    self.config.number_of_blocks_for_mean
+                    self.config.shared_config.number_of_blocks_for_mean
                         * self.config.startup_num_blocks_multiplier,
                 )
             }

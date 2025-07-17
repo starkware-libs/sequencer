@@ -20,25 +20,47 @@ use crate::metrics::{register_provider_metrics, L1_GAS_PRICE_PROVIDER_INSUFFICIE
 pub mod l1_gas_price_provider_test;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
-pub struct L1GasPriceProviderConfig {
+pub struct L1GasPriceSharedConfig {
     // TODO(guyn): these two fields need to go into VersionedConstants.
     pub number_of_blocks_for_mean: u64,
+}
+
+impl Default for L1GasPriceSharedConfig {
+    fn default() -> Self {
+        Self { number_of_blocks_for_mean: 300 }
+    }
+}
+
+impl SerializeConfig for L1GasPriceSharedConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "number_of_blocks_for_mean",
+            &self.number_of_blocks_for_mean,
+            "Number of blocks to use for the mean gas price calculation",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
+pub struct L1GasPriceProviderConfig {
     // Use seconds not Duration since seconds is the basic quanta of time for both Starknet and
     // Ethereum.
     pub lag_margin_seconds: u64,
     pub storage_limit: usize,
     // Maximum valid time gap between the requested timestamp and the last price sample in seconds.
     pub max_time_gap_seconds: u64,
+    pub shared_config: L1GasPriceSharedConfig,
 }
 
 impl Default for L1GasPriceProviderConfig {
     fn default() -> Self {
-        const MEAN_NUMBER_OF_BLOCKS: u64 = 300;
+        let shared_config = L1GasPriceSharedConfig::default();
         Self {
-            number_of_blocks_for_mean: MEAN_NUMBER_OF_BLOCKS,
             lag_margin_seconds: 60,
-            storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
+            storage_limit: usize::try_from(10 * shared_config.number_of_blocks_for_mean).unwrap(),
             max_time_gap_seconds: 900, // 15 minutes
+            shared_config,
         }
     }
 }
@@ -46,12 +68,6 @@ impl Default for L1GasPriceProviderConfig {
 impl SerializeConfig for L1GasPriceProviderConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from([
-            ser_param(
-                "number_of_blocks_for_mean",
-                &self.number_of_blocks_for_mean,
-                "Number of blocks to use for the mean gas price calculation",
-                ParamPrivacyInput::Public,
-            ),
             ser_param(
                 "lag_margin_seconds",
                 &self.lag_margin_seconds,
@@ -180,7 +196,7 @@ impl L1GasPriceProvider {
         // so `last_index` is guaranteed to be >= 1.
         let last_index = samples.len() - last_index_rev;
 
-        let num_blocks = usize::try_from(self.config.number_of_blocks_for_mean)
+        let num_blocks = usize::try_from(self.config.shared_config.number_of_blocks_for_mean)
             .expect("number_of_blocks_for_mean is too large to fit into a usize");
 
         let first_index = if last_index >= num_blocks {
