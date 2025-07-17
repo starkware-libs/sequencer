@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use apollo_http_server::config::HTTP_SERVER_PORT;
 use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::Serialize;
 use strum::EnumIter;
@@ -122,7 +123,7 @@ impl ServicePort {
             ServicePort::MempoolP2p => 0,
             ServicePort::SierraCompiler => 0,
             ServicePort::StateSync => 0,
-            ServicePort::HttpServer => 0,
+            ServicePort::HttpServer => HTTP_SERVER_PORT,
             ServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
         }
     }

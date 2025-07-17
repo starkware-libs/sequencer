@@ -1,3 +1,4 @@
+use apollo_http_server::config::HTTP_SERVER_PORT;
 use serde::{Serialize, Serializer};
 
 use crate::deployment::P2PCommunicationType;
@@ -7,7 +8,6 @@ use crate::deployment_definitions::Environment;
 const INTERNAL_ONLY_P2P_COMMUNICATION: bool = true;
 
 const INGRESS_ROUTE: &str = "/gateway";
-const INGRESS_PORT: u16 = 8080;
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 pub enum Controller {
@@ -105,7 +105,7 @@ pub(crate) fn get_ingress(ingress_params: IngressParams, internal: bool) -> Opti
     Some(Ingress::new(
         ingress_params,
         internal,
-        vec![IngressRule::new(String::from(INGRESS_ROUTE), INGRESS_PORT, None)],
+        vec![IngressRule::new(String::from(INGRESS_ROUTE), HTTP_SERVER_PORT, None)],
     ))
 }
 
