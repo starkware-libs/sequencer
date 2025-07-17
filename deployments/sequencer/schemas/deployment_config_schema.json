@@ -46,6 +46,9 @@
                   "alternative_names": {
                     "type": "array",
                     "items": { "type": "string" }
+                  },
+                  "dns_name": {
+                    "type": "string"
                   }
                 },
                 "required": ["domain", "internal", "rules"]
