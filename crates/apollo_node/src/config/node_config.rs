@@ -26,7 +26,7 @@ use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
-use apollo_l1_provider::config::{L1ProviderConfig, L1ScraperConfig};
+use apollo_l1_provider::config::L1MessageProviderConfig;
 use apollo_mempool::config::MempoolConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -65,7 +65,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "consensus_manager_config.context_config.chain_id",
                 "consensus_manager_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
-                "l1_scraper_config.chain_id",
+                "l1_message_provider_config.l1_scraper_config.chain_id",
                 "l1_gas_price_scraper_config.chain_id",
                 "mempool_p2p_config.network_config.chain_id",
                 "state_sync_config.storage_config.db_config.chain_id",
@@ -199,9 +199,7 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub l1_gas_price_scraper_config: Option<L1GasPriceScraperConfig>,
     #[validate]
-    pub l1_provider_config: Option<L1ProviderConfig>,
-    #[validate]
-    pub l1_scraper_config: Option<L1ScraperConfig>,
+    pub l1_message_provider_config: Option<L1MessageProviderConfig>,
     #[validate]
     pub mempool_config: Option<MempoolConfig>,
     #[validate]
@@ -239,8 +237,7 @@ impl SerializeConfig for SequencerNodeConfig {
                 &self.l1_gas_price_scraper_config,
                 "l1_gas_price_scraper_config",
             ),
-            ser_optional_sub_config(&self.l1_provider_config, "l1_provider_config"),
-            ser_optional_sub_config(&self.l1_scraper_config, "l1_scraper_config"),
+            ser_optional_sub_config(&self.l1_message_provider_config, "l1_message_provider_config"),
             ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
             ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
         ];
@@ -265,8 +262,7 @@ impl Default for SequencerNodeConfig {
             l1_endpoint_monitor_config: Some(L1EndpointMonitorConfig::default()),
             l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
             l1_gas_price_scraper_config: Some(L1GasPriceScraperConfig::default()),
-            l1_provider_config: Some(L1ProviderConfig::default()),
-            l1_scraper_config: Some(L1ScraperConfig::default()),
+            l1_message_provider_config: Some(L1MessageProviderConfig::default()),
             mempool_config: Some(MempoolConfig::default()),
             mempool_p2p_config: Some(MempoolP2pConfig::default()),
             monitoring_endpoint_config: Some(MonitoringEndpointConfig::default()),
