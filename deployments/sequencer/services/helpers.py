@@ -74,3 +74,32 @@ def generate_random_hash(length: int = 6, from_string: Optional[str] = None) -> 
         return hash_object.hexdigest()[:length]
     else:
         return "".join(random.choices(string.ascii_letters, k=length))
+
+
+def validate_dns_name(dns_name: str, domain: str) -> None:
+    if not dns_name:
+        raise ValueError(f"DNS name '{dns_name}' cannot be empty.")
+    if len(dns_name) > 64:
+        raise ValueError(
+            f"DNS name '{dns_name}' exceeds 64 characters (limit for TLS common name)."
+        )
+    if ".." in dns_name:
+        raise ValueError(f"DNS name '{dns_name}' cannot contain consecutive dots.")
+    if dns_name.endswith("."):
+        raise ValueError(f"DNS name '{dns_name}' must not end with a dot.")
+    if dns_name.count(domain) > 1:
+        raise ValueError(
+            f"DNS name '{dns_name}' cannot contain the domain '{domain}' more than once."
+        )
+    labels = dns_name.split(".")
+    for label in labels:
+        if len(label) == 0:
+            raise ValueError(f"DNS name '{dns_name}' contains an empty label.")
+        if not re.match(r"^[a-zA-Z0-9-]+$", label):
+            raise ValueError(
+                f"Label '{label}' in DNS name '{dns_name}' contains invalid characters."
+            )
+        if label.startswith("-") or label.endswith("-"):
+            raise ValueError(
+                f"Label '{label}' in DNS name '{dns_name}' cannot start or end with a hyphen."
+            )

@@ -34,6 +34,7 @@ from imports.io.external_secrets import (
 )
 from imports.io.external_secrets import ExternalSecretV1Beta1SpecTarget as ExternalSecretSpecTarget
 from services import const, topology
+from services.helpers import validate_dns_name
 
 
 class ServiceApp(Construct):
@@ -481,16 +482,20 @@ class ServiceApp(Construct):
 
     def _get_ingress(self) -> k8s.KubeIngress:
         domain = self.service_topology.ingress["domain"]
-        self.host = f"{self.node.id}.{self.namespace}.{domain}"
-        dns_names = self.host
-        rules = [self._get_ingress_rule(self.host)]
+        default_dns_name = f"{self.node.id}.{self.namespace}.{domain}"
+        dns_name = self.service_topology.ingress.get("dns_name")
+        self.dns_name = f"{dns_name}.{domain}" if dns_name is not None else default_dns_name
+        validate_dns_name(self.dns_name, domain)
+
+        dns_names = self.dns_name
+        rules = [self._get_ingress_rule(self.dns_name)]
         tls = self._get_ingress_tls()
 
         annotations = {
             "kubernetes.io/tls-acme": "true",
-            "external-dns.alpha.kubernetes.io/hostname": self.host,
+            "external-dns.alpha.kubernetes.io/hostname": self.dns_name,
             "external-dns.alpha.kubernetes.io/ingress-hostname-source": "annotation-only",
-            "cert-manager.io/common-name": self.host,
+            "cert-manager.io/common-name": self.dns_name,
             "cert-manager.io/issue-temporary-certificate": "true",
             "cert-manager.io/issuer": "letsencrypt-prod",
             "acme.cert-manager.io/http01-edit-in-place": "true",
@@ -504,7 +509,7 @@ class ServiceApp(Construct):
         elif self.service_topology.ingress.get("alternative_names", []):
             alternative_names = self.service_topology.ingress["alternative_names"]
             for alt_name in alternative_names:
-                if alt_name != self.host:
+                if alt_name != self.dns_name:
                     dns_names += f",{alt_name}"
                     rules.append(self._get_ingress_rule(alt_name))
             annotations.update({"cert-manager.io/dns-names": dns_names})
@@ -540,11 +545,11 @@ class ServiceApp(Construct):
         )
 
     def _get_ingress_tls(self) -> typing.List[k8s.IngressTls]:
-        hosts = [self.host]
+        hosts = [self.dns_name]
         if self.service_topology.ingress.get("alternative_names", []):
             alternative_names = self.service_topology.ingress["alternative_names"]
             for alt_name in alternative_names:
-                if alt_name != self.host:
+                if alt_name != self.dns_name:
                     hosts.append(alt_name)
         return [k8s.IngressTls(hosts=hosts, secret_name=f"{self.node.id}-tls")]
 

@@ -47,6 +47,7 @@
       ],
       "ingress": {
         "domain": "starknet.io",
+        "dns_name": "apollo-potc-2-mock-sharp-0",
         "alternative_names": [
           "potc-mock-sepolia.starknet.io"
         ],
