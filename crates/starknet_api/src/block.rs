@@ -5,6 +5,7 @@ mod block_test;
 use std::fmt::Display;
 use std::ops::Deref;
 
+use chrono::DateTime;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use size_of::SizeOf;
@@ -582,7 +583,10 @@ impl From<u64> for BlockTimestamp {
 
 impl Display for BlockTimestamp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        match DateTime::from_timestamp(self.0.try_into().unwrap_or(0), 0) {
+            Some(dt) => write!(f, "{dt}"),
+            None => write!(f, "Invalid timestamp"),
+        }
     }
 }
 

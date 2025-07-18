@@ -2,7 +2,7 @@ use serde_json::json;
 use strum::IntoEnumIterator;
 
 use super::{verify_block_signature, StarknetVersion};
-use crate::block::{BlockHash, BlockNumber, BlockSignature};
+use crate::block::{BlockHash, BlockNumber, BlockSignature, BlockTimestamp};
 use crate::core::{GlobalRoot, SequencerPublicKey};
 use crate::crypto::utils::{PublicKey, Signature};
 use crate::felt;
@@ -79,4 +79,12 @@ fn test_latest_version() {
     for version in StarknetVersion::iter() {
         assert!(version <= latest);
     }
+}
+
+#[test]
+fn test_block_timestamp_display() {
+    let timestamp = BlockTimestamp(1_752_482_544);
+    let expected = "2025-07-14 08:42:24 UTC";
+
+    assert_eq!(timestamp.to_string(), expected);
 }

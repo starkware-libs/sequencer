@@ -17,6 +17,7 @@ cached.workspace = true
 cairo-lang-runner.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
+chrono.workspace = true
 derive_more.workspace = true
 flate2.workspace = true
 hex.workspace = true
