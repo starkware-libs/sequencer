@@ -155,7 +155,8 @@ impl ContractClassManagerConfig {
             wait_on_native_compilation,
             ..Default::default()
         };
-        Self { cairo_native_run_config, ..Default::default() }
+        let native_compiler_config = SierraCompilationConfig::create_for_testing();
+        Self { cairo_native_run_config, native_compiler_config, ..Default::default() }
     }
 }
 
