@@ -21,9 +21,10 @@ use starknet_api::transaction::TransactionHash;
 use starknet_api::tx_hash;
 
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
+use crate::config::L1ProviderConfig;
 use crate::l1_provider::L1Provider;
 use crate::test_utils::{l1_handler, FakeL1ProviderClient, L1ProviderContentBuilder};
-use crate::{L1ProviderConfig, ProviderState};
+use crate::ProviderState;
 
 fn commit_block_no_rejected(
     l1_provider: &mut L1Provider,

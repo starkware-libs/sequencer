@@ -22,8 +22,9 @@ use starknet_api::transaction::TransactionHash;
 use tracing::{debug, error, info, instrument, trace, warn};
 
 use crate::bootstrapper::Bootstrapper;
+use crate::config::L1ProviderConfig;
 use crate::transaction_manager::TransactionManager;
-use crate::{L1ProviderConfig, ProviderState};
+use crate::ProviderState;
 
 #[cfg(test)]
 #[path = "l1_provider_tests.rs"]
