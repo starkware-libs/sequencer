@@ -48,6 +48,7 @@ use crate::block_builder::{
     FailOnErrorCause,
 };
 use crate::metrics::FULL_BLOCKS;
+use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::test_utils::{test_l1_handler_txs, test_txs};
 use crate::transaction_executor::MockTransactionExecutorTrait;
 use crate::transaction_provider::TransactionProviderError::L1HandlerTransactionValidationFailed;
@@ -606,6 +607,30 @@ async fn run_build_block(
     abort_receiver: tokio::sync::oneshot::Receiver<()>,
     deadline_secs: u64,
 ) -> BlockBuilderResult<BlockExecutionArtifacts> {
+    run_build_block_with_channels(
+        mock_transaction_executor,
+        tx_provider,
+        output_sender,
+        None,
+        None,
+        is_validator,
+        abort_receiver,
+        deadline_secs,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_build_block_with_channels(
+    mock_transaction_executor: MockTransactionExecutorTrait,
+    tx_provider: MockTransactionProvider,
+    output_sender: Option<UnboundedSender<InternalConsensusTransaction>>,
+    candidate_tx_sender: Option<CandidateTxSender>,
+    pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
+    is_validator: bool,
+    abort_receiver: tokio::sync::oneshot::Receiver<()>,
+    deadline_secs: u64,
+) -> BlockBuilderResult<BlockExecutionArtifacts> {
     let deadline = tokio::time::Instant::now() + tokio::time::Duration::from_secs(deadline_secs);
     let transaction_converter = TransactionConverter::new(
         Arc::new(MockClassManagerClient::new()),
@@ -615,8 +640,8 @@ async fn run_build_block(
         mock_transaction_executor,
         Box::new(tx_provider),
         output_sender,
-        None,
-        None,
+        candidate_tx_sender,
+        pre_confirmed_tx_sender,
         abort_receiver,
         transaction_converter,
         N_CONCURRENT_TXS,
@@ -1085,4 +1110,100 @@ async fn partial_chunk_execution_validator(#[case] successful: bool) {
             Err(BlockBuilderError::FailOnError(FailOnErrorCause::DeadlineReached))
         ));
     }
+}
+
+#[tokio::test]
+async fn test_proposal_flow_sends_to_preconfirmed_block_writer() {
+    let input_txs = test_txs(0..3);
+    let (mock_transaction_executor, expected_block_artifacts) =
+        one_chunk_mock_executor(&input_txs, input_txs.len(), false);
+    let mock_tx_provider = mock_tx_provider_limitless_calls(vec![input_txs.clone()]);
+
+    // Create channels to receive data from block builder
+    let (candidate_tx_sender, mut candidate_tx_receiver) =
+        tokio::sync::mpsc::channel(TX_CHANNEL_SIZE);
+    let (pre_confirmed_tx_sender, mut pre_confirmed_tx_receiver) =
+        tokio::sync::mpsc::channel(TX_CHANNEL_SIZE);
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+
+    // Run block builder in proposal mode (is_validator = false)
+    let block_builder_task = tokio::spawn(async move {
+        run_build_block_with_channels(
+            mock_transaction_executor,
+            mock_tx_provider,
+            None,
+            Some(candidate_tx_sender),
+            Some(pre_confirmed_tx_sender),
+            false, // proposal mode
+            abort_receiver,
+            BLOCK_GENERATION_DEADLINE_SECS,
+        )
+        .await
+    });
+
+    // Collect data sent to the channels
+    let mut received_candidate_txs = Vec::new();
+    let mut received_preconfirmed_txs = Vec::new();
+
+    // Give time for block building to complete and collect all data
+    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+    // Collect candidate transactions
+    while let Ok(tx_chunk) = candidate_tx_receiver.try_recv() {
+        received_candidate_txs.extend(tx_chunk);
+    }
+
+    // Collect pre-confirmed transactions
+    while let Ok((tx, _receipt, _state_diff)) = pre_confirmed_tx_receiver.try_recv() {
+        received_preconfirmed_txs.push(tx);
+    }
+
+    // Wait for block builder to complete
+    let result = tokio::time::timeout(
+        tokio::time::Duration::from_secs(BLOCK_GENERATION_DEADLINE_SECS + 1),
+        block_builder_task,
+    )
+    .await
+    .unwrap()
+    .unwrap()
+    .unwrap();
+
+    // Verify block building succeeded
+    assert_eq!(result, expected_block_artifacts);
+
+    // Verify all transactions were sent as candidates
+    assert_eq!(received_candidate_txs, input_txs);
+
+    // Verify all successful transactions were sent as pre-confirmed
+    assert_eq!(received_preconfirmed_txs.len(), input_txs.len());
+    for (i, received_tx) in received_preconfirmed_txs.iter().enumerate() {
+        assert_eq!(received_tx.tx_hash(), input_txs[i].tx_hash());
+    }
+}
+
+#[tokio::test]
+async fn test_validation_flow_does_not_send_to_preconfirmed_block_writer() {
+    let input_txs = test_txs(0..3);
+    let (mock_transaction_executor, expected_block_artifacts) =
+        one_chunk_mock_executor(&input_txs, input_txs.len(), true);
+    let mock_tx_provider = mock_tx_provider_stream_done(input_txs);
+
+    let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
+
+    // In validation mode, channels should be None
+    let result = run_build_block_with_channels(
+        mock_transaction_executor,
+        mock_tx_provider,
+        None,
+        None, // No candidate_tx_sender in validation mode
+        None, // No pre_confirmed_tx_sender in validation mode
+        true, // validation mode
+        abort_receiver,
+        BLOCK_GENERATION_DEADLINE_SECS,
+    )
+    .await
+    .unwrap();
+
+    // Verify block building succeeded without any channels
+    assert_eq!(result, expected_block_artifacts);
 }
