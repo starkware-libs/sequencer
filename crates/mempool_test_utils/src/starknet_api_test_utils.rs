@@ -451,6 +451,21 @@ impl AccountTransactionGenerator {
         )
     }
 
+    pub fn generate_declare_tx(
+        &mut self,
+        compiled_class_hash: CompiledClassHash,
+        contract_class: SierraContractClass,
+    ) -> RpcTransaction {
+        let nonce = self.next_nonce();
+        let declare_args = declare_tx_args!(
+            sender_address: self.sender_address(),
+            resource_bounds: test_valid_resource_bounds(),
+            nonce,
+            compiled_class_hash,
+        );
+        rpc_declare_tx(declare_args, contract_class)
+    }
+
     pub fn generate_trivial_executable_invoke_tx(&mut self) -> AccountTransaction {
         assert!(
             self.is_deployed(),
@@ -523,7 +538,7 @@ impl AccountTransactionGenerator {
         rpc_deploy_account_tx(deploy_account_args)
     }
 
-    pub fn generate_declare(&mut self) -> RpcTransaction {
+    pub fn generate_declare_of_contract_class(&mut self) -> RpcTransaction {
         let nonce = self.next_nonce();
         let declare_args = declare_tx_args!(
             signature: TransactionSignature(vec![Felt::ZERO].into()),
