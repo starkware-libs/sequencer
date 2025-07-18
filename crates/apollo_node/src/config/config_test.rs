@@ -1,9 +1,13 @@
 use std::net::{IpAddr, Ipv4Addr};
+use std::time::Duration;
 
 use apollo_config::dumping::{combine_config_map_and_pointers, SerializeConfig};
 use apollo_infra::component_client::RemoteClientConfig;
 use apollo_infra::component_server::LocalServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file_test;
+use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
+use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
+use assert_matches::assert_matches;
 use rstest::rstest;
 use validator::Validate;
 
@@ -106,6 +110,34 @@ fn default_config_file_is_up_to_date() {
 fn validate_config_success() {
     let config = SequencerNodeConfig::default();
     assert!(config.validate().is_ok());
+}
+
+#[rstest]
+#[case::number_of_blocks_ok(L1GasPriceScraperConfig { number_of_blocks_for_mean: 300, ..Default::default() }, None)]
+#[case::number_of_blocks_fail(L1GasPriceScraperConfig { number_of_blocks_for_mean: 301, ..Default::default() }, Some("number_of_blocks_for_mean=300 should be equal to"))]
+#[case::lag_margin_ok(L1GasPriceScraperConfig { finality: 10, polling_interval: Duration::from_secs(1), ..Default::default() }, None)]
+#[case::lag_margin_finality_fail(L1GasPriceScraperConfig { finality: 30, polling_interval: Duration::from_secs(1), ..Default::default() }, Some("lag_margin_seconds=250 should be greater than 301"))]
+#[case::lag_margin_polling_fail(L1GasPriceScraperConfig { finality: 10, polling_interval: Duration::from_secs(200), ..Default::default() }, Some("lag_margin_seconds=250 should be greater than 300"))]
+#[case::lag_margin_finality_0_ok(L1GasPriceScraperConfig { finality: 0, polling_interval: Duration::from_secs(1), ..Default::default() }, None)]
+fn validate_l1_gas_price_configs(
+    #[case] scraper_config: L1GasPriceScraperConfig,
+    #[case] expect_failure_string: Option<&str>,
+) {
+    let config = SequencerNodeConfig {
+        l1_gas_price_scraper_config: scraper_config,
+        l1_gas_price_provider_config: L1GasPriceProviderConfig {
+            number_of_blocks_for_mean: 300,
+            lag_margin_seconds: 250,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    if let Some(failure_string) = expect_failure_string {
+        println!("{}", config.validate().unwrap_err());
+        assert_matches!(config.validate(), Err(e) if e.to_string().contains(failure_string));
+    } else {
+        assert!(config.validate().is_ok());
+    }
 }
 
 #[rstest]
