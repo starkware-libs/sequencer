@@ -956,3 +956,43 @@ fn validate_tx_unknown_returns_invalid_consumed_or_unknown() {
     let status = l1_provider.validate(tx_hash!(1), l1_provider.current_height).unwrap();
     assert_eq!(status, InvalidValidationStatus::ConsumedOnL1OrUnknown.into());
 }
+
+#[test]
+fn commit_block_historical_height_short_circuits_non_bootstrap() {
+    // Setup.
+    let l1_provider_builder = L1ProviderContentBuilder::new()
+        .with_height(BlockNumber(5))
+        .with_txs([l1_handler(1)])
+        .with_state(ProviderState::Propose);
+
+    // Test.
+    let mut l1_provider = l1_provider_builder.clone().build_into_l1_provider();
+    let old_height = BlockNumber(4);
+    l1_provider.commit_block([tx_hash!(1)].into(), [].into(), old_height).unwrap();
+
+    let expected_unchanged = l1_provider_builder.build();
+    expected_unchanged.assert_eq(&l1_provider);
+}
+
+#[test]
+fn commit_block_historical_height_short_circuits_bootstrap() {
+    // Setup.
+    let batcher_height_old = 4;
+    let initial_bootstrap_state = ProviderState::Bootstrap(bootstrapper!(
+        backlog: [],
+        catch_up: batcher_height_old
+    ));
+    let l1_provider_builder = L1ProviderContentBuilder::new()
+        .with_height(BlockNumber(5))
+        .with_txs([l1_handler(1)])
+        .with_state(initial_bootstrap_state);
+
+    // Test.
+    let mut l1_provider = l1_provider_builder.clone().build_into_l1_provider();
+    l1_provider
+        .commit_block([tx_hash!(1)].into(), [].into(), BlockNumber(batcher_height_old))
+        .unwrap();
+
+    let expected_unchanged = l1_provider_builder.build();
+    expected_unchanged.assert_eq(&l1_provider);
+}
