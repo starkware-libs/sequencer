@@ -18,10 +18,6 @@ pub(crate) enum AlertSeverity {
     // Critical issues that demand immediate attention. These are high-impact incidents that
     // affect the system's availability.
     #[serde(rename = "p1")]
-    // TODO(Tsabary): currently the `Sos` variant is used only in tests, and removing the
-    // `#[cfg(test)]` attribute results in a compilation error. When needed in non-test setup,
-    // remove the attribute.
-    #[cfg(test)]
     Sos,
     // Standard alerts for production issues that require attention around the clock but are not
     // as time-sensitive as SOS alerts.
