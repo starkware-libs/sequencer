@@ -33,8 +33,7 @@
       "external_secret": {
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-2"
       },
-      "anti_affinity": true,
-      "ports": {}
+      "anti_affinity": true
     },
     {
       "name": "HttpServer",
@@ -47,6 +46,7 @@
       ],
       "ingress": {
         "domain": "starknet.io",
+        "dns_name": "apollo-potc-2-mock-sharp-2",
         "alternative_names": [
           "potc-mock-sepolia.starknet.io"
         ],
@@ -77,8 +77,7 @@
       "external_secret": {
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-2"
       },
-      "anti_affinity": false,
-      "ports": {}
+      "anti_affinity": false
     },
     {
       "name": "Gateway",
@@ -108,39 +107,7 @@
       "external_secret": {
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-2"
       },
-      "anti_affinity": false,
-      "ports": {}
-    },
-    {
-      "name": "L1",
-      "controller": "Deployment",
-      "config_paths": [
-        "base_app_config.json",
-        "deployments/potc2/deployment_config_override.json",
-        "deployments/potc2/hybrid_2.json",
-        "services/hybrid/l1.json"
-      ],
-      "ingress": null,
-      "k8s_service_config": null,
-      "autoscale": false,
-      "replicas": 1,
-      "storage": null,
-      "toleration": "apollo-general-service",
-      "resources": {
-        "requests": {
-          "cpu": 1,
-          "memory": 2
-        },
-        "limits": {
-          "cpu": 2,
-          "memory": 4
-        }
-      },
-      "external_secret": {
-        "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-2"
-      },
-      "anti_affinity": false,
-      "ports": {}
+      "anti_affinity": false
     },
     {
       "name": "Mempool",
@@ -174,8 +141,7 @@
       "external_secret": {
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-2"
       },
-      "anti_affinity": true,
-      "ports": {}
+      "anti_affinity": true
     },
     {
       "name": "SierraCompiler",
@@ -205,8 +171,7 @@
       "external_secret": {
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-2"
       },
-      "anti_affinity": false,
-      "ports": {}
+      "anti_affinity": false
     }
   ]
 }
