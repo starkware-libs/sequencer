@@ -9,6 +9,7 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
     PoseidonBuiltin,
 )
+from starkware.cairo.common.find_element import find_element
 from starkware.cairo.common.dict import dict_new, dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_not_equal
@@ -29,7 +30,9 @@ from starkware.starknet.core.os.contract_class.compiled_class import (
     CompiledClassFact,
     guess_compiled_class_facts,
     validate_compiled_class_facts_post_execution,
+    get_compiled_class_hashes_v1_v2,
 )
+from starkware.starknet.core.os.contract_class.compiled_class_struct import CompiledClass
 from starkware.starknet.core.os.contract_class.deprecated_compiled_class import (
     DeprecatedCompiledClassFact,
     deprecated_load_compiled_class_facts,
@@ -266,6 +269,20 @@ func execute_blocks{
         write_block_number_to_block_hash_mapping(block_context=block_context);
     }
 
+    // Update the contract class changes according to the migration.
+
+    local n_classes;
+    %{ GetNClassHashesToMigrate %}
+    %{ InsertClassHashesToMigrateIteratorToExecScope %}
+
+    update_class_changes_according_to_migration(
+        contract_class_changes=contract_class_changes,
+        n_classes=n_classes,
+        block_context=block_context,
+    );
+
+    %{ vm_exit_scope() %}
+
     // Execute transactions.
     let outputs = initial_carried_outputs;
     with contract_state_changes, contract_class_changes, outputs {
@@ -356,6 +373,46 @@ func initialize_state_changes() -> (
     return (
         contract_state_changes=contract_state_changes, contract_class_changes=contract_class_changes
     );
+}
+
+// Change all classes to migrate in class_changes to hold class hash v2 (blake) instate of class hash v1 (poseidon).
+
+func update_class_changes_according_to_migration{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
+    contract_class_changes: DictAccess*, n_classes: felt, block_context: BlockContext*
+) {
+    alloc_locals;
+    if (n_classes == 0) {
+        return ();
+    }
+    // Guess the class hash and compiled class hash v2.
+    local class_hash;
+    local hint_casm_hash_v2;
+
+    %{ GetClassHashAndCompiledClassHashV2 %}
+
+    // Find the compiled class fact in the block context.
+    let (compiled_class_fact: CompiledClassFact*) = find_element(
+        array_ptr=block_context.compiled_class_facts,
+        elm_size=CompiledClassFact.SIZE,
+        n_elms=block_context.n_compiled_class_facts,
+        key=hint_casm_hash_v2,
+    );
+    let compiled_class: CompiledClass* = compiled_class_fact.compiled_class;
+    // Compute both compiled class hash v1 and v2 using the compiled class.
+    let (casm_hash_v1, casm_hash_v2) = get_compiled_class_hashes_v1_v2(
+        compiled_class=compiled_class
+    );
+    assert hint_casm_hash_v2 = casm_hash_v2;
+    // Implement the current class migration by updating the contract class changes.
+    dict_update{dict_ptr=contract_class_changes}(
+        key=cast(class_hash, felt), prev_value=casm_hash_v1, new_value=casm_hash_v2
+    );
+    update_class_changes_according_to_migration(
+        contract_class_changes=contract_class_changes,
+        n_classes=n_classes - 1,
+        block_context=block_context,
+    );
+    return ();
 }
 
 // Writes the hash of the (current_block_number - buffer) block under its block number in the
