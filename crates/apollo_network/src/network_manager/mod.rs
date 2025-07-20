@@ -6,8 +6,8 @@ mod test;
 pub mod test_utils;
 
 use std::collections::{BTreeMap, HashMap};
+use std::net::Ipv4Addr;
 use std::pin::Pin;
-use std::str::FromStr;
 use std::task::{Context, Poll};
 
 use apollo_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
@@ -31,7 +31,7 @@ use crate::misconduct_score::MisconductScore;
 use crate::mixed_behaviour::{self, BridgedBehaviour};
 use crate::sqmr::behaviour::SessionError;
 use crate::sqmr::{self, InboundSessionId, OutboundSessionId, SessionId};
-use crate::utils::{is_localhost, StreamMap};
+use crate::utils::{is_localhost, make_multiaddr, StreamMap};
 use crate::{gossipsub_impl, Bytes, NetworkConfig};
 
 #[derive(thiserror::Error, Debug)]
@@ -701,9 +701,7 @@ impl NetworkManager {
             reported_peer_ids_buffer_size,
         } = config;
 
-        let listen_address_str = format!("/ip4/0.0.0.0/udp/{port}/quic-v1");
-        let listen_address = Multiaddr::from_str(&listen_address_str)
-            .unwrap_or_else(|_| panic!("Unable to parse address {listen_address_str}"));
+        let listen_address = make_multiaddr(Ipv4Addr::UNSPECIFIED, port, None);
         debug!("Creating swarm with listen address: {listen_address:?}");
 
         let key_pair = match secret_key {
