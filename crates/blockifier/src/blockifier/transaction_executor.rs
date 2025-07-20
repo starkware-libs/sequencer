@@ -17,12 +17,13 @@ use crate::concurrency::worker_pool::WorkerPool;
 use crate::context::BlockContext;
 use crate::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps, TransactionalState};
 use crate::state::errors::StateError;
-use crate::state::state_api::{StateReader, StateResult};
+use crate::state::state_api::{State, StateReader, StateResult};
 use crate::state::stateful_compression::{allocate_aliases_in_storage, compress, CompressionError};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ExecutableTransaction;
+use crate::utils::get_compiled_class_hash_v2;
 
 #[cfg(test)]
 #[path = "transaction_executor_test.rs"]
@@ -243,7 +244,10 @@ pub(crate) fn finalize_block<S: StateReader>(
     if block_context.versioned_constants.enable_stateful_compression {
         allocate_aliases_in_storage(block_state, alias_contract_address)?;
     }
+
+    update_compiled_class_hash_migration_in_state(&lock_bouncer(bouncer), block_state)?;
     let state_diff = block_state.to_state_diff()?.state_maps;
+
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
         Some(compress(&state_diff, block_state, alias_contract_address)?.into())
     } else {
@@ -277,6 +281,21 @@ pub(crate) fn finalize_block<S: StateReader>(
         // TODO(Meshi): derive from bouncer once migration is supported.
         compiled_class_hashes_to_migrate: vec![],
     })
+}
+
+// Gathers the new compiled class hashes for the class hashes that need to be migrated,
+// and adds the corresponding mappings to the block state's write set.
+fn update_compiled_class_hash_migration_in_state<S: StateReader>(
+    bouncer: &Bouncer,
+    block_state: &mut CachedState<S>,
+) -> StateResult<()> {
+    for &class_hash in &bouncer.class_hashes_to_migrate {
+        let compiled_class_hash_v2 = get_compiled_class_hash_v2(block_state, class_hash)
+            .expect("Failed to get compiled class hash v2 for migration");
+        // TODO(Meshi): Consider panic here instead of returning an error.
+        block_state.set_compiled_class_hash(class_hash, compiled_class_hash_v2)?;
+    }
+    Ok(())
 }
 
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
