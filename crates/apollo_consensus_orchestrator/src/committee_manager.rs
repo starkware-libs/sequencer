@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use apollo_consensus::types::Round;
-use apollo_state_sync_types::communication::SharedStateSyncClient;
+use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
 use blockifier::context::BlockContext;
 use blockifier::execution::call_info::Retdata;
 use blockifier::execution::entry_point::call_view_entry_point;
@@ -15,7 +15,7 @@ use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 use thiserror::Error;
 
-use crate::utils::{get_block_hash, BlockRandomGenerator, StateSyncError};
+use crate::utils::BlockRandomGenerator;
 
 pub type Committee = Vec<Staker>;
 pub type StakerSet = Vec<Staker>;
@@ -90,7 +90,7 @@ pub enum CommitteeManagerError {
     #[error(transparent)]
     RetdataDeserializationError(#[from] RetdataDeserializationError),
     #[error(transparent)]
-    StateSyncError(#[from] StateSyncError),
+    StateSyncClientError(#[from] StateSyncClientError),
     #[error("Committee is empty.")]
     EmptyCommittee,
 }
@@ -251,7 +251,7 @@ impl CommitteeManager {
             }
             Some(block_number) => {
                 let block_hash =
-                    get_block_hash(state_sync_client, BlockNumber(block_number)).await?;
+                    state_sync_client.get_block_hash(BlockNumber(block_number)).await?;
                 Ok(Some(block_hash))
             }
         }
