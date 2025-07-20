@@ -41,9 +41,9 @@ async fn main() {
     };
 
     let update_config_use_central_sync = |config: &mut SequencerNodeConfig| {
-        config.state_sync_config.central_sync_client_config =
+        config.state_sync_config.as_mut().unwrap().central_sync_client_config =
             Some(CentralSyncClientConfig::default());
-        config.state_sync_config.p2p_sync_client_config = None;
+        config.state_sync_config.as_mut().unwrap().p2p_sync_client_config = None;
     };
 
     let node_indices = integration_test_manager.get_node_indices();
