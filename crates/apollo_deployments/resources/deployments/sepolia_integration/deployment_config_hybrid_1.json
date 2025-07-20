@@ -31,6 +31,7 @@
       },
       "anti_affinity": true,
       "ports": {
+        "Batcher": 55000,
         "MonitoringEndpoint": 8082
       }
     },

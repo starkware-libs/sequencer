@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_node::config::component_config::ComponentConfig;
@@ -60,7 +60,15 @@ impl GetComponentConfigs for DistributedNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let ports = determine_port_numbers(ports, DISTRIBUTED_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
 
-        let batcher = DistributedNodeServiceName::Batcher.component_config_pair(ports[0]);
+        let mut service_ports: BTreeMap<ServicePort, u16> = BTreeMap::new();
+        // Extract the service ports for all inner services of the hybrid node.
+        for inner_service_name in DistributedNodeServiceName::iter() {
+            let inner_service_port = inner_service_name.get_service_port_mapping();
+            service_ports.extend(inner_service_port);
+        }
+
+        let batcher = DistributedNodeServiceName::Batcher
+            .component_config_pair(*service_ports.get(&ServicePort::Batcher).unwrap());
         let class_manager =
             DistributedNodeServiceName::ClassManager.component_config_pair(ports[1]);
         let gateway = DistributedNodeServiceName::Gateway.component_config_pair(ports[2]);
@@ -281,8 +289,10 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::Batcher => {
+                            service_ports.insert(ServicePort::Batcher);
+                        }
                         ServicePort::HttpServer
-                        | ServicePort::Batcher
                         | ServicePort::ClassManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
