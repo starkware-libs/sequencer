@@ -1,3 +1,5 @@
+use std::fs;
+use log;
 use std::path::{Path, PathBuf};
 
 use cairo_lang_starknet_classes::contract_class::ContractClass;
@@ -50,6 +52,9 @@ impl SierraToNativeCompiler {
             resource_limits,
         )?;
 
+        let file_size_bytes = fs::metadata(Path::new(&output_file_path))?.len();
+        let file_size_mb = file_size_bytes as f64 / (1024.0 * 1024.0);
+        log::debug!("Compiled native file size: {:.2} MB", file_size_mb);
         Ok(AotContractExecutor::from_path(Path::new(&output_file_path))?.unwrap())
     }
 }

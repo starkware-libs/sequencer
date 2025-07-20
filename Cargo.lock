@@ -10721,6 +10721,7 @@ dependencies = [
  "assert_matches",
  "cairo-lang-starknet-classes",
  "cairo-native",
+ "log",
  "mempool_test_utils",
  "papyrus_config",
  "rstest",
