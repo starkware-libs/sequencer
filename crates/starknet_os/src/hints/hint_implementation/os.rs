@@ -3,6 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 use blockifier::state::state_api::StateReader;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
+    insert_value_from_var_name,
     insert_value_into_ap,
 };
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -119,6 +120,21 @@ pub(crate) fn get_n_blocks<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::GetBlocksNumber), n_blocks)
 }
 
+pub(crate) fn get_n_class_hashes_to_migrate<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let n_classes =
+        hint_processor.get_current_execution_helper()?.os_block_input.class_hashes_to_migrate.len();
+    insert_value_from_var_name(
+        Ids::NClassesToMigrate.into(),
+        n_classes,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
+}
 pub(crate) fn log_remaining_blocks(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
