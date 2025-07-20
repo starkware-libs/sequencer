@@ -1710,6 +1710,7 @@ dependencies = [
  "tokio",
  "tokio-retry",
  "tokio-stream",
+ "tokio-util",
  "tracing",
  "unsigned-varint 0.8.0",
  "validator",
