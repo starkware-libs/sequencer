@@ -6,11 +6,7 @@ use papyrus_base_layer::{L1BlockHash, L1BlockHeader, MockBaseLayerContract};
 use rstest::rstest;
 use starknet_api::block::GasPrice;
 
-use crate::l1_gas_price_scraper::{
-    L1GasPriceScraper,
-    L1GasPriceScraperConfig,
-    L1GasPriceScraperError,
-};
+use crate::l1_gas_price_scraper::{L1GasPriceConfig, L1GasPriceScraper, L1GasPriceScraperError};
 
 const BLOCK_TIME: u64 = 2;
 const GAS_PRICE: u128 = 42;
@@ -63,11 +59,7 @@ fn setup_scraper(
         .times(expected_number_of_blocks)
         .returning(|_| Ok(()));
 
-    L1GasPriceScraper::new(
-        L1GasPriceScraperConfig::default(),
-        Arc::new(mock_provider),
-        mock_contract,
-    )
+    L1GasPriceScraper::new(L1GasPriceConfig::default(), Arc::new(mock_provider), mock_contract)
 }
 
 #[tokio::test]
@@ -117,11 +109,8 @@ async fn run_l1_gas_price_scraper_two_blocks() {
         .times(usize::try_from(END_BLOCK2 - START_BLOCK).unwrap())
         .returning(|_| Ok(()));
 
-    let mut scraper = L1GasPriceScraper::new(
-        L1GasPriceScraperConfig::default(),
-        Arc::new(mock_provider),
-        mock_contract,
-    );
+    let mut scraper =
+        L1GasPriceScraper::new(L1GasPriceConfig::default(), Arc::new(mock_provider), mock_contract);
 
     let mut block_number = START_BLOCK;
     scraper.update_prices(&mut block_number).await.unwrap();
@@ -190,11 +179,8 @@ async fn l1_reorg_gas_price_scraper_error() {
         .times(usize::try_from(END_BLOCK2 - START_BLOCK - 1).unwrap())
         .returning(|_| Ok(()));
 
-    let mut scraper = L1GasPriceScraper::new(
-        L1GasPriceScraperConfig::default(),
-        Arc::new(mock_provider),
-        mock_contract,
-    );
+    let mut scraper =
+        L1GasPriceScraper::new(L1GasPriceConfig::default(), Arc::new(mock_provider), mock_contract);
     // The first call should succeed.
     let mut block_number = START_BLOCK;
     let result = scraper.update_prices(&mut block_number).await;
@@ -251,7 +237,7 @@ async fn l1_short_reorg_gas_price_scraper_is_fine(#[case] finality: u64) {
 
     // Make a scraper with the finality set.
     let mut scraper = L1GasPriceScraper::new(
-        L1GasPriceScraperConfig { finality, ..Default::default() },
+        L1GasPriceConfig { finality, ..Default::default() },
         Arc::new(mock_provider),
         mock_contract,
     );

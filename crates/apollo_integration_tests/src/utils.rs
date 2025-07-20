@@ -25,7 +25,7 @@ use apollo_gateway::config::{
 use apollo_http_server::test_utils::create_http_server_config;
 use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
-use apollo_l1_gas_price::config::L1GasPriceProviderConfig;
+use apollo_l1_gas_price::config::L1GasPriceConfig;
 use apollo_l1_gas_price::eth_to_strk_oracle::{EthToStrkOracleConfig, ETH_TO_STRK_QUANTIZATION};
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
@@ -206,7 +206,7 @@ pub fn create_node_config(
     };
     let override_gas_price_threshold_check = allow_bootstrap_txs;
     let mempool_config = create_mempool_config(override_gas_price_threshold_check);
-    let l1_gas_price_provider_config = L1GasPriceProviderConfig {
+    let l1_gas_price_config = L1GasPriceConfig {
         // Use newly minted blocks on Anvil to be used for gas price calculations.
         lag_margin_seconds: 0,
         ..Default::default()
@@ -263,7 +263,7 @@ pub fn create_node_config(
             l1_scraper_config,
             l1_provider_config,
             l1_endpoint_monitor_config,
-            l1_gas_price_provider_config,
+            l1_gas_price_config,
             ..Default::default()
         },
         config_pointers_map,

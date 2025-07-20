@@ -23,7 +23,7 @@ use apollo_gateway::config::GatewayConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
-use apollo_l1_gas_price::config::{L1GasPriceProviderConfig, L1GasPriceScraperConfig};
+use apollo_l1_gas_price::config::L1GasPriceConfig;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
 use apollo_mempool::config::MempoolConfig;
@@ -62,7 +62,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "consensus_manager_config.network_config.chain_id",
                 "gateway_config.chain_info.chain_id",
                 "l1_scraper_config.chain_id",
-                "l1_gas_price_scraper_config.chain_id",
+                "l1_gas_price_config.chain_id",
                 "mempool_p2p_config.network_config.chain_id",
                 "state_sync_config.storage_config.db_config.chain_id",
                 "state_sync_config.network_config.chain_id",
@@ -180,15 +180,13 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub l1_endpoint_monitor_config: L1EndpointMonitorConfig,
     #[validate]
-    pub l1_provider_config: L1ProviderConfig,
+    pub l1_gas_price_config: L1GasPriceConfig,
     #[validate]
-    pub l1_gas_price_provider_config: L1GasPriceProviderConfig,
+    pub l1_provider_config: L1ProviderConfig,
     #[validate]
     pub l1_scraper_config: L1ScraperConfig,
     #[validate]
     pub mempool_config: MempoolConfig,
-    #[validate]
-    pub l1_gas_price_scraper_config: L1GasPriceScraperConfig,
     #[validate]
     pub mempool_p2p_config: MempoolP2pConfig,
     #[validate]
@@ -223,16 +221,9 @@ impl SerializeConfig for SequencerNodeConfig {
                 self.l1_endpoint_monitor_config.dump(),
                 "l1_endpoint_monitor_config",
             ),
+            prepend_sub_config_name(self.l1_gas_price_config.dump(), "l1_gas_price_config"),
             prepend_sub_config_name(self.l1_provider_config.dump(), "l1_provider_config"),
             prepend_sub_config_name(self.l1_scraper_config.dump(), "l1_scraper_config"),
-            prepend_sub_config_name(
-                self.l1_gas_price_provider_config.dump(),
-                "l1_gas_price_provider_config",
-            ),
-            prepend_sub_config_name(
-                self.l1_gas_price_scraper_config.dump(),
-                "l1_gas_price_scraper_config",
-            ),
         ];
 
         sub_configs.into_iter().flatten().collect()
