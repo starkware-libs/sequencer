@@ -1069,26 +1069,6 @@
     "privacy": "Public",
     "value": 10000
   },
-  "consensus_manager_config.eth_to_strk_oracle_config.lag_interval_seconds": {
-    "description": "The size of the interval (seconds) that the eth to strk rate is taken on. The lag refers to the fact that the interval `[T, T+k)` contains the conversion rate for queries in the interval `[T+k, T+2k)`. Should be configured in alignment with relevant query parameters in `url_header_list`, if required.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "consensus_manager_config.eth_to_strk_oracle_config.max_cache_size": {
-    "description": "The maximum number of cached conversion rates.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "consensus_manager_config.eth_to_strk_oracle_config.query_timeout_sec": {
-    "description": "The timeout (seconds) for the query to the eth to strk oracle.",
-    "privacy": "Public",
-    "value": 3
-  },
-  "consensus_manager_config.eth_to_strk_oracle_config.url_header_list": {
-    "description": "A list of Url+HTTP headers for the eth to strk oracle. The url is followed by a comma and then headers as key^value pairs, separated by commas. For example: `https://api.example.com/api,key1^value1,key2^value2`. Each URL+headers is separated by a pipe `|` character. The `timestamp` parameter is appended dynamically when making requests, in order to have a stable mapping from block timestamp to conversion rate. ",
-    "privacy": "Private",
-    "value": "https://api.example.com/api"
-  },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
     "privacy": "Public",
@@ -1213,6 +1193,26 @@
     "description": "Address of the ETH fee token.",
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
+  },
+  "eth_to_strk_oracle_config.lag_interval_seconds": {
+    "description": "The size of the interval (seconds) that the eth to strk rate is taken on. The lag refers to the fact that the interval `[T, T+k)` contains the conversion rate for queries in the interval `[T+k, T+2k)`. Should be configured in alignment with relevant query parameters in `url_header_list`, if required.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "eth_to_strk_oracle_config.max_cache_size": {
+    "description": "The maximum number of cached conversion rates.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "eth_to_strk_oracle_config.query_timeout_sec": {
+    "description": "The timeout (seconds) for the query to the eth to strk oracle.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "eth_to_strk_oracle_config.url_header_list": {
+    "description": "A list of Url+HTTP headers for the eth to strk oracle. The url is followed by a comma and then headers as key^value pairs, separated by commas. For example: `https://api.example.com/api,key1^value1,key2^value2`. Each URL+headers is separated by a pipe `|` character. The `timestamp` parameter is appended dynamically when making requests, in order to have a stable mapping from block timestamp to conversion rate. ",
+    "privacy": "Private",
+    "value": "https://api.example.com/api"
   },
   "gateway_config.authorized_declarer_accounts": {
     "description": "Authorized declarer accounts. If set, only these accounts can declare new contracts. Addresses are in hex format and separated by a comma with no space.",
