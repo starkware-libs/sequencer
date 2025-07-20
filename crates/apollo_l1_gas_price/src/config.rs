@@ -5,7 +5,6 @@ use apollo_config::converters::deserialize_float_seconds_to_duration;
 use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_l1_provider::l1_scraper::L1_BLOCK_TIME;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ChainId;
 use validator::{Validate, ValidationError};
@@ -29,6 +28,7 @@ pub struct L1GasPriceConfig {
     pub starting_block: Option<u64>,
     #[validate(custom = "validate_ascii")]
     pub chain_id: ChainId,
+    pub l1_block_time: u64,
     pub finality: u64,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub polling_interval: Duration,
@@ -46,6 +46,7 @@ impl Default for L1GasPriceConfig {
             max_time_gap_seconds: 900, // 15 minutes
             starting_block: None,
             chain_id: ChainId::Other("0x0".to_string()),
+            l1_block_time: 12,
             finality: 0,
             polling_interval: Duration::from_secs(1),
             startup_num_blocks_multiplier: 2,
@@ -81,6 +82,12 @@ impl SerializeConfig for L1GasPriceConfig {
                 "chain_id",
                 &self.chain_id,
                 "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "l1_block_time",
+                &self.l1_block_time,
+                "The time between L1 blocks",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -120,7 +127,8 @@ impl SerializeConfig for L1GasPriceConfig {
 }
 
 fn validate_config(config: &L1GasPriceConfig) -> Result<(), ValidationError> {
-    let lag_margin_lowerbound = config.finality * L1_BLOCK_TIME + config.polling_interval.as_secs();
+    let lag_margin_lowerbound =
+        config.finality * config.l1_block_time + config.polling_interval.as_secs();
     if lag_margin_lowerbound <= config.lag_margin_seconds {
         Ok(())
     } else {
@@ -133,11 +141,11 @@ fn validate_config(config: &L1GasPriceConfig) -> Result<(), ValidationError> {
         error.message = Some(
             format!(
                 "lag_margin_seconds={} should be greater than {} seconds, as set by finality={} \
-                 times L1_BLOCK_TIME={} + polling_interval={}s",
+                 times l1_block_time={} + polling_interval={}s",
                 config.lag_margin_seconds,
                 lag_margin_lowerbound,
                 config.finality,
-                L1_BLOCK_TIME,
+                config.l1_block_time,
                 config.polling_interval.as_secs(),
             )
             .into(),
