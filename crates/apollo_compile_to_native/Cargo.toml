@@ -14,6 +14,7 @@ apollo_compilation_utils.workspace = true
 apollo_compile_to_native_types.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-native.workspace = true
+log.workspace = true
 tempfile.workspace = true
 
 [dev-dependencies]

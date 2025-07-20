@@ -1,3 +1,5 @@
+use log;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use apollo_compilation_utils::compiler_utils::compile_with_args;
@@ -50,6 +52,9 @@ impl SierraToNativeCompiler {
             resource_limits,
         )?;
 
+        let file_size_bytes = fs::metadata(Path::new(&output_file_path))?.len();
+        let file_size_mb = file_size_bytes as f64 / (1024.0 * 1024.0);
+        log::debug!("Compiled native file size: {:.2} MB", file_size_mb);
         Ok(AotContractExecutor::from_path(Path::new(&output_file_path))
             .map_err(|e| CompilationUtilError::CompilationError(e.to_string()))?
             .unwrap())
