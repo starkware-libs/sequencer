@@ -7,7 +7,8 @@ use apollo_batcher_types::communication::MockBatcherClient;
 use apollo_infra::trace_util::configure_tracing;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{L1ProviderClient, MockL1ProviderClient};
-use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_state_sync_types::communication::{MockStateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use indexmap::IndexSet;
@@ -75,9 +76,13 @@ async fn bootstrap_e2e() {
     let mut sync_client = MockStateSyncClient::default();
     let sync_response = Arc::new(Mutex::new(HashMap::<BlockNumber, SyncBlock>::new()));
     let sync_response_clone = sync_response.clone();
-    sync_client
-        .expect_get_block()
-        .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
+    sync_client.expect_get_block().returning(move |input| {
+        sync_response_clone
+            .lock()
+            .unwrap()
+            .remove(&input)
+            .ok_or(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(input)))
+    });
 
     let mut batcher_client = MockBatcherClient::default();
     batcher_client
@@ -265,9 +270,13 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
     // Later in the test we modify it to become something else.
     let sync_block_response = Arc::new(Mutex::new(HashMap::<BlockNumber, SyncBlock>::new()));
     let sync_response_clone = sync_block_response.clone();
-    sync_client
-        .expect_get_block()
-        .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
+    sync_client.expect_get_block().returning(move |input| {
+        sync_response_clone
+            .lock()
+            .unwrap()
+            .remove(&input)
+            .ok_or(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(input)))
+    });
 
     let mut batcher_client = MockBatcherClient::default();
     batcher_client
