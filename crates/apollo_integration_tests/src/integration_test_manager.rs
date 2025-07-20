@@ -11,6 +11,7 @@ use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
+use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
@@ -29,7 +30,10 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::StarknetL1Contract;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    StarknetL1Contract,
+};
 use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
     make_block_history_on_anvil,
@@ -173,8 +177,8 @@ impl NodeSetup {
 
     pub fn generate_simulator_ports_json(&self, path: &str) {
         let json_data = serde_json::json!({
-            HTTP_PORT_ARG: self.executables[self.http_server_index].get_config().http_server_config.port,
-            MONITORING_PORT_ARG: self.executables[self.batcher_index].get_config().monitoring_endpoint_config.port
+            HTTP_PORT_ARG: self.executables[self.http_server_index].get_config().clone().http_server_config.expect("Should have http server config").port,
+            MONITORING_PORT_ARG: self.executables[self.batcher_index].get_config().clone().monitoring_endpoint_config.expect("Should have monitoring endpoint config").port
         });
         serialize_to_file(json_data, path);
     }
@@ -269,18 +273,42 @@ impl IntegrationTestManager {
         )
         .await;
 
-        let base_layer_config =
-            &sequencers_setup[0].executables[0].base_app_config.get_config().base_layer_config;
+        // let base_layer_config =
+        //     &sequencers_setup[0].executables[0].base_app_config.get_config().base_layer_config;
+
+        fn get_base_layer_config(sequencers_setup: &NodeSetup) -> EthereumBaseLayerConfig {
+            for executable_setup in &sequencers_setup.executables {
+                if let Some(base_layer_config) =
+                    executable_setup.get_config().clone().base_layer_config
+                {
+                    return base_layer_config.clone();
+                }
+            }
+            unreachable!("No executable with a set base layer config.")
+        }
+        let base_layer_config = get_base_layer_config(sequencers_setup.first().unwrap());
+        fn get_l1_gas_price_scraper_config(
+            sequencers_setup: &NodeSetup,
+        ) -> L1GasPriceScraperConfig {
+            for executable_setup in &sequencers_setup.executables {
+                if let Some(l1_gas_price_scraper_config) =
+                    executable_setup.get_config().clone().l1_gas_price_scraper_config
+                {
+                    return l1_gas_price_scraper_config.clone();
+                }
+            }
+            unreachable!("No executable with a set l1 gas price scraper config.")
+        }
+        let l1_gas_price_scraper_config =
+            get_l1_gas_price_scraper_config(sequencers_setup.first().unwrap());
+
         let (anvil, starknet_l1_contract) =
-            spawn_anvil_and_deploy_starknet_l1_contract(base_layer_config).await;
+            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config).await;
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
-        let l1_config = sequencers_setup[0].executables[0]
-            .base_app_config
-            .get_config()
-            .l1_gas_price_scraper_config
-            .clone();
-        let num_blocks_needed_on_l1 =
-            (l1_config.number_of_blocks_for_mean + l1_config.finality).try_into().unwrap();
+        let num_blocks_needed_on_l1 = (l1_gas_price_scraper_config.number_of_blocks_for_mean
+            + l1_gas_price_scraper_config.finality)
+            .try_into()
+            .unwrap();
         let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
         let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
 
@@ -500,24 +528,33 @@ impl IntegrationTestManager {
 
     /// Create a simulator that's connected to the http server of Node 0.
     pub fn create_simulator(&self) -> SequencerSimulator {
-        let node_0_setup = self
-            .running_nodes
-            .get(&0)
-            .map(|node| &(node.node_setup))
-            .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
-        let config = node_0_setup
-            .executables
-            .get(node_0_setup.http_server_index)
-            .expect("http_server_index points to a non existing executable index")
-            .get_config();
+        let node_setup = self
+            .idle_nodes
+            .values()
+            .next()
+            .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
+            .expect("There should be at least one running or idle node");
 
-        let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
-        SequencerSimulator::new(
-            localhost_url.clone(),
-            config.http_server_config.port,
-            localhost_url,
-            config.monitoring_endpoint_config.port,
-        )
+        for executable_setup in &node_setup.executables {
+            if let Some(http_server_config) =
+                executable_setup.get_config().clone().http_server_config
+            {
+                let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
+                let monitoring_port = executable_setup
+                    .get_config()
+                    .clone()
+                    .monitoring_endpoint_config
+                    .expect("Should have a monitoring endpoint config")
+                    .port;
+                return SequencerSimulator::new(
+                    localhost_url.clone(),
+                    http_server_config.port,
+                    localhost_url,
+                    monitoring_port,
+                );
+            }
+        }
+        unreachable!("No executable with a set http server.")
     }
 
     #[instrument(skip(self))]
@@ -568,23 +605,24 @@ impl IntegrationTestManager {
         join_all(await_alive_tasks).await;
     }
 
-    // Get RPC server socket address for the node 0.
     fn get_rpc_server_socket(&self) -> SocketAddr {
-        let node_0_setup = self
-            .running_nodes
-            .get(&0)
-            .map(|node| &(node.node_setup))
-            .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
-        let config = node_0_setup
-            .executables
-            .get(node_0_setup.http_server_index)
-            .expect("http_server_index points to a non existing executable index")
-            .get_config();
+        let node_setup = self
+            .idle_nodes
+            .values()
+            .next()
+            .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
+            .expect("There should be at least one running or idle node");
 
-        SocketAddr::from((
-            config.state_sync_config.rpc_config.ip,
-            config.state_sync_config.rpc_config.port,
-        ))
+        for executable_setup in &node_setup.executables {
+            if let Some(state_sync_config) = executable_setup.get_config().clone().state_sync_config
+            {
+                return SocketAddr::from((
+                    state_sync_config.rpc_config.ip,
+                    state_sync_config.rpc_config.port,
+                ));
+            }
+        }
+        unreachable!("No executable with a set state sync config.")
     }
 
     // Verify with JSON RPC server if the last block is the expected one.
@@ -755,13 +793,12 @@ impl IntegrationTestManager {
             .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
             .expect("There should be at least one running or idle node");
 
-        node_setup.executables[0]
-            .get_config()
-            .batcher_config
-            .block_builder_config
-            .chain_info
-            .chain_id
-            .clone()
+        for executable_setup in &node_setup.executables {
+            if let Some(batcher_config) = executable_setup.get_config().clone().batcher_config {
+                return batcher_config.block_builder_config.chain_info.chain_id;
+            }
+        }
+        unreachable!("No executable with a set batcher.")
     }
 
     /// This function returns the number of accepted transactions on all running nodes.
@@ -918,7 +955,7 @@ pub async fn get_sequencer_setup_configs(
             CONFIG_NON_POINTERS_WHITELIST.clone(),
         );
 
-        let HttpServerConfig { ip, port } = config.http_server_config;
+        let HttpServerConfig { ip, port } = config.http_server_config.unwrap();
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         for (executable_index, executable_component_config) in

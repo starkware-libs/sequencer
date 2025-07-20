@@ -181,7 +181,15 @@ impl FlowTestSetup {
 
     pub fn chain_id(&self) -> &ChainId {
         // TODO(Arni): Get the chain ID from a shared canonic location.
-        &self.sequencer_0.node_config.batcher_config.block_builder_config.chain_info.chain_id
+        &self
+            .sequencer_0
+            .node_config
+            .batcher_config
+            .as_ref()
+            .unwrap()
+            .block_builder_config
+            .chain_info
+            .chain_id
     }
 
     pub async fn send_messages_to_l2(&self, l1_to_l2_messages_args: &[L1ToL2MessageArgs]) {
@@ -270,16 +278,19 @@ impl FlowSequencerSetup {
             allow_bootstrap_txs,
         );
         let num_l1_txs = u64::try_from(NUM_L1_TRANSACTIONS).unwrap();
-        node_config.l1_gas_price_scraper_config.number_of_blocks_for_mean = num_l1_txs;
-        node_config.l1_gas_price_provider_config.number_of_blocks_for_mean = num_l1_txs;
+        node_config.l1_gas_price_scraper_config.as_mut().unwrap().number_of_blocks_for_mean =
+            num_l1_txs;
+        node_config.l1_gas_price_provider_config.as_mut().unwrap().number_of_blocks_for_mean =
+            num_l1_txs;
 
         debug!("Sequencer config: {:#?}", node_config);
         let (clients, servers) = create_node_modules(&node_config).await;
 
-        let MonitoringEndpointConfig { ip, port, .. } = node_config.monitoring_endpoint_config;
+        let MonitoringEndpointConfig { ip, port, .. } =
+            node_config.monitoring_endpoint_config.clone().unwrap();
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
-        let HttpServerConfig { ip, port } = node_config.http_server_config;
+        let HttpServerConfig { ip, port } = node_config.http_server_config.clone().unwrap();
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         // Run the sequencer node.
