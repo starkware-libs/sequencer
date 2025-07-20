@@ -22,7 +22,7 @@ pub(crate) fn potc2_sepolia_hybrid_deployments() -> Vec<Deployment> {
 fn deployment_config_override() -> DeploymentConfigOverride {
     DeploymentConfigOverride::new(
         "0xd8A5518cf4AC3ECD3b4cec772478109679a73E78",
-        "PRIVATE_SN_POTC_MOCK_GOERLI",
+        "PRIVATE_SN_POTC_MOCK_SEPOLIA",
         "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
         "https://feeder.potc-mock-sepolia-fgw.starknet.io",
         "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
