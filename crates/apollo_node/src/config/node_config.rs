@@ -10,6 +10,7 @@ use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::dumping::{
     generate_struct_pointer,
     prepend_sub_config_name,
+    ser_optional_sub_config,
     ser_pointer_target_param,
     set_pointing_param_paths,
     ConfigPointers,
@@ -168,7 +169,7 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
     LazyLock::new(HashSet::<ParamPath>::new);
 
 /// The configurations of the various components of the node.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
     // Infra related configs.
     #[validate]
@@ -178,37 +179,37 @@ pub struct SequencerNodeConfig {
 
     // Business-logic component configs.
     #[validate]
-    pub base_layer_config: EthereumBaseLayerConfig,
+    pub base_layer_config: Option<EthereumBaseLayerConfig>,
     #[validate]
-    pub batcher_config: BatcherConfig,
+    pub batcher_config: Option<BatcherConfig>,
     #[validate]
-    pub class_manager_config: FsClassManagerConfig,
+    pub class_manager_config: Option<FsClassManagerConfig>,
     #[validate]
-    pub consensus_manager_config: ConsensusManagerConfig,
+    pub consensus_manager_config: Option<ConsensusManagerConfig>,
     #[validate]
-    pub gateway_config: GatewayConfig,
+    pub gateway_config: Option<GatewayConfig>,
     #[validate]
-    pub http_server_config: HttpServerConfig,
+    pub http_server_config: Option<HttpServerConfig>,
     #[validate]
-    pub compiler_config: SierraCompilationConfig,
+    pub compiler_config: Option<SierraCompilationConfig>,
     #[validate]
-    pub l1_endpoint_monitor_config: L1EndpointMonitorConfig,
+    pub l1_endpoint_monitor_config: Option<L1EndpointMonitorConfig>,
     #[validate]
-    pub l1_provider_config: L1ProviderConfig,
+    pub l1_provider_config: Option<L1ProviderConfig>,
     #[validate]
-    pub l1_gas_price_provider_config: L1GasPriceProviderConfig,
+    pub l1_gas_price_provider_config: Option<L1GasPriceProviderConfig>,
     #[validate]
-    pub l1_scraper_config: L1ScraperConfig,
+    pub l1_scraper_config: Option<L1ScraperConfig>,
     #[validate]
-    pub mempool_config: MempoolConfig,
+    pub mempool_config: Option<MempoolConfig>,
     #[validate]
-    pub l1_gas_price_scraper_config: L1GasPriceScraperConfig,
+    pub l1_gas_price_scraper_config: Option<L1GasPriceScraperConfig>,
     #[validate]
-    pub mempool_p2p_config: MempoolP2pConfig,
+    pub mempool_p2p_config: Option<MempoolP2pConfig>,
     #[validate]
-    pub monitoring_endpoint_config: MonitoringEndpointConfig,
+    pub monitoring_endpoint_config: Option<MonitoringEndpointConfig>,
     #[validate]
-    pub state_sync_config: StateSyncConfig,
+    pub state_sync_config: Option<StateSyncConfig>,
 }
 
 impl SerializeConfig for SequencerNodeConfig {
@@ -216,40 +217,56 @@ impl SerializeConfig for SequencerNodeConfig {
         let sub_configs = vec![
             prepend_sub_config_name(self.components.dump(), "components"),
             prepend_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
-            prepend_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
-            prepend_sub_config_name(self.batcher_config.dump(), "batcher_config"),
-            prepend_sub_config_name(self.class_manager_config.dump(), "class_manager_config"),
-            prepend_sub_config_name(
-                self.consensus_manager_config.dump(),
-                "consensus_manager_config",
-            ),
-            prepend_sub_config_name(self.gateway_config.dump(), "gateway_config"),
-            prepend_sub_config_name(self.http_server_config.dump(), "http_server_config"),
-            prepend_sub_config_name(self.compiler_config.dump(), "compiler_config"),
-            prepend_sub_config_name(self.mempool_config.dump(), "mempool_config"),
-            prepend_sub_config_name(self.mempool_p2p_config.dump(), "mempool_p2p_config"),
-            prepend_sub_config_name(
-                self.monitoring_endpoint_config.dump(),
-                "monitoring_endpoint_config",
-            ),
-            prepend_sub_config_name(self.state_sync_config.dump(), "state_sync_config"),
-            prepend_sub_config_name(
-                self.l1_endpoint_monitor_config.dump(),
-                "l1_endpoint_monitor_config",
-            ),
-            prepend_sub_config_name(self.l1_provider_config.dump(), "l1_provider_config"),
-            prepend_sub_config_name(self.l1_scraper_config.dump(), "l1_scraper_config"),
-            prepend_sub_config_name(
-                self.l1_gas_price_provider_config.dump(),
+            ser_optional_sub_config(&self.base_layer_config, "base_layer_config"),
+            ser_optional_sub_config(&self.batcher_config, "batcher_config"),
+            ser_optional_sub_config(&self.class_manager_config, "class_manager_config"),
+            ser_optional_sub_config(&self.consensus_manager_config, "consensus_manager_config"),
+            ser_optional_sub_config(&self.gateway_config, "gateway_config"),
+            ser_optional_sub_config(&self.http_server_config, "http_server_config"),
+            ser_optional_sub_config(&self.compiler_config, "compiler_config"),
+            ser_optional_sub_config(&self.mempool_config, "mempool_config"),
+            ser_optional_sub_config(&self.mempool_p2p_config, "mempool_p2p_config"),
+            ser_optional_sub_config(&self.monitoring_endpoint_config, "monitoring_endpoint_config"),
+            ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
+            ser_optional_sub_config(&self.l1_endpoint_monitor_config, "l1_endpoint_monitor_config"),
+            ser_optional_sub_config(&self.l1_provider_config, "l1_provider_config"),
+            ser_optional_sub_config(&self.l1_scraper_config, "l1_scraper_config"),
+            ser_optional_sub_config(
+                &self.l1_gas_price_provider_config,
                 "l1_gas_price_provider_config",
             ),
-            prepend_sub_config_name(
-                self.l1_gas_price_scraper_config.dump(),
+            ser_optional_sub_config(
+                &self.l1_gas_price_scraper_config,
                 "l1_gas_price_scraper_config",
             ),
         ];
 
         sub_configs.into_iter().flatten().collect()
+    }
+}
+
+impl Default for SequencerNodeConfig {
+    fn default() -> Self {
+        Self {
+            components: ComponentConfig::default(),
+            monitoring_config: MonitoringConfig::default(),
+            base_layer_config: Some(EthereumBaseLayerConfig::default()),
+            batcher_config: Some(BatcherConfig::default()),
+            class_manager_config: Some(FsClassManagerConfig::default()),
+            consensus_manager_config: Some(ConsensusManagerConfig::default()),
+            gateway_config: Some(GatewayConfig::default()),
+            http_server_config: Some(HttpServerConfig::default()),
+            compiler_config: Some(SierraCompilationConfig::default()),
+            l1_endpoint_monitor_config: Some(L1EndpointMonitorConfig::default()),
+            l1_provider_config: Some(L1ProviderConfig::default()),
+            l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
+            l1_scraper_config: Some(L1ScraperConfig::default()),
+            mempool_config: Some(MempoolConfig::default()),
+            l1_gas_price_scraper_config: Some(L1GasPriceScraperConfig::default()),
+            mempool_p2p_config: Some(MempoolP2pConfig::default()),
+            monitoring_endpoint_config: Some(MonitoringEndpointConfig::default()),
+            state_sync_config: Some(StateSyncConfig::default()),
+        }
     }
 }
 
