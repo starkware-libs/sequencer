@@ -8,7 +8,7 @@
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.sierra_gas": 4000000000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.proving_gas": 5000000000,
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.state_diff_size": 4000,
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.pedersen": 10125,
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.pedersen": 5063,
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.range_check": 70,
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.ecdsa": 1666666,
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.ec_op": 714875,
