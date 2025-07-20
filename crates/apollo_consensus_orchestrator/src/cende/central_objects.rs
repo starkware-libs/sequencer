@@ -64,8 +64,6 @@ pub(crate) type CentralCompressedStateDiff = CentralStateDiff;
 pub(crate) type CentralSierraContractClassEntry = (ClassHash, CentralSierraContractClass);
 pub(crate) type CentralCasmContractClassEntry = (CompiledClassHash, CentralCasmContractClass);
 pub(crate) type CentralCasmHashComputationData = CasmHashComputationData;
-// TODO(AvivG): Remove this once added to 'AerospikeBlob'.
-#[allow(unused)]
 pub(crate) type CentralCompiledClassHashesForMigration = CompiledClassHashesForMigration;
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
