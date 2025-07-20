@@ -1,6 +1,14 @@
 import argparse
+from enum import Enum
 
 import colorlog
+
+
+class Environment(Enum):
+    DEV = "dev"
+    INTEGRATION = "integration"
+    TESTNET = "testnet"
+    MAINNET = "mainnet"
 
 
 def get_logger(name: str = __name__, debug: bool = False) -> colorlog.getLogger:
@@ -115,7 +123,7 @@ def arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--env",
         type=str,
-        choices=["dev", "integration", "testnet", "mainnet"],
+        choices=[e.value for e in Environment],
         required=True,
     )
 
