@@ -165,16 +165,20 @@ fn modify_revert_config(
     revert_up_to_and_including: Option<BlockNumber>,
 ) {
     let should_revert = revert_up_to_and_including.is_some();
-    config.state_sync_config.revert_config.should_revert = should_revert;
-    config.consensus_manager_config.revert_config.should_revert = should_revert;
+    config.state_sync_config.as_mut().unwrap().revert_config.should_revert = should_revert;
+    config.consensus_manager_config.as_mut().unwrap().revert_config.should_revert = should_revert;
 
     // If should revert is false, the revert_up_to_and_including value is irrelevant.
     if should_revert {
         let revert_up_to_and_including = revert_up_to_and_including.unwrap();
-        config.state_sync_config.revert_config.revert_up_to_and_including =
+        config.state_sync_config.as_mut().unwrap().revert_config.revert_up_to_and_including =
             revert_up_to_and_including;
-        config.consensus_manager_config.revert_config.revert_up_to_and_including =
-            revert_up_to_and_including;
+        config
+            .consensus_manager_config
+            .as_mut()
+            .unwrap()
+            .revert_config
+            .revert_up_to_and_including = revert_up_to_and_including;
     }
 }
 
@@ -186,11 +190,14 @@ fn modify_height_configs_idle_nodes(
     integration_test_manager.modify_config_idle_nodes(node_indices, |config| {
         // TODO(noamsp): Change these values point to a single config value and refactor this
         // function accordingly.
-        config.consensus_manager_config.immediate_active_height = node_start_height;
-        config.consensus_manager_config.cende_config.skip_write_height = Some(node_start_height);
+        config.consensus_manager_config.as_mut().unwrap().immediate_active_height =
+            node_start_height;
+        config.consensus_manager_config.as_mut().unwrap().cende_config.skip_write_height =
+            Some(node_start_height);
         // TODO(Gilad): remove once we add support to updating the StarknetContract on Anvil.
         // This will require mocking the required permissions in the contract that typically
         // forbid one from updating the state through an API call.
-        config.l1_provider_config.provider_startup_height_override = Some(BlockNumber(1));
+        config.l1_provider_config.as_mut().unwrap().provider_startup_height_override =
+            Some(BlockNumber(1));
     });
 }
