@@ -50,7 +50,7 @@ impl LogCompatibleToStringExt for TransactionExecutorError {}
 
 pub type TransactionExecutorResult<T> = Result<T, TransactionExecutorError>;
 pub type CompiledClassHashV2ToV1 = (CompiledClassHash, CompiledClassHash);
-pub type CompiledClassHashesToMigrate = Vec<CompiledClassHashV2ToV1>;
+pub type CompiledClassHashesForMigration = Vec<CompiledClassHashV2ToV1>;
 
 #[cfg_attr(test, derive(PartialEq))]
 #[derive(Debug)]
@@ -60,7 +60,7 @@ pub struct BlockExecutionSummary {
     pub bouncer_weights: BouncerWeights,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
-    pub compiled_class_hashes_to_migrate: CompiledClassHashesToMigrate,
+    pub compiled_class_hashes_for_migration: CompiledClassHashesForMigration,
 }
 
 /// A transaction executor, used for building a single block.
@@ -245,7 +245,7 @@ pub(crate) fn finalize_block<S: StateReader>(
         allocate_aliases_in_storage(block_state, alias_contract_address)?;
     }
 
-    let compiled_class_hashes_to_migrate =
+    let compiled_class_hashes_for_migration =
         update_compiled_class_hash_migration_in_state(&lock_bouncer(bouncer), block_state)?;
     let state_diff = block_state.to_state_diff()?.state_maps;
 
@@ -279,7 +279,7 @@ pub(crate) fn finalize_block<S: StateReader>(
         bouncer_weights: *bouncer.get_accumulated_weights(),
         casm_hash_computation_data_sierra_gas,
         casm_hash_computation_data_proving_gas,
-        compiled_class_hashes_to_migrate,
+        compiled_class_hashes_for_migration,
     })
 }
 
@@ -288,8 +288,8 @@ pub(crate) fn finalize_block<S: StateReader>(
 fn update_compiled_class_hash_migration_in_state<S: StateReader>(
     bouncer: &Bouncer,
     block_state: &mut CachedState<S>,
-) -> StateResult<CompiledClassHashesToMigrate> {
-    let mut compiled_class_hashes_v2_to_v1: CompiledClassHashesToMigrate = Vec::new();
+) -> StateResult<CompiledClassHashesForMigration> {
+    let mut compiled_class_hashes_v2_to_v1: CompiledClassHashesForMigration = Vec::new();
     for &class_hash in &bouncer.class_hashes_to_migrate {
         let compiled_class_hash_v1 = block_state
             .get_compiled_class_hash(class_hash)
