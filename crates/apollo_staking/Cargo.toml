@@ -1,0 +1,20 @@
+[package]
+name = "apollo_staking"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+license-file.workspace = true
+
+[dependencies]
+apollo_consensus.workspace = true
+apollo_state_sync_types.workspace = true
+async-trait.workspace = true
+blockifier.workspace = true
+mockall.workspace = true
+starknet-types-core.workspace = true
+starknet_api.workspace = true
+thiserror.workspace = true
+
+[lints]
+workspace = true

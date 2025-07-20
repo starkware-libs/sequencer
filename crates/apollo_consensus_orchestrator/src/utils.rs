@@ -232,7 +232,7 @@ pub(crate) fn truncate_to_executed_txs(
 }
 
 #[cfg_attr(test, automock)]
-pub trait BlockRandomGenerator {
+pub trait BlockRandomGenerator: Send + Sync {
     fn generate(
         &self,
         height: BlockNumber,
