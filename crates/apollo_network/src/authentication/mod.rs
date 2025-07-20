@@ -17,6 +17,7 @@ use negotiator::{Error as NegotiatorError, Negotiator, Output as NegotiatorOutpu
 use noise::Error as NoiseError;
 
 pub mod negotiator;
+pub mod test_util;
 
 /// A security upgrade which allows running an additional, custom, negotiation after Noise
 /// negotiations have completed successfully.
