@@ -16,7 +16,7 @@ use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
 use apollo_consensus::types::ProposalCommitment;
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
-use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
+use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_time::time::{sleep_until, Clock, DateTime};
@@ -147,7 +147,6 @@ pub(crate) async fn validate_proposal(
     is_block_info_valid(
         args.block_info_validation.clone(),
         block_info.clone(),
-        args.deps.eth_to_strk_oracle_client,
         args.deps.clock.as_ref(),
         args.deps.l1_gas_price_provider,
         &args.gas_price_params,
@@ -232,7 +231,6 @@ pub(crate) async fn validate_proposal(
 async fn is_block_info_valid(
     block_info_validation: BlockInfoValidation,
     block_info_proposed: ConsensusBlockInfo,
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     clock: &dyn Clock,
     l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     gas_price_params: &GasPriceParams,
@@ -274,7 +272,6 @@ async fn is_block_info_valid(
         ));
     }
     let (eth_to_fri_rate, l1_gas_prices) = get_oracle_rate_and_prices(
-        eth_to_strk_oracle_client,
         l1_gas_price_provider,
         block_info_proposed.timestamp,
         block_info_validation.previous_block_info.as_ref(),
