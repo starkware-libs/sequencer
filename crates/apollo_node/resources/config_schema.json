@@ -87,7 +87,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
-    "value": 10125
+    "value": 4769
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.poseidon": {
     "description": "Poseidon gas weight.",
