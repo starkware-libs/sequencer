@@ -245,6 +245,25 @@ impl VersionedConstants {
         (*(self.sierra_gas_in_l1_gas_amount() * l2_gas_amount.0).ceil().numer()).into()
     }
 
+    pub fn toggle_sierra_gas(&self, use_sierra_gas: bool) -> Self {
+        match use_sierra_gas {
+            true => {
+                log::debug!("Forcing Sierra gas to be used.");
+                VersionedConstants {
+                    min_sierra_version_for_sierra_gas: SierraVersion::new(0, 0, 0),
+                    ..self.clone()
+                }
+            }
+            false => {
+                log::debug!("Forcing Sierra gas to be disabled.");
+                VersionedConstants {
+                    min_sierra_version_for_sierra_gas: SierraVersion::new(100, 0, 0),
+                    ..self.clone()
+                }
+            }
+        }
+    }
+
     /// Returns the equivalent L1 gas amount of one unit of Sierra gas.
     /// The conversion is based on the pricing of a single Cairo step.
     fn sierra_gas_in_l1_gas_amount(&self) -> ResourceCost {
