@@ -27,13 +27,14 @@ use starknet_types_core::felt::Felt;
 
 use crate::committee_manager::{
     Committee,
-    CommitteeManager,
-    CommitteeManagerConfig,
-    CommitteeManagerError,
+    CommitteeProvider,
+    CommitteeProviderError,
     ExecutionContext,
     RetdataDeserializationError,
     Staker,
     StakerSet,
+    StakingManager,
+    StakingManagerConfig,
 };
 use crate::utils::MockBlockRandomGenerator;
 
@@ -84,8 +85,8 @@ fn state(block_context: Context) -> State {
 }
 
 #[fixture]
-fn default_config() -> CommitteeManagerConfig {
-    CommitteeManagerConfig {
+fn default_config() -> StakingManagerConfig {
+    StakingManagerConfig {
         staking_contract_address: STAKING_CONTRACT.get_instance_address(0),
         max_cached_epochs: 10,
         committee_size: 10,
@@ -121,7 +122,7 @@ fn set_stakers(state: &mut State, block_context: &Context, stakers: &[Staker]) {
 #[case::multiple_stakers_greater_than_committee_size(vec![STAKER_1, STAKER_2, STAKER_3, STAKER_4], vec![STAKER_4, STAKER_3, STAKER_2])]
 #[case::multiple_stakers_equal_weights(vec![STAKER_1, STAKER_2, STAKER_3, Staker { address: ContractAddress(PatriciaKey::from_hex_unchecked("0x0")), .. STAKER_1 }], vec![STAKER_3, STAKER_2, STAKER_1])]
 fn get_committee_success(
-    default_config: CommitteeManagerConfig,
+    default_config: StakingManagerConfig,
     mut state: State,
     block_context: Context,
     #[case] stakers: StakerSet,
@@ -129,9 +130,9 @@ fn get_committee_success(
 ) {
     set_stakers(&mut state, &block_context, &stakers);
 
-    let mut committee_manager = CommitteeManager::new(
+    let mut committee_manager = StakingManager::new(
         Box::new(MockBlockRandomGenerator::new()),
-        CommitteeManagerConfig { committee_size: 3, ..default_config },
+        StakingManagerConfig { committee_size: 3, ..default_config },
     );
 
     let context = ExecutionContext {
@@ -146,13 +147,13 @@ fn get_committee_success(
 
 #[rstest]
 fn get_committee_cache(
-    default_config: CommitteeManagerConfig,
+    default_config: StakingManagerConfig,
     mut state: State,
     block_context: Context,
 ) {
-    let mut committee_manager = CommitteeManager::new(
+    let mut committee_manager = StakingManager::new(
         Box::new(MockBlockRandomGenerator::new()),
-        CommitteeManagerConfig { max_cached_epochs: 1, ..default_config },
+        StakingManagerConfig { max_cached_epochs: 1, ..default_config },
     );
 
     // Case 1: Get committee for epoch 1. Cache miss – STAKER_1 fetched from contract.
@@ -197,7 +198,7 @@ fn get_committee_cache(
 #[case(0, STAKER_4)]
 #[tokio::test]
 async fn get_proposer_success(
-    default_config: CommitteeManagerConfig,
+    default_config: StakingManagerConfig,
     mut state: State,
     block_context: Context,
     #[case] random_value: u128,
@@ -215,7 +216,7 @@ async fn get_proposer_success(
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| random_value);
 
-    let mut committee_manager = CommitteeManager::new(Box::new(random_generator), default_config);
+    let mut committee_manager = StakingManager::new(Box::new(random_generator), default_config);
 
     let context = ExecutionContext {
         state_reader: state.clone(),
@@ -230,16 +231,16 @@ async fn get_proposer_success(
 #[rstest]
 #[tokio::test]
 async fn get_proposer_empty_committee(
-    default_config: CommitteeManagerConfig,
+    default_config: StakingManagerConfig,
     state: State,
     block_context: Context,
 ) {
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| 0);
 
-    let mut committee_manager = CommitteeManager::new(
+    let mut committee_manager = StakingManager::new(
         Box::new(random_generator),
-        CommitteeManagerConfig { committee_size: 0, ..default_config },
+        StakingManagerConfig { committee_size: 0, ..default_config },
     );
 
     let context = ExecutionContext {
@@ -248,14 +249,14 @@ async fn get_proposer_empty_committee(
         state_sync_client: Arc::new(MockStateSyncClient::new()),
     };
     let err = committee_manager.get_proposer(BlockNumber(1), 0, context).await.unwrap_err();
-    assert_matches!(err, CommitteeManagerError::EmptyCommittee);
+    assert_matches!(err, CommitteeProviderError::EmptyCommittee);
 }
 
 #[rstest]
 #[tokio::test]
 #[should_panic]
 async fn get_proposer_random_value_exceeds_total_weight(
-    default_config: CommitteeManagerConfig,
+    default_config: StakingManagerConfig,
     mut state: State,
     block_context: Context,
 ) {
@@ -266,7 +267,7 @@ async fn get_proposer_random_value_exceeds_total_weight(
     let mut random_generator = MockBlockRandomGenerator::new();
     random_generator.expect_generate().returning(move |_, _, _, _| 10000);
 
-    let mut committee_manager = CommitteeManager::new(Box::new(random_generator), default_config);
+    let mut committee_manager = StakingManager::new(Box::new(random_generator), default_config);
 
     let context = ExecutionContext {
         state_reader: state.clone(),
