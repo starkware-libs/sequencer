@@ -71,8 +71,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let batcher = HybridNodeServiceName::Core.component_config_pair(ports[0]);
         let class_manager = HybridNodeServiceName::Core.component_config_pair(ports[1]);
         let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
-        let l1_gas_price_provider = HybridNodeServiceName::Core.component_config_pair(ports[3]);
-        let l1_provider = HybridNodeServiceName::Core.component_config_pair(ports[4]);
+        let l1_gas_price_provider = HybridNodeServiceName::L1.component_config_pair(ports[3]);
+        let l1_provider = HybridNodeServiceName::L1.component_config_pair(ports[4]);
         let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5]);
         let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6]);
         let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7]);
