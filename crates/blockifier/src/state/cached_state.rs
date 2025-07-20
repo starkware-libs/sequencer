@@ -377,10 +377,10 @@ impl StateMaps {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StateCache {
     // Reader's cached information; initial values, read before any write operation (per cell).
-    pub(crate) initial_reads: StateMaps,
+    pub initial_reads: StateMaps,
 
     // Writer's cached information.
-    pub(crate) writes: StateMaps,
+    pub writes: StateMaps,
 }
 
 impl StateCache {
@@ -623,11 +623,11 @@ impl From<StateMaps> for CommitmentStateDiff {
 pub struct StateChangesKeys {
     nonce_keys: HashSet<ContractAddress>,
     class_hash_keys: HashSet<ContractAddress>,
-    storage_keys: HashSet<StorageEntry>,
-    compiled_class_hash_keys: HashSet<ClassHash>,
+    pub storage_keys: HashSet<StorageEntry>,
+    pub compiled_class_hash_keys: HashSet<ClassHash>,
     // Note: this field may not be consistent with the above keys; specifically, it may be
     // strictlly contained in them. For example, as a result of a `difference` operation.
-    modified_contracts: HashSet<ContractAddress>,
+    pub modified_contracts: HashSet<ContractAddress>,
 }
 
 impl StateChangesKeys {

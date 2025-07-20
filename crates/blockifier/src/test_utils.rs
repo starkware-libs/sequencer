@@ -408,6 +408,6 @@ pub fn maybe_dummy_block_hash_and_number(block_number: BlockNumber) -> Option<Bl
     }
     Some(BlockHashAndNumber {
         number: BlockNumber(block_number.0 - constants::STORED_BLOCK_HASH_BUFFER),
-        hash: BlockHash(StarkHash::ONE),
+        hash: BlockHash(StarkHash::ZERO),
     })
 }

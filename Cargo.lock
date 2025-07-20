@@ -12243,6 +12243,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_os_flow_tests"
+version = "0.15.0-rc.2"
+dependencies = [
+ "blockifier",
+ "blockifier_test_utils",
+ "cairo-lang-starknet-classes",
+ "cairo-vm",
+ "serde_json",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_committer",
+ "starknet_os",
+ "starknet_patricia",
+ "starknet_patricia_storage",
+ "tokio",
+]
+
+[[package]]
 name = "starknet_patricia"
 version = "0.15.0-rc.2"
 dependencies = [

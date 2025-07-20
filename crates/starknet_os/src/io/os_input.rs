@@ -16,17 +16,17 @@ use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct CommitmentInfo {
-    pub(crate) previous_root: HashOutput,
-    pub(crate) updated_root: HashOutput,
-    pub(crate) tree_height: SubTreeHeight,
+    pub previous_root: HashOutput,
+    pub updated_root: HashOutput,
+    pub tree_height: SubTreeHeight,
     // TODO(Dori, 1/8/2025): The value type here should probably be more specific (NodeData<L> for
     //   L: Leaf). This poses a problem in deserialization, as a serialized edge node and a
     //   serialized contract state leaf are both currently vectors of 3 field elements; as the
     //   semantics of the values are unimportant for the OS commitments, we make do with a vector
     //   of field elements as values for now.
-    pub(crate) commitment_facts: HashMap<HashOutput, Vec<Felt>>,
+    pub commitment_facts: HashMap<HashOutput, Vec<Felt>>,
 }
 
 #[cfg(any(feature = "testing", test))]
@@ -53,10 +53,13 @@ pub struct OsHints {
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct StarknetOsInput {
+    // Block input for each block in the multi-block.
     pub os_block_inputs: Vec<OsBlockInput>,
+    // State representation at the beginning of the OS run.
     pub cached_state_inputs: Vec<CachedStateInput>,
-    pub(crate) deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
-    pub(crate) compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+    // The classes that are executed in the OS run.
+    pub deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
+    pub compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
 
 // TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.
@@ -64,8 +67,8 @@ pub struct StarknetOsInput {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct OsChainInfo {
     #[cfg_attr(feature = "deserialize", serde(deserialize_with = "deserialize_chain_id_from_hex"))]
-    pub(crate) chain_id: ChainId,
-    pub(crate) strk_fee_token_address: ContractAddress,
+    pub chain_id: ChainId,
+    pub strk_fee_token_address: ContractAddress,
 }
 
 impl Default for OsChainInfo {
@@ -82,24 +85,23 @@ impl Default for OsChainInfo {
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct OsBlockInput {
-    pub(crate) contract_state_commitment_info: CommitmentInfo,
-    pub(crate) address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
-    pub(crate) contract_class_commitment_info: CommitmentInfo,
+    pub contract_state_commitment_info: CommitmentInfo,
+    pub address_to_storage_commitment_info: HashMap<ContractAddress, CommitmentInfo>,
+    pub contract_class_commitment_info: CommitmentInfo,
     // Note: The Declare tx in the starknet_api crate has a class_info field with a contract_class
     // field. This field is needed by the blockifier, but not used in the OS, so it is expected
     // (and verified) to be initialized with an illegal value, to avoid using it accidentally.
     pub transactions: Vec<Transaction>,
     pub tx_execution_infos: Vec<CentralTransactionExecutionInfo>,
     // A mapping from Cairo 1 declared class hashes to the hashes of the contract class components.
-    pub(crate) declared_class_hash_to_component_hashes:
-        HashMap<ClassHash, ContractClassComponentHashes>,
+    pub declared_class_hash_to_component_hashes: HashMap<ClassHash, ContractClassComponentHashes>,
     pub block_info: BlockInfo,
-    pub(crate) prev_block_hash: BlockHash,
-    pub(crate) new_block_hash: BlockHash,
+    pub prev_block_hash: BlockHash,
+    pub new_block_hash: BlockHash,
     // The block number and block hash of the (current_block_number - buffer) block, where
     // buffer=STORED_BLOCK_HASH_BUFFER.
     // It is the hash that is going to be written by this OS run.
-    pub(crate) old_block_number_and_hash: Option<(BlockNumber, BlockHash)>,
+    pub old_block_number_and_hash: Option<(BlockNumber, BlockHash)>,
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
@@ -118,13 +120,13 @@ impl OsHintsConfig {
     }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 pub struct CachedStateInput {
-    pub(crate) storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
-    pub(crate) address_to_class_hash: HashMap<ContractAddress, ClassHash>,
-    pub(crate) address_to_nonce: HashMap<ContractAddress, Nonce>,
-    pub(crate) class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+    pub storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
+    pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
+    pub address_to_nonce: HashMap<ContractAddress, Nonce>,
+    pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
 }
 
 #[derive(Debug, thiserror::Error)]
