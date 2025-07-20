@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use apollo_consensus::types::Round;
 use apollo_state_sync_types::communication::{SharedStateSyncClient, StateSyncClientError};
+use async_trait::async_trait;
 use blockifier::context::BlockContext;
 use blockifier::execution::call_info::Retdata;
 use blockifier::execution::entry_point::call_view_entry_point;
@@ -60,7 +61,7 @@ impl CommitteeDataCache {
 
 // TODO(Dafna): implement SerializeConfig and Validate for this struct. Specifically, the Validate
 // should check that proposer_prediction_window_in_heights >= STORED_BLOCK_HASH_BUFFER.
-pub struct CommitteeManagerConfig {
+pub struct StakingManagerConfig {
     pub staking_contract_address: ContractAddress,
     pub max_cached_epochs: usize,
 
@@ -77,14 +78,14 @@ pub struct CommitteeManagerConfig {
 // Responsible for fetching and storing the committee at a given epoch.
 // The committee is a subset of nodes (proposer and validators) that are selected to participate in
 // the consensus at a given epoch, responsible for proposing blocks and voting on them.
-pub struct CommitteeManager {
+pub struct StakingManager {
     committee_data_cache: CommitteeDataCache,
     random_generator: Box<dyn BlockRandomGenerator>,
-    config: CommitteeManagerConfig,
+    config: StakingManagerConfig,
 }
 
 #[derive(Debug, Error)]
-pub enum CommitteeManagerError {
+pub enum CommitteeProviderError {
     #[error(transparent)]
     EntryPointExecutionError(#[from] EntryPointExecutionError),
     #[error(transparent)]
@@ -115,42 +116,25 @@ pub struct ExecutionContext<S: StateReader> {
     pub state_sync_client: SharedStateSyncClient,
 }
 
-pub type CommitteeManagerResult<T> = Result<T, CommitteeManagerError>;
+pub type CommitteeProviderResult<T> = Result<T, CommitteeProviderError>;
 
-impl CommitteeManager {
-    pub fn new(
-        random_generator: Box<dyn BlockRandomGenerator>,
-        config: CommitteeManagerConfig,
-    ) -> Self {
-        Self {
-            committee_data_cache: CommitteeDataCache::new(config.max_cached_epochs),
-            random_generator,
-            config,
-        }
-    }
-
-    // Returns a list of the committee members at the given epoch.
-    // The state's most recent block should be provided in the block_context.
-    pub fn get_committee<S: StateReader>(
+#[async_trait]
+impl CommitteeProvider for StakingManager {
+    fn get_committee<S: StateReader>(
         &mut self,
         epoch: u64,
         execution_context: ExecutionContext<S>,
-    ) -> CommitteeManagerResult<Arc<Committee>> {
+    ) -> CommitteeProviderResult<Arc<Committee>> {
         let committee_data = self.committee_data_at_epoch(epoch, execution_context)?;
         Ok(committee_data.committee_members.clone())
     }
 
-    // Returns the address of the proposer for the specified height and round.
-    //
-    // The proposer is chosen from the committee corresponding to the epoch of the given height.
-    // Selection is based on a deterministic random number derived from the height, round,
-    // and the hash of a past block — offset by `config.proposer_prediction_window`.
-    pub async fn get_proposer<S: StateReader>(
+    async fn get_proposer<S: StateReader + Send>(
         &mut self,
         height: BlockNumber,
         round: Round,
         execution_context: ExecutionContext<S>,
-    ) -> CommitteeManagerResult<ContractAddress> {
+    ) -> CommitteeProviderResult<ContractAddress> {
         // Try to get the hash of the block used for proposer selection randomness.
         let block_hash = self
             .proposer_randomness_block_hash(height, execution_context.state_sync_client.clone())
@@ -169,6 +153,19 @@ impl CommitteeManager {
         let proposer = self.choose_proposer(&committee_data, random_value)?;
         Ok(proposer.address)
     }
+}
+
+impl StakingManager {
+    pub fn new(
+        random_generator: Box<dyn BlockRandomGenerator>,
+        config: StakingManagerConfig,
+    ) -> Self {
+        Self {
+            committee_data_cache: CommitteeDataCache::new(config.max_cached_epochs),
+            random_generator,
+            config,
+        }
+    }
 
     // Returns the committee data for the given epoch.
     // If the data is not cached, it is fetched from the state and cached.
@@ -176,7 +173,7 @@ impl CommitteeManager {
         &mut self,
         epoch: u64,
         execution_context: ExecutionContext<S>,
-    ) -> CommitteeManagerResult<Arc<CommitteeData>> {
+    ) -> CommitteeProviderResult<Arc<CommitteeData>> {
         // Attempt to read from cache.
         if let Some(committee_data) = self.committee_data_cache.get(epoch) {
             return Ok(committee_data.clone());
@@ -197,7 +194,7 @@ impl CommitteeManager {
         &self,
         epoch: u64,
         execution_context: ExecutionContext<S>,
-    ) -> CommitteeManagerResult<CommitteeData> {
+    ) -> CommitteeProviderResult<CommitteeData> {
         let call_info = call_view_entry_point(
             execution_context.state_reader,
             execution_context.block_context,
@@ -241,7 +238,7 @@ impl CommitteeManager {
         &self,
         current_block_number: BlockNumber,
         state_sync_client: SharedStateSyncClient,
-    ) -> CommitteeManagerResult<Option<BlockHash>> {
+    ) -> CommitteeProviderResult<Option<BlockHash>> {
         let randomness_source_block =
             current_block_number.0.checked_sub(self.config.proposer_prediction_window_in_heights);
 
@@ -265,9 +262,9 @@ impl CommitteeManager {
         &self,
         committee_data: &'a CommitteeData,
         random: u128,
-    ) -> CommitteeManagerResult<&'a Staker> {
+    ) -> CommitteeProviderResult<&'a Staker> {
         if committee_data.committee_members.is_empty() {
-            return Err(CommitteeManagerError::EmptyCommittee);
+            return Err(CommitteeProviderError::EmptyCommittee);
         }
 
         let total_weight = committee_data.total_weight;
@@ -295,6 +292,33 @@ impl CommitteeManager {
         // We should never reach this point.
         panic!("Inconsistent committee data; cumulative_weights inconsistent with total weight.")
     }
+}
+
+/// Trait for managing committee operations including fetching and selecting committee members
+/// and proposers for consensus.
+/// The committee is a subset of nodes (proposer and validators) that are selected to participate in
+/// the consensus at a given epoch, responsible for proposing blocks and voting on them.
+#[async_trait]
+pub trait CommitteeProvider {
+    /// Returns a list of the committee members at the given epoch.
+    /// The state's most recent block should be provided in the execution_context.
+    fn get_committee<S: StateReader>(
+        &mut self,
+        epoch: u64,
+        execution_context: ExecutionContext<S>,
+    ) -> CommitteeProviderResult<Arc<Committee>>;
+
+    /// Returns the address of the proposer for the specified height and round.
+    ///
+    /// The proposer is chosen from the committee corresponding to the epoch of the given height.
+    /// Selection is based on a deterministic random number derived from the height, round,
+    /// and the hash of a past block — offset by `config.proposer_prediction_window`.
+    async fn get_proposer<S: StateReader + Send>(
+        &mut self,
+        height: BlockNumber,
+        round: Round,
+        execution_context: ExecutionContext<S>,
+    ) -> CommitteeProviderResult<ContractAddress>;
 }
 
 #[cfg_attr(test, derive(Clone))]
