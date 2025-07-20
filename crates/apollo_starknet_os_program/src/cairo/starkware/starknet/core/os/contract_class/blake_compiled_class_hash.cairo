@@ -165,7 +165,7 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
         )
         ids.is_segment_used = 1 if is_used else 0
 
-        is_used_leaf = isinstance(current_segment_info.inner_structure, BytecodeLeaf)
+        is_used_leaf = is_used and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
         ids.is_used_leaf = 1 if is_used_leaf else 0
 
         ids.segment_length = current_segment_info.segment_length

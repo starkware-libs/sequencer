@@ -119,6 +119,17 @@ pub(crate) fn get_n_blocks<S: StateReader>(
     insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::GetBlocksNumber), n_blocks)
 }
 
+pub(crate) fn get_n_class_hashes_to_migrate<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let n_classes = hint_processor
+        .get_current_execution_helper()?
+        .os_block_input
+        .class_hashes_to_migrate
+        .len();
+    insert_nondet_hint_value(vm, AllHints::OsHint(OsHint::GetNClassHashesToMigrate), n_classes)
+}
 pub(crate) fn log_remaining_blocks(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {

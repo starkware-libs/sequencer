@@ -8,7 +8,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_from_var_name,
     insert_value_into_ap,
 };
-use starknet_api::core::ContractAddress;
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
@@ -31,6 +31,55 @@ pub(crate) fn enter_scope_with_aliases(HintArgs { exec_scopes, .. }: HintArgs<'_
     let dict_manager = exec_scopes.get_dict_manager()?;
     let new_scope = HashMap::from([(Scope::DictManager.into(), any_box!(dict_manager))]);
     exec_scopes.enter_scope(new_scope);
+    Ok(())
+}
+
+pub(crate) fn insert_class_hashes_to_migrate_iterator_to_exec_scope<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { exec_scopes, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    
+    let class_hashes_to_migrate: Vec<ClassHash> = hint_processor
+        .get_current_execution_helper()?
+        .os_block_input
+        .class_hashes_to_migrate
+        .keys()
+        .cloned()
+        .collect();
+
+    // Store an iterator for class_hashes_to_migrate
+    let class_hashes_iter = Box::new(class_hashes_to_migrate.into_iter());
+    exec_scopes.insert_value(Scope::ClassHashesToMigrate.into(), any_box!(class_hashes_iter));
+    Ok(())
+}
+
+pub(crate) fn get_class_hash_and_compiled_class_hash_v2<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, vm, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    // Note that aliases, execution_helper, state_update_pointers and block_input do not enter the
+    // new scope as they are not needed.
+    let class_hash = exec_scopes
+        .get_local_variables_mut()?
+        .get_mut(Scope::ClassHashesToMigrate.into())
+        .and_then(|v| v.downcast_mut::<Box<dyn Iterator<Item = ClassHash>>>())
+        .ok_or(OsHintError::AssignedLeafBytecodeSegment)?
+        .next()
+        .expect("Class hashes iterator should not be empty");
+    let hint_casm_hash_v2 = hint_processor
+        .get_current_execution_helper()?
+        .os_block_input
+        .class_hashes_to_migrate
+        .get(&class_hash)
+        .expect("Class hash should exist in the block input");
+    insert_value_from_var_name(Ids::ClassHash.into(), class_hash.0, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(
+        Ids::HintCasmHashV2.into(),
+        hint_casm_hash_v2.0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
     Ok(())
 }
 
