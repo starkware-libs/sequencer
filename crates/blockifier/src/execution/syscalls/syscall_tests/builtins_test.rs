@@ -130,10 +130,10 @@ fn test_builtin_counts_consistency() {
     assert!(!native_call_info.execution.failed, "Native execution failed");
 
     // TODO(Einat): Uncomment this when native builtins are supported.
-    // let casm_builtins = &casm_call_info.builtin_counters;
-    // let native_builtins = &native_call_info.builtin_counters;
-    // assert_eq!(
-    //     casm_builtins, native_builtins,
-    //     "Builtin usage should be identical between CASM and Native"
-    // );
+    let casm_builtins = &casm_call_info.builtin_counters;
+    let native_builtins = &native_call_info.builtin_counters;
+    assert_eq!(
+        casm_builtins, native_builtins,
+        "Builtin usage should be identical between CASM and Native"
+    );
 }

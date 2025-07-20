@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
-use cairo_native::execution_result::ContractExecutionResult;
+use cairo_native::execution_result::{BuiltinStats, ContractExecutionResult};
 use cairo_native::utils::BuiltinCosts;
+use cairo_vm::types::builtin_name::BuiltinName;
 
-use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{BuiltinCounterMap, CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
     EntryPointExecutionContext,
@@ -104,7 +105,35 @@ fn create_callinfo(
         inner_calls: syscall_handler.base.inner_calls,
         storage_access_tracker: syscall_handler.base.storage_access_tracker,
         tracked_resource: TrackedResource::SierraGas,
-        // TODO(Noa): Use non-trivial values once native supports builtins counting.
-        builtin_counters: HashMap::default(),
+        builtin_counters: builtin_stats_to_builtin_counter_map(call_result.builtin_stats),
     })
+}
+
+fn builtin_stats_to_builtin_counter_map(builtin_stats: BuiltinStats) -> BuiltinCounterMap {
+    let mut map = HashMap::new();
+    if builtin_stats.range_check > 0 {
+        map.insert(BuiltinName::range_check, builtin_stats.range_check);
+    }
+    if builtin_stats.pedersen > 0 {
+        map.insert(BuiltinName::pedersen, builtin_stats.pedersen);
+    }
+    if builtin_stats.bitwise > 0 {
+        map.insert(BuiltinName::bitwise, builtin_stats.bitwise);
+    }
+    if builtin_stats.ec_op > 0 {
+        map.insert(BuiltinName::ec_op, builtin_stats.ec_op);
+    }
+    if builtin_stats.poseidon > 0 {
+        map.insert(BuiltinName::poseidon, builtin_stats.poseidon);
+    }
+    if builtin_stats.range_check96 > 0 {
+        map.insert(BuiltinName::range_check96, builtin_stats.range_check96);
+    }
+    if builtin_stats.add_mod > 0 {
+        map.insert(BuiltinName::add_mod, builtin_stats.add_mod);
+    }
+    if builtin_stats.mul_mod > 0 {
+        map.insert(BuiltinName::mul_mod, builtin_stats.mul_mod);
+    }
+    map
 }
