@@ -11057,6 +11057,7 @@ dependencies = [
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
  "cairo-native",
+ "log",
  "mempool_test_utils",
  "papyrus_config",
  "rlimit",

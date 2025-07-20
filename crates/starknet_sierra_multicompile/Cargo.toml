@@ -17,6 +17,7 @@ cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
 cairo-native = { workspace = true, optional = true }
+log.workspace = true
 papyrus_config.workspace = true
 rlimit.workspace = true
 serde.workspace = true
