@@ -29,6 +29,7 @@ pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
 pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
 pub(crate) const BASE_APP_CONFIG_PATH: &str =
     "crates/apollo_deployments/resources/base_app_config.json";
+const BATCHER_PORT: u16 = 15000; // TODO(Nadin): arbitrary port, need to resolve.
 
 type DeploymentFn = fn() -> Vec<Deployment>;
 
@@ -113,7 +114,7 @@ pub enum ServicePort {
 impl ServicePort {
     pub fn get_port(&self) -> u16 {
         match self {
-            ServicePort::Batcher => 0,
+            ServicePort::Batcher => BATCHER_PORT,
             ServicePort::ClassManager => 0,
             ServicePort::Gateway => 0,
             ServicePort::L1EndpointMonitor => 0,

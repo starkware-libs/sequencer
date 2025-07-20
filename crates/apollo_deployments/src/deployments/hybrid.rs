@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::template::Template;
@@ -59,18 +59,40 @@ impl GetComponentConfigs for HybridNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
 
-        let ports = determine_port_numbers(ports, HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+        let mut service_ports: BTreeMap<ServicePort, u16> = BTreeMap::new();
+        // TODO(Nadin): Move this logic into the `Some` arm once all distributed service ports are
+        // fully defined.
+        let port_numbers =
+            determine_port_numbers(ports.clone(), HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+        match ports {
+            Some(ports) => {
+                for (service_port, port) in ServicePort::iter().zip(ports) {
+                    service_ports.insert(service_port, port);
+                }
+            }
+            None => {
+                // Extract the service ports for all inner services of the hybrid node.
+                for inner_service_name in HybridNodeServiceName::iter() {
+                    let inner_service_port = inner_service_name.get_service_port_mapping();
+                    service_ports.extend(inner_service_port);
+                }
+            }
+        };
 
-        let batcher = HybridNodeServiceName::Core.component_config_pair(ports[0]);
-        let class_manager = HybridNodeServiceName::Core.component_config_pair(ports[1]);
-        let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
-        let l1_gas_price_provider = HybridNodeServiceName::Core.component_config_pair(ports[3]);
-        let l1_provider = HybridNodeServiceName::Core.component_config_pair(ports[4]);
-        let l1_endpoint_monitor = HybridNodeServiceName::Core.component_config_pair(ports[5]);
-        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[6]);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
-        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[8]);
-        let signature_manager = HybridNodeServiceName::Core.component_config_pair(ports[9]);
+        let batcher = HybridNodeServiceName::Core
+            .component_config_pair(*service_ports.get(&ServicePort::Batcher).unwrap());
+        let class_manager = HybridNodeServiceName::Core.component_config_pair(port_numbers[1]);
+        let gateway = HybridNodeServiceName::Gateway.component_config_pair(port_numbers[2]);
+        let l1_gas_price_provider =
+            HybridNodeServiceName::Core.component_config_pair(port_numbers[3]);
+        let l1_provider = HybridNodeServiceName::Core.component_config_pair(port_numbers[4]);
+        let l1_endpoint_monitor =
+            HybridNodeServiceName::Core.component_config_pair(port_numbers[5]);
+        let mempool = HybridNodeServiceName::Mempool.component_config_pair(port_numbers[6]);
+        let sierra_compiler =
+            HybridNodeServiceName::SierraCompiler.component_config_pair(port_numbers[7]);
+        let state_sync = HybridNodeServiceName::Core.component_config_pair(port_numbers[8]);
+        let signature_manager = HybridNodeServiceName::Core.component_config_pair(port_numbers[9]);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -287,8 +309,10 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::Batcher => {
+                            service_ports.insert(ServicePort::Batcher);
+                        }
                         ServicePort::HttpServer
-                        | ServicePort::Batcher
                         | ServicePort::ClassManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider

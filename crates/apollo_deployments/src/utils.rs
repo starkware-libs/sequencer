@@ -14,6 +14,8 @@ pub(crate) fn get_validator_id(id: usize) -> String {
     format!("0x{:x}", id + usize::try_from(DEFAULT_VALIDATOR_ID).unwrap())
 }
 
+// TODO(Nadin): Update this function to validate that the ports are unique and have the correct
+// length.
 /// Returns a validated or generated vector of port numbers of length `n`.
 /// If `ports` is `Some`, asserts it has length `n` and all unique values.
 /// If `None`, generates a sequence of `n` values starting from `start`.

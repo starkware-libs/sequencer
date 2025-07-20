@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_node::config::component_config::ComponentConfig;
@@ -58,21 +58,43 @@ impl From<DistributedNodeServiceName> for NodeService {
 
 impl GetComponentConfigs for DistributedNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
-        let ports = determine_port_numbers(ports, DISTRIBUTED_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+        let mut service_ports: BTreeMap<ServicePort, u16> = BTreeMap::new();
+        // TODO(Nadin): Move this logic into the `Some` arm once all distributed service ports are
+        // fully defined.
+        let port_numbers =
+            determine_port_numbers(ports.clone(), DISTRIBUTED_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+        match ports {
+            Some(ports) => {
+                for (service_port, port) in ServicePort::iter().zip(ports) {
+                    service_ports.insert(service_port, port);
+                }
+            }
+            None => {
+                // Extract the service ports for all inner services of the hybrid node.
+                for inner_service_name in DistributedNodeServiceName::iter() {
+                    let inner_service_port = inner_service_name.get_service_port_mapping();
+                    service_ports.extend(inner_service_port);
+                }
+            }
+        };
 
-        let batcher = DistributedNodeServiceName::Batcher.component_config_pair(ports[0]);
+        let batcher = DistributedNodeServiceName::Batcher
+            .component_config_pair(*service_ports.get(&ServicePort::Batcher).unwrap());
         let class_manager =
-            DistributedNodeServiceName::ClassManager.component_config_pair(ports[1]);
-        let gateway = DistributedNodeServiceName::Gateway.component_config_pair(ports[2]);
-        let l1_gas_price_provider = DistributedNodeServiceName::L1.component_config_pair(ports[3]);
-        let l1_provider = DistributedNodeServiceName::L1.component_config_pair(ports[4]);
-        let l1_endpoint_monitor = DistributedNodeServiceName::L1.component_config_pair(ports[5]);
-        let mempool = DistributedNodeServiceName::Mempool.component_config_pair(ports[6]);
+            DistributedNodeServiceName::ClassManager.component_config_pair(port_numbers[1]);
+        let gateway = DistributedNodeServiceName::Gateway.component_config_pair(port_numbers[2]);
+        let l1_gas_price_provider =
+            DistributedNodeServiceName::L1.component_config_pair(port_numbers[3]);
+        let l1_provider = DistributedNodeServiceName::L1.component_config_pair(port_numbers[4]);
+        let l1_endpoint_monitor =
+            DistributedNodeServiceName::L1.component_config_pair(port_numbers[5]);
+        let mempool = DistributedNodeServiceName::Mempool.component_config_pair(port_numbers[6]);
         let sierra_compiler =
-            DistributedNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
-        let state_sync = DistributedNodeServiceName::StateSync.component_config_pair(ports[8]);
+            DistributedNodeServiceName::SierraCompiler.component_config_pair(port_numbers[7]);
+        let state_sync =
+            DistributedNodeServiceName::StateSync.component_config_pair(port_numbers[8]);
         let signature_manager =
-            DistributedNodeServiceName::ConsensusManager.component_config_pair(ports[9]);
+            DistributedNodeServiceName::ConsensusManager.component_config_pair(port_numbers[9]);
 
         let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
         for inner_service_name in DistributedNodeServiceName::iter() {
@@ -281,8 +303,10 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::Batcher => {
+                            service_ports.insert(ServicePort::Batcher);
+                        }
                         ServicePort::HttpServer
-                        | ServicePort::Batcher
                         | ServicePort::ClassManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
