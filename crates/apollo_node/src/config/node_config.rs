@@ -71,6 +71,14 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
         ),
         (
             ser_pointer_target_param(
+                "l1_block_time",
+                &POINTER_TARGET_VALUE.to_string(),
+                "The time between L1 blocks.",
+            ),
+            set_pointing_param_paths(&["l1_gas_price_config.l1_block_time"]),
+        ),
+        (
+            ser_pointer_target_param(
                 "eth_fee_token_address",
                 &POINTER_TARGET_VALUE.to_string(),
                 "Address of the ETH fee token.",
