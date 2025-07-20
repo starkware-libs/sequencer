@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n;
+use apollo_infra_utils::info_every_n_sec;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{
     Event,
@@ -41,6 +41,7 @@ pub struct L1Provider {
     // and we see how well it handles consuming the L1Provider when moving between states.
     pub state: ProviderState,
     pub clock: Arc<dyn Clock>,
+    pub start_height: BlockNumber,
 }
 
 impl L1Provider {
@@ -129,6 +130,10 @@ impl L1Provider {
         rejected_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
+        if self.is_historical_height(height) {
+            return Ok(());
+        }
+
         if self.state.is_bootstrapping() {
             // Once bootstrap completes it will transition to Pending state by itself.
             return self.bootstrap(committed_txs, height);
@@ -147,8 +152,7 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        // TODO(guy.f): Replace with info_every_n_sec once implemented.
-        info_every_n!(100, "Adding {} l1 events", events.len());
+        info_every_n_sec!(1, "Adding {} l1 events", events.len());
         trace!("Adding events: {events:?}");
 
         for event in events {
@@ -309,6 +313,11 @@ impl L1Provider {
 
         Ok(())
     }
+
+    /// Checks if the given height appears before the timeline of which the provider is aware of.
+    fn is_historical_height(&self, height: BlockNumber) -> bool {
+        height < self.start_height
+    }
 }
 
 impl PartialEq for L1Provider {
@@ -408,6 +417,7 @@ impl L1ProviderBuilder {
         );
 
         L1Provider {
+            start_height: l1_provider_startup_height,
             current_height: l1_provider_startup_height,
             tx_manager: TransactionManager::new(
                 self.config.new_l1_handler_cooldown_seconds,

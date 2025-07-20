@@ -4,7 +4,7 @@ use apollo_batcher_types::batcher_types::Round;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use thiserror::Error;
@@ -15,12 +15,19 @@ use crate::cende_client_types::CendePreconfirmedBlock;
 use crate::metrics::PRECONFIRMED_BLOCK_WRITTEN;
 
 #[derive(Debug, Error)]
-// TODO(noamsp): add block number/round mismatch and handle it in the client implementation.
 pub enum PreconfirmedCendeClientError {
     #[error(transparent)]
     RequestError(#[from] reqwest::Error),
-    #[error("CendeRecorder returned an error: {0}")]
-    CendeRecorderError(String),
+    #[error(
+        "Cende recorder returned an error. block_number: {block_number}, round: {round}, \
+         write_iteration: {write_iteration}, status_code: {status_code}."
+    )]
+    CendeRecorderError {
+        block_number: BlockNumber,
+        round: Round,
+        write_iteration: u64,
+        status_code: StatusCode,
+    },
 }
 
 pub type PreconfirmedCendeClientResult<T> = Result<T, PreconfirmedCendeClientError>;
@@ -101,13 +108,15 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
         let block_number = pre_confirmed_block.block_number;
         let round = pre_confirmed_block.round;
         let write_iteration = pre_confirmed_block.write_iteration;
+        let number_of_txs = pre_confirmed_block.pre_confirmed_block.transactions.len();
 
         let request_builder =
             self.client.post(self.write_pre_confirmed_block_url.clone()).json(&pre_confirmed_block);
 
         trace!(
             "Sending write_pre_confirmed_block request to Cende recorder. \
-             block_number={block_number}, round={round}, write_iteration={write_iteration}",
+             block_number={block_number}, round={round}, write_iteration={write_iteration}. The \
+             block contains {number_of_txs} transactions.",
         );
 
         let response = request_builder.send().await?;
@@ -121,12 +130,17 @@ impl PreconfirmedCendeClientTrait for PreconfirmedCendeClient {
             PRECONFIRMED_BLOCK_WRITTEN.increment(1);
             Ok(())
         } else {
-            let error_msg = format!(
+            warn!(
                 "write_pre_confirmed_block request failed. block_number={block_number}, \
                  round={round}, write_iteration={write_iteration}, status={response_status}",
             );
-            warn!("{error_msg}");
-            Err(PreconfirmedCendeClientError::CendeRecorderError(error_msg))
+
+            return Err(PreconfirmedCendeClientError::CendeRecorderError {
+                block_number,
+                round,
+                write_iteration,
+                status_code: response_status,
+            });
         }
     }
 }

@@ -67,10 +67,10 @@ pub(crate) fn verify_block_number(
 pub(crate) fn proposal_status_from(
     block_builder_error: Arc<BlockBuilderError>,
 ) -> BatcherResult<ProposalStatus> {
-    match *block_builder_error {
+    match block_builder_error.as_ref() {
         // FailOnError means the proposal either failed due to bad input (e.g. invalid
         // transactions), or couldn't finish in time.
-        BlockBuilderError::FailOnError(_) => Ok(ProposalStatus::InvalidProposal),
+        BlockBuilderError::FailOnError(err) => Ok(ProposalStatus::InvalidProposal(err.to_string())),
         BlockBuilderError::Aborted => Err(BatcherError::ProposalAborted),
         _ => {
             tracing::error!("Unexpected error: {}", block_builder_error);

@@ -74,6 +74,7 @@ impl From<L1ProviderContent> for L1Provider {
             // is functionally equivalent to Pending for testing purposes.
             state: content.state.unwrap_or(ProviderState::Pending),
             current_height: content.current_height.unwrap_or_default(),
+            start_height: content.current_height.unwrap_or_default(),
             clock: content.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
         }
     }

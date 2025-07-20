@@ -1,0 +1,35 @@
+{
+<<<<<<< HEAD:crates/apollo_deployments/resources/deployments/testing_env_3/hybrid_3.json
+  "consensus_manager_config.network_config.advertised_multiaddr": "/dns/sequencer-core-service.sequencer-test-3-node-3.sw-dev.io/udp/53080/quic-v1/p2p/12D3KooWFdTjV6DXVJfQFisTXadCsqGzCbEnJJWzc6mXSPwy9g54",
+||||||| 199fa631c:crates/apollo_deployments/resources/deployments/testing_env_3/hybrid_3.json
+  "consensus_manager_config.network_config.advertised_multiaddr": "/dns/sequencer-core-service.sequencer-test-3-node-3.sw-dev.io/tcp/53080/p2p/12D3KooWFdTjV6DXVJfQFisTXadCsqGzCbEnJJWzc6mXSPwy9g54",
+=======
+  "consensus_manager_config.network_config.advertised_multiaddr": "/dns/sequencer-core-service.apollo-mainnet-1.starknet.io/tcp/53080/p2p/12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe",
+>>>>>>> origin/main-v0.14.0:crates/apollo_deployments/resources/deployments/mainnet/hybrid_1.json
+  "consensus_manager_config.network_config.advertised_multiaddr.#is_none": false,
+<<<<<<< HEAD:crates/apollo_deployments/resources/deployments/testing_env_3/hybrid_3.json
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-core-service.sequencer-test-3-node-0.sw-dev.io/udp/53080/quic-v1/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+||||||| 199fa631c:crates/apollo_deployments/resources/deployments/testing_env_3/hybrid_3.json
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-core-service.sequencer-test-3-node-0.sw-dev.io/tcp/53080/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+=======
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-core-service.apollo-mainnet-0.starknet.io/tcp/53080/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+>>>>>>> origin/main-v0.14.0:crates/apollo_deployments/resources/deployments/mainnet/hybrid_1.json
+  "consensus_manager_config.network_config.bootstrap_peer_multiaddr.#is_none": false,
+<<<<<<< HEAD:crates/apollo_deployments/resources/deployments/testing_env_3/hybrid_3.json
+  "mempool_p2p_config.network_config.advertised_multiaddr": "/dns/sequencer-mempool-service.sequencer-test-3-node-3.sw-dev.io/udp/53200/quic-v1/p2p/12D3KooWFdTjV6DXVJfQFisTXadCsqGzCbEnJJWzc6mXSPwy9g54",
+||||||| 199fa631c:crates/apollo_deployments/resources/deployments/testing_env_3/hybrid_3.json
+  "mempool_p2p_config.network_config.advertised_multiaddr": "/dns/sequencer-mempool-service.sequencer-test-3-node-3.sw-dev.io/tcp/53200/p2p/12D3KooWFdTjV6DXVJfQFisTXadCsqGzCbEnJJWzc6mXSPwy9g54",
+=======
+  "mempool_p2p_config.network_config.advertised_multiaddr": "/dns/sequencer-mempool-service.apollo-mainnet-1.starknet.io/tcp/53200/p2p/12D3KooWCPzcTZ4ymgyveYaFfZ4bfWsBEh2KxuxM3Rmy7MunqHwe",
+>>>>>>> origin/main-v0.14.0:crates/apollo_deployments/resources/deployments/mainnet/hybrid_1.json
+  "mempool_p2p_config.network_config.advertised_multiaddr.#is_none": false,
+<<<<<<< HEAD:crates/apollo_deployments/resources/deployments/testing_env_3/hybrid_3.json
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-mempool-service.sequencer-test-3-node-0.sw-dev.io/udp/53200/quic-v1/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+||||||| 199fa631c:crates/apollo_deployments/resources/deployments/testing_env_3/hybrid_3.json
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-mempool-service.sequencer-test-3-node-0.sw-dev.io/tcp/53200/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+=======
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr": "/dns/sequencer-mempool-service.apollo-mainnet-0.starknet.io/tcp/53200/p2p/12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5",
+>>>>>>> origin/main-v0.14.0:crates/apollo_deployments/resources/deployments/mainnet/hybrid_1.json
+  "mempool_p2p_config.network_config.bootstrap_peer_multiaddr.#is_none": false,
+  "validator_id": "0x65"
+}

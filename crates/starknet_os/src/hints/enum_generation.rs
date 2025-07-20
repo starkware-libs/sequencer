@@ -55,7 +55,14 @@ macro_rules! define_hint_enum_helper {
                     $(Self::$hint_name => {
                         #[cfg(any(test, feature = "testing"))]
                         $hp_arg.get_mut_unused_hints().remove(&Self::$hint_name.into());
-                        $implementation($($passed_arg, )? hint_args)
+                        let start = std::time::Instant::now();
+                        let result = $implementation($($passed_arg, )? hint_args);
+                        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+                        log::debug!(
+                            "Took {elapsed:>7.3} ms to execute hint {}.",
+                            Self::$hint_name.to_str()
+                        );
+                        result
                     })+
                 }
             }

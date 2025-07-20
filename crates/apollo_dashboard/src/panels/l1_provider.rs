@@ -46,6 +46,7 @@ fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
     Panel::from_counter(L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::TimeSeries)
 }
 
+// TODO(noamsp): rename to l1_event_row
 pub(crate) fn get_l1_provider_row() -> Row {
     Row::new(
         "L1 Provider",

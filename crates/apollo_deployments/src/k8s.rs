@@ -17,8 +17,11 @@ pub enum Controller {
 
 #[derive(Clone, Copy, Debug, PartialEq, Serialize)]
 pub enum K8SServiceType {
+    // TODO(Tsabary): remove dead_code annotations when instances require these variants.
+    #[allow(dead_code)]
     ClusterIp,
     LoadBalancer,
+    #[allow(dead_code)]
     NodePort,
 }
 
@@ -111,13 +114,8 @@ pub(crate) fn get_ingress(ingress_params: IngressParams, internal: bool) -> Opti
 
 pub(crate) fn get_environment_ingress_internal(environment: &Environment) -> bool {
     match environment {
-        Environment::Testing => true,
-        Environment::SepoliaIntegration
-        | Environment::SepoliaTestnet
-        | Environment::UpgradeTest
-        | Environment::TestingEnvThree
-        | Environment::StressTest => false,
-        _ => unimplemented!(),
+        Environment::CloudK8s(_) => false,
+        Environment::LocalK8s => true,
     }
 }
 
@@ -180,4 +178,6 @@ pub enum Toleration {
     #[serde(rename = "apollo-core-service-c2d-56")]
     ApolloCoreServiceC2D56,
     ApolloGeneralService,
+    #[serde(rename = "batcher-8-64")]
+    Batcher864,
 }

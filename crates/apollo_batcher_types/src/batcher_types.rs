@@ -130,7 +130,7 @@ pub enum ProposalStatus {
     Aborted,
     // May be caused due to handling of a previous item of the new proposal.
     // In this case, the proposal is aborted and no additional content will be processed.
-    InvalidProposal,
+    InvalidProposal(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

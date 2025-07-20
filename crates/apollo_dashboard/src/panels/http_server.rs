@@ -1,4 +1,5 @@
 use apollo_http_server::metrics::{
+    ADDED_TRANSACTIONS_DEPRECATED_ERROR,
     ADDED_TRANSACTIONS_FAILURE,
     ADDED_TRANSACTIONS_INTERNAL_ERROR,
     ADDED_TRANSACTIONS_SUCCESS,
@@ -22,6 +23,10 @@ fn get_panel_added_transactions_failure() -> Panel {
 
 fn get_panel_added_transactions_internal_error() -> Panel {
     Panel::from_counter(ADDED_TRANSACTIONS_INTERNAL_ERROR, PanelType::TimeSeries)
+}
+
+fn get_panel_added_transactions_deprecated_error() -> Panel {
+    Panel::from_counter(ADDED_TRANSACTIONS_DEPRECATED_ERROR, PanelType::TimeSeries)
 }
 
 fn get_panel_http_server_transactions_received_rate() -> Panel {
@@ -49,6 +54,7 @@ pub(crate) fn get_http_server_row() -> Row {
             get_panel_added_transactions_success(),
             get_panel_added_transactions_failure(),
             get_panel_added_transactions_internal_error(),
+            get_panel_added_transactions_deprecated_error(),
             get_panel_http_add_tx_latency(),
         ],
     )

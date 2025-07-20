@@ -9,10 +9,11 @@ use starknet_api::core::deserialize_chain_id_from_hex;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::state::StorageKey;
+use starknet_api::state::{ContractClassComponentHashes, StorageKey};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
+use tracing::level_filters::LevelFilter;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
@@ -42,6 +43,7 @@ impl Default for CommitmentInfo {
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+<<<<<<< HEAD
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
 #[derive(Clone, Debug)]
 pub struct ContractClassComponentHashes {
@@ -68,15 +70,39 @@ impl ContractClassComponentHashes {
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
+||||||| 199fa631c
+#[derive(Clone, Debug)]
+pub struct ContractClassComponentHashes {
+    contract_class_version: Felt,
+    external_functions_hash: HashOutput,
+    l1_handlers_hash: HashOutput,
+    constructors_hash: HashOutput,
+    abi_hash: HashOutput,
+    sierra_program_hash: HashOutput,
+}
+
+impl ContractClassComponentHashes {
+    pub(crate) fn flatten(&self) -> Vec<Felt> {
+        vec![
+            self.contract_class_version,
+            self.external_functions_hash.0,
+            self.l1_handlers_hash.0,
+            self.constructors_hash.0,
+            self.abi_hash.0,
+            self.sierra_program_hash.0,
+        ]
+    }
+}
+
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+=======
+>>>>>>> origin/main-v0.14.0
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct OsHints {
     pub os_input: StarknetOsInput,
     pub os_hints_config: OsHintsConfig,
 }
-
-// TODO(Dori): Once computation of the hinted class hash is fully functional, delete this type.
-pub(crate) type HintedClassHash = Felt;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
@@ -85,9 +111,7 @@ pub(crate) type HintedClassHash = Felt;
 pub struct StarknetOsInput {
     pub os_block_inputs: Vec<OsBlockInput>,
     pub cached_state_inputs: Vec<CachedStateInput>,
-    // TODO(Dori): Once computation of the hinted class hash is fully functional, the extra Felt
-    //   value in the tuple should be removed.
-    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, (HintedClassHash, ContractClass)>,
+    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
     pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
 }
 
@@ -145,6 +169,12 @@ pub struct OsHintsConfig {
     pub full_output: bool,
     pub use_kzg_da: bool,
     pub chain_info: OsChainInfo,
+}
+
+impl OsHintsConfig {
+    pub fn log_level(&self) -> LevelFilter {
+        if self.debug_mode { LevelFilter::DEBUG } else { LevelFilter::INFO }
+    }
 }
 
 #[derive(Default, Debug)]

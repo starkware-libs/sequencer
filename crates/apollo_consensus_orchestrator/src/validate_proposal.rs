@@ -46,6 +46,8 @@ use crate::utils::{
     GasPriceParams,
 };
 
+const GAS_PRICE_ABS_DIFF_MARGIN: u128 = 1;
+
 pub(crate) struct ProposalValidateArguments {
     pub deps: SequencerConsensusContextDeps,
     pub block_info_validation: BlockInfoValidation,
@@ -70,7 +72,7 @@ pub(crate) struct BlockInfoValidation {
 
 enum HandledProposalPart {
     Continue,
-    Invalid,
+    Invalid(String),
     Finished(ProposalCommitment, ProposalFin),
     Failed(String),
 }
@@ -101,14 +103,14 @@ pub(crate) enum ValidateProposalError {
     BlockInfoConversion(#[from] StarknetApiError),
     #[error("Invalid BlockInfo: {2}. received:{0:?}, validation criteria {1:?}.")]
     InvalidBlockInfo(ConsensusBlockInfo, BlockInfoValidation, String),
-    #[error("Validation timed out.")]
-    ValidationTimeout,
-    #[error("Proposal interrupted.")]
-    ProposalInterrupted,
+    #[error("Validation timed out while {0}")]
+    ValidationTimeout(String),
+    #[error("Proposal interrupted while {0}")]
+    ProposalInterrupted(String),
     #[error("Got an invalid second proposal part: {0:?}.")]
     InvalidSecondProposalPart(Option<ProposalPart>),
-    #[error("Batcher returned Invalid status.")]
-    InvalidProposal,
+    #[error("Batcher returned Invalid status: {0}.")]
+    InvalidProposal(String),
     #[error("Proposal part {1:?} failed validation: {0}.")]
     ProposalPartFailed(String, Option<ProposalPart>),
     #[error("proposal_commitment built by the batcher does not match the proposal fin.")]
@@ -167,11 +169,15 @@ pub(crate) async fn validate_proposal(
         tokio::select! {
             _ = args.cancel_token.cancelled() => {
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                return Err(ValidateProposalError::ProposalInterrupted);
+                return Err(ValidateProposalError::ProposalInterrupted(
+                    "validating proposal parts".to_string(),
+                ));
             }
             _ = sleep_until(deadline, args.deps.clock.as_ref()) => {
                 batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                return Err(ValidateProposalError::ValidationTimeout);
+                return Err(ValidateProposalError::ValidationTimeout(
+                    "validating proposal parts".to_string(),
+                ));
             }
             proposal_part = args.content_receiver.next() => {
                 match handle_proposal_part(
@@ -186,9 +192,9 @@ pub(crate) async fn validate_proposal(
                         break (built_block, received_fin);
                     }
                     HandledProposalPart::Continue => {continue;}
-                    HandledProposalPart::Invalid => {
+                    HandledProposalPart::Invalid(err) => {
                         // No need to abort since the Batcher is the source of this info.
-                        return Err(ValidateProposalError::InvalidProposal);
+                        return Err(ValidateProposalError::InvalidProposal(err));
                     }
                     HandledProposalPart::Failed(fail_reason) => {
                         batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
@@ -316,6 +322,13 @@ async fn is_block_info_valid(
 }
 
 fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> bool {
+    // For small numbers (e.g., less than 10 wei, if margin is 10%), even an off-by-one
+    // error might be bigger than the margin, even if it is just a rounding error.
+    // We make an exception for such mismatch, and don't bother checking percentages
+    // if the difference in price is only one wei.
+    if number1.0.abs_diff(number2.0) <= GAS_PRICE_ABS_DIFF_MARGIN {
+        return true;
+    }
     let margin = (number1.0 * margin_percent) / 100;
     number1.0.abs_diff(number2.0) <= margin
 }
@@ -331,10 +344,14 @@ async fn await_second_proposal_part(
 ) -> ValidateProposalResult<SecondProposalPart> {
     tokio::select! {
         _ = cancel_token.cancelled() => {
-            Err(ValidateProposalError::ProposalInterrupted)
+            Err(ValidateProposalError::ProposalInterrupted(
+                "waiting for second proposal part".to_string(),
+            ))
         }
         _ = sleep_until(deadline, clock) => {
-            Err(ValidateProposalError::ValidationTimeout)
+            Err(ValidateProposalError::ValidationTimeout(
+                "waiting for second proposal part".to_string(),
+            ))
         }
         proposal_part = content_receiver.next() => {
             match proposal_part {
@@ -412,7 +429,7 @@ async fn handle_proposal_part(
             });
             let response_id = match response.response {
                 ProposalStatus::Finished(id) => id,
-                ProposalStatus::InvalidProposal => return HandledProposalPart::Invalid,
+                ProposalStatus::InvalidProposal(err) => return HandledProposalPart::Invalid(err),
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             };
             let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
@@ -464,7 +481,7 @@ async fn handle_proposal_part(
             });
             match response.response {
                 ProposalStatus::Processing => HandledProposalPart::Continue,
-                ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
+                ProposalStatus::InvalidProposal(err) => HandledProposalPart::Invalid(err),
                 status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
             }
         }

@@ -34,8 +34,6 @@ use crate::test_utils::utils::{
     test_cairo_function,
 };
 
-// TODO(Nimrod): Move this next to the stateful compression hints implementation.
-
 const DEFAULT_CLASS_HASH: u128 = 7777;
 
 #[test]

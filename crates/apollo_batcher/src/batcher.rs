@@ -67,6 +67,7 @@ use crate::metrics::{
     LAST_SYNCED_BLOCK,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
+    REVERTED_TRANSACTIONS,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
@@ -572,6 +573,15 @@ impl Batcher {
         let n_rejected_txs =
             u64::try_from(block_execution_artifacts.execution_data.rejected_tx_hashes.len())
                 .expect("Number of rejected transactions should fit in u64");
+        let n_reverted_count = u64::try_from(
+            block_execution_artifacts
+                .execution_data
+                .execution_infos
+                .values()
+                .filter(|info| info.revert_error.is_some())
+                .count(),
+        )
+        .expect("Number of reverted transactions should fit in u64");
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -585,6 +595,7 @@ impl Batcher {
         LAST_BATCHED_BLOCK.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
+        REVERTED_TRANSACTIONS.increment(n_reverted_count);
 
         Ok(DecisionReachedResponse {
             state_diff,

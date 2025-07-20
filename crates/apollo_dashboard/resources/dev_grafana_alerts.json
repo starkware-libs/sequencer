@@ -679,7 +679,7 @@
       "name": "http_server_high_transaction_failure_ratio",
       "title": "http server high transaction failure ratio",
       "ruleGroup": "http_server",
-      "expr": "increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
+      "expr": "(increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
       "conditions": [
         {
           "evaluator": {
@@ -701,33 +701,6 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p3"
-    },
-    {
-      "name": "http_server_idle",
-      "title": "http server idle",
-      "ruleGroup": "http_server",
-      "expr": "sum(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              1.0
-            ],
-            "type": "lt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p2"
     },
     {
       "name": "http_server_internal_error_ratio",
@@ -792,7 +765,7 @@
         {
           "evaluator": {
             "params": [
-              0.05
+              0.01
             ],
             "type": "lt"
           },

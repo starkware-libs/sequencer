@@ -63,17 +63,8 @@ impl Deployment {
         &self.deployment_aux_data.node_type
     }
 
-    pub fn get_config_file_paths(&self) -> Vec<Vec<String>> {
-        self.services
-            .iter()
-            .map(|service| {
-                service
-                    .get_config_paths()
-                    .into_iter()
-                    .map(|s| format!("{}{}", self.application_config_subdir.to_string_lossy(), s))
-                    .collect::<Vec<_>>()
-            })
-            .collect()
+    pub fn get_all_services_config_paths(&self) -> Vec<Vec<String>> {
+        self.services.iter().map(|service| service.get_service_config_paths()).collect()
     }
 
     pub fn deployment_file_path(&self) -> PathBuf {
@@ -138,7 +129,7 @@ pub(crate) fn build_service_namespace_domain_address(
 
 // TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be
 // removed, and the p2p address should always be `External`.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum P2PCommunicationType {
     Internal,
     External,

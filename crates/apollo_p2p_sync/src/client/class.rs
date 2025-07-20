@@ -24,7 +24,6 @@ use super::block_data_stream_builder::{
     ParseDataError,
 };
 use super::P2pSyncClientError;
-use crate::client::RESPONSE_TIMEOUT;
 
 impl BlockData for (DeclaredClasses, DeprecatedDeclaredClasses, BlockNumber) {
     fn write_to_storage<'a>(
@@ -112,13 +111,11 @@ impl BlockDataStreamBuilder<(ApiContractClass, ClassHash)> for ClassStreamBuilde
             ) = (0, DeclaredClasses::new(), DeprecatedDeclaredClasses::new());
 
             while current_class_len < target_class_len {
-                let maybe_contract_class =
-                    tokio::time::timeout(RESPONSE_TIMEOUT, classes_response_manager.next())
-                        .await
-                        .map_err(|_| ParseDataError::BadPeer(BadPeerError::ResponseTimeout))?
-                        .ok_or(ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
-                            type_description: Self::TYPE_DESCRIPTION,
-                        }))?;
+                let maybe_contract_class = classes_response_manager.next().await.ok_or(
+                    ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
+                        type_description: Self::TYPE_DESCRIPTION,
+                    }),
+                )?;
                 let Some((api_contract_class, class_hash)) = maybe_contract_class?.0 else {
                     if current_class_len == 0 {
                         return Ok(None);
