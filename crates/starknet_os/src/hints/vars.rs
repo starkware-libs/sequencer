@@ -180,6 +180,7 @@ define_string_enum! {
         (Hash),
         (HashPtr),
         (Height),
+        (ExpectedCasmHashV2),
         (Index),
         (InitialCarriedOutputs),
         (InitialContractStateRoot),
