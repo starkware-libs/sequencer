@@ -368,7 +368,7 @@ pub async fn create_node_components(
     let l1_gas_price_provider = match config.components.l1_gas_price_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(L1GasPriceProvider::new(config.l1_gas_price_provider_config.clone()))
+            Some(L1GasPriceProvider::new(config.l1_gas_price_config.clone()))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
     };
@@ -379,7 +379,7 @@ pub async fn create_node_components(
                 .expect("L1 gas price client should be available");
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
-            let l1_gas_price_scraper_config = config.l1_gas_price_scraper_config.clone();
+            let l1_gas_price_config = config.l1_gas_price_config.clone();
             let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
             let monitored_base_layer = MonitoredEthereumBaseLayer::new(
                 base_layer,
@@ -388,7 +388,7 @@ pub async fn create_node_components(
             );
 
             Some(L1GasPriceScraper::new(
-                l1_gas_price_scraper_config,
+                l1_gas_price_config,
                 l1_gas_price_client,
                 monitored_base_layer,
             ))

@@ -274,13 +274,15 @@ impl IntegrationTestManager {
         let (anvil, starknet_l1_contract) =
             spawn_anvil_and_deploy_starknet_l1_contract(base_layer_config).await;
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
-        let l1_config = sequencers_setup[0].executables[0]
+        let l1_gas_price_config = sequencers_setup[0].executables[0]
             .base_app_config
             .get_config()
-            .l1_gas_price_scraper_config
+            .l1_gas_price_config
             .clone();
-        let num_blocks_needed_on_l1 =
-            (l1_config.number_of_blocks_for_mean + l1_config.finality).try_into().unwrap();
+        let num_blocks_needed_on_l1 = (l1_gas_price_config.number_of_blocks_for_mean
+            + l1_gas_price_config.finality)
+            .try_into()
+            .unwrap();
         let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
         let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
 

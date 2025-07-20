@@ -13,7 +13,7 @@ use starknet_api::block::GasPrice;
 use thiserror::Error;
 use tracing::{error, info, trace};
 
-use crate::config::L1GasPriceScraperConfig;
+use crate::config::L1GasPriceConfig;
 use crate::metrics::{
     register_scraper_metrics,
     L1_GAS_PRICE_SCRAPER_BASELAYER_ERROR_COUNT,
@@ -43,7 +43,7 @@ pub enum L1GasPriceScraperError<T: BaseLayerContract + Send + Sync> {
 }
 
 pub struct L1GasPriceScraper<B: BaseLayerContract> {
-    pub config: L1GasPriceScraperConfig,
+    pub config: L1GasPriceConfig,
     pub base_layer: B,
     pub l1_gas_price_provider: SharedL1GasPriceProvider,
     pub last_l1_header: Option<L1BlockHeader>,
@@ -51,7 +51,7 @@ pub struct L1GasPriceScraper<B: BaseLayerContract> {
 
 impl<B: BaseLayerContract + Send + Sync + Debug> L1GasPriceScraper<B> {
     pub fn new(
-        config: L1GasPriceScraperConfig,
+        config: L1GasPriceConfig,
         l1_gas_price_provider: SharedL1GasPriceProvider,
         base_layer: B,
     ) -> Self {
