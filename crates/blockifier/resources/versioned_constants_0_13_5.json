@@ -8,7 +8,7 @@
         "max_calldata_length": 5000,
         "max_contract_bytecode_size": 81920
     },
-    "invoke_tx_max_n_steps": 10000000,
+    "invoke_tx_max_n_steps": 30000000,
     "deprecated_l2_resource_gas_costs": {
         "gas_per_data_felt": [
             128,
@@ -72,7 +72,7 @@
         "error_entry_point_failed": "ENTRYPOINT_FAILED",
         "error_entry_point_not_found": "ENTRYPOINT_NOT_FOUND",
         "execute_entry_point_selector": "0x15d40a3d6ca2ac30f4031e42be28da9b056fef9bb7357ac5e85627ee876e5ad",
-        "execute_max_sierra_gas": 1000000000,
+        "execute_max_sierra_gas": 3000000000,
         "default_initial_gas_cost": {
             "step_gas_cost": 100000000
         },
@@ -112,7 +112,7 @@
         "validate_declare_entry_point_selector": "0x289da278a8dc833409cabfdad1581e8e7d40e42dcaed693fa4008dcdb4963b3",
         "validate_deploy_entry_point_selector": "0x36fcbf06cd96843058359e1a75928beacfac10727dab22a3972f0af8aa92895",
         "validate_entry_point_selector": "0x162da33a4585851fe8d3af3c2a9c60b557814e221e0d4f30ff0b2189d9c7775",
-        "validate_max_sierra_gas": 100000000,
+        "validate_max_sierra_gas": 300000000,
         "validate_rounding_consts": {
             "validate_block_number_rounding": 100,
             "validate_timestamp_rounding": 3600
@@ -530,7 +530,7 @@
             "n_memory_holes": 0
         }
     },
-    "validate_max_n_steps": 1000000,
+    "validate_max_n_steps": 3000000,
     "min_sierra_version_for_sierra_gas": "0.0.0",
     "vm_resource_fee_cost": {
         "builtins": {

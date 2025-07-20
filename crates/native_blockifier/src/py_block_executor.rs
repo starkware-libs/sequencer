@@ -118,6 +118,7 @@ pub struct PyBlockExecutor {
     /// `Send` trait is required for `pyclass` compatibility as Python objects must be threadsafe.
     pub storage: Box<dyn Storage + Send>,
     pub contract_class_manager: ContractClassManager,
+    pub use_sierra_gas: Option<bool>,
 }
 
 #[pymethods]
@@ -153,6 +154,7 @@ impl PyBlockExecutor {
             contract_class_manager: ContractClassManager::start(
                 contract_class_manager_config.into(),
             ),
+            use_sierra_gas: None,
         }
     }
 
@@ -165,11 +167,16 @@ impl PyBlockExecutor {
         next_block_info: PyBlockInfo,
         old_block_number_and_hash: Option<(u64, PyFelt)>,
     ) -> NativeBlockifierResult<()> {
+        let versioned_constants = if let Some(use_sierra_gas) = self.use_sierra_gas {
+            self.versioned_constants.toggle_sierra_gas(use_sierra_gas)
+        } else {
+            self.versioned_constants.clone()
+        };
         // Create block context.
         let block_context = BlockContext::new(
             next_block_info.try_into()?,
             self.chain_info.clone(),
-            self.versioned_constants.clone(),
+            versioned_constants,
             self.bouncer_config.clone(),
         );
         let next_block_number = block_context.block_info().block_number;
@@ -184,6 +191,16 @@ impl PyBlockExecutor {
             self.tx_executor_config.clone(),
         )?);
         Ok(())
+    }
+
+    /// Forces execution to use Sierra gas, regardless of the versioned constants.
+    pub fn activate_sierra_gas(&mut self) {
+        self.use_sierra_gas = Some(true);
+    }
+
+    /// Forces execution to use Cairo steps, regardless of the versioned constants.
+    pub fn deactivate_sierra_gas(&mut self) {
+        self.use_sierra_gas = Some(false);
     }
 
     fn teardown_block_execution(&mut self) {
@@ -399,6 +416,7 @@ impl PyBlockExecutor {
             contract_class_manager: ContractClassManager::start(
                 contract_class_manager_config.into(),
             ),
+            use_sierra_gas: None,
         }
     }
 }
@@ -429,6 +447,7 @@ impl PyBlockExecutor {
             contract_class_manager: ContractClassManager::start(
                 ContractClassManagerConfig::default(),
             ),
+            use_sierra_gas: None,
         }
     }
 
