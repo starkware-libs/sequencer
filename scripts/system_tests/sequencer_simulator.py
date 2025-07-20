@@ -1,7 +1,7 @@
-import os
-import json
-import subprocess
 import argparse
+import json
+import os
+import subprocess
 from enum import Enum
 
 

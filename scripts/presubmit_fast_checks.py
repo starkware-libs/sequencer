@@ -5,16 +5,16 @@ This script is meant to run a subset of the presubmit checks, the ones whose run
 It can be used to run these checks locally or part of the CI.
 """
 
+import argparse
+import subprocess
 from abc import ABC, abstractmethod
 from enum import Enum
 from os import path
-from named_todos import enforce_named_todos
-from run_tests import run_test, BaseCommand
 from typing import TypeVar
-from utils import run_command
 
-import argparse
-import subprocess
+from named_todos import enforce_named_todos
+from run_tests import BaseCommand, run_test
+from utils import run_command
 
 SCRIPTS_LOCATION = path.dirname(__file__)
 

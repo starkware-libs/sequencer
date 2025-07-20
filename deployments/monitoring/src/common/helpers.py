@@ -1,6 +1,29 @@
 import argparse
+from enum import Enum
 
 import colorlog
+
+
+class EnvironmentName(Enum):
+    DEV = "dev"
+    INTEGRATION = "integration"
+    TESTNET = "testnet"
+    MAINNET = "mainnet"
+
+
+# Translates the environment name to a suffix for alert filenames. We use the `mainnet` setting for development and the mainnet environment.
+# The `testnet` setting is used for integration and testnet environments.
+def alert_env_filename_suffix(env: EnvironmentName) -> str:
+    if env == EnvironmentName.DEV:
+        return "mainnet"
+    elif env == EnvironmentName.INTEGRATION:
+        return "testnet"
+    elif env == EnvironmentName.TESTNET:
+        return "testnet"
+    elif env == EnvironmentName.MAINNET:
+        return "mainnet"
+    else:
+        raise ValueError(f"Unknown environment: {env}")
 
 
 def get_logger(name: str = __name__, debug: bool = False) -> colorlog.getLogger:
@@ -115,7 +138,7 @@ def arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--env",
         type=str,
-        choices=["dev", "integration", "testnet", "mainnet"],
+        choices=[e.value for e in EnvironmentName],
         required=True,
     )
 
