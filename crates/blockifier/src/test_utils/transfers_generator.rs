@@ -234,23 +234,7 @@ impl TransfersGenerator {
             assert!(!execution_info.is_reverted());
 
             let expected_cairo_native = self.config.cairo_version.is_cairo_native();
-
-            assert_eq!(
-                execution_info.validate_call_info.as_ref().unwrap().execution.cairo_native,
-                expected_cairo_native
-            );
-            assert_eq!(
-                execution_info.execute_call_info.as_ref().unwrap().execution.cairo_native,
-                expected_cairo_native
-            );
-            for inner_call in execution_info.execute_call_info.as_ref().unwrap().inner_calls.iter()
-            {
-                assert_eq!(inner_call.execution.cairo_native, expected_cairo_native);
-            }
-            assert_eq!(
-                execution_info.fee_transfer_call_info.as_ref().unwrap().execution.cairo_native,
-                expected_cairo_native
-            );
+            execution_info.check_call_infos_native_execution(expected_cairo_native);
             collected_execution_infos.push(execution_info.clone());
         }
 
