@@ -96,9 +96,12 @@ pub(crate) fn parse_and_run_os(
 
     validate_os_input(&os_hints.os_input);
 
+    info!("Running OS...");
     let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, .. } =
         run_os_stateless(layout, os_hints)
             .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
+
+    info!("Finished running OS. Serializing OS output...");
     serialize_runner_output(
         &OsCliOutput { da_segment, metrics: metrics.into(), unused_hints },
         output_path,
@@ -140,9 +143,17 @@ fn serialize_runner_output<T: serde::Serialize>(
 ) {
     write_to_file(&output_path, output);
     let merge_extra_segments = true;
+    info!("Writing Cairo Pie to zip file.");
     cairo_pie
         .write_zip_file(Path::new(&cairo_pie_zip_path), merge_extra_segments)
         .unwrap_or_else(|err| panic!("Failed to write cairo pie. Error: {}", err));
+    info!(
+        "Finished writing Cairo Pie to zip file. Zip file size: {} KB.",
+        match std::fs::metadata(&cairo_pie_zip_path) {
+            Err(_) => String::from("UNKNOWN"),
+            Ok(meta) => format!("{}", meta.len() / 1024),
+        }
+    );
 }
 
 pub(crate) fn dump_source_files(output_path: String) {

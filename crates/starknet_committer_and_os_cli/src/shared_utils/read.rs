@@ -24,6 +24,8 @@ pub fn load_input<T: for<'a> Deserialize<'a>>(input_path: String) -> T {
 }
 
 pub fn write_to_file<T: Serialize>(file_path: &str, object: &T) {
+    info!("Writing output to file and serializing to JSON.");
     let file_buffer = BufWriter::new(File::create(file_path).expect("Failed to create file"));
     serde_json::to_writer(file_buffer, object).expect("Failed to serialize");
+    info!("Finished writing output to file.");
 }
