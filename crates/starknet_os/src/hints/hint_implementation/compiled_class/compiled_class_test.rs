@@ -33,11 +33,11 @@ const EXPECTED_HASH: expect_test::Expect =
 // Expected execution resources for loading full contract.
 const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT: expect_test::Expect =
     expect!["poseidon_builtin: 10290"];
-const EXPECTED_N_STEPS_FULL_CONTRACT: Expect = expect!["122113"];
+const EXPECTED_N_STEPS_FULL_CONTRACT: Expect = expect!["122264"];
 // Expected execution resources for loading partial contract.
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT: expect_test::Expect =
     expect!["poseidon_builtin: 300, range_check_builtin: 149"];
-const EXPECTED_N_STEPS_PARTIAL_CONTRACT: Expect = expect!["8651"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT: Expect = expect!["8951"];
 
 // TODO(Aviv): Share this test with compiled class hash blake test.
 #[rstest]
@@ -106,7 +106,13 @@ fn test_compiled_class_hash_poseidon(
     // Pass the contract class base address as the function's input parameter.
     let contract_class_base = runner.vm.add_memory_segment();
     contract_class.load_into(&mut runner.vm, &program, contract_class_base, &constants).unwrap();
-    let explicit_args = vec![EndpointArg::Value(ValueArg::Single(contract_class_base.into()))];
+    let explicit_args = vec![
+        // Compiled class
+        EndpointArg::Value(ValueArg::Single(contract_class_base.into())),
+        // Full contract
+        // TODO(Meshi): Test with full contract true as well.
+        Felt::from(0).into(),
+    ];
     // Run the Cairo entrypoint function.
     // State reader is not used in this test.
     let state_reader = None;

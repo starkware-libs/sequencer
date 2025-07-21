@@ -136,7 +136,10 @@ pub(crate) fn iter_current_segment_info(
 
     let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
 
-    let is_used = vm.is_accessed(&data_ptr)?;
+    let full_contract =
+        get_integer_from_var_name(Ids::FullContract.into(), vm, ids_data, ap_tracking)?;
+
+    let is_used = full_contract == Felt::ONE || vm.is_accessed(&data_ptr)?;
 
     // For testing purposes, we allow marking all segments as used.
     #[cfg(test)]
