@@ -49,6 +49,7 @@ members = [
   "crates/apollo_rpc_execution",
   "crates/apollo_signature_manager",
   "crates/apollo_signature_manager_types",
+  "crates/apollo_staking",
   "crates/apollo_starknet_client",
   "crates/apollo_starknet_os_program",
   "crates/apollo_state_reader",
@@ -136,6 +137,7 @@ apollo_rpc.path = "crates/apollo_rpc"
 apollo_rpc_execution.path = "crates/apollo_rpc_execution"
 apollo_signature_manager.path = "crates/apollo_signature_manager"
 apollo_signature_manager_types.path = "crates/apollo_signature_manager_types"
+apollo_staking.path = "crates/apollo_staking"
 apollo_starknet_client.path = "crates/apollo_starknet_client"
 apollo_starknet_os_program = { path = "crates/apollo_starknet_os_program", version = "0.0.0" }
 apollo_state_reader.path = "crates/apollo_state_reader"

@@ -1998,6 +1998,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_staking"
+version = "0.0.0"
+dependencies = [
+ "apollo_consensus",
+ "apollo_state_sync_types",
+ "assert_matches",
+ "async-trait",
+ "blockifier",
+ "blockifier_test_utils",
+ "mockall",
+ "rstest",
+ "starknet-types-core",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
 name = "apollo_starknet_client"
 version = "0.0.0"
 dependencies = [
