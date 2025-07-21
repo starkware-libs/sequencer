@@ -131,7 +131,7 @@ func guess_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}
 // Validates the compiled class facts structure and hash after the execution.
 // Uses the execution info to optimize hash computation.
 func validate_compiled_class_facts_post_execution{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
-    n_compiled_class_facts, compiled_class_facts: CompiledClassFact*, builtin_costs: felt*
+    n_compiled_class_facts, compiled_class_facts: CompiledClassFact*, builtin_costs: felt*,
 ) {
     %{
         from starkware.starknet.core.os.contract_class.compiled_class_hash import (
@@ -164,7 +164,7 @@ func validate_compiled_class_facts_post_execution{poseidon_ptr: PoseidonBuiltin*
 // Validates the compiled class facts structure and hash, using the hint variable
 // `bytecode_segment_structures` - a mapping from compilied class hash to the structure.
 func validate_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
-    n_compiled_class_facts, compiled_class_facts: CompiledClassFact*, builtin_costs: felt*
+    n_compiled_class_facts, compiled_class_facts: CompiledClassFact*, builtin_costs: felt*,
 ) {
     if (n_compiled_class_facts == 0) {
         return ();
@@ -196,7 +196,7 @@ func validate_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_p
             "is_segment_used_callback": is_segment_used_callback
         })
     %}
-    let (hash) = compiled_class_hash(compiled_class);
+    let (hash) = compiled_class_hash(compiled_class, full_contract=FALSE);
     %{
         vm_exit_scope()
 
