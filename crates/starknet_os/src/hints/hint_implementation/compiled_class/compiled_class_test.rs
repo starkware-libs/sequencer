@@ -92,7 +92,13 @@ fn test_compiled_class_hash_poseidon() -> Cairo0EntryPointRunnerResult<()> {
     // Pass the contract class base address as the function's input parameter.
     let contract_class_base = runner.vm.add_memory_segment();
     contract_class.load_into(&mut runner.vm, &program, contract_class_base, &constants).unwrap();
-    let explicit_args = vec![EndpointArg::Value(ValueArg::Single(contract_class_base.into()))];
+    let explicit_args = vec![
+        // Compiled class
+        EndpointArg::Value(ValueArg::Single(contract_class_base.into())),
+        // Full contract
+        // TODO(Meshi): Test with full contract true as well.
+        Felt::from(0).into(),
+    ];
     // Run the Cairo entrypoint function.
     // State reader is not used in this test.
     let state_reader = None;

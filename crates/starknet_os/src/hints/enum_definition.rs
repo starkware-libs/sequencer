@@ -495,8 +495,8 @@ define_stateless_hint_enum!(
     is_used = is_segment_used_callback(ids.data_ptr, current_segment_info.segment_length)
     ids.is_segment_used = 1 if is_used else 0
 
-    is_used_leaf = is_used and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
-    ids.is_used_leaf = 1 if is_used_leaf else 0
+    is_leaf = isinstance(current_segment_info.inner_structure, BytecodeLeaf)
+    ids.is_leaf = 1 if is_leaf else 0
 
     ids.segment_length = current_segment_info.segment_length
     vm_enter_scope(new_scope_locals={
