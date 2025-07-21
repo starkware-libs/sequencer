@@ -34,6 +34,29 @@ static VM_HINTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
     vm_hints
 });
 
+// Whitelist for Blake2s hints that are not yet used in the Cairo programs.
+static HINTS_WHITELIST: LazyLock<HashSet<AllHints>> = LazyLock::new(|| {
+    HashSet::from([
+        // TODO(Aviv): Remove these hints once we have used them in the OS.
+        AllHints::StatelessHint(StatelessHint::CheckPackedValuesEndAndSize),
+        AllHints::StatelessHint(StatelessHint::UnpackFeltsToU32s),
+    ])
+});
+
+// Whitelist for Blake2s hint strings that are not yet used in the Cairo programs.
+static HINT_STRINGS_WHITELIST: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    HashSet::from([
+        // TODO(Aviv): Remove these hints once we have used them in the OS.
+        "memory[ap] = to_felt_or_relocatable((ids.end != ids.packed_values) and \
+         (memory[ids.packed_values] < 2**63))",
+        "offset = 0\nfor i in range(ids.packed_values_len):\n    val = (memory[ids.packed_values \
+         + i] % PRIME)\n    val_len = 2 if val < 2**63 else 8\n    if val_len == 8:\n        val \
+         += 2**255\n    for i in range(val_len - 1, -1, -1):\n        val, \
+         memory[ids.unpacked_u32s + offset + i] = divmod(val, 2**32)\n    assert val == 0\n    \
+         offset += val_len",
+    ])
+});
+
 /// This conversion is only required for testing consistency.
 impl TryFrom<DeprecatedSyscallSelector> for DeprecatedSyscallHint {
     type Error = String;
@@ -151,7 +174,7 @@ fn test_syscall_compatibility_with_blockifier() {
     assert_eq!(
         blockifier_syscall_strings, syscall_hint_strings,
         "The syscall hints in the 'blockifier' do not match the syscall hints in 'starknet_os'.
-        If this is intentional, please update the 'starknet_os' hints and add a todo to update 
+        If this is intentional, please update the 'starknet_os' hints and add a todo to update
         the implementation."
     );
 }
@@ -198,8 +221,9 @@ fn test_all_hints_are_used(
         os_program_hints.union(&aggregator_program_hints).collect();
     let redundant_hints: HashSet<_> = AllHints::all_iter()
         .filter(|hint| {
-            // Skip syscalls; they do not appear in the OS code.
+            // Skip syscalls and whitelisted hints that do not appear in the OS code.
             !matches!(hint, AllHints::DeprecatedSyscallHint(_))
+                && !HINTS_WHITELIST.contains(hint)
                 && !all_program_hints.contains(&String::from(hint.to_str()))
         })
         .collect();
@@ -311,6 +335,7 @@ fn test_stateless_hints_in_os_or_aggregator_programs(
         .collect();
     let difference = stateless_hints
         .difference(&all_program_hints_excluding_vm)
+        .filter(|hint| !HINT_STRINGS_WHITELIST.contains(hint.as_str()))
         .cloned()
         .collect::<HashSet<_>>();
 
