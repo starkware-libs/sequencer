@@ -1,0 +1,16 @@
+{
+  "class_manager_config.#is_none": false,
+  "class_manager_config.class_manager_config.cached_class_storage_config.class_cache_size": 128,
+  "class_manager_config.class_manager_config.cached_class_storage_config.deprecated_class_cache_size": 128,
+  "class_manager_config.class_manager_config.max_compiled_contract_class_object_size": 4089446,
+  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.enforce_file_exists": false,
+  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.growth_step": 67108864,
+  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.max_size": 1099511627776,
+  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.min_size": 1048576,
+  "class_manager_config.class_storage_config.class_hash_storage_config.class_hash_db_config.path_prefix": "/data/class_manager/class_hash_storage",
+  "class_manager_config.class_storage_config.class_hash_storage_config.mmap_file_config.growth_step": 2147483648,
+  "class_manager_config.class_storage_config.class_hash_storage_config.mmap_file_config.max_object_size": 1073741824,
+  "class_manager_config.class_storage_config.class_hash_storage_config.mmap_file_config.max_size": 1099511627776,
+  "class_manager_config.class_storage_config.class_hash_storage_config.scope": "StateOnly",
+  "class_manager_config.class_storage_config.persistent_root": "/data/class_manager/classes"
+}

@@ -1,0 +1,6 @@
+{
+  "compiler_config.#is_none": false,
+  "compiler_config.max_bytecode_size": 81920,
+  "compiler_config.max_memory_usage": 5368709120,
+  "compiler_config.max_memory_usage.#is_none": false
+}

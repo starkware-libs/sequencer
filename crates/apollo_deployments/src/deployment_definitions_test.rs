@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
-use std::env;
 use std::fs::File;
+use std::{env, fs};
 
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
@@ -15,6 +15,7 @@ use serde_json::{to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
+use crate::deployment::BASE_APP_CONFIG_PATHS;
 use crate::deployment_definitions::DEPLOYMENTS;
 use crate::service::NodeType;
 use crate::test_utils::{SecretsConfigOverride, FIX_BINARY_NAME};
@@ -200,4 +201,55 @@ fn l1_components_state_consistency() {
             "L1 provider and scraper should either be both enabled or both disabled."
         );
     }
+}
+
+// TODO(Tsabary): this test is a temporary workaround to ensure that the combined JSON files match
+// the original base app config file. It should be deleted once we remove the previous base app
+// config. Added here as a sanity check with the hopes of avoiding potential merge conflict issues.
+#[test]
+fn test_combined_json_matches_expected() {
+    // List of JSON files to combine
+    let json_files = BASE_APP_CONFIG_PATHS;
+
+    // Expected JSON file
+    let expected_file = "crates/apollo_deployments/resources/base_app_config.json";
+
+    /// A helper fn that combines multiple JSON dictionary files into a single `serde_json::Map`.
+    fn combine_json_files(files: &[&str]) -> Map<String, Value> {
+        let mut combined = Map::new();
+        for file in files {
+            let content = fs::read_to_string(file)
+                .unwrap_or_else(|e| panic!("Failed to read {}: {}", file, e));
+            let json: Value = serde_json::from_str(&content)
+                .unwrap_or_else(|e| panic!("Failed to parse {}: {}", file, e));
+
+            if let Value::Object(obj) = json {
+                for (k, v) in obj {
+                    if combined.contains_key(&k) {
+                        panic!("Duplicate key '{}' found in file {}", k, file);
+                    }
+                    combined.insert(k, v);
+                }
+            } else {
+                panic!("File {} does not contain a JSON object", file);
+            }
+        }
+        combined
+    }
+
+    // Combine all JSON files
+    let combined = combine_json_files(&json_files);
+
+    // Load expected file
+    let expected_content = fs::read_to_string(expected_file)
+        .unwrap_or_else(|e| panic!("Failed to read {}: {}", expected_file, e));
+    let expected_json: Value = serde_json::from_str(&expected_content)
+        .unwrap_or_else(|e| panic!("Failed to parse {}: {}", expected_file, e));
+
+    // Ensure the expected file is a JSON object
+    let expected_obj =
+        expected_json.as_object().expect("Expected file does not contain a JSON object");
+
+    // Compare
+    assert_eq!(&combined, expected_obj, "Combined JSON does not match expected JSON");
 }

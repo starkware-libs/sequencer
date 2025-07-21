@@ -1,0 +1,4 @@
+{
+  "monitoring_config.collect_metrics": true,
+  "monitoring_config.collect_profiling_metrics": true
+}
