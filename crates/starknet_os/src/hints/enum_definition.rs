@@ -19,6 +19,10 @@ use crate::hints::hint_implementation::aggregator::{
     set_state_update_pointers_to_none,
     write_da_segment,
 };
+use crate::hints::hint_implementation::blake2s::implementation::{
+    check_packed_values_end_and_size,
+    unpack_felts_to_u32s,
+};
 use crate::hints::hint_implementation::block_context::{
     block_number,
     block_timestamp,
@@ -881,6 +885,27 @@ memory[ap] = 1 if case != 'both' else 0"#
 ids.initial_carried_outputs = segments.gen_arg(
     [segments.add_temp_segment(), segments.add_temp_segment()]
 )"#
+    ),
+    (
+        CheckPackedValuesEndAndSize,
+        check_packed_values_end_and_size,
+        "memory[ap] = to_felt_or_relocatable((ids.end != ids.packed_values) and \
+         (memory[ids.packed_values] < 2**63))"
+    ),
+    (
+        UnpackFeltsToU32s,
+        unpack_felts_to_u32s,
+        indoc! {r#"
+    offset = 0
+    for i in range(ids.packed_values_len):
+        val = (memory[ids.packed_values + i] % PRIME)
+        val_len = 2 if val < 2**63 else 8
+        if val_len == 8:
+            val += 2**255
+        for i in range(val_len - 1, -1, -1):
+            val, memory[ids.unpacked_u32s + offset + i] = divmod(val, 2**32)
+        assert val == 0
+        offset += val_len"#}
     ),
 );
 
