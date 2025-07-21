@@ -1,0 +1,17 @@
+{
+  "mempool_p2p_config.#is_none": false,
+  "mempool_p2p_config.max_transaction_batch_size": 75,
+  "mempool_p2p_config.network_buffer_size": 10000,
+  "mempool_p2p_config.network_config.broadcasted_message_metadata_buffer_size": 100000,
+  "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.base_delay_millis": 2,
+  "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.factor": 5,
+  "mempool_p2p_config.network_config.discovery_config.bootstrap_dial_retry_config.max_delay_seconds": 5,
+  "mempool_p2p_config.network_config.discovery_config.heartbeat_interval": 100,
+  "mempool_p2p_config.network_config.idle_connection_timeout": 120,
+  "mempool_p2p_config.network_config.peer_manager_config.malicious_timeout_seconds": 0,
+  "mempool_p2p_config.network_config.peer_manager_config.unstable_timeout_millis": 0,
+  "mempool_p2p_config.network_config.port": 53200,
+  "mempool_p2p_config.network_config.reported_peer_ids_buffer_size": 100000,
+  "mempool_p2p_config.network_config.session_timeout": 120,
+  "mempool_p2p_config.transaction_batch_rate_millis": 100
+}

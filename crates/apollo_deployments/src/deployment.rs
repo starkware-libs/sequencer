@@ -1,12 +1,34 @@
-use std::iter::once;
 use std::path::PathBuf;
 
 use serde::Serialize;
 
 use crate::config_override::ConfigOverride;
-use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH, CONFIG_BASE_DIR};
+use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfigParams};
 use crate::service::{NodeType, Service};
+
+// TODO(Tsabary): consider unifying pointer targets to a single file.
+// TODO(Tsabary): remove visibility once the test using it is removed.
+pub(crate) const BASE_APP_CONFIG_PATHS: [&str; 18] = [
+    "crates/apollo_deployments/resources/app_configs/base_layer.json",
+    "crates/apollo_deployments/resources/app_configs/batcher.json",
+    "crates/apollo_deployments/resources/app_configs/class_manager.json",
+    "crates/apollo_deployments/resources/app_configs/compiler.json",
+    "crates/apollo_deployments/resources/app_configs/consensus_manager.json",
+    "crates/apollo_deployments/resources/app_configs/gateway.json",
+    "crates/apollo_deployments/resources/app_configs/http_server.json",
+    "crates/apollo_deployments/resources/app_configs/l1_gas_price_provider.json",
+    "crates/apollo_deployments/resources/app_configs/l1_gas_price_scraper.json",
+    "crates/apollo_deployments/resources/app_configs/l1_provider.json",
+    "crates/apollo_deployments/resources/app_configs/l1_scraper.json",
+    "crates/apollo_deployments/resources/app_configs/mempool.json",
+    "crates/apollo_deployments/resources/app_configs/mempool_p2p.json",
+    "crates/apollo_deployments/resources/app_configs/monitoring_endpoint.json",
+    "crates/apollo_deployments/resources/app_configs/revert.json",
+    "crates/apollo_deployments/resources/app_configs/state_sync.json",
+    "crates/apollo_deployments/resources/app_configs/validate_resource_bounds.json",
+    "crates/apollo_deployments/resources/app_configs/versioned_constants_overrides.json",
+];
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Deployment {
@@ -31,8 +53,13 @@ impl Deployment {
 
         let config_override_files =
             config_override.get_config_file_paths(&environment.env_dir_path(), instance_name);
-        let config_filenames: Vec<String> =
-            once(BASE_APP_CONFIG_PATH.to_string()).chain(config_override_files).collect();
+        // TODO(Tsabary): currently all services get all the config files, need to select which
+        // files are needed per service.
+        let config_filenames: Vec<String> = BASE_APP_CONFIG_PATHS
+            .iter()
+            .map(|s| s.to_string())
+            .chain(config_override_files)
+            .collect();
 
         let services = node_services
             .iter()
