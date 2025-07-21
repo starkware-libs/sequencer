@@ -178,6 +178,7 @@ define_string_enum! {
         (FinalRoot),
         (FinalSquashedContractStateChangesEnd),
         (FinalSquashedContractStateChangesStart),
+        (FullContract),
         (Hash),
         (HashPtr),
         (Height),
