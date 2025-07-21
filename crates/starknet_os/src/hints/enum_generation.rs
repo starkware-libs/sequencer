@@ -55,14 +55,7 @@ macro_rules! define_hint_enum_helper {
                     $(Self::$hint_name => {
                         #[cfg(any(test, feature = "testing"))]
                         $hp_arg.get_mut_unused_hints().remove(&Self::$hint_name.into());
-                        let start = std::time::Instant::now();
-                        let result = $implementation($($passed_arg, )? hint_args);
-                        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
-                        log::debug!(
-                            "Took {elapsed:>7.3} ms to execute hint {}.",
-                            Self::$hint_name.to_str()
-                        );
-                        result
+                        crate::log_time!($implementation($($passed_arg, )? hint_args), Self::$hint_name)
                     })+
                 }
             }
@@ -113,7 +106,7 @@ macro_rules! define_hint_enum {
                     $(Self::$hint_name => {
                         #[cfg(any(test, feature = "testing"))]
                         hint_processor.unused_hints.remove(&Self::$hint_name.into());
-                        $implementation(hint_processor, hint_args)
+                        crate::log_time!($implementation(hint_processor, hint_args), Self::$hint_name)
                     })+
 
                 }
@@ -143,10 +136,21 @@ macro_rules! define_hint_extension_enum {
                             hint_processor
                             .unused_hints
                             .remove(&Self::$hint_name.into());
-                        $implementation::<S>(hint_processor, hint_extension_args)
+                        crate::log_time!($implementation::<S>(hint_processor, hint_extension_args), Self::$hint_name)
                     })+
                 }
             }
         }
     };
+}
+
+#[macro_export]
+macro_rules! log_time {
+    ($command:expr, $hint:expr) => {{
+        let start = std::time::Instant::now();
+        let result = $command;
+        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+        log::debug!("Took {elapsed:>7.3} ms to execute hint {:?}.", $hint);
+        result
+    }};
 }
