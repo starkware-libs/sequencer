@@ -41,7 +41,14 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
+<<<<<<< HEAD
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
+||||||| parent of 7ee8efd5b (apollo_state_sync: add get_block_hash and change get_block to return BlockNotFound (#8089))
+use apollo_state_sync_types::communication::StateSyncClient;
+=======
+use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::errors::StateSyncError;
+>>>>>>> 7ee8efd5b (apollo_state_sync: add get_block_hash and change get_block to return BlockNotFound (#8089))
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;
@@ -569,12 +576,14 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn try_sync(&mut self, height: BlockNumber) -> bool {
         let sync_block = match self.deps.state_sync_client.get_block(height).await {
+            Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
+                return false;
+            }
             Err(e) => {
                 error!("Sync returned an error: {e:?}");
                 return false;
             }
-            Ok(None) => return false,
-            Ok(Some(block)) => block,
+            Ok(block) => block,
         };
         // May be default for blocks older than 0.14.0, ensure min gas price is met.
         self.l2_gas_price = max(

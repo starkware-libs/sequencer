@@ -47,7 +47,7 @@ async fn test_get_block_info() {
 
     mock_state_sync_client.expect_get_block().times(1).with(predicate::eq(block_number)).returning(
         move |_| {
-            Ok(Some(SyncBlock {
+            Ok(SyncBlock {
                 state_diff: Default::default(),
                 account_transaction_hashes: Default::default(),
                 l1_transaction_hashes: Default::default(),
@@ -61,7 +61,7 @@ async fn test_get_block_info() {
                     l1_da_mode,
                     ..Default::default()
                 },
-            }))
+            })
         },
     );
 

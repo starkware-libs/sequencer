@@ -20,7 +20,7 @@ use apollo_storage::{StorageReader, StorageTxn};
 use async_trait::async_trait;
 use futures::channel::mpsc::{channel, Sender};
 use futures::SinkExt;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADDRESS};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
@@ -81,6 +81,9 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             StateSyncRequest::GetBlock(block_number) => {
                 StateSyncResponse::GetBlock(self.get_block(block_number).map(Box::new))
             }
+            StateSyncRequest::GetBlockHash(block_number) => {
+                StateSyncResponse::GetBlockHash(self.get_block_hash(block_number))
+            }
             StateSyncRequest::AddNewBlock(sync_block) => StateSyncResponse::AddNewBlock(
                 self.new_block_sender.send(*sync_block).await.map_err(StateSyncError::from),
             ),
@@ -113,19 +116,20 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 }
 
 impl StateSync {
-    fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<Option<SyncBlock>> {
+    fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
         let txn = self.storage_reader.begin_ro_txn()?;
-        let block_header = txn.get_block_header(block_number)?;
+
+        let block_not_found_err = Err(StateSyncError::BlockNotFound(block_number));
+        let Some(block_header) = txn.get_block_header(block_number)? else {
+            return block_not_found_err;
+        };
         let Some(block_transactions_with_hash) =
             txn.get_block_transactions_with_hash(block_number)?
         else {
-            return Ok(None);
+            return block_not_found_err;
         };
         let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
-            return Ok(None);
-        };
-        let Some(block_header) = block_header else {
-            return Ok(None);
+            return block_not_found_err;
         };
 
         let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
@@ -137,12 +141,18 @@ impl StateSync {
             }
         }
 
-        Ok(Some(SyncBlock {
+        Ok(SyncBlock {
             state_diff: thin_state_diff,
             block_header_without_hash: block_header.block_header_without_hash,
             account_transaction_hashes,
             l1_transaction_hashes,
-        }))
+        })
+    }
+
+    fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
+        // Getting the next block because the Sync block only contains parent hash.
+        let block = self.get_block(block_number.unchecked_next())?;
+        Ok(block.block_header_without_hash.parent_hash)
     }
 
     fn get_storage_at(
