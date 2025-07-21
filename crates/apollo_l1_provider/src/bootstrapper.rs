@@ -81,6 +81,7 @@ impl Bootstrapper {
             "Heights should be sequential."
         );
 
+        debug!("Adding future commit-block to backlog at height: {height}");
         self.commit_block_backlog
             .push(CommitBlockBacklog { height, committed_txs: committed_txs.clone() });
     }
