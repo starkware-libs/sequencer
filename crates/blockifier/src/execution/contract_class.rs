@@ -334,7 +334,7 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
         NestedIntList::Leaf(length) => {
             // The entire contract is a single segment (old Sierra contracts).
             &ExecutionResources {
-                n_steps: 463,
+                n_steps: 465,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
             } + &poseidon_hash_many_cost(*length)
@@ -342,12 +342,12 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
         NestedIntList::Node(segments) => {
             // The contract code is segmented by its functions.
             let mut execution_resources = ExecutionResources {
-                n_steps: 480,
+                n_steps: 483,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
             };
             let base_segment_cost = ExecutionResources {
-                n_steps: 24,
+                n_steps: 25,
                 n_memory_holes: 1,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 1)]),
             };

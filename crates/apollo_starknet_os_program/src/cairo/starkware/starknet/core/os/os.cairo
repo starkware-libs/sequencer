@@ -108,7 +108,7 @@ func main{
     validate_compiled_class_facts_post_execution(
         n_compiled_class_facts=n_compiled_class_facts,
         compiled_class_facts=compiled_class_facts,
-        builtin_costs=builtin_costs,
+        builtin_costs=builtin_costs
     );
 
     // Guess whether to use KZG commitment scheme and whether to output the full state.
