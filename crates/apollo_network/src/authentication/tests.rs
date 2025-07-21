@@ -1,4 +1,6 @@
+use futures::channel::mpsc;
 use futures::future::{ready, try_join};
+use futures::sink::{drain, Drain};
 use lazy_static::lazy_static;
 use libp2p::core::upgrade::InboundConnectionUpgrade;
 
@@ -23,10 +25,45 @@ fn test_composed_noise_config_generates_protocol_info() {
     let mut negotiator = MockNegotiator::new();
     negotiator.expect_protocol_name().return_const(PROTOCOL_NAME);
 
-    let config =
-        ComposedNoiseConfig::<MockNegotiator>::new(&DUMMY_KEYPAIR, Some(negotiator)).unwrap();
+    let config = ComposedNoiseConfig::<MockNegotiator, Drain<PeerId>>::new(
+        &DUMMY_KEYPAIR,
+        Some(negotiator),
+        drain(),
+    )
+    .unwrap();
 
     assert_eq!(config.protocol_info().next().unwrap(), format!("/noise_with_{PROTOCOL_NAME}"));
+}
+
+async fn perform_upgrade_with_negotiator_with_keys_and_dup_sink<T, S, Q>(
+    server_keypair: &identity::Keypair,
+    client_keypair: &identity::Keypair,
+    server_negotiator: Option<T>,
+    client_negotiator: Option<T>,
+    server_dup_sink: S,
+    client_dup_sink: Q,
+) -> (PeerId, PeerId)
+where
+    T: Negotiator + 'static,
+    S: Sink<PeerId> + Unpin + Send + 'static,
+    S::Error: std::fmt::Debug,
+    Q: Sink<PeerId> + Unpin + Send + 'static,
+    Q::Error: std::fmt::Debug,
+{
+    let (client_stream, server_stream, _) = get_connected_streams().await;
+
+    let ((client_peer_id, _), (server_peer_id, _)) = futures::future::try_join(
+        ComposedNoiseConfig::<T, S>::new(server_keypair, server_negotiator, server_dup_sink)
+            .unwrap()
+            .upgrade_inbound(server_stream, "unused".to_string()),
+        ComposedNoiseConfig::<T, Q>::new(client_keypair, client_negotiator, client_dup_sink)
+            .unwrap()
+            .upgrade_outbound(client_stream, "unused".to_string()),
+    )
+    .await
+    .expect("Negotiation faild.");
+
+    (client_peer_id, server_peer_id)
 }
 
 /// Helper function to create the security upgrade pair (incoming/outgoing) and run them. Asserts
@@ -40,20 +77,15 @@ async fn perform_upgrade_with_negotiator_with_keys<T>(
 where
     T: Negotiator + 'static,
 {
-    let (client_stream, server_stream, _) = get_connected_streams().await;
-
-    let ((client_peer_id, _), (server_peer_id, _)) = futures::future::try_join(
-        ComposedNoiseConfig::new(server_keypair, server_negotiator)
-            .unwrap()
-            .upgrade_inbound(server_stream, "unused".to_string()),
-        ComposedNoiseConfig::new(client_keypair, client_negotiator)
-            .unwrap()
-            .upgrade_outbound(client_stream, "unused".to_string()),
+    perform_upgrade_with_negotiator_with_keys_and_dup_sink(
+        server_keypair,
+        client_keypair,
+        server_negotiator,
+        client_negotiator,
+        drain(),
+        drain(),
     )
     .await
-    .expect("Negotiation faild.");
-
-    (client_peer_id, server_peer_id)
 }
 
 /// Similar to perform_upgrade_with_negotiator_with_keys. To be used when you don't care about
@@ -156,12 +188,20 @@ async fn test_composed_noise_config_returns_failure_when_initiator_fails() {
     let (client_stream, server_stream, _) = get_connected_streams().await;
 
     let res = try_join(
-        ComposedNoiseConfig::new(&get_keypair(0), Some(server_negotiator))
-            .unwrap()
-            .upgrade_inbound(server_stream, "unused".to_string()),
-        ComposedNoiseConfig::new(&get_keypair(1), Some(client_negotiator))
-            .unwrap()
-            .upgrade_outbound(client_stream, "unused".to_string()),
+        ComposedNoiseConfig::<MockNegotiator, Drain<PeerId>>::new(
+            &get_keypair(0),
+            Some(server_negotiator),
+            drain(),
+        )
+        .unwrap()
+        .upgrade_inbound(server_stream, "unused".to_string()),
+        ComposedNoiseConfig::<MockNegotiator, Drain<PeerId>>::new(
+            &get_keypair(1),
+            Some(client_negotiator),
+            drain(),
+        )
+        .unwrap()
+        .upgrade_outbound(client_stream, "unused".to_string()),
     )
     .await;
 
@@ -183,12 +223,20 @@ async fn test_composed_noise_config_returns_failure_when_responder_fails() {
     let (client_stream, server_stream, _) = get_connected_streams().await;
 
     let res = try_join(
-        ComposedNoiseConfig::new(&get_keypair(0), Some(server_negotiator))
-            .unwrap()
-            .upgrade_inbound(server_stream, "unused".to_string()),
-        ComposedNoiseConfig::new(&get_keypair(1), Some(client_negotiator))
-            .unwrap()
-            .upgrade_outbound(client_stream, "unused".to_string()),
+        ComposedNoiseConfig::<MockNegotiator, Drain<PeerId>>::new(
+            &get_keypair(0),
+            Some(server_negotiator),
+            drain(),
+        )
+        .unwrap()
+        .upgrade_inbound(server_stream, "unused".to_string()),
+        ComposedNoiseConfig::<MockNegotiator, Drain<PeerId>>::new(
+            &get_keypair(1),
+            Some(client_negotiator),
+            drain(),
+        )
+        .unwrap()
+        .upgrade_outbound(client_stream, "unused".to_string()),
     )
     .await;
 
@@ -262,4 +310,74 @@ async fn test_composed_noise_config_transfers_messages_between_peers() {
     perform_upgrade_with_negotiator(Some(EvenOddNegotiator), Some(EvenOddNegotiator)).await;
 }
 
-// TODO(guy.f): Test the duplicate peer case once implemented.
+#[tokio::test]
+async fn test_composed_noise_config_sends_duplicate_peer_to_sink_for_server() {
+    // The channel on which the duplicates will be reported.
+    let (sender, mut receiver) = mpsc::unbounded::<PeerId>();
+
+    const CLIENT_PEER_ID_INDEX: u8 = 0;
+    const SERVER_PEER_ID_INDEX: u8 = 1;
+    const DIFFERENT_PEER_ID_INDEX: u8 = 2;
+    let duplicate_peer_id = get_keypair(DIFFERENT_PEER_ID_INDEX).public().to_peer_id();
+
+    // Create server negotiator that returns DuplicatePeer(foo) for incoming connections
+    let mut server_negotiator = MockNegotiator::new();
+    server_negotiator.expect_negotiate_incoming_connection().return_once(move |_, _, _| {
+        ready(Ok(NegotiatorOutput::DuplicatePeer(duplicate_peer_id))).boxed()
+    });
+
+    // Create client negotiator that just succeeds.
+    let mut client_negotiator = MockNegotiator::new();
+    client_negotiator
+        .expect_negotiate_outgoing_connection()
+        .return_once(move |_, _, _| ready(Ok(NegotiatorOutput::None)).boxed());
+
+    perform_upgrade_with_negotiator_with_keys_and_dup_sink(
+        &get_keypair(SERVER_PEER_ID_INDEX),
+        &get_keypair(CLIENT_PEER_ID_INDEX),
+        Some(server_negotiator),
+        Some(client_negotiator),
+        sender,
+        drain(),
+    )
+    .await;
+
+    let received_peer_id_to_disconnect = receiver.try_next().unwrap().unwrap();
+    assert_eq!(received_peer_id_to_disconnect, duplicate_peer_id);
+}
+
+#[tokio::test]
+async fn test_composed_noise_config_sends_duplicate_peer_to_sink_for_client() {
+    // The channel on which the duplicates will be reported.
+    let (sender, mut receiver) = mpsc::unbounded::<PeerId>();
+
+    const CLIENT_PEER_ID_INDEX: u8 = 0;
+    const SERVER_PEER_ID_INDEX: u8 = 1;
+    const DIFFERENT_PEER_ID_INDEX: u8 = 2;
+    let duplicate_peer_id = get_keypair(DIFFERENT_PEER_ID_INDEX).public().to_peer_id();
+
+    // Create server negotiator that returns DuplicatePeer(foo) for incoming connections
+    let mut server_negotiator = MockNegotiator::new();
+    server_negotiator
+        .expect_negotiate_incoming_connection()
+        .return_once(move |_, _, _| ready(Ok(NegotiatorOutput::None)).boxed());
+
+    // Create client negotiator that just succeeds.
+    let mut client_negotiator = MockNegotiator::new();
+    client_negotiator.expect_negotiate_outgoing_connection().return_once(move |_, _, _| {
+        ready(Ok(NegotiatorOutput::DuplicatePeer(duplicate_peer_id))).boxed()
+    });
+
+    perform_upgrade_with_negotiator_with_keys_and_dup_sink(
+        &get_keypair(SERVER_PEER_ID_INDEX),
+        &get_keypair(CLIENT_PEER_ID_INDEX),
+        Some(server_negotiator),
+        Some(client_negotiator),
+        drain(),
+        sender,
+    )
+    .await;
+
+    let received_peer_id_to_disconnect = receiver.try_next().unwrap().unwrap();
+    assert_eq!(received_peer_id_to_disconnect, duplicate_peer_id);
+}

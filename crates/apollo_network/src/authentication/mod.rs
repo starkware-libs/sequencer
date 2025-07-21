@@ -9,13 +9,14 @@ use async_trait::async_trait;
 use asynchronous_codec::{Decoder, Encoder, Framed};
 use bytes::{Buf, BytesMut};
 use futures::io::{AsyncRead, AsyncWrite};
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::core::upgrade::{InboundConnectionUpgrade, OutboundConnectionUpgrade};
 use libp2p::core::UpgradeInfo;
 use libp2p::noise::{self, Error, Output};
 use libp2p::{identity, PeerId};
 use negotiator::{ConnectionEndpoint, Negotiator, NegotiatorError, NegotiatorOutput};
 use noise::Error as NoiseError;
+use tracing::error;
 
 pub mod negotiator;
 
@@ -55,13 +56,16 @@ where
 /// A security upgrade which allows running an additional, custom, negotiation after Noise
 /// negotiations have completed successfully.
 #[derive(Clone)]
-pub(crate) struct ComposedNoiseConfig<T>
+pub(crate) struct ComposedNoiseConfig<T, S>
 where
     T: Negotiator,
+    S: Sink<PeerId> + Unpin + 'static + Send,
+    S::Error: std::fmt::Debug,
 {
     noise_config: noise::Config,
     my_peer_id: PeerId,
     negotiator: Option<T>,
+    duplicate_peer_id_sink: S,
 }
 enum NegotiationSide {
     Inbound,
@@ -71,17 +75,24 @@ enum NegotiationSide {
 type UpgradeFuture<Socket> =
     Pin<Box<dyn Future<Output = Result<(PeerId, Output<Socket>), Error>> + Send>>;
 
-impl<T> ComposedNoiseConfig<T>
+impl<T, S> ComposedNoiseConfig<T, S>
 where
     T: Negotiator + 'static,
+    S: Sink<PeerId> + Unpin + 'static + Send,
+    S::Error: std::fmt::Debug,
 {
     // TODO(guy.f): Remove this once we use the ComposedNoiseConfig in the network manager.
     #[allow(dead_code)]
-    pub fn new(identity: &identity::Keypair, negotiator: Option<T>) -> Result<Self, Error> {
+    pub fn new(
+        identity: &identity::Keypair,
+        negotiator: Option<T>,
+        duplicate_peer_id_sink: S,
+    ) -> Result<Self, Error> {
         Ok(Self {
             noise_config: noise::Config::new(identity)?,
             my_peer_id: identity.public().to_peer_id(),
             negotiator,
+            duplicate_peer_id_sink,
         })
     }
 
@@ -111,7 +122,7 @@ where
                 .negotiator
                 .as_mut()
                 .expect("This future should not have been returned if negotiator is None");
-            if let NegotiatorOutput::DuplicatePeer(_dup_peer_id) = match side {
+            if let NegotiatorOutput::DuplicatePeer(dup_peer_id) = match side {
                 NegotiationSide::Inbound => {
                     negotiator
                         .negotiate_incoming_connection(
@@ -131,7 +142,9 @@ where
                         .await?
                 }
             } {
-                // TODO(guy.f): Close the connection with the other peer.
+                if let Err(e) = self.duplicate_peer_id_sink.send(dup_peer_id).await {
+                    error!("Failed to send duplicate peer ID to sink: {:?}", e);
+                }
             }
 
             let io = connection_endpoint.into_inner();
@@ -142,9 +155,11 @@ where
     }
 }
 
-impl<T> UpgradeInfo for ComposedNoiseConfig<T>
+impl<T, S> UpgradeInfo for ComposedNoiseConfig<T, S>
 where
     T: Negotiator,
+    S: Sink<PeerId> + Unpin + 'static + Send,
+    S::Error: std::fmt::Debug,
 {
     type Info = String;
     type InfoIter = std::iter::Once<Self::Info>;
@@ -162,9 +177,11 @@ where
     }
 }
 
-impl<T, Socket> InboundConnectionUpgrade<Socket> for ComposedNoiseConfig<T>
+impl<T, S, Socket> InboundConnectionUpgrade<Socket> for ComposedNoiseConfig<T, S>
 where
-    T: Negotiator + 'static,
+    T: Negotiator + Send + 'static,
+    S: Sink<PeerId> + Unpin + Send + 'static,
+    S::Error: std::fmt::Debug,
     Socket: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     type Output = (PeerId, Output<Socket>);
@@ -176,9 +193,11 @@ where
     }
 }
 
-impl<T, Socket> OutboundConnectionUpgrade<Socket> for ComposedNoiseConfig<T>
+impl<T, S, Socket> OutboundConnectionUpgrade<Socket> for ComposedNoiseConfig<T, S>
 where
-    T: Negotiator + 'static,
+    T: Negotiator + Send + 'static,
+    S: Sink<PeerId> + Unpin + Send + 'static,
+    S::Error: std::fmt::Debug,
     Socket: AsyncRead + AsyncWrite + Unpin + Send + 'static,
 {
     type Output = (PeerId, Output<Socket>);
