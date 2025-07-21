@@ -59,16 +59,19 @@ use crate::alerts::{
     Alert,
     AlertComparisonOp,
     AlertCondition,
+    AlertEnvFiltering,
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
     Alerts,
 };
 
-pub const DEV_ALERTS_JSON_PATH: &str = "crates/apollo_dashboard/resources/dev_grafana_alerts.json";
-
 const PENDING_DURATION_DEFAULT: &str = "30s";
 const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
+
+pub fn get_dev_alerts_json_path(alert_env_filtering: AlertEnvFiltering) -> String {
+    format!("crates/apollo_dashboard/resources/dev_grafana_alerts_{}.json", alert_env_filtering)
+}
 
 fn get_consensus_block_number_stuck() -> Alert {
     Alert {
@@ -87,6 +90,7 @@ fn get_consensus_block_number_stuck() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -105,6 +109,7 @@ fn get_consensus_build_proposal_failed_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -122,6 +127,7 @@ fn get_consensus_build_proposal_failed_once_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -139,6 +145,7 @@ fn get_consensus_validate_proposal_failed_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -162,6 +169,7 @@ fn get_consensus_decisions_reached_by_consensus_ratio() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::WorkingHours,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -179,6 +187,7 @@ fn get_consensus_inbound_stream_evicted_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -199,6 +208,7 @@ fn get_consensus_votes_num_sent_messages_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -221,6 +231,7 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::WorkingHours,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -238,6 +249,7 @@ fn get_cende_write_blob_failure_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -255,6 +267,7 @@ fn get_cende_write_blob_failure_once_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -275,6 +288,7 @@ fn get_consensus_l1_gas_price_provider_failure() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::WorkingHours,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -295,6 +309,7 @@ fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -312,6 +327,7 @@ fn get_consensus_round_above_zero() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -330,6 +346,7 @@ fn get_consensus_conflicting_votes() -> Alert {
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         // TODO(matan): Increase severity once slashing is supported.
         severity: AlertSeverity::WorkingHours,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -350,6 +367,7 @@ fn get_gateway_add_tx_idle() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -372,6 +390,7 @@ fn get_mempool_add_tx_idle() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -392,6 +411,7 @@ fn get_http_server_add_tx_idle() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -413,6 +433,7 @@ fn get_http_server_internal_error_ratio() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -433,6 +454,7 @@ fn get_http_server_internal_error_once() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::WorkingHours,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -450,6 +472,7 @@ fn get_eth_to_strk_error_count_alert() -> Alert {
         pending_duration: "1m",
         evaluation_interval_sec: 20,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -467,6 +490,7 @@ fn get_eth_to_strk_success_count_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -487,6 +511,7 @@ fn get_l1_gas_price_scraper_success_count_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -507,6 +532,7 @@ fn get_http_server_no_successful_transactions() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -527,6 +553,7 @@ fn get_http_server_low_successful_transaction_rate() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -549,6 +576,7 @@ fn get_http_server_high_transaction_failure_ratio() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -571,6 +599,7 @@ fn get_http_server_avg_add_tx_latency_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -593,6 +622,7 @@ fn get_http_server_p95_add_tx_latency_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::WorkingHours,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -613,6 +643,7 @@ fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -633,6 +664,7 @@ fn get_l1_gas_price_provider_insufficient_history_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -653,6 +685,7 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -670,6 +703,7 @@ fn get_l1_message_scraper_no_successes_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -690,6 +724,7 @@ fn get_l1_message_scraper_baselayer_error_count_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -710,6 +745,7 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -727,6 +763,7 @@ fn get_mempool_pool_size_increase() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -748,6 +785,7 @@ fn get_mempool_transaction_drop_ratio() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -765,6 +803,7 @@ fn get_consensus_round_high() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -786,6 +825,7 @@ fn get_consensus_round_above_zero_ratio() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: 10,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -803,6 +843,7 @@ fn get_native_compilation_error_increase() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Informational,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -824,6 +865,7 @@ fn get_state_sync_lag() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -841,6 +883,7 @@ fn get_state_sync_stuck() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -858,6 +901,7 @@ fn get_batched_transactions_stuck() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -875,6 +919,7 @@ fn get_preconfirmed_block_not_written() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -896,6 +941,7 @@ fn get_consensus_p2p_peer_down() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -918,6 +964,7 @@ fn get_consensus_p2p_not_enough_peers_for_quorum() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -941,6 +988,7 @@ fn get_consensus_p2p_disconnections() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::WorkingHours,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -962,6 +1010,7 @@ fn get_mempool_p2p_peer_down() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::DayOnly,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -985,6 +1034,7 @@ fn get_mempool_p2p_disconnections() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::WorkingHours,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
@@ -1011,10 +1061,11 @@ fn get_mempool_evictions_count_alert() -> Alert {
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
     }
 }
 
-pub fn get_apollo_alerts() -> Alerts {
+pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     let alerts = vec![
         get_batched_transactions_stuck(),
         get_cende_write_blob_failure_alert(),
@@ -1066,5 +1117,5 @@ pub fn get_apollo_alerts() -> Alerts {
         get_state_sync_stuck(),
     ];
     verify_unique_names(&alerts);
-    Alerts::new(alerts)
+    Alerts::new(alerts, alert_env_filtering)
 }
