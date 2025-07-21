@@ -191,7 +191,6 @@ define_string_enum! {
         (IsOnCurve),
         (IsSegmentUsed),
         (IsSierraGasMode),
-        (IsUsedLeaf),
         (Key),
         (KzgCommitments),
         (Length),
