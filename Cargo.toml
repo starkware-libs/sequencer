@@ -289,7 +289,7 @@ size-of = "0.1.5"
 socket2 = "0.5.8"
 starknet-core = "0.12.1"
 starknet-crypto = "0.7.1"
-starknet-types-core = "0.1.8"
+starknet-types-core = "0.1.9"
 starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
