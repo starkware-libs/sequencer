@@ -1,12 +1,13 @@
 import argparse
-import os
-from kubernetes import client, config
-from kubernetes.client.rest import ApiException
-from pathlib import Path
 import json
+import os
 import sys
 import time
-from typing import Tuple, Dict, Any
+from pathlib import Path
+from typing import Any, Dict, Tuple
+
+from kubernetes import client, config
+from kubernetes.client.rest import ApiException
 
 
 def check_manifest_files(deployment_config_path: str, workspace: str) -> None:

@@ -1,14 +1,11 @@
 #!/bin/env python3
 
+import argparse
 import os
 import re
-
-
-import argparse
 from typing import Optional
-from tests_utils import (
-    get_local_changes,
-)
+
+from tests_utils import get_local_changes
 
 
 def validate_todo_format(file_path: str) -> bool:
