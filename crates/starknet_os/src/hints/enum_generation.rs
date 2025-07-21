@@ -59,8 +59,8 @@ macro_rules! define_hint_enum_helper {
                         let result = $implementation($($passed_arg, )? hint_args);
                         let elapsed = start.elapsed().as_secs_f64() * 1000.0;
                         log::debug!(
-                            "Took {elapsed:>7.3} ms to execute hint {}.",
-                            Self::$hint_name.to_str()
+                            "Took {elapsed:>7.3} ms to execute hint {:?}.",
+                            Self::$hint_name
                         );
                         result
                     })+
@@ -113,7 +113,14 @@ macro_rules! define_hint_enum {
                     $(Self::$hint_name => {
                         #[cfg(any(test, feature = "testing"))]
                         hint_processor.unused_hints.remove(&Self::$hint_name.into());
-                        $implementation(hint_processor, hint_args)
+                        let start = std::time::Instant::now();
+                        let result = $implementation(hint_processor, hint_args);
+                        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+                        log::debug!(
+                            "Took {elapsed:>7.3} ms to execute hint {:?}.",
+                            Self::$hint_name
+                        );
+                        result
                     })+
 
                 }
@@ -143,7 +150,14 @@ macro_rules! define_hint_extension_enum {
                             hint_processor
                             .unused_hints
                             .remove(&Self::$hint_name.into());
-                        $implementation::<S>(hint_processor, hint_extension_args)
+                        let start = std::time::Instant::now();
+                        let result = $implementation::<S>(hint_processor, hint_extension_args);
+                        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+                        log::debug!(
+                            "Took {elapsed:>7.3} ms to execute hint {:?}.",
+                            Self::$hint_name
+                        );
+                        result
                     })+
                 }
             }
