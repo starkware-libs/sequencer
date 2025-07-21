@@ -395,25 +395,36 @@ fn total_u32s_from_felts(n_big_felts: usize, n_small_felts: usize) -> usize {
     big_u32s.checked_add(small_u32s).expect("Overflow computing total u32s")
 }
 
+fn base_steps_for_blake_hash(n_u32s: usize) -> usize {
+    let rem_u32s = n_u32s % blake_cost::N_U32S_MESSAGE;
+    if rem_u32s == 0 {
+        blake_cost::BASE_STEPS_FULL_MSG
+    } else {
+        // This computation is based on running blake2s with different inputs.
+        // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
+        blake_cost::BASE_STEPS_PARTIAL_MSG + (rem_u32s / 2) * blake_cost::STEPS_PER_2_U32_REMINDER
+    }
+}
+
+fn felts_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
+    let big_steps = n_big_felts
+        .checked_mul(blake_cost::STEPS_BIG_FELT)
+        .expect("Overflow computing big felt steps");
+    let small_steps = n_small_felts
+        .checked_mul(blake_cost::STEPS_SMALL_FELT)
+        .expect("Overflow computing small felt steps");
+    big_steps.checked_add(small_steps).expect("Overflow computing total felt steps")
+}
+
 /// Estimates the number of VM steps needed to hash the given felts with Blake in Starknet OS.
 /// Each small felt unpacks into 2 u32s, and each big felt into 8 u32s.
 /// Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
 fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
     let total_u32s = total_u32s_from_felts(n_big_felts, n_small_felts);
-    let rem_u32s = total_u32s % blake_cost::N_U32S_MESSAGE;
+    let base_steps = base_steps_for_blake_hash(total_u32s);
+    let felt_steps = felts_steps(n_big_felts, n_small_felts);
 
-    let base_steps = if rem_u32s == 0 {
-        blake_cost::BASE_STEPS_FULL_MSG
-    } else {
-        // This computation is based on manual calculations of running blake2s with different
-        // inputs. Note: `rem_u32s` is always even, since all inputs expand to an even number of
-        // u32s.
-        blake_cost::BASE_STEPS_PARTIAL_MSG + blake_cost::STEPS_PER_2_U32_REMINDER * (rem_u32s / 2)
-    };
-
-    n_big_felts * blake_cost::STEPS_BIG_FELT
-        + n_small_felts * blake_cost::STEPS_SMALL_FELT
-        + base_steps
+    base_steps.checked_add(felt_steps).expect("Overflow computing total Blake hash steps")
 }
 
 /// Returns the number of BLAKE opcodes needed to hash the given felts.
