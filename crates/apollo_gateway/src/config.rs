@@ -232,9 +232,8 @@ impl SerializeConfig for RpcStateReaderConfig {
 pub struct StatefulTransactionValidatorConfig {
     // TODO(Arni): Align the name of this field with the mempool config, and all other places where
     // validation is skipped during the systems bootstrap phase.
-    // If true, ensures the L2 gas price exceeds a dynamically calculated threshold based on
-    // EIP-1559 network usage.
-    pub validate_resource_bounds_above_threshold: bool,
+    // If true, ensures the max L2 gas price exceeds the current base gas price.
+    pub validate_resource_bounds: bool,
     pub max_allowed_nonce_gap: u32,
     pub reject_future_declare_txs: bool,
     pub max_nonce_for_validation_skip: Nonce,
@@ -246,7 +245,7 @@ pub struct StatefulTransactionValidatorConfig {
 impl Default for StatefulTransactionValidatorConfig {
     fn default() -> Self {
         StatefulTransactionValidatorConfig {
-            validate_resource_bounds_above_threshold: true,
+            validate_resource_bounds: true,
             max_allowed_nonce_gap: 50,
             reject_future_declare_txs: true,
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
@@ -260,10 +259,9 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from_iter([
             ser_param(
-                "validate_resource_bounds_above_threshold",
-                &self.validate_resource_bounds_above_threshold,
-                "If true, ensures the L2 gas price exceeds a dynamically calculated threshold \
-                 based on EIP-1559 network usage.",
+                "validate_resource_bounds",
+                &self.validate_resource_bounds,
+                "If true, ensures the max L2 gas price exceeds the current base gas price.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

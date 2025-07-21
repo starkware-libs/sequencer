@@ -1264,8 +1264,8 @@
     "privacy": "Public",
     "value": true
   },
-  "gateway_config.stateful_tx_validator_config.validate_resource_bounds_above_threshold": {
-    "description": "If true, ensures the L2 gas price exceeds a dynamically calculated threshold based on EIP-1559 network usage.",
+  "gateway_config.stateful_tx_validator_config.validate_resource_bounds": {
+    "description": "If true, ensures the max L2 gas price exceeds the current base gas price.",
     "privacy": "Public",
     "value": true
   },
