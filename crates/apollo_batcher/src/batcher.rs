@@ -676,8 +676,8 @@ impl Batcher {
             .await;
 
         if let Err(mempool_err) = mempool_result {
+            // Recoverable error, mempool won't be updated with the new block.
             error!("Failed to commit block to mempool: {}", mempool_err);
-            // TODO(AlonH): Should we rollback the state diff and return an error?
         };
 
         STORAGE_HEIGHT.increment(1);
