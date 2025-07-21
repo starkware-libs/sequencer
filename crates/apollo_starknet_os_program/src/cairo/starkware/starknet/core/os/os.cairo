@@ -109,6 +109,7 @@ func main{
         n_compiled_class_facts=n_compiled_class_facts,
         compiled_class_facts=compiled_class_facts,
         builtin_costs=builtin_costs,
+        full_contract=FALSE
     );
 
     // Guess whether to use KZG commitment scheme and whether to output the full state.

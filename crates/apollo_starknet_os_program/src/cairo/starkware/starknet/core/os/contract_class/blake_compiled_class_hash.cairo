@@ -26,9 +26,11 @@ from starkware.starknet.core.os.hash.hash_state_blake import (
     hash_update_with_nested_hash,
 )
 
-func compiled_class_hash{range_check_ptr}(compiled_class: CompiledClass*) -> (hash: felt) {
+func compiled_class_hash{range_check_ptr}(compiled_class: CompiledClass*, full_contract: felt) -> (hash: felt) {
     alloc_locals;
     assert compiled_class.compiled_class_version = COMPILED_CLASS_VERSION;
+
+    assert full_contract * full_contract = full_contract;
 
     let hash_state: HashState = hash_init();
     with hash_state {
@@ -52,7 +54,7 @@ func compiled_class_hash{range_check_ptr}(compiled_class: CompiledClass*) -> (ha
 
         // Hash bytecode.
         let bytecode_hash = bytecode_hash_node(
-            data_ptr=compiled_class.bytecode_ptr, data_length=compiled_class.bytecode_length
+            data_ptr=compiled_class.bytecode_ptr, data_length=compiled_class.bytecode_length, full_contract=full_contract
         );
         hash_update_single(item=bytecode_hash);
     }
@@ -95,7 +97,7 @@ func compiled_class_hash{range_check_ptr}(compiled_class: CompiledClass*) -> (ha
 // bytecode_segment_structure: A BytecodeSegmentStructure object that describes the bytecode
 // structure.
 // is_segment_used_callback: A callback that returns whether a segment is used.
-func bytecode_hash_node{range_check_ptr}(data_ptr: felt*, data_length: felt) -> felt {
+func bytecode_hash_node{range_check_ptr}(data_ptr: felt*, data_length: felt, full_contract: felt) -> felt {
     alloc_locals;
 
     local is_leaf;
@@ -121,7 +123,7 @@ func bytecode_hash_node{range_check_ptr}(data_ptr: felt*, data_length: felt) -> 
     // Initialize Blake2s hash state for internal node.
     let hash_state: HashState = hash_init();
     with hash_state {
-        bytecode_hash_internal_node(data_ptr=data_ptr, data_length=data_length);
+        bytecode_hash_internal_node(data_ptr=data_ptr, data_length=data_length, full_contract=full_contract);
     }
 
     let segmented_hash = hash_finalize(hash_state=hash_state);
@@ -132,8 +134,8 @@ func bytecode_hash_node{range_check_ptr}(data_ptr: felt*, data_length: felt) -> 
 
 // Helper function for bytecode_hash_node.
 // Computes the hash of an internal node by adding its children to the hash state.
-func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
-    data_ptr: felt*, data_length: felt
+func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState,}(
+    data_ptr: felt*, data_length: felt, full_contract: felt
 ) {
     if (data_length == 0) {
         %{ assert next(bytecode_segments, None) is None %}
@@ -148,7 +150,9 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
     %{
         current_segment_info = next(bytecode_segments)
 
-        is_used = is_segment_used_callback(ids.data_ptr, current_segment_info.segment_length)
+        is_used = ids.full_contract or is_segment_used_callback(
+            ids.data_ptr, current_segment_info.segment_length
+        )
         ids.is_segment_used = 1 if is_used else 0
 
         is_used_leaf = is_used and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
@@ -171,7 +175,7 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
     } else {
         if (is_segment_used != FALSE) {
             let current_segment_hash = bytecode_hash_node(
-                data_ptr=data_ptr, data_length=segment_length
+                data_ptr=data_ptr, data_length=segment_length, full_contract=full_contract
             );
         } else {
             // Set the first felt of the bytecode to -1 to make sure that the execution cannot jump
@@ -198,7 +202,7 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
     %{ vm_exit_scope() %}
 
     return bytecode_hash_internal_node(
-        data_ptr=&data_ptr[segment_length], data_length=data_length - segment_length
+        data_ptr=&data_ptr[segment_length], data_length=data_length - segment_length, full_contract=full_contract
     );
 }
 
