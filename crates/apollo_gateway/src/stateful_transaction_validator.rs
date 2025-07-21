@@ -44,13 +44,13 @@ type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>
 
 // TODO(yair): move the trait to Blockifier.
 #[cfg_attr(test, automock)]
-pub trait StatefulTransactionValidatorTrait {
+pub trait BlockifierStatefulTransactionValidatorTrait {
     #[allow(clippy::result_large_err)]
     fn validate(&mut self, account_tx: AccountTransaction)
     -> BlockifierStatefulValidatorResult<()>;
 }
 
-impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
+impl BlockifierStatefulTransactionValidatorTrait for BlockifierStatefulValidator {
     #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
     #[allow(clippy::result_large_err)]
     fn validate(
@@ -62,7 +62,7 @@ impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
 }
 
 impl StatefulTransactionValidator {
-    pub fn run_validate<V: StatefulTransactionValidatorTrait>(
+    pub fn run_validate<V: BlockifierStatefulTransactionValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,

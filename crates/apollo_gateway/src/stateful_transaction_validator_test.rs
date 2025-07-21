@@ -39,7 +39,7 @@ use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
 use crate::stateful_transaction_validator::{
-    MockStatefulTransactionValidatorTrait,
+    MockBlockifierStatefulTransactionValidatorTrait,
     StatefulTransactionValidator,
 };
 
@@ -84,8 +84,8 @@ async fn test_stateful_tx_validator(
             message: format!("{}", blockifier_error),
         });
 
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_| expected_result.map(|_| ()));
+    let mut mock_blockifier_validator = MockBlockifierStatefulTransactionValidatorTrait::new();
+    mock_blockifier_validator.expect_validate().return_once(|_| expected_result.map(|_| ()));
 
     let account_nonce = nonce!(0);
     let mut mock_mempool_client = MockMempoolClient::new();
@@ -101,7 +101,7 @@ async fn test_stateful_tx_validator(
             &executable_tx,
             account_nonce,
             mempool_client,
-            mock_validator,
+            mock_blockifier_validator,
             runtime,
         );
         assert_eq!(result, expected_result_as_stateful_transaction_result);
@@ -185,8 +185,8 @@ async fn test_skip_stateful_validation(
     #[case] should_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator
+    let mut mock_blockifier_validator = MockBlockifierStatefulTransactionValidatorTrait::new();
+    mock_blockifier_validator
         .expect_validate()
         .withf(move |tx| tx.execution_flags.validate == should_validate)
         .returning(|_| Ok(()));
@@ -202,7 +202,7 @@ async fn test_skip_stateful_validation(
             &executable_tx,
             sender_nonce,
             mempool_client,
-            mock_validator,
+            mock_blockifier_validator,
             runtime,
         );
     })
@@ -236,8 +236,8 @@ async fn test_is_valid_nonce(
         config: StatefulTransactionValidatorConfig { max_allowed_nonce_gap, ..Default::default() },
     };
 
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_| Ok(()));
+    let mut mock_blockifier_validator = MockBlockifierStatefulTransactionValidatorTrait::new();
+    mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
 
     let executable_tx = executable_invoke_tx(invoke_tx_args!(nonce: nonce!(tx_nonce)));
     let result = tokio::task::spawn_blocking(move || {
@@ -245,7 +245,7 @@ async fn test_is_valid_nonce(
             &executable_tx,
             nonce!(account_nonce),
             Arc::new(MockMempoolClient::new()),
-            mock_validator,
+            mock_blockifier_validator,
             tokio::runtime::Handle::current(),
         )
     })
@@ -268,8 +268,8 @@ async fn test_reject_future_declares(
     #[case] account_nonce_diff: i32,
     #[case] expected_result_code: Result<(), StarknetErrorCode>,
 ) {
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_| Ok(()));
+    let mut mock_blockifier_validator = MockBlockifierStatefulTransactionValidatorTrait::new();
+    mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
 
     let account_nonce = 10;
     let executable_tx = executable_declare_tx(
@@ -284,7 +284,7 @@ async fn test_reject_future_declares(
             &executable_tx,
             nonce!(account_nonce),
             Arc::new(MockMempoolClient::new()),
-            mock_validator,
+            mock_blockifier_validator,
             tokio::runtime::Handle::current(),
         )
     })
