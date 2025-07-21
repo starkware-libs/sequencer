@@ -52,19 +52,6 @@ pub enum ShcReturn {
     Decision(Decision),
 }
 
-/// Events produced from tasks for the SHC to handle.
-#[derive(Debug, Clone)]
-pub enum ShcEvent {
-    TimeoutPropose(StateMachineEvent),
-    TimeoutPrevote(StateMachineEvent),
-    TimeoutPrecommit(StateMachineEvent),
-    Prevote(StateMachineEvent),
-    Precommit(StateMachineEvent),
-    BuildProposal(StateMachineEvent),
-    // TODO(Matan): Replace ProposalCommitment with the unvalidated signature from the proposer.
-    ValidateProposal(StateMachineEvent),
-}
-
 /// A task which should be run without blocking calls to SHC.
 #[derive(Debug)]
 #[cfg_attr(test, derive(EnumAsInner))]
@@ -108,42 +95,26 @@ impl PartialEq for ShcTask {
 }
 
 impl ShcTask {
-    pub async fn run(self) -> ShcEvent {
+    pub async fn run(self) -> StateMachineEvent {
         trace!("Running task: {:?}", self);
         match self {
-            ShcTask::TimeoutPropose(duration, event) => {
+            ShcTask::TimeoutPropose(duration, event)
+            | ShcTask::TimeoutPrevote(duration, event)
+            | ShcTask::TimeoutPrecommit(duration, event)
+            | ShcTask::Prevote(duration, event)
+            | ShcTask::Precommit(duration, event) => {
                 tokio::time::sleep(duration).await;
-                ShcEvent::TimeoutPropose(event)
-            }
-            ShcTask::TimeoutPrevote(duration, event) => {
-                tokio::time::sleep(duration).await;
-                ShcEvent::TimeoutPrevote(event)
-            }
-            ShcTask::TimeoutPrecommit(duration, event) => {
-                tokio::time::sleep(duration).await;
-                ShcEvent::TimeoutPrecommit(event)
-            }
-            ShcTask::Prevote(duration, event) => {
-                tokio::time::sleep(duration).await;
-                ShcEvent::Prevote(event)
-            }
-            ShcTask::Precommit(duration, event) => {
-                tokio::time::sleep(duration).await;
-                ShcEvent::Precommit(event)
+                event
             }
             ShcTask::BuildProposal(round, receiver) => {
                 let proposal_id = receiver.await.ok();
-                ShcEvent::BuildProposal(StateMachineEvent::GetProposal(proposal_id, round))
+                StateMachineEvent::GetProposal(proposal_id, round)
             }
             ShcTask::ValidateProposal(init, block_receiver) => {
                 // TODO(Asmaa): Consider if we want to differentiate between an interrupt and other
                 // failures.
                 let proposal_id = block_receiver.await.ok();
-                ShcEvent::ValidateProposal(StateMachineEvent::Proposal(
-                    proposal_id,
-                    init.round,
-                    init.valid_round,
-                ))
+                StateMachineEvent::Proposal(proposal_id, init.round, init.valid_round)
             }
         }
     }
@@ -259,14 +230,16 @@ impl SingleHeightConsensus {
     pub async fn handle_event<ContextT: ConsensusContext>(
         &mut self,
         context: &mut ContextT,
-        event: ShcEvent,
+        event: StateMachineEvent,
     ) -> Result<ShcReturn, ConsensusError> {
         trace!("Received ShcEvent: {:?}", event);
         let ret = match event {
-            ShcEvent::TimeoutPropose(event)
-            | ShcEvent::TimeoutPrevote(event)
-            | ShcEvent::TimeoutPrecommit(event) => self.handle_timeout(context, event).await,
-            ShcEvent::Prevote(StateMachineEvent::Prevote(proposal_id, round)) => {
+            StateMachineEvent::TimeoutPropose(_round)
+            | StateMachineEvent::TimeoutPrevote(_round)
+            | StateMachineEvent::TimeoutPrecommit(_round) => {
+                self.handle_timeout(context, event).await
+            }
+            StateMachineEvent::Prevote(proposal_id, round) => {
                 let Some(last_vote) = &self.last_prevote else {
                     return Err(ConsensusError::InternalInconsistency(
                         "No prevote to send".to_string(),
@@ -283,7 +256,7 @@ impl SingleHeightConsensus {
                     StateMachineEvent::Prevote(proposal_id, round),
                 )]))
             }
-            ShcEvent::Precommit(StateMachineEvent::Precommit(proposal_id, round)) => {
+            StateMachineEvent::Precommit(proposal_id, round) => {
                 let Some(last_vote) = &self.last_precommit else {
                     return Err(ConsensusError::InternalInconsistency(
                         "No precommit to send".to_string(),
@@ -300,11 +273,7 @@ impl SingleHeightConsensus {
                     StateMachineEvent::Precommit(proposal_id, round),
                 )]))
             }
-            ShcEvent::ValidateProposal(StateMachineEvent::Proposal(
-                proposal_id,
-                round,
-                valid_round,
-            )) => {
+            StateMachineEvent::Proposal(proposal_id, round, valid_round) => {
                 let leader_fn =
                     |round: Round| -> ValidatorId { context.proposer(self.height, round) };
                 debug!(
@@ -335,7 +304,7 @@ impl SingleHeightConsensus {
                 );
                 self.handle_state_machine_events(context, sm_events).await
             }
-            ShcEvent::BuildProposal(StateMachineEvent::GetProposal(proposal_id, round)) => {
+            StateMachineEvent::GetProposal(proposal_id, round) => {
                 if proposal_id.is_none() {
                     CONSENSUS_BUILD_PROPOSAL_FAILED.increment(1);
                 }
