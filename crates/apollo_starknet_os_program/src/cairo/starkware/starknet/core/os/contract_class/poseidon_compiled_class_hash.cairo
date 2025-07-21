@@ -16,8 +16,11 @@ from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     CompiledClassEntryPoint,
 )
 
+// Computes the hash of the given compiled class.
+// The full_contract argument is used to determine whether we
+// are hashing the full contract or just the used segments.
 func compiled_class_hash{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
-    compiled_class: CompiledClass*
+    compiled_class: CompiledClass*, full_contract: felt
 ) -> (hash: felt) {
     alloc_locals;
     assert compiled_class.compiled_class_version = COMPILED_CLASS_VERSION;
@@ -44,7 +47,9 @@ func compiled_class_hash{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
 
         // Hash bytecode.
         let bytecode_hash = bytecode_hash_node(
-            data_ptr=compiled_class.bytecode_ptr, data_length=compiled_class.bytecode_length
+            data_ptr=compiled_class.bytecode_ptr,
+            data_length=compiled_class.bytecode_length,
+            full_contract=full_contract,
         );
         hash_update_single(item=bytecode_hash);
     }
@@ -88,7 +93,7 @@ func compiled_class_hash{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
 // structure.
 // is_segment_used_callback: A callback that returns whether a segment is used.
 func bytecode_hash_node{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
-    data_ptr: felt*, data_length: felt
+    data_ptr: felt*, data_length: felt, full_contract: felt
 ) -> felt {
     alloc_locals;
 
@@ -113,7 +118,7 @@ func bytecode_hash_node{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
     // Use the poseidon builtin directly for performance reasons.
     let poseidon_state = PoseidonBuiltinState(s0=0, s1=0, s2=0);
     bytecode_hash_internal_node{poseidon_state=poseidon_state}(
-        data_ptr=data_ptr, data_length=data_length
+        data_ptr=data_ptr, data_length=data_length, full_contract=full_contract
     );
 
     // Pad input with [1, 0]. See implementation of poseidon_hash_many().
@@ -131,14 +136,14 @@ func bytecode_hash_node{range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
 // Computes the hash of an internal node by adding its children to the hash state.
 func bytecode_hash_internal_node{
     range_check_ptr, poseidon_ptr: PoseidonBuiltin*, poseidon_state: PoseidonBuiltinState
-}(data_ptr: felt*, data_length: felt) {
+}(data_ptr: felt*, data_length: felt, full_contract: felt) {
     if (data_length == 0) {
         %{ assert next(bytecode_segments, None) is None %}
         return ();
     }
 
     alloc_locals;
-    local is_used_leaf;
+    local is_leaf;
     local is_segment_used;
     local segment_length;
 
@@ -148,8 +153,8 @@ func bytecode_hash_internal_node{
         is_used = is_segment_used_callback(ids.data_ptr, current_segment_info.segment_length)
         ids.is_segment_used = 1 if is_used else 0
 
-        is_used_leaf = is_used and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
-        ids.is_used_leaf = 1 if is_used_leaf else 0
+        is_leaf = isinstance(current_segment_info.inner_structure, BytecodeLeaf)
+        ids.is_leaf = 1 if is_leaf else 0
 
         ids.segment_length = current_segment_info.segment_length
         vm_enter_scope(new_scope_locals={
@@ -157,6 +162,11 @@ func bytecode_hash_internal_node{
             "is_segment_used_callback": is_segment_used_callback
         })
     %}
+
+    // Represent is_segment_used = full_contract || is used.
+    tempvar is_segment_used = full_contract + is_segment_used - full_contract * is_segment_used;
+    // Represent is_used_leaf = is_leaf && is_segment_used.
+    let is_used_leaf = is_leaf * is_segment_used;
 
     if (is_used_leaf != FALSE) {
         // Repeat the code of bytecode_hash_node() for performance reasons, instead of calling it.
@@ -167,7 +177,7 @@ func bytecode_hash_internal_node{
     } else {
         if (is_segment_used != FALSE) {
             let current_segment_hash = bytecode_hash_node(
-                data_ptr=data_ptr, data_length=segment_length
+                data_ptr=data_ptr, data_length=segment_length, full_contract=full_contract
             );
         } else {
             // Set the first felt of the bytecode to -1 to make sure that the execution cannot jump
@@ -201,7 +211,9 @@ func bytecode_hash_internal_node{
     %{ vm_exit_scope() %}
 
     return bytecode_hash_internal_node(
-        data_ptr=&data_ptr[segment_length], data_length=data_length - segment_length
+        data_ptr=&data_ptr[segment_length],
+        data_length=data_length - segment_length,
+        full_contract=full_contract,
     );
 }
 
