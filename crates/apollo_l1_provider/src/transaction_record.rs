@@ -6,7 +6,7 @@ use indexmap::IndexMap;
 use starknet_api::block::BlockTimestamp;
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::transaction_manager::StagingEpoch;
 
@@ -26,6 +26,7 @@ pub struct TransactionRecord {
     committed: bool,
     rejected: bool,
     cancellation_requested_at: Option<BlockTimestamp>,
+    consumed_at: Option<BlockTimestamp>,
     /// A record is staged iff its epoch equals the record owner's (tx manager) epoch counter.
     staged_epoch: StagingEpoch,
 }
@@ -97,6 +98,20 @@ impl TransactionRecord {
                 None
             }
         }
+    }
+
+    pub fn mark_consumed(&mut self, timestamp: BlockTimestamp) -> Option<BlockTimestamp> {
+        if self.is_committed() {
+            debug!("Marking a committed transaction {} as consumed.", self.tx.tx_hash());
+        } else {
+            debug!(
+                "Marking a non-committed transaction {} as consumed. Previous state: {:?}",
+                self.tx.tx_hash(),
+                self.state
+            );
+        }
+        self.state = TransactionState::Consumed;
+        Some(*self.consumed_at.get_or_insert(timestamp))
     }
 
     /// Try to stage an l1 handler transaction, which means that we allow to include it in the
