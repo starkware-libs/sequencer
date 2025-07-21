@@ -5,11 +5,8 @@ use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_sierra_gas;
-use crate::execution::execution_utils::blake_cost::{
-    BASE_STEPS_FULL_MSG,
-    N_U32S_BIG_FELT,
-    N_U32S_SMALL_FELT,
-};
+use crate::execution::execution_utils::blake_encoding::{N_U32S_BIG_FELT, N_U32S_SMALL_FELT};
+use crate::execution::execution_utils::blake_estimation::BASE_STEPS_FULL_MSG;
 use crate::execution::execution_utils::{
     compute_blake_hash_steps,
     cost_of_encode_felt252_data_and_calc_blake_hash,
@@ -57,7 +54,8 @@ fn test_zero_inputs() {
 // TODO(AvivG): Add tests for:
 // - `compute_blake_hash_steps` simple cases (felts input).
 // - `count_blake_opcode` simple cases (felts input).
-// - `cost_of_encode_felt252_data_and_calc_blake_hash` simple cases (felts input).
+// - `cost_of_encode_felt252_data_and_calc_blake_hash` simple cases (felts input) (including partial
+//   remainder).
 // - `cost_of_encode_felt252_data_and_calc_blake_hash` compare against actual execution resources
 //   from running a Cairo entry point (computing blake).
 // - base steps costs - compare against actual execution resources by running on an empty input.
