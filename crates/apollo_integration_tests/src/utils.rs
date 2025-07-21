@@ -565,7 +565,7 @@ pub fn create_gateway_config(
     };
     let stateful_tx_validator_config = StatefulTransactionValidatorConfig {
         max_allowed_nonce_gap: 1000,
-        validate_resource_bounds_above_threshold: validate_non_zero_resource_bounds,
+        validate_resource_bounds: validate_non_zero_resource_bounds,
         ..Default::default()
     };
 
