@@ -1177,6 +1177,8 @@ dependencies = [
  "indexmap 2.9.0",
  "serde",
  "serde_json",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
 ]
 
 [[package]]

@@ -1,5 +1,8 @@
+use std::fmt;
+
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+use strum_macros::EnumIter;
 
 /// Alerts to be configured in the dashboard.
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -8,8 +11,39 @@ pub struct Alerts {
 }
 
 impl Alerts {
-    pub(crate) const fn new(alerts: Vec<Alert>) -> Self {
-        Self { alerts }
+    pub(crate) fn new(alerts: Vec<Alert>, alert_env_filtering: AlertEnvFiltering) -> Self {
+        Self {
+            alerts: alerts
+                .into_iter()
+                .filter(|alert| alert.alert_env_filtering.matches(&alert_env_filtering))
+                .collect(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, EnumIter)]
+pub enum AlertEnvFiltering {
+    All,
+    MainnetStyleAlerts,
+    TestnetStyleAlerts,
+}
+
+impl AlertEnvFiltering {
+    pub fn matches(&self, target: &AlertEnvFiltering) -> bool {
+        self == target || *self == AlertEnvFiltering::All
+    }
+}
+
+impl fmt::Display for AlertEnvFiltering {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            AlertEnvFiltering::All => {
+                unreachable!()
+            } // This variant is used for internal logic and should not be displayed.
+            AlertEnvFiltering::MainnetStyleAlerts => "mainnet",
+            AlertEnvFiltering::TestnetStyleAlerts => "testnet",
+        };
+        write!(f, "{}", s)
     }
 }
 
@@ -142,4 +176,6 @@ pub(crate) struct Alert {
     pub(crate) evaluation_interval_sec: u64,
     // The severity level of the alert.
     pub(crate) severity: AlertSeverity,
+    #[serde(skip)]
+    pub(crate) alert_env_filtering: AlertEnvFiltering,
 }

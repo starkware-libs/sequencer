@@ -32,6 +32,8 @@ blockifier.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["arbitrary_precision"] }
+strum.workspace = true
+strum_macros.workspace = true
 
 [dev-dependencies]
 apollo_batcher = { workspace = true, features = ["testing"] }

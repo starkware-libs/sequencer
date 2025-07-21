@@ -1,5 +1,5 @@
 pub mod alert_definitions;
-mod alerts;
+pub mod alerts;
 mod dashboard;
 pub mod dashboard_definitions;
 #[cfg(test)]
