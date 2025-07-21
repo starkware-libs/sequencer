@@ -222,13 +222,17 @@ impl NodeService {
         self.as_inner().k8s_service_name()
     }
 
-    pub fn get_service_file_path(&self) -> String {
+    fn get_service_file_path(&self) -> String {
         PathBuf::from(CONFIG_BASE_DIR)
             .join(SERVICES_DIR_NAME)
             .join(NodeType::from(self).get_folder_name())
             .join(self.get_config_file_path())
             .to_string_lossy()
             .to_string()
+    }
+
+    fn get_base_app_config_file_paths(&self) -> Vec<String> {
+        self.as_inner().get_base_app_config_file_paths()
     }
 
     pub fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
@@ -288,6 +292,8 @@ pub(crate) trait ServiceNameInner: Display {
         let formatted_service_name = self.to_string().replace('_', "");
         format!("sequencer-{}-service", formatted_service_name)
     }
+
+    fn get_base_app_config_file_paths(&self) -> Vec<String>;
 }
 
 impl NodeType {
