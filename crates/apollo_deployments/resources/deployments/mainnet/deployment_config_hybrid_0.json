@@ -114,7 +114,9 @@
         "gcsm_key": "apollo-mainnet-0"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "L1",

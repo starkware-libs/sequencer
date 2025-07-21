@@ -114,7 +114,9 @@
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-0"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "L1",

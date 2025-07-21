@@ -69,7 +69,7 @@ async fn eth_to_fri_rate_uses_cache_on_quantized_hit() {
 #[tokio::test]
 async fn eth_to_fri_rate_two_urls() {
     let expected_rate = 123456;
-    let expected_rate_hex = format!("0x{:x}", expected_rate);
+    let expected_rate_hex = format!("0x{expected_rate:x}");
     let lag_interval_seconds = 60;
     let timestamp1 = 1234567890;
     let timestamp2 = timestamp1 + lag_interval_seconds * 2; // New quantized bucket
@@ -116,7 +116,7 @@ async fn eth_to_fri_rate_two_urls() {
                 assert!(index == 1, "Last error should be index 1 (server2).");
                 break; // This is the expected error, since server1 and 2 returned bad JSON.
             }
-            Err(e) => panic!("Unexpected error: {:?}", e),
+            Err(e) => panic!("Unexpected error: {e:?}"),
         }
         tokio::task::yield_now().await; // Don't block the executor.
     }

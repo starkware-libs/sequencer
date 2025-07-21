@@ -43,60 +43,7 @@ impl Default for CommitmentInfo {
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-<<<<<<< HEAD
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
-#[derive(Clone, Debug)]
-pub struct ContractClassComponentHashes {
-    contract_class_version: Felt,
-    external_functions_hash: HashOutput,
-    l1_handlers_hash: HashOutput,
-    constructors_hash: HashOutput,
-    abi_hash: HashOutput,
-    sierra_program_hash: HashOutput,
-}
-
-impl ContractClassComponentHashes {
-    pub(crate) fn flatten(&self) -> Vec<Felt> {
-        vec![
-            self.contract_class_version,
-            self.external_functions_hash.0,
-            self.l1_handlers_hash.0,
-            self.constructors_hash.0,
-            self.abi_hash.0,
-            self.sierra_program_hash.0,
-        ]
-    }
-}
-
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
-||||||| 199fa631c
-#[derive(Clone, Debug)]
-pub struct ContractClassComponentHashes {
-    contract_class_version: Felt,
-    external_functions_hash: HashOutput,
-    l1_handlers_hash: HashOutput,
-    constructors_hash: HashOutput,
-    abi_hash: HashOutput,
-    sierra_program_hash: HashOutput,
-}
-
-impl ContractClassComponentHashes {
-    pub(crate) fn flatten(&self) -> Vec<Felt> {
-        vec![
-            self.contract_class_version,
-            self.external_functions_hash.0,
-            self.l1_handlers_hash.0,
-            self.constructors_hash.0,
-            self.abi_hash.0,
-            self.sierra_program_hash.0,
-        ]
-    }
-}
-
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-=======
->>>>>>> origin/main-v0.14.0
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct OsHints {

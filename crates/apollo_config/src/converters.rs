@@ -127,7 +127,7 @@ impl UrlAndHeaders {
         let url_str = parts.next().ok_or("Missing URL")?;
         let rest = parts.next().unwrap_or("");
 
-        let url = Url::parse(url_str).map_err(|e| format!("Invalid URL: {}", e))?;
+        let url = Url::parse(url_str).map_err(|e| format!("Invalid URL: {e}"))?;
 
         let mut headers = BTreeMap::new();
         if !rest.is_empty() {
@@ -148,7 +148,7 @@ impl UrlAndHeaders {
 
     fn validate_component(value: &str, label: &str) -> Result<(), String> {
         if let Some(c) = value.chars().find(|c| Self::RESERVED_CHARS.contains(c)) {
-            return Err(format!("Invalid character '{}' in header {}: '{}'", c, label, value));
+            return Err(format!("Invalid character '{c}' in header {label}: '{value}'"));
         }
         Ok(())
     }
@@ -183,20 +183,10 @@ where
     let items = raw.split('|');
     let number_of_items = items.clone().count();
     let mut output = Vec::with_capacity(number_of_items);
-<<<<<<< HEAD
-    for item in raw.split_whitespace() {
-        let value: UrlAndHeaders = serde_json::from_str(item)
-            .map_err(|e| D::Error::custom(format!("Invalid JSON '{item}': {e}")))?;
-||||||| 199fa631c
-    for item in raw.split_whitespace() {
-        let value: UrlAndHeaders = serde_json::from_str(item)
-            .map_err(|e| D::Error::custom(format!("Invalid JSON '{}': {}", item, e)))?;
-=======
     for item in items {
         let value: UrlAndHeaders = UrlAndHeaders::from_custom_string(item).map_err(|e| {
-            D::Error::custom(format!("Invalid UrlAndHeaders formatting '{}': {}", item, e))
+            D::Error::custom(format!("Invalid UrlAndHeaders formatting '{item}': {e}"))
         })?;
->>>>>>> origin/main-v0.14.0
         output.push(value);
     }
     Ok(Some(output))

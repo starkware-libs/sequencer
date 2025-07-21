@@ -143,7 +143,9 @@
         "gcsm_key": "apollo-sepolia-integration-0"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "Mempool",

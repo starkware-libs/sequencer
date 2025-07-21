@@ -34,7 +34,9 @@
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
       },
       "anti_affinity": true,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "HttpServer",
@@ -78,7 +80,10 @@
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "HttpServer": 8080,
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "Gateway",
@@ -109,7 +114,9 @@
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "L1",
@@ -140,7 +147,9 @@
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "Mempool",
@@ -175,7 +184,9 @@
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
       },
       "anti_affinity": true,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "SierraCompiler",
@@ -206,7 +217,9 @@
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     }
   ]
 }

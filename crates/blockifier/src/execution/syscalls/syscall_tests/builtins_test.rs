@@ -94,7 +94,7 @@ fn test_builtin_counts_consistency() {
     };
 
     let casm_call_info = entry_point_call_casm.execute_directly(&mut casm_state).unwrap();
-    assert!(!casm_call_info.execution.failed, "CASM execution failed, {:?}", casm_call_info);
+    assert!(!casm_call_info.execution.failed, "CASM execution failed, {casm_call_info:?}");
 
     let expected_builtins = [
         BuiltinName::range_check,
@@ -111,8 +111,7 @@ fn test_builtin_counts_consistency() {
     for builtin in expected_builtins {
         assert!(
             casm_call_info.builtin_counters.get(&builtin).copied().unwrap_or(0) > 0,
-            "Builtin {:?} was not called",
-            builtin
+            "Builtin {builtin:?} was not called"
         );
     }
 

@@ -130,7 +130,7 @@ impl Panel {
             .collect::<Vec<_>>()
             .join(" + ");
 
-        let expr = format!("100 * ({} / ({}))", numerator_expr, denominator_expr);
+        let expr = format!("100 * ({numerator_expr} / ({denominator_expr}))");
 
         Self::new(name, description, vec![expr], PanelType::TimeSeries)
     }

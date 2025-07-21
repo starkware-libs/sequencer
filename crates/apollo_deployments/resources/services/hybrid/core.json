@@ -98,7 +98,7 @@
   "components.signature_manager.ip": "0.0.0.0",
   "components.signature_manager.local_server_config.channel_capacity": 128,
   "components.signature_manager.max_concurrency": 8,
-  "components.signature_manager.port": 55009,
+  "components.signature_manager.port": 55008,
   "components.signature_manager.remote_client_config.idle_connections": 10,
   "components.signature_manager.remote_client_config.idle_timeout": 30,
   "components.signature_manager.remote_client_config.retries": 150,

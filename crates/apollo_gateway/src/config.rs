@@ -91,11 +91,11 @@ where
     let mut result = Vec::new();
     for addresses_str in raw.split(',') {
         let felt = Felt::from_str(addresses_str).map_err(|err| {
-            de::Error::custom(format!("Failed to parse Felt from '{}': {}", addresses_str, err))
+            de::Error::custom(format!("Failed to parse Felt from '{addresses_str}': {err}"))
         })?;
 
         let addr = ContractAddress::try_from(felt).map_err(|err| {
-            de::Error::custom(format!("Invalid contract address '{}': {}", addresses_str, err))
+            de::Error::custom(format!("Invalid contract address '{addresses_str}': {err}"))
         })?;
 
         result.push(addr);

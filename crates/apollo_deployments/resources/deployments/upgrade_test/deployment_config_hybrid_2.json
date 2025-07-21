@@ -147,7 +147,9 @@
         "gcsm_key": "apollo-alpha-test-2"
       },
       "anti_affinity": false,
-      "ports": {}
+      "ports": {
+        "MonitoringEndpoint": 8082
+      }
     },
     {
       "name": "Mempool",

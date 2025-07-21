@@ -150,17 +150,9 @@ fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
             ))
         })?);
     if !SUPPORTED_TRANSACTION_VERSIONS.contains(&tx_version) {
-<<<<<<< HEAD
+        ADDED_TRANSACTIONS_DEPRECATED_ERROR.increment(1);
         return Err(HttpServerError::GatewayClientError(Box::new(
             GatewayClientError::GatewayError(GatewayError::DeprecatedGatewayError {
-||||||| 199fa631c
-        return Err(HttpServerError::GatewayClientError(GatewayClientError::GatewayError(
-            GatewayError::DeprecatedGatewayError {
-=======
-        ADDED_TRANSACTIONS_DEPRECATED_ERROR.increment(1);
-        return Err(HttpServerError::GatewayClientError(GatewayClientError::GatewayError(
-            GatewayError::DeprecatedGatewayError {
->>>>>>> origin/main-v0.14.0
                 source: StarknetError {
                     code: StarknetErrorCode::KnownErrorCode(
                         KnownStarknetErrorCode::InvalidTransactionVersion,

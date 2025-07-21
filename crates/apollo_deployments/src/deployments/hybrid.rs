@@ -37,13 +37,7 @@ use crate::k8s::{
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
 use crate::utils::{determine_port_numbers, get_validator_id};
 
-<<<<<<< HEAD
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 10;
-||||||| 199fa631c
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
-=======
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 8;
->>>>>>> origin/main-v0.14.0
 pub(crate) const INSTANCE_NAME_FORMAT: Template = Template("hybrid_{}");
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
@@ -79,22 +73,10 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
         let l1_gas_price_provider = HybridNodeServiceName::Core.component_config_pair(ports[3]);
         let l1_provider = HybridNodeServiceName::Core.component_config_pair(ports[4]);
-<<<<<<< HEAD
-        let l1_endpoint_monitor = HybridNodeServiceName::Core.component_config_pair(ports[5]);
-        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[6]);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
-        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[8]);
-        let signature_manager = HybridNodeServiceName::Core.component_config_pair(ports[9]);
-||||||| 199fa631c
-        let l1_endpoint_monitor = HybridNodeServiceName::Core.component_config_pair(ports[5]);
-        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[6]);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
-        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[8]);
-=======
         let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5]);
         let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6]);
         let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7]);
->>>>>>> origin/main-v0.14.0
+        let signature_manager = HybridNodeServiceName::Core.component_config_pair(ports[8]);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -379,6 +361,28 @@ impl ServiceNameInner for HybridNodeServiceName {
                 }
             }
             HybridNodeServiceName::Gateway => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::HttpServer
+                        | ServicePort::Batcher
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {
+                            // TODO(Nadin): should define the ports for these services (if needed).
+                        }
+                    }
+                }
+            }
+            HybridNodeServiceName::L1 => {
                 for service_port in ServicePort::iter() {
                     match service_port {
                         ServicePort::MonitoringEndpoint => {
