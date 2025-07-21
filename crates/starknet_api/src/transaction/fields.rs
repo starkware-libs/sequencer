@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use size_of::SizeOf;
+use sizeof::SizeOf;
 use starknet_types_core::felt::Felt;
 use strum_macros::EnumIter;
 

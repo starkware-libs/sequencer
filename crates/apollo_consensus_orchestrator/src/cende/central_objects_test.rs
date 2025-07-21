@@ -65,6 +65,7 @@ use num_bigint::BigUint;
 use rstest::rstest;
 use serde::Serialize;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
+use sizeof::SizeOf;
 use starknet_api::block::{
     BlockHash,
     BlockInfo,
@@ -967,4 +968,67 @@ fn serialize_central_objects(#[case] rust_obj: impl Serialize, #[case] python_js
     let rust_json = serde_json::to_value(rust_obj).unwrap();
 
     assert_json_eq(&rust_json, &python_json, "Json Comparison failed".to_string());
+}
+
+// Check size of internal transactions.
+#[test]
+fn test_deploy_account_tx_size_of() {
+    let deploy_account_tx = deploy_account_tx();
+
+    let RpcDeployAccountTransaction::V3(internal_deploy_account_tx) = &deploy_account_tx.tx;
+
+    let expected_size = std::mem::size_of::<InternalRpcDeployAccountTransaction>()
+        + internal_deploy_account_tx.class_hash.dynamic_size()
+        + internal_deploy_account_tx.constructor_calldata.dynamic_size()
+        + internal_deploy_account_tx.contract_address_salt.dynamic_size()
+        + internal_deploy_account_tx.fee_data_availability_mode.dynamic_size()
+        + internal_deploy_account_tx.nonce.dynamic_size()
+        + internal_deploy_account_tx.nonce_data_availability_mode.dynamic_size()
+        + internal_deploy_account_tx.paymaster_data.dynamic_size()
+        + internal_deploy_account_tx.resource_bounds.dynamic_size()
+        + internal_deploy_account_tx.signature.dynamic_size()
+        + internal_deploy_account_tx.tip.dynamic_size()
+        + deploy_account_tx.contract_address.dynamic_size();
+
+    assert_eq!(deploy_account_tx.size_bytes(), expected_size);
+}
+
+#[test]
+fn test_declare_account_tx_size_of() {
+    let declare_tx = declare_transaction();
+
+    let expected_size = std::mem::size_of::<InternalRpcDeclareTransactionV3>()
+        + declare_tx.class_hash.dynamic_size()
+        + declare_tx.compiled_class_hash.dynamic_size()
+        + declare_tx.fee_data_availability_mode.dynamic_size()
+        + declare_tx.nonce.dynamic_size()
+        + declare_tx.nonce_data_availability_mode.dynamic_size()
+        + declare_tx.paymaster_data.dynamic_size()
+        + declare_tx.resource_bounds.dynamic_size()
+        + declare_tx.sender_address.dynamic_size()
+        + declare_tx.signature.dynamic_size()
+        + declare_tx.tip.dynamic_size();
+
+    assert_eq!(declare_tx.size_bytes(), expected_size);
+}
+
+#[test]
+fn test_invoke_tx_size_of() {
+    let invoke_tx = invoke_transaction();
+
+    let RpcInvokeTransaction::V3(internal_invoke_tx) = &invoke_tx;
+
+    let expected_size = std::mem::size_of::<RpcInvokeTransaction>()
+        + internal_invoke_tx.account_deployment_data.dynamic_size()
+        + internal_invoke_tx.calldata.dynamic_size()
+        + internal_invoke_tx.fee_data_availability_mode.dynamic_size()
+        + internal_invoke_tx.nonce.dynamic_size()
+        + internal_invoke_tx.nonce_data_availability_mode.dynamic_size()
+        + internal_invoke_tx.paymaster_data.dynamic_size()
+        + internal_invoke_tx.resource_bounds.dynamic_size()
+        + internal_invoke_tx.sender_address.dynamic_size()
+        + internal_invoke_tx.signature.dynamic_size()
+        + internal_invoke_tx.tip.dynamic_size();
+
+    assert_eq!(invoke_tx.size_bytes(), expected_size);
 }
