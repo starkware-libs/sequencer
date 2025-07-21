@@ -129,7 +129,9 @@ pub(crate) fn iter_current_segment_info(
         .ok_or(OsHintError::EndOfIterator { item_type: "Bytecode segments".to_string() })?;
 
     let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
-    let is_used = vm.is_accessed(&data_ptr)?;
+    let full_contract =
+        get_integer_from_var_name(Ids::FullContract.into(), vm, ids_data, ap_tracking)?;
+    let is_used = full_contract == Felt::ONE || vm.is_accessed(&data_ptr)?;
     if !is_used {
         for i in 0..current_segment_info.length() {
             let pc = (data_ptr + i)?;
