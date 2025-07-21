@@ -151,14 +151,8 @@ pub(crate) fn iter_current_segment_info(
         ids_data,
         ap_tracking,
     )?;
-    let is_used_leaf = is_used && current_segment_info.is_leaf();
-    insert_value_from_var_name(
-        Ids::IsUsedLeaf.into(),
-        Felt::from(is_used_leaf),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
+    let is_leaf = current_segment_info.is_leaf();
+    insert_value_from_var_name(Ids::IsLeaf.into(), Felt::from(is_leaf), vm, ids_data, ap_tracking)?;
     insert_value_from_var_name(
         Ids::SegmentLength.into(),
         current_segment_info.length(),
