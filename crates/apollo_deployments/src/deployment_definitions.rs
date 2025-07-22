@@ -98,6 +98,7 @@ impl StateSyncType {
 pub enum ServicePort {
     Batcher,
     ClassManager,
+    ConsensusManager,
     Gateway,
     L1EndpointMonitor,
     L1GasPriceProvider,
@@ -115,6 +116,7 @@ impl ServicePort {
         match self {
             ServicePort::Batcher => 0,
             ServicePort::ClassManager => 0,
+            ServicePort::ConsensusManager => 0,
             ServicePort::Gateway => 0,
             ServicePort::L1EndpointMonitor => 0,
             ServicePort::L1GasPriceProvider => 0,
