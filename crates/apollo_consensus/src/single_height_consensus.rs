@@ -70,7 +70,7 @@ pub enum ShcTask {
     BuildProposal(Round, oneshot::Receiver<ProposalCommitment>),
     /// Validating a proposal is handled in 3 stages:
     /// 1. The SHC validates `ProposalInit`, then starts block validation within the context.
-    /// 2. SHC returns, allowing the context to validate the content while the Manager await the
+    /// 2. SHC returns, allowing the context to validate the content while the Manager awaits the
     ///    result without blocking consensus.
     /// 3. Once validation is complete, the manager returns the built proposal to the SHC as an
     ///    event, which can be sent to the SM.
@@ -150,13 +150,13 @@ impl SingleHeightConsensus {
         is_observer: bool,
         id: ValidatorId,
         validators: Vec<ValidatorId>,
-        quroum_type: QuorumType,
+        quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
     ) -> Self {
         // TODO(matan): Use actual weights, not just `len`.
         let n_validators =
             u64::try_from(validators.len()).expect("Should have way less than u64::MAX validators");
-        let state_machine = StateMachine::new(id, n_validators, is_observer, quroum_type);
+        let state_machine = StateMachine::new(id, n_validators, is_observer, quorum_type);
         Self {
             height,
             validators,
@@ -539,8 +539,8 @@ impl SingleHeightConsensus {
             Some(last_vote) if round > last_vote.round => Some(vote.clone()),
             Some(_) => {
                 // According to the Tendermint paper, the state machine should only vote for its
-                // current round. It should monotonicly increase its round. It should only vote once
-                // per step.
+                // current round. It should monotonically increase its round. It should only vote
+                // once per step.
                 return Err(ConsensusError::InternalInconsistency(format!(
                     "State machine must progress in time: last_vote: {:?} new_vote: {:?}",
                     last_vote, vote,
