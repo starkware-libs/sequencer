@@ -9,9 +9,8 @@ use apollo_http_server::http_server::{create_http_server, HttpServer};
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitor;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraper;
-use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_provider::{L1Provider, L1ProviderBuilder};
-use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper};
+use apollo_l1_provider::l1_scraper::{create_l1_scraper, L1Scraper};
 use apollo_mempool::communication::{create_mempool, MempoolCommunicationWrapper};
 use apollo_mempool_p2p::create_p2p_propagator_and_runner;
 use apollo_mempool_p2p::propagator::MempoolP2pPropagator;
@@ -323,7 +322,7 @@ pub async fn create_node_components(
     let l1_scraper = match config.components.l1_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
             let base_layer_config =
-                config.base_layer_config.as_ref().expect("Base Layer config should be set");
+                config.base_layer_config.as_ref().expect("Base Layer config should be set").clone();
             let l1_scraper_config = config
                 .l1_message_provider_config
                 .as_ref()
@@ -335,27 +334,15 @@ pub async fn create_node_components(
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
-            let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
-            let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config)
-                .await
-                .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
-
-            let monitored_base_layer = MonitoredEthereumBaseLayer::new(
-                base_layer,
-                l1_endpoint_monitor_client,
-                base_layer_config.node_url.clone(),
-            );
 
             Some(
-                L1Scraper::new(
+                create_l1_scraper(
                     l1_scraper_config,
                     l1_provider_client,
-                    monitored_base_layer,
-                    event_identifiers_to_track(),
-                    l1_start_block,
+                    l1_endpoint_monitor_client,
+                    base_layer_config,
                 )
-                .await
-                .unwrap(),
+                .await,
             )
         }
         ActiveComponentExecutionMode::Disabled => {
