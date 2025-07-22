@@ -1,1 +1,1 @@
-from .native_blockifier import *  # type: ignore[import-not-found]
+from .native_blockifier import *

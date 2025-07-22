@@ -35,7 +35,7 @@ def run_isort(fix: bool) -> None:
 
 
 def run_mypy() -> None:
-    command = ["mypy", "--strict", *git_files("py")]
+    command = ["mypy", "--config", os.path.join(ROOT_PROJECT_DIR, "mypy.ini"), *git_files("py")]
     try:
         subprocess.check_output(command)
     except subprocess.CalledProcessError as error:
