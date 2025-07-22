@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use apollo_compile_to_native::config::SierraCompilationConfig;
+use apollo_compile_to_native_types::SierraCompilationConfig;
 use blockifier::abi::constants;
 use blockifier::blockifier::config::{
     CairoNativeRunConfig,
