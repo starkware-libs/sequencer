@@ -1,3 +1,5 @@
+//! Types and configuration for Cairo native compilation.
+
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
@@ -18,7 +20,7 @@ pub struct SierraCompilationConfig {
     pub max_file_size: Option<u64>,
     /// Compilation CPU time limit (in seconds).
     pub max_cpu_time: Option<u64>,
-    /// Compilation process’s virtual memory (address space) byte limit.
+    /// Compilation process's virtual memory (address space) byte limit.
     pub max_memory_usage: Option<u64>,
     /// The level of optimization to apply during compilation.
     pub optimization_level: u8,
