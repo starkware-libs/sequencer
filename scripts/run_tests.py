@@ -2,6 +2,7 @@
 
 import argparse
 import subprocess
+import os
 from enum import Enum
 from typing import List, Optional, Set
 
@@ -12,6 +13,15 @@ INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"apollo_integration_tests"}
 
 # Set of crates which - if changed - should trigger re-running the integration tests with `cairo_native` feature.
 CAIRO_NATIVE_CRATE_TRIGGERS: Set[str] = {"blockifier"}
+
+# Crates that require compiler binaries to build
+COMPILER_DEPENDENT_CRATES: Set[str] = {
+    "apollo_compile_to_casm",
+    "apollo_compile_to_native",
+    "apollo_node",
+    "apollo_dashboard",
+    "blockifier",  # when built with cairo_native feature
+}
 
 # Sequencer node binary name.
 SEQUENCER_BINARY_NAME: str = "apollo_node"
@@ -26,6 +36,55 @@ NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_revert_flow",
     "integration_test_central_and_p2p_sync_flow",
 ]
+
+
+def ensure_compiler_binaries(crates: Set[str]):
+    """
+    Ensures that required compiler binaries are installed if we're testing crates that need them.
+    """
+    # Check if any of the crates being tested require compiler binaries
+    if COMPILER_DEPENDENT_CRATES.isdisjoint(crates) and len(crates) > 0:
+        # No compiler-dependent crates are being tested
+        return
+
+    # If crates is empty, we're testing all crates, so we need the binaries
+    print("🔍 Checking for required compiler binaries...")
+
+    # Check if binaries are available
+    binaries_available = True
+    try:
+        subprocess.run(["starknet-sierra-compile", "--version"], capture_output=True, check=True)
+        print("✅ starknet-sierra-compile available")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        binaries_available = False
+
+    try:
+        subprocess.run(["starknet-native-compile", "--version"], capture_output=True, check=True)
+        print("✅ starknet-native-compile available")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        binaries_available = False
+
+    if not binaries_available:
+        print("⚠️  Some compiler binaries are missing. Installing...")
+
+        # Check if install script exists
+        install_script = "./scripts/install_compilers.sh"
+        if os.path.exists(install_script):
+            print(f"📦 Running {install_script}...")
+            try:
+                subprocess.run([install_script], check=True)
+                print("✅ Compiler binaries installed successfully")
+            except subprocess.CalledProcessError as e:
+                print(f"❌ Failed to install compiler binaries: {e}")
+                print("💡 Please ensure LLVM 19 is installed and try again")
+                print("   Run: sudo apt install llvm-19-dev libmlir-19-dev")
+                raise
+        else:
+            print(f"❌ Installation script not found: {install_script}")
+            print("💡 Please install compiler binaries manually:")
+            print("   - starknet-sierra-compile")
+            print("   - starknet-native-compile")
+            raise RuntimeError("Required compiler binaries not available")
 
 
 # Enum of base commands.
@@ -137,6 +196,10 @@ def run_test(
     if changes_only and len(tested_packages) == 0:
         print("No changes detected.")
         return
+
+    # Ensure compiler binaries are available before running tests
+    ensure_compiler_binaries(tested_packages)
+
     test_crates(
         crates=tested_packages, base_command=base_command, is_nightly=is_nightly
     )
