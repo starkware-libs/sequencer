@@ -292,6 +292,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
+                        | ServicePort::SignatureManager
                         | ServicePort::SierraCompiler => {
                             // TODO(Nadin): should define the ports for these services (if needed).
                         }
@@ -315,6 +316,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
+                        | ServicePort::SignatureManager
                         | ServicePort::SierraCompiler => {
                             // TODO(Nadin): should define the ports for these services (if needed).
                         }
@@ -338,6 +340,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
+                        | ServicePort::SignatureManager
                         | ServicePort::SierraCompiler => {
                             // TODO(Nadin): should define the ports for these services (if needed).
                         }
@@ -363,6 +366,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
+                        | ServicePort::SignatureManager
                         | ServicePort::SierraCompiler => {
                             // TODO(Nadin): should define the ports for these services (if needed).
                         }
@@ -386,6 +390,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
+                        | ServicePort::SignatureManager
                         | ServicePort::SierraCompiler => {
                             // TODO(Nadin): should define the ports for these services (if needed).
                         }
@@ -409,6 +414,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
+                        | ServicePort::SignatureManager
                         | ServicePort::SierraCompiler => {
                             // TODO(Nadin): should define the ports for these services (if needed).
                         }
@@ -432,6 +438,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
+                        | ServicePort::SignatureManager
                         | ServicePort::SierraCompiler => {
                             // TODO(Nadin): should define the ports for these services (if needed).
                         }
@@ -455,6 +462,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
+                        | ServicePort::SignatureManager
                         | ServicePort::SierraCompiler => {
                             // TODO(Nadin): should define the ports for these services (if needed).
                         }
@@ -478,6 +486,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
+                        | ServicePort::SignatureManager
                         | ServicePort::SierraCompiler => {
                             // TODO(Nadin): should define the ports for these services (if needed).
                         }

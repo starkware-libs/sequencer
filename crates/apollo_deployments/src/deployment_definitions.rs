@@ -43,6 +43,7 @@ const MEMPOOL_PORT: u16 = 55006;
 const MEMPOOL_P2P_PORT: u16 = 53200;
 const SIERRA_COMPILER_PORT: u16 = 55007;
 const STATE_SYNC_PORT: u16 = 55008;
+const SIGNATURE_MANAGER_PORT: u16 = 55009;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     system_test_deployments,
@@ -118,6 +119,7 @@ pub enum ServicePort {
     Mempool,
     MempoolP2p,
     SierraCompiler,
+    SignatureManager,
     StateSync,
     HttpServer,
     MonitoringEndpoint,
@@ -136,6 +138,7 @@ impl ServicePort {
             ServicePort::Mempool => MEMPOOL_PORT,
             ServicePort::MempoolP2p => MEMPOOL_P2P_PORT,
             ServicePort::SierraCompiler => SIERRA_COMPILER_PORT,
+            ServicePort::SignatureManager => SIGNATURE_MANAGER_PORT,
             ServicePort::StateSync => STATE_SYNC_PORT,
             ServicePort::HttpServer => HTTP_SERVER_PORT,
             ServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
