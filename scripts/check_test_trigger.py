@@ -51,7 +51,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
 
     crate_triggers: Set[str] = set(filter(None, args.crate_triggers.split(",")))

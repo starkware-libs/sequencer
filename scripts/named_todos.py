@@ -50,7 +50,7 @@ def validate_todo_format(file_path: str) -> bool:
     return True
 
 
-def enforce_named_todos(commit_id: Optional[str]):
+def enforce_named_todos(commit_id: Optional[str]) -> None:
     """
     Enforce TODO comments format.
     If commit_id is provided, compares against that commit; otherwise, compares against HEAD.
@@ -72,7 +72,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
     enforce_named_todos(commit_id=args.commit_id)
 

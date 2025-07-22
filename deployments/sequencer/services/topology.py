@@ -1,7 +1,7 @@
 import dataclasses
-import typing
+from typing import Any, Dict, Optional, Union
 
-from services.config import SequencerConfig
+from sequencer.services.config import SequencerConfig
 
 
 @dataclasses.dataclass
@@ -12,9 +12,9 @@ class ServiceTopology:
     replicas: int
     autoscale: bool
     anti_affinity: bool
-    k8s_service_config: dict[str, typing.Union[str, bool]]
-    ingress: typing.Optional[dict[any, any]]
-    toleration: typing.Optional[str]
-    storage: typing.Optional[int]
-    resources: typing.Optional[dict[str, dict[str, int]]]
-    external_secret: typing.Optional[dict[str, str]]
+    k8s_service_config: Dict[str, Union[str, bool]]
+    ingress: Optional[Dict[Any, Any]]
+    toleration: Optional[str]
+    storage: Optional[int]
+    resources: Optional[Dict[str, Dict[str, int]]]
+    external_secret: Optional[Dict[str, str]]

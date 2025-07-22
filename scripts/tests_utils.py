@@ -5,7 +5,7 @@ import re
 import subprocess
 from typing import Dict, List, Optional, Set
 
-from git import Repo
+from git import Commit, Diff, Repo
 
 # Set of files which - if changed - should trigger tests for all packages.
 ALL_TEST_TRIGGERS: Set[str] = {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml"}
@@ -34,7 +34,7 @@ def get_workspace_packages() -> Set[str]:
     return set(get_workspace_tree().keys())
 
 
-def get_local_changes(repo_path, commit_id: Optional[str]) -> List[str]:
+def get_local_changes(repo_path: str, commit_id: Optional[str]) -> List[str]:
     os.environ["GIT_PYTHON_REFRESH"] = "quiet"  # noqa
     repo = Repo(repo_path)
     try:
@@ -43,7 +43,15 @@ def get_local_changes(repo_path, commit_id: Optional[str]) -> List[str]:
         print(f"unable to validate {repo_path} as a git repo.")
         raise
 
-    return [c.a_path for c in repo.head.commit.diff(commit_id)]
+    assert isinstance(
+        repo.head.commit, Commit
+    ), f"Expected {repo.head.commit} to be a Commit object."
+    changes: List[str] = []
+    for change in repo.head.commit.diff(commit_id):
+        assert isinstance(change, Diff), f"Expected {change} to be a Diff object."
+        if change.a_path is not None:
+            changes.append(str(change.a_path))
+    return changes
 
 
 def get_modified_packages(files: List[str]) -> Set[str]:
@@ -80,7 +88,7 @@ def get_tested_packages(
     changes_only: bool,
     commit_id: Optional[str],
     include_dependencies: bool,
-):
+) -> Set[str]:
     """
     Get packages to be tested.
     If changes_only is True, only tests packages that have been modified; if no packages have been

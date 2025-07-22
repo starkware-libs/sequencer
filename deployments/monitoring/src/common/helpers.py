@@ -56,7 +56,7 @@ def get_logger(name: str = __name__, debug: bool = False) -> colorlog.getLogger:
     return logger
 
 
-def arg_parser() -> argparse.ArgumentParser:
+def arg_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Build And Upload Grafana Alerts")
     parser.add_argument(
         "--dev-dashboards-file",

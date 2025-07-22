@@ -11,7 +11,7 @@ SERVICE_PORT = 8545
 IMAGE = "ghcr.io/foundry-rs/foundry:v0.3.0"
 
 
-def argument_parser():
+def argument_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--namespace", required=True, type=str, help="Kubernetes namespace.")
     parser.add_argument(
@@ -61,7 +61,7 @@ class Anvil(Chart):
         if self.create_ingress:
             self._get_ingress()
 
-    def _get_service(self):
+    def _get_service(self) -> k8s.KubeService:
         return k8s.KubeService(
             self,
             "service",
@@ -78,7 +78,7 @@ class Anvil(Chart):
             ),
         )
 
-    def _get_deployment(self):
+    def _get_deployment(self) -> k8s.KubeDeployment:
         return k8s.KubeDeployment(
             self,
             "deployment",
@@ -110,7 +110,7 @@ class Anvil(Chart):
             ),
         )
 
-    def _get_ingress(self):
+    def _get_ingress(self) -> k8s.KubeIngress:
         host = f"{self.node.id}.{self.cluster}.{self.domain}"
         return k8s.KubeIngress(
             self,
@@ -145,7 +145,7 @@ class Anvil(Chart):
         )
 
 
-def main():
+def main() -> None:
     args = argument_parser()
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
 

@@ -1,6 +1,5 @@
 import argparse
 import subprocess
-import sys
 
 GRAFANA_DASHBOARD_TEMPLATE_FILE_PATH = "monitoring/templates/grafana_dashboard.json"
 GRAFANA_ALERTS_TEMPLATE_FILE_PATH = "monitoring/templates/grafana_alerts.json"
@@ -9,7 +8,7 @@ GRAFANA_ALERTS_DESTINATION_FILE_PATH = "helm/Monitoring/grafana_alerts.json"
 
 
 # TODO(AlonDo): Add function to deploy monitoring dashboard.
-def parse_command_line_args():
+def parse_command_line_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Install Papyrus node.")
     parser.add_argument(
         "--release_name", type=str, required=True, help="Name for the helm release."
@@ -69,7 +68,7 @@ def parse_command_line_args():
 
 def generate_grafana_tokens(
     grafana_namespace: str, prometheus_uid: str, template_path: str, destination_path: str
-):
+) -> None:
     grafana_template_lines = open(template_path).readlines()
     grafana_dashboard_lines = list()
     for line in grafana_template_lines:
@@ -84,7 +83,7 @@ def generate_grafana_tokens(
     grafana_deployment_file.flush()
 
 
-def main():
+def main() -> None:
     args = parse_command_line_args()
     print(args)
     # The CMD assumes this script is being run from the root directory.
@@ -118,4 +117,4 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

@@ -8,7 +8,7 @@ from kubernetes import config
 
 def run(
     cmd: List[str], check: bool = True, capture_output: bool = False
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(cmd, check=check, text=True, capture_output=capture_output)
 
 

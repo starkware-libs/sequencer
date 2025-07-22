@@ -5,15 +5,18 @@ set -e
 [[ ${UID} == "0" ]] || SUDO="sudo"
 
 function install_common_packages() {
-    $SUDO  bash -c '
-        apt update && DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt -y install \
+    $SUDO bash -c '
+        apt update && \
+        DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt -y install software-properties-common && \
+        add-apt-repository ppa:deadsnakes/ppa && \
+        DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt -y install \
             build-essential \
             clang \
             curl \
             gnupg \
             libzstd-dev \
-            python3-dev \
-            python3-venv \
+            python3.9-dev \
+            python3.9-venv \
             sudo \
             tzdata \
             wget

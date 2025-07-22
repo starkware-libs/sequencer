@@ -3,6 +3,7 @@ import json
 import os
 import subprocess
 from enum import Enum
+from typing import Any, Dict, List
 
 
 class NodeType(Enum):
@@ -21,7 +22,9 @@ def get_service_label(node_type: NodeType, service: str) -> str:
         raise ValueError(f"Unknown node type: {node_type}")
 
 
-def get_config_ports(service_name, deployment_config_path, config_dir, key):
+def get_config_ports(
+    service_name: str, deployment_config_path: str, config_dir: str, key: str
+) -> List[int]:
     with open(deployment_config_path, "r", encoding="utf-8") as f:
         deployment_config = json.load(f)
 
@@ -32,17 +35,18 @@ def get_config_ports(service_name, deployment_config_path, config_dir, key):
                 full_path = os.path.join(config_dir, path)
                 try:
                     with open(full_path, "r", encoding="utf-8") as cfg_file:
-                        config_data = json.load(cfg_file)
+                        config_data: Dict[str, Any] = json.load(cfg_file)
                         port = config_data.get(key)
                         print(f"🔍 Found port: {port}")
-                        if port:
+                        if port is not None:
+                            assert isinstance(port, int), f"Port {port} must be an integer."
                             ports.append(port)
                 except Exception:
                     continue
     return ports
 
 
-def get_pod_name(service_label):
+def get_pod_name(service_label: str) -> str:
     cmd = [
         "kubectl",
         "get",
@@ -55,12 +59,14 @@ def get_pod_name(service_label):
     return subprocess.run(cmd, capture_output=True, check=True, text=True).stdout.strip()
 
 
-def port_forward(pod_name, local_port, remote_port):
+def port_forward(pod_name: str, local_port: int, remote_port: int) -> None:
     cmd = ["kubectl", "port-forward", pod_name, f"{local_port}:{remote_port}"]
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
-def run_simulator(http_port, monitoring_port, sender_address, receiver_address):
+def run_simulator(
+    http_port: int, monitoring_port: int, sender_address: str, receiver_address: str
+) -> int:
     cmd = [
         "./target/debug/sequencer_simulator",
         "--http-port",
@@ -73,6 +79,7 @@ def run_simulator(http_port, monitoring_port, sender_address, receiver_address):
         receiver_address,
     ]
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    assert proc.stdout is not None, "Failed to start sequencer simulator."
     with open("sequencer_simulator.log", "w", encoding="utf-8") as log_file:
         for line in proc.stdout:
             print(line, end="")
@@ -80,7 +87,13 @@ def run_simulator(http_port, monitoring_port, sender_address, receiver_address):
     return proc.wait()
 
 
-def setup_port_forwarding(service_name, deployment_config_path, config_dir, config_key, node_type):
+def setup_port_forwarding(
+    service_name: str,
+    deployment_config_path: str,
+    config_dir: str,
+    config_key: str,
+    node_type: NodeType,
+) -> int:
     ports = get_config_ports(
         service_name,
         deployment_config_path,
@@ -99,7 +112,13 @@ def setup_port_forwarding(service_name, deployment_config_path, config_dir, conf
     return port
 
 
-def main(deployment_config_path, config_dir, node_type_str, sender_address, receiver_address):
+def main(
+    deployment_config_path: str,
+    config_dir: str,
+    node_type_str: str,
+    sender_address: str,
+    receiver_address: str,
+) -> None:
     print("🚀 Running sequencer simulator....")
 
     try:
@@ -153,11 +172,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--deployment_config_path",
+        type=str,
         required=True,
         help="Path to the deployment config JSON file.",
     )
     parser.add_argument(
-        "--config_dir", required=True, help="Directory containing service config files."
+        "--config_dir", type=str, required=True, help="Directory containing service config files."
     )
     parser.add_argument(
         "--node_type",
@@ -167,11 +187,13 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--sender_address",
+        type=str,
         required=True,
         help="Ethereum sender address (e.g., 0xabc...).",
     )
     parser.add_argument(
         "--receiver_address",
+        type=str,
         required=True,
         help="Ethereum receiver address (e.g., 0xdef...).",
     )

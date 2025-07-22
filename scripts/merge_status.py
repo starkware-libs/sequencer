@@ -24,7 +24,7 @@ def color_txt(color: BashColor, txt: str, bold: bool = True) -> str:
     return "\n".join(f"\033[{bold_str}{color_code}m{line}\033[0m" for line in lines)
 
 
-def print_merge_status():
+def print_merge_status() -> None:
     merge_paths = json.load(open(MERGE_PATHS_FILE))
     for branch, merge_into in merge_paths.items():
         # Get the list of timestamps of unmerged commits.

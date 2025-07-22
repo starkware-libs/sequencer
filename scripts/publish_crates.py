@@ -30,12 +30,12 @@ def get_workspace_version() -> str:
     try:
         cargo_data = toml.load("Cargo.toml")
 
-        return cargo_data["workspace"]["package"]["version"]
+        return str(cargo_data["workspace"]["package"]["version"])
     except (KeyError, TypeError):
         raise ValueError("Version key not found in Cargo.toml")
 
 
-async def verify_unpublished(crates: List[str]):
+async def verify_unpublished(crates: List[str]) -> None:
     """
     Asserts that none of the crates in the set have been published.
     """
@@ -81,7 +81,7 @@ def get_package_and_dependencies_in_order(crate: str) -> List[str]:
     return ordered_dependencies
 
 
-async def publish_crate_and_dependencies(crate: str, dry_run: bool):
+async def publish_crate_and_dependencies(crate: str, dry_run: bool) -> None:
     dependencies = get_package_and_dependencies_in_order(crate=crate)
     assert crate == dependencies[-1], f"{crate} should be the last element of '{dependencies}'."
 
@@ -100,7 +100,7 @@ async def publish_crate_and_dependencies(crate: str, dry_run: bool):
     print(f"Done.")
 
 
-async def main():
+async def main() -> None:
     parser = argparse.ArgumentParser(
         description="Publish a crate and it's dependencies in the local workspace."
     )

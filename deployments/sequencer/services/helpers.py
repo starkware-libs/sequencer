@@ -7,7 +7,7 @@ from typing import Optional
 import string
 
 
-def argument_parser():
+def argument_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--cluster", required=False, type=str, help="Provide the cluster name.")
     parser.add_argument("--namespace", required=True, type=str, help="Kubernetes namespace.")

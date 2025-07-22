@@ -9,7 +9,7 @@ import argparse
 from abc import ABC, abstractmethod
 from enum import Enum
 from os import path
-from typing import TypeVar
+from typing import List, Type, TypeVar
 
 from named_todos import enforce_named_todos
 from run_tests import BaseCommand, run_test
@@ -29,12 +29,12 @@ class PresubmitArg(Enum):
 
     EXTRA_RUST_TOOLCHAINS = "Extra rust toolchains to use. Required for the rust formatting checks."
 
-    def add_args(self, parser: argparse.ArgumentParser):
+    def add_args(self, parser: argparse.ArgumentParser) -> None:
         parser.add_argument(f"--{self.name.lower()}", required=True, type=str, help=self.value)
 
 
 class Check(ABC):
-    def __init__(self):
+    def __init__(self) -> None:
         pass
 
     @classmethod
@@ -46,7 +46,7 @@ class Check(ABC):
         return set()
 
     @abstractmethod
-    def run_check(self):
+    def run_check(self) -> None:
         pass
 
 
@@ -59,7 +59,7 @@ class RunTestsCheck(Check):
     def required_args(cls: type[TCheck]) -> set[PresubmitArg]:
         return {PresubmitArg.FROM_COMMIT_HASH}
 
-    def run_check(self):
+    def run_check(self) -> None:
         print(f"Calling run_test with command: {self.command}")
         run_test(
             changes_only=True,
@@ -74,7 +74,7 @@ class ExternalCommandCheck(Check):
     def __init__(self, commands: list[list[str]]):
         self.commands = commands
 
-    def run_check(self):
+    def run_check(self) -> None:
         for cmd in self.commands:
             run_command(command=" ".join(cmd), allow_error=False, print_output_on_error=True)
 
@@ -85,7 +85,7 @@ class ClippyCheck(RunTestsCheck):
         super().__init__(command=BaseCommand.CLIPPY, from_commit_hash=from_commit_hash)
 
     @classmethod
-    def from_args(cls, args: argparse.Namespace):
+    def from_args(cls, args: argparse.Namespace) -> "ClippyCheck":
         return ClippyCheck(from_commit_hash=args.from_commit_hash)
 
 
@@ -95,12 +95,12 @@ class DocCheck(RunTestsCheck):
         super().__init__(command=BaseCommand.DOC, from_commit_hash=from_commit_hash)
 
     @classmethod
-    def from_args(cls, args: argparse.Namespace):
+    def from_args(cls, args: argparse.Namespace) -> "DocCheck":
         return DocCheck(from_commit_hash=args.from_commit_hash)
 
 
 class GitSubmodulesCheck(ExternalCommandCheck):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(commands=[["git", "submodule", "status"]])
 
 
@@ -117,7 +117,7 @@ class CommitLintCheck(ExternalCommandCheck):
         return {PresubmitArg.FROM_COMMIT_HASH, PresubmitArg.TO_COMMIT_HASH}
 
     @classmethod
-    def from_args(cls, args: argparse.Namespace):
+    def from_args(cls, args: argparse.Namespace) -> "CommitLintCheck":
         return CommitLintCheck(
             from_commit_hash=args.from_commit_hash, to_commit_hash=args.to_commit_hash
         )
@@ -128,7 +128,7 @@ class TodosCheck(Check):
         assert from_commit_hash, "from_commit_hash is required for TODOs check."
         self.from_commit_hash = from_commit_hash
 
-    def run_check(self):
+    def run_check(self) -> None:
         enforce_named_todos(commit_id=self.from_commit_hash)
 
     @classmethod
@@ -136,12 +136,12 @@ class TodosCheck(Check):
         return {PresubmitArg.FROM_COMMIT_HASH}
 
     @classmethod
-    def from_args(cls, args: argparse.Namespace):
+    def from_args(cls, args: argparse.Namespace) -> "TodosCheck":
         return TodosCheck(from_commit_hash=args.from_commit_hash)
 
 
 class CargoLockCheck(ExternalCommandCheck):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             commands=[
                 ["cargo", "update", "-w", "--locked"],
@@ -175,17 +175,17 @@ class RustFormatCheck(ExternalCommandCheck):
         return {PresubmitArg.EXTRA_RUST_TOOLCHAINS}
 
     @classmethod
-    def from_args(cls, args: argparse.Namespace):
+    def from_args(cls, args: argparse.Namespace) -> "RustFormatCheck":
         return RustFormatCheck(extra_rust_toolchains=args.extra_rust_toolchains)
 
 
 class TaploCheck(ExternalCommandCheck):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(commands=[["bash", path.join(SCRIPTS_LOCATION, "taplo.sh")]])
 
 
 class MacheteCheck(ExternalCommandCheck):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(commands=[["cargo", "machete"]])
 
 
@@ -211,7 +211,7 @@ def parse_args(all_checks: dict[str, type[Check]]) -> argparse.Namespace:
 
 def get_checks_to_run(args: argparse.Namespace, all_checks: dict[str, type[Check]]) -> list[Check]:
     if args.command == "all":
-        stages_to_run = all_checks.values()
+        stages_to_run = list(all_checks.values())
     else:
         stages_to_run = [all_checks[args.command]]
 
@@ -222,8 +222,8 @@ def get_checks_to_run(args: argparse.Namespace, all_checks: dict[str, type[Check
     return checks
 
 
-def main():
-    all_check_classes = [
+def main() -> None:
+    all_check_classes: List[Type[Check]] = [
         CommitLintCheck,
         GitSubmodulesCheck,
         TodosCheck,

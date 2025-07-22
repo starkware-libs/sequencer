@@ -92,7 +92,7 @@ class BaseCommand(Enum):
         raise NotImplementedError(f"Command {self} not implemented.")
 
 
-def test_crates(crates: Set[str], base_command: BaseCommand, is_nightly: bool):
+def test_crates(crates: Set[str], base_command: BaseCommand, is_nightly: bool) -> None:
     """
     Runs tests for the given crates.
     If no crates provided, runs tests for all crates.
@@ -113,7 +113,7 @@ def run_test(
     base_command: BaseCommand,
     include_dependencies: bool,
     is_nightly: bool,
-):
+) -> None:
     """
     Runs tests.
     If changes_only is True, only tests packages that have been modified; if no packages have been
@@ -155,7 +155,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main():
+def main() -> None:
     args = parse_args()
     run_test(
         changes_only=args.changes_only,
