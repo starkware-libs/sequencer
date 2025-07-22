@@ -127,6 +127,19 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "batcher_config.pre_confirmed_cende_config.recorder_url",
             ]),
         ),
+        (
+            ser_pointer_target_param(
+                "validate_resource_bounds",
+                &true,
+                "Indicates that validations related to resource bounds are applied. \
+                It should be set to false during a system bootstrap.",
+            ),
+            set_pointing_param_paths(&[
+                "gateway_config.stateful_tx_validator_config.validate_resource_bounds",
+                "gateway_config.stateless_tx_validator_config.validate_resource_bounds",
+                "mempool_config.validate_resource_bounds",
+            ]),
+        ),
     ];
     let mut common_execution_config = generate_struct_pointer(
         "versioned_constants_overrides".to_owned(),

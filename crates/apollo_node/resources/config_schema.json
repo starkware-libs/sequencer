@@ -1266,8 +1266,8 @@
   },
   "gateway_config.stateful_tx_validator_config.validate_resource_bounds": {
     "description": "If true, ensures the max L2 gas price exceeds (a configurable percentage of) the base gas price of the previous block.",
-    "privacy": "Public",
-    "value": true
+    "pointer_target": "validate_resource_bounds",
+    "privacy": "Public"
   },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
@@ -1346,8 +1346,8 @@
   },
   "gateway_config.stateless_tx_validator_config.validate_resource_bounds": {
     "description": "If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.",
-    "privacy": "Public",
-    "value": true
+    "pointer_target": "validate_resource_bounds",
+    "privacy": "Public"
   },
   "http_server_config.ip": {
     "description": "The http server ip.",
@@ -1506,8 +1506,8 @@
   },
   "mempool_config.validate_resource_bounds": {
     "description": "If true, only transactions with max L2 gas price per unit bound that are above the threshold are inserted into the priority queue. If false, all transactions are inserted into the priority queue.",
-    "privacy": "Public",
-    "value": true
+    "pointer_target": "validate_resource_bounds",
+    "privacy": "Public"
   },
   "mempool_p2p_config.max_transaction_batch_size": {
     "description": "Maximum number of transactions in each batch.",
@@ -2013,6 +2013,11 @@
     "description": "Address of the STRK fee token.",
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
+  },
+  "validate_resource_bounds": {
+    "description": "Indicates that validations related to resource bounds are applied. It should be set to false during a system bootstrap.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "validator_id": {
     "description": "The ID of the validator. Also the address of this validator as a starknet contract.",
