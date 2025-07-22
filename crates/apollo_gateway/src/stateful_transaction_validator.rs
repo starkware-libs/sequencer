@@ -36,10 +36,6 @@ use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 #[path = "stateful_transaction_validator_test.rs"]
 mod stateful_transaction_validator_test;
 
-pub struct StatefulTransactionValidator {
-    pub config: StatefulTransactionValidatorConfig,
-}
-
 type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
 
 // TODO(yair): move the trait to Blockifier.
@@ -59,6 +55,10 @@ impl BlockifierStatefulTransactionValidatorTrait for BlockifierStatefulValidator
     ) -> BlockifierStatefulValidatorResult<()> {
         self.perform_validations(account_tx)
     }
+}
+
+pub struct StatefulTransactionValidator {
+    pub config: StatefulTransactionValidatorConfig,
 }
 
 impl StatefulTransactionValidator {
