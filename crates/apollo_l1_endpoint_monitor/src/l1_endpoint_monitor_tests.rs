@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use mockito::{Matcher, Server, ServerGuard};
 use url::Url;
 
@@ -28,6 +30,10 @@ async fn check_get_active_l1_endpoint_success(
 
 fn url(url: &str) -> Url {
     Url::parse(url).unwrap()
+}
+
+fn config(ordered_l1_endpoint_urls: Vec<Url>) -> L1EndpointMonitorConfig {
+    L1EndpointMonitorConfig { ordered_l1_endpoint_urls, timeout_millis: Duration::from_millis(100) }
 }
 
 /// Used to mock an L1 endpoint, like infura.
@@ -68,9 +74,7 @@ async fn non_responsive_skips_to_next() {
 
     let mut monitor = L1EndpointMonitor {
         current_l1_endpoint_index: 0,
-        config: L1EndpointMonitorConfig {
-            ordered_l1_endpoint_urls: vec![url(BAD_ENDPOINT_1), good_endpoint.clone()],
-        },
+        config: config(vec![url(BAD_ENDPOINT_1), good_endpoint.clone()]),
     };
 
     // Test.
@@ -85,13 +89,7 @@ async fn current_endpoint_still_works() {
 
     let mut monitor = L1EndpointMonitor {
         current_l1_endpoint_index: 1,
-        config: L1EndpointMonitorConfig {
-            ordered_l1_endpoint_urls: vec![
-                url(BAD_ENDPOINT_1),
-                good_endpoint.clone(),
-                url(BAD_ENDPOINT_2),
-            ],
-        },
+        config: config(vec![url(BAD_ENDPOINT_1), good_endpoint.clone(), url(BAD_ENDPOINT_2)]),
     };
 
     // Test.
@@ -106,13 +104,7 @@ async fn wrap_around_success() {
 
     let mut monitor = L1EndpointMonitor {
         current_l1_endpoint_index: 2,
-        config: L1EndpointMonitorConfig {
-            ordered_l1_endpoint_urls: vec![
-                url(BAD_ENDPOINT_1),
-                good_url.clone(),
-                url(BAD_ENDPOINT_2),
-            ],
-        },
+        config: config(vec![url(BAD_ENDPOINT_1), good_url.clone(), url(BAD_ENDPOINT_2)]),
     };
 
     // Test.
@@ -124,9 +116,7 @@ async fn all_down_fails() {
     // Setup.
     let mut monitor = L1EndpointMonitor {
         current_l1_endpoint_index: 0,
-        config: L1EndpointMonitorConfig {
-            ordered_l1_endpoint_urls: vec![url(BAD_ENDPOINT_1), url(BAD_ENDPOINT_2)],
-        },
+        config: config(vec![url(BAD_ENDPOINT_1), url(BAD_ENDPOINT_2)]),
     };
 
     // Test.
@@ -138,8 +128,7 @@ async fn all_down_fails() {
 #[tokio::test]
 async fn initialized_with_unknown_url_returns_error() {
     let some_valid_endpoint = mock_working_l1_endpoint().await;
-    let config =
-        L1EndpointMonitorConfig { ordered_l1_endpoint_urls: vec![some_valid_endpoint.url] };
+    let config = config(vec![some_valid_endpoint.url]);
     let unknown_url = url(BAD_ENDPOINT_1);
     let result = L1EndpointMonitor::new(config.clone(), &unknown_url);
     assert_eq!(result, Err(L1EndpointMonitorError::InitializationError { unknown_url }));

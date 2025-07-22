@@ -203,6 +203,7 @@ pub fn create_node_config(
         // This is the Anvil URL, initialized at the callsite.
         // TODO(Gilad): make this explicit in the Anvil refactor.
         ordered_l1_endpoint_urls: vec![base_layer_config.node_url.clone()],
+        ..Default::default()
     };
     let override_gas_price_threshold_check = allow_bootstrap_txs;
     let mempool_config = create_mempool_config(override_gas_price_threshold_check);
