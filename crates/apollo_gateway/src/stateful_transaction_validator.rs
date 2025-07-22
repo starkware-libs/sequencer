@@ -41,8 +41,30 @@ pub struct StatefulTransactionValidator {
 }
 
 impl StatefulTransactionValidator {
+    pub fn validate_tx_and_get_nonce(
+        &self,
+        state_reader_factory: &dyn StateReaderFactory,
+        chain_info: &ChainInfo,
+        executable_tx: &ExecutableTransaction,
+        mempool_client: SharedMempoolClient,
+        runtime: tokio::runtime::Handle,
+    ) -> StatefulTransactionValidatorResult<Nonce> {
+        let mut validator = self.instantiate_validator(state_reader_factory, chain_info)?;
+
+        let address = executable_tx.contract_address();
+        let nonce = validator.get_nonce(address).map_err(|e| {
+            error!("Failed to get nonce for sender address {}: {}", address, e);
+            // TODO(yair): Fix this. Need to map the errors better.
+            StarknetError::internal(&e.to_string())
+        })?;
+
+        self.run_validate(executable_tx, nonce, mempool_client, validator, runtime)?;
+
+        Ok(nonce)
+    }
+
     #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
-    pub fn run_validate<V: BlockifierStatefulValidatorTrait>(
+    fn run_validate<V: BlockifierStatefulValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
@@ -82,6 +104,7 @@ impl StatefulTransactionValidator {
         Ok(())
     }
 
+    // TODO(Ayelet): Make this function private when usage is removed from gateway.
     pub fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
