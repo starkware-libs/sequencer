@@ -947,7 +947,6 @@ dependencies = [
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
- "cairo-native",
  "rlimit",
  "rstest",
  "serde",
@@ -1001,16 +1000,23 @@ name = "apollo_compile_to_native"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_compilation_utils",
- "apollo_config",
+ "apollo_compile_to_native_types",
  "apollo_infra_utils",
  "assert_matches",
  "cairo-lang-starknet-classes",
  "cairo-native",
  "mempool_test_utils",
  "rstest",
- "serde",
  "tempfile",
  "toml_test_utils",
+]
+
+[[package]]
+name = "apollo_compile_to_native_types"
+version = "0.15.0-rc.2"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -3290,6 +3296,7 @@ dependencies = [
  "anyhow",
  "apollo_compilation_utils",
  "apollo_compile_to_native",
+ "apollo_compile_to_native_types",
  "apollo_config",
  "apollo_infra_utils",
  "apollo_metrics",
@@ -8876,7 +8883,7 @@ dependencies = [
 name = "native_blockifier"
 version = "0.15.0-rc.2"
 dependencies = [
- "apollo_compile_to_native",
+ "apollo_compile_to_native_types",
  "apollo_state_reader",
  "apollo_storage",
  "blockifier",

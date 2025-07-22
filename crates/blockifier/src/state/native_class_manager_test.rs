@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::thread::sleep;
 
 use apollo_compilation_utils::errors::CompilationUtilError;
-use apollo_compile_to_native::config::DEFAULT_MAX_CPU_TIME;
+use apollo_compile_to_native_types::DEFAULT_MAX_CPU_TIME;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
