@@ -5,23 +5,17 @@ import json
 import os
 from typing import Optional
 
-
-from common.grafana10_objects import (
-    alert_expression_model_object,
-    alert_query_model_object,
-    alert_query_object,
-    alert_rule_object,
-)
-from common.helpers import get_logger, alert_env_filename_suffix
 from grafana_client import GrafanaApi
-from grafana_client.client import (
-    GrafanaBadInputError,
-    GrafanaClientError,
-    GrafanaException,
-    GrafanaServerError,
-)
-from common import const
+from grafana_client.client import (GrafanaBadInputError, GrafanaClientError,
+                                   GrafanaException, GrafanaServerError)
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
+
+from common import const
+from common.grafana10_objects import (alert_expression_model_object,
+                                      alert_query_model_object,
+                                      alert_query_object, alert_rule_object)
+from common.helpers import (EnvironmentName, alert_env_filename_suffix,
+                            get_logger)
 
 
 def create_alert_expression_model(conditions: list[dict[str, any]]):
@@ -202,7 +196,7 @@ def alert_builder(args: argparse.Namespace):
     global logger
     logger = get_logger(name="alert_builder", debug=args.debug)
 
-    suffix = alert_env_filename_suffix(args.env)
+    suffix = alert_env_filename_suffix(env=EnvironmentName(args.env))
     alert_file_path = resolve_dev_alerts_file_path(path=args.dev_alerts_file, suffix=suffix)
 
     with open(alert_file_path, "r") as f:
