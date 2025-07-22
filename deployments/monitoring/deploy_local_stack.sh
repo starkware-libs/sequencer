@@ -38,7 +38,7 @@ if [ "$1" == "down" ]; then
 fi
 
 if [ "$MONITORING_ENABLED" == true ]; then
-  pip install -r "${monitoring_dir}"/src/requirements.txt
+  pip install -r "${monitoring_dir}"/../../scripts/requirements.txt
   python "${monitoring_dir}"/src/main.py \
     --dev-dashboards-file "${monitoring_dir}"/../../crates/apollo_dashboard/resources/dev_grafana.json \
     --dev-alerts-file "${monitoring_dir}"/../../crates/apollo_dashboard/resources/dev_grafana_alerts.json \

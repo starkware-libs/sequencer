@@ -1,5 +1,5 @@
 from distutils.core import setup
-from setuptools_rust import Binding, RustExtension  # type: ignore[import-not-found]
+from setuptools_rust import Binding, RustExtension  # type: ignore
 
 setup(
     name="native_blockifier",

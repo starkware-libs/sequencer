@@ -119,17 +119,11 @@ jobs:
         with:
           version: v0.3.0
 
-      - name: Setup python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-          cache: pipenv
-
-      - name: Setup pipenv
-        run: python3 -m pip install pipenv
-
-      - name: Install dependencies with pipenv
-        run: pipenv install kubernetes
+          python-version: "pypy3.9"
+          cache: "pip"
+      - run: pip install -r scripts/requirements.txt
 
       - name: Setup cdk8s-cli
         run: npm install -g cdk8s-cli
@@ -169,9 +163,8 @@ jobs:
         working-directory: deployments/dummy_recorder
         run: |
           echo "Deploying Dummy Recorder..."
-          pipenv install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_recorder_namespace }} --image recorder:local"
+          cdk8s synth --app "python3.9 -m main.py --namespace ${{ env.dummy_recorder_namespace }} --image recorder:local"
           kubectl create namespace ${{ env.dummy_recorder_namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Dummy Recorder to become ready..."
@@ -199,9 +192,8 @@ jobs:
         working-directory: deployments/dummy_eth2strk_oracle
         run: |
           echo "Deploying Dummy Eth2Strk Oracle..."
-          pipenv install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image eth_to_strk:local"
+          cdk8s synth --app "python3.9 -m main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image eth_to_strk:local"
           kubectl create namespace ${{ env.dummy_eth_to_strk_namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Dummy Eth2Strk Oracle to become ready..."
@@ -222,9 +214,8 @@ jobs:
             while kubectl get namespace "${{ env.namespace }}" &> /dev/null; do sleep 2; done
             echo "✅ Namespace '${{ env.namespace }}' deleted."
           fi
-          pipenv install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }}"
+          cdk8s synth --app "python3.9 -m main.py --namespace ${{ env.namespace }}"
           kubectl create namespace ${{ env.namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Anvil to become ready..."
@@ -274,11 +265,10 @@ jobs:
       - name: Generate k8s manifests
         working-directory: deployments/sequencer
         run: |
-          pipenv install
           cdk8s import
           echo "Generating Kubernetes manifests using deployment config at: ${{ env.deployment_config_path }}:"
           cat "${{ env.deployment_config_path }}"
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }} --deployment-image sequencer:local"
+          cdk8s synth --app "python3.9 -m main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }} --deployment-image sequencer:local"
 
       - name: Deploy Sequencer
         working-directory: deployments/sequencer
@@ -291,7 +281,7 @@ jobs:
         run: kubectl config set-context --current --namespace ${{ env.namespace }}
 
       - name: Run readiness check
-        run: pipenv run python ./scripts/system_tests/readiness_check.py --deployment_config_path ${{ env.deployment_config_path }} --namespace ${{ env.namespace }}
+        run: python3.9 -m ./scripts/system_tests/readiness_check.py --deployment_config_path ${{ env.deployment_config_path }} --namespace ${{ env.namespace }}
 
       - name: Get Config Dir
         run: |
@@ -311,14 +301,14 @@ jobs:
           check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
         run: |
           # TODO(Nadin): Calculate config_dir dynamically in liveness_check.py based on deployment_config_path
-          pipenv run python ./scripts/system_tests/liveness_check.py \
+          python3.9 -m ./scripts/system_tests/liveness_check.py \
             --deployment-config-path ${{ env.deployment_config_path }} \
             --config-dir ${{ env.config_dir }} \
             --timeout ${{ env.check_timeout_sec }} \
             --interval ${{ env.check_interval_sec }}
 
       - name: Copy state and restart pod
-        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0/executable_0"
+        run: python3.9 -m ./scripts/system_tests/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0/executable_0"
 
       - name: Port-forward Anvil pod to localhost:${{ env.anvil_port }}
         run: |
@@ -333,7 +323,7 @@ jobs:
           sleep 2
 
       - name: Send transactions test
-        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --deployment_config_path ${{ env.deployment_config_path }} --config_dir "${{ env.config_dir }}" --node_type "consolidated" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
+        run: python3.9 -m ./scripts/system_tests/sequencer_simulator.py --deployment_config_path ${{ env.deployment_config_path }} --config_dir "${{ env.config_dir }}" --node_type "consolidated" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
 
       - name: Get container logs
         if: always()
