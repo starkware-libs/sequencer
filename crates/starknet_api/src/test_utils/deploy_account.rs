@@ -56,7 +56,7 @@ impl Default for DeployAccountTxArgs {
             max_fee: Fee::default(),
             signature: TransactionSignature::default(),
             version: TransactionVersion::THREE,
-            resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+            resource_bounds: ValidResourceBounds::create_for_testing(),
             tip: Tip::default(),
             nonce_data_availability_mode: DataAvailabilityMode::L1,
             fee_data_availability_mode: DataAvailabilityMode::L1,

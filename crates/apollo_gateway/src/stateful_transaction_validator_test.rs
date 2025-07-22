@@ -32,7 +32,7 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
-use starknet_api::transaction::fields::{Resource, ValidResourceBounds};
+use starknet_api::transaction::fields::Resource;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonce};
 
 use crate::config::StatefulTransactionValidatorConfig;
@@ -242,10 +242,7 @@ async fn test_is_valid_nonce(
     mock_validator.expect_validate().return_once(|_| Ok(()));
     mock_validator.expect_block_info().return_const(BlockInfo::default());
 
-    let executable_tx = executable_invoke_tx(invoke_tx_args!(
-        nonce: nonce!(tx_nonce),
-        resource_bounds: ValidResourceBounds::create_for_testing(),
-    ));
+    let executable_tx = executable_invoke_tx(invoke_tx_args!(nonce: nonce!(tx_nonce)));
     let result = tokio::task::spawn_blocking(move || {
         stateful_validator.run_validate(
             &executable_tx,
@@ -280,10 +277,7 @@ async fn test_reject_future_declares(
 
     let account_nonce = 10;
     let executable_tx = executable_declare_tx(
-        declare_tx_args!(
-            nonce: nonce!(account_nonce + account_nonce_diff),
-            resource_bounds: ValidResourceBounds::create_for_testing()
-        ),
+        declare_tx_args!(nonce: nonce!(account_nonce + account_nonce_diff)),
         calculate_class_info_for_testing(
             FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class(),
         ),
