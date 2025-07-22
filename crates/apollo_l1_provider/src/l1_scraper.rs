@@ -3,11 +3,17 @@ use std::any::type_name;
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::info_every_n_sec;
+use apollo_l1_endpoint_monitor_types::SharedL1EndpointMonitorClient;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use async_trait::async_trait;
 use itertools::zip_eq;
 use papyrus_base_layer::constants::EventIdentifier;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+};
+use papyrus_base_layer::monitored_base_layer::{MonitoredBaseLayer, MonitoredEthereumBaseLayer};
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
@@ -15,6 +21,7 @@ use tokio::time::sleep;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::config::L1ScraperConfig;
+use crate::event_identifiers_to_track;
 use crate::metrics::{
     register_scraper_metrics,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
@@ -203,6 +210,32 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         Ok(())
     }
+}
+
+pub async fn create_l1_scraper(
+    l1_scraper_config: L1ScraperConfig,
+    l1_provider_client: SharedL1ProviderClient,
+    l1_endpoint_monitor_client: SharedL1EndpointMonitorClient,
+    base_layer_config: EthereumBaseLayerConfig,
+) -> L1Scraper<MonitoredBaseLayer<EthereumBaseLayerContract>> {
+    let initial_node_url = base_layer_config.node_url.clone();
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config);
+    let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config)
+        .await
+        .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
+
+    let monitored_base_layer =
+        MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client, initial_node_url);
+
+    L1Scraper::new(
+        l1_scraper_config,
+        l1_provider_client,
+        monitored_base_layer,
+        event_identifiers_to_track(),
+        l1_start_block,
+    )
+    .await
+    .unwrap()
 }
 
 pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
