@@ -8,7 +8,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_proc_macros::sequencer_latency_histogram;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidator,
-    StatefulValidatorResult as BlockifierStatefulValidatorResult,
+    StatefulValidatorTrait as BlockifierStatefulValidatorTrait,
 };
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
@@ -16,8 +16,6 @@ use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transactions::enforce_fee;
-#[cfg(test)]
-use mockall::automock;
 use num_rational::Ratio;
 use starknet_api::block::{BlockInfo, NonzeroGasPrice};
 use starknet_api::core::Nonce;
@@ -44,33 +42,8 @@ pub struct StatefulTransactionValidator {
 
 type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
 
-// TODO(yair): move the trait to Blockifier.
-#[cfg_attr(test, automock)]
-pub trait StatefulTransactionValidatorTrait {
-    #[allow(clippy::result_large_err)]
-    fn validate(&mut self, account_tx: AccountTransaction)
-    -> BlockifierStatefulValidatorResult<()>;
-
-    fn block_info(&self) -> &BlockInfo;
-}
-
-impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
-    #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
-    #[allow(clippy::result_large_err)]
-    fn validate(
-        &mut self,
-        account_tx: AccountTransaction,
-    ) -> BlockifierStatefulValidatorResult<()> {
-        self.perform_validations(account_tx)
-    }
-
-    fn block_info(&self) -> &BlockInfo {
-        BlockifierStatefulValidator::block_info(self)
-    }
-}
-
 impl StatefulTransactionValidator {
-    pub fn run_transaction_validations<V: StatefulTransactionValidatorTrait>(
+    pub fn run_transaction_validations<V: BlockifierStatefulValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
@@ -88,7 +61,7 @@ impl StatefulTransactionValidator {
         )
     }
 
-    fn validate_state_preconditions<V: StatefulTransactionValidatorTrait>(
+    fn validate_state_preconditions<V: BlockifierStatefulValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
@@ -100,7 +73,7 @@ impl StatefulTransactionValidator {
         Ok(())
     }
 
-    fn validate_resource_bounds<V: StatefulTransactionValidatorTrait>(
+    fn validate_resource_bounds<V: BlockifierStatefulValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
         validator: &V,
@@ -143,7 +116,8 @@ impl StatefulTransactionValidator {
         Ok(())
     }
 
-    fn run_validate_entry_point<V: StatefulTransactionValidatorTrait>(
+    #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
+    fn run_validate_entry_point<V: BlockifierStatefulValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
