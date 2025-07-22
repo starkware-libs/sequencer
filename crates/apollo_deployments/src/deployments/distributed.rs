@@ -281,21 +281,27 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::Batcher => {
+                            service_ports.insert(ServicePort::Batcher);
+                        }
+                        ServicePort::ClassManager => {
+                            service_ports.insert(ServicePort::ClassManager);
+                        }
+                        ServicePort::L1Provider => {
+                            service_ports.insert(ServicePort::L1Provider);
+                        }
+                        ServicePort::Mempool => {
+                            service_ports.insert(ServicePort::Mempool);
+                        }
                         ServicePort::HttpServer
-                        | ServicePort::Batcher
-                        | ServicePort::ClassManager
                         | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
                         | ServicePort::StateSync
-                        | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
                         | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }
@@ -305,9 +311,14 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::ClassManager => {
+                            service_ports.insert(ServicePort::ClassManager);
+                        }
+                        ServicePort::SierraCompiler => {
+                            service_ports.insert(ServicePort::SierraCompiler);
+                        }
                         ServicePort::HttpServer
                         | ServicePort::Batcher
-                        | ServicePort::ClassManager
                         | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
@@ -316,10 +327,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SignatureManager => {}
                     }
                 }
             }
@@ -329,21 +337,27 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::SignatureManager => {
+                            service_ports.insert(ServicePort::SignatureManager);
+                        }
+                        ServicePort::ClassManager => {
+                            service_ports.insert(ServicePort::ClassManager);
+                        }
+                        ServicePort::Batcher => {
+                            service_ports.insert(ServicePort::Batcher);
+                        }
+                        ServicePort::L1GasPriceProvider => {
+                            service_ports.insert(ServicePort::L1GasPriceProvider);
+                        }
                         ServicePort::HttpServer
-                        | ServicePort::Batcher
-                        | ServicePort::ClassManager
-                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
                         | ServicePort::StateSync
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::ConsensusManager
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }
@@ -356,6 +370,9 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::HttpServer => {
                             service_ports.insert(ServicePort::HttpServer);
                         }
+                        ServicePort::Gateway => {
+                            service_ports.insert(ServicePort::Gateway);
+                        }
                         ServicePort::Batcher
                         | ServicePort::ClassManager
                         | ServicePort::ConsensusManager
@@ -364,12 +381,9 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::L1Provider
                         | ServicePort::StateSync
                         | ServicePort::Mempool
-                        | ServicePort::Gateway
                         | ServicePort::MempoolP2p
                         | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }
@@ -379,21 +393,27 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::Gateway => {
+                            service_ports.insert(ServicePort::Gateway);
+                        }
+                        ServicePort::ClassManager => {
+                            service_ports.insert(ServicePort::ClassManager);
+                        }
+                        ServicePort::Mempool => {
+                            service_ports.insert(ServicePort::Mempool);
+                        }
+                        ServicePort::StateSync => {
+                            service_ports.insert(ServicePort::StateSync);
+                        }
                         ServicePort::HttpServer
                         | ServicePort::Batcher
-                        | ServicePort::ClassManager
                         | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
-                        | ServicePort::StateSync
-                        | ServicePort::Mempool
-                        | ServicePort::Gateway
                         | ServicePort::MempoolP2p
                         | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }
@@ -403,21 +423,29 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::L1EndpointMonitor => {
+                            service_ports.insert(ServicePort::L1EndpointMonitor);
+                        }
+                        ServicePort::L1GasPriceProvider => {
+                            service_ports.insert(ServicePort::L1GasPriceProvider);
+                        }
+                        ServicePort::L1Provider => {
+                            service_ports.insert(ServicePort::L1Provider);
+                        }
+                        ServicePort::Batcher => {
+                            service_ports.insert(ServicePort::Batcher);
+                        }
+                        ServicePort::StateSync => {
+                            service_ports.insert(ServicePort::StateSync);
+                        }
                         ServicePort::HttpServer
-                        | ServicePort::Batcher
                         | ServicePort::ClassManager
                         | ServicePort::ConsensusManager
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::StateSync
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
                         | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }
@@ -427,21 +455,25 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::Mempool => {
+                            service_ports.insert(ServicePort::Mempool);
+                        }
+                        ServicePort::ClassManager => {
+                            service_ports.insert(ServicePort::ClassManager);
+                        }
+                        ServicePort::Gateway => {
+                            service_ports.insert(ServicePort::Gateway);
+                        }
                         ServicePort::HttpServer
                         | ServicePort::Batcher
-                        | ServicePort::ClassManager
                         | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
                         | ServicePort::StateSync
-                        | ServicePort::Mempool
-                        | ServicePort::Gateway
                         | ServicePort::MempoolP2p
                         | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }
@@ -451,6 +483,9 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::SierraCompiler => {
+                            service_ports.insert(ServicePort::SierraCompiler);
+                        }
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
@@ -462,10 +497,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SignatureManager => {}
                     }
                 }
             }
@@ -475,21 +507,23 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::StateSync => {
+                            service_ports.insert(ServicePort::StateSync);
+                        }
+                        ServicePort::ClassManager => {
+                            service_ports.insert(ServicePort::ClassManager);
+                        }
                         ServicePort::HttpServer
                         | ServicePort::Batcher
-                        | ServicePort::ClassManager
                         | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
-                        | ServicePort::StateSync
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
                         | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }

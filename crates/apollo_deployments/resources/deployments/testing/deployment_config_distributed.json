@@ -29,6 +29,10 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "Batcher": 55000,
+        "ClassManager": 55001,
+        "L1Provider": 55004,
+        "Mempool": 55006,
         "MonitoringEndpoint": 8082
       }
     },
@@ -60,6 +64,8 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "ClassManager": 55001,
+        "SierraCompiler": 55007,
         "MonitoringEndpoint": 8082
       }
     },
@@ -91,6 +97,10 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "Batcher": 55000,
+        "ClassManager": 55001,
+        "L1GasPriceProvider": 55003,
+        "SignatureManager": 55009,
         "MonitoringEndpoint": 8082
       }
     },
@@ -133,6 +143,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "Gateway": 55002,
         "HttpServer": 8080,
         "MonitoringEndpoint": 8082
       }
@@ -165,6 +176,10 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "ClassManager": 55001,
+        "Gateway": 55002,
+        "Mempool": 55006,
+        "StateSync": 55008,
         "MonitoringEndpoint": 8082
       }
     },
@@ -196,6 +211,11 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "Batcher": 55000,
+        "L1EndpointMonitor": 55005,
+        "L1GasPriceProvider": 55003,
+        "L1Provider": 55004,
+        "StateSync": 55008,
         "MonitoringEndpoint": 8082
       }
     },
@@ -227,6 +247,9 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "ClassManager": 55001,
+        "Gateway": 55002,
+        "Mempool": 55006,
         "MonitoringEndpoint": 8082
       }
     },
@@ -258,6 +281,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "SierraCompiler": 55007,
         "MonitoringEndpoint": 8082
       }
     },
@@ -289,6 +313,8 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "ClassManager": 55001,
+        "StateSync": 55008,
         "MonitoringEndpoint": 8082
       }
     }
