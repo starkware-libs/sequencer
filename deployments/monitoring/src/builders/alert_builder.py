@@ -5,6 +5,7 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
+import colorlog
 from grafana_client import GrafanaApi
 from grafana_client.client import (
     GrafanaBadInputError,
@@ -21,6 +22,8 @@ from src.common.grafana10_objects import (
 )
 from src.common.helpers import get_logger
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
+
+logger = get_logger(name="alert_builder")
 
 
 def create_alert_expression_model(conditions: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -175,8 +178,7 @@ def remove_expr_placeholder(expr: str) -> str:
 
 
 def alert_builder(args: argparse.Namespace) -> None:
-    global logger
-    logger = get_logger(name="alert_builder", debug=args.debug)
+    logger.setLevel(colorlog.DEBUG if args.debug else colorlog.INFO)
 
     with open(args.dev_alerts_file, "r") as f:
         dev_alerts = json.load(f)

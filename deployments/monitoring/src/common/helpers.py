@@ -1,9 +1,10 @@
 import argparse
 
 import colorlog
+import logging
 
 
-def get_logger(name: str = __name__, debug: bool = False) -> colorlog.getLogger:
+def get_logger(name: str = __name__, debug: bool = False) -> logging.Logger:
     message_color = "light_white"
     time_color = "light_black"
     name_color = "light_purple"
