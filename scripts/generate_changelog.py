@@ -1,12 +1,13 @@
 #!/bin/env python3
 import argparse
+from typing import Dict, List
 
 from utils import run_command
 
 # Usage:
 # scripts/generate_changelog.py --start <FROM_TAG> --end <TO_TAG> --project <PROJECT_NAME>
 GIT_CLIFF_VERSION = "2.9.0"
-PROJECT_TO_PATHS = {"blockifier": ["crates/blockifier/"], "all": []}
+PROJECT_TO_PATHS: Dict[str, List[str]] = {"blockifier": ["crates/blockifier/"], "all": []}
 
 
 def prepare_git_cliff(version: str) -> None:

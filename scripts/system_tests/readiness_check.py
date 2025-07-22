@@ -4,7 +4,7 @@ import os
 import sys
 import time
 from pathlib import Path
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Tuple, Union, cast
 
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
@@ -59,9 +59,19 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
 
         try:
             if controller_lower == "statefulset":
-                obj = apps_v1.read_namespaced_stateful_set(name=resource_name, namespace=namespace)
+                obj: Union[client.V1Deployment, client.V1StatefulSet] = cast(
+                    client.V1StatefulSet,
+                    apps_v1.read_namespaced_stateful_set(  # type: ignore[no-untyped-call]
+                        name=resource_name, namespace=namespace
+                    ),
+                )
             elif controller_lower == "deployment":
-                obj = apps_v1.read_namespaced_deployment(name=resource_name, namespace=namespace)
+                obj = cast(
+                    client.V1Deployment,
+                    apps_v1.read_namespaced_deployment(  # type: ignore[no-untyped-call]
+                        name=resource_name, namespace=namespace
+                    ),
+                )
             else:
                 print(f"❌ Unknown controller: {controller}. Skipping...")
                 sys.exit(1)
@@ -69,6 +79,7 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
             print(f"❌ API Exception occurred: {e}")
             raise
 
+        assert isinstance(obj.status, (client.V1DeploymentStatus, client.V1StatefulSetStatus))
         print(
             f"🔍 {controller} {resource_name} status: replicas={obj.status.replicas}, ready={obj.status.ready_replicas}"
         )
@@ -82,15 +93,23 @@ def wait_for_services_ready(deployment_config_path: str, namespace: str) -> None
         while elapsed < timeout_seconds:
             try:
                 if controller_lower == "statefulset":
-                    status = apps_v1.read_namespaced_stateful_set_status(
-                        name=resource_name, namespace=namespace
+                    status = cast(
+                        client.V1StatefulSet,
+                        apps_v1.read_namespaced_stateful_set_status(  # type: ignore[no-untyped-call]
+                            name=resource_name, namespace=namespace
+                        ),
                     ).status
+                    assert isinstance(status, client.V1StatefulSetStatus)
                     ready = status.ready_replicas or 0
                     desired = status.replicas or 0
                 elif controller_lower == "deployment":
-                    status = apps_v1.read_namespaced_deployment_status(
-                        name=resource_name, namespace=namespace
+                    status = cast(
+                        client.V1Deployment,
+                        apps_v1.read_namespaced_deployment_status(  # type: ignore[no-untyped-call]
+                            name=resource_name, namespace=namespace
+                        ),
                     ).status
+                    assert isinstance(status, client.V1DeploymentStatus)
                     ready = status.ready_replicas or 0
                     desired = status.replicas or 0
                 else:
