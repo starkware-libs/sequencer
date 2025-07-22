@@ -49,6 +49,7 @@ use apollo_mempool::metrics::{
     MEMPOOL_TRANSACTIONS_RECEIVED,
 };
 use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
+use apollo_metrics::metric_label_filter;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
@@ -1065,6 +1066,24 @@ fn get_mempool_evictions_count_alert() -> Alert {
     }
 }
 
+fn get_general_pod_state_not_ready_alert() -> Alert {
+    Alert {
+        name: "pod_state_not_ready",
+        title: "Pod State Not Ready",
+        alert_group: AlertGroup::General,
+        expr: format!("kube_pod_container_status_ready{}", metric_label_filter!()),
+        conditions: &[AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        pending_duration: PENDING_DURATION_DEFAULT,
+        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity: AlertSeverity::Regular,
+        alert_env_filtering: AlertEnvFiltering::All,
+    }
+}
+
 pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     let alerts = vec![
         get_batched_transactions_stuck(),
@@ -1090,6 +1109,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_eth_to_strk_error_count_alert(),
         get_eth_to_strk_success_count_alert(),
         get_gateway_add_tx_idle(),
+        get_general_pod_state_not_ready_alert(),
         get_http_server_add_tx_idle(),
         get_http_server_avg_add_tx_latency_alert(),
         get_http_server_high_transaction_failure_ratio(),
