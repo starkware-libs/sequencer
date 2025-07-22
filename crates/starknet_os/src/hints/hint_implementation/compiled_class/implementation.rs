@@ -31,6 +31,10 @@ use crate::vm_utils::{
     LoadCairoObject,
 };
 
+#[cfg(test)]
+pub static COMPILED_CLASS_V1: std::sync::LazyLock<Felt> =
+    std::sync::LazyLock::new(|| Felt::from_bytes_be_slice(b"COMPILED_CLASS_V1"));
+
 pub(crate) fn assign_bytecode_segments(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let bytecode_segment_structure: BytecodeSegmentNode =
         exec_scopes.get(Scope::BytecodeSegmentStructure.into())?;
