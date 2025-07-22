@@ -290,6 +290,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -314,6 +315,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         }
                         ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -336,6 +338,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -358,6 +361,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -380,6 +384,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider

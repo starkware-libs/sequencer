@@ -148,6 +148,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ServicePort::Batcher
                 | ServicePort::Mempool
                 | ServicePort::ClassManager
+                | ServicePort::ConsensusManager
                 | ServicePort::Gateway
                 | ServicePort::L1EndpointMonitor
                 | ServicePort::L1GasPriceProvider
