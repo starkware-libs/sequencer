@@ -1,0 +1,15 @@
+[package]
+edition.workspace = true
+license.workspace = true
+name = "apollo_compile_to_native_types"
+repository.workspace = true
+version.workspace = true
+description = "Types and configuration for Cairo native compilation."
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_config.workspace = true
+serde.workspace = true
+validator.workspace = true
