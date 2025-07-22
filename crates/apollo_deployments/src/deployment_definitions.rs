@@ -32,6 +32,18 @@ pub(crate) const BASE_APP_CONFIG_PATH: &str =
 
 type DeploymentFn = fn() -> Vec<Deployment>;
 
+const BATCHER_PORT: u16 = 55000;
+const CLASS_MANAGER: u16 = 55001;
+const CONSENSUS_MANAGER: u16 = 53080;
+const GATEWAY: u16 = 55002;
+const L1_ENDPOINT_MONITOR: u16 = 55005;
+const L1_GAS_PRICE_PROVIDER: u16 = 55003;
+const L1_PROVIDER: u16 = 55004;
+const MEMPOOL: u16 = 55006;
+const MEMPOOL_P2P: u16 = 53200;
+const SIERRA_COMPILER: u16 = 55007;
+const STATE_SYNC: u16 = 55008;
+
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     system_test_deployments,
     sepolia_integration_hybrid_deployments,
@@ -114,17 +126,17 @@ pub enum ServicePort {
 impl ServicePort {
     pub fn get_port(&self) -> u16 {
         match self {
-            ServicePort::Batcher => 0,
-            ServicePort::ClassManager => 0,
-            ServicePort::ConsensusManager => 0,
-            ServicePort::Gateway => 0,
-            ServicePort::L1EndpointMonitor => 0,
-            ServicePort::L1GasPriceProvider => 0,
-            ServicePort::L1Provider => 0,
-            ServicePort::Mempool => 0,
-            ServicePort::MempoolP2p => 0,
-            ServicePort::SierraCompiler => 0,
-            ServicePort::StateSync => 0,
+            ServicePort::Batcher => BATCHER_PORT,
+            ServicePort::ClassManager => CLASS_MANAGER,
+            ServicePort::ConsensusManager => CONSENSUS_MANAGER,
+            ServicePort::Gateway => GATEWAY,
+            ServicePort::L1EndpointMonitor => L1_ENDPOINT_MONITOR,
+            ServicePort::L1GasPriceProvider => L1_GAS_PRICE_PROVIDER,
+            ServicePort::L1Provider => L1_PROVIDER,
+            ServicePort::Mempool => MEMPOOL,
+            ServicePort::MempoolP2p => MEMPOOL_P2P,
+            ServicePort::SierraCompiler => SIERRA_COMPILER,
+            ServicePort::StateSync => STATE_SYNC,
             ServicePort::HttpServer => HTTP_SERVER_PORT,
             ServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
         }
