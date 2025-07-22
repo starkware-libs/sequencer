@@ -12,6 +12,7 @@ use log::info;
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
+use crate::hints::hint_implementation::compiled_class::implementation::COMPILED_CLASS_V1;
 use crate::hints::hint_implementation::compiled_class::utils::create_bytecode_segment_structure;
 use crate::hints::vars::{Const, Scope};
 use crate::test_utils::cairo_runner::{
@@ -83,8 +84,7 @@ fn test_compiled_class_hash_poseidon() -> Cairo0EntryPointRunnerResult<()> {
     // Create constants.
     let constants = HashMap::from([(
         <&'static str>::from(Const::CompiledClassVersion).to_string(),
-        // TODO(Aviv): Add a new constant for this, test it against Cairo and use it here.
-        Felt::from_bytes_be_slice(b"COMPILED_CLASS_V1"),
+        *COMPILED_CLASS_V1,
     )]);
 
     // Create explicit arguments for the Cairo entrypoint function.
