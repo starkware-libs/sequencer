@@ -145,17 +145,40 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ServicePort::HttpServer => {
                     service_ports.insert(ServicePort::HttpServer);
                 }
-                ServicePort::Batcher
-                | ServicePort::Mempool
-                | ServicePort::ClassManager
-                | ServicePort::ConsensusManager
-                | ServicePort::Gateway
-                | ServicePort::L1EndpointMonitor
-                | ServicePort::L1GasPriceProvider
-                | ServicePort::L1Provider
-                | ServicePort::SierraCompiler
-                | ServicePort::StateSync
-                | ServicePort::MempoolP2p => {}
+                ServicePort::Batcher => {
+                    service_ports.insert(ServicePort::Batcher);
+                }
+                ServicePort::Mempool => {
+                    service_ports.insert(ServicePort::Mempool);
+                }
+                ServicePort::ClassManager => {
+                    service_ports.insert(ServicePort::ClassManager);
+                }
+                ServicePort::Gateway => {
+                    service_ports.insert(ServicePort::Gateway);
+                }
+                ServicePort::ConsensusManager => {
+                    service_ports.insert(ServicePort::ConsensusManager);
+                }
+                ServicePort::L1EndpointMonitor => {
+                    service_ports.insert(ServicePort::L1EndpointMonitor);
+                }
+                ServicePort::L1GasPriceProvider => {
+                    service_ports.insert(ServicePort::L1GasPriceProvider);
+                }
+                ServicePort::L1Provider => {
+                    service_ports.insert(ServicePort::L1Provider);
+                }
+
+                ServicePort::SierraCompiler => {
+                    service_ports.insert(ServicePort::SierraCompiler);
+                }
+                ServicePort::StateSync => {
+                    service_ports.insert(ServicePort::StateSync);
+                }
+                ServicePort::MempoolP2p => {
+                    service_ports.insert(ServicePort::MempoolP2p);
+                }
             }
         }
         service_ports
