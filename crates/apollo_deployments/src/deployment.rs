@@ -9,7 +9,7 @@ use crate::service::{NodeType, Service};
 
 // TODO(Tsabary): consider unifying pointer targets to a single file.
 // TODO(Tsabary): remove visibility once the test using it is removed.
-pub(crate) const BASE_APP_CONFIG_PATHS: [&str; 18] = [
+pub(crate) const BASE_APP_CONFIG_PATHS: [&str; 19] = [
     "crates/apollo_deployments/resources/app_configs/base_layer.json",
     "crates/apollo_deployments/resources/app_configs/batcher.json",
     "crates/apollo_deployments/resources/app_configs/class_manager.json",
@@ -17,6 +17,7 @@ pub(crate) const BASE_APP_CONFIG_PATHS: [&str; 18] = [
     "crates/apollo_deployments/resources/app_configs/consensus_manager.json",
     "crates/apollo_deployments/resources/app_configs/gateway.json",
     "crates/apollo_deployments/resources/app_configs/http_server.json",
+    "crates/apollo_deployments/resources/app_configs/l1_endpoint_monitor.json",
     "crates/apollo_deployments/resources/app_configs/l1_gas_price_provider.json",
     "crates/apollo_deployments/resources/app_configs/l1_gas_price_scraper.json",
     "crates/apollo_deployments/resources/app_configs/l1_provider.json",

@@ -12,6 +12,7 @@
         "app_configs/consensus_manager.json",
         "app_configs/gateway.json",
         "app_configs/http_server.json",
+        "app_configs/l1_endpoint_monitor.json",
         "app_configs/l1_gas_price_provider.json",
         "app_configs/l1_gas_price_scraper.json",
         "app_configs/l1_provider.json",

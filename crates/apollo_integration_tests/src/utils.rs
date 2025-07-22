@@ -203,6 +203,7 @@ pub fn create_node_config(
         // This is the Anvil URL, initialized at the callsite.
         // TODO(Gilad): make this explicit in the Anvil refactor.
         ordered_l1_endpoint_urls: vec![base_layer_config.node_url.clone()],
+        ..Default::default()
     };
     let validate_resource_bounds = !allow_bootstrap_txs;
     let mempool_config = create_mempool_config(validate_resource_bounds);

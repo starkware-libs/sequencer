@@ -138,6 +138,7 @@
   "http_server_config.#is_none": false,
   "http_server_config.ip": "0.0.0.0",
   "http_server_config.port": 8080,
+  "l1_endpoint_monitor_config.timeout_millis": 1000,
   "l1_gas_price_provider_config.#is_none": false,
   "l1_gas_price_provider_config.lag_margin_seconds": 300,
   "l1_gas_price_provider_config.number_of_blocks_for_mean": 300,
