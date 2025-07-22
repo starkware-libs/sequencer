@@ -622,6 +622,33 @@
       "severity": "p2"
     },
     {
+      "name": "pod_state_not_ready",
+      "title": "Pod State Not Ready",
+      "ruleGroup": "general",
+      "expr": "kube_pod_container_status_ready{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
       "name": "http_server_add_tx_idle",
       "title": "HTTP Server add_tx idle",
       "ruleGroup": "http_server",
