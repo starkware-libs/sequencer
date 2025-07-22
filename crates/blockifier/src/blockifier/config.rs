@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_compile_to_native::config::SierraCompilationConfig;
+use apollo_compile_to_native_types::SierraCompilationConfig;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
