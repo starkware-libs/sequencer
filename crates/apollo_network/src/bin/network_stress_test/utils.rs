@@ -1,13 +1,13 @@
 use std::collections::{BTreeMap, HashSet};
-use std::str::FromStr;
+use std::net::Ipv4Addr;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_network::utils::make_multiaddr;
 use apollo_network::NetworkConfig;
 use libp2p::identity::Keypair;
-use libp2p::Multiaddr;
 use serde::{Deserialize, Serialize, Serializer};
 
 pub const BOOTSTRAP_CONFIG_FILE_PATH: &str =
@@ -92,10 +92,11 @@ impl TestConfig {
         let _ = TestConfig {
             network_config: NetworkConfig {
                 port: 10002,
-                bootstrap_peer_multiaddr: Some(vec![
-                    Multiaddr::from_str(&format!("/ip4/127.0.0.1/udp/10000/quic-v1/p2p/{peer_id}"))
-                        .unwrap(),
-                ]),
+                bootstrap_peer_multiaddr: Some(vec![make_multiaddr(
+                    Ipv4Addr::LOCALHOST,
+                    10000,
+                    Some(peer_id),
+                )]),
                 ..Default::default()
             },
             output_path: DEFAULT_OUTPUT_FILE_PATH.to_string(),

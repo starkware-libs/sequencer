@@ -27,7 +27,7 @@ use super::{
     SqmrServerReceiver,
     Topic,
 };
-use crate::utils::make_quic_multiaddr;
+use crate::utils::make_multiaddr;
 use crate::{Bytes, NetworkConfig};
 
 pub fn mock_register_sqmr_protocol_client<Query, Response>(
@@ -175,7 +175,7 @@ pub fn create_connected_network_configs(ports: Vec<u16>) -> Vec<NetworkConfig> {
         .iter()
         .zip(ports.iter())
         .map(|(public_key, port)| {
-            make_quic_multiaddr(Ipv4Addr::LOCALHOST, *port, PeerId::from_public_key(public_key))
+            make_multiaddr(Ipv4Addr::LOCALHOST, *port, Some(PeerId::from_public_key(public_key)))
         })
         .collect();
     ports
