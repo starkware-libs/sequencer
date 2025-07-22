@@ -41,6 +41,19 @@ pub enum StatefulValidatorError {
 
 pub type StatefulValidatorResult<T> = Result<T, StatefulValidatorError>;
 
+#[cfg_attr(any(test, feature = "mocks"), mockall::automock)]
+pub trait StatefulValidatorTrait {
+    #[allow(clippy::result_large_err)]
+    fn validate(&mut self, account_tx: AccountTransaction) -> StatefulValidatorResult<()>;
+}
+
+impl<S: StateReader> StatefulValidatorTrait for StatefulValidator<S> {
+    #[allow(clippy::result_large_err)]
+    fn validate(&mut self, account_tx: AccountTransaction) -> StatefulValidatorResult<()> {
+        self.perform_validations(account_tx)
+    }
+}
+
 /// Manages state related transaction validations for pre-execution flows.
 pub struct StatefulValidator<S: StateReader> {
     tx_executor: TransactionExecutor<S>,

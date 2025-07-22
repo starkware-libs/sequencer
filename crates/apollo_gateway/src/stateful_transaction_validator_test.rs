@@ -7,6 +7,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
 };
 use apollo_mempool_types::communication::MockMempoolClient;
 use blockifier::blockifier::stateful_validator::{
+    MockStatefulValidatorTrait as MockBlockifierStatefulValidatorTrait,
     StatefulValidatorError as BlockifierStatefulValidatorError,
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
@@ -38,10 +39,7 @@ use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonc
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
-use crate::stateful_transaction_validator::{
-    MockBlockifierStatefulTransactionValidatorTrait,
-    StatefulTransactionValidator,
-};
+use crate::stateful_transaction_validator::StatefulTransactionValidator;
 
 pub const STATEFUL_VALIDATOR_FEE_ERROR: BlockifierStatefulValidatorError =
     BlockifierStatefulValidatorError::TransactionPreValidationError(
@@ -84,7 +82,7 @@ async fn test_stateful_tx_validator(
             message: format!("{}", blockifier_error),
         });
 
-    let mut mock_blockifier_validator = MockBlockifierStatefulTransactionValidatorTrait::new();
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
     mock_blockifier_validator.expect_validate().return_once(|_| expected_result.map(|_| ()));
 
     let account_nonce = nonce!(0);
@@ -185,7 +183,7 @@ async fn test_skip_stateful_validation(
     #[case] should_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let mut mock_blockifier_validator = MockBlockifierStatefulTransactionValidatorTrait::new();
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
     mock_blockifier_validator
         .expect_validate()
         .withf(move |tx| tx.execution_flags.validate == should_validate)
@@ -236,7 +234,7 @@ async fn test_is_valid_nonce(
         config: StatefulTransactionValidatorConfig { max_allowed_nonce_gap, ..Default::default() },
     };
 
-    let mut mock_blockifier_validator = MockBlockifierStatefulTransactionValidatorTrait::new();
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
     mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
 
     let executable_tx = executable_invoke_tx(invoke_tx_args!(nonce: nonce!(tx_nonce)));
@@ -268,7 +266,7 @@ async fn test_reject_future_declares(
     #[case] account_nonce_diff: i32,
     #[case] expected_result_code: Result<(), StarknetErrorCode>,
 ) {
-    let mut mock_blockifier_validator = MockBlockifierStatefulTransactionValidatorTrait::new();
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
     mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
 
     let account_nonce = 10;
