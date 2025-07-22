@@ -25,10 +25,28 @@ RUN if [ "$BUILD_MODE" != "release" ] && [ "$BUILD_MODE" != "debug" ]; then \
         exit 1; \
     fi
 
-
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
+
+# Install required compiler binaries before building
+RUN echo "📦 Installing compiler binaries..." && \
+    CAIRO_VERSION=$(grep 'CAIRO1_COMPILER_VERSION.*=' crates/apollo_infra_utils/src/cairo_compiler_version.rs | sed 's/.*"\(.*\)".*/\1/') && \
+    CAIRO_NATIVE_VERSION=$(grep 'REQUIRED_CAIRO_NATIVE_VERSION.*=' crates/apollo_compile_to_native/src/constants.rs | sed 's/.*"\(.*\)".*/\1/') && \
+    echo "Installing starknet-sierra-compile v$CAIRO_VERSION..." && \
+    cargo install starknet-sierra-compile --version "$CAIRO_VERSION" --locked && \
+    echo "Installing starknet-native-compile v$CAIRO_NATIVE_VERSION..." && \
+    export MLIR_SYS_190_PREFIX=/usr/lib/llvm-19 && \
+    export LLVM_SYS_191_PREFIX=/usr/lib/llvm-19 && \
+    export TABLEGEN_190_PREFIX=/usr/lib/llvm-19 && \
+    cargo install cairo-native --version "$CAIRO_NATIVE_VERSION" --bin starknet-native-compile --locked && \
+    echo "✅ Compiler binaries installed successfully"
+
+# Create shared_executables directory and copy binaries
+RUN mkdir -p target/${BUILD_MODE}/shared_executables && \
+    cp ${CARGO_HOME}/bin/starknet-sierra-compile target/${BUILD_MODE}/shared_executables/ && \
+    cp ${CARGO_HOME}/bin/starknet-native-compile target/${BUILD_MODE}/shared_executables/ && \
+    echo "✅ Binaries copied to shared_executables directory"
 
 RUN BUILD_FLAGS=""; \
     if [ "$BUILD_MODE" = "release" ]; then \

@@ -11,6 +11,9 @@ export FOLLOW_LOGS=${FOLLOW_LOGS:-false}
 monitoring_dir=$(dirname -- "$(readlink -f -- "${BASH_SOURCE[0]}")")
 export monitoring_dir
 
+# Set SEQUENCER_ROOT_DIR to the project root (two levels up from monitoring dir)
+export SEQUENCER_ROOT_DIR=$(dirname $(dirname "$monitoring_dir"))
+
 if command -v docker compose &> /dev/null; then
   docker_compose="docker compose"
 elif command -v docker-compose &> /dev/null; then
