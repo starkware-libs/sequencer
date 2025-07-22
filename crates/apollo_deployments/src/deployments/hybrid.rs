@@ -53,6 +53,7 @@ pub enum HybridNodeServiceName {
     L1, // Comprises the various l1 components.
     Mempool,
     SierraCompiler,
+    StateSync,
 }
 
 // Implement conversion from `HybridNodeServiceName` to `NodeService`
@@ -75,7 +76,7 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let l1_provider = HybridNodeServiceName::L1.component_config_pair(ports[4]);
         let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5]);
         let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6]);
-        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7]);
+        let state_sync = HybridNodeServiceName::StateSync.component_config_pair(ports[7]);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -84,7 +85,6 @@ impl GetComponentConfigs for HybridNodeServiceName {
                     class_manager.local(),
                     l1_gas_price_provider.remote(),
                     l1_provider.remote(),
-                    state_sync.local(),
                     mempool.remote(),
                     sierra_compiler.remote(),
                 ),
@@ -111,6 +111,9 @@ impl GetComponentConfigs for HybridNodeServiceName {
                 HybridNodeServiceName::SierraCompiler => {
                     get_sierra_compiler_component_config(sierra_compiler.local())
                 }
+                HybridNodeServiceName::StateSync => {
+                    get_state_sync_component_config(state_sync.local())
+                }
             };
             let node_service = inner_service_name.into();
             component_config_map.insert(node_service, component_config);
@@ -129,6 +132,7 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::L1 => Controller::Deployment,
             HybridNodeServiceName::Mempool => Controller::Deployment,
             HybridNodeServiceName::SierraCompiler => Controller::Deployment,
+            HybridNodeServiceName::StateSync => Controller::StatefulSet,
         }
     }
 
@@ -140,6 +144,7 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::L1 => false,
             HybridNodeServiceName::Mempool => false,
             HybridNodeServiceName::SierraCompiler => true,
+            HybridNodeServiceName::StateSync => false,
         }
     }
 
@@ -148,9 +153,9 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::CloudK8s(cloud_env) => match cloud_env {
                 CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
                     match self {
-                        HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => {
-                            Some(Toleration::ApolloCoreService)
-                        }
+                        HybridNodeServiceName::Core
+                        | HybridNodeServiceName::Mempool
+                        | HybridNodeServiceName::StateSync => Some(Toleration::ApolloCoreService),
                         HybridNodeServiceName::HttpServer
                         | HybridNodeServiceName::Gateway
                         | HybridNodeServiceName::L1
@@ -162,7 +167,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                 CloudK8sEnvironment::Mainnet
                 | CloudK8sEnvironment::SepoliaTestnet
                 | CloudK8sEnvironment::StressTest => match self {
-                    HybridNodeServiceName::Core => Some(Toleration::ApolloCoreServiceC2D56),
+                    HybridNodeServiceName::Core | HybridNodeServiceName::StateSync => {
+                        Some(Toleration::ApolloCoreServiceC2D56)
+                    }
                     HybridNodeServiceName::HttpServer
                     | HybridNodeServiceName::Gateway
                     | HybridNodeServiceName::L1
@@ -172,7 +179,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                     HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 },
                 CloudK8sEnvironment::Potc2 => match self {
-                    HybridNodeServiceName::Core => Some(Toleration::Batcher864),
+                    HybridNodeServiceName::Core | HybridNodeServiceName::StateSync => {
+                        Some(Toleration::Batcher864)
+                    }
                     HybridNodeServiceName::HttpServer
                     | HybridNodeServiceName::Gateway
                     | HybridNodeServiceName::L1
@@ -200,6 +209,7 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::L1 => None,
             HybridNodeServiceName::Mempool => None,
             HybridNodeServiceName::SierraCompiler => None,
+            HybridNodeServiceName::StateSync => None,
         }
     }
 
@@ -210,13 +220,16 @@ impl ServiceNameInner for HybridNodeServiceName {
             | HybridNodeServiceName::Gateway
             | HybridNodeServiceName::L1
             | HybridNodeServiceName::SierraCompiler => false,
+            HybridNodeServiceName::StateSync => false,
         }
     }
 
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
             Environment::CloudK8s(_) => match self {
-                HybridNodeServiceName::Core => Some(CORE_STORAGE),
+                HybridNodeServiceName::Core | HybridNodeServiceName::StateSync => {
+                    Some(CORE_STORAGE)
+                }
                 HybridNodeServiceName::HttpServer
                 | HybridNodeServiceName::Gateway
                 | HybridNodeServiceName::L1
@@ -232,7 +245,7 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::CloudK8s(cloud_env) => match cloud_env {
                 CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
                     match self {
-                        HybridNodeServiceName::Core => {
+                        HybridNodeServiceName::Core | HybridNodeServiceName::StateSync => {
                             Resources::new(Resource::new(2, 4), Resource::new(7, 14))
                         }
                         HybridNodeServiceName::HttpServer => {
@@ -256,7 +269,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                 | CloudK8sEnvironment::Mainnet
                 | CloudK8sEnvironment::SepoliaTestnet
                 | CloudK8sEnvironment::StressTest => match self {
-                    HybridNodeServiceName::Core => {
+                    HybridNodeServiceName::Core | HybridNodeServiceName::StateSync => {
                         Resources::new(Resource::new(50, 200), Resource::new(50, 220))
                     }
                     HybridNodeServiceName::HttpServer => {
@@ -283,7 +296,7 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_replicas(&self, environment: &Environment) -> usize {
         match environment {
             Environment::CloudK8s(_) => match self {
-                HybridNodeServiceName::Core => 1,
+                HybridNodeServiceName::Core | HybridNodeServiceName::StateSync => 1,
                 HybridNodeServiceName::HttpServer => 1,
                 HybridNodeServiceName::Gateway => 2,
                 HybridNodeServiceName::L1 => 1,
@@ -297,7 +310,7 @@ impl ServiceNameInner for HybridNodeServiceName {
     fn get_anti_affinity(&self, environment: &Environment) -> bool {
         match environment {
             Environment::CloudK8s(_) => match self {
-                HybridNodeServiceName::Core => true,
+                HybridNodeServiceName::Core | HybridNodeServiceName::StateSync => true,
                 HybridNodeServiceName::HttpServer => false,
                 HybridNodeServiceName::Gateway => false,
                 HybridNodeServiceName::L1 => false,
@@ -340,7 +353,8 @@ impl HybridNodeServiceName {
             HybridNodeServiceName::Core
             | HybridNodeServiceName::HttpServer
             | HybridNodeServiceName::L1
-            | HybridNodeServiceName::Mempool => {}
+            | HybridNodeServiceName::Mempool
+            | HybridNodeServiceName::StateSync => {}
         };
         base
     }
@@ -377,7 +391,6 @@ fn get_core_component_config(
     class_manager_local_config: ReactiveComponentExecutionConfig,
     l1_gas_price_provider_remote_config: ReactiveComponentExecutionConfig,
     l1_provider_remote_config: ReactiveComponentExecutionConfig,
-    state_sync_local_config: ReactiveComponentExecutionConfig,
     mempool_remote_config: ReactiveComponentExecutionConfig,
     sierra_compiler_remote_config: ReactiveComponentExecutionConfig,
 ) -> ComponentConfig {
@@ -388,7 +401,7 @@ fn get_core_component_config(
     config.l1_gas_price_provider = l1_gas_price_provider_remote_config;
     config.l1_provider = l1_provider_remote_config;
     config.sierra_compiler = sierra_compiler_remote_config;
-    config.state_sync = state_sync_local_config;
+    config.state_sync = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.mempool = mempool_remote_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
@@ -456,6 +469,16 @@ fn get_http_server_component_config(
     let mut config = ComponentConfig::disabled();
     config.http_server = ActiveComponentExecutionConfig::enabled();
     config.gateway = gateway_remote_config;
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config
+}
+
+#[allow(clippy::too_many_arguments)]
+fn get_state_sync_component_config(
+    state_sync_local_config: ReactiveComponentExecutionConfig,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.state_sync = state_sync_local_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }

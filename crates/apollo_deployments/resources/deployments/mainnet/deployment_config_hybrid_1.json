@@ -207,6 +207,37 @@
       },
       "anti_affinity": false,
       "ports": {}
+    },
+    {
+      "name": "StateSync",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "base_app_config.json",
+        "deployments/mainnet/deployment_config_override.json",
+        "deployments/mainnet/hybrid_1.json",
+        "services/hybrid/state_sync.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": 1000,
+      "toleration": "apollo-core-service-c2d-56",
+      "resources": {
+        "requests": {
+          "cpu": 50,
+          "memory": 200
+        },
+        "limits": {
+          "cpu": 50,
+          "memory": 220
+        }
+      },
+      "external_secret": {
+        "gcsm_key": "apollo-mainnet-1"
+      },
+      "anti_affinity": true,
+      "ports": {}
     }
   ]
 }
