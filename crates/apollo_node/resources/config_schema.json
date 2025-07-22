@@ -1,4 +1,9 @@
 {
+  "base_layer_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "base_layer_config.node_url": {
     "description": "Initial ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. May be be replaced during runtime if becomes inoperative",
     "privacy": "Private",
@@ -18,6 +23,11 @@
     "description": "The timeout (milliseconds) for a query of the L1 base layer",
     "privacy": "Public",
     "value": 1000
+  },
+  "batcher_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
@@ -319,6 +329,11 @@
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
+  "class_manager_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "class_manager_config.class_manager_config.cached_class_storage_config.class_cache_size": {
     "description": "Contract classes cache size.",
     "privacy": "Public",
@@ -383,6 +398,11 @@
     "description": "Path to the node's class storage directory.",
     "privacy": "Public",
     "value": "/data/classes"
+  },
+  "compiler_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "compiler_config.max_bytecode_size": {
     "description": "Limitation of compiled CASM bytecode size (felts).",
@@ -924,6 +944,11 @@
     "privacy": "Public",
     "value": "localhost"
   },
+  "consensus_manager_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "consensus_manager_config.assume_no_malicious_validators": {
     "description": "Assumes all validators are honest. If true, uses 1/2 votes to get quorum. Use with caution!",
     "privacy": "Public",
@@ -1214,6 +1239,11 @@
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
+  "gateway_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "gateway_config.authorized_declarer_accounts": {
     "description": "Authorized declarer accounts. If set, only these accounts can declare new contracts. Addresses are in hex format and separated by a comma with no space.",
     "privacy": "Public",
@@ -1349,6 +1379,11 @@
     "pointer_target": "validate_resource_bounds",
     "privacy": "Public"
   },
+  "http_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "http_server_config.ip": {
     "description": "The http server ip.",
     "privacy": "Public",
@@ -1359,10 +1394,20 @@
     "privacy": "Public",
     "value": 8080
   },
+  "l1_endpoint_monitor_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "l1_endpoint_monitor_config.ordered_l1_endpoint_urls": {
     "description": "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the current one is non-operational.",
     "privacy": "Private",
     "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY"
+  },
+  "l1_gas_price_provider_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "l1_gas_price_provider_config.lag_margin_seconds": {
     "description": "Difference between the time of the block from L1 used to calculate the gas price and the time of the L2 block this price is used in",
@@ -1383,6 +1428,11 @@
     "description": "Maximum number of L1 blocks to keep cached",
     "privacy": "Public",
     "value": 3000
+  },
+  "l1_gas_price_scraper_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "l1_gas_price_scraper_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id",
@@ -1419,6 +1469,11 @@
     "privacy": "Public",
     "value": 2
   },
+  "l1_provider_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "l1_provider_config.bootstrap_catch_up_height_override": {
     "description": "Override height at which the provider should catch up to the bootstrapper.",
     "privacy": "Public",
@@ -1454,6 +1509,11 @@
     "privacy": "Public",
     "value": 2
   },
+  "l1_scraper_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "l1_scraper_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -1473,6 +1533,11 @@
     "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
     "privacy": "Public",
     "value": 3600
+  },
+  "mempool_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "mempool_config.capacity_in_bytes": {
     "description": "Maximum size of the mempool, in bytes.",
@@ -1508,6 +1573,11 @@
     "description": "If true, only transactions with max L2 gas price per unit bound that are above the threshold are inserted into the priority queue. If false, all transactions are inserted into the priority queue.",
     "pointer_target": "validate_resource_bounds",
     "privacy": "Public"
+  },
+  "mempool_p2p_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "mempool_p2p_config.max_transaction_batch_size": {
     "description": "Maximum number of transactions in each batch.",
@@ -1619,6 +1689,11 @@
     "privacy": "Public",
     "value": true
   },
+  "monitoring_endpoint_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "monitoring_endpoint_config.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring endpoint.",
     "privacy": "Public",
@@ -1658,6 +1733,11 @@
     "description": "URL for communicating with Starknet.",
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
+  },
+  "state_sync_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "state_sync_config.central_sync_client_config.#is_none": {
     "description": "Flag for an optional field.",
