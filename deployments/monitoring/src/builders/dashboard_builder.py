@@ -4,9 +4,12 @@ import os
 import time
 from typing import Any, Dict, List, Tuple
 
+import colorlog
 import requests
 from src.common.grafana10_objects import empty_dashboard, row_object, templating_object
 from src.common.helpers import get_logger
+
+logger = get_logger(name="dashboard_builder")
 
 
 def create_grafana_panel(
@@ -132,8 +135,7 @@ def upload_dashboards_local(dashboard: Dict[str, Any]) -> None:
 
 
 def dashboard_builder(args: argparse.Namespace) -> None:
-    global logger
-    logger = get_logger(name="dashboard_builder", debug=args.debug)
+    logger.setLevel(colorlog.DEBUG if args.debug else colorlog.INFO)
 
     logger.info(f"Starting to build grafana dashboard")
 
