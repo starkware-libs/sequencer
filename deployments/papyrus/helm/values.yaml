@@ -113,7 +113,7 @@ p2pService:
   # supported options are ClusterIP, LoadBalancer
   type: ClusterIP
   port: 10000
-  protocol: UDP
+  protocol: TCP
   # If service type is ClusterIP,
   # Set static ip for the kubernetes service. Note that the ip address is not reserved and there might be a chance for ip collision.
   # See https://kubernetes.io/docs/concepts/services-networking/cluster-ip-allocation/ to understand how to avoid such case.

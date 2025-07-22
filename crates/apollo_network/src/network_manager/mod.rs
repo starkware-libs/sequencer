@@ -21,7 +21,7 @@ use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
-use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
 use tracing::{debug, error, trace, warn};
 
@@ -712,7 +712,9 @@ impl NetworkManager {
         };
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
             .with_tokio()
-            .with_quic()
+            // TODO(AndrewL): .with_quic()
+            .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
+            .expect("Error building TCP transport")
             .with_dns()
             .expect("Error building DNS transport")
             .with_behaviour(|key| {

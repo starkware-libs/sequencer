@@ -108,8 +108,8 @@ pub fn is_localhost(address: &Multiaddr) -> bool {
 /// Creates a `Multiaddr` from an `Ipv4Addr`, a port, and a `PeerId`.
 pub fn make_multiaddr(ip: Ipv4Addr, port: u16, peer_id: Option<PeerId>) -> Multiaddr {
     let mut address = Multiaddr::empty().with(Protocol::Ip4(ip));
-    address = address.with(Protocol::Udp(port)).with(Protocol::QuicV1);
-    // TODO(AndrewL): address.with(Protocol::Tcp(port))
+    // TODO(AndrewL): address = address.with(Protocol::Udp(port)).with(Protocol::QuicV1);
+    address = address.with(Protocol::Tcp(port));
     if let Some(peer_id) = peer_id {
         address = address.with(Protocol::P2p(peer_id))
     }
