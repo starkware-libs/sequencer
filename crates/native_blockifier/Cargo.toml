@@ -8,9 +8,9 @@ description = "A Bridge between the Rust blockifier crate and Python."
 
 [features]
 cairo_native = [
-  "apollo_compile_to_native/cairo_native",
   "apollo_state_reader/cairo_native",
   "blockifier/cairo_native",
+  "dep:apollo_compile_to_native",
 ]
 # Required for `cargo test` to work with Pyo3.
 # On Python, make sure to compile this with the extension-module feature enabled.
@@ -31,7 +31,8 @@ name = "native_blockifier"
 crate-type = ["cdylib"]
 
 [dependencies]
-apollo_compile_to_native.workspace = true
+apollo_compile_to_native = { workspace = true, optional = true }
+apollo_compile_to_native_types.workspace = true
 apollo_state_reader.workspace = true
 apollo_storage.workspace = true
 blockifier = { workspace = true, features = ["native_blockifier"] }

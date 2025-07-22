@@ -13,6 +13,7 @@ members = [
   "crates/apollo_compile_to_casm",
   "crates/apollo_compile_to_casm_types",
   "crates/apollo_compile_to_native",
+  "crates/apollo_compile_to_native_types",
   "crates/apollo_config",
   "crates/apollo_consensus",
   "crates/apollo_consensus_manager",
@@ -98,6 +99,7 @@ apollo_compilation_utils = { path = "crates/apollo_compilation_utils", version =
 apollo_compile_to_casm.path = "crates/apollo_compile_to_casm"
 apollo_compile_to_casm_types.path = "crates/apollo_compile_to_casm_types"
 apollo_compile_to_native = { path = "crates/apollo_compile_to_native", version = "0.15.0-rc.2" }
+apollo_compile_to_native_types = { path = "crates/apollo_compile_to_native_types", version = "0.15.0-rc.2" }
 apollo_config = { path = "crates/apollo_config", version = "0.15.0-rc.2" }
 apollo_consensus.path = "crates/apollo_consensus"
 apollo_consensus_manager.path = "crates/apollo_consensus_manager"
