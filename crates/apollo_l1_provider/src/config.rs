@@ -2,7 +2,12 @@ use std::collections::BTreeMap;
 use std::time::Duration;
 
 use apollo_config::converters::deserialize_float_seconds_to_duration;
-use apollo_config::dumping::{ser_optional_param, ser_param, SerializeConfig};
+use apollo_config::dumping::{
+    prepend_sub_config_name,
+    ser_optional_param,
+    ser_param,
+    SerializeConfig,
+};
 use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -11,6 +16,25 @@ use starknet_api::core::ChainId;
 use validator::Validate;
 
 use crate::transaction_manager::TransactionManagerConfig;
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
+pub struct L1MessageProviderConfig {
+    pub l1_provider_config: L1ProviderConfig,
+    pub l1_scraper_config: L1ScraperConfig,
+}
+
+impl SerializeConfig for L1MessageProviderConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        let mut dump =
+            prepend_sub_config_name(self.l1_provider_config.dump(), "l1_provider_config");
+        dump.append(&mut prepend_sub_config_name(
+            self.l1_scraper_config.dump(),
+            "l1_scraper_config",
+        ));
+
+        dump
+    }
+}
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1ProviderConfig {
