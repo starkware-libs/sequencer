@@ -4,7 +4,6 @@ use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 include!("src/constants.rs");
 
 fn main() {
-    println!("cargo:rerun-if-changed=../../Cargo.lock");
     println!("cargo:rerun-if-changed=build.rs");
 
     set_run_time_out_dir_env_var();

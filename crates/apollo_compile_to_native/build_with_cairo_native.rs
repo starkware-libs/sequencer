@@ -3,8 +3,7 @@ use apollo_compilation_utils::build_utils::install_compiler_binary;
 include!("src/constants.rs");
 
 fn main() {
-    println!("cargo:rerun-if-changed=../../Cargo.lock");
-    println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=build_with_cairo_native.rs");
 
     set_run_time_out_dir_env_var();
     install_starknet_native_compile();

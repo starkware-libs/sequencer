@@ -11,8 +11,6 @@ pub fn install_compiler_binary(
     out_dir: &std::path::Path,
 ) {
     let binary_path = binary_path(out_dir, binary_name);
-    println!("cargo:rerun-if-changed={}", binary_path.to_str().unwrap());
-
     match Command::new(&binary_path).args(["--version"]).output() {
         Ok(binary_version) => {
             let binary_version = String::from_utf8(binary_version.stdout)
