@@ -4,8 +4,12 @@ use apollo_infra_utils::cairo_compiler_version::CAIRO1_COMPILER_VERSION;
 include!("src/constants.rs");
 
 fn main() {
-    println!("cargo:rerun-if-changed=../../Cargo.lock");
+    // Only rerun if build script or constants change - not for source code changes.
     println!("cargo:rerun-if-changed=build.rs");
+    // FIXME: The constant `CAIRO1_COMPILER_VERSION` is not in this file, but the build script
+    // should rerun if this constant changes. Should we add a copy of the constant in
+    // `constants.rs`? Or should we add a `cargo:rerun-if-changed` for the external crate?
+    println!("cargo:rerun-if-changed=src/constants.rs");
 
     set_run_time_out_dir_env_var();
     install_starknet_sierra_compile();
