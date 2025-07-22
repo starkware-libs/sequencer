@@ -138,25 +138,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
         let mut service_ports = BTreeSet::new();
         for service_port in ServicePort::iter() {
-            match service_port {
-                ServicePort::MonitoringEndpoint => {
-                    service_ports.insert(ServicePort::MonitoringEndpoint);
-                }
-                ServicePort::HttpServer => {
-                    service_ports.insert(ServicePort::HttpServer);
-                }
-                ServicePort::Batcher
-                | ServicePort::Mempool
-                | ServicePort::ClassManager
-                | ServicePort::ConsensusManager
-                | ServicePort::Gateway
-                | ServicePort::L1EndpointMonitor
-                | ServicePort::L1GasPriceProvider
-                | ServicePort::L1Provider
-                | ServicePort::SierraCompiler
-                | ServicePort::StateSync
-                | ServicePort::MempoolP2p => {}
-            }
+            service_ports.insert(service_port);
         }
         service_ports
     }
