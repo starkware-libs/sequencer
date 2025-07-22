@@ -6,6 +6,7 @@ import os
 from typing import Any, Dict, List, Optional
 
 import colorlog
+import logging
 from grafana_client import GrafanaApi
 from grafana_client.client import (
     GrafanaBadInputError,
@@ -96,7 +97,8 @@ def create_alert_rule(
 
 def get_all_folders(client: GrafanaApi) -> List[Dict[str, Any]]:
     logger.debug("Getting all folders")
-    return client.folder.get_all_folders()
+    folders: List[Dict[str, Any]] = client.folder.get_all_folders()
+    return folders
 
 
 def get_folder_uid(client: GrafanaApi, title: str) -> Optional[str]:
@@ -130,9 +132,9 @@ def dump_alert(output_dir: str, alert: dict[str, Any]) -> None:
     logger.info(f'Alert "{alert["name"]}" saved to {alert_full_path}')
 
 
-def get_alert_rule_group(client: GrafanaApi, folder_uid: str, group_uid: str) -> str:
+def get_alert_rule_group(client: GrafanaApi, folder_uid: str, group_uid: str) -> Dict[str, Any]:
     logger.debug(f'Getting alert rule group "{group_uid}"')
-    rule_group = client.alertingprovisioning.get_rule_group(
+    rule_group: Dict[str, Any] = client.alertingprovisioning.get_rule_group(
         folder_uid=folder_uid, group_uid=group_uid
     )
     logger.debug(f"Got alert group: {rule_group}")
@@ -142,13 +144,15 @@ def get_alert_rule_group(client: GrafanaApi, folder_uid: str, group_uid: str) ->
 @retry(
     stop=stop_after_attempt(10),
     wait=wait_fixed(2),
-    before_sleep=before_sleep_log(logger=get_logger(name="tenacity_retry"), log_level="DEBUG"),
+    before_sleep=before_sleep_log(
+        logger=get_logger(name="tenacity_retry"), log_level=logging.DEBUG
+    ),
 )
 def update_alert_rule_group(
     client: GrafanaApi,
     folder_uid: str,
     group_uid: str,
-    alertrule_group: dict[Any, Any],
+    alertrule_group: Dict[Any, Any],
     disable_provenance: bool = True,
 ) -> None:
     logger.debug(f'Updating alert rule group "{group_uid}"')
@@ -189,7 +193,7 @@ def alert_builder(args: argparse.Namespace) -> None:
     else:
         folder_uid = args.folder_uid
 
-    alerts = []
+    alerts: List[Dict[str, Any]] = []
 
     for dev_alert in dev_alerts["alerts"]:
         if args.namespace and args.cluster:
