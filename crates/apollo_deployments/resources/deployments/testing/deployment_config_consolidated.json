@@ -29,6 +29,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "Batcher": 15000,
         "HttpServer": 8080,
         "MonitoringEndpoint": 8082
       }
