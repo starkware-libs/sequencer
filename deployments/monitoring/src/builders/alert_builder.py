@@ -3,16 +3,8 @@
 import argparse
 import json
 import os
-from typing import Optional
+from typing import Any, Dict, List, Optional
 
-from common import const
-from common.grafana10_objects import (
-    alert_expression_model_object,
-    alert_query_model_object,
-    alert_query_object,
-    alert_rule_object,
-)
-from common.helpers import get_logger
 from grafana_client import GrafanaApi
 from grafana_client.client import (
     GrafanaBadInputError,
@@ -20,10 +12,18 @@ from grafana_client.client import (
     GrafanaException,
     GrafanaServerError,
 )
+from src.common import const
+from src.common.grafana10_objects import (
+    alert_expression_model_object,
+    alert_query_model_object,
+    alert_query_object,
+    alert_rule_object,
+)
+from src.common.helpers import get_logger
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 
-def create_alert_expression_model(conditions: list[dict[str, any]]):
+def create_alert_expression_model(conditions: List[Dict[str, Any]]) -> Dict[str, Any]:
     logger.debug(f"Creating alert expression model {conditions}")
     model = alert_expression_model_object.copy()
     model["conditions"] = conditions
@@ -31,7 +31,7 @@ def create_alert_expression_model(conditions: list[dict[str, any]]):
     return model
 
 
-def create_alert_query_model(expr: str):
+def create_alert_query_model(expr: str) -> Dict[str, Any]:
     logger.debug(f"Creating alert query model {expr}")
     model = alert_query_model_object.copy()
     model["expr"] = expr
@@ -40,11 +40,11 @@ def create_alert_query_model(expr: str):
 
 
 def create_alert_query(
-    model: dict[any, any],
+    model: Dict[Any, Any],
     datasource_uid: str,
     ref_id: str = "A",
-    relative_time_range: dict[str, int] = {"from": 600, "to": 0},
-):
+    relative_time_range: Dict[str, int] = {"from": 600, "to": 0},
+) -> Dict[str, Any]:
     logger.debug(f"Creating alert query {model}")
     alert_query = alert_query_object.copy()
     alert_query["refId"] = ref_id
@@ -63,10 +63,10 @@ def create_alert_rule(
     interval_sec: int,
     _for: str,
     expr: str,
-    conditions: list[dict[str, any]],
+    conditions: list[dict[str, Any]],
     datasource_uid: str,
     labels: dict[str, str] = {},
-):
+) -> Dict[str, Any]:
     logger.debug(f"Creating alert rule {name}")
     alert_rule = alert_rule_object.copy()
     alert_rule["name"] = name
@@ -91,7 +91,7 @@ def create_alert_rule(
     return alert_rule
 
 
-def get_all_folders(client: GrafanaApi) -> list[dict[str, any]]:
+def get_all_folders(client: GrafanaApi) -> List[Dict[str, Any]]:
     logger.debug("Getting all folders")
     return client.folder.get_all_folders()
 
@@ -103,7 +103,7 @@ def get_folder_uid(client: GrafanaApi, title: str) -> Optional[str]:
     folders = get_all_folders(client=client)
     for folder in folders:
         if folder["title"] == title:
-            return folder["uid"]
+            return str(folder["uid"])
     return None
 
 
@@ -116,10 +116,10 @@ def create_folder_return_uid(client: GrafanaApi, title: str) -> str:
         logger.info(f"Creating folder '{title}'")
         folder = client.folder.create_folder(title)
         logger.info(f"Folder '{title}' created successfully. {folder}")
-        return folder["uid"]
+        return str(folder["uid"])
 
 
-def dump_alert(output_dir: str, alert: dict[str, any]) -> None:
+def dump_alert(output_dir: str, alert: dict[str, Any]) -> None:
     alert_full_path = f"{output_dir}/{alert['name']}.json".lower().replace(" ", "_")
     os.makedirs(output_dir, exist_ok=True)
     with open(alert_full_path, "w") as f:
@@ -145,8 +145,8 @@ def update_alert_rule_group(
     client: GrafanaApi,
     folder_uid: str,
     group_uid: str,
-    alertrule_group: dict[any, any],
-    disable_provenance=True,
+    alertrule_group: dict[Any, Any],
+    disable_provenance: bool = True,
 ) -> None:
     logger.debug(f'Updating alert rule group "{group_uid}"')
 
@@ -174,7 +174,7 @@ def remove_expr_placeholder(expr: str) -> str:
     return expr.replace(const.ALERT_RULE_EXPRESSION_PLACEHOLDER, "")
 
 
-def alert_builder(args: argparse.Namespace):
+def alert_builder(args: argparse.Namespace) -> None:
     global logger
     logger = get_logger(name="alert_builder", debug=args.debug)
 

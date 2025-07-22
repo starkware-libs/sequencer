@@ -3,6 +3,7 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import Any, Dict, Union
 
 # TODO(Nadin): Add auto-generation of secrets.json in the appropriate location and ensure it’s
 # included in the app config.
@@ -10,17 +11,18 @@ from pathlib import Path
 SECRETS_JSON_PATH = "crates/apollo_deployments/resources/testing_secrets.json"
 
 
-def load_json(path):
+def load_json(path: Union[str, Path]) -> Dict[str, Any]:
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        value: Dict[str, Any] = json.load(f)
+        return value
 
 
-def save_json(data, path):
+def save_json(data: Dict[str, Any], path: str) -> None:
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
 
-def main(deployment_config_path: str):
+def main(deployment_config_path: str) -> None:
     deployment_config = load_json(deployment_config_path)
 
     # Get application config subdirectory

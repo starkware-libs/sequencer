@@ -20,21 +20,30 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def run_black(fix: bool):
+def run_black(fix: bool) -> None:
     command = ["black", "-l", "100", "-t", "py37", ROOT_PROJECT_DIR]
     if not fix:
         command += ["--check", "--diff", "--color"]
     subprocess.check_output(command)
 
 
-def run_isort(fix: bool):
+def run_isort(fix: bool) -> None:
     command = ["isort", "--settings-path", ROOT_PROJECT_DIR, ROOT_PROJECT_DIR]
     if not fix:
         command.append("-c")
     subprocess.check_output(command)
 
 
-def verify_linear_path():
+def run_mypy() -> None:
+    command = ["mypy", "--strict", *git_files("py")]
+    try:
+        subprocess.check_output(command)
+    except subprocess.CalledProcessError as error:
+        print(f"Mypy found issues:\n{error.output.decode()}")
+        raise error
+
+
+def verify_linear_path() -> None:
     """
     Verify the merge paths JSON describes a linear merge path.
     """
@@ -58,7 +67,7 @@ def verify_linear_path():
     ), f"The last destination is '{prev_dst_branch}' but must be '{FINAL_BRANCH}'."
 
 
-def verify_parent_branch_is_on_path():
+def verify_parent_branch_is_on_path() -> None:
     merge_paths = load_merge_paths()
     known_branches = set(merge_paths.keys()) | set(merge_paths.values())
     assert PARENT_BRANCH in known_branches, (
@@ -67,12 +76,12 @@ def verify_parent_branch_is_on_path():
     )
 
 
-def merge_branches_checks():
+def merge_branches_checks() -> None:
     verify_linear_path()
     verify_parent_branch_is_on_path()
 
 
-def run_autoflake(fix: bool):
+def run_autoflake(fix: bool) -> None:
     files = git_files("py")
     flavor = "--in-place" if fix else "--check-diff"
     command = [
@@ -91,7 +100,7 @@ def run_autoflake(fix: bool):
         raise error
 
 
-def main():
+def main() -> None:
     args = parse_args()
     run_autoflake(fix=args.fix)
     run_black(fix=args.fix)
@@ -99,6 +108,7 @@ def main():
     if not args.fix:
         # Unfixable checks.
         merge_branches_checks()
+        run_mypy()
 
 
 if __name__ == "__main__":

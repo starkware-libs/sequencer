@@ -9,7 +9,7 @@ GIT_CLIFF_VERSION = "2.9.0"
 PROJECT_TO_PATHS = {"blockifier": ["crates/blockifier/"], "all": []}
 
 
-def prepare_git_cliff(version: str):
+def prepare_git_cliff(version: str) -> None:
     """
     Install git-cliff if missing.
     """

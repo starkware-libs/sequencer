@@ -4,22 +4,21 @@ import os
 import subprocess
 import sys
 import time
-from typing import List, Union
+from typing import Any, List, Union
 
-import numbers
 import requests
 
 
 def run(
     cmd: List[str], capture_output: bool = False, check: bool = True, text: bool = True
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[Any]:
     return subprocess.run(cmd, capture_output=capture_output, check=check, text=text)
 
 
 def get_services(deployment_config_path: str) -> List[str]:
     with open(deployment_config_path, "r", encoding="utf-8") as f:
         config = json.load(f)
-    return [s["name"] for s in config.get("services", [])]
+    return [str(s["name"]) for s in config.get("services", [])]
 
 
 def get_config_paths(deployment_config_path: str, service_name: str) -> List[str]:
@@ -27,7 +26,8 @@ def get_config_paths(deployment_config_path: str, service_name: str) -> List[str
         config = json.load(f)
     for service in config["services"]:
         if service["name"] == service_name:
-            return service.get("config_paths", [])
+            paths: List[str] = service.get("config_paths", [])
+            return paths
     raise ValueError(f"Service {service_name} not found in deployment config")
 
 
@@ -41,7 +41,7 @@ def get_monitoring_endpoint_port(
                 data = json.load(f)
                 value = data.get("monitoring_endpoint_config.port")
 
-                if isinstance(value, numbers.Number):
+                if isinstance(value, (int, float)):
                     return value
 
         except (json.JSONDecodeError, FileNotFoundError) as e:
@@ -101,7 +101,7 @@ def main(
     timeout: int,
     interval: int,
     initial_delay: int,
-):
+) -> None:
     print(
         f"Running liveness checks on config_dir: {config_dir} and deployment_config_path: {deployment_config_path}"
     )

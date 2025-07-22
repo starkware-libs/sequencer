@@ -27,7 +27,7 @@ RUN cargo install cargo-chef
 
 # Define python venv and install python packages.
 ENV VIRTUAL_ENV=/opt/sequencer_venv
-RUN python3 -m venv ${VIRTUAL_ENV}
+RUN python3.9 -m venv ${VIRTUAL_ENV}
 RUN ${VIRTUAL_ENV}/bin/pip install -r requirements.txt
 ENV PATH="${VIRTUAL_ENV}/bin:$PATH"
 

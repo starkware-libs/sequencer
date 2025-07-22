@@ -17,8 +17,8 @@ from imports.dashboards.co.starkware.grafana import (
     SharedGrafanaDashboard,
     SharedGrafanaDashboardSpec,
 )
-from services.config import GrafanaAlertRuleGroupConfig, GrafanaDashboardConfig
-from services.helpers import generate_random_hash, sanitize_name
+from sequencer.services.config import GrafanaAlertRuleGroupConfig, GrafanaDashboardConfig
+from sequencer.services.helpers import generate_random_hash, sanitize_name
 
 
 class MonitoringApp(Construct):
@@ -34,7 +34,7 @@ class MonitoringApp(Construct):
         self.namespace = namespace
         self.cluster = cluster
 
-    def _get_api_object_metadata(self):
+    def _get_api_object_metadata(self) -> ApiObjectMetadata:
         return ApiObjectMetadata(
             labels={
                 "app": "sequencer-node",
@@ -58,7 +58,7 @@ class GrafanaDashboardApp(MonitoringApp):
         self.grafana_dashboard["title"] = f"sequencer-{self.namespace}-dashboard"
         grafana_dashboard = self._get_shared_grafana_dashboard()
 
-    def _get_shared_grafana_dashboard_spec(self):
+    def _get_shared_grafana_dashboard_spec(self) -> SharedGrafanaDashboardSpec:
         return SharedGrafanaDashboardSpec(
             collection_name="shared-grafana-dashboard",
             dashboard_name=Names.to_dns_label(self, include_hash=False),
@@ -66,7 +66,7 @@ class GrafanaDashboardApp(MonitoringApp):
             dashboard_json=json.dumps(self.grafana_dashboard, indent=4),
         )
 
-    def _get_shared_grafana_dashboard(self):
+    def _get_shared_grafana_dashboard(self) -> SharedGrafanaDashboard:
         return SharedGrafanaDashboard(
             self,
             self.node.id,
@@ -90,7 +90,9 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
         self.grafana_alert_files = self.grafana_alert_group.get_alert_files()
         grafana_alert_rule_group = self._get_shared_grafana_alert_rule_group()
 
-    def _exec_err_state_enum_selector(self, exec_err_state: str) -> Optional[str]:
+    def _exec_err_state_enum_selector(
+        self, exec_err_state: str
+    ) -> Optional[SharedGrafanaAlertRuleGroupSpecRulesExecErrState]:
         if exec_err_state.upper() == "OK":
             return SharedGrafanaAlertRuleGroupSpecRulesExecErrState.OK
         elif exec_err_state.upper() == "ERROR":
@@ -102,7 +104,9 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
         else:
             return None
 
-    def _exec_no_data_state_enum_selector(self, no_data_state: str) -> Optional[str]:
+    def _exec_no_data_state_enum_selector(
+        self, no_data_state: str
+    ) -> Optional[SharedGrafanaAlertRuleGroupSpecRulesNoDataState]:
         if no_data_state.upper() == "OK":
             return SharedGrafanaAlertRuleGroupSpecRulesNoDataState.OK
         elif no_data_state.upper() == "NODATA":
@@ -114,7 +118,9 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
         else:
             return None
 
-    def _get_shared_grafana_alert_rule_group_rules(self, rule: Dict[str, Any]):
+    def _get_shared_grafana_alert_rule_group_rules(
+        self, rule: Dict[str, Any]
+    ) -> SharedGrafanaAlertRuleGroupSpecRules:
         title = f'{self.namespace}-{rule["title"].replace(" ", "_").lower()}'
         uid = generate_random_hash(length=30, from_string=title)
 
@@ -144,7 +150,7 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
             ],
         )
 
-    def _get_shared_grafana_alert_rule_group_spec(self):
+    def _get_shared_grafana_alert_rule_group_spec(self) -> SharedGrafanaAlertRuleGroupSpec:
         rules = []
         for alert_file in self.grafana_alert_files:
             alert_rule = self.grafana_alert_group.load(alert_file)
@@ -159,7 +165,7 @@ class GrafanaAlertRuleGroupApp(MonitoringApp):
             rules=rules,
         )
 
-    def _get_shared_grafana_alert_rule_group(self):
+    def _get_shared_grafana_alert_rule_group(self) -> SharedGrafanaAlertRuleGroup:
         return SharedGrafanaAlertRuleGroup(
             self,
             self.node.id,

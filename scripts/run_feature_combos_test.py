@@ -6,20 +6,20 @@ from typing import List
 from tests_utils import get_workspace_packages
 
 
-def run_command(cmd: List[str]):
+def run_command(cmd: List[str]) -> None:
     print(f"Running '{' '.join(cmd)}'", flush=True)
     subprocess.run(cmd, check=True)
 
 
-def build_without_features(package: str):
+def build_without_features(package: str) -> None:
     run_command(cmd=["cargo", "build", "--package", package])
 
 
-def build_with_all_features(package: str):
+def build_with_all_features(package: str) -> None:
     run_command(cmd=["cargo", "build", "--all-features", "--package", package])
 
 
-def main():
+def main() -> None:
     packages = get_workspace_packages()
     print(f"Building {len(packages)} packages without features.", flush=True)
     featureless_failures, feature_failures = {}, {}

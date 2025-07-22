@@ -2,18 +2,18 @@
 
 from typing import Optional
 
-from app.monitoring import GrafanaAlertRuleGroupApp, GrafanaDashboardApp
-from app.service import ServiceApp
 from cdk8s import App, Chart, YamlOutputType
 from constructs import Construct
-from services.config import (
+from sequencer.app.monitoring import GrafanaAlertRuleGroupApp, GrafanaDashboardApp
+from sequencer.app.service import ServiceApp
+from sequencer.services.config import (
     DeploymentConfig,
     GrafanaAlertRuleGroupConfig,
     GrafanaDashboardConfig,
     SequencerConfig,
 )
-from services.helpers import argument_parser, generate_random_hash, sanitize_name
-from services.topology import ServiceTopology
+from sequencer.services.helpers import argument_parser, generate_random_hash, sanitize_name
+from sequencer.services.topology import ServiceTopology
 
 
 class SequencerNode(Chart):
@@ -74,7 +74,7 @@ class SequencerMonitoring(Chart):
         )
 
 
-def main():
+def main() -> None:
     args = argument_parser()
 
     assert not (
@@ -93,6 +93,9 @@ def main():
             args.deployment_image_tag = "dev"
         image = f"ghcr.io/starkware-libs/sequencer/sequencer:{args.deployment_image_tag}"
     application_config_subdir = preset.get_application_config_subdir()
+    assert (
+        application_config_subdir is not None
+    ), "Application config subdirectory must be specified."
     create_monitoring = True if args.monitoring_dashboard_file else False
 
     for svc in services:

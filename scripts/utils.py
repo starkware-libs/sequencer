@@ -2,7 +2,7 @@ import os
 import subprocess
 from typing import List
 
-from git import Repo
+from git import Blob, Repo, Tree
 
 
 def git_files(extension: str) -> List[str]:
@@ -10,9 +10,13 @@ def git_files(extension: str) -> List[str]:
     Returns a list of files in the current git repository with the specified extension.
     """
     repo = Repo(".")
-    return [
-        item.path for item in repo.commit().tree.traverse() if item.path.endswith(f".{extension}")
-    ]
+    files: List[str] = []
+    for item in repo.commit().tree.traverse():
+        assert isinstance(item, (Blob, Tree)), f"Expected a Blob/Tree object, got {repr(item)}."
+        assert isinstance(item.path, str), f"Expected item.path to be a string, got {item.path}."
+        if item.path.endswith(f".{extension}"):
+            files.append(item.path)
+    return files
 
 
 def run_command(

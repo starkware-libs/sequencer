@@ -33,7 +33,7 @@ from imports.io.external_secrets import (
     ExternalSecretV1Beta1SpecSecretStoreRefKind as ExternalSecretSpecSecretStoreRefKind,
 )
 from imports.io.external_secrets import ExternalSecretV1Beta1SpecTarget as ExternalSecretSpecTarget
-from services import const, topology
+from sequencer.services import const, topology
 
 
 class ServiceApp(Construct):
@@ -228,6 +228,7 @@ class ServiceApp(Construct):
         )
 
     def _get_external_secret(self) -> ExternalSecret:
+        assert self.service_topology.external_secret is not None
         return ExternalSecret(
             self,
             "external-secret",
@@ -319,9 +320,12 @@ class ServiceApp(Construct):
             ),
         )
 
-    def _get_config_attr(self, attr: str) -> str | int:
+    def _get_config_attr(self, attr: str) -> typing.Union[str, int]:
         config_attr = self.node_config.get(attr)
         assert config_attr is not None, f'Config attribute "{attr}" is missing.'
+        assert isinstance(
+            config_attr, (str, int)
+        ), f'Config attribute "{attr}" must be a string or an integer.'
 
         return config_attr
 
@@ -359,7 +363,7 @@ class ServiceApp(Construct):
         ]
 
     def _get_service_anotations(self) -> typing.Dict[str, str]:
-        annotations = {}
+        annotations: typing.Dict[str, str] = {}
         if self.service_topology.k8s_service_config is None:
             return annotations
         if (
@@ -368,13 +372,9 @@ class ServiceApp(Construct):
         ):
             annotations.update({"cloud.google.com/load-balancer-type": "Internal"})
         if self.service_topology.k8s_service_config.get("external_dns_name"):
-            annotations.update(
-                {
-                    "external-dns.alpha.kubernetes.io/hostname": self.service_topology.k8s_service_config[
-                        "external_dns_name"
-                    ]
-                }
-            )
+            external_dns_name = self.service_topology.k8s_service_config["external_dns_name"]
+            assert isinstance(external_dns_name, str), "External DNS name must be a string."
+            annotations.update({"external-dns.alpha.kubernetes.io/hostname": external_dns_name})
         return annotations
 
     def _get_service_type(self) -> const.K8SServiceType:
@@ -479,11 +479,12 @@ class ServiceApp(Construct):
         return [v for v in volumes if v is not None]
 
     def _get_ingress(self) -> k8s.KubeIngress:
+        assert self.service_topology.ingress is not None, "Ingress configuration is required."
         domain = self.service_topology.ingress["domain"]
         self.host = f"{self.node.id}.{self.namespace}.{domain}"
         dns_names = self.host
         rules = [self._get_ingress_rule(self.host)]
-        tls = self._get_ingress_tls()
+        tls: typing.Optional[typing.List[k8s.IngressTls]] = self._get_ingress_tls()
 
         annotations = {
             "kubernetes.io/tls-acme": "true",
@@ -495,6 +496,7 @@ class ServiceApp(Construct):
             "acme.cert-manager.io/http01-edit-in-place": "true",
         }
 
+        assert self.service_topology.ingress is not None, "Ingress configuration is required."
         if self.service_topology.ingress["internal"] == True:
             annotations.clear()
             annotations.update({"kubernetes.io/ingress.class": "gce-internal"})
@@ -525,10 +527,17 @@ class ServiceApp(Construct):
     def _get_ingress_rule(self, host: str) -> k8s.IngressRule:
         paths = []
 
+        assert self.service_topology.ingress is not None, "Ingress configuration is required."
         for rule in self.service_topology.ingress["rules"]:
+            assert isinstance(rule, dict), "Each rule must be a dictionary."
             path = rule["path"]
             port = rule["port"]
             backend = rule.get("backend")
+            assert isinstance(path, str), f"Path must be a string; got {path}."
+            assert isinstance(port, int), f"Port must be an integer; got {port}."
+            assert backend is None or isinstance(
+                backend, str
+            ), f"Backend must be a string or None; got {backend}."
             paths.append(self._get_ingress_path(path=path, port=port, backend=backend))
 
         return k8s.IngressRule(
@@ -540,6 +549,7 @@ class ServiceApp(Construct):
 
     def _get_ingress_tls(self) -> typing.List[k8s.IngressTls]:
         hosts = [self.host]
+        assert self.service_topology.ingress is not None, "Ingress configuration is required."
         if self.service_topology.ingress.get("alternative_names", []):
             alternative_names = self.service_topology.ingress["alternative_names"]
             for alt_name in alternative_names:
@@ -547,7 +557,9 @@ class ServiceApp(Construct):
                     hosts.append(alt_name)
         return [k8s.IngressTls(hosts=hosts, secret_name=f"{self.node.id}-tls")]
 
-    def _get_ingress_path(self, path: str, port: int, backend: str = None) -> k8s.HttpIngressPath:
+    def _get_ingress_path(
+        self, path: str, port: int, backend: typing.Optional[str] = None
+    ) -> k8s.HttpIngressPath:
         if backend is None:
             backend = f"{self.node.id}-service"
 
@@ -587,6 +599,7 @@ class ServiceApp(Construct):
         )
 
     def _get_container_resources(self) -> k8s.ResourceRequirements:
+        assert self.service_topology.resources is not None, "Resources configuration is required."
         requests_cpu = str(self.service_topology.resources["requests"]["cpu"])
         requests_memory = str(self.service_topology.resources["requests"]["memory"]) + "Gi"
         limits_cpu = str(self.service_topology.resources["limits"]["cpu"])
@@ -620,12 +633,12 @@ class ServiceApp(Construct):
 
         return args
 
-    def _get_node_selector(self) -> typing.Dict[str, str]:
+    def _get_node_selector(self) -> typing.Optional[typing.Dict[str, str]]:
         if self.service_topology.toleration is not None:
             return {"role": self.service_topology.toleration}
         return None
 
-    def _get_tolerations(self) -> typing.Sequence[k8s.Toleration]:
+    def _get_tolerations(self) -> typing.Optional[typing.Sequence[k8s.Toleration]]:
         if self.service_topology.toleration is not None:
             return [
                 k8s.Toleration(

@@ -2,13 +2,16 @@ import argparse
 import json
 import os
 import time
+from typing import Any, Dict, List, Tuple
 
 import requests
-from common.grafana10_objects import empty_dashboard, row_object, templating_object
-from common.helpers import get_logger
+from src.common.grafana10_objects import empty_dashboard, row_object, templating_object
+from src.common.helpers import get_logger
 
 
-def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position: int) -> dict:
+def create_grafana_panel(
+    panel: Dict[str, Any], panel_id: int, y_position: int, x_position: int
+) -> Dict[str, Any]:
     exprs = panel["exprs"]
 
     # Validate expressions input
@@ -53,7 +56,7 @@ def create_grafana_panel(panel: dict, panel_id: int, y_position: int, x_position
     return grafana_panel
 
 
-def get_next_position(x_position, y_position):
+def get_next_position(x_position: int, y_position: int) -> Tuple[int, int]:
     """Helper function to calculate next position for the panel."""
     panel_grid_pos_width = 12
 
@@ -71,7 +74,9 @@ def dashboard_file_name(out_dir: str, dashboard_name: str) -> str:
     return f"{out_dir}/{file_name}.json"
 
 
-def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
+def create_dashboard(
+    dashboard_name: str, dev_dashboard: Dict[str, List[Dict[str, Any]]]
+) -> Dict[str, Dict[str, Any]]:
     dashboard = empty_dashboard.copy()
     templating = templating_object.copy()
     panel_id = 1
@@ -84,13 +89,16 @@ def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
         row_panel = row_object.copy()
         row_panel["title"] = row_title
         row_panel["id"] = panel_id
+        assert isinstance(row_panel["gridPos"], dict)
         row_panel["gridPos"]["y"] = y_position
         row_panel["panels"] = []
         panel_id += 1
         x_position = 0
         y_position += 1
+        assert isinstance(dashboard["panels"], list)
         dashboard["panels"].append(row_panel)
 
+        assert isinstance(row_panel["panels"], list)
         for panel in panels:
             grafana_panel = create_grafana_panel(panel, panel_id, y_position, x_position)
             row_panel["panels"].append(grafana_panel)
@@ -101,7 +109,7 @@ def create_dashboard(dashboard_name: str, dev_dashboard: json) -> dict:
 
 
 # TODO(Idan Shamam): Use Grafana Client to upload the dashboards
-def upload_dashboards_local(dashboard: dict) -> None:
+def upload_dashboards_local(dashboard: Dict[str, Any]) -> None:
     retry = 0
 
     while retry <= 10:
@@ -131,18 +139,18 @@ def dashboard_builder(args: argparse.Namespace) -> None:
 
     # Load json file
     with open(args.dev_dashboards_file, "r") as f:
-        dev_json = json.load(f)
+        dev_json: Dict[str, Dict[str, Any]] = json.load(f)
 
-    dashboards = []
+    dashboards: List[Tuple[str, Dict[str, Dict[str, Any]]]] = []
     for dashboard_name in dev_json.keys():
         dashboards.append(
-            [
+            (
                 dashboard_name,
                 create_dashboard(
                     dashboard_name=dashboard_name,
                     dev_dashboard=dev_json[dashboard_name],
                 ),
-            ]
+            )
         )
     logger.debug(json.dumps(dashboards, indent=4))
     # Write the grafana dashboard

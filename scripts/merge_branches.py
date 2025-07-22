@@ -22,7 +22,8 @@ FILES_TO_PRESERVE = {"scripts/parent_branch.txt"}
 
 
 def load_merge_paths() -> Dict[str, str]:
-    return json.load(open(MERGE_PATHS_FILE))
+    merge_paths: Dict[str, str] = json.load(open(MERGE_PATHS_FILE))
+    return merge_paths
 
 
 def get_dst_branch(src_branch: str, dst_branch_override: Optional[str]) -> str:
@@ -35,7 +36,7 @@ def get_dst_branch(src_branch: str, dst_branch_override: Optional[str]) -> str:
     return load_merge_paths()[src_branch]
 
 
-def srcdiff(source_branch: str, destination_branch: Optional[str], files: List[str]):
+def srcdiff(source_branch: str, destination_branch: Optional[str], files: List[str]) -> None:
     destination_branch = get_dst_branch(
         src_branch=source_branch, dst_branch_override=destination_branch
     )
@@ -46,7 +47,7 @@ def srcdiff(source_branch: str, destination_branch: Optional[str], files: List[s
     )
 
 
-def dstdiff(source_branch: str, destination_branch: Optional[str], files: List[str]):
+def dstdiff(source_branch: str, destination_branch: Optional[str], files: List[str]) -> None:
     destination_branch = get_dst_branch(
         src_branch=source_branch, dst_branch_override=destination_branch
     )
@@ -57,7 +58,7 @@ def dstdiff(source_branch: str, destination_branch: Optional[str], files: List[s
     )
 
 
-def verify_gh_client_status():
+def verify_gh_client_status() -> None:
     try:
         run_command("gh --version")
     except subprocess.CalledProcessError:
@@ -85,7 +86,7 @@ def current_git_conflictstyle() -> Optional[str]:
         return None
 
 
-def merge_branches(src_branch: str, dst_branch: Optional[str], auto_delete_from_dst: bool):
+def merge_branches(src_branch: str, dst_branch: Optional[str], auto_delete_from_dst: bool) -> None:
     """
     Merge source branch into destination branch.
     If no destination branch is passed, the destination branch is taken from state on repo.

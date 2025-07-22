@@ -2,14 +2,14 @@
 import argparse
 import json
 import os
-from typing import Dict
+from typing import Any, Dict
 
 from cdk8s import App, Chart, Names, YamlOutputType
 from constructs import Construct
 from imports import k8s
 
 
-def argument_parser():
+def argument_parser() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--namespace", required=True, type=str, help="Required: Specify the Kubernetes namespace."
@@ -21,13 +21,14 @@ def argument_parser():
     return parser.parse_args()
 
 
-def get_config(path: str):
+def get_config(path: str) -> Dict[str, Any]:
     with open(os.path.abspath(path), "r") as f:
-        return json.loads(f.read())
+        value: Dict[str, Any] = json.loads(f.read())
+        return value
 
 
 class Simulator(Chart):
-    def __init__(self, scope: Construct, id: str, namespace: str, config: Dict):
+    def __init__(self, scope: Construct, id: str, namespace: str, config: Dict[str, Any]):
         super().__init__(scope, id, disable_resource_name_hashes=True, namespace=namespace)
 
         self.label = {"app": Names.to_label_value(self, include_hash=False)}
@@ -80,7 +81,7 @@ class Simulator(Chart):
         )
 
 
-def main():
+def main() -> None:
     args = argument_parser()
     app = App(yaml_output_type=YamlOutputType.FOLDER_PER_CHART_FILE_PER_RESOURCE)
     Simulator(
