@@ -3339,6 +3339,7 @@ dependencies = [
  "ark-secp256k1 0.4.0",
  "ark-secp256r1 0.4.0",
  "assert_matches",
+ "blake2s",
  "blockifier_test_utils",
  "cached",
  "cairo-lang-casm",
