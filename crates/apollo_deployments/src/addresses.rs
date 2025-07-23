@@ -16,5 +16,5 @@ pub(crate) fn get_peer_id(node_id: usize) -> String {
 }
 
 pub(crate) fn get_p2p_address(dns: &str, port: u16, peer_id: &str) -> String {
-    format!("/dns/{dns}/udp/{port}/quic-v1/p2p/{peer_id}")
+    format!("/dns/{dns}/tcp/{port}/p2p/{peer_id}")
 }

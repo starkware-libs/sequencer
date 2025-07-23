@@ -29,7 +29,7 @@ cargo run --package papyrus_node --bin papyrus_node -- --base_layer.node_url <ET
 Run each of the other nodes separately, using different `consensus.validator_id` {`0x2`, `0x3`, `0x0`}:
 
 ```
-cargo run --package papyrus_node --bin papyrus_node -- --base_layer.node_url <ETH_NODE_URL> --network.#is_none false --consensus.#is_none false --consensus.validator_id 0x<UNIQUE> --network.port <UNIQUE> --network.bootstrap_peer_multiaddr.#is_none false --rpc.server_address 127.0.0.1:<UNIQUE> --monitoring_gateway.server_address 127.0.0.1:<UNIQUE> --storage.db_config.path_prefix <UNIQUE>  --network.bootstrap_peer_multiaddr /ip4/127.0.0.1/udp/10000/quic-v1/p2p/<BOOT_NODE_PEER_ID>
+cargo run --package papyrus_node --bin papyrus_node -- --base_layer.node_url <ETH_NODE_URL> --network.#is_none false --consensus.#is_none false --consensus.validator_id 0x<UNIQUE> --network.port <UNIQUE> --network.bootstrap_peer_multiaddr.#is_none false --rpc.server_address 127.0.0.1:<UNIQUE> --monitoring_gateway.server_address 127.0.0.1:<UNIQUE> --storage.db_config.path_prefix <UNIQUE>  --network.bootstrap_peer_multiaddr /ip4/127.0.0.1/tcp/10000/p2p/<BOOT_NODE_PEER_ID>
 ```
 - Node 0 is the first proposer and should be run last.
 

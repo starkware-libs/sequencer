@@ -113,7 +113,7 @@ impl SerializeConfig for NetworkConfig {
             ser_param(
                 "port",
                 &self.port,
-                "The port that the node listens on for incoming udp connections for quic.",
+                "The port that the node listens on for incoming connections.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

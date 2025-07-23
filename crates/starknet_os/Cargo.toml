@@ -57,6 +57,7 @@ thiserror.workspace = true
 tracing.workspace = true
 
 [dev-dependencies]
+apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_starknet_os_program = { workspace = true, features = ["test_programs"] }
 assert_matches.workspace = true
 blockifier = { workspace = true, features = ["testing"] }

@@ -18,7 +18,7 @@ use apollo_consensus::types::ProposalCommitment;
 use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
 use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalFin, ProposalPart, TransactionBatch};
-use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::communication::StateSyncClient;
 use apollo_time::time::{sleep_until, Clock, DateTime};
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -89,9 +89,9 @@ pub(crate) enum ValidateProposalError {
     #[error("Batcher error: {0}")]
     Batcher(String, BatcherClientError),
     #[error("State sync client error: {0}")]
-    StateSyncClientError(#[from] StateSyncClientError),
-    #[error("State sync is not ready: {0}")]
-    StateSyncNotReady(String),
+    StateSyncClientError(String),
+    #[error("State sync is not ready: block number {0} not found")]
+    StateSyncNotReady(BlockNumber),
     // Consensus may exit early (e.g. sync).
     #[error("Failed to send commitment to consensus: {0}")]
     SendError(ProposalCommitment),
@@ -385,7 +385,9 @@ async fn initiate_validation(
     let input = ValidateBlockInput {
         proposal_id,
         deadline: clock.now() + chrono_timeout,
-        retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info).await?,
+        retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info)
+            .await
+            .map_err(ValidateProposalError::from)?,
         block_info: convert_to_sn_api_block_info(&block_info)?,
     };
     debug!("Initiating validate proposal: input={input:?}");

@@ -310,7 +310,7 @@
     "value": 1000
   },
   "network.port": {
-    "description": "The port that the node listens on for incoming udp connections for quic.",
+    "description": "The port that the node listens on for incoming connections.",
     "privacy": "Public",
     "value": 10000
   },

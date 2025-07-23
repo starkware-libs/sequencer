@@ -112,7 +112,7 @@ async fn class_manager_get_executable() {
     // Test.
 
     // Add classes: deprecated and non-deprecated, under different hashes.
-    let ClassHashes { class_hash, executable_class_hash_v2: _ } =
+    let ClassHashes { class_hash, executable_class_hash_v2 } =
         class_manager.add_class(class.clone()).await.unwrap();
 
     let deprecated_class_hash = ClassHash(felt!("0x1806"));
@@ -126,6 +126,10 @@ async fn class_manager_get_executable() {
     assert_eq!(
         class_manager.get_executable(deprecated_class_hash).unwrap(),
         Some(deprecated_executable_class)
+    );
+    assert_eq!(
+        class_manager.get_executable_class_hash_v2(class_hash).unwrap(),
+        Some(executable_class_hash_v2)
     );
 }
 
