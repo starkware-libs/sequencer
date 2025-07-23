@@ -1404,6 +1404,11 @@
     "privacy": "Private",
     "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY"
   },
+  "l1_endpoint_monitor_config.timeout_millis": {
+    "description": "The timeout (milliseconds) for a query of the L1 base layer",
+    "privacy": "Public",
+    "value": 1000
+  },
   "l1_gas_price_provider_config.#is_none": {
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
