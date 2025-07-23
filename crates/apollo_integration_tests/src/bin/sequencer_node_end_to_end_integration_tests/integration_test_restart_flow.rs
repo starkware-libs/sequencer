@@ -9,10 +9,11 @@ use apollo_integration_tests::integration_test_manager::{
     DEFAULT_SENDER_ACCOUNT,
 };
 use apollo_integration_tests::integration_test_utils::integration_test_setup;
-use apollo_integration_tests::utils::{ConsensusTxs, N_TXS_IN_FIRST_BLOCK, TPS};
+use apollo_integration_tests::monitoring_utils::get_consensus_proposals_sent;
+use apollo_integration_tests::utils::{ConsensusTxs, N_TXS_IN_FIRST_BLOCK};
 use strum::IntoEnumIterator;
 use tokio::join;
-use tokio::time::sleep;
+use tokio::time::{sleep, Instant};
 use tracing::info;
 
 #[tokio::main]
@@ -20,8 +21,7 @@ async fn main() {
     integration_test_setup("restart").await;
     const PHASE_DURATION: Duration = Duration::from_secs(30);
     const LONG_PHASE_DURATION: Duration = Duration::from_secs(90);
-    const TOTAL_DURATION: u64 = PHASE_DURATION.as_secs() * 2 + LONG_PHASE_DURATION.as_secs() * 2;
-    const TOTAL_INVOKE_TXS: u64 = TPS * TOTAL_DURATION;
+    const TOTAL_INVOKE_TXS: u64 = 250;
     /// The number of consolidated local sequencers that participate in the test.
     const N_CONSOLIDATED_SEQUENCERS: usize = 1;
     /// The number of distributed remote sequencers that participate in the test.
@@ -92,19 +92,19 @@ async fn main() {
     // Task that awaits transactions and restarts nodes in phases.
     let await_and_restart_nodes_task = async {
         info!("Awaiting transactions while all nodes are up");
-        sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
+            PHASE_DURATION,
         )
         .await;
 
         integration_test_manager.shutdown_nodes([RESTART_NODE].into());
         info!("Awaiting transactions while node {RESTART_NODE} is down");
-        sleep(PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
+            PHASE_DURATION,
         )
         .await;
 
@@ -115,10 +115,18 @@ async fn main() {
             "Awaiting transactions after node {RESTART_NODE} was restarted and before node \
              {SHUTDOWN_NODE} is shut down"
         );
-        sleep(LONG_PHASE_DURATION).await;
+
+        let verify_duration = verify_node_sends_proposals_after_restarts(
+            &integration_test_manager,
+            RESTART_NODE,
+            LONG_PHASE_DURATION,
+        )
+        .await;
+
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
+            LONG_PHASE_DURATION - verify_duration,
         )
         .await;
 
@@ -132,10 +140,10 @@ async fn main() {
             "Awaiting transactions while node {RESTART_NODE} is up and node {SHUTDOWN_NODE} is \
              down"
         );
-        sleep(LONG_PHASE_DURATION).await;
         verify_running_nodes_received_more_txs(
             &mut nodes_accepted_txs_mapping,
             &integration_test_manager,
+            LONG_PHASE_DURATION,
         )
         .await;
 
@@ -144,8 +152,13 @@ async fn main() {
         let expected_n_accepted_txs = N_TXS_IN_FIRST_BLOCK
             + TryInto::<usize>::try_into(TOTAL_INVOKE_TXS)
                 .expect("Failed to convert TOTAL_INVOKE_TXS to usize");
+        // TODO(lev): We need to find a way to stop sending transactions after the test is done and
+        // not to wait till all transactions are sent and processed.
 
-        info!("Verifying that all running nodes processed all transactions");
+        info!(
+            "Verifying that all running nodes processed all transactions - \
+             {expected_n_accepted_txs}"
+        );
         integration_test_manager
             .await_txs_accepted_on_all_running_nodes(expected_n_accepted_txs)
             .await;
@@ -163,15 +176,84 @@ async fn main() {
 async fn verify_running_nodes_received_more_txs(
     prev_txs: &mut HashMap<usize, usize>,
     integration_test_manager: &IntegrationTestManager,
+    max_phase_duration: Duration,
 ) {
-    let curr_txs = integration_test_manager.get_num_accepted_txs_on_all_running_nodes().await;
-    for (node_idx, curr_n_processed) in curr_txs {
+    let mut curr_processed_txs = prev_txs.clone();
+
+    let start = Instant::now();
+    let mut done: bool = false;
+    'outer: while start.elapsed() < max_phase_duration && !done {
+        sleep(Duration::from_secs(1)).await;
+
+        let curr_txs = integration_test_manager.get_num_accepted_txs_on_all_running_nodes().await;
+        for (node_idx, curr_n_processed) in curr_txs {
+            curr_processed_txs.insert(node_idx, curr_n_processed).expect("Num txs not found");
+
+            let prev_n_processed = prev_txs
+                .get(&node_idx)
+                .expect("Node index not found in previous transactions mapping");
+
+            if curr_n_processed <= *prev_n_processed {
+                continue 'outer;
+            }
+        }
+        done = true;
+    }
+
+    info!(
+        "Verifying running nodes received more transactions finished in {} seconds",
+        start.elapsed().as_secs()
+    );
+    for (node_idx, curr_n_processed) in curr_processed_txs {
         let prev_n_processed =
             prev_txs.insert(node_idx, curr_n_processed).expect("Num txs not found");
-        info!("Node {} processed {} transactions", node_idx, curr_n_processed);
-        assert!(
-            curr_n_processed > prev_n_processed,
-            "Node {node_idx} did not process more transactions"
+        info!(
+            "Node {} processed {} -> {} transactions",
+            node_idx, prev_n_processed, curr_n_processed
         );
     }
+
+    if !done {
+        panic!(
+            "Not all running nodes processed more transactions in the last {} seconds",
+            max_phase_duration.as_secs()
+        );
+    }
+}
+
+/// Verifies that the node with the given index sends proposals after being restarted.
+async fn verify_node_sends_proposals_after_restarts(
+    integration_test_manager: &IntegrationTestManager,
+    node_idx: usize,
+    max_duration: Duration,
+) -> Duration {
+    let consensus_monitoring_client = integration_test_manager
+        .get_consensus_manager_monitoring_client_for_running_node(node_idx)
+        .await;
+    let proposal_sent = get_consensus_proposals_sent(consensus_monitoring_client).await;
+    let mut curr_proposal_sent = proposal_sent;
+    let mut done: bool = false;
+    let start = Instant::now();
+    while start.elapsed() < max_duration && !done {
+        sleep(Duration::from_secs(1)).await;
+        curr_proposal_sent = get_consensus_proposals_sent(consensus_monitoring_client).await;
+        if curr_proposal_sent > proposal_sent {
+            done = true;
+        }
+    }
+    info!(
+        "Verifying node is sending proposals after restart finished in {} seconds",
+        start.elapsed().as_secs()
+    );
+    info!(
+        "Node {node_idx} sent consensus proposals after restart. Previous: {}, New: {}",
+        proposal_sent, curr_proposal_sent
+    );
+    if !done {
+        panic!(
+            "Node {node_idx} did not send consensus proposals after restart in the last {} seconds",
+            max_duration.as_secs()
+        );
+    }
+    start.elapsed()
 }
