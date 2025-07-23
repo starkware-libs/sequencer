@@ -134,10 +134,11 @@ pub struct OsBlockInput {
     // buffer=STORED_BLOCK_HASH_BUFFER.
     // It is the hash that is going to be written by this OS run.
     pub(crate) old_block_number_and_hash: Option<(BlockNumber, BlockHash)>,
-    // Class hashes that need migration from v1 hash to v2 hash (Poseidon → Blake).
+    // A map from Class hashes to Compiled class hashes v2 for all classes that require migration
+    // from v1 to v2 (Poseidon → Blake).
     #[allow(dead_code)]
     // TODO(AvivG): remove allow(dead_code) once migration_class_hashes is used.
-    pub(crate) class_hashes_to_migrate: Vec<ClassHash>,
+    pub(crate) class_hashes_to_migrate: HashMap<ClassHash, ClassHash>,
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
