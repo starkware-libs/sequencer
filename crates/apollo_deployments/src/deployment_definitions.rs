@@ -2,6 +2,7 @@ use std::fmt::{Display, Formatter, Result};
 use std::path::PathBuf;
 
 use serde::Serialize;
+use strum::EnumIter;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
@@ -124,4 +125,25 @@ pub enum ServicePort {
     StateSync,
     HttpServer,
     MonitoringEndpoint,
+}
+
+#[derive(Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
+pub enum ComponentConfigInService {
+    BaseLayer,
+    Batcher,
+    ClassManager,
+    Consensus,
+    General, // General configs that are not specific to any service
+    Gateway,
+    HttpServer,
+    L1EndpointMonitor,
+    L1GasPriceProvider,
+    L1GasPriceScraper,
+    L1Provider,
+    L1Scraper,
+    Mempool,
+    MempoolP2p,
+    MonitoringEndpoint,
+    SierraCompiler,
+    StateSync,
 }

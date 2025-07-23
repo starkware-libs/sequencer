@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Display;
 use std::iter::once;
 use std::path::PathBuf;
@@ -18,7 +18,12 @@ use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
 use crate::deployment::build_service_namespace_domain_address;
-use crate::deployment_definitions::{Environment, ServicePort, CONFIG_BASE_DIR};
+use crate::deployment_definitions::{
+    ComponentConfigInService,
+    Environment,
+    ServicePort,
+    CONFIG_BASE_DIR,
+};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
@@ -222,13 +227,19 @@ impl NodeService {
         self.as_inner().k8s_service_name()
     }
 
-    pub fn get_service_file_path(&self) -> String {
+    fn get_service_file_path(&self) -> String {
         PathBuf::from(CONFIG_BASE_DIR)
             .join(SERVICES_DIR_NAME)
             .join(NodeType::from(self).get_folder_name())
             .join(self.get_config_file_path())
             .to_string_lossy()
             .to_string()
+    }
+
+    // TODO(Tsabary): remove annotation when used.
+    #[allow(dead_code)]
+    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+        self.as_inner().get_components_in_service()
     }
 
     pub fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
@@ -288,6 +299,8 @@ pub(crate) trait ServiceNameInner: Display {
         let formatted_service_name = self.to_string().replace('_', "");
         format!("sequencer-{}-service", formatted_service_name)
     }
+
+    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService>;
 }
 
 impl NodeType {
