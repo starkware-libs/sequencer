@@ -1,5 +1,6 @@
 //! Runs a node that stress tests the p2p communication of the network.
 
+use std::collections::HashMap;
 use std::convert::Infallible;
 use std::fmt::Display;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
@@ -7,6 +8,14 @@ use std::str::FromStr;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec;
 
+use apollo_metrics::define_metrics;
+use apollo_metrics::metrics::LossyIntoF64;
+// apollo_metrics types are imported through define_metrics! macro
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    NetworkMetrics,
+    SqmrNetworkMetrics,
+};
 use apollo_network::network_manager::{
     BroadcastTopicChannels,
     BroadcastTopicClient,
@@ -22,11 +31,11 @@ use futures::future::join_all;
 use futures::StreamExt;
 use libp2p::gossipsub::{Sha256Topic, Topic};
 use libp2p::{Multiaddr, PeerId};
-use metrics::{counter, histogram};
 use metrics_exporter_prometheus::PrometheusBuilder;
+use sysinfo::System;
 use tokio::sync::Mutex;
 use tokio::time::Duration;
-use tracing::{info, trace, Level};
+use tracing::{info, trace, warn, Level};
 
 #[cfg(test)]
 mod converters_test;
@@ -42,6 +51,71 @@ lazy_static::lazy_static! {
 
     static ref MAX_MESSAGE_INDICES: Vec<Mutex<Option<u64>>> = (0..MAX_NODES).map(|_| Mutex::new(None)).collect();
 }
+
+// Label definitions for sender_id metrics
+pub const LABEL_NAME_SENDER_ID: &str = "sender_id";
+
+define_metrics!(
+    Infra => {
+        // Network peer connection metrics
+        MetricGauge { NETWORK_CONNECTED_PEERS, "network_connected_peers", "Number of connected peers in the network" },
+        MetricGauge { NETWORK_BLACKLISTED_PEERS, "network_blacklisted_peers", "Number of blacklisted peers in the network" },
+
+        // Stress test broadcast metrics
+        MetricCounter { NETWORK_STRESS_TEST_SENT_MESSAGES, "network_stress_test_sent_messages", "Number of stress test messages sent via broadcast", init = 0 },
+        MetricCounter { NETWORK_STRESS_TEST_RECEIVED_MESSAGES, "network_stress_test_received_messages", "Number of stress test messages received via broadcast", init = 0 },
+
+        // SQMR session metrics
+        MetricGauge { NETWORK_ACTIVE_INBOUND_SESSIONS, "network_active_inbound_sessions", "Number of active inbound SQMR sessions" },
+        MetricGauge { NETWORK_ACTIVE_OUTBOUND_SESSIONS, "network_active_outbound_sessions", "Number of active outbound SQMR sessions" },
+
+        // Stress test metrics - regular counters
+        MetricCounter { MESSAGES_SENT_TOTAL, "messages_sent_total", "Total number of messages sent", init = 0 },
+        MetricCounter { MESSAGES_RECEIVED_TOTAL, "messages_received_total", "Total number of messages received", init = 0 },
+        MetricCounter { BYTES_RECEIVED_TOTAL, "bytes_received_total", "Total bytes received", init = 0 },
+        MetricCounter { MESSAGES_OUT_OF_ORDER_TOTAL, "messages_out_of_order_total", "Total out-of-order messages", init = 0 },
+        MetricCounter { MESSAGES_MISSING_TOTAL, "messages_missing_total", "Total missing messages", init = 0 },
+        MetricCounter { MESSAGES_DUPLICATE_TOTAL, "messages_duplicate_total", "Total duplicate messages", init = 0 },
+        MetricCounter { MESSAGES_MISSING_RETRIEVED_TOTAL, "messages_missing_retrieved_total", "Total missing messages that were later retrieved", init = 0 },
+
+        // Stress test histograms - regular histograms
+        MetricHistogram { MESSAGE_DELAY_SECONDS, "message_delay_seconds", "Message delay in seconds" },
+        MetricHistogram { MESSAGE_NEGATIVE_DELAY_SECONDS, "message_negative_delay_seconds", "Negative message delay in seconds" },
+
+        // Stress test metrics with sender_id labels - using empty label arrays for dynamic labels
+        // LabeledMetricCounter { MESSAGES_RECEIVED_BY_SENDER_TOTAL, "messages_received_by_sender_total", "Total messages received by sender", init = 0, labels = EMPTY_LABELS },
+        // LabeledMetricCounter { MESSAGES_OUT_OF_ORDER_BY_SENDER_TOTAL, "messages_out_of_order_by_sender_total", "Total out-of-order messages by sender", init = 0, labels = EMPTY_LABELS },
+        // LabeledMetricCounter { MESSAGES_MISSING_BY_SENDER_TOTAL, "messages_missing_by_sender_total", "Total missing messages by sender", init = 0, labels = EMPTY_LABELS },
+        // LabeledMetricCounter { MESSAGES_DUPLICATE_BY_SENDER_TOTAL, "messages_duplicate_by_sender_total", "Total duplicate messages by sender", init = 0, labels = EMPTY_LABELS },
+        // LabeledMetricCounter { MESSAGES_MISSING_RETRIEVED_BY_SENDER_TOTAL, "messages_missing_retrieved_by_sender_total", "Total missing messages later retrieved by sender", init = 0, labels = EMPTY_LABELS },
+
+        // Stress test histograms with sender_id labels
+        // LabeledMetricHistogram { MESSAGE_DELAY_BY_SENDER_SECONDS, "message_delay_by_sender_seconds", "Message delay in seconds by sender", labels = EMPTY_LABELS },
+        // LabeledMetricHistogram { MESSAGE_NEGATIVE_DELAY_BY_SENDER_SECONDS, "message_negative_delay_by_sender_seconds", "Negative message delay in seconds by sender", labels = EMPTY_LABELS },
+
+        // Process metrics
+        MetricGauge { PROCESS_CPU_USAGE_PERCENT, "process_cpu_usage_percent", "CPU usage percentage of the current process" },
+        MetricGauge { PROCESS_MEMORY_USAGE_BYTES, "process_memory_usage_bytes", "Memory usage in bytes of the current process" },
+        MetricGauge { PROCESS_VIRTUAL_MEMORY_USAGE_BYTES, "process_virtual_memory_usage_bytes", "Virtual memory usage in bytes of the current process" },
+        // MetricGauge { PROCESS_THREAD_COUNT, "process_thread_count", "Number of threads in the current process" },
+        // MetricGauge { PROCESS_UPTIME_SECONDS, "process_uptime_seconds", "Process uptime in seconds" },
+
+        // System-level metrics to distinguish between physical nodes
+        // Use these metrics to determine if processes are running on different physical nodes:
+        // - Different hostnames indicate different nodes
+        // - Different system uptime suggests different nodes (unless containers restarted simultaneously)
+        // - Different total memory/CPU counts indicate different hardware configurations
+        // - Different load averages suggest independent workloads on separate nodes
+        // MetricGauge { SYSTEM_UPTIME_SECONDS, "system_uptime_seconds", "System uptime in seconds" },
+        MetricGauge { SYSTEM_TOTAL_MEMORY_BYTES, "system_total_memory_bytes", "Total system memory in bytes" },
+        MetricGauge { SYSTEM_AVAILABLE_MEMORY_BYTES, "system_available_memory_bytes", "Available system memory in bytes" },
+        MetricGauge { SYSTEM_USED_MEMORY_BYTES, "system_used_memory_bytes", "Used system memory in bytes" },
+        MetricGauge { SYSTEM_CPU_COUNT, "system_cpu_count", "Number of logical CPU cores in the system" },
+
+        // Node identification metric with hostname label
+        // LabeledMetricGauge { NODE_INFO, "node_info", "Node identification information with hostname and static system info", labels = EMPTY_LABELS },
+    },
+);
 
 #[derive(Debug, Clone, ValueEnum)]
 enum Mode {
@@ -113,6 +187,10 @@ struct Args {
     /// Duration each node broadcasts before switching (in seconds) - for RoundRobin mode
     #[arg(long, env, default_value_t = 3)]
     round_duration_seconds: u64,
+
+    /// Interval for collecting process metrics (CPU, memory) in seconds
+    #[arg(long, env, default_value_t = 10)]
+    system_metrics_interval_seconds: u64,
 }
 
 async fn send_stress_test_messages(
@@ -127,10 +205,7 @@ async fn send_stress_test_messages(
     loop {
         // Check if this node should broadcast based on the mode
         let should_broadcast_now = match args.mode {
-            Mode::AllBroadcast => true,
-            Mode::OneBroadcast => {
-                unreachable!("When OneBroadcast mode is used, this function should not be called")
-            }
+            Mode::AllBroadcast | Mode::OneBroadcast => true,
             Mode::RoundRobin => should_broadcast_round_robin(args),
         };
 
@@ -139,7 +214,7 @@ async fn send_stress_test_messages(
             message.metadata.message_index = message_index;
             broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
             trace!("Node {} sent message {message_index} in mode `{}`", args.id, args.mode);
-            counter!("messages_sent_total").increment(1);
+            MESSAGES_SENT_TOTAL.increment(1);
             message_index += 1;
         }
 
@@ -167,23 +242,24 @@ fn receive_stress_test_message(
     // let delay_micros = duration.as_micros().try_into().unwrap();
     let current_message_index = received_message.metadata.message_index;
 
-    // Use proper metrics with labels instead of dynamic metric names
-    counter!("messages_received_total").increment(1);
-    counter!("messages_received_by_sender_total", "sender_id" => sender_id.to_string())
-        .increment(1);
+    // Use apollo_metrics for all metrics including labeled ones
+    // MESSAGES_RECEIVED_TOTAL.increment(1);
+    // counter!(MESSAGES_RECEIVED_BY_SENDER_TOTAL.get_name(), LABEL_NAME_SENDER_ID =>
+    // sender_id.to_string()).increment(1);
 
-    // Use histogram for latency measurements
-    if delay_seconds >= 0.0 {
-        histogram!("message_delay_seconds").record(delay_seconds);
-        histogram!("message_delay_by_sender_seconds", "sender_id" => sender_id.to_string())
-            .record(delay_seconds);
+    // Use apollo_metrics histograms for latency measurements
+    if delay_seconds.is_sign_positive() {
+        MESSAGE_DELAY_SECONDS.record(delay_seconds);
+
+        // histogram!(MESSAGE_DELAY_BY_SENDER_SECONDS.get_name(), LABEL_NAME_SENDER_ID =>
+        // sender_id.to_string()).record(delay_seconds);
     } else {
-        histogram!("message_negative_delay_seconds").record(-delay_seconds);
-        histogram!("message_negative_delay_by_sender_seconds", "sender_id" => sender_id.to_string())
-        .record(-delay_seconds);
+        MESSAGE_NEGATIVE_DELAY_SECONDS.record(-delay_seconds);
+        // histogram!(MESSAGE_NEGATIVE_DELAY_BY_SENDER_SECONDS.get_name(), LABEL_NAME_SENDER_ID =>
+        // sender_id.to_string()).record(-delay_seconds);
     }
 
-    counter!("bytes_received_total").increment(received_message.byte_size().try_into().unwrap());
+    BYTES_RECEIVED_TOTAL.increment(received_message.byte_size().try_into().unwrap());
 
     // Handle message ordering and update last message indices
     handle_message_ordering(sender_id, current_message_index);
@@ -210,32 +286,31 @@ fn handle_message_ordering(sender_id: u64, current_message_index: u64) {
         return;
     }
 
-    // Use labels instead of dynamic metric names
-    counter!("messages_out_of_order_total").increment(1);
-    counter!("messages_out_of_order_by_sender_total", "sender_id" => sender_id.to_string())
-        .increment(1);
+    // Use apollo_metrics for all metrics including labeled ones
+    MESSAGES_OUT_OF_ORDER_TOTAL.increment(1);
+    // counter!(MESSAGES_OUT_OF_ORDER_BY_SENDER_TOTAL.get_name(), LABEL_NAME_SENDER_ID =>
+    // sender_id.to_string()).increment(1);
 
     if expected_index < current_message_index {
         let missed_messages = current_message_index - expected_index;
-        counter!("messages_missing_total").increment(missed_messages);
-        counter!("messages_missing_by_sender_total", "sender_id" => sender_id.to_string())
-            .increment(missed_messages);
+        MESSAGES_MISSING_TOTAL.increment(missed_messages);
+        // counter!(MESSAGES_MISSING_BY_SENDER_TOTAL.get_name(), LABEL_NAME_SENDER_ID =>
+        // sender_id.to_string()).increment(missed_messages);
         return;
     }
 
     if max_index == current_message_index {
-        counter!("messages_duplicate_total").increment(1);
-        counter!("messages_duplicate_by_sender_total", "sender_id" => sender_id.to_string())
-            .increment(1);
-        // TODO(AndrewL): should this ever happen? does libp2p prevent this?
-        // Note: this count does not account fot all duplicates...
+        MESSAGES_DUPLICATE_TOTAL.increment(1);
+        // counter!(MESSAGES_DUPLICATE_BY_SENDER_TOTAL.get_name(), LABEL_NAME_SENDER_ID =>
+        // sender_id.to_string()).increment(1); TODO(AndrewL): should this ever happen? does
+        // libp2p prevent this? Note: this count does not account fot all duplicates...
         return;
     }
 
     if current_message_index < max_index {
-        counter!("messages_missing_retrieved_total").increment(1);
-        counter!("messages_missing_retrieved_by_sender_total", "sender_id" => sender_id.to_string())
-            .increment(1);
+        MESSAGES_MISSING_RETRIEVED_TOTAL.increment(1);
+        // counter!(MESSAGES_MISSING_RETRIEVED_BY_SENDER_TOTAL.get_name(), LABEL_NAME_SENDER_ID =>
+        // sender_id.to_string()).increment(1);
     }
 }
 
@@ -244,6 +319,33 @@ fn should_broadcast_round_robin(args: &Args) -> bool {
     let now_seconds = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
     let current_round = (now_seconds / args.round_duration_seconds) % args.num_nodes;
     args.id == current_round
+}
+
+/// Creates comprehensive network metrics for monitoring the stress test network performance.
+/// Uses the lazy static metrics defined above.
+fn create_network_metrics() -> NetworkMetrics {
+    // Create broadcast metrics for the stress test topic
+    let stress_test_broadcast_metrics = BroadcastNetworkMetrics {
+        num_sent_broadcast_messages: NETWORK_STRESS_TEST_SENT_MESSAGES,
+        num_received_broadcast_messages: NETWORK_STRESS_TEST_RECEIVED_MESSAGES,
+    };
+
+    // Create a map with broadcast metrics for our stress test topic
+    let mut broadcast_metrics_by_topic = HashMap::new();
+    broadcast_metrics_by_topic.insert(TOPIC.hash(), stress_test_broadcast_metrics);
+
+    // Create SQMR metrics for session monitoring
+    let sqmr_metrics = SqmrNetworkMetrics {
+        num_active_inbound_sessions: NETWORK_ACTIVE_INBOUND_SESSIONS,
+        num_active_outbound_sessions: NETWORK_ACTIVE_OUTBOUND_SESSIONS,
+    };
+
+    NetworkMetrics {
+        num_connected_peers: NETWORK_CONNECTED_PEERS,
+        num_blacklisted_peers: NETWORK_BLACKLISTED_PEERS,
+        broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
+        sqmr_metrics: Some(sqmr_metrics),
+    }
 }
 
 async fn receive_stress_test_messages(
@@ -264,6 +366,40 @@ fn create_peer_private_key(peer_index: u64) -> [u8; 32] {
     let mut private_key = [0u8; 32];
     private_key[0..8].copy_from_slice(&array);
     private_key
+}
+
+async fn monitor_process_metrics(interval_seconds: u64) {
+    let duration = Duration::from_secs(interval_seconds);
+    let mut system = System::new_all();
+    let current_pid = sysinfo::get_current_pid().expect("Failed to get current process PID");
+
+    loop {
+        system.refresh_all();
+        let total_memory: f64 = system.total_memory().into_f64();
+        let available_memory: f64 = system.available_memory().into_f64();
+        let used_memory: f64 = system.used_memory().into_f64();
+        let cpu_count: f64 = system.cpus().len().into_f64();
+        // let load_avg: f64 = system.load_average().one.into_f64();
+
+        SYSTEM_TOTAL_MEMORY_BYTES.set(total_memory);
+        SYSTEM_AVAILABLE_MEMORY_BYTES.set(available_memory);
+        SYSTEM_USED_MEMORY_BYTES.set(used_memory);
+        SYSTEM_CPU_COUNT.set(cpu_count);
+
+        if let Some(process) = system.process(current_pid) {
+            let cpu_usage: f64 = process.cpu_usage().into();
+            let memory_usage: f64 = process.memory().into_f64();
+            let virtual_memory_usage: f64 = process.virtual_memory().into_f64();
+
+            PROCESS_CPU_USAGE_PERCENT.set(cpu_usage);
+            PROCESS_MEMORY_USAGE_BYTES.set(memory_usage);
+            PROCESS_VIRTUAL_MEMORY_USAGE_BYTES.set(virtual_memory_usage);
+        } else {
+            warn!("Could not find process information for PID: {}", current_pid);
+        }
+
+        tokio::time::sleep(duration).await;
+    }
 }
 
 #[tokio::main]
@@ -318,7 +454,10 @@ async fn main() {
         network_config.bootstrap_peer_multiaddr = Some(bootstrap_peers);
     }
 
-    let mut network_manager = NetworkManager::new(network_config, None, None);
+    // Create comprehensive network metrics for stress test monitoring
+    let network_metrics = create_network_metrics();
+
+    let mut network_manager = NetworkManager::new(network_config, None, Some(network_metrics));
 
     let peer_id_string = network_manager.get_local_peer_id();
     let peer_id = PeerId::from_str(&peer_id_string).unwrap();
@@ -341,6 +480,13 @@ async fn main() {
     tasks.push(tokio::spawn(async move {
         receive_stress_test_messages(broadcasted_messages_receiver).await;
         unreachable!("Broadcast topic receiver should not exit");
+    }));
+
+    // Add process metrics monitoring task
+    let metrics_interval = args.system_metrics_interval_seconds;
+    tasks.push(tokio::spawn(async move {
+        monitor_process_metrics(metrics_interval).await;
+        unreachable!("Process metrics monitor should not exit");
     }));
 
     // Check if this node should broadcast based on the mode

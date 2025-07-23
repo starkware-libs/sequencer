@@ -5,6 +5,7 @@ import subprocess
 from time import sleep
 import docker
 from utils import (
+    make_multi_address,
     run_cmd,
     pr,
     get_peer_id_from_node_id,
@@ -13,7 +14,7 @@ from utils import (
     check_docker,
 )
 from yaml_maker import get_prometheus_config
-from args import add_broadcast_stress_test_node_arguments_to_parser, get_arguments
+from args import add_shared_args_to_parser, get_arguments
 
 
 class ExperimentRunner:
@@ -103,11 +104,30 @@ class ExperimentRunner:
         exe: str = os.path.abspath(
             f"{project_root}/target/release/broadcast_network_stress_test_node"
         )
-        arguments = [exe]
+
+        if args.profile:
+            perf_data_file = str(
+                os.path.join(
+                    self.tmp_dir, f"broadcast_network_stress_test_node{i}.perf.data"
+                )
+            )
+            if args.profile_mode == "cpu":
+                arguments = ["perf", "record", "-o", perf_data_file, exe]
+            if args.profile_mode == "mem":
+                arguments = ["perf", "mem", "record", "-o", perf_data_file, exe]
+            else:
+                raise Exception("Unrecognized profile mode")
+        else:
+            arguments = [exe]
 
         # Generate bootstrap peers for all other nodes using list comprehension
         bootstrap_nodes = [
-            f"/ip4/127.0.0.1/udp/{self.p2p_port_base + j}/quic-v1/p2p/{get_peer_id_from_node_id(j)}"
+            make_multi_address(
+                network_address="/ip4/127.0.0.1",
+                port=self.p2p_port_base + j,
+                peer_id=get_peer_id_from_node_id(j),
+                args=args,
+            )
             for j in range(args.num_nodes)
         ]
 
@@ -153,7 +173,19 @@ class ExperimentRunner:
 
 def main():
     parser = argparse.ArgumentParser()
-    add_broadcast_stress_test_node_arguments_to_parser(parser=parser)
+    parser.add_argument(
+        "--profile",
+        help="Whether to run perf profiling on each node (files will show up in the tmp directory)",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--profile-mode",
+        help="The mode to run perf in. Options are 'cpu' and 'mem'.",
+        choices=["cpu", "mem"],
+        default="cpu",
+    )
+    add_shared_args_to_parser(parser=parser)
     args = parser.parse_args()
 
     pr("Starting network stress test experiment...")

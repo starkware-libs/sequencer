@@ -4,7 +4,7 @@ A comprehensive network stress testing tool for the Apollo network that tests P2
 
 ## Overview
 
-The broadcast network stress test node is designed to stress test the P2P communication layer of the Apollo network. It creates a network of nodes with configurable broadcasting patterns, measuring latency, throughput, message ordering, and overall network performance. The tool supports both local testing and distributed deployment via Kubernetes with optional network throttling.
+The broadcast network stress test node is designed to stress test the P2P communication layer of the Apollo network. It creates a network of nodes with configurable broadcasting patterns, measuring latency, throughput, message ordering, and overall network performance. The tool supports both local testing (using the provided Python scripts) and distributed deployment via Kubernetes with optional network throttling.
 
 ## Features
 
@@ -35,7 +35,7 @@ cargo build --release --bin broadcast_network_stress_test_node
 | `--metric-port` | Prometheus metrics server port | 2000 | `METRIC_PORT` |
 | `--p2p-port` | P2P network port | 10000 | `P2P_PORT` |
 | `--bootstrap` | Bootstrap peer addresses (comma-separated) | None | `BOOTSTRAP` |
-| `--verbosity` | Log verbosity (0-5: None, ERROR, WARN, INFO, DEBUG, TRACE) | 0 | `VERBOSITY` |
+| `--verbosity` | Log verbosity (0-5: None, ERROR, WARN, INFO, DEBUG, TRACE) | 2 | `VERBOSITY` |
 | `--buffer-size` | Broadcast topic buffer size | 10000 | `BUFFER_SIZE` |
 | `--message-size-bytes` | Message payload size in bytes | 1024 | `MESSAGE_SIZE_BYTES` |
 | `--heartbeat-millis` | Interval between messages (milliseconds) | 1 | `HEARTBEAT_MILLIS` |
@@ -56,7 +56,25 @@ Nodes take turns broadcasting in sequential order based on their ID. Each node b
 
 ## Running Locally
 
-### Single Node
+### Recommended: Multi-Node Network using Local Script
+
+The best way to run locally is using the local script. First, navigate to the run directory:
+
+```bash
+cd crates/apollo_network/src/bin/broadcast_network_stress_test_node/run
+python local.py --num-nodes 3 --verbosity 3 --mode rr
+```
+
+This will:
+- Compile the binary if needed
+- Start 3 nodes with sequential ports (10000, 10001, 10002) 
+- Automatically configure bootstrap peers for all nodes
+- Launch Prometheus in Docker for metrics collection
+- Provide a web interface at http://localhost:9090
+
+### Manual Single Node (Advanced)
+
+For direct binary testing (not recommended for most use cases):
 
 ```bash
 ./target/release/broadcast_network_stress_test_node \
@@ -67,30 +85,18 @@ Nodes take turns broadcasting in sequential order based on their ID. Each node b
     --mode all
 ```
 
-### Multi-Node Network
+### Advanced Local Testing
 
-Use the provided Python script for local multi-node testing:
+All commands should be run from the run directory:
 
 ```bash
 cd crates/apollo_network/src/bin/broadcast_network_stress_test_node/run
-python local.py --num-nodes 3 --verbosity 3 --mode rr
-```
 
-This will:
-- Compile the binary if needed
-- Start 3 nodes with sequential ports (10000, 10001, 10002)
-- Launch Prometheus for metrics collection
-- Provide a web interface at http://localhost:9090
-
-### Advanced Local Testing
-
-```bash
 # Test round-robin mode with custom timing
 python local.py --num-nodes 5 --mode rr --round-duration-seconds 10 --heartbeat-millis 100
 
 # Test single broadcaster mode
 python local.py --num-nodes 3 --mode one --broadcaster 0 --message-size-bytes 4096
-
 ```
 
 ## Kubernetes Deployment
@@ -191,7 +197,8 @@ python cluster_start.py --num-nodes 5 --throughput 500 --heartbeat-millis 10 --m
 
 ### Large Message Testing
 ```bash
-# Test with 64KB messages in single broadcaster mode
+# Test with 64KB messages in single broadcaster mode (run from the run directory)
+cd crates/apollo_network/src/bin/broadcast_network_stress_test_node/run
 python local.py --num-nodes 3 --message-size-bytes 65536 --heartbeat-millis 100 --mode one
 ```
 
@@ -253,7 +260,7 @@ Modify `NetworkConfig` parameters in `main.rs` for different P2P behaviors:
 
 **Out-of-order messages**: This is normal in P2P networks. Monitor the `messages_out_of_order_total` metric to understand network behavior patterns.
 
-**Prometheus not scraping**: Confirm metric ports are accessible and Prometheus configuration includes all node endpoints. Check firewall rules and network policies.
+**Prometheus not scraping**: Confirm metric ports are accessible and Prometheus configuration includes all node endpoints. When using the local script, Prometheus runs in Docker and automatically configures all node endpoints. Check firewall rules and ensure Docker is running properly.
 
 **Docker permission errors for throttling**: Ensure privileged mode is enabled for network traffic shaping. The container needs CAP_NET_ADMIN capability.
 
@@ -263,6 +270,10 @@ Modify `NetworkConfig` parameters in `main.rs` for different P2P behaviors:
 
 Enable verbose logging for detailed P2P communication:
 ```bash
+# For local script (default verbosity is 2)
+python local.py --verbosity 5
+
+# For direct binary usage
 --verbosity 5
 ```
 

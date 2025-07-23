@@ -1,7 +1,10 @@
 import argparse
 
 
-def add_broadcast_stress_test_node_arguments_to_parser(parser: argparse.ArgumentParser):
+def add_shared_args_to_parser(parser: argparse.ArgumentParser):
+    """
+    Adds the arguments that are shared between the local and cluster deployment scripts
+    """
     parser.add_argument(
         "--num-nodes", help="Number of nodes to run", type=int, default=3
     )
@@ -39,13 +42,19 @@ def add_broadcast_stress_test_node_arguments_to_parser(parser: argparse.Argument
         "--broadcaster",
         help="In mode `one`, which node ID should do the broadcasting",
         type=int,
-        default=1,
+        default=None,
     )
     parser.add_argument(
         "--round-duration-seconds",
         help="Duration each node broadcasts before switching (in seconds) - for RoundRobin mode",
         type=int,
         default=3,
+    )
+    parser.add_argument(
+        "--tcp",
+        help="Sets the multi-addresses to use TCP instead of UDP/QUIC",
+        action="store_true",
+        default=True,
     )
 
 
@@ -65,7 +74,14 @@ def get_arguments(
         ("--message-size-bytes", str(args.message_size_bytes)),
         ("--heartbeat-millis", str(args.heartbeat_millis)),
         ("--mode", str(args.mode)),
-        ("--broadcaster", str(args.broadcaster)),
+        (
+            "--broadcaster",
+            (
+                str(args.broadcaster)
+                if args.broadcaster is not None
+                else str(args.num_nodes - 1)
+            ),
+        ),
         ("--round-duration-seconds", str(args.round_duration_seconds)),
         ("--num-nodes", str(args.num_nodes)),
     ]
