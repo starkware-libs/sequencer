@@ -1,0 +1,17 @@
+{
+  "node_ids": [0, 1, 2],
+  "http_server_ingress_alternative_name": "apollo-stresstest-dev.sw-dev.io",
+  "ingress_domain": "sw-dev.io",
+  "secret_name_format": "apollo-stresstest-dev-{}",
+  "node_namespace_format": "apollo-stresstest-dev-{}",
+  "starknet_contract_address": "0x4fA369fEBf0C574ea05EC12bC0e1Bc9Cd461Dd0f",
+  "chain_id_string": "INTERNAL_STRESS_TEST",
+  "eth_fee_token_address": "0x7e813ecf3e7b3e14f07bd2f68cb4a3d12110e3c75ec5a63de3d2dacf1852904",
+  "starknet_gateway_url": "http://feeder-gateway.starknet-0-14-0-stress-test-03:9713/",
+  "strk_fee_token_address": "0x2208cce4221df1f35943958340abc812aa79a8f6a533bff4ee00416d3d06cd6",
+  "l1_startup_height_override": null,
+  "state_sync_type": "Central",
+  "p2p_communication_type": "Internal",
+  "deployment_environment": "StressTest",
+  "requires_k8s_service_config_params": false
+}

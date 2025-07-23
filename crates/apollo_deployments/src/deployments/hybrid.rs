@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::net::{IpAddr, Ipv4Addr};
 
+use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_infra_utils::template::Template;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
@@ -20,7 +21,12 @@ use crate::config_override::{
     NetworkConfigOverride,
 };
 use crate::deployment::{build_service_namespace_domain_address, Deployment, P2PCommunicationType};
-use crate::deployment_definitions::{CloudK8sEnvironment, Environment, ServicePort};
+use crate::deployment_definitions::{
+    CloudK8sEnvironment,
+    DeploymentInputs,
+    Environment,
+    ServicePort,
+};
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
@@ -460,7 +466,53 @@ fn get_http_server_component_config(
     config
 }
 
-// TODO(Tsaabry): unify these into inner structs.
+/// Loads the hybrid deployments from the given input file and returns a vector of `Deployment`.
+pub(crate) fn load_and_create_hybrid_deployments(input_file: &str) -> Vec<Deployment> {
+    let inputs =
+        DeploymentInputs::load_from_file(resolve_project_relative_path(input_file).unwrap());
+    hybrid_deployments(&inputs)
+}
+
+fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
+    inputs
+        .node_ids
+        .iter()
+        .map(|&i| {
+            let k8s_service_config_params = if inputs.requires_k8s_service_config_params {
+                Some(K8sServiceConfigParams::new(
+                    inputs.node_namespace_format.format(&[&i]),
+                    inputs.ingress_domain.clone(),
+                    inputs.p2p_communication_type,
+                ))
+            } else {
+                None
+            };
+            hybrid_deployment(
+                i,
+                inputs.p2p_communication_type,
+                inputs.deployment_environment.clone(),
+                &Template::new(INSTANCE_NAME_FORMAT),
+                &inputs.secret_name_format,
+                DeploymentConfigOverride::new(
+                    &inputs.starknet_contract_address,
+                    &inputs.chain_id_string,
+                    &inputs.eth_fee_token_address,
+                    inputs.starknet_gateway_url.clone(),
+                    &inputs.strk_fee_token_address,
+                    inputs.l1_startup_height_override,
+                    inputs.node_ids.len(),
+                    inputs.state_sync_type.clone(),
+                ),
+                &inputs.node_namespace_format,
+                &inputs.ingress_domain,
+                &inputs.http_server_ingress_alternative_name,
+                k8s_service_config_params,
+            )
+        })
+        .collect()
+}
+
+// TODO(Tsabary): unify these into inner structs.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn hybrid_deployment(
     id: usize,

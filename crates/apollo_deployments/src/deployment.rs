@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::config_override::ConfigOverride;
 use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
@@ -136,7 +136,7 @@ pub(crate) fn build_service_namespace_domain_address(
 
 // TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be
 // removed, and the p2p address should always be `External`.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum P2PCommunicationType {
     Internal,
     External,
