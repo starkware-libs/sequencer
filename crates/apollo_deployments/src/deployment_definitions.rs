@@ -6,6 +6,7 @@ use apollo_infra_utils::template::Template;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use starknet_api::block::BlockNumber;
+use strum::EnumIter;
 use strum_macros::{Display, EnumString};
 use url::Url;
 
@@ -166,4 +167,25 @@ pub enum ServicePort {
     StateSync,
     HttpServer,
     MonitoringEndpoint,
+}
+
+#[derive(Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
+pub enum ComponentConfigInService {
+    BaseLayer,
+    Batcher,
+    ClassManager,
+    Consensus,
+    General, // General configs that are not specific to any service
+    Gateway,
+    HttpServer,
+    L1EndpointMonitor,
+    L1GasPriceProvider,
+    L1GasPriceScraper,
+    L1Provider,
+    L1Scraper,
+    Mempool,
+    MempoolP2p,
+    MonitoringEndpoint,
+    SierraCompiler,
+    StateSync,
 }
