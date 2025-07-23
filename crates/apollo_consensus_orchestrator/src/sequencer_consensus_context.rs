@@ -66,7 +66,7 @@ use tokio_util::task::AbortOnDropHandle;
 use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
 use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
-use crate::cende::{BlobParameters, CendeContext};
+use crate::cende::{BlobParameters, CendeContext, InternalTransactionWithReceipt};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
 use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
@@ -458,14 +458,46 @@ impl ConsensusContext for SequencerConsensusContext {
         let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
             self.batcher_decision_reached(proposal_id).await;
 
-        // Remove transactions that were not accepted by the Batcher, so `transactions` and
-        // `central_objects.execution_infos` correspond to the same list of (only accepted)
-        // transactions.
-        let transactions: Vec<InternalConsensusTransaction> = transactions
-            .concat()
-            .into_iter()
-            .filter(|tx| central_objects.execution_infos.contains_key(&tx.tx_hash()))
-            .collect();
+        // Convert the execution infos to `InternalTransactionWithReceipt` format.
+        // This is done by matching the transaction hashes in IndexMap<tx hash,execution info> with
+        // the transactions returned by the batcher.
+        //
+        // Only successfully executed transactions will have execution infos.
+        //
+        // This data structure preserves the order of transactions as they were listed in
+        // execution_infos.
+        let transactions_with_execution_infos: Vec<InternalTransactionWithReceipt> =
+            central_objects
+                .execution_infos
+                .into_iter()
+                .map(|(tx_hash, execution_info)| {
+                    let found_tx = transactions
+                        .iter()
+                        .flatten()
+                        .filter(|tx| tx.tx_hash() == tx_hash)
+                        .collect::<Vec<_>>();
+
+                    if found_tx.len() > 1 {
+                        Result::Err(
+                            "Found multiple (possibly identical) transactions with the same hash, \
+                             this should never happen.",
+                        )
+                    } else if found_tx.is_empty() {
+                        Result::Err(
+                            "Failed to find transaction for execution info, this should never \
+                             happen.",
+                        )
+                    } else {
+                        Result::Ok(InternalTransactionWithReceipt {
+                            transaction: found_tx[0].clone(),
+                            execution_info,
+                        })
+                    }
+                })
+                .collect::<Result<Vec<_>, &str>>()
+                .unwrap_or_else(|e| {
+                    panic!("Failed to convert execution infos: {e:?}");
+                });
 
         let gas_target = VersionedConstants::latest_constants().gas_target;
         if self.config.constant_l2_gas_price {
@@ -509,17 +541,21 @@ impl ConsensusContext for SequencerConsensusContext {
         };
 
         // Divide transactions hashes to L1Handler and RpcTransaction hashes.
-        let account_transaction_hashes = transactions
+        let account_transaction_hashes = transactions_with_execution_infos
             .iter()
-            .filter_map(|tx| match tx {
-                InternalConsensusTransaction::RpcTransaction(_) => Some(tx.tx_hash()),
+            .filter_map(|tx_with_receipt| match tx_with_receipt.transaction {
+                InternalConsensusTransaction::RpcTransaction(_) => {
+                    Some(tx_with_receipt.transaction.tx_hash())
+                }
                 _ => None,
             })
             .collect::<Vec<TransactionHash>>();
-        let l1_transaction_hashes = transactions
+        let l1_transaction_hashes = transactions_with_execution_infos
             .iter()
-            .filter_map(|tx| match tx {
-                InternalConsensusTransaction::L1Handler(_) => Some(tx.tx_hash()),
+            .filter_map(|tx_with_receipt| match tx_with_receipt.transaction {
+                InternalConsensusTransaction::L1Handler(_) => {
+                    Some(tx_with_receipt.transaction.tx_hash())
+                }
                 _ => None,
             })
             .collect::<Vec<TransactionHash>>();
@@ -532,11 +568,6 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         self.sync_add_new_block(sync_block).await;
 
-        // Strip the transaction hashes from `execution_infos`, since we don't use it in the blob
-        // version of `execution_infos`.
-        let stripped_execution_infos =
-            central_objects.execution_infos.into_iter().map(|(_, info)| info).collect();
-
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
         // `prepare_blob_for_next_height` is called with the correct parameters.
@@ -547,8 +578,7 @@ impl ConsensusContext for SequencerConsensusContext {
                 block_info: cende_block_info,
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
-                transactions,
-                execution_infos: stripped_execution_infos,
+                transactions_with_execution_infos,
                 bouncer_weights: central_objects.bouncer_weights,
                 casm_hash_computation_data_sierra_gas: central_objects
                     .casm_hash_computation_data_sierra_gas,
