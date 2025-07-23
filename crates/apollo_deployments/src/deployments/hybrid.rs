@@ -38,7 +38,7 @@ use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInne
 use crate::utils::{determine_port_numbers, get_validator_id};
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 8;
-pub(crate) const INSTANCE_NAME_FORMAT: Template = Template("hybrid_{}");
+pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const CORE_STORAGE: usize = 1000;
