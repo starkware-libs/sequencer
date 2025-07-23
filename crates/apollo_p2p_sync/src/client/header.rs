@@ -10,6 +10,7 @@ use futures::future::BoxFuture;
 use futures::{FutureExt, StreamExt};
 use starknet_api::block::{BlockHash, BlockHeader, BlockNumber, BlockSignature};
 use starknet_api::hash::StarkHash;
+use tokio::time::{timeout, Duration};
 use tracing::debug;
 
 use super::block_data_stream_builder::{
@@ -85,11 +86,14 @@ impl BlockDataStreamBuilder<SignedBlockHeader> for HeaderStreamBuilder {
         _storage_reader: &'a StorageReader,
     ) -> BoxFuture<'a, Result<Option<Self::Output>, ParseDataError>> {
         async move {
-            let maybe_signed_header = signed_headers_response_manager.next().await.ok_or(
-                ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
-                    type_description: Self::TYPE_DESCRIPTION,
-                }),
-            )?;
+            let maybe_signed_header =
+                timeout(Duration::from_secs(5), signed_headers_response_manager.next())
+                    .await
+                    .ok()
+                    .flatten()
+                    .ok_or(ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
+                        type_description: Self::TYPE_DESCRIPTION,
+                    }))?;
             let Some(signed_block_header) = maybe_signed_header?.0 else {
                 return Ok(None);
             };
