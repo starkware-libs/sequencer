@@ -1,4 +1,5 @@
 use apollo_batcher::metrics::STORAGE_HEIGHT;
+use apollo_consensus_manager::metrics::CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -26,6 +27,14 @@ pub async fn get_batcher_latest_block_number(
     )
     .prev() // The metric is the height marker so we need to subtract 1 to get the latest.
     .expect("Storage height should be at least 1.")
+}
+
+/// Gets the latest consensus proposal sent from the consensus metrics.
+pub async fn get_consensus_proposals_sent(consensus_monitoring_client: &MonitoringClient) -> u64 {
+    consensus_monitoring_client
+        .get_metric::<u64>(CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES.get_name())
+        .await
+        .expect("Failed to get consensus proposals sent metric.")
 }
 
 /// Gets the latest block number from the sync's metrics.
