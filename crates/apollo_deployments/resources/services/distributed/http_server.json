@@ -24,7 +24,7 @@
   "components.gateway.ip": "0.0.0.0",
   "components.gateway.local_server_config.channel_capacity": 128,
   "components.gateway.max_concurrency": 8,
-  "components.gateway.port": 15002,
+  "components.gateway.port": 55002,
   "components.gateway.remote_client_config.idle_connections": 0,
   "components.gateway.remote_client_config.idle_timeout": 30,
   "components.gateway.remote_client_config.retries": 150,

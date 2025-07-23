@@ -298,7 +298,6 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
-        "ConsensusManager": 53080,
         "SignatureManager": 55009,
         "MonitoringEndpoint": 8082
       }
