@@ -9,6 +9,7 @@ use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use expect_test::expect;
 use log::info;
+use rstest::rstest;
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
@@ -29,10 +30,16 @@ use crate::vm_utils::LoadCairoObject;
 /// Expected Poseidon hash for the test contract.
 const EXPECTED_HASH: expect_test::Expect =
     expect!["2699987117682355879179743666679201177869698343279118564476128749435926450101"];
+const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT: expect_test::Expect =
+    expect!["range_check: 0, poseidon: 10290"];
+const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT: expect_test::Expect =
+    expect!["range_check: 149, poseidon: 300"];
 
 // TODO(Aviv): Share this test with compiled class hash blake test.
-#[test]
-fn test_compiled_class_hash_poseidon() -> Cairo0EntryPointRunnerResult<()> {
+#[rstest]
+fn test_compiled_class_hash_poseidon(
+    #[values(true, false)] load_full_contract: bool,
+) -> Cairo0EntryPointRunnerResult<()> {
     // Set up the entry point runner configuration.
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
@@ -72,7 +79,10 @@ fn test_compiled_class_hash_poseidon() -> Cairo0EntryPointRunnerResult<()> {
     .unwrap();
     hint_locals.insert("bytecode_segment_structure".to_string(), any_box!(bytecode_structure));
     // Set leaf_always_accessed to true in the root level exec scope.
-    hint_locals.insert(<&'static str>::from(Scope::LeafAlwaysAccessed).to_string(), any_box!(true));
+    hint_locals.insert(
+        <&'static str>::from(Scope::LeafAlwaysAccessed).to_string(),
+        any_box!(load_full_contract),
+    );
     // Use the Poseidon version.
     let (mut runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
@@ -112,8 +122,44 @@ fn test_compiled_class_hash_poseidon() -> Cairo0EntryPointRunnerResult<()> {
     .unwrap();
 
     // Verify we got a return value.
-    assert_eq!(explicit_return_values.len(), 1, "Expected exactly one return value");
-    assert!(!implicit_return_values.is_empty(), "Expected implicit return values");
+    assert_eq!(
+        explicit_return_values.len(),
+        1,
+        "Expected exactly one return value - the hash result"
+    );
+    assert_eq!(
+        implicit_return_values.len(),
+        implicit_args.len(),
+        "Expected implicit return values - the number of builtins used"
+    );
+
+    // Build the actual builtin usage string for comparison.
+    let mut actual_builtin_usage_parts = Vec::new();
+    for (builtin_index, implicit_return_value) in implicit_return_values.iter().enumerate() {
+        match implicit_return_value {
+            EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(count))) => {
+                let builtin_name = match builtin_index {
+                    0 => "range_check",
+                    1 => "poseidon",
+                    _ => "unknown",
+                };
+                actual_builtin_usage_parts.push(format!("{builtin_name}: {count}"));
+            }
+            _ => {
+                panic!("Unexpected implicit return value format: {implicit_return_value:?}");
+            }
+        }
+    }
+    let actual_builtin_usage = actual_builtin_usage_parts.join(", ");
+
+    // Compare with expected builtin usage based on whether we're loading full or partial contract.
+    let expected_builtin_usage = if load_full_contract {
+        EXPECTED_BUILTIN_USAGE_FULL_CONTRACT
+    } else {
+        EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT
+    };
+    expected_builtin_usage.assert_eq(&actual_builtin_usage);
+
     // The return value should be a felt (the computed hash).
     let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(hash_computed_by_the_os))) =
         &explicit_return_values[0]
