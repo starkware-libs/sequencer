@@ -1082,7 +1082,16 @@ fn get_general_pod_state_crashloopbackoff() -> Alert {
         name: "pod_state_crashloopbackoff",
         title: "Pod State CrashLoopBackOff",
         alert_group: AlertGroup::General,
-        expr: format!("increase(cende_write_blob_failure{}[1h])", metric_label_filter!()),
+        expr: format!(
+            // Format the main query and append `reason="CrashLoopBackOff"` inside the label set
+            // Using absent trick to convert "NoData" to 0
+            "sum by(container, pod, namespace) \
+             (kube_pod_container_status_waiting_reason{}{label}) or \
+             absent(kube_pod_container_status_waiting_reason{}{label}) * 0",
+            &metric_label_filter!()[..metric_label_filter!().len() - 1],
+            &metric_label_filter!()[..metric_label_filter!().len() - 1],
+            label = ", reason=\"CrashLoopBackOff\"}"
+        ),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -1101,8 +1110,8 @@ fn get_general_pod_high_memory_utilization() -> Alert {
         title: "Pod High Memory Utilization ( >70% )",
         alert_group: AlertGroup::General,
         expr: format!(
-            "max(container_memory_working_set_bytes{0}) by (container, pod) / \
-             max(container_spec_memory_limit_bytes{0}) by (container, pod) * 100",
+            "max(container_memory_working_set_bytes{0}) by (container, pod, namespace) / \
+             max(container_spec_memory_limit_bytes{0}) by (container, pod, namespace) * 100",
             metric_label_filter!()
         ),
         conditions: &[AlertCondition {
@@ -1112,7 +1121,7 @@ fn get_general_pod_high_memory_utilization() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
+        severity: AlertSeverity::DayOnly,
         alert_env_filtering: AlertEnvFiltering::All,
     }
 }
@@ -1123,8 +1132,8 @@ fn get_general_pod_critical_memory_utilization() -> Alert {
         title: "Pod Critical Memory Utilization ( >85% )",
         alert_group: AlertGroup::General,
         expr: format!(
-            "max(container_memory_working_set_bytes{0}) by (container, pod) / \
-             max(container_spec_memory_limit_bytes{0}) by (container, pod) * 100",
+            "max(container_memory_working_set_bytes{0}) by (container, pod, namespace) / \
+             max(container_spec_memory_limit_bytes{0}) by (container, pod, namespace) * 100",
             metric_label_filter!()
         ),
         conditions: &[AlertCondition {
@@ -1145,8 +1154,8 @@ fn get_general_pod_high_cpu_utilization() -> Alert {
         title: "Pod High CPU Utilization ( >90% )",
         alert_group: AlertGroup::General,
         expr: format!(
-            "max(irate(container_cpu_usage_seconds_total{0}[2m])) by (container, pod) / \
-             (max(container_spec_cpu_quota{0}/100000) by (container, pod)) * 100",
+            "max(irate(container_cpu_usage_seconds_total{0}[2m])) by (container, pod, namespace) \
+             / (max(container_spec_cpu_quota{0}/100000) by (container, pod, namespace)) * 100",
             metric_label_filter!()
         ),
         conditions: &[AlertCondition {
@@ -1179,7 +1188,7 @@ fn get_general_pod_high_disk_utilization() -> Alert {
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
+        severity: AlertSeverity::DayOnly,
         alert_env_filtering: AlertEnvFiltering::All,
     }
 }

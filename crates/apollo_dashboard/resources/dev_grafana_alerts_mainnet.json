@@ -652,7 +652,7 @@
       "name": "pod_state_crashloopbackoff",
       "title": "Pod State CrashLoopBackOff",
       "ruleGroup": "general",
-      "expr": "increase(cende_write_blob_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "expr": "sum by(container, pod, namespace) (kube_pod_container_status_waiting_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", reason=\"CrashLoopBackOff\"}) or absent(kube_pod_container_status_waiting_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", reason=\"CrashLoopBackOff\"}) * 0",
       "conditions": [
         {
           "evaluator": {
@@ -679,7 +679,7 @@
       "name": "pod_state_high_memory_utilization",
       "title": "Pod High Memory Utilization ( >70% )",
       "ruleGroup": "general",
-      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod) * 100",
+      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
       "conditions": [
         {
           "evaluator": {
@@ -700,13 +700,13 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p3"
     },
     {
       "name": "pod_critical_memory_utilization",
       "title": "Pod Critical Memory Utilization ( >85% )",
       "ruleGroup": "general",
-      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod) * 100",
+      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
       "conditions": [
         {
           "evaluator": {
@@ -733,7 +733,7 @@
       "name": "pod_high_cpu_utilization",
       "title": "Pod High CPU Utilization ( >90% )",
       "ruleGroup": "general",
-      "expr": "max(irate(container_cpu_usage_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) by (container, pod) / (max(container_spec_cpu_quota{cluster=~\"$cluster\", namespace=~\"$namespace\"}/100000) by (container, pod)) * 100",
+      "expr": "max(irate(container_cpu_usage_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) by (container, pod, namespace) / (max(container_spec_cpu_quota{cluster=~\"$cluster\", namespace=~\"$namespace\"}/100000) by (container, pod, namespace)) * 100",
       "conditions": [
         {
           "evaluator": {
@@ -781,7 +781,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p2"
+      "severity": "p3"
     },
     {
       "name": "pod_critical_disk_utilization",
