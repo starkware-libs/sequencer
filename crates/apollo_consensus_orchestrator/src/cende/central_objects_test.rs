@@ -140,7 +140,7 @@ use super::{
     CentralTransactionWritten,
 };
 use crate::cende::central_objects::CentralCasmContractClass;
-use crate::cende::{AerospikeBlob, BlobParameters};
+use crate::cende::{AerospikeBlob, BlobParameters, InternalTransactionWithReceipt};
 
 // TODO(yael, dvir): add default object serialization tests.
 
@@ -641,14 +641,22 @@ fn input_txs_and_mock_class_manager() -> (Vec<InternalConsensusTransaction>, Moc
 // TODO(dvir): use real blob when possible.
 fn central_blob() -> AerospikeBlob {
     let (input_txs, mock_class_manager) = input_txs_and_mock_class_manager();
+
+    let transactions_with_execution_infos = input_txs
+        .iter()
+        .map(|tx| InternalTransactionWithReceipt {
+            transaction: tx.clone(),
+            execution_info: transaction_execution_info(),
+        })
+        .collect::<Vec<_>>();
+
     let blob_parameters = BlobParameters {
         block_info: block_info(),
         state_diff: thin_state_diff(),
         compressed_state_diff: Some(commitment_state_diff()),
-        transactions: input_txs,
+        transactions_with_execution_infos,
         bouncer_weights: central_bouncer_weights(),
         fee_market_info: central_fee_market_info(),
-        execution_infos: vec![transaction_execution_info()],
         casm_hash_computation_data_sierra_gas: central_casm_hash_computation_data(),
         casm_hash_computation_data_proving_gas: central_casm_hash_computation_data(),
     };
