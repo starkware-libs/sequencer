@@ -402,11 +402,8 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             self.gas_costs().syscalls.meta_tx_v0.get_syscall_cost(u64_from_usize(calldata.len()));
 
         self.pre_execute_syscall(remaining_gas, total_gas_cost)?;
-        self.increment_syscall_count_by(&SyscallSelector::Deploy, 1);
-        self.increment_syscall_linear_factor_by(
-            &SyscallSelector::MetaTxV0,
-            calldata.len(),
-        );
+        self.increment_syscall_count_by(&SyscallSelector::MetaTxV0, 1);
+        self.increment_syscall_linear_factor_by(&SyscallSelector::MetaTxV0, calldata.len());
 
         let contract_address = ContractAddress::try_from(address)
             .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
