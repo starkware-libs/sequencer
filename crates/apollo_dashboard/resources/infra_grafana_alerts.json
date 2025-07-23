@@ -1,0 +1,198 @@
+{
+  "alerts": [
+    {
+      "name": "pod_state_not_running",
+      "title": "Pod not running",
+      "ruleGroup": "infra",
+      "expr": "kube_pod_container_status_ready{cluster=~\"starknet-testnet-apollo-.*\",namespace=~\"apollo-sepolia-alpha-.*\"}",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "pod_state_crashloopbackoff",
+      "title": "Pod CrashLoopBackOff",
+      "ruleGroup": "infra",
+      "expr": "kube_pod_container_status_waiting_reason{namespace=~\"apollo-sepolia-integration-.*\", reason=\"CrashLoopBackOff\"}",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "pod_high_memory_utilization",
+      "title": "Pod High Memory Utilization ( >70% )",
+      "ruleGroup": "infra",
+      "expr": "max(container_memory_working_set_bytes{namespace=~\"apollo-sepolia-integration-.*\"}) by (container, pod)/ max(container_spec_memory_limit_bytes{namespace=~\"apollo-sepolia-integration-.*\"}) by (container, pod) * 100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              70,
+              0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "intervalSec": 30,
+      "severity": "p3"
+    },
+    {
+      "name": "pod_critical_memory_utilization",
+      "title": "Pod Critical Memory Utilization ( >85% )",
+      "ruleGroup": "infra",
+      "expr": "max(container_memory_working_set_bytes{namespace=~\"apollo-sepolia-integration-.*\"}) by (container, pod)/ max(container_spec_memory_limit_bytes{namespace=~\"apollo-sepolia-integration-.*\"}) by (container, pod) * 100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              85,
+              0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "pod_high_cpu_utilization",
+      "title": "Pod High CPU Utilization ( >90% )",
+      "ruleGroup": "infra",
+      "expr": "max(irate(container_cpu_usage_seconds_total{namespace=~\"apollo-sepolia-integration-.*\"}[2m])) by (container, pod) / (max(container_spec_cpu_quota{namespace=~\"apollo-sepolia-integration-.*\"}/100000) by (container, pod)) * 100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              90,
+              0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "intervalSec": 30,
+      "severity": "p3"
+    },
+    {
+      "name": "pod_high_disk_utilization",
+      "title": "PVC High Disk Utilization ( >70% )",
+      "ruleGroup": "infra",
+      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{namespace=~\"apollo-sepolia-integration-.*\"}) /(min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{namespace=~\"apollo-sepolia-integration-.*\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{namespace=~\"apollo-sepolia-integration-.*\"}))*100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              70,
+              0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "pod_critical_disk_utilization",
+      "title": "PVC Critical Disk Utilization ( >90% )",
+      "ruleGroup": "infra",
+      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{namespace=~\"apollo-sepolia-integration-.*\"}) /(min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{namespace=~\"apollo-sepolia-integration-.*\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{namespace=~\"apollo-sepolia-integration-.*\"}))*100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              90,
+              0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "5m",
+      "intervalSec": 30,
+      "severity": "p2"
+    }
+  ]
+}
