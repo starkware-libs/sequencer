@@ -14,7 +14,7 @@ use tracing::{debug, error, info};
 
 pub type LazyCatchUpHeight = Arc<OnceCell<BlockNumber>>;
 
-/// Cache's commits to be applied later. This flow is only relevant while the node is starting up.
+/// Caches commits to be applied later. This flow is only relevant while the node is starting up.
 #[derive(Clone)]
 pub struct Bootstrapper {
     /// The catch-up height for the bootstrapper is the batcher height (unless overridden
@@ -153,8 +153,6 @@ impl std::fmt::Debug for Bootstrapper {
     }
 }
 
-// TODO(noamsp): fix catch up height to use batcher height and not the latest block number in
-// storage.
 async fn l2_sync_task(
     l1_provider_client: SharedL1ProviderClient,
     batcher_client: SharedBatcherClient,
