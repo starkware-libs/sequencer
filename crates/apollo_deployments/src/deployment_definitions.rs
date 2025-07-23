@@ -27,8 +27,6 @@ mod upgrade_test;
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
 pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
-pub(crate) const BASE_APP_CONFIG_PATH: &str =
-    "crates/apollo_deployments/resources/base_app_config.json";
 
 type DeploymentFn = fn() -> Vec<Deployment>;
 
