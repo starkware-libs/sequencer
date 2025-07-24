@@ -29,18 +29,6 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
-        "Batcher": 55000,
-        "ClassManager": 55001,
-        "ConsensusManager": 53080,
-        "Gateway": 55002,
-        "L1EndpointMonitor": 55005,
-        "L1GasPriceProvider": 55003,
-        "L1Provider": 55004,
-        "Mempool": 55006,
-        "MempoolP2p": 53200,
-        "SierraCompiler": 55007,
-        "SignatureManager": 55009,
-        "StateSync": 55008,
         "HttpServer": 8080,
         "MonitoringEndpoint": 8082
       }
