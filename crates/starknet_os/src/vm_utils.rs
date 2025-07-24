@@ -10,6 +10,8 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
+use cairo_vm::vm::errors::vm_exception::{get_error_attr_value, get_location};
+use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::StarknetApiError;
 use starknet_types_core::felt::Felt;
@@ -281,7 +283,33 @@ pub(crate) fn write_to_temp_segment(
     Ok(ReadOnlySegment { start_ptr: segment_start_ptr, length: relocatable_data.len() })
 }
 
+/// Adds code snippets to the traceback of a VM exception.
 #[allow(dead_code)]
+pub(crate) fn get_traceback_with_code_snippet(runner: &CairoRunner) -> Option<String> {
+    // It's almost similar to `get_traceback` in `cairo_vm::vm::errors::vm_exception`, but we add
+    // code snippets to the traceback.
+    let mut traceback = String::new();
+    for (_fp, traceback_pc) in runner.vm.get_traceback_entries() {
+        if let (0, Some(ref attr)) =
+            (traceback_pc.segment_index, get_error_attr_value(traceback_pc.offset, runner))
+        {
+            traceback.push_str(attr)
+        }
+        match (traceback_pc.segment_index, get_location(traceback_pc.offset, runner, None)) {
+            (0, Some(location)) => {
+                traceback.push_str(&format!(
+                    "{}\n",
+                    location.to_string(&format!("(pc={})", traceback_pc))
+                ));
+                traceback.push_str(&get_code_snippet(location));
+            }
+            _ => traceback.push_str(&format!("Unknown location (pc={})\n", traceback_pc)),
+        }
+    }
+    (!traceback.is_empty())
+        .then(|| format!("Cairo traceback (most recent call last):\n{traceback}"))
+}
+
 /// Gets a code snippet from a file at a specific location.
 pub(crate) fn get_code_snippet(location: Location) -> String {
     let path = match location.input_file.filename.split_once("cairo/").map(|(_, rest)| rest) {
