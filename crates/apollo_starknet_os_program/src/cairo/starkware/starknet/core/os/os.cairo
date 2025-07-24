@@ -98,11 +98,11 @@ func main{
         state_update_pointers = StateUpdatePointers(segments=segments)
     %}
     local compiled_class_facts_bundle: CompiledClassFactsBundle* = new CompiledClassFactsBundle(
-            n_compiled_class_facts=n_compiled_class_facts,
-            compiled_class_facts=compiled_class_facts,
-            n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
-            deprecated_compiled_class_facts=deprecated_compiled_class_facts,
-        );
+        n_compiled_class_facts=n_compiled_class_facts,
+        compiled_class_facts=compiled_class_facts,
+        n_deprecated_compiled_class_facts=n_deprecated_compiled_class_facts,
+        deprecated_compiled_class_facts=deprecated_compiled_class_facts,
+    );
     with txs_range_check_ptr {
         execute_blocks(
             n_blocks=n_blocks,
