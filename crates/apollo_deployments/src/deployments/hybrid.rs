@@ -49,6 +49,7 @@ pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const CORE_STORAGE: usize = 1000;
+const TEST_CORE_STORAGE: usize = 1;
 const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
@@ -230,7 +231,14 @@ impl ServiceNameInner for HybridNodeServiceName {
                 | HybridNodeServiceName::Mempool
                 | HybridNodeServiceName::SierraCompiler => None,
             },
-            Environment::LocalK8s => None,
+            Environment::LocalK8s => match self {
+                HybridNodeServiceName::Core => Some(TEST_CORE_STORAGE),
+                HybridNodeServiceName::HttpServer
+                | HybridNodeServiceName::Gateway
+                | HybridNodeServiceName::L1
+                | HybridNodeServiceName::Mempool
+                | HybridNodeServiceName::SierraCompiler => None,
+            },
         }
     }
 
