@@ -287,21 +287,34 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::Batcher => {
+                            service_ports.insert(ServicePort::Batcher);
+                        }
+                        ServicePort::ClassManager => {
+                            service_ports.insert(ServicePort::ClassManager);
+                        }
+                        // TODO(Nadin): Move these to the L1 service once it's merged to main.
+                        ServicePort::L1EndpointMonitor => {
+                            service_ports.insert(ServicePort::L1EndpointMonitor);
+                        }
+                        ServicePort::L1GasPriceProvider => {
+                            service_ports.insert(ServicePort::L1GasPriceProvider);
+                        }
+                        ServicePort::L1Provider => {
+                            service_ports.insert(ServicePort::L1Provider);
+                        }
+                        ServicePort::StateSync => {
+                            service_ports.insert(ServicePort::StateSync);
+                        }
+                        ServicePort::ConsensusManager => {
+                            service_ports.insert(ServicePort::ConsensusManager);
+                        }
                         ServicePort::HttpServer
-                        | ServicePort::Batcher
-                        | ServicePort::ClassManager
-                        | ServicePort::ConsensusManager
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::StateSync
-                        | ServicePort::Mempool
                         | ServicePort::Gateway
+                        | ServicePort::Mempool
                         | ServicePort::MempoolP2p
                         | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }
@@ -325,9 +338,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
                         | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }
@@ -337,6 +348,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::Gateway => {
+                            service_ports.insert(ServicePort::Gateway);
+                        }
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
@@ -346,12 +360,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ServicePort::L1Provider
                         | ServicePort::StateSync
                         | ServicePort::Mempool
-                        | ServicePort::Gateway
                         | ServicePort::MempoolP2p
                         | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }
@@ -361,6 +372,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::Mempool => {
+                            service_ports.insert(ServicePort::Mempool);
+                        }
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
@@ -369,13 +383,10 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
                         | ServicePort::StateSync
-                        | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
                         | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SierraCompiler => {}
                     }
                 }
             }
@@ -385,6 +396,9 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
+                        ServicePort::SierraCompiler => {
+                            service_ports.insert(ServicePort::SierraCompiler);
+                        }
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
@@ -396,10 +410,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ServicePort::Mempool
                         | ServicePort::Gateway
                         | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {
-                            // TODO(Nadin): should define the ports for these services (if needed).
-                        }
+                        | ServicePort::SignatureManager => {}
                     }
                 }
             }
