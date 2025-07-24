@@ -196,7 +196,6 @@ async fn test_skip_validate(
         .expect_validate()
         .withf(move |tx| tx.execution_flags.validate == should_validate)
         .returning(|_| Ok(()));
-    mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
 
     let mut mock_mempool_client = MockMempoolClient::new();
     mock_mempool_client
@@ -212,7 +211,7 @@ async fn test_skip_validate(
     };
 
     tokio::task::spawn_blocking(move || {
-        let _ = stateful_validator.run_transaction_validations(
+        let _ = stateful_validator.run_validate_entry_point(
             &executable_tx,
             sender_nonce,
             mempool_client,
@@ -281,14 +280,12 @@ async fn test_skip_validate(
         message: "Transaction L2 gas price 0 is below the required threshold 10.".to_string(),
     })
 )]
-#[tokio::test]
-async fn validate_resource_bounds(
+fn validate_resource_bounds(
     #[case] prev_l2_gas_price: NonzeroGasPrice,
     #[case] min_gas_price_percentage: u8,
     #[case] tx_gas_price_per_unit: GasPrice,
     #[case] expected_result: Result<(), StarknetError>,
 ) {
-    let account_nonce = nonce!(0);
     let resource_bounds = ValidResourceBounds::AllResources(AllResourceBounds {
         l2_gas: ResourceBounds { max_price_per_unit: tx_gas_price_per_unit, ..Default::default() },
         ..Default::default()
@@ -296,8 +293,6 @@ async fn validate_resource_bounds(
     let executable_tx = executable_invoke_tx(invoke_tx_args!(resource_bounds));
 
     let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
-    mock_blockifier_validator.expect_get_nonce().return_once(move |_| Ok(account_nonce));
-    mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
     mock_blockifier_validator.expect_block_info().return_const(BlockInfo {
         gas_prices: GasPrices {
             strk_gas_prices: GasPriceVector {
@@ -309,7 +304,7 @@ async fn validate_resource_bounds(
         ..Default::default()
     });
 
-    let mut stateful_validator = StatefulTransactionValidator {
+    let stateful_validator = StatefulTransactionValidator {
         config: StatefulTransactionValidatorConfig {
             validate_resource_bounds: true,
             min_gas_price_percentage,
@@ -318,16 +313,7 @@ async fn validate_resource_bounds(
         blockifier_stateful_tx_validator: mock_blockifier_validator,
     };
 
-    let result = tokio::task::spawn_blocking(move || {
-        stateful_validator.run_transaction_validations(
-            &executable_tx,
-            account_nonce,
-            Arc::new(MockMempoolClient::new()),
-            tokio::runtime::Handle::current(),
-        )
-    })
-    .await
-    .unwrap();
+    let result = stateful_validator.validate_resource_bounds(&executable_tx);
     assert_eq!(result, expected_result);
 }
 
@@ -358,23 +344,14 @@ async fn test_is_valid_nonce(
     mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
     mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
 
-    let mut stateful_validator = StatefulTransactionValidator {
+    let stateful_validator = StatefulTransactionValidator {
         config: StatefulTransactionValidatorConfig { max_allowed_nonce_gap, ..Default::default() },
         blockifier_stateful_tx_validator: mock_blockifier_validator,
     };
-
-    let executable_tx = executable_invoke_tx(invoke_tx_args!(
-        nonce: tx_nonce,
-        resource_bounds: ValidResourceBounds::create_for_testing(),
-    ));
+    let executable_tx = executable_invoke_tx(invoke_tx_args!(nonce: tx_nonce));
 
     let result = tokio::task::spawn_blocking(move || {
-        stateful_validator.run_transaction_validations(
-            &executable_tx,
-            account_nonce,
-            Arc::new(MockMempoolClient::new()),
-            tokio::runtime::Handle::current(),
-        )
+        stateful_validator.validate_nonce(&executable_tx, account_nonce)
     })
     .await
     .unwrap()
@@ -394,12 +371,11 @@ async fn test_reject_future_declares(
     #[case] account_nonce_diff: i32,
     #[case] expected_result_code: Result<(), StarknetErrorCode>,
 ) {
+    let config = StatefulTransactionValidatorConfig {
+        reject_future_declare_txs: true,
+        ..Default::default()
+    };
     let account_nonce = 10;
-
-    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
-    mock_blockifier_validator.expect_get_nonce().return_once(move |_| Ok(nonce!(account_nonce)));
-    mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
-    mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
 
     let executable_tx = executable_declare_tx(
         declare_tx_args!(nonce: nonce!(account_nonce + account_nonce_diff)),
@@ -408,21 +384,13 @@ async fn test_reject_future_declares(
         ),
     );
 
-    let mut stateful_validator = StatefulTransactionValidator {
-        config: StatefulTransactionValidatorConfig::default(),
-        blockifier_stateful_tx_validator: mock_blockifier_validator,
+    let stateful_validator = StatefulTransactionValidator {
+        config,
+        blockifier_stateful_tx_validator: MockBlockifierStatefulValidatorTrait::new(),
     };
 
-    let result = tokio::task::spawn_blocking(move || {
-        stateful_validator.run_transaction_validations(
-            &executable_tx,
-            nonce!(account_nonce),
-            Arc::new(MockMempoolClient::new()),
-            tokio::runtime::Handle::current(),
-        )
-    })
-    .await
-    .unwrap()
-    .map_err(|err| err.code);
+    let result = stateful_validator
+        .validate_nonce(&executable_tx, nonce!(account_nonce))
+        .map_err(|err| err.code);
     assert_eq!(result, expected_result_code);
 }
