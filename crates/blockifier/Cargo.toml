@@ -16,6 +16,7 @@ cairo_native = [
   "dep:apollo_compile_to_native",
   "dep:cairo-native",
 ]
+mocks = []
 native_blockifier = []
 node_api = []
 reexecution = ["transaction_serde"]
