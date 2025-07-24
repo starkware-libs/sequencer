@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
-use blockifier::execution::execution_utils::compute_blake_hash_steps;
+use blockifier::execution::execution_utils::blake_hash_execution_resources;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -19,7 +19,7 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 
-// TODO(AvivG): Add test estimation for builtins usage and gas (including blake opcode evaluation).
+// TODO(AvivG): Add test for gas usage estimation (including blake opcode evaluation).
 fn validate_estimation(cairo_runner: &CairoRunner, test_data: &[Felt]) {
     // TODO(AvivG): Use `Blake2Felt252::SMALL_THRESHOLD` when exposed.
     const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000"); // 2^63
@@ -28,11 +28,32 @@ fn validate_estimation(cairo_runner: &CairoRunner, test_data: &[Felt]) {
         if *felt >= SMALL_THRESHOLD { (small, big + 1) } else { (small + 1, big) }
     });
 
-    // TODO(AvivG): Investigate the 6-step discrepancy.
-    let expected_steps = compute_blake_hash_steps(n_big_felts, n_small_felts) - 6;
+    let expected_resources = blake_hash_execution_resources(n_big_felts, n_small_felts);
 
+    // TODO(AvivG): Investigate the 6-step discrepancy.
+    let expected_steps = expected_resources.n_steps - 6;
     let actual_steps = cairo_runner.vm.get_current_step();
     assert_eq!(actual_steps, expected_steps);
+
+    // TODO(AvivG): This is a temporary adjustment. Investigate the +3 discrepancy in `range_check`
+    // usage.
+    let mut expected_builtins = expected_resources.builtin_instance_counter.clone();
+    expected_builtins.entry(BuiltinName::range_check).and_modify(|count| *count += 3);
+
+    // Validate actual usage against expected usage for each builtin.
+    for builtin in &cairo_runner.vm.builtin_runners {
+        let actual_usage = builtin.get_used_instances(&cairo_runner.vm.segments).unwrap();
+        let expected_usage = expected_builtins[&builtin.name()];
+
+        assert_eq!(
+            actual_usage,
+            expected_usage,
+            "{:?} builtin usage mismatch. Actual: {}, Expected: {}",
+            builtin.name(),
+            actual_usage,
+            expected_usage,
+        );
+    }
 }
 
 /// Test that compares Cairo and Rust implementations of
