@@ -339,7 +339,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
-        "StateSync": 55008,
+        "StateSync": 55009,
         "MonitoringEndpoint": 8082
       }
     }
