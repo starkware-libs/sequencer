@@ -1,10 +1,13 @@
 use std::fmt::{Display, Write};
 
+use serde::Deserialize;
+
 #[cfg(test)]
 #[path = "template_test.rs"]
 mod template_test;
 
 /// A simple positional template with `{}` placeholders.
+#[derive(Debug, Deserialize)]
 pub struct Template(pub String);
 
 impl Template {
