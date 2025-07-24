@@ -37,6 +37,8 @@ pub const DEPLOYMENTS: &[DeploymentFn] = &[
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
 pub(crate) const DEPLOYMENT_CONFIG_DIR_NAME: &str = "deployments/";
 
+const BASE_APP_CONFIGS_DIR_PATH: &str = "crates/apollo_deployments/resources/app_configs";
+
 const POTC2_DEPLOYMENT_INPUTS_PATH: &str =
     "crates/apollo_deployments/resources/deployment_inputs/potc2_sepolia.json";
 const MAINNET_DEPLOYMENT_INPUTS_PATH: &str =
@@ -175,7 +177,7 @@ pub enum ComponentConfigInService {
     Batcher,
     ClassManager,
     Consensus,
-    General, // General configs that are not specific to any service
+    General, // General configs that are not specific to any service, e.g., pointer targets.
     Gateway,
     HttpServer,
     L1EndpointMonitor,
@@ -188,4 +190,47 @@ pub enum ComponentConfigInService {
     MonitoringEndpoint,
     SierraCompiler,
     StateSync,
+}
+
+impl ComponentConfigInService {
+    pub fn get_component_config_names(&self) -> Vec<String> {
+        match self {
+            ComponentConfigInService::BaseLayer => vec!["base_layer_config".to_string()],
+            ComponentConfigInService::Batcher => vec!["batcher_config".to_string()],
+            ComponentConfigInService::ClassManager => vec!["class_manager_config".to_string()],
+            ComponentConfigInService::Consensus => vec!["consensus_manager_config".to_string()],
+            ComponentConfigInService::General => vec![
+                "revert_config".to_string(),
+                "versioned_constants_overrides_config".to_string(),
+                "validate_resource_bounds_config".to_string(),
+            ],
+            ComponentConfigInService::Gateway => vec!["gateway_config".to_string()],
+            ComponentConfigInService::HttpServer => vec!["http_server_config".to_string()],
+            ComponentConfigInService::L1EndpointMonitor => {
+                vec!["l1_endpoint_monitor_config".to_string()]
+            }
+            ComponentConfigInService::L1GasPriceProvider => {
+                vec!["l1_gas_price_provider_config".to_string()]
+            }
+            ComponentConfigInService::L1GasPriceScraper => {
+                vec!["l1_gas_price_scraper_config".to_string()]
+            }
+            ComponentConfigInService::L1Provider => vec!["l1_provider_config".to_string()],
+            ComponentConfigInService::L1Scraper => vec!["l1_scraper_config".to_string()],
+            ComponentConfigInService::Mempool => vec!["mempool_config".to_string()],
+            ComponentConfigInService::MempoolP2p => vec!["mempool_p2p_config".to_string()],
+            ComponentConfigInService::MonitoringEndpoint => {
+                vec!["monitoring_endpoint_config".to_string()]
+            }
+            ComponentConfigInService::SierraCompiler => vec!["sierra_compiler_config".to_string()],
+            ComponentConfigInService::StateSync => vec!["state_sync_config".to_string()],
+        }
+    }
+
+    pub fn get_component_config_file_paths(&self) -> Vec<String> {
+        self.get_component_config_names()
+            .into_iter()
+            .map(|name| format!("{BASE_APP_CONFIGS_DIR_PATH}/{name}.json"))
+            .collect()
+    }
 }
