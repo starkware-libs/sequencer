@@ -15,7 +15,7 @@ use validator::Validate;
 /// The consensus manager related configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ConsensusManagerConfig {
-    pub consensus_config: ConsensusConfig,
+    pub consensus_manager_config: ConsensusConfig,
     pub context_config: ContextConfig,
     pub eth_to_strk_oracle_config: EthToStrkOracleConfig,
     pub stream_handler_config: StreamHandlerConfig,
@@ -66,7 +66,10 @@ impl SerializeConfig for ConsensusManagerConfig {
                 ParamPrivacyInput::Public,
             ),
         ]);
-        config.extend(prepend_sub_config_name(self.consensus_config.dump(), "consensus_config"));
+        config.extend(prepend_sub_config_name(
+            self.consensus_manager_config.dump(),
+            "consensus_manager_config",
+        ));
         config.extend(prepend_sub_config_name(self.context_config.dump(), "context_config"));
         config.extend(prepend_sub_config_name(
             self.eth_to_strk_oracle_config.dump(),
@@ -86,7 +89,7 @@ impl SerializeConfig for ConsensusManagerConfig {
 impl Default for ConsensusManagerConfig {
     fn default() -> Self {
         ConsensusManagerConfig {
-            consensus_config: ConsensusConfig::default(),
+            consensus_manager_config: ConsensusConfig::default(),
             context_config: ContextConfig::default(),
             eth_to_strk_oracle_config: EthToStrkOracleConfig::default(),
             stream_handler_config: StreamHandlerConfig::default(),
