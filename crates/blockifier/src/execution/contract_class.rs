@@ -325,6 +325,7 @@ impl CompiledClassV1 {
 ///
 /// Note: the function focuses on the bytecode size, and currently ignores the cost handling the
 /// class entry points.
+/// Also, this function is not backward compatible.
 pub fn estimate_casm_poseidon_hash_computation_resources(
     bytecode_segment_lengths: &NestedIntList,
 ) -> ExecutionResources {
@@ -334,7 +335,7 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
         NestedIntList::Leaf(length) => {
             // The entire contract is a single segment (old Sierra contracts).
             &ExecutionResources {
-                n_steps: 463,
+                n_steps: 464,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
             } + &poseidon_hash_many_cost(*length)
@@ -342,13 +343,13 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
         NestedIntList::Node(segments) => {
             // The contract code is segmented by its functions.
             let mut execution_resources = ExecutionResources {
-                n_steps: 480,
+                n_steps: 482,
                 n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
             };
             let base_segment_cost = ExecutionResources {
-                n_steps: 24,
-                n_memory_holes: 1,
+                n_steps: 27,
+                n_memory_holes: 0,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 1)]),
             };
             for segment in segments {
