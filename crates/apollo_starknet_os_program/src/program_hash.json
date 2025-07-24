@@ -1,11 +1,5 @@
 {
-<<<<<<< HEAD
-  "os": "0x7f84eecc97278430ec8916f8e8afead12c307d5f2c538d3fa7af02528e94703",
-||||||| 852f5e65f
-  "os": "0x4d52c0138abffbde5666bef62efb969583fe3cc07d5b936191f7b8bcc40e1e0",
-=======
-  "os": "0x72b034bed38ffd0e8d65190fe8cfcfdd7738c43cd053949f4366be1fa76c926",
->>>>>>> origin/main
+  "os": "0x16e330942de6d6d968c3a70db6c76a17e381e9af4cd7911882e75fd821f87f4",
   "aggregator": "0x181986bfe23bbfdac56c40522bd5c2b1b64c824c74bd6722a3ccacc8cc888e2",
   "aggregator_with_prefix": "0x1ae51bd7157e0754f1e1729806ad5579a7ac6926cd0c8dd342ad1e7a3758c2e"
 }
