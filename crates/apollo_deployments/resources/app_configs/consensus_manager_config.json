@@ -1,5 +1,4 @@
 {
-  "consensus_manager_config.#is_none": false,
   "consensus_manager_config.broadcast_buffer_size": 10000,
   "consensus_manager_config.cende_config.skip_write_height": 1,
   "consensus_manager_config.cende_config.skip_write_height.#is_none": false,

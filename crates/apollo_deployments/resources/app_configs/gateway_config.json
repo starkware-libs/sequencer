@@ -1,5 +1,4 @@
 {
-  "gateway_config.#is_none": false,
   "gateway_config.authorized_declarer_accounts": "",
   "gateway_config.authorized_declarer_accounts.#is_none": true,
   "gateway_config.block_declare": false,

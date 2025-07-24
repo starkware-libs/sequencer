@@ -1,5 +1,4 @@
 {
-  "class_manager_config.#is_none": false,
   "class_manager_config.class_manager_config.cached_class_storage_config.class_cache_size": 128,
   "class_manager_config.class_manager_config.cached_class_storage_config.deprecated_class_cache_size": 128,
   "class_manager_config.class_manager_config.max_compiled_contract_class_object_size": 4089446,
