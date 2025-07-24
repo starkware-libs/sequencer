@@ -1047,7 +1047,7 @@ fn verify_unique_names(alerts: &[Alert]) {
     }
 }
 
-fn get_mempool_evictions_count_alert() -> Alert {
+fn get_mempool_evictions_count_alert(threshold: f64, alert_env_filtering: AlertEnvFiltering) -> Alert {
     Alert {
         name: "mempool_evictions_count",
         title: "Mempool evictions count",
@@ -1055,18 +1055,23 @@ fn get_mempool_evictions_count_alert() -> Alert {
         expr: MEMPOOL_EVICTIONS_COUNT.get_name_with_filter().to_string(),
         conditions: &[AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
+            comparison_value: threshold,
             logical_op: AlertLogicalOp::And,
         }],
         pending_duration: PENDING_DURATION_DEFAULT,
         evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
         severity: AlertSeverity::Regular,
-        alert_env_filtering: AlertEnvFiltering::All,
+        alert_env_filtering
     }
 }
 
+
+
+
 pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     let alerts = vec![
+        get_mempool_evictions_count_alert(0, AlertEnvFiltering::TestnetStyleAlerts),
+        get_mempool_evictions_count_alert(07, AlertEnvFiltering::MainnetStyleAlerts),
         get_batched_transactions_stuck(),
         get_cende_write_blob_failure_alert(),
         get_cende_write_blob_failure_once_alert(),
