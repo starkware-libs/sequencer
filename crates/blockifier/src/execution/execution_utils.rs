@@ -436,7 +436,7 @@ fn felts_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
 /// Estimates the number of VM steps needed to hash the given felts with Blake in Starknet OS.
 /// Each small felt unpacks into 2 u32s, and each big felt into 8 u32s.
 /// Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
-fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
+pub fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
     let total_u32s = total_u32s_from_felts(n_big_felts, n_small_felts);
     let base_steps = base_steps_for_blake_hash(total_u32s);
     let felt_steps = felts_steps(n_big_felts, n_small_felts);
@@ -452,6 +452,20 @@ fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
     total_u32s.div_ceil(blake_encoding::N_U32S_MESSAGE)
 }
 
+pub fn blake_hash_execution_resources(
+    n_big_felts: usize,
+    n_small_felts: usize,
+) -> ExecutionResources {
+    let n_steps = compute_blake_hash_steps(n_big_felts, n_small_felts);
+    let n_felts =
+        n_big_felts.checked_add(n_small_felts).expect("Overflow computing total number of felts");
+
+    // One `range_check` per input felt to validate its size.
+    let builtins = HashMap::from([(BuiltinName::range_check, n_felts)]);
+
+    ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter: builtins }
+}
+
 /// Estimates the VM resources for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
 /// Assumes small felts unpack into 2 u32s and big felts into 8 u32s, matching the logic of the OS
 /// function being estimated.
@@ -465,14 +479,7 @@ pub fn cost_of_encode_felt252_data_and_calc_blake_hash<F>(
 where
     F: Fn(&ExecutionResources) -> GasAmount,
 {
-    let n_steps = compute_blake_hash_steps(n_big_felts, n_small_felts);
-    let n_felts =
-        n_big_felts.checked_add(n_small_felts).expect("Overflow computing total number of felts");
-
-    // One `range_check` per input felt to validate its size.
-    let builtins = HashMap::from([(BuiltinName::range_check, n_felts)]);
-    let resources =
-        ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter: builtins };
+    let resources = blake_hash_execution_resources(n_big_felts, n_small_felts);
     let gas = resources_to_gas_fn(&resources);
 
     let blake_op_count = count_blake_opcode(n_big_felts, n_small_felts);
