@@ -185,6 +185,35 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {}
+    },
+    {
+      "name": "StateSync",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "base_app_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/hybrid.json",
+        "services/hybrid/state_sync.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "ports": {}
     }
   ]
 }
