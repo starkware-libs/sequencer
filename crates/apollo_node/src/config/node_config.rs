@@ -191,7 +191,7 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub http_server_config: Option<HttpServerConfig>,
     #[validate]
-    pub compiler_config: Option<SierraCompilationConfig>,
+    pub sierra_compiler_config: Option<SierraCompilationConfig>,
     #[validate]
     pub l1_endpoint_monitor_config: Option<L1EndpointMonitorConfig>,
     #[validate]
@@ -223,7 +223,7 @@ impl SerializeConfig for SequencerNodeConfig {
             ser_optional_sub_config(&self.consensus_manager_config, "consensus_manager_config"),
             ser_optional_sub_config(&self.gateway_config, "gateway_config"),
             ser_optional_sub_config(&self.http_server_config, "http_server_config"),
-            ser_optional_sub_config(&self.compiler_config, "compiler_config"),
+            ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
             ser_optional_sub_config(&self.mempool_config, "mempool_config"),
             ser_optional_sub_config(&self.mempool_p2p_config, "mempool_p2p_config"),
             ser_optional_sub_config(&self.monitoring_endpoint_config, "monitoring_endpoint_config"),
@@ -256,7 +256,7 @@ impl Default for SequencerNodeConfig {
             consensus_manager_config: Some(ConsensusManagerConfig::default()),
             gateway_config: Some(GatewayConfig::default()),
             http_server_config: Some(HttpServerConfig::default()),
-            compiler_config: Some(SierraCompilationConfig::default()),
+            sierra_compiler_config: Some(SierraCompilationConfig::default()),
             l1_endpoint_monitor_config: Some(L1EndpointMonitorConfig::default()),
             l1_provider_config: Some(L1ProviderConfig::default()),
             l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
