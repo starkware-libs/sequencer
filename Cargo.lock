@@ -942,7 +942,6 @@ dependencies = [
 name = "apollo_compilation_utils"
 version = "0.15.0-rc.2"
 dependencies = [
- "apollo_infra_utils",
  "assert_matches",
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",

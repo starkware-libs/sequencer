@@ -26,4 +26,3 @@ toml_test_utils.workspace = true
 
 [build-dependencies]
 apollo_compilation_utils.workspace = true
-apollo_infra_utils.workspace = true
