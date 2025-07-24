@@ -123,7 +123,7 @@ pub(crate) fn log_remaining_blocks(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_blocks = get_integer_from_var_name(Ids::NBlocks.into(), vm, ids_data, ap_tracking)?;
-    log::debug!("execute_blocks: {n_blocks} blocks remaining.");
+    log::info!("execute_blocks: {n_blocks} blocks remaining.");
     Ok(())
 }
 
