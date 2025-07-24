@@ -163,12 +163,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
 
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
         match environment {
-            Environment::Testing => None,
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
+            Environment::CloudK8s(_) => match self {
                 DistributedNodeServiceName::Batcher => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::ClassManager => Some(Toleration::ApolloGeneralService),
                 DistributedNodeServiceName::ConsensusManager => Some(Toleration::ApolloCoreService),
@@ -181,7 +176,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 }
                 DistributedNodeServiceName::StateSync => Some(Toleration::ApolloGeneralService),
             },
-            _ => unimplemented!(),
+            Environment::LocalK8s => None,
         }
     }
 
@@ -221,12 +216,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
 
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
-            Environment::Testing => None,
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
+            Environment::CloudK8s(_) => match self {
                 DistributedNodeServiceName::Batcher => Some(BATCHER_STORAGE),
                 DistributedNodeServiceName::ClassManager => Some(CLASS_MANAGER_STORAGE),
                 DistributedNodeServiceName::ConsensusManager => None,
@@ -237,7 +227,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::SierraCompiler => None,
                 DistributedNodeServiceName::StateSync => Some(STATE_SYNC_STORAGE),
             },
-            _ => unimplemented!(),
+            Environment::LocalK8s => None,
         }
     }
 
@@ -251,12 +241,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool {
         match environment {
-            Environment::Testing => false,
-            Environment::SepoliaIntegration
-            | Environment::SepoliaTestnet
-            | Environment::UpgradeTest
-            | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
+            Environment::CloudK8s(_) => match self {
                 DistributedNodeServiceName::Batcher => true,
                 DistributedNodeServiceName::ClassManager => false,
                 DistributedNodeServiceName::ConsensusManager => false,
@@ -267,7 +252,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::SierraCompiler => false,
                 DistributedNodeServiceName::StateSync => false,
             },
-            _ => unimplemented!(),
+            Environment::LocalK8s => false,
         }
     }
 

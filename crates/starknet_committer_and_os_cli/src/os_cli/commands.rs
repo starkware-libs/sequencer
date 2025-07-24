@@ -19,6 +19,9 @@ use starknet_os::io::os_input::{OsBlockInput, OsHints, StarknetOsInput};
 use starknet_os::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use starknet_os::runner::{run_aggregator, run_os_stateless};
 use tracing::info;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::reload::Handle;
+use tracing_subscriber::Registry;
 
 use crate::os_cli::run_os_cli::{AggregatorCliOutput, OsCliOutput, ProgramToDump};
 use crate::shared_utils::read::{load_input, write_to_file};
@@ -81,8 +84,16 @@ pub(crate) fn validate_os_input(os_input: &StarknetOsInput) {
     }
 }
 
-pub(crate) fn parse_and_run_os(input_path: String, output_path: String) {
+pub(crate) fn parse_and_run_os(
+    input_path: String,
+    output_path: String,
+    log_filter_handle: Handle<LevelFilter, Registry>,
+) {
     let OsCliInput { layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
+    log_filter_handle
+        .modify(|filter| *filter = os_hints.os_hints_config.log_level())
+        .expect("Failed to set the log level.");
+
     validate_os_input(&os_hints.os_input);
 
     let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, .. } =
@@ -97,10 +108,17 @@ pub(crate) fn parse_and_run_os(input_path: String, output_path: String) {
     info!("OS program ran successfully.");
 }
 
-pub(crate) fn parse_and_run_aggregator(input_path: String, output_path: String) {
+pub(crate) fn parse_and_run_aggregator(
+    input_path: String,
+    output_path: String,
+    log_filter_handle: Handle<LevelFilter, Registry>,
+) {
     let AggregatorCliInput { layout, aggregator_input, cairo_pie_zip_path } =
         load_input(input_path);
     // TODO(Aner): Validate the aggregator input.
+    log_filter_handle
+        .modify(|filter| *filter = aggregator_input.log_level())
+        .expect("Failed to set the log level.");
 
     let StarknetAggregatorRunnerOutput { cairo_pie, unused_hints, .. } =
         run_aggregator(layout, aggregator_input)

@@ -71,7 +71,7 @@ enum Command {
 
 pub async fn run_os_cli(
     os_command: OsCliCommand,
-    _log_filter_handle: Handle<LevelFilter, Registry>,
+    log_filter_handle: Handle<LevelFilter, Registry>,
 ) {
     info!("Starting starknet-os-cli with command: \n{:?}", os_command);
     match os_command.command {
@@ -82,10 +82,10 @@ pub async fn run_os_cli(
             run_python_test::<OsPythonTestRunner>(python_test_arg).await;
         }
         Command::RunOsStateless { io_args: IoArgs { input_path, output_path } } => {
-            parse_and_run_os(input_path, output_path);
+            parse_and_run_os(input_path, output_path, log_filter_handle);
         }
         Command::RunAggregator { io_args: IoArgs { input_path, output_path } } => {
-            parse_and_run_aggregator(input_path, output_path);
+            parse_and_run_aggregator(input_path, output_path, log_filter_handle);
         }
     }
 }

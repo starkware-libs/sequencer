@@ -174,20 +174,28 @@ fn test_simple_input_parsing() {
         .unwrap(),
         HashMap::from([
             (
-                StarknetStorageKey(Felt::from_bytes_be_slice(&[
-                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 89, 0,
-                    0, 0, 0, 0, 0, 0,
-                ])),
+                StarknetStorageKey(
+                    Felt::from_bytes_be_slice(&[
+                        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 1, 0, 89,
+                        0, 0, 0, 0, 0, 0, 0,
+                    ])
+                    .try_into()
+                    .unwrap(),
+                ),
                 StarknetStorageValue(Felt::from_bytes_be_slice(&[
                     0, 0, 0, 0, 0, 14, 0, 0, 0, 45, 77, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0, 0,
                 ])),
             ),
             (
-                StarknetStorageKey(Felt::from_bytes_be_slice(&[
-                    0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0, 89,
-                    0, 0, 0, 0, 0, 0, 0,
-                ])),
+                StarknetStorageKey(
+                    Felt::from_bytes_be_slice(&[
+                        0, 0, 0, 0, 0, 98, 0, 0, 0, 156, 0, 0, 0, 0, 0, 11, 5, 0, 0, 0, 0, 0, 1, 0,
+                        89, 0, 0, 0, 0, 0, 0, 0,
+                    ])
+                    .try_into()
+                    .unwrap(),
+                ),
                 StarknetStorageValue(Felt::from_bytes_be_slice(&[
                     0, 0, 0, 0, 0, 0, 0, 0, 0, 45, 77, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                     0, 0, 0, 0, 0, 0,

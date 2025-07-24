@@ -98,7 +98,6 @@ impl MonitoringClient {
     }
 }
 
-// TODO(Tsabary): use socket instead of ip and port.
 pub(crate) fn build_request(ip: &IpAddr, port: u16, method: &str) -> Request<Body> {
     Request::builder()
         .uri(format!("http://{ip}:{port}/{MONITORING_PREFIX}/{method}").as_str())

@@ -37,7 +37,7 @@ pub(crate) fn log_remaining_txs(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_txs = get_integer_from_var_name(Ids::NTxs.into(), vm, ids_data, ap_tracking)?;
-    log::debug!("execute_transactions_inner: {n_txs} transactions remaining.");
+    log::info!("execute_transactions_inner: {n_txs} transactions remaining.");
     Ok(())
 }
 
