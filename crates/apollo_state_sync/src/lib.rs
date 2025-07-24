@@ -92,18 +92,14 @@ impl StateSync {
     fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
         let txn = self.storage_reader.begin_ro_txn()?;
 
-        let block_not_found_err = Err(StateSyncError::BlockNotFound(block_number));
-        let Some(block_header) = txn.get_block_header(block_number)? else {
-            return block_not_found_err;
-        };
-        let Some(block_transactions_with_hash) =
-            txn.get_block_transactions_with_hash(block_number)?
-        else {
-            return block_not_found_err;
-        };
-        let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
-            return block_not_found_err;
-        };
+        let block_header = txn
+            .get_block_header(block_number)?
+            .ok_or(StateSyncError::BlockNotFound(block_number))?;
+        let block_transactions_with_hash = txn
+            .get_block_transactions_with_hash(block_number)?
+            .ok_or(StateSyncError::BlockNotFound(block_number))?;
+        let thin_state_diff =
+            txn.get_state_diff(block_number)?.ok_or(StateSyncError::BlockNotFound(block_number))?;
 
         let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
         let mut account_transaction_hashes: Vec<TransactionHash> = vec![];
@@ -123,9 +119,11 @@ impl StateSync {
     }
 
     fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
-        // Getting the next block because the Sync block only contains parent hash.
-        let block = self.get_block(block_number.unchecked_next())?;
-        Ok(block.block_header_without_hash.parent_hash)
+        let txn = self.storage_reader.begin_ro_txn()?;
+        let block_header = txn
+            .get_block_header(block_number)?
+            .ok_or(StateSyncError::BlockNotFound(block_number))?;
+        Ok(block_header.block_hash)
     }
 
     fn get_storage_at(
