@@ -1,5 +1,4 @@
 {
-  "mempool_config.#is_none": false,
   "mempool_config.capacity_in_bytes": 1073741824,
   "mempool_config.committed_nonce_retention_block_count": 100,
   "mempool_config.declare_delay": 20,
