@@ -122,6 +122,7 @@
       },
       "anti_affinity": false,
       "ports": {
+        "Gateway": 55002,
         "MonitoringEndpoint": 8082
       }
     },
@@ -155,7 +156,6 @@
       },
       "anti_affinity": false,
       "ports": {
-        "Gateway": 55002,
         "MonitoringEndpoint": 8082
       }
     },
