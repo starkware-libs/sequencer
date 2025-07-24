@@ -94,14 +94,14 @@
   "components.sierra_compiler.remote_client_config.retries": 150,
   "components.sierra_compiler.remote_client_config.retry_interval": 1,
   "components.sierra_compiler.url": "sequencer-sierracompiler-service",
-  "components.state_sync.execution_mode": "LocalExecutionWithRemoteEnabled",
+  "components.state_sync.execution_mode": "LocalExecutionWithRemoteDisabled",
   "components.state_sync.ip": "0.0.0.0",
   "components.state_sync.local_server_config.channel_capacity": 128,
   "components.state_sync.max_concurrency": 8,
-  "components.state_sync.port": 55007,
+  "components.state_sync.port": 0,
   "components.state_sync.remote_client_config.idle_connections": 10,
   "components.state_sync.remote_client_config.idle_timeout": 30,
   "components.state_sync.remote_client_config.retries": 150,
   "components.state_sync.remote_client_config.retry_interval": 1,
-  "components.state_sync.url": "sequencer-core-service"
+  "components.state_sync.url": "localhost"
 }
