@@ -528,14 +528,14 @@ impl IntegrationTestManager {
 
     /// Create a simulator that's connected to the http server of Node 0.
     pub fn create_simulator(&self) -> SequencerSimulator {
-        let node_setup = self
-            .idle_nodes
-            .values()
-            .next()
-            .or_else(|| self.running_nodes.values().next().map(|node| &node.node_setup))
-            .expect("There should be at least one running or idle node");
+        // Always connect to node 0 (the consolidated node) which is never shut down during tests
+        let node_0_setup = self
+            .running_nodes
+            .get(&0)
+            .map(|node| &(node.node_setup))
+            .unwrap_or_else(|| self.idle_nodes.get(&0).expect("Node 0 doesn't exist"));
 
-        for executable_setup in &node_setup.executables {
+        for executable_setup in &node_0_setup.executables {
             if let Some(http_server_config) = &executable_setup.get_config().http_server_config {
                 let localhost_url = format!("http://{}", Ipv4Addr::LOCALHOST);
                 let monitoring_port = executable_setup
