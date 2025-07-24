@@ -14,7 +14,7 @@ async fn many_txs() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestManyTxs,
         create_many_txs_scenario(),
-        GasAmount(17500000),
+        GasAmount(30000000), // Above Transaction size.
         true,
         false,
     )
