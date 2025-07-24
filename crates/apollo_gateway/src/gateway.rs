@@ -248,7 +248,13 @@ impl ProcessTxBlockingTask {
         })?;
 
         self.stateful_tx_validator
-            .run_validate(&executable_tx, nonce, self.mempool_client, validator, self.runtime)
+            .run_transaction_validations(
+                &executable_tx,
+                nonce,
+                self.mempool_client,
+                validator,
+                self.runtime,
+            )
             .map_err(|e| StarknetError {
                 code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
                 message: e.to_string(),

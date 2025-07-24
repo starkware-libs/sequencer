@@ -62,13 +62,38 @@ impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
 }
 
 impl StatefulTransactionValidator {
-    pub fn run_validate<V: StatefulTransactionValidatorTrait>(
+    pub fn run_transaction_validations<V: StatefulTransactionValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
         mempool_client: SharedMempoolClient,
-        mut validator: V,
+        validator: V,
         runtime: tokio::runtime::Handle,
+    ) -> StatefulTransactionValidatorResult<()> {
+        self.validate_state_preconditions(executable_tx, account_nonce)?;
+        self.run_validate_entry_point(
+            executable_tx,
+            account_nonce,
+            mempool_client,
+            validator,
+            runtime,
+        )
+    }
+
+    fn validate_state_preconditions(
+        &self,
+        executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
+    ) -> StatefulTransactionValidatorResult<()> {
+        self.validate_nonce(executable_tx, account_nonce)?;
+
+        Ok(())
+    }
+
+    fn validate_nonce(
+        &self,
+        executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
     ) -> StatefulTransactionValidatorResult<()> {
         if !self.is_valid_nonce(executable_tx, account_nonce) {
             let tx_nonce = executable_tx.nonce();
@@ -86,6 +111,17 @@ impl StatefulTransactionValidator {
             });
         }
 
+        Ok(())
+    }
+
+    fn run_validate_entry_point<V: StatefulTransactionValidatorTrait>(
+        &self,
+        executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
+        mempool_client: SharedMempoolClient,
+        mut validator: V,
+        runtime: tokio::runtime::Handle,
+    ) -> StatefulTransactionValidatorResult<()> {
         let skip_validate =
             skip_stateful_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         let only_query = false;
