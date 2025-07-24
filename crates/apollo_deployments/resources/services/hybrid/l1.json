@@ -103,5 +103,5 @@
   "components.state_sync.remote_client_config.idle_timeout": 30,
   "components.state_sync.remote_client_config.retries": 150,
   "components.state_sync.remote_client_config.retry_interval": 1,
-  "components.state_sync.url": "sequencer-core-service"
+  "components.state_sync.url": "sequencer-statesync-service"
 }
