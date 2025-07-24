@@ -7,6 +7,8 @@ use cairo_vm::types::program::Program;
 use crate::program_hash::ProgramHashes;
 
 #[cfg(test)]
+mod cairo_formatting_test;
+#[cfg(test)]
 mod constants_test;
 pub mod program_hash;
 #[cfg(feature = "test_programs")]
