@@ -68,6 +68,33 @@ async fn test_get_block() {
 }
 
 #[tokio::test]
+async fn test_get_block_hash() {
+    let (mut state_sync, mut storage_writer) = setup();
+
+    let Block { header: expected_header, body: _ } = get_test_block(1, None, None, None);
+
+    storage_writer
+        .begin_rw_txn()
+        .unwrap()
+        .append_header(expected_header.block_header_without_hash.block_number, &expected_header)
+        .unwrap()
+        .commit()
+        .unwrap();
+
+    // Verify that the block was written and is returned correctly.
+    let response = state_sync
+        .handle_request(StateSyncRequest::GetBlockHash(
+            expected_header.block_header_without_hash.block_number,
+        ))
+        .await;
+    let StateSyncResponse::GetBlockHash(Ok(block_hash)) = response else {
+        panic!("Expected StateSyncResponse::GetBlockHash::Ok(_), but got {response:?}");
+    };
+
+    assert_eq!(block_hash, expected_header.block_hash);
+}
+
+#[tokio::test]
 async fn test_get_storage_at() {
     let (mut state_sync, mut storage_writer) = setup();
 
