@@ -1,5 +1,4 @@
 {
-  "monitoring_endpoint_config.#is_none": false,
   "monitoring_endpoint_config.collect_metrics": true,
   "monitoring_endpoint_config.collect_profiling_metrics": true,
   "monitoring_endpoint_config.ip": "0.0.0.0",
