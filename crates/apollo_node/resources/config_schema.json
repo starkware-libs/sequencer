@@ -399,26 +399,6 @@
     "privacy": "Public",
     "value": "/data/classes"
   },
-  "compiler_config.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
-  "compiler_config.max_bytecode_size": {
-    "description": "Limitation of compiled CASM bytecode size (felts).",
-    "privacy": "Public",
-    "value": 81920
-  },
-  "compiler_config.max_memory_usage": {
-    "description": "Limitation of compilation process's virtual memory (bytes).",
-    "privacy": "Public",
-    "value": 5368709120
-  },
-  "compiler_config.max_memory_usage.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
-  },
   "components.batcher.execution_mode": {
     "description": "The component execution mode.",
     "privacy": "Public",
@@ -1731,6 +1711,26 @@
   },
   "revert_config.should_revert": {
     "description": "If set true, the component would revert blocks and do nothing else.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "sierra_compiler_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "sierra_compiler_config.max_bytecode_size": {
+    "description": "Limitation of compiled CASM bytecode size (felts).",
+    "privacy": "Public",
+    "value": 81920
+  },
+  "sierra_compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 5368709120
+  },
+  "sierra_compiler_config.max_memory_usage.#is_none": {
+    "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
   },

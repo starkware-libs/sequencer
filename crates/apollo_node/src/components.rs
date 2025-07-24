@@ -479,9 +479,11 @@ pub async fn create_node_components(
     let sierra_compiler = match config.components.sierra_compiler.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            let compiler_config =
-                config.compiler_config.as_ref().expect("Sierra Compiler config should be set");
-            Some(create_sierra_compiler(compiler_config.clone()))
+            let sierra_compiler_config = config
+                .sierra_compiler_config
+                .as_ref()
+                .expect("Sierra Compiler config should be set");
+            Some(create_sierra_compiler(sierra_compiler_config.clone()))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
             // TODO(tsabary): assert config is not set.
