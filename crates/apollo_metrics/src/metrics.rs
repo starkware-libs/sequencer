@@ -150,6 +150,10 @@ impl LabeledMetricCounter {
         counter!(self.name, labels).increment(value);
     }
 
+    pub fn increment_dynamic(&self, value: u64, labels: &[(&'static str, String)]) {
+        counter!(self.name, labels).increment(value);
+    }
+
     #[cfg(any(feature = "testing", test))]
     pub fn parse_numeric_metric<T: Num + FromStr>(
         &self,
@@ -310,7 +314,15 @@ impl LabeledMetricGauge {
         gauge!(self.name, label).increment(value);
     }
 
+    pub fn increment_dynamic<T: IntoF64>(&self, value: T, label: &[(&'static str, String)]) {
+        gauge!(self.name, label).increment(value);
+    }
+
     pub fn decrement<T: IntoF64>(&self, value: T, label: &[(&'static str, &'static str)]) {
+        gauge!(self.name, label).decrement(value.into_f64());
+    }
+
+    pub fn decrement_dynamic<T: IntoF64>(&self, value: T, label: &[(&'static str, String)]) {
         gauge!(self.name, label).decrement(value.into_f64());
     }
 
@@ -324,6 +336,10 @@ impl LabeledMetricGauge {
     }
 
     pub fn set<T: IntoF64>(&self, value: T, label: &[(&'static str, &'static str)]) {
+        gauge!(self.name, label).set(value.into_f64());
+    }
+
+    pub fn set_dynamic<T: IntoF64>(&self, value: T, label: &[(&'static str, String)]) {
         gauge!(self.name, label).set(value.into_f64());
     }
 
@@ -482,11 +498,24 @@ impl LabeledMetricHistogram {
         histogram!(self.name, labels).record(value.into_f64());
     }
 
+    pub fn record_dynamic<T: IntoF64>(&self, value: T, labels: &[(&'static str, String)]) {
+        histogram!(self.name, labels).record(value.into_f64());
+    }
+
     pub fn record_many<T: IntoF64>(
         &self,
         value: T,
         count: usize,
         labels: &[(&'static str, &'static str)],
+    ) {
+        histogram!(self.name, labels).record_many(value.into_f64(), count);
+    }
+
+    pub fn record_many_dynamic<T: IntoF64>(
+        &self,
+        value: T,
+        count: usize,
+        labels: &[(&'static str, String)],
     ) {
         histogram!(self.name, labels).record_many(value.into_f64(), count);
     }
