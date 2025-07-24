@@ -5,6 +5,7 @@ use crate::l1_gas_price_provider::{
     L1GasPriceProvider,
     L1GasPriceProviderConfig,
     L1GasPriceProviderError,
+    L1GasPriceSharedConfig,
 };
 
 // Make a provider with five block prices. Timestamps are 2 seconds apart, starting from 0.
@@ -12,7 +13,7 @@ use crate::l1_gas_price_provider::{
 // Returns the provider, a vector of block prices to compare with, and the timestamp of block[3].
 fn make_provider() -> (L1GasPriceProvider, Vec<PriceInfo>, u64) {
     let mut provider = L1GasPriceProvider::new(L1GasPriceProviderConfig {
-        number_of_blocks_for_mean: 3,
+        shared_config: L1GasPriceSharedConfig { number_of_blocks_for_mean: 3 },
         ..Default::default()
     });
     provider.initialize().unwrap();
@@ -43,10 +44,11 @@ fn make_provider() -> (L1GasPriceProvider, Vec<PriceInfo>, u64) {
 fn gas_price_provider_mean_prices() {
     let (provider, block_prices, timestamp3) = make_provider();
     let lag = provider.config.lag_margin_seconds;
-    let num_blocks: u128 = provider.config.number_of_blocks_for_mean.into();
+    let num_blocks: u128 = provider.config.shared_config.number_of_blocks_for_mean.into();
 
-    // This calculation will grab config.number_of_blocks_for_mean prices from the middle of the
-    // range. timestamp3 (for block_prices[3]) is used to define the interval of blocks 1 to 3.
+    // This calculation will grab shared_config.number_of_blocks_for_mean prices from the middle of
+    // the range. timestamp3 (for block_prices[3]) is used to define the interval of blocks 1 to
+    // 3.
     let PriceInfo { base_fee_per_gas: gas_price, blob_fee: data_gas_price } =
         provider.get_price_info(BlockTimestamp(timestamp3 + lag)).unwrap();
 
@@ -117,7 +119,7 @@ fn gas_price_provider_timestamp_changes_mean() {
 #[test]
 fn gas_price_provider_can_start_at_nonzero_height() {
     let mut provider = L1GasPriceProvider::new(L1GasPriceProviderConfig {
-        number_of_blocks_for_mean: 3,
+        shared_config: L1GasPriceSharedConfig { number_of_blocks_for_mean: 3 },
         ..Default::default()
     });
     provider.initialize().unwrap();
@@ -129,7 +131,7 @@ fn gas_price_provider_can_start_at_nonzero_height() {
 #[test]
 fn gas_price_provider_uninitialized_error() {
     let mut provider = L1GasPriceProvider::new(L1GasPriceProviderConfig {
-        number_of_blocks_for_mean: 3,
+        shared_config: L1GasPriceSharedConfig { number_of_blocks_for_mean: 3 },
         ..Default::default()
     });
     let price_info = PriceInfo { base_fee_per_gas: GasPrice(0), blob_fee: GasPrice(0) };

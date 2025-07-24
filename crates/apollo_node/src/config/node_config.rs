@@ -23,7 +23,10 @@ use apollo_gateway::config::GatewayConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
-use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
+use apollo_l1_gas_price::l1_gas_price_provider::{
+    L1GasPriceProviderConfig,
+    L1GasPriceSharedConfig,
+};
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
@@ -185,6 +188,8 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub l1_gas_price_provider_config: L1GasPriceProviderConfig,
     #[validate]
+    pub l1_gas_price_shared_config: L1GasPriceSharedConfig,
+    #[validate]
     pub l1_scraper_config: L1ScraperConfig,
     #[validate]
     pub mempool_config: MempoolConfig,
@@ -233,6 +238,10 @@ impl SerializeConfig for SequencerNodeConfig {
             prepend_sub_config_name(
                 self.l1_gas_price_scraper_config.dump(),
                 "l1_gas_price_scraper_config",
+            ),
+            prepend_sub_config_name(
+                self.l1_gas_price_shared_config.dump(),
+                "l1_gas_price_shared_config",
             ),
         ];
 

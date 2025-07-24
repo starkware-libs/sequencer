@@ -276,8 +276,10 @@ impl IntegrationTestManager {
             .get_config()
             .l1_gas_price_scraper_config
             .clone();
-        let num_blocks_needed_on_l1 =
-            (l1_config.number_of_blocks_for_mean + l1_config.finality).try_into().unwrap();
+        let num_blocks_needed_on_l1 = (l1_config.shared_config.number_of_blocks_for_mean
+            + l1_config.finality)
+            .try_into()
+            .unwrap();
         let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
         let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
 
