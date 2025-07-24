@@ -129,7 +129,13 @@ pub(crate) fn iter_current_segment_info(
         .ok_or(OsHintError::EndOfIterator { item_type: "Bytecode segments".to_string() })?;
 
     let data_ptr = get_ptr_from_var_name(Ids::DataPtr.into(), vm, ids_data, ap_tracking)?;
+
     let is_used = vm.is_accessed(&data_ptr)?;
+
+    // For testing purposes, we allow marking all segments as used.
+    #[cfg(test)]
+    let is_used = is_used || exec_scopes.get(Scope::LeafAlwaysAccessed.into()).unwrap_or(false);
+
     if !is_used {
         for i in 0..current_segment_info.length() {
             let pc = (data_ptr + i)?;

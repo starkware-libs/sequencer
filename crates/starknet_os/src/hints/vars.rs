@@ -33,20 +33,29 @@ use crate::hints::error::OsHintError;
 #[macro_export]
 macro_rules! define_string_enum {
     (
-        $(#[$cfgs:meta])*
+        $(#[$enum_meta:meta])*
         $visibility:vis enum $enum_name:ident {
-            $(($variant:ident $(, $variant_str:expr)?)),+ $(,)?
+            $(
+                $(#[$variant_meta:meta])*
+                ($variant:ident $(, $variant_str:expr)?)
+            ),+ $(,)?
         }
     ) => {
-        $(#[$cfgs])*
+        $(#[$enum_meta])*
         $visibility enum $enum_name {
-            $($variant),+
+            $(
+                $(#[$variant_meta])*
+                $variant
+            ),+
         }
 
         impl From<$enum_name> for &'static str {
             fn from(value: $enum_name) -> Self {
                 match value {
-                    $($enum_name::$variant => string_or_snake_case!($variant $(, $variant_str)?),)+
+                    $(
+                        $(#[$variant_meta])*
+                        $enum_name::$variant => string_or_snake_case!($variant $(, $variant_str)?),
+                    )+
                 }
             }
         }
@@ -91,6 +100,8 @@ define_string_enum! {
         (DictManager),
         (InitialDict),
         (IsDeprecated),
+        #[cfg(test)]
+        (LeafAlwaysAccessed),
         (LeftChild),
         (NSelectedBuiltins),
         (Node),
