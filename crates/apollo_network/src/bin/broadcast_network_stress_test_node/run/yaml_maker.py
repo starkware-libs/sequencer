@@ -78,12 +78,21 @@ def get_network_stress_test_deployment_yaml_file(
 ):
     num_nodes = args.num_nodes
     arguments = get_arguments(
-        id="$NODE_ID",
+        id=None,
         metric_port=2000,
         p2p_port=10000,
         bootstrap=f"/dns/network-stress-test-0.network-stress-test-headless/udp/10000/quic-v1/p2p/{bootstrap_peer_id}",
         args=args,
     )
+    env_args = []
+    for name, value in arguments:
+        env_name = name[2:].replace("-", "_").upper()
+        env_args += [f"- name: {env_name}", f'  value: "{value}"']
+    for name, value in [("LATENCY", args.latency), ("THROUGHPUT", args.throughput)]:
+        if value is not None:
+            env_args += [f"- name: {name}", f'  value: "{value}"']
+
+    env_vars_definitions = "\n        ".join(env_args)
     return f"""
 apiVersion: apps/v1
 kind: StatefulSet
@@ -103,6 +112,8 @@ spec:
       containers:
       - name: network-stress-test
         image: {image_tag}
+        securityContext:
+          privileged: true
         ports:
         - containerPort: 2000
           name: metrics
@@ -110,19 +121,7 @@ spec:
           protocol: UDP
           name: p2p
         env:
-        - name: PROMETHEUS_URL
-          value: "http://{prometheus_service_name}:9090"
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        command: ["/bin/sh"]
-        args: 
-        - -c
-        - |
-          export NODE_ID=$(hostname | grep -o '[0-9]*$')
-          echo "Starting node with ID: $NODE_ID"
-          exec broadcast_network_stress_test_node {' '.join(arguments)} 
+        {env_vars_definitions}
 """
 
 

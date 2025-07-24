@@ -35,29 +35,22 @@ def add_broadcast_stress_test_node_arguments_to_parser(parser: argparse.Argument
 
 
 def get_arguments(
-    id: int | str,
+    id: int | None,
     metric_port: int,
     p2p_port: int,
     bootstrap: str,
     args: argparse.Namespace,
-) -> list[str]:
-    return [
-        "--id",
-        str(id),
-        "--metric-port",
-        str(metric_port),
-        "--p2p-port",
-        str(p2p_port),
-        "--bootstrap",
-        str(bootstrap),
-        "--verbosity",
-        str(args.verbosity),
-        "--buffer-size",
-        str(args.buffer_size),
-        "--message-size-bytes",
-        str(args.message_size_bytes),
-        "--heartbeat-millis",
-        str(args.heartbeat_millis),
-        "--timeout",
-        str(args.timeout),
+) -> list[tuple[str, str]]:
+    result = [
+        ("--metric-port", str(metric_port)),
+        ("--p2p-port", str(p2p_port)),
+        ("--bootstrap", str(bootstrap)),
+        ("--verbosity", str(args.verbosity)),
+        ("--buffer-size", str(args.buffer_size)),
+        ("--message-size-bytes", str(args.message_size_bytes)),
+        ("--heartbeat-millis", str(args.heartbeat_millis)),
+        ("--timeout", str(args.timeout)),
     ]
+    if id is not None:
+        result.insert(0, ("--id", str(id)))
+    return result
