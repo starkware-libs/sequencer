@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use apollo_compilation_utils::compiler_utils::compile_with_args;
 use apollo_compilation_utils::errors::CompilationUtilError;
-use apollo_compilation_utils::paths::binary_path;
 use apollo_compilation_utils::resource_limits::ResourceLimits;
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
@@ -21,7 +20,6 @@ impl SierraToNativeCompiler {
     pub fn new(config: SierraCompilationConfig) -> Self {
         let path_to_binary = match &config.compiler_binary_path {
             Some(path) => path.clone(),
-            // None => binary_path(&out_dir(), CAIRO_NATIVE_BINARY_NAME),
             None => CAIRO_NATIVE_BINARY_NAME.into(),
         };
         Self { config, path_to_binary }
@@ -57,7 +55,3 @@ impl SierraToNativeCompiler {
     }
 }
 
-// Returns the OUT_DIR. This function is only operable at run time.
-fn out_dir() -> PathBuf {
-    env!("RUNTIME_ACCESSIBLE_OUT_DIR").into()
-}
