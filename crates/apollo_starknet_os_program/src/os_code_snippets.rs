@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use cairo_vm::serde::deserialize_program::Location;
+use cairo_vm::vm::errors::vm_exception::{get_error_attr_value, get_location};
+use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 
 use crate::CAIRO_FILES_MAP;
 
@@ -38,7 +40,6 @@ func serialize_output_header{output_ptr: felt*}(os_output_header: OsOutputHeader
     )])
 });
 
-#[allow(dead_code)]
 /// Gets a code snippet from an OS file at a specific location.
 fn get_code_snippet(location: &Location) -> Option<String> {
     let path = location.input_file.filename.split_once("cairo/").map(|(_, rest)| rest)?;
@@ -57,4 +58,35 @@ fn get_file_content(path: &str) -> Option<&'static str> {
     {
         CAIRO_FILES_MAP.get(path).map(String::as_str)
     }
+}
+
+/// Adds code snippets to the traceback of a VM exception.
+#[allow(dead_code)]
+pub fn get_traceback_with_code_snippet(runner: &CairoRunner) -> Option<String> {
+    let traceback: String = runner
+        .vm
+        .get_traceback_entries()
+        .iter()
+        .map(|(_fp, traceback_pc)| {
+            let unknown_frame = format!("Unknown location (pc={traceback_pc})\n");
+            if traceback_pc.segment_index != 0 {
+                return unknown_frame;
+            }
+            if let Some(ref attr) = get_error_attr_value(traceback_pc.offset, runner) {
+                return format!("{attr}\n");
+            }
+            match &get_location(traceback_pc.offset, runner, None) {
+                Some(location) => {
+                    let location_str = location.to_string(&format!("(pc={traceback_pc})"));
+                    let snippet = get_code_snippet(location)
+                        .unwrap_or_else(|| "Code snippet not found.".to_string());
+                    format!("{location_str}\n{snippet}\n")
+                }
+                None => unknown_frame,
+            }
+        })
+        .collect();
+
+    (!traceback.is_empty())
+        .then(|| format!("Cairo traceback (most recent call last):\n{traceback}"))
 }
