@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 mod compile_program;
-#[cfg(feature = "dump_source_files")]
 mod dump_source;
 
 /// Build script for the `apollo_starknet_os_program` crate.
@@ -10,8 +9,6 @@ mod dump_source;
 #[tokio::main]
 async fn main() {
     let out_dir = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set."));
-
-    #[cfg(feature = "dump_source_files")]
     dump_source::dump_source_files(&out_dir.join("cairo_files_map.json"));
 
     let mut task_set = tokio::task::JoinSet::new();
