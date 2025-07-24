@@ -73,10 +73,10 @@ fn stateful_validator() -> StatefulTransactionValidator {
 #[tokio::test]
 async fn test_stateful_tx_validator(
     #[case] executable_tx: AccountTransaction,
-    #[case] expected_result: BlockifierStatefulValidatorResult<()>,
+    #[case] mocked_blockifier_result: BlockifierStatefulValidatorResult<()>,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let expected_result_as_stateful_transaction_result = expected_result
+    let expected_result_as_stateful_transaction_result = mocked_blockifier_result
         .as_ref()
         .map(|validate_result| *validate_result)
         .map_err(|blockifier_error| StarknetError {
@@ -85,7 +85,7 @@ async fn test_stateful_tx_validator(
         });
 
     let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_| expected_result.map(|_| ()));
+    mock_validator.expect_validate().return_once(|_| mocked_blockifier_result.map(|_| ()));
 
     let account_nonce = nonce!(0);
     let mut mock_mempool_client = MockMempoolClient::new();
@@ -96,18 +96,18 @@ async fn test_stateful_tx_validator(
     let mempool_client = Arc::new(mock_mempool_client);
     let runtime = tokio::runtime::Handle::current();
 
-    tokio::task::spawn_blocking(move || {
-        let result = stateful_validator.run_validate(
+    let result = tokio::task::spawn_blocking(move || {
+        stateful_validator.run_validate(
             &executable_tx,
             account_nonce,
             mempool_client,
             mock_validator,
             runtime,
-        );
-        assert_eq!(result, expected_result_as_stateful_transaction_result);
+        )
     })
     .await
     .unwrap();
+    assert_eq!(result, expected_result_as_stateful_transaction_result);
 }
 
 #[rstest]
@@ -178,7 +178,7 @@ fn test_instantiate_validator(stateful_validator: StatefulTransactionValidator) 
     true
 )]
 #[tokio::test]
-async fn test_skip_stateful_validation(
+async fn test_skip_validate(
     #[case] executable_tx: AccountTransaction,
     #[case] sender_nonce: Nonce,
     #[case] contains_tx: bool,
@@ -198,7 +198,7 @@ async fn test_skip_stateful_validation(
     let runtime = tokio::runtime::Handle::current();
 
     tokio::task::spawn_blocking(move || {
-        let _ = stateful_validator.run_validate(
+        let _ = stateful_validator.validate(
             &executable_tx,
             sender_nonce,
             mempool_client,
@@ -235,19 +235,9 @@ async fn test_is_valid_nonce(
     let stateful_validator = StatefulTransactionValidator {
         config: StatefulTransactionValidatorConfig { max_allowed_nonce_gap, ..Default::default() },
     };
-
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_| Ok(()));
-
     let executable_tx = executable_invoke_tx(invoke_tx_args!(nonce: nonce!(tx_nonce)));
     let result = tokio::task::spawn_blocking(move || {
-        stateful_validator.run_validate(
-            &executable_tx,
-            nonce!(account_nonce),
-            Arc::new(MockMempoolClient::new()),
-            mock_validator,
-            tokio::runtime::Handle::current(),
-        )
+        stateful_validator.validate_nonce(&executable_tx, nonce!(account_nonce))
     })
     .await
     .unwrap()
@@ -268,9 +258,6 @@ async fn test_reject_future_declares(
     #[case] account_nonce_diff: i32,
     #[case] expected_result_code: Result<(), StarknetErrorCode>,
 ) {
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_| Ok(()));
-
     let account_nonce = 10;
     let executable_tx = executable_declare_tx(
         declare_tx_args!(nonce: nonce!(account_nonce + account_nonce_diff)),
@@ -280,13 +267,7 @@ async fn test_reject_future_declares(
     );
 
     let result = tokio::task::spawn_blocking(move || {
-        stateful_validator.run_validate(
-            &executable_tx,
-            nonce!(account_nonce),
-            Arc::new(MockMempoolClient::new()),
-            mock_validator,
-            tokio::runtime::Handle::current(),
-        )
+        stateful_validator.validate_nonce(&executable_tx, nonce!(account_nonce))
     })
     .await
     .unwrap()
