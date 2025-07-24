@@ -71,6 +71,7 @@ dashmap.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true
+blake2s.workspace = true
 blockifier_test_utils.workspace = true
 criterion = { workspace = true, features = ["html_reports"] }
 expect-test.workspace = true

@@ -5,8 +5,9 @@ use starknet_api::core::L2_ADDRESS_UPPER_BOUND;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_types_core::felt::Felt;
 
+use crate::hints::hint_implementation::compiled_class::implementation::COMPILED_CLASS_V1;
 use crate::hints::hint_implementation::kzg::utils::FIELD_ELEMENTS_PER_BLOB;
-use crate::hints::vars::CairoStruct;
+use crate::hints::vars::{CairoStruct, Const};
 use crate::vm_utils::get_size_of_cairo_struct;
 
 fn get_from_program(program: &Program, const_path: &str) -> Felt {
@@ -60,5 +61,13 @@ fn test_l2_to_l1_message_header_size() {
     assert_eq!(
         get_size_of_cairo_struct(CairoStruct::L2ToL1MessageHeader, &*OS_PROGRAM).unwrap(),
         L2_TO_L1_MSG_HEADER_SIZE
+    );
+}
+
+#[test]
+fn test_compiled_class_version() {
+    assert_eq!(
+        get_from_program(&OS_PROGRAM, Const::CompiledClassVersion.into()),
+        *COMPILED_CLASS_V1
     );
 }

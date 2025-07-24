@@ -23,12 +23,12 @@ use crate::state_sync_types::{StateSyncResult, SyncBlock};
 pub trait StateSyncClient: Send + Sync {
     /// Request for a block at a specific height.
     /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
-    /// the sync hasn't been downloaded yet.
+    /// the sync hasn't downloaded it yet.
     async fn get_block(&self, block_number: BlockNumber) -> StateSyncClientResult<SyncBlock>;
 
     /// Request for a block hash at a specific height.
     /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
-    /// the sync hasn't been downloaded yet.
+    /// the sync hasn't downloaded it yet.
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncClientResult<BlockHash>;
 
     /// Notify the sync that a new block has been created within the node so that other peers can
@@ -37,7 +37,7 @@ pub trait StateSyncClient: Send + Sync {
 
     /// Request storage value under the given key in the given contract instance.
     /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
-    /// the sync hasn't been downloaded yet.
+    /// the sync hasn't downloaded it yet.
     /// Returns a [ContractNotFound](StateSyncError::ContractNotFound) error If the contract has not
     /// been deployed.
     async fn get_storage_at(
@@ -49,7 +49,7 @@ pub trait StateSyncClient: Send + Sync {
 
     /// Request nonce in the given contract instance.
     /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
-    /// the sync hasn't been downloaded yet.
+    /// the sync hasn't downloaded it yet.
     /// Returns a [ContractNotFound](StateSyncError::ContractNotFound) error If the contract has not
     /// been deployed.
     async fn get_nonce_at(
@@ -60,7 +60,7 @@ pub trait StateSyncClient: Send + Sync {
 
     /// Request class hash of contract class in the given contract instance.
     /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
-    /// the sync hasn't been downloaded yet.
+    /// the sync hasn't downloaded it yet.
     /// Returns a [ContractNotFound](StateSyncError::ContractNotFound) error If the contract has not
     /// been deployed.
     async fn get_class_hash_at(
