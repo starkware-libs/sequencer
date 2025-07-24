@@ -141,7 +141,9 @@ func main{
 
     // Currently, the block hash is not enforced by the OS.
     // TODO(Yoni, 1/1/2026): compute the block hash.
-    serialize_os_output(os_output=final_os_output, replace_keys_with_aliases=TRUE);
+    serialize_os_output(
+    os_output=final_os_output, replace_keys_with_aliases=TRUE
+    );
 
     // The following code deals with the problem that untrusted code (contract code) could
     // potentially move builtin pointers backward, compromising the soundness of those builtins.
