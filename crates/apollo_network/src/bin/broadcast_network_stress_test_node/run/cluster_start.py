@@ -16,10 +16,9 @@ from yaml_maker import (
     get_prometheus_deployment_yaml_file,
     get_prometheus_service_yaml_file,
     get_network_stress_test_deployment_yaml_file,
-    # get_network_stress_test_service_yaml_file,
     get_network_stress_test_headless_service_yaml_file,
 )
-from args import add_broadcast_stress_test_node_arguments_to_parser
+from args import add_shared_args_to_parser
 
 
 def login_to_docker_registry():
@@ -58,13 +57,13 @@ def write_yaml_files(
 ) -> list[str]:
     num_nodes = args.num_nodes
     files = {
-        "prometheus-config.yaml": get_prometheus_yaml_file(num_nodes),
-        "prometheus-deployment.yaml": get_prometheus_deployment_yaml_file(),
-        "prometheus-service.yaml": get_prometheus_service_yaml_file(),
         "network-stress-test-deployment.yaml": get_network_stress_test_deployment_yaml_file(
             image_tag, args=args
         ),
         "network-stress-test-headless-service.yaml": get_network_stress_test_headless_service_yaml_file(),
+        "prometheus-config.yaml": get_prometheus_yaml_file(num_nodes),
+        "prometheus-deployment.yaml": get_prometheus_deployment_yaml_file(),
+        "prometheus-service.yaml": get_prometheus_service_yaml_file(),
     }
     for file_name, file_content in files.items():
         write_yaml_file(file_name, file_content)
@@ -92,7 +91,7 @@ class ExperimentRunner:
         for file_name in self.deployment_file["yaml_files"]:
             pr(f"Deploying {file_name} to cluster")
             run_cmd(
-                f"kubectl apply -f {file_name} -n {name_space_name}",
+                f"kubectl apply --wait -f {file_name} -n {name_space_name}",
             )
 
     def run_experiment(self, args: argparse.Namespace):
@@ -164,8 +163,32 @@ def main():
         type=int,
         default=None,
     )
+    parser.add_argument(
+        "--dedicated-node",
+        help="Whether to run the pods on a dedicated node or not",
+        action="store_true",
+        default=False,
+    )
+    parser.add_argument(
+        "--node-name",
+        help="Name of the dedicated node to use (only used if --dedicated-node is set)",
+        type=str,
+        default="andrew",
+    )
+    parser.add_argument(
+        "--node-role",
+        help="Role selector for the dedicated node (only used if --dedicated-node is set)",
+        type=str,
+        default="andrew",
+    )
+    parser.add_argument(
+        "--timeout-seconds",
+        help="Maximum duration for the stress test pods to run before automatic termination (seconds)",
+        type=int,
+        default=7200,
+    )
 
-    add_broadcast_stress_test_node_arguments_to_parser(parser=parser)
+    add_shared_args_to_parser(parser=parser)
     args = parser.parse_args()
 
     assert not os.path.exists(

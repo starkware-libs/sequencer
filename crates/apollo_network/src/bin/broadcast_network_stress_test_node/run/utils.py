@@ -43,6 +43,13 @@ def make_time_stamp() -> str:
     return time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 
+def make_multi_address(network_address: str, port: int, peer_id: str, args) -> str:
+    if args.tcp:
+        return f"{network_address}/tcp/{port}/p2p/{peer_id}"
+    else:
+        return f"{network_address}/udp/{port}/quic-v1/p2p/{peer_id}"
+
+
 def __get_peer_id_from_secret_key(secret_key: str) -> str:
     """Get peer ID by running the cargo command with the given secret key."""
     cmd = f"cargo run --bin get_peer_id_from_secret_key {secret_key}"

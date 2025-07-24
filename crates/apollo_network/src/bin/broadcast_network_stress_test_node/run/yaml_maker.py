@@ -1,7 +1,7 @@
 import yaml
 from typing import Dict, Any
 from args import get_arguments
-from utils import get_peer_id_from_node_id, prometheus_service_name
+from utils import get_peer_id_from_node_id, make_multi_address, prometheus_service_name
 
 
 def _generate_yaml(data: Dict[str, Any]) -> str:
@@ -28,7 +28,9 @@ def _generate_yaml(data: Dict[str, Any]) -> str:
 
 
 def _get_prometheus_config_data(
-    self_scrape: bool, metric_urls: list[str]
+    self_scrape: bool,
+    metric_urls: list[str],
+    scrape_seconds: int,
 ) -> Dict[str, Any]:
     """Generate Prometheus configuration data structure."""
     scrape_configs = []
@@ -58,14 +60,16 @@ def _get_prometheus_config_data(
         )
 
     return {
-        "global": {"scrape_interval": "5s"},
+        "global": {"scrape_interval": f"{scrape_seconds}s"},
         "scrape_configs": scrape_configs,
     }
 
 
 def get_prometheus_config(self_scrape: bool, metric_urls: list[str]) -> str:
     """Generate Prometheus configuration YAML."""
-    config_data = _get_prometheus_config_data(self_scrape, metric_urls)
+    config_data = _get_prometheus_config_data(
+        self_scrape, metric_urls, scrape_seconds=1
+    )
     return _generate_yaml(config_data)
 
 
@@ -77,7 +81,9 @@ def get_prometheus_yaml_file(num_nodes: int) -> str:
         for i in range(num_nodes)
     ]
     # Get the config data structure using existing function
-    config_data = _get_prometheus_config_data(self_scrape=False, metric_urls=urls)
+    config_data = _get_prometheus_config_data(
+        self_scrape=False, metric_urls=urls, scrape_seconds=5
+    )
 
     # Create a LiteralStr class to force literal block scalar representation
     class LiteralStr(str):
@@ -163,7 +169,12 @@ def get_network_stress_test_deployment_yaml_file(image_tag: str, args) -> str:
     """Generate Network Stress Test StatefulSet YAML."""
     # Get command line arguments and convert them to environment variables
     bootstrap_nodes = [
-        f"/dns/network-stress-test-{j}.network-stress-test-headless/udp/10000/quic-v1/p2p/{get_peer_id_from_node_id(j)}"
+        make_multi_address(
+            network_address=f"/dns/network-stress-test-{j}.network-stress-test-headless",
+            port=10000,
+            peer_id=get_peer_id_from_node_id(j),
+            args=args,
+        )
         for j in range(args.num_nodes)
     ]
 
@@ -184,9 +195,49 @@ def get_network_stress_test_deployment_yaml_file(image_tag: str, args) -> str:
 
     # Add latency and throughput if provided
     for arg_name, env_name in [("latency", "LATENCY"), ("throughput", "THROUGHPUT")]:
-        value = getattr(args, arg_name, None)
+        value = getattr(args, arg_name)
         if value is not None:
             env_vars.append({"name": env_name, "value": str(value)})
+
+    # Build the pod spec
+    pod_spec = {
+        "containers": [
+            {
+                "name": "network-stress-test",
+                "image": image_tag,
+                "securityContext": {"privileged": True},
+                "ports": [
+                    {"containerPort": 2000, "name": "metrics"},
+                    {
+                        "containerPort": 10000,
+                        "protocol": "UDP",
+                        "name": "p2p-udp",
+                    },
+                    {
+                        "containerPort": 10000,
+                        "protocol": "TCP",
+                        "name": "p2p-tcp",
+                    },
+                ],
+                "env": env_vars,
+            }
+        ],
+    }
+
+    # Add tolerations and nodeSelector if dedicated node is requested
+    if args.dedicated_node:
+        pod_spec["tolerations"] = [
+            {
+                "effect": "NoSchedule",
+                "key": "key",
+                "operator": "Equal",
+                "value": args.node_name,
+            }
+        ]
+        pod_spec["nodeSelector"] = {"role": args.node_role}
+
+    # Add automatic termination after the specified timeout
+    # pod_spec["activeDeadlineSeconds"] = args.timeout_seconds
 
     data = {
         "apiVersion": "apps/v1",
@@ -198,24 +249,7 @@ def get_network_stress_test_deployment_yaml_file(image_tag: str, args) -> str:
             "selector": {"matchLabels": {"app": "network-stress-test"}},
             "template": {
                 "metadata": {"labels": {"app": "network-stress-test"}},
-                "spec": {
-                    "containers": [
-                        {
-                            "name": "network-stress-test",
-                            "image": image_tag,
-                            "securityContext": {"privileged": True},
-                            "ports": [
-                                {"containerPort": 2000, "name": "metrics"},
-                                {
-                                    "containerPort": 10000,
-                                    "protocol": "UDP",
-                                    "name": "p2p",
-                                },
-                            ],
-                            "env": env_vars,
-                        }
-                    ]
-                },
+                "spec": pod_spec,
             },
         },
     }
@@ -234,7 +268,18 @@ def get_network_stress_test_headless_service_yaml_file() -> str:
             "selector": {"app": "network-stress-test"},
             "ports": [
                 {"port": 2000, "targetPort": 2000, "name": "metrics"},
-                {"port": 10000, "targetPort": 10000, "protocol": "UDP", "name": "p2p"},
+                {
+                    "port": 10000,
+                    "targetPort": 10000,
+                    "protocol": "UDP",
+                    "name": "p2p-udp",
+                },
+                {
+                    "port": 10000,
+                    "targetPort": 10000,
+                    "protocol": "TCP",
+                    "name": "p2p-tcp",
+                },
             ],
         },
     }

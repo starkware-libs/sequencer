@@ -4,66 +4,98 @@ set -e
 
 echo "Starting container with hostname: $(hostname)"
 
+# ********************************* machine information *********************************
+
+echo "Machine identification:"
+echo "  Container ID: $(cat /proc/self/cgroup 2>/dev/null | head -1 | cut -d/ -f3 | cut -c1-12 || echo 'N/A')"
+echo "  Host IP addresses:"
+ip addr show | grep -E 'inet [0-9]' | awk '{print "    " $2}' || echo "    IP info unavailable"
+echo "  Machine ID: $(cat /etc/machine-id 2>/dev/null || echo 'N/A')"
+echo "  Kernel: $(uname -r)"
+echo "  Architecture: $(uname -m)"
+if [ -n "$NODE_NAME" ]; then
+    echo "  Kubernetes Node: $NODE_NAME"
+fi
+if [ -n "$KUBERNETES_NODE_NAME" ]; then
+    echo "  K8s Node Name: $KUBERNETES_NODE_NAME"
+fi
+
 # ******************************** time synchronization ********************************
 
-# Start chrony for time synchronization
-echo "Starting chrony for time synchronization..."
-chronyd -d &
-CHRONY_PID=$!
+# # Start chrony for maximum precision time synchronization
+# echo "Starting chrony with maximum precision settings..."
 
-# Wait a moment for chrony to initialize
-sleep 2
+# # Start chronyd with aggressive precision flags
+# chronyd -d -s &
+# CHRONY_PID=$!
 
-# Verify chrony is working
-if ps -p $CHRONY_PID > /dev/null; then
-    echo "Chrony started successfully (PID: $CHRONY_PID)"
-else
-    echo "Warning: Chrony failed to start"
-fi
+# # Wait for initial startup
+# sleep 3
+
+# # Force immediate time synchronization with all sources
+# echo "Forcing immediate time synchronization..."
+# chronyc waitsync 30 0.001 &
+
+# # Wait for synchronization to complete
+# sleep 5
+
+# # Verify chrony is working and check precision
+# if ps -p $CHRONY_PID > /dev/null; then
+#     echo "Chrony started successfully (PID: $CHRONY_PID)"
+    
+#     # Display synchronization status
+#     echo "Time synchronization status:"
+#     chronyc sources -v || true
+#     chronyc tracking || true
+    
+#     # Check precision metrics
+#     echo "Precision metrics:"
+#     chronyc sourcestats || true
+    
+#     # Display current system time
+#     echo "Current system time: $(date -Ins)"
+# else
+#     echo "Error: Chrony failed to start"
+#     exit 1
+# fi
 
 # ***************************** throttling connection start *****************************
 
 INTERFACE="eth0"  # Default Docker interface
 
-# Ports to throttle (egress only)
-TARGET_PORT_TCP_EGRESS=$P2P_PORT  # The specific TCP port for egress throttling
-TARGET_PORT_UDP_EGRESS=$P2P_PORT  # The specific UDP port for egress throttling
+# Ports to throttle (both directions)
+TARGET_PORT_TCP=$P2P_PORT  # The specific TCP port for throttling
+TARGET_PORT_UDP=$P2P_PORT  # The specific UDP port for throttling
 
-# Load ifb module is not strictly needed if only egress, but leaving for safety if you re-introduce ingress later.
-# modprobe ifb || echo "ifb module already loaded or not needed"
-# ip link add ifb0 type ifb || true
-# ip link set ifb0 up || true
-# tc qdisc add dev $INTERFACE ingress handle ffff: || true
-# tc filter add dev $INTERFACE parent ffff: protocol ip u32 match u32 0 0 action mirred egress redirect dev ifb0 || true
-
+# --- ADDED: Cleanup previous tc rules for a clean slate ---
+echo "--- Cleaning up existing tc rules on $INTERFACE ---"
+tc qdisc del dev $INTERFACE root || true
 
 # Function to apply shaping (htb for bandwidth + netem for latency) to a specific class
+# This function will now MODIFY an existing class and/or add a netem qdisc to it.
 apply_shaping_to_class() {
   local dev=$1
-  local parent_handle=$2 # e.g., 1:1 for a class
-  local class_id=$3      # e.g., 10 for 1:10
+  local class_id=$2      # e.g., 1:20 (this is the class we are applying shaping to)
 
   # If throughput is set, calculate rate in kbit/s (assuming THROUGHPUT in KB/s)
   if [ ! -z "${THROUGHPUT}" ]; then
-    echo "Gating network throughput for class ${parent_handle} at ${THROUGHPUT} KB/s."
+    echo "Gating network throughput for class ${class_id} at ${THROUGHPUT} KB/s."
     RATE=$((THROUGHPUT * 8))
-    # Note: The htb qdisc is added at a higher level (root or parent of the class)
-    # The rate is applied to the class.
-    tc class add dev $dev parent ${parent_handle} classid ${class_id} htb rate ${RATE}kbit ceil ${RATE}kbit || true
-    netem_parent="${class_id}"
+    # MODIFIED: Use 'tc class change' to modify the rate of the existing class
+    tc class change dev $dev classid ${class_id} htb rate ${RATE}kbit ceil ${RATE}kbit || true
   else
-    # If no throughput, netem applies directly to the parent class.
-    # We still need a high default rate for the class itself if THROUGHPUT is not set,
-    # otherwise, the class might implicitly throttle.
-    tc class add dev $dev parent ${parent_handle} classid ${class_id} htb rate 1000mbit ceil 1000mbit || true
-    netem_parent="${class_id}"
+    # ORIGINAL LOGIC: The `tc class add` here was problematic as the class already exists.
+    # If THROUGHPUT is NOT set, we ensure the class maintains a high rate
+    # before potentially adding netem directly to it.
+    # The class was already created with 1000mbit, so no change is needed here.
+    echo "Throughput not set, class ${class_id} retaining default high rate."
   fi
 
   # If latency is set, add netem (delay in ms)
   if [ ! -z "${LATENCY}" ]; then
-    echo "Gating network latency for class ${parent_handle} at ${LATENCY} milliseconds."
-    # If a class was created for throughput, apply netem to that class. Otherwise, to the parent.
-    tc qdisc add dev $dev parent ${netem_parent} netem delay ${LATENCY}ms || true
+    echo "Gating network latency for class ${class_id} at ${LATENCY} milliseconds."
+    # MODIFIED: Parent for netem is directly the class_id itself
+    tc qdisc add dev $dev parent ${class_id} netem delay ${LATENCY}ms || true
   fi
 }
 
@@ -80,27 +112,43 @@ tc class add dev $INTERFACE parent 1: classid 1:10 htb rate 1000mbit ceil 1000mb
 # This class will receive the THROUGHPUT and LATENCY settings
 # We apply the shaping to this single class for both ports.
 # The `rate` and `ceil` here are placeholders; they will be overridden by apply_shaping_to_class if THROUGHPUT is set.
+# This class must be CREATED here before the apply_shaping_to_class function modifies it.
 tc class add dev $INTERFACE parent 1: classid 1:20 htb rate 1000mbit ceil 1000mbit || true
 
 # 4. Apply the common shaping parameters (THROUGHPUT, LATENCY) to the throttled class (1:20)
-apply_shaping_to_class $INTERFACE "1:20" "1:20"
+# MODIFIED: Pass only the class ID as the second argument
+apply_shaping_to_class $INTERFACE "1:20"
 
-# 5. Add filters to direct specific port traffic to the throttled class (1:20)
+# 5. Add filters to direct P2P traffic to the throttled class (1:20)
+# CRITICAL FIX: Match BOTH source and destination ports to throttle bidirectional P2P traffic
 
-# Filter for TCP Egress
+# Filter for TCP traffic TO the P2P port (incoming connections)
 tc filter add dev $INTERFACE protocol ip parent 1: prio 1 u32 \
-  match ip dport $TARGET_PORT_TCP_EGRESS 0xffff \
+  match ip dport $TARGET_PORT_TCP 0xffff \
   match ip protocol 6 0xff \
   flowid 1:20 || true
-echo "Throttling TCP egress on port ${TARGET_PORT_TCP_EGRESS}"
+echo "Throttling TCP traffic TO port ${TARGET_PORT_TCP}"
 
-# Filter for UDP Egress
+# Filter for TCP traffic FROM the P2P port (outgoing data on established connections)
 tc filter add dev $INTERFACE protocol ip parent 1: prio 2 u32 \
-  match ip dport $TARGET_PORT_UDP_EGRESS 0xffff \
+  match ip sport $TARGET_PORT_TCP 0xffff \
+  match ip protocol 6 0xff \
+  flowid 1:20 || true
+echo "Throttling TCP traffic FROM port ${TARGET_PORT_TCP}"
+
+# Filter for UDP traffic TO the P2P port (incoming packets)
+tc filter add dev $INTERFACE protocol ip parent 1: prio 3 u32 \
+  match ip dport $TARGET_PORT_UDP 0xffff \
   match ip protocol 17 0xff \
   flowid 1:20 || true
-echo "Throttling UDP egress on port ${TARGET_PORT_UDP_EGRESS}"
+echo "Throttling UDP traffic TO port ${TARGET_PORT_UDP}"
 
+# Filter for UDP traffic FROM the P2P port (outgoing packets)
+tc filter add dev $INTERFACE protocol ip parent 1: prio 4 u32 \
+  match ip sport $TARGET_PORT_UDP 0xffff \
+  match ip protocol 17 0xff \
+  flowid 1:20 || true
+echo "Throttling UDP traffic FROM port ${TARGET_PORT_UDP}"
 
 # ***************************** throttling connection end *****************************
 
