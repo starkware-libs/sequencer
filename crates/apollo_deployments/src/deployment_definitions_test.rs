@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::env;
-use std::fs::{read_to_string, File};
+use std::fs::File;
 
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
@@ -11,11 +11,10 @@ use apollo_node::config::component_execution_config::{
 };
 use apollo_node::config::config_utils::private_parameters;
 use apollo_node::config::node_config::SequencerNodeConfig;
-use serde_json::{from_str, to_value, Map, Value};
+use serde_json::{to_value, Map, Value};
 use strum::IntoEnumIterator;
 use tempfile::NamedTempFile;
 
-use crate::deployment::BASE_APP_CONFIG_PATHS;
 use crate::deployment_definitions::DEPLOYMENTS;
 use crate::service::NodeType;
 use crate::test_utils::{SecretsConfigOverride, FIX_BINARY_NAME};
@@ -201,56 +200,4 @@ fn l1_components_state_consistency() {
             "L1 provider and scraper should either be both enabled or both disabled."
         );
     }
-}
-
-// TODO(Tsabary): this test is a temporary workaround to ensure that the combined JSON files match
-// the original base app config file. It should be deleted once we remove the previous base app
-// config. Added here as a sanity check with the hopes of avoiding potential merge conflict issues.
-#[test]
-fn test_combined_json_matches_expected() {
-    // List of JSON files to combine
-    let json_files = BASE_APP_CONFIG_PATHS;
-
-    // Expected JSON file
-    let expected_file = "crates/apollo_deployments/resources/base_app_config.json";
-
-    fn extract_value_from_json_file(file_path: &str) -> Value {
-        let content = read_to_string(file_path)
-            .unwrap_or_else(|e| panic!("Failed to read {}: {}", file_path, e));
-        let json: Value =
-            from_str(&content).unwrap_or_else(|e| panic!("Failed to parse {}: {}", file_path, e));
-        json
-    }
-
-    /// A helper fn that combines multiple JSON dictionary files into a single `serde_json::Map`.
-    fn combine_json_files(files: &[&str]) -> Map<String, Value> {
-        let mut combined = Map::new();
-        for file in files {
-            let file_content = extract_value_from_json_file(file);
-            if let Value::Object(obj) = file_content {
-                for (k, v) in obj {
-                    if combined.contains_key(&k) {
-                        panic!("Duplicate key '{}' found in file {}", k, file);
-                    }
-                    combined.insert(k, v);
-                }
-            } else {
-                panic!("File {} does not contain a JSON object", file);
-            }
-        }
-        combined
-    }
-
-    // Combine all JSON files
-    let combined = combine_json_files(&json_files);
-
-    // Load expected file
-    let expected_content = extract_value_from_json_file(expected_file);
-
-    // Ensure the expected file is a JSON object
-    let expected_obj =
-        expected_content.as_object().expect("Expected file does not contain a JSON object");
-
-    // Compare
-    assert_eq!(&combined, expected_obj, "Combined JSON does not match expected JSON");
 }
