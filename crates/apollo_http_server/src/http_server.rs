@@ -108,6 +108,7 @@ async fn add_rpc_tx(
     headers: HeaderMap,
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<GatewayOutput>> {
+    debug!("ADD_TX_START: Http server received a new transaction.");
     ADDED_TRANSACTIONS_TOTAL.increment(1);
     add_tx_inner(app_state, headers, tx).await
 }
@@ -120,6 +121,7 @@ async fn add_tx(
     tx: String,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     ADDED_TRANSACTIONS_TOTAL.increment(1);
+    debug!("ADD_TX_START: Http server received a new transaction.");
     validate_supported_tx_version(&tx).inspect_err(|e| {
         debug!("Error while validating transaction version: {}", e);
         increment_failure_metrics(e);
