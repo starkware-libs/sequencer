@@ -18,9 +18,8 @@ tempfile.workspace = true
 
 # TODO(Amos): Add `testing` feature and move Python test dependencies under it.
 [dependencies]
-# The 'dump_source_files' and 'test_programs' features should be moved under `testing` feature, when
-# it exists.
-apollo_starknet_os_program = { workspace = true, features = ["dump_source_files", "test_programs"] }
+# The 'test_programs' feature should be moved under `testing` feature, when it exists.
+apollo_starknet_os_program = { workspace = true, features = ["test_programs"] }
 blake2s.workspace = true
 blockifier.workspace = true
 cairo-lang-starknet-classes.workspace = true

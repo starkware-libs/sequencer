@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 
+use apollo_starknet_os_program::CAIRO_FILES_MAP;
 use blockifier::execution::execution_utils::ReadOnlySegment;
 use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::get_relocatable_from_var_name;
 use cairo_vm::hint_processor::hint_processor_definition::HintReference;
-use cairo_vm::serde::deserialize_program::{ApTracking, Identifier, Member};
+use cairo_vm::serde::deserialize_program::{ApTracking, Identifier, Location, Member};
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
@@ -278,4 +279,22 @@ pub(crate) fn write_to_temp_segment(
     let segment_start_ptr = vm.add_temporary_segment();
     vm.load_data(segment_start_ptr, &relocatable_data)?;
     Ok(ReadOnlySegment { start_ptr: segment_start_ptr, length: relocatable_data.len() })
+}
+
+#[allow(dead_code)]
+/// Gets a code snippet from a file at a specific location.
+pub(crate) fn get_code_snippet(location: Location) -> String {
+    let path = match location.input_file.filename.split_once("cairo/").map(|(_, rest)| rest) {
+        Some(path) => path,
+        None => return "Failed to parse input file path.\n".to_string(),
+    };
+
+    let file_bytes = match CAIRO_FILES_MAP.get(path) {
+        Some(file) => file.as_bytes(),
+        None => return format!("File {path} not found in CAIRO_FILES_MAP.\n"),
+    };
+
+    let mut snippet = String::new();
+    snippet.push_str(&format!("{}\n", location.get_location_marks(file_bytes)));
+    snippet
 }

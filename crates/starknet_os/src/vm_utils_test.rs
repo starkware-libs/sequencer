@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 
 use apollo_starknet_os_program::OS_PROGRAM;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
-use cairo_vm::serde::deserialize_program::Identifier;
+use cairo_vm::serde::deserialize_program::{Identifier, InputFile, Location};
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use rstest::rstest;
@@ -13,6 +13,7 @@ use starknet_api::transaction::fields::ResourceAsFelts;
 
 use super::{
     fetch_nested_fields_address,
+    get_code_snippet,
     get_size_of_cairo_struct,
     IdentifierGetter,
     VmUtilsResult,
@@ -143,4 +144,44 @@ fn test_cairo_sized_structs() {
     ContractClass::size(identifier_getter).unwrap();
     EntryPointV0::size(identifier_getter).unwrap();
     ResourceAsFelts::size(identifier_getter).unwrap();
+}
+
+#[rstest]
+#[case(
+    Location {
+        end_line: 87,
+        end_col: 47,
+        input_file: InputFile{
+            filename: "crates/apollo_starknet_os_program/src/cairo/starkware/starknet/core/os/\
+                os.cairo"
+                .to_string()
+            },
+        parent_location: None,
+        start_line: 87,
+        start_col: 9,
+    },
+"    ) = deprecated_load_compiled_class_facts();
+        ^************************************^
+"
+)]
+#[case(
+    Location {
+        end_line: 164,
+        end_col: 48,
+        input_file: InputFile {
+            filename: "crates/apollo_starknet_os_program/src/cairo/starkware/starknet/core/os/\
+                contract_class/deprecated_compiled_class.cairo"
+                .to_string()
+            },
+        parent_location: None,
+        start_line: 164,
+        start_col: 5,
+    },
+"    deprecated_load_compiled_class_facts_inner(
+    ^*****************************************^
+"
+)]
+fn test_get_code_snippet(#[case] location: Location, #[case] expected_snippet: &str) {
+    let snippet = get_code_snippet(location);
+    assert_eq!(snippet, expected_snippet);
 }
