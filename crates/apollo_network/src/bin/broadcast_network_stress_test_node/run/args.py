@@ -3,6 +3,9 @@ import argparse
 
 def add_broadcast_stress_test_node_arguments_to_parser(parser: argparse.ArgumentParser):
     parser.add_argument(
+        "--num-nodes", help="Number of nodes to run", type=int, default=3
+    )
+    parser.add_argument(
         "--verbosity",
         help="Verbosity level for logging (0: None, 1: ERROR, 2: WARN, 3: INFO, 4: DEBUG, 5..: TRACE)",
         type=int,
@@ -27,10 +30,22 @@ def add_broadcast_stress_test_node_arguments_to_parser(parser: argparse.Argument
         default=1,
     )
     parser.add_argument(
-        "--timeout",
-        help="Number of seconds to run the node for.",
+        "--mode",
+        help="The mode to use for the stress test.",
+        choices=["all", "one", "rr"],
+        default="all",
+    )
+    parser.add_argument(
+        "--broadcaster",
+        help="In mode `one`, which node ID should do the broadcasting",
         type=int,
-        default=3600,
+        default=1,
+    )
+    parser.add_argument(
+        "--round-duration-seconds",
+        help="Duration each node broadcasts before switching (in seconds) - for RoundRobin mode",
+        type=int,
+        default=3,
     )
 
 
@@ -38,18 +53,21 @@ def get_arguments(
     id: int | None,
     metric_port: int,
     p2p_port: int,
-    bootstrap: str,
+    bootstrap_nodes: list[str],
     args: argparse.Namespace,
 ) -> list[tuple[str, str]]:
     result = [
         ("--metric-port", str(metric_port)),
         ("--p2p-port", str(p2p_port)),
-        ("--bootstrap", str(bootstrap)),
+        ("--bootstrap", ",".join(bootstrap_nodes)),
         ("--verbosity", str(args.verbosity)),
         ("--buffer-size", str(args.buffer_size)),
         ("--message-size-bytes", str(args.message_size_bytes)),
         ("--heartbeat-millis", str(args.heartbeat_millis)),
-        ("--timeout", str(args.timeout)),
+        ("--mode", str(args.mode)),
+        ("--broadcaster", str(args.broadcaster)),
+        ("--round-duration-seconds", str(args.round_duration_seconds)),
+        ("--num-nodes", str(args.num_nodes)),
     ]
     if id is not None:
         result.insert(0, ("--id", str(id)))

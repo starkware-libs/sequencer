@@ -1,11 +1,12 @@
 import os
 import time
+import subprocess
+import functools
 
 prometheus_service_name = "prometheus-service"
 network_stress_test_deployment_file_name = "network_stress_test_deployment_file.json"
-# got this by running: cargo run --bin get_peer_id_from_secret_key 0x0000000000000000000000000000000000000000000000000000000000000000
-bootstrap_peer_id = "12D3KooWDpJ7As7BWAwRMfu1VU2WCqNjvq387JEYKDBj4kx6nXTN"
 project_root = os.path.abspath("../../../../../../")
+
 assert project_root.endswith("/sequencer"), "Project root must end in '/sequencer'"
 
 
@@ -42,19 +43,27 @@ def make_time_stamp() -> str:
     return time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 
-def get_prometheus_config(self_scrape: bool, metric_urls: list[str]) -> str:
-    result = "global:\n"
-    result += "  scrape_interval: 1s\n"
-    result += "scrape_configs:\n"
-    if self_scrape:
-        result += f"  - job_name: prometheus\n"
-        result += f"    static_configs:\n"
-        result += f"      - targets: ['localhost:9090']\n"
-    for i, url in enumerate(metric_urls):
-        result += f"  - job_name: 'network_stress_test_{i}'\n"
-        result += f"    static_configs:\n"
-        result += f"      - targets: ['{url}']\n"
-        result += f"        labels:\n"
-        result += f"          application: 'broadcast_network_stress_test_node'\n"
-        result += f"          environment: 'test'\n"
-    return result
+def __get_peer_id_from_secret_key(secret_key: str) -> str:
+    """Get peer ID by running the cargo command with the given secret key."""
+    cmd = f"cargo run --bin get_peer_id_from_secret_key {secret_key}"
+    try:
+        result = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            check=True,
+            cwd=project_root,
+        )
+        return result.stdout.strip().replace("Peer ID: ", "")
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"Failed to get peer ID from secret key {secret_key}: {e}")
+
+
+@functools.lru_cache(maxsize=128)
+def get_peer_id_from_node_id(node_id: int) -> str:
+    """Get peer ID for a node by converting node ID to secret key and running the cargo command."""
+    # Convert node ID to a 64-character hex string (32 bytes) with leading zeros
+    bytes = node_id.to_bytes(32, "little")
+    secret_key = f"0x{bytes.hex()}"
+    return __get_peer_id_from_secret_key(secret_key)

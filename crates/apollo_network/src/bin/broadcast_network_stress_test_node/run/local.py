@@ -7,12 +7,12 @@ import docker
 from utils import (
     run_cmd,
     pr,
-    bootstrap_peer_id,
+    get_peer_id_from_node_id,
     project_root,
     make_time_stamp,
     check_docker,
-    get_prometheus_config,
 )
+from yaml_maker import get_prometheus_config
 from args import add_broadcast_stress_test_node_arguments_to_parser, get_arguments
 
 
@@ -104,11 +104,18 @@ class ExperimentRunner:
             f"{project_root}/target/release/broadcast_network_stress_test_node"
         )
         arguments = [exe]
+
+        # Generate bootstrap peers for all other nodes using list comprehension
+        bootstrap_nodes = [
+            f"/ip4/127.0.0.1/udp/{self.p2p_port_base + j}/quic-v1/p2p/{get_peer_id_from_node_id(j)}"
+            for j in range(args.num_nodes)
+        ]
+
         arguments_tuples = get_arguments(
             id=i,
             metric_port=metric_port,
             p2p_port=p2p_port,
-            bootstrap=f"/ip4/127.0.0.1/udp/{self.p2p_port_base}/quic-v1/p2p/{bootstrap_peer_id}",
+            bootstrap_nodes=bootstrap_nodes,
             args=args,
         )
         arguments += [s for pair in arguments_tuples for s in pair]
@@ -146,9 +153,6 @@ class ExperimentRunner:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--num-nodes", help="Number of nodes to run", type=int, default=3
-    )
     add_broadcast_stress_test_node_arguments_to_parser(parser=parser)
     args = parser.parse_args()
 

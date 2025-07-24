@@ -1,9 +1,10 @@
 //! Runs a node that stress tests the p2p communication of the network.
 
 use std::convert::Infallible;
+use std::fmt::Display;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::str::FromStr;
-use std::time::SystemTime;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::vec;
 
 use apollo_network::network_manager::{
@@ -15,22 +16,50 @@ use apollo_network::network_manager::{
 };
 use apollo_network::NetworkConfig;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use converters::{StressTestMessage, METADATA_SIZE};
 use futures::future::join_all;
 use futures::StreamExt;
 use libp2p::gossipsub::{Sha256Topic, Topic};
-use libp2p::Multiaddr;
-use metrics::{counter, gauge};
+use libp2p::{Multiaddr, PeerId};
+use metrics::{counter, histogram};
 use metrics_exporter_prometheus::PrometheusBuilder;
+use tokio::sync::Mutex;
 use tokio::time::Duration;
 use tracing::{info, trace, Level};
+
+#[cfg(test)]
+mod converters_test;
 
 mod converters;
 mod utils;
 
+/// Maximum number of nodes supported - adjust as needed
+const MAX_NODES: usize = 1 << 9;
+
 lazy_static::lazy_static! {
     static ref TOPIC: Sha256Topic = Topic::new("stress_test_topic".to_string());
+
+    static ref MAX_MESSAGE_INDICES: Vec<Mutex<Option<u64>>> = (0..MAX_NODES).map(|_| Mutex::new(None)).collect();
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+enum Mode {
+    /// All nodes broadcast messages
+    #[value(name = "all")]
+    AllBroadcast,
+    /// Only the node specified by --broadcaster-id broadcasts messages
+    #[value(name = "one")]
+    OneBroadcast,
+    /// Nodes take turns broadcasting in round-robin fashion
+    #[value(name = "rr")]
+    RoundRobin,
+}
+
+impl Display for Mode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_possible_value().unwrap().get_name())
+    }
 }
 
 #[derive(Parser, Debug, Clone)]
@@ -38,7 +67,11 @@ lazy_static::lazy_static! {
 struct Args {
     /// ID for Prometheus logging
     #[arg(short, long, env)]
-    id: usize,
+    id: u64,
+
+    /// Total number of nodes in the network - for RoundRobin mode
+    #[arg(long, env, default_value_t = 3)]
+    num_nodes: u64,
 
     /// The port to run the Prometheus metrics server on
     #[arg(long, env, default_value_t = 2000)]
@@ -48,9 +81,9 @@ struct Args {
     #[arg(short, env, long, default_value_t = 10000)]
     p2p_port: u16,
 
-    /// The address to the bootstrap peer
-    #[arg(long, env)]
-    bootstrap: Option<String>,
+    /// The addresses of the bootstrap peers (can specify multiple)
+    #[arg(long, env, value_delimiter = ',')]
+    bootstrap: Vec<String>,
 
     /// Set the verbosity level of the logger, the higher the more verbose
     #[arg(short, long, env, default_value_t = 0)]
@@ -69,29 +102,47 @@ struct Args {
     #[arg(long, env, default_value_t = 1)]
     heartbeat_millis: u64,
 
-    /// Maximum duration in seconds to run the node for
-    #[arg(short, long, env, default_value_t = 3_600)]
-    timeout: u64,
+    /// The mode to use for the stress test.
+    #[arg(long, env, default_value = "all")]
+    mode: Mode,
+
+    /// Which node ID should do the broadcasting - for OneBroadcast mode
+    #[arg(long, env, default_value_t = 1)]
+    broadcaster: u64,
+
+    /// Duration each node broadcasts before switching (in seconds) - for RoundRobin mode
+    #[arg(long, env, default_value_t = 3)]
+    round_duration_seconds: u64,
 }
 
 async fn send_stress_test_messages(
     mut broadcast_topic_client: BroadcastTopicClient<StressTestMessage>,
     args: &Args,
-    peer_id: String,
 ) {
-    let mut message = StressTestMessage::new(
-        args.id.try_into().unwrap(),
-        vec![0; args.message_size_bytes - METADATA_SIZE],
-        peer_id.clone(),
-    );
+    let mut message =
+        StressTestMessage::new(args.id, 0, vec![0; args.message_size_bytes - *METADATA_SIZE]);
     let duration = Duration::from_millis(args.heartbeat_millis);
 
-    for i in 0.. {
-        message.time = SystemTime::now();
-        // message.id = i;
-        broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
-        trace!("Sent message {i}: {:?}", message);
-        counter!("sent_messages").increment(1);
+    let mut message_index = 0;
+    loop {
+        // Check if this node should broadcast based on the mode
+        let should_broadcast_now = match args.mode {
+            Mode::AllBroadcast => true,
+            Mode::OneBroadcast => {
+                unreachable!("When OneBroadcast mode is used, this function should not be called")
+            }
+            Mode::RoundRobin => should_broadcast_round_robin(args),
+        };
+
+        if should_broadcast_now {
+            message.metadata.time = SystemTime::now();
+            message.metadata.message_index = message_index;
+            broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
+            trace!("Node {} sent message {message_index} in mode `{}`", args.id, args.mode);
+            counter!("messages_sent_total").increment(1);
+            message_index += 1;
+        }
+
         tokio::time::sleep(duration).await;
     }
 }
@@ -103,28 +154,96 @@ fn receive_stress_test_message(
     let end_time = SystemTime::now();
 
     let received_message = message_result.unwrap();
-    let start_time = received_message.time;
-    let duration = match end_time.duration_since(start_time) {
-        Ok(duration) => duration,
-        Err(_) => panic!("Got a negative duration, the clocks are not synced!"),
+    let sender_id = received_message.metadata.sender_id;
+    let start_time = received_message.metadata.time;
+    let delay_seconds = match end_time.duration_since(start_time) {
+        Ok(duration) => duration.as_secs_f64(),
+        Err(_) => {
+            let negative_duration = start_time.duration_since(end_time).unwrap();
+            -negative_duration.as_secs_f64()
+        }
     };
 
-    let delay_seconds = duration.as_secs_f64();
-    let delay_micros = duration.as_micros().try_into().unwrap();
+    // let delay_micros = duration.as_micros().try_into().unwrap();
+    let current_message_index = received_message.metadata.message_index;
 
-    // TODO(AndrewL): Concentrate all string metrics to constants in a different file
-    counter!("message_received").increment(1);
-    counter!(format!("message_received_from_{}", received_message.id)).increment(1);
+    // Use proper metrics with labels instead of dynamic metric names
+    counter!("messages_received_total").increment(1);
+    counter!("messages_received_by_sender_total", "sender_id" => sender_id.to_string())
+        .increment(1);
 
-    // TODO(AndrewL): This should be a historgram
-    gauge!("message_received_delay_seconds").set(delay_seconds);
-    gauge!(format!("message_received_delay_seconds_from_{}", received_message.id))
-        .set(delay_seconds);
+    // Use histogram for latency measurements
+    if delay_seconds >= 0.0 {
+        histogram!("message_delay_seconds").record(delay_seconds);
+        histogram!("message_delay_by_sender_seconds", "sender_id" => sender_id.to_string())
+            .record(delay_seconds);
+    } else {
+        histogram!("message_negative_delay_seconds").record(-delay_seconds);
+        histogram!("message_negative_delay_by_sender_seconds", "sender_id" => sender_id.to_string())
+        .record(-delay_seconds);
+    }
 
-    counter!("message_received_delay_micros_sum").increment(delay_micros);
-    counter!(format!("message_received_delay_micros_sum_from_{}", received_message.id))
-        .increment(delay_micros);
-    // TODO(AndrewL): Figure out what to log here
+    counter!("bytes_received_total").increment(received_message.byte_size().try_into().unwrap());
+
+    // Handle message ordering and update last message indices
+    handle_message_ordering(sender_id, current_message_index);
+}
+
+/// Helper function to handle message ordering tracking and out-of-order detection
+fn handle_message_ordering(sender_id: u64, current_message_index: u64) {
+    let sender_index: usize = sender_id.try_into().unwrap();
+    if sender_index >= MAX_NODES {
+        panic!("Received message from sender_id {sender_id} which exceeds MAX_NODES {MAX_NODES}");
+    }
+
+    let mut max_index_guard = MAX_MESSAGE_INDICES[sender_index].blocking_lock();
+    let Some(max_index) = *max_index_guard else {
+        *max_index_guard = Some(current_message_index);
+        return;
+    };
+
+    // update max value
+    *max_index_guard = Some(current_message_index.max(max_index));
+    let expected_index = max_index + 1;
+
+    if current_message_index == expected_index {
+        return;
+    }
+
+    // Use labels instead of dynamic metric names
+    counter!("messages_out_of_order_total").increment(1);
+    counter!("messages_out_of_order_by_sender_total", "sender_id" => sender_id.to_string())
+        .increment(1);
+
+    if expected_index < current_message_index {
+        let missed_messages = current_message_index - expected_index;
+        counter!("messages_missing_total").increment(missed_messages);
+        counter!("messages_missing_by_sender_total", "sender_id" => sender_id.to_string())
+            .increment(missed_messages);
+        return;
+    }
+
+    if max_index == current_message_index {
+        counter!("messages_duplicate_total").increment(1);
+        counter!("messages_duplicate_by_sender_total", "sender_id" => sender_id.to_string())
+            .increment(1);
+        // TODO(AndrewL): should this ever happen? does libp2p prevent this?
+        // Note: this count does not account fot all duplicates...
+        return;
+    }
+
+    if current_message_index < max_index {
+        counter!("messages_missing_retrieved_total").increment(1);
+        counter!("messages_missing_retrieved_by_sender_total", "sender_id" => sender_id.to_string())
+            .increment(1);
+    }
+}
+
+fn should_broadcast_round_robin(args: &Args) -> bool {
+    let now = SystemTime::now();
+    let now_seconds = now.duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let current_round = (now_seconds / args.round_duration_seconds) % args.num_nodes;
+    args.id == current_round
 }
 
 async fn receive_stress_test_messages(
@@ -139,8 +258,7 @@ async fn receive_stress_test_messages(
     unreachable!("BroadcastTopicServer stream should never terminate...");
 }
 
-fn create_peer_private_key(peer_index: usize) -> [u8; 32] {
-    let peer_index: u64 = peer_index.try_into().expect("Failed converting usize to u64");
+fn create_peer_private_key(peer_index: u64) -> [u8; 32] {
     let array = peer_index.to_le_bytes();
     assert_eq!(array.len(), 8);
     let mut private_key = [0u8; 32];
@@ -168,8 +286,13 @@ async fn main() {
     println!("Starting network stress test with args:\n{args:?}");
 
     assert!(
-        args.message_size_bytes >= METADATA_SIZE,
-        "Message size must be at least {METADATA_SIZE} bytes"
+        args.message_size_bytes >= *METADATA_SIZE,
+        "Message size must be at least {} bytes",
+        *METADATA_SIZE
+    );
+    assert!(
+        args.num_nodes <= MAX_NODES.try_into().unwrap(),
+        "num_nodes must be less than or equal to {MAX_NODES}"
     );
 
     let builder = PrometheusBuilder::new().with_http_listener(SocketAddr::V4(SocketAddrV4::new(
@@ -189,14 +312,16 @@ async fn main() {
         secret_key: Some(peer_private_key.to_vec()),
         ..Default::default()
     };
-    if let Some(peer) = &args.bootstrap {
-        let bootstrap_peer: Multiaddr = Multiaddr::from_str(peer).unwrap();
-        network_config.bootstrap_peer_multiaddr = Some(vec![bootstrap_peer]);
+    if !args.bootstrap.is_empty() {
+        let bootstrap_peers: Vec<Multiaddr> =
+            args.bootstrap.iter().map(|s| Multiaddr::from_str(s.trim()).unwrap()).collect();
+        network_config.bootstrap_peer_multiaddr = Some(bootstrap_peers);
     }
 
     let mut network_manager = NetworkManager::new(network_config, None, None);
 
-    let peer_id = network_manager.get_local_peer_id();
+    let peer_id_string = network_manager.get_local_peer_id();
+    let peer_id = PeerId::from_str(&peer_id_string).unwrap();
     info!("My PeerId: {peer_id}");
 
     let network_channels = network_manager
@@ -218,17 +343,22 @@ async fn main() {
         unreachable!("Broadcast topic receiver should not exit");
     }));
 
-    let args_clone = args.clone();
-    tasks.push(tokio::spawn(async move {
-        send_stress_test_messages(broadcast_topic_client, &args_clone, peer_id).await;
-        unreachable!("Broadcast topic client should not exit");
-    }));
+    // Check if this node should broadcast based on the mode
+    let should_broadcast = match args.mode {
+        Mode::AllBroadcast | Mode::RoundRobin => true,
+        Mode::OneBroadcast => args.id == args.broadcaster,
+    };
 
-    let test_timeout = Duration::from_secs(args.timeout);
-    match tokio::time::timeout(test_timeout, join_all(tasks.into_iter())).await {
-        Ok(_) => unreachable!(),
-        Err(e) => {
-            info!("Test timeout after {e}");
-        }
+    if should_broadcast {
+        info!("Node {} will broadcast in mode `{}`", args.id, args.mode);
+        let args_clone = args.clone();
+        tasks.push(tokio::spawn(async move {
+            send_stress_test_messages(broadcast_topic_client, &args_clone).await;
+            unreachable!("Broadcast topic client should not exit");
+        }));
+    } else {
+        info!("Node {} will NOT broadcast in mode `{}`", args.id, args.mode);
     }
+
+    join_all(tasks.into_iter()).await;
 }
