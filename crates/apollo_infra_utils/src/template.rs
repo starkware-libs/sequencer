@@ -5,9 +5,14 @@ use std::fmt::{Display, Write};
 mod template_test;
 
 /// A simple positional template with `{}` placeholders.
-pub struct Template(pub &'static str);
+pub struct Template(pub String);
 
 impl Template {
+    /// Creates a new `Template` from any type implementing `ToString`.
+    pub fn new<T: ToString>(s: T) -> Self {
+        Template(s.to_string())
+    }
+
     /// Renders the template by substituting `{}` placeholders with the provided args. Panics if the
     /// number of `{}` in the template doesn't match the number of args provided.
     pub fn format(&self, args: &[&dyn Display]) -> String {
@@ -30,7 +35,7 @@ impl Template {
         let mut out = String::with_capacity(self.0.len() + SIZE_PER_ARG * args.len());
 
         // Walk through the template, streaming chunks + args into `out`
-        let mut rest = self.0;
+        let mut rest = self.0.as_str();
         for value in args {
             if let Some(i) = rest.find("{}") {
                 // Write the prefix before the placeholder

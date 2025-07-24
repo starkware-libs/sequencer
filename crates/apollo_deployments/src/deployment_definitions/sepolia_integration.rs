@@ -10,8 +10,8 @@ use crate::deployments::hybrid::{hybrid_deployment, INSTANCE_NAME_FORMAT};
 const NODE_IDS: [usize; 3] = [0, 1, 2];
 const HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "integration-sepolia.starknet.io";
 const INGRESS_DOMAIN: &str = "starknet.io";
-const SECRET_NAME_FORMAT: Template = Template("apollo-sepolia-integration-{}");
-const NODE_NAMESPACE_FORMAT: Template = Template("apollo-sepolia-integration-{}");
+const SECRET_NAME_FORMAT: &str = "apollo-sepolia-integration-{}";
+const NODE_NAMESPACE_FORMAT: &str = "apollo-sepolia-integration-{}";
 
 const STARKNET_CONTRACT_ADDRESS: &str = "0x4737c0c1B4D5b1A687B42610DdabEE781152359c";
 const CHAIN_ID: &str = "SN_INTEGRATION_SEPOLIA";
@@ -34,8 +34,8 @@ pub(crate) fn sepolia_integration_hybrid_deployments() -> Vec<Deployment> {
                 i,
                 P2P_COMMUNICATION_TYPE,
                 DEPLOYMENT_ENVIRONMENT,
-                &INSTANCE_NAME_FORMAT,
-                &SECRET_NAME_FORMAT,
+                &Template::new(INSTANCE_NAME_FORMAT),
+                &Template::new(SECRET_NAME_FORMAT),
                 DeploymentConfigOverride::new(
                     STARKNET_CONTRACT_ADDRESS,
                     CHAIN_ID,
@@ -46,7 +46,7 @@ pub(crate) fn sepolia_integration_hybrid_deployments() -> Vec<Deployment> {
                     NODE_IDS.len(),
                     STATE_SYNC_TYPE,
                 ),
-                &NODE_NAMESPACE_FORMAT,
+                &Template::new(NODE_NAMESPACE_FORMAT),
                 INGRESS_DOMAIN,
                 HTTP_SERVER_INGRESS_ALTERNATIVE_NAME,
                 None,
