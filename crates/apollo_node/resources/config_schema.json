@@ -974,47 +974,47 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.consensus_config.future_height_limit": {
+  "consensus_manager_config.consensus_manager_config.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "privacy": "Public",
     "value": 10
   },
-  "consensus_manager_config.consensus_config.future_height_round_limit": {
+  "consensus_manager_config.consensus_manager_config.future_height_round_limit": {
     "description": "How many rounds should we cache for future heights.",
     "privacy": "Public",
     "value": 1
   },
-  "consensus_manager_config.consensus_config.future_round_limit": {
+  "consensus_manager_config.consensus_manager_config.future_round_limit": {
     "description": "How many rounds in the future (for current height) should we cache.",
     "privacy": "Public",
     "value": 10
   },
-  "consensus_manager_config.consensus_config.startup_delay": {
+  "consensus_manager_config.consensus_manager_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
     "value": 5
   },
-  "consensus_manager_config.consensus_config.sync_retry_interval": {
+  "consensus_manager_config.consensus_manager_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_config.timeouts.precommit_timeout": {
+  "consensus_manager_config.consensus_manager_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_config.timeouts.prevote_timeout": {
+  "consensus_manager_config.consensus_manager_config.timeouts.prevote_timeout": {
     "description": "The timeout (seconds) for a prevote.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_config.timeouts.proposal_timeout": {
+  "consensus_manager_config.consensus_manager_config.timeouts.proposal_timeout": {
     "description": "The timeout (seconds) for a proposal.",
     "privacy": "Public",
     "value": 3.0
   },
-  "consensus_manager_config.consensus_config.validator_id": {
+  "consensus_manager_config.consensus_manager_config.validator_id": {
     "description": "The validator id of the node.",
     "pointer_target": "validator_id",
     "privacy": "Public"

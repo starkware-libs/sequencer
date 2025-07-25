@@ -290,7 +290,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
         .map(|network_config| ConsensusManagerConfig {
             network_config,
             immediate_active_height: BlockNumber(1),
-            consensus_config: ConsensusConfig {
+            consensus_manager_config: ConsensusConfig {
                 // TODO(Matan, Dan): Set the right amount
                 startup_delay: Duration::from_secs(15),
                 timeouts: timeouts.clone(),
@@ -629,10 +629,11 @@ pub fn set_validator_id(
     node_index: usize,
 ) -> ValidatorId {
     let validator_id = ValidatorId::try_from(
-        Felt::from(consensus_manager_config.consensus_config.validator_id) + Felt::from(node_index),
+        Felt::from(consensus_manager_config.consensus_manager_config.validator_id)
+            + Felt::from(node_index),
     )
     .unwrap();
-    consensus_manager_config.consensus_config.validator_id = validator_id;
+    consensus_manager_config.consensus_manager_config.validator_id = validator_id;
     validator_id
 }
 
