@@ -1,0 +1,13 @@
+[package]
+name = "sizeof_internal"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license-file.workspace = true
+description = "compute size of types in memory"
+
+[lints]
+workspace = true
+
+[dependencies]
+starknet-types-core.workspace = true
