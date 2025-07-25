@@ -147,6 +147,7 @@ pub(crate) enum AlertGroup {
     Batcher,
     Consensus,
     Gateway,
+    General,
     HttpServer,
     L1GasPrice,
     L1Messages,
