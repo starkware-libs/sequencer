@@ -1,4 +1,4 @@
-from starkware.cairo.common.math import assert_nn_le
+from starkware.cairo.common.math import assert_le
 from starkware.cairo.common.memcpy import memcpy
 from starkware.starknet.core.os.output import (
     MessageToL1Header,
@@ -51,7 +51,10 @@ func combine_blocks{range_check_ptr}(
 ) -> OsOutput* {
     alloc_locals;
 
-    assert_nn_le(1, n);
+    // Assert that 1 <= n < 2**128 + 1.
+    // This assertion is not essential but is here for explicitness.
+    // It is not essential as if it doesn't hold, the program would never end anyway.
+    assert_le(1, n);
 
     local initial_carried_outputs: OsCarriedOutputs*;
 
@@ -102,7 +105,7 @@ func combine_blocks{range_check_ptr}(
 
     %{ state_update_pointers = None %}
 
-    // Squash the contract state tree.
+    // Squash the contract state diff dict.
     let (n_contract_state_changes, squashed_contract_state_dict) = squash_state_changes(
         contract_state_changes_start=res_state_update.contract_state_changes,
         contract_state_changes_end=&res_state_update.contract_state_changes[
@@ -110,7 +113,7 @@ func combine_blocks{range_check_ptr}(
         ],
     );
 
-    // Squash the contract class tree.
+    // Squash the contract class diff dict.
     let (n_class_updates, squashed_class_changes) = squash_class_changes(
         class_changes_start=res_state_update.contract_class_changes,
         class_changes_end=&res_state_update.contract_class_changes[
@@ -150,7 +153,7 @@ func combine_blocks_inner(aggregated: OsOutput*, n: felt, os_outputs: OsOutput*)
     static_assert OsOutput.SIZE == 4;
     static_assert OsOutputHeader.SIZE == 9;
 
-    // Validate fields of the inner OS outputs.
+    // Validate fields of the inner OS output of a single task.
     assert current_header.use_kzg_da = 0;
     assert current_header.full_output = 1;
     assert current_header.os_program_hash = 0;
