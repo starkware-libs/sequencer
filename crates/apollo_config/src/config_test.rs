@@ -937,15 +937,15 @@ fn optional_list_nested_btreemaps() {
             UrlAndHeaders {
                 url: Url::parse("http://a.com/").unwrap(),
                 headers: BTreeMap::from([
-                    ("inner1".to_owned(), "1".to_owned()),
-                    ("inner2".to_owned(), "2".to_owned()),
+                    ("key1".to_owned(), "value 1".to_owned()),
+                    ("key2".to_owned(), "value 2".to_owned()),
                 ]),
             },
             UrlAndHeaders {
                 url: Url::parse("http://b.com/").unwrap(),
                 headers: BTreeMap::from([
-                    ("inner3".to_owned(), "3".to_owned()),
-                    ("inner4".to_owned(), "4".to_owned()),
+                    ("key3".to_owned(), "value 3".to_owned()),
+                    ("key4".to_owned(), "value 4".to_owned()),
                 ]),
             },
             UrlAndHeaders {
@@ -954,17 +954,18 @@ fn optional_list_nested_btreemaps() {
             },
             UrlAndHeaders {
                 url: Url::parse("http://d.com/").unwrap(),
-                headers: BTreeMap::from([("inner5".to_owned(), "5".to_owned())]),
+                headers: BTreeMap::from([("key5".to_owned(), "value 5".to_owned())]),
             },
         ]),
     };
     let dumped = config.dump();
     let (config_map, _) = split_values_and_types(dumped);
     let loaded_config = load::<TestConfigWithNestedJson>(&config_map).unwrap();
+    // println!("{:#?}", loaded_config);
     assert_eq!(loaded_config.list_of_maps, config.list_of_maps);
-    let serialized = serde_json::to_string(&loaded_config).unwrap();
+    let serialized = serde_json::to_string(&config_map).unwrap();
     assert_eq!(
         serialized,
-        r#"{"list_of_maps":[{"url":"http://a.com/","headers":{"inner1":"1","inner2":"2"}},{"url":"http://b.com/","headers":{"inner3":"3","inner4":"4"}},{"url":"http://c.com/","headers":{}},{"url":"http://d.com/","headers":{"inner5":"5"}}]}"#
+        r#"{"list_of_maps":"http://a.com/,key1^value 1,key2^value 2|http://b.com/,key3^value 3,key4^value 4|http://c.com/|http://d.com/,key5^value 5"}"# /* r#"{"list_of_maps":[{"url":"http://a.com/","headers":{"inner1":"1","inner2":"2"}},{"url":"http://b.com/","headers":{"inner3":"3","inner4":"4"}},{"url":"http://c.com/","headers":{}},{"url":"http://d.com/","headers":{"inner5":"5"}}]}"# */
     );
 }

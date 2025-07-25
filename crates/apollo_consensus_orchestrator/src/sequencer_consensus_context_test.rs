@@ -595,10 +595,9 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
         deps.l1_gas_price_provider = l1_prices_oracle_client;
     } else {
         let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-        eth_to_strk_oracle_client
-            .expect_eth_to_fri_rate()
-            .times(1)
-            .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
+        eth_to_strk_oracle_client.expect_eth_to_fri_rate().times(1).return_once(|_| {
+            Err(EthToStrkOracleClientError::MissingFieldError("", "".to_string()))
+        });
         deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
     }
 
@@ -685,10 +684,9 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
             .expect_eth_to_fri_rate()
             .times(1)
             .return_once(|_| Ok(ETH_TO_FRI_RATE));
-        eth_to_strk_oracle_client
-            .expect_eth_to_fri_rate()
-            .times(1)
-            .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
+        eth_to_strk_oracle_client.expect_eth_to_fri_rate().times(1).return_once(|_| {
+            Err(EthToStrkOracleClientError::MissingFieldError("", "".to_string()))
+        });
         deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
     }
 
@@ -769,4 +767,59 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     );
     assert!(receiver.next().await.is_none());
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+}
+
+#[rstest]
+#[case::constant_l2_gas_price_true(true, GasAmount::default())]
+#[case::constant_l2_gas_price_false(false, VersionedConstants::latest_constants().max_block_size)]
+#[tokio::test]
+async fn constant_l2_gas_price_behavior(
+    #[case] constant_l2_gas_price: bool,
+    #[case] mock_l2_gas_used: GasAmount,
+) {
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
+    // Setup dependencies and mocks.
+    deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len());
+
+    deps.batcher.expect_decision_reached().times(1).return_once(move |_| {
+        Ok(DecisionReachedResponse {
+            state_diff: ThinStateDiff::default(),
+            l2_gas_used: mock_l2_gas_used,
+            central_objects: CentralObjects::default(),
+        })
+    });
+
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(|_| Ok(()));
+
+    let context_config = ContextConfig { constant_l2_gas_price, ..Default::default() };
+    let mut context = deps.build_context();
+    context.config = context_config;
+
+    // Run proposal and decision logic.
+    let _fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
+    context
+        .decision_reached(BlockHash(STATE_DIFF_COMMITMENT.0.0), vec![Vote::default()])
+        .await
+        .unwrap();
+
+    let min_gas_price = VersionedConstants::latest_constants().min_gas_price.0;
+    let actual_l2_gas_price = context.l2_gas_price.0;
+
+    if constant_l2_gas_price {
+        assert_eq!(
+            actual_l2_gas_price, min_gas_price,
+            "Expected L2 gas price to match constant min_gas_price"
+        );
+    } else {
+        assert!(
+            actual_l2_gas_price > min_gas_price,
+            "Expected L2 gas price > min ({min_gas_price}) due to high usage (EIP-1559), but got \
+             {actual_l2_gas_price}"
+        );
+    }
 }

@@ -16,6 +16,7 @@ use assert_matches::assert_matches;
 use futures::channel::mpsc;
 use futures::SinkExt;
 use num_rational::Ratio;
+use rstest::rstest;
 use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -37,6 +38,7 @@ use crate::test_utils::{
 use crate::utils::GasPriceParams;
 use crate::validate_proposal::{
     validate_proposal,
+    within_margin,
     BlockInfoValidation,
     ProposalValidateArguments,
     ValidateProposalError,
@@ -163,7 +165,7 @@ async fn interrupt_proposal() {
     proposal_args.cancel_token.cancel();
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(ValidateProposalError::ProposalInterrupted)));
+    assert!(matches!(res, Err(ValidateProposalError::ProposalInterrupted(_))));
 }
 
 #[tokio::test]
@@ -173,7 +175,7 @@ async fn validation_timeout() {
     proposal_args.timeout = Duration::from_micros(1);
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(ValidateProposalError::ValidationTimeout)));
+    assert!(matches!(res, Err(ValidateProposalError::ValidationTimeout(_))));
 }
 
 #[tokio::test]
@@ -358,7 +360,9 @@ async fn batcher_returns_invalid_proposal() {
                 && input.content == SendProposalContent::Finish(n_executed)
         })
         .returning(|_| {
-            Ok(SendProposalContentResponse { response: ProposalStatus::InvalidProposal })
+            Ok(SendProposalContentResponse {
+                response: ProposalStatus::InvalidProposal("test error".to_string()),
+            })
         });
     // Send a valid block info.
     let block_info = block_info(BlockNumber(0));
@@ -373,5 +377,20 @@ async fn batcher_returns_invalid_proposal() {
         .unwrap();
 
     let res = validate_proposal(proposal_args.into()).await;
-    assert!(matches!(res, Err(ValidateProposalError::InvalidProposal)));
+    assert!(matches!(res, Err(ValidateProposalError::InvalidProposal(_))));
+}
+
+#[rstest]
+#[case::big_number_in_margin(1000, 1050, 10, true)]
+#[case::big_number_out_of_margin(1000, 1150, 10, false)]
+#[case::small_number_in_margin(9, 10, 10, true)]
+#[case::small_number_out_of_margin(9, 11, 10, false)]
+#[case::identical_numbers(12345, 12345, 1, true)]
+fn test_within_margin(
+    #[case] a: u128,
+    #[case] b: u128,
+    #[case] margin: u128,
+    #[case] expected: bool,
+) {
+    assert_eq!(within_margin(GasPrice(a), GasPrice(b), margin), expected);
 }

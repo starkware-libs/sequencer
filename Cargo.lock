@@ -1192,9 +1192,7 @@ dependencies = [
  "apollo_monitoring_endpoint",
  "apollo_node",
  "apollo_protobuf",
- "hex",
  "indexmap 2.9.0",
- "libp2p",
  "serde",
  "serde_json",
  "serde_with",
@@ -1229,6 +1227,7 @@ dependencies = [
  "blockifier_test_utils",
  "cairo-lang-sierra-to-casm",
  "cairo-lang-starknet-classes",
+ "clap",
  "criterion",
  "futures",
  "lazy_static",
@@ -1248,6 +1247,7 @@ dependencies = [
  "starknet_api",
  "strum 0.25.0",
  "strum_macros 0.25.3",
+ "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tracing",
@@ -1289,6 +1289,7 @@ dependencies = [
  "axum",
  "base64 0.13.1",
  "blockifier",
+ "blockifier_reexecution",
  "blockifier_test_utils",
  "flate2",
  "futures",
@@ -1368,6 +1369,7 @@ dependencies = [
  "anyhow",
  "apollo_batcher",
  "apollo_class_manager",
+ "apollo_config",
  "apollo_consensus",
  "apollo_consensus_manager",
  "apollo_consensus_orchestrator",
@@ -1658,6 +1660,7 @@ dependencies = [
 name = "apollo_monitoring_endpoint"
 version = "0.0.0"
 dependencies = [
+ "anyhow",
  "apollo_config",
  "apollo_infra",
  "apollo_infra_utils",
@@ -1725,6 +1728,7 @@ name = "apollo_network_types"
 version = "0.0.0"
 dependencies = [
  "apollo_test_utils",
+ "lazy_static",
  "libp2p",
  "rand_chacha 0.3.1",
  "serde",
@@ -12258,6 +12262,7 @@ dependencies = [
  "papyrus_common",
  "paste",
  "rand 0.8.5",
+ "regex",
  "rstest",
  "serde",
  "serde_json",
@@ -12271,6 +12276,7 @@ dependencies = [
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+ "tracing",
 ]
 
 [[package]]

@@ -98,6 +98,16 @@ impl Transaction {
         }
     }
 
+    pub fn resource_bounds(&self) -> Option<ValidResourceBounds> {
+        match self {
+            Transaction::Declare(tx) => Some(tx.resource_bounds()),
+            Transaction::Deploy(_) => None,
+            Transaction::DeployAccount(tx) => Some(tx.resource_bounds()),
+            Transaction::Invoke(tx) => Some(tx.resource_bounds()),
+            Transaction::L1Handler(_) => None,
+        }
+    }
+
     pub fn calculate_transaction_hash(
         &self,
         chain_id: &ChainId,

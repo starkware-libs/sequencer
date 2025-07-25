@@ -1,61 +1,5 @@
 {
   "Sequencer Node Dashboard": {
-    "Batcher": [
-      {
-        "title": "batcher_proposal_failed",
-        "description": "Counter of failed proposals",
-        "type": "stat",
-        "exprs": [
-          "batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "batcher_proposal_started",
-        "description": "Counter of proposals started",
-        "type": "stat",
-        "exprs": [
-          "batcher_proposal_started{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "batcher_proposal_succeeded",
-        "description": "Counter of successful proposals",
-        "type": "stat",
-        "exprs": [
-          "batcher_proposal_succeeded{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "batcher_proposal_failed",
-        "description": "Counter of failed proposals",
-        "type": "stat",
-        "exprs": [
-          "batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "batcher_batched_transactions",
-        "description": "Counter of batched transactions across all forks",
-        "type": "stat",
-        "exprs": [
-          "batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "batcher_last_batched_block",
-        "description": "The last block received by batching",
-        "type": "stat",
-        "exprs": [
-          "batcher_last_batched_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      }
-    ],
     "Consensus": [
       {
         "title": "consensus_block_number",
@@ -357,59 +301,67 @@
         "extra_params": {}
       }
     ],
-    "Http Server": [
+    "Batcher": [
       {
-        "title": "http_server_added_transactions_total",
-        "description": "Total number of transactions added",
-        "type": "timeseries",
+        "title": "batcher_proposal_started",
+        "description": "Counter of proposals started",
+        "type": "stat",
         "exprs": [
-          "http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "batcher_proposal_started{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "http_server_transactions_received_rate (TPS)",
-        "description": "The rate of transactions received by the HTTP Server during the last 20 minutes",
-        "type": "timeseries",
+        "title": "batcher_proposal_succeeded",
+        "description": "Counter of successful proposals",
+        "type": "stat",
         "exprs": [
-          "sum(rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
+          "batcher_proposal_succeeded{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "http_server_added_transactions_success",
-        "description": "Number of successfully added transactions",
-        "type": "timeseries",
+        "title": "batcher_proposal_failed",
+        "description": "Counter of failed proposals",
+        "type": "stat",
         "exprs": [
-          "http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "batcher_proposal_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "http_server_added_transactions_failure",
-        "description": "Number of faulty added transactions",
-        "type": "timeseries",
+        "title": "batcher_batched_transactions",
+        "description": "Counter of batched transactions across all forks",
+        "type": "stat",
         "exprs": [
-          "http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "http_server_added_transactions_internal_error",
-        "description": "Number of faulty added transactions failing on internal error",
-        "type": "timeseries",
+        "title": "batcher_last_batched_block",
+        "description": "The last block received by batching",
+        "type": "stat",
         "exprs": [
-          "http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "batcher_last_batched_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "http_server_add_tx_latency",
-        "description": "Latency of HTTP add_tx endpoint in secs",
+        "title": "rejection_ratio",
+        "description": "Ratio of rejected transactions out of all processed, over the last 5 minutes",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "100 * (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "reverted_transactions_ratio",
+        "description": "Ratio of reverted transactions out of all processed, over the last 5 minutes",
+        "type": "timeseries",
+        "exprs": [
+          "100 * (increase(batcher_reverted_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(batcher_rejected_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + increase(batcher_batched_transactions{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
         ],
         "extra_params": {}
       }
@@ -479,126 +431,68 @@
         "extra_params": {}
       }
     ],
-    "MempoolP2p": [
+    "Http Server": [
       {
-        "title": "apollo_mempool_p2p_num_connected_peers",
-        "description": "The number of connected peers to the mempool p2p component",
-        "type": "stat",
-        "exprs": [
-          "apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "apollo_mempool_p2p_num_sent_messages",
-        "description": "The number of messages sent by the mempool p2p component",
-        "type": "stat",
-        "exprs": [
-          "apollo_mempool_p2p_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "apollo_mempool_p2p_num_received_messages",
-        "description": "The number of messages received by the mempool p2p component",
-        "type": "stat",
-        "exprs": [
-          "apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "apollo_mempool_p2p_broadcasted_transaction_batch_size",
-        "description": "The number of transactions in batches broadcast by the mempool p2p component",
-        "type": "stat",
-        "exprs": [
-          "histogram_quantile(0.50, sum(rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
-        ],
-        "extra_params": {}
-      }
-    ],
-    "ConsensusP2p": [
-      {
-        "title": "apollo_consensus_num_connected_peers",
-        "description": "The number of connected peers to the consensus p2p component",
+        "title": "http_server_added_transactions_total",
+        "description": "Total number of transactions added",
         "type": "timeseries",
         "exprs": [
-          "apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "apollo_consensus_votes_num_sent_messages",
-        "description": "The number of messages sent by the consensus p2p component over the Votes topic",
+        "title": "http_server_transactions_received_rate (TPS)",
+        "description": "The rate of transactions received by the HTTP Server during the last 20 minutes",
         "type": "timeseries",
         "exprs": [
-          "apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "sum(rate(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[20m])) or vector(0)"
         ],
         "extra_params": {}
       },
       {
-        "title": "apollo_consensus_votes_num_received_messages",
-        "description": "The number of messages received by the consensus p2p component over the Votes topic",
+        "title": "http_server_added_transactions_success",
+        "description": "Number of successfully added transactions",
         "type": "timeseries",
         "exprs": [
-          "apollo_consensus_votes_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "apollo_consensus_proposals_num_sent_messages",
-        "description": "The number of messages sent by the consensus p2p component over the Proposals topic",
+        "title": "http_server_added_transactions_failure",
+        "description": "Number of faulty added transactions",
         "type": "timeseries",
         "exprs": [
-          "apollo_consensus_proposals_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "apollo_consensus_proposals_num_received_messages",
-        "description": "The number of messages received by the consensus p2p component over the Proposals topic",
+        "title": "http_server_added_transactions_internal_error",
+        "description": "Number of faulty added transactions failing on internal error",
         "type": "timeseries",
         "exprs": [
-          "apollo_consensus_proposals_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "http_server_added_transactions_internal_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "consensus_conflicting_votes",
-        "description": "The number of times consensus has received conflicting votes",
+        "title": "http_server_added_transactions_deprecated_error",
+        "description": "Number of faulty added transactions failing on deprecated error",
         "type": "timeseries",
         "exprs": [
-          "consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      }
-    ],
-    "StateSyncP2p": [
-      {
-        "title": "apollo_p2p_sync_num_connected_peers",
-        "description": "The number of connected peers to the p2p sync component",
-        "type": "stat",
-        "exprs": [
-          "apollo_p2p_sync_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
       {
-        "title": "apollo_p2p_sync_num_active_inbound_sessions",
-        "description": "The number of inbound sessions to the p2p sync component",
-        "type": "stat",
+        "title": "http_server_add_tx_latency",
+        "description": "Latency of HTTP add_tx endpoint in secs",
+        "type": "timeseries",
         "exprs": [
-          "apollo_p2p_sync_num_active_inbound_sessions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "apollo_p2p_sync_num_active_outbound_sessions",
-        "description": "The number of outbound sessions to the p2p sync component",
-        "type": "stat",
-        "exprs": [
-          "apollo_p2p_sync_num_active_outbound_sessions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+          "histogram_quantile(0.50, sum(rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(http_server_add_tx_latency_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -772,7 +666,137 @@
         "extra_params": {}
       }
     ],
-    "Blockifier State Reader": [
+    "L1 Provider": [
+      {
+        "title": "l1_message_scraper_success_count",
+        "description": "Number of times the L1 message scraper successfully scraped messages and updated the provider",
+        "type": "timeseries",
+        "exprs": [
+          "l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_message_scraper_baselayer_error_count",
+        "description": "Number of times the L1 message scraper encountered an error while scraping the base layer",
+        "type": "timeseries",
+        "exprs": [
+          "l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_message_scraper_reorg_detected",
+        "description": "Number of times the L1 message scraper detected a reorganization in the base layer",
+        "type": "timeseries",
+        "exprs": [
+          "l1_message_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      }
+    ],
+    "L1 Gas Price": [
+      {
+        "title": "eth_to_strk_error_count",
+        "description": "Number of times the query to the Eth to Strk oracle failed due to an error or timeout",
+        "type": "stat",
+        "exprs": [
+          "eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "eth_to_strk_success_count",
+        "description": "Number of times the query to the Eth to Strk oracle succeeded",
+        "type": "stat",
+        "exprs": [
+          "eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "eth_to_strk_rate",
+        "description": "The current rate of ETH to STRK conversion",
+        "type": "timeseries",
+        "exprs": [
+          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_insufficient_history",
+        "description": "Number of times the L1 gas price provider calculated an average with too few blocks",
+        "type": "stat",
+        "exprs": [
+          "l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_scraper_success_count",
+        "description": "Number of times the L1 gas price scraper successfully scraped and updated gas prices",
+        "type": "stat",
+        "exprs": [
+          "l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_scraper_baselayer_error_count",
+        "description": "Number of times the L1 gas price scraper encountered an error while scraping the base layer",
+        "type": "stat",
+        "exprs": [
+          "l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_scraper_reorg_detected",
+        "description": "Number of times the L1 gas price scraper detected a reorganization in the base layer",
+        "type": "stat",
+        "exprs": [
+          "l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_scraper_latest_scraped_block",
+        "description": "The latest block number that the L1 gas price scraper has scraped",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_scraper_latest_scraped_block{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "eth_to_strk_rate",
+        "description": "The current rate of ETH to STRK conversion",
+        "type": "timeseries",
+        "exprs": [
+          "eth_to_strk_rate{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_latest_mean_value",
+        "description": "The latest L1 gas price, calculated as an average by the provider client",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_latest_mean_value{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_data_gas_price_latest_mean_value",
+        "description": "The latest L1 data gas price, calculated as an average by the provider client",
+        "type": "timeseries",
+        "exprs": [
+          "l1_data_gas_price_latest_mean_value{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      }
+    ],
+    "Blockifier": [
       {
         "title": "class_cache_miss_ratio",
         "description": "The ratio of cache misses when requesting compiled classes from the Blockifier State Reader",
@@ -784,7 +808,7 @@
       },
       {
         "title": "native_class_returned_ratio",
-        "description": "The ratio of Native classes returned by the Blockifier State Reader",
+        "description": "The ratio of Native classes returned by the Blockifier",
         "type": "timeseries",
         "exprs": [
           "100 * (increase(native_class_returned{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(class_cache_hits{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) + increase(class_cache_misses{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
@@ -797,6 +821,151 @@
         "type": "stat",
         "exprs": [
           "native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "native_execution_ratio",
+        "description": "The ratio of calls running Cairo Native in the Blockifier",
+        "type": "timeseries",
+        "exprs": [
+          "100 * (increase(calls_running_native{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) / (increase(number_of_total_calls{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      }
+    ],
+    "Compile sierra to casm": [
+      {
+        "title": "compile_to_casm_compilation_duration",
+        "description": "Server-side compilation to casm duration in seconds",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum(rate(compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+        ],
+        "extra_params": {}
+      }
+    ],
+    "ConsensusP2p": [
+      {
+        "title": "apollo_consensus_num_connected_peers",
+        "description": "The number of connected peers to the consensus p2p component",
+        "type": "timeseries",
+        "exprs": [
+          "apollo_consensus_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_votes_num_sent_messages",
+        "description": "The number of messages sent by the consensus p2p component over the Votes topic",
+        "type": "timeseries",
+        "exprs": [
+          "apollo_consensus_votes_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_votes_num_received_messages",
+        "description": "The number of messages received by the consensus p2p component over the Votes topic",
+        "type": "timeseries",
+        "exprs": [
+          "apollo_consensus_votes_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_proposals_num_sent_messages",
+        "description": "The number of messages sent by the consensus p2p component over the Proposals topic",
+        "type": "timeseries",
+        "exprs": [
+          "apollo_consensus_proposals_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_consensus_proposals_num_received_messages",
+        "description": "The number of messages received by the consensus p2p component over the Proposals topic",
+        "type": "timeseries",
+        "exprs": [
+          "apollo_consensus_proposals_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "consensus_conflicting_votes",
+        "description": "The number of times consensus has received conflicting votes",
+        "type": "timeseries",
+        "exprs": [
+          "consensus_conflicting_votes{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      }
+    ],
+    "StateSyncP2p": [
+      {
+        "title": "apollo_p2p_sync_num_connected_peers",
+        "description": "The number of connected peers to the p2p sync component",
+        "type": "stat",
+        "exprs": [
+          "apollo_p2p_sync_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_p2p_sync_num_active_inbound_sessions",
+        "description": "The number of inbound sessions to the p2p sync component",
+        "type": "stat",
+        "exprs": [
+          "apollo_p2p_sync_num_active_inbound_sessions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_p2p_sync_num_active_outbound_sessions",
+        "description": "The number of outbound sessions to the p2p sync component",
+        "type": "stat",
+        "exprs": [
+          "apollo_p2p_sync_num_active_outbound_sessions{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      }
+    ],
+    "MempoolP2p": [
+      {
+        "title": "apollo_mempool_p2p_num_connected_peers",
+        "description": "The number of connected peers to the mempool p2p component",
+        "type": "stat",
+        "exprs": [
+          "apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_mempool_p2p_num_sent_messages",
+        "description": "The number of messages sent by the mempool p2p component",
+        "type": "stat",
+        "exprs": [
+          "apollo_mempool_p2p_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_mempool_p2p_num_received_messages",
+        "description": "The number of messages received by the mempool p2p component",
+        "type": "stat",
+        "exprs": [
+          "apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "apollo_mempool_p2p_broadcasted_transaction_batch_size",
+        "description": "The number of transactions in batches broadcast by the mempool p2p component",
+        "type": "stat",
+        "exprs": [
+          "histogram_quantile(0.50, sum(rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -867,6 +1036,72 @@
         "extra_params": {}
       }
     ],
+    "StateSyncInfra": [
+      {
+        "title": "state_sync_local_msgs_received",
+        "description": "Counter of messages received by state sync local server",
+        "type": "timeseries",
+        "exprs": [
+          "state_sync_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_local_msgs_processed",
+        "description": "Counter of messages processed by state sync local server",
+        "type": "timeseries",
+        "exprs": [
+          "state_sync_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_local_queue_depth",
+        "description": "The depth of the state sync's local message queue",
+        "type": "timeseries",
+        "exprs": [
+          "state_sync_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_msgs_received",
+        "description": "Counter of messages received by state sync remote server",
+        "type": "timeseries",
+        "exprs": [
+          "state_sync_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by state sync remote server",
+        "type": "timeseries",
+        "exprs": [
+          "state_sync_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_msgs_processed",
+        "description": "Counter of messages processed by state sync remote server",
+        "type": "timeseries",
+        "exprs": [
+          "state_sync_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a state sync remote client",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum(rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+        ],
+        "extra_params": {}
+      }
+    ],
     "Gateway Infra": [
       {
         "title": "gateway_local_msgs_received",
@@ -929,289 +1164,6 @@
         "exprs": [
           "histogram_quantile(0.50, sum(rate(gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
           "histogram_quantile(0.95, sum(rate(gateway_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
-        ],
-        "extra_params": {}
-      }
-    ],
-    "Class Manager Infra": [
-      {
-        "title": "class_manager_local_msgs_received",
-        "description": "Counter of messages received by class manager local server",
-        "type": "timeseries",
-        "exprs": [
-          "class_manager_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_local_msgs_processed",
-        "description": "Counter of messages processed by class manager local server",
-        "type": "timeseries",
-        "exprs": [
-          "class_manager_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_local_queue_depth",
-        "description": "The depth of the class manager's local message queue",
-        "type": "timeseries",
-        "exprs": [
-          "class_manager_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_remote_msgs_received",
-        "description": "Counter of messages received by class manager remote server",
-        "type": "timeseries",
-        "exprs": [
-          "class_manager_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_remote_valid_msgs_received",
-        "description": "Counter of valid messages received by class manager remote server",
-        "type": "timeseries",
-        "exprs": [
-          "class_manager_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_remote_msgs_processed",
-        "description": "Counter of messages processed by class manager remote server",
-        "type": "timeseries",
-        "exprs": [
-          "class_manager_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "class_manager_remote_client_send_attempts",
-        "description": "Required number of remote connection attempts made by a class manager remote client",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum(rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
-        ],
-        "extra_params": {}
-      }
-    ],
-    "L1 Provider Infra": [
-      {
-        "title": "l1_provider_local_msgs_received",
-        "description": "Counter of messages received by L1 provider local server",
-        "type": "timeseries",
-        "exprs": [
-          "l1_provider_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_provider_local_msgs_processed",
-        "description": "Counter of messages processed by L1 provider local server",
-        "type": "timeseries",
-        "exprs": [
-          "l1_provider_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_provider_local_queue_depth",
-        "description": "The depth of the L1 provider's local message queue",
-        "type": "timeseries",
-        "exprs": [
-          "l1_provider_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_provider_remote_msgs_received",
-        "description": "Counter of messages received by L1 provider remote server",
-        "type": "timeseries",
-        "exprs": [
-          "l1_provider_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_provider_remote_valid_msgs_received",
-        "description": "Counter of valid messages received by L1 provider remote server",
-        "type": "timeseries",
-        "exprs": [
-          "l1_provider_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_provider_remote_msgs_processed",
-        "description": "Counter of messages processed by L1 provider remote server",
-        "type": "timeseries",
-        "exprs": [
-          "l1_provider_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_provider_remote_client_send_attempts",
-        "description": "Required number of remote connection attempts made by a L1 provider remote client",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum(rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
-        ],
-        "extra_params": {}
-      }
-    ],
-    "L1 Provider": [
-      {
-        "title": "l1_message_scraper_success_count",
-        "description": "Number of times the L1 message scraper successfully scraped messages and updated the provider",
-        "type": "timeseries",
-        "exprs": [
-          "l1_message_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_message_scraper_baselayer_error_count",
-        "description": "Number of times the L1 message scraper encountered an error while scraping the base layer",
-        "type": "timeseries",
-        "exprs": [
-          "l1_message_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_message_scraper_reorg_detected",
-        "description": "Number of times the L1 message scraper detected a reorganization in the base layer",
-        "type": "timeseries",
-        "exprs": [
-          "l1_message_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      }
-    ],
-    "L1 Gas Price Infra": [
-      {
-        "title": "l1_gas_price_provider_local_msgs_received",
-        "description": "Counter of messages received by L1 gas price provider local server",
-        "type": "timeseries",
-        "exprs": [
-          "l1_gas_price_provider_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_gas_price_provider_local_msgs_processed",
-        "description": "Counter of messages processed by L1 gas price provider local server",
-        "type": "timeseries",
-        "exprs": [
-          "l1_gas_price_provider_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_gas_price_provider_local_queue_depth",
-        "description": "The depth of the L1 gas price provider's local message queue",
-        "type": "timeseries",
-        "exprs": [
-          "l1_gas_price_provider_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_gas_price_provider_remote_msgs_received",
-        "description": "Counter of messages received by L1 gas price provider remote server",
-        "type": "timeseries",
-        "exprs": [
-          "l1_gas_price_provider_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_gas_price_provider_remote_valid_msgs_received",
-        "description": "Counter of valid messages received by L1 gas price provider remote server",
-        "type": "timeseries",
-        "exprs": [
-          "l1_gas_price_provider_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_gas_price_provider_remote_msgs_processed",
-        "description": "Counter of messages processed by L1 gas price provider remote server",
-        "type": "timeseries",
-        "exprs": [
-          "l1_gas_price_provider_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_gas_price_provider_remote_client_send_attempts",
-        "description": "Required number of remote connection attempts made by a L1 gas price provider remote client",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum(rate(l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
-        ],
-        "extra_params": {}
-      }
-    ],
-    "L1 Gas Price": [
-      {
-        "title": "eth_to_strk_error_count",
-        "description": "Number of times the query to the Eth to Strk oracle failed due to an error or timeout",
-        "type": "stat",
-        "exprs": [
-          "eth_to_strk_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "eth_to_strk_success_count",
-        "description": "Number of times the query to the Eth to Strk oracle succeeded",
-        "type": "stat",
-        "exprs": [
-          "eth_to_strk_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_gas_price_provider_insufficient_history",
-        "description": "Number of times the L1 gas price provider calculated an average with too few blocks",
-        "type": "stat",
-        "exprs": [
-          "l1_gas_price_provider_insufficient_history{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_gas_price_scraper_success_count",
-        "description": "Number of times the L1 gas price scraper successfully scraped and updated gas prices",
-        "type": "stat",
-        "exprs": [
-          "l1_gas_price_scraper_success_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_gas_price_scraper_baselayer_error_count",
-        "description": "Number of times the L1 gas price scraper encountered an error while scraping the base layer",
-        "type": "stat",
-        "exprs": [
-          "l1_gas_price_scraper_baselayer_error_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "l1_gas_price_scraper_reorg_detected",
-        "description": "Number of times the L1 gas price scraper detected a reorganization in the base layer",
-        "type": "stat",
-        "exprs": [
-          "l1_gas_price_scraper_reorg_detected{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       }
@@ -1348,6 +1300,204 @@
         "extra_params": {}
       }
     ],
+    "L1 Provider Infra": [
+      {
+        "title": "l1_provider_local_msgs_received",
+        "description": "Counter of messages received by L1 provider local server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_provider_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_local_msgs_processed",
+        "description": "Counter of messages processed by L1 provider local server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_provider_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_local_queue_depth",
+        "description": "The depth of the L1 provider's local message queue",
+        "type": "timeseries",
+        "exprs": [
+          "l1_provider_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_msgs_received",
+        "description": "Counter of messages received by L1 provider remote server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_provider_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by L1 provider remote server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_provider_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_msgs_processed",
+        "description": "Counter of messages processed by L1 provider remote server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_provider_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a L1 provider remote client",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum(rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(l1_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+        ],
+        "extra_params": {}
+      }
+    ],
+    "L1 Gas Price Infra": [
+      {
+        "title": "l1_gas_price_provider_local_msgs_received",
+        "description": "Counter of messages received by L1 gas price provider local server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_provider_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_local_msgs_processed",
+        "description": "Counter of messages processed by L1 gas price provider local server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_provider_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_local_queue_depth",
+        "description": "The depth of the L1 gas price provider's local message queue",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_provider_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_remote_msgs_received",
+        "description": "Counter of messages received by L1 gas price provider remote server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_provider_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by L1 gas price provider remote server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_provider_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_remote_msgs_processed",
+        "description": "Counter of messages processed by L1 gas price provider remote server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_provider_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_gas_price_provider_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a L1 gas price provider remote client",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum(rate(l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(l1_gas_price_provider_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+        ],
+        "extra_params": {}
+      }
+    ],
+    "Class Manager Infra": [
+      {
+        "title": "class_manager_local_msgs_received",
+        "description": "Counter of messages received by class manager local server",
+        "type": "timeseries",
+        "exprs": [
+          "class_manager_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_local_msgs_processed",
+        "description": "Counter of messages processed by class manager local server",
+        "type": "timeseries",
+        "exprs": [
+          "class_manager_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_local_queue_depth",
+        "description": "The depth of the class manager's local message queue",
+        "type": "timeseries",
+        "exprs": [
+          "class_manager_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_msgs_received",
+        "description": "Counter of messages received by class manager remote server",
+        "type": "timeseries",
+        "exprs": [
+          "class_manager_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_valid_msgs_received",
+        "description": "Counter of valid messages received by class manager remote server",
+        "type": "timeseries",
+        "exprs": [
+          "class_manager_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_msgs_processed",
+        "description": "Counter of messages processed by class manager remote server",
+        "type": "timeseries",
+        "exprs": [
+          "class_manager_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "class_manager_remote_client_send_attempts",
+        "description": "Required number of remote connection attempts made by a class manager remote client",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum(rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(class_manager_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+        ],
+        "extra_params": {}
+      }
+    ],
     "SierraCompilerInfra": [
       {
         "title": "sierra_compiler_local_msgs_received",
@@ -1410,84 +1560,6 @@
         "exprs": [
           "histogram_quantile(0.50, sum(rate(sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
           "histogram_quantile(0.95, sum(rate(sierra_compiler_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
-        ],
-        "extra_params": {}
-      }
-    ],
-    "Compile sierra to casm": [
-      {
-        "title": "compile_to_casm_compilation_duration",
-        "description": "Server-side compilation to casm duration in seconds",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum(rate(compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
-        ],
-        "extra_params": {}
-      }
-    ],
-    "StateSyncInfra": [
-      {
-        "title": "state_sync_local_msgs_received",
-        "description": "Counter of messages received by state sync local server",
-        "type": "timeseries",
-        "exprs": [
-          "state_sync_local_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "state_sync_local_msgs_processed",
-        "description": "Counter of messages processed by state sync local server",
-        "type": "timeseries",
-        "exprs": [
-          "state_sync_local_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "state_sync_local_queue_depth",
-        "description": "The depth of the state sync's local message queue",
-        "type": "timeseries",
-        "exprs": [
-          "state_sync_local_queue_depth{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "state_sync_remote_msgs_received",
-        "description": "Counter of messages received by state sync remote server",
-        "type": "timeseries",
-        "exprs": [
-          "state_sync_remote_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "state_sync_remote_valid_msgs_received",
-        "description": "Counter of valid messages received by state sync remote server",
-        "type": "timeseries",
-        "exprs": [
-          "state_sync_remote_valid_msgs_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "state_sync_remote_msgs_processed",
-        "description": "Counter of messages processed by state sync remote server",
-        "type": "timeseries",
-        "exprs": [
-          "state_sync_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
-        ],
-        "extra_params": {}
-      },
-      {
-        "title": "state_sync_remote_client_send_attempts",
-        "description": "Required number of remote connection attempts made by a state sync remote client",
-        "type": "timeseries",
-        "exprs": [
-          "histogram_quantile(0.50, sum(rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(state_sync_remote_client_send_attempts_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }

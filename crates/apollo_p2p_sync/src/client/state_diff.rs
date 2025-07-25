@@ -21,7 +21,7 @@ use crate::client::block_data_stream_builder::{
     BlockNumberLimit,
     ParseDataError,
 };
-use crate::client::{P2pSyncClientError, RESPONSE_TIMEOUT};
+use crate::client::P2pSyncClientError;
 
 impl BlockData for (ThinStateDiff, BlockNumber) {
     #[latency_histogram("p2p_sync_state_diff_write_to_storage_latency_seconds", true)]
@@ -70,17 +70,12 @@ impl BlockDataStreamBuilder<StateDiffChunk> for StateDiffStreamBuilder {
                 })?;
 
             while current_state_diff_len < target_state_diff_len {
-                let maybe_state_diff_chunk = tokio::time::timeout(
-                    RESPONSE_TIMEOUT,
-                    state_diff_chunks_response_manager.next(),
-                )
-                .await
-                .map_err(|_| ParseDataError::BadPeer(BadPeerError::ResponseTimeout))?
-                .ok_or(ParseDataError::BadPeer(
-                    BadPeerError::SessionEndedWithoutFin {
+                let maybe_state_diff_chunk = state_diff_chunks_response_manager
+                    .next()
+                    .await
+                    .ok_or(ParseDataError::BadPeer(BadPeerError::SessionEndedWithoutFin {
                         type_description: Self::TYPE_DESCRIPTION,
-                    },
-                ))?;
+                    }))?;
                 let Some(state_diff_chunk) = maybe_state_diff_chunk?.0 else {
                     if current_state_diff_len == 0 {
                         return Ok(None);

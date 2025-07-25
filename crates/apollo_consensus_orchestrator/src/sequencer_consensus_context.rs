@@ -467,8 +467,12 @@ impl ConsensusContext for SequencerConsensusContext {
             .collect();
 
         let gas_target = VersionedConstants::latest_constants().gas_target;
-        self.l2_gas_price =
-            calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
+        if self.config.constant_l2_gas_price {
+            self.l2_gas_price = VersionedConstants::latest_constants().min_gas_price;
+        } else {
+            self.l2_gas_price =
+                calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
+        }
 
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);

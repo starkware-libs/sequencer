@@ -113,6 +113,27 @@ impl Panel {
             panel_type,
         )
     }
+
+    pub(crate) fn ratio_time_series(
+        name: &'static str,
+        description: &'static str,
+        numerator: &MetricCounter,
+        denominator_parts: &[&MetricCounter],
+        duration: &str,
+    ) -> Self {
+        let numerator_expr =
+            format!("increase({}[{}])", numerator.get_name_with_filter(), duration);
+
+        let denominator_expr = denominator_parts
+            .iter()
+            .map(|m| format!("increase({}[{}])", m.get_name_with_filter(), duration))
+            .collect::<Vec<_>>()
+            .join(" + ");
+
+        let expr = format!("100 * ({numerator_expr} / ({denominator_expr}))");
+
+        Self::new(name, description, vec![expr], PanelType::TimeSeries)
+    }
 }
 
 // Custom Serialize implementation for Panel.

@@ -13,12 +13,13 @@ use indexmap::map::Entry;
 use indexmap::IndexMap;
 #[cfg(test)]
 use mockall::automock;
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
-use tracing::info;
+use tracing::{error, info};
 
 use crate::cende_client_types::{
     CendeBlockMetadata,
@@ -146,7 +147,7 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
         // We initially mark that we have pending changes so that the client will write to the
         // Cende recorder that a new proposal round has started.
         let mut pending_changes = true;
-        let mut write_iteration: u64 = 0;
+        let mut next_write_iteration = 0;
 
         loop {
             tokio::select! {
@@ -156,15 +157,22 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                         // TODO(noamsp): Extract to a function.
                         let pre_confirmed_block = self.create_pre_confirmed_block(
                             &transactions_map,
-                            write_iteration,
+                            next_write_iteration,
                         );
                         pending_tasks.push(self.cende_client.write_pre_confirmed_block(pre_confirmed_block));
-                        write_iteration += 1;
+                        next_write_iteration += 1;
                         pending_changes = false;
                     }
                 }
-                // TODO(noamsp): Handle height/round mismatch by immediately exiting the loop; All the other writes will be rejected as well.
-                Some(_) = pending_tasks.next() => {}
+
+                Some(result) = pending_tasks.next() => {
+                    if let Err(error) = result {
+                        if is_round_mismatch_error(&error, next_write_iteration) {
+                            pending_tasks.clear();
+                            return Err(error.into());
+                        }
+                    }
+                }
                 msg = self.pre_confirmed_tx_receiver.recv() => {
                     match msg {
                         Some((tx, tx_receipt, tx_state_diff)) => {
@@ -205,17 +213,51 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
 
         if pending_changes {
             let pre_confirmed_block =
-                self.create_pre_confirmed_block(&transactions_map, write_iteration);
+                self.create_pre_confirmed_block(&transactions_map, next_write_iteration);
             self.cende_client.write_pre_confirmed_block(pre_confirmed_block).await?
         }
 
         // Wait for all pending tasks to complete gracefully.
-        // TODO(noamsp): Add error handling and timeout.
-        while pending_tasks.next().await.is_some() {}
+        // TODO(noamsp): Add timeout.
+        while let Some(result) = pending_tasks.next().await {
+            if let Err(error) = result {
+                if is_round_mismatch_error(&error, next_write_iteration) {
+                    pending_tasks.clear();
+                    return Err(error.into());
+                }
+            }
+        }
         info!("Pre confirmed block writer finished");
 
         Ok(())
     }
+}
+
+fn is_round_mismatch_error(
+    error: &PreconfirmedCendeClientError,
+    next_write_iteration: u64,
+) -> bool {
+    let PreconfirmedCendeClientError::CendeRecorderError {
+        block_number,
+        round,
+        write_iteration,
+        status_code,
+    } = error
+    else {
+        return false;
+    };
+
+    // A bad request status indicates a round or write iteration mismatch. The latest request can
+    // receive a bad request status only if it is due to a round mismatch.
+    if *status_code == StatusCode::BAD_REQUEST && *write_iteration == next_write_iteration - 1 {
+        error!(
+            "A higher round was detected for block_number: {}. rejected round: {}. Stopping \
+             pre-confirmed block writer.",
+            block_number, round,
+        );
+        return true;
+    }
+    false
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Debug, Copy)]

@@ -1,3 +1,4 @@
+use std::fmt::{Display, Formatter, Result};
 use std::path::PathBuf;
 
 use apollo_http_server::config::HTTP_SERVER_PORT;
@@ -7,22 +8,24 @@ use strum::EnumIter;
 use strum_macros::{Display, EnumString};
 
 use crate::deployment::Deployment;
+use crate::deployment_definitions::mainnet::mainnet_hybrid_deployments;
+use crate::deployment_definitions::potc2_sepolia::potc2_sepolia_hybrid_deployments;
 use crate::deployment_definitions::sepolia_integration::sepolia_integration_hybrid_deployments;
 use crate::deployment_definitions::sepolia_testnet::sepolia_testnet_hybrid_deployments;
 use crate::deployment_definitions::stress_test::stress_test_hybrid_deployments;
 use crate::deployment_definitions::testing::system_test_deployments;
-use crate::deployment_definitions::testing_env_3::testing_env_3_hybrid_deployments;
 use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments;
 
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
 
+mod mainnet;
+mod potc2_sepolia;
 mod sepolia_integration;
 mod sepolia_testnet;
 mod stress_test;
 mod testing;
-mod testing_env_3;
 mod upgrade_test;
 
 pub(crate) const CONFIG_BASE_DIR: &str = "crates/apollo_deployments/resources/";
@@ -46,32 +49,50 @@ const STATE_SYNC_PORT: u16 = 55008;
 const SIGNATURE_MANAGER_PORT: u16 = 55009;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
-    system_test_deployments,
+    potc2_sepolia_hybrid_deployments,
+    mainnet_hybrid_deployments,
     sepolia_integration_hybrid_deployments,
-    upgrade_test_hybrid_deployments,
-    testing_env_3_hybrid_deployments,
-    stress_test_hybrid_deployments,
     sepolia_testnet_hybrid_deployments,
+    stress_test_hybrid_deployments,
+    system_test_deployments,
+    upgrade_test_hybrid_deployments,
 ];
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum Environment {
+    CloudK8s(CloudK8sEnvironment),
+    LocalK8s,
+}
+
+impl Display for Environment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result {
+        match self {
+            Environment::CloudK8s(e) => write!(f, "{e}"),
+            Environment::LocalK8s => write!(f, "testing"),
+        }
+    }
+}
 
 #[derive(EnumString, Clone, Display, PartialEq, Debug)]
 #[strum(serialize_all = "snake_case")]
-pub enum Environment {
+pub enum CloudK8sEnvironment {
+    Potc2,
     Mainnet,
     SepoliaIntegration,
     SepoliaTestnet,
     #[strum(serialize = "stress_test")]
     StressTest,
-    Testing,
     #[strum(serialize = "upgrade_test")]
     UpgradeTest,
-    #[strum(serialize = "testing_env_3")]
-    TestingEnvThree,
 }
 
 impl Environment {
-    pub(crate) fn env_dir_path(&self) -> PathBuf {
-        PathBuf::from(CONFIG_BASE_DIR).join(DEPLOYMENT_CONFIG_DIR_NAME).join(self.to_string())
+    pub fn env_dir_path(&self) -> PathBuf {
+        let env_str = match self {
+            Environment::CloudK8s(env) => env.to_string(),
+            Environment::LocalK8s => "testing".to_string(),
+        };
+        PathBuf::from(CONFIG_BASE_DIR).join(DEPLOYMENT_CONFIG_DIR_NAME).join(env_str)
     }
 }
 

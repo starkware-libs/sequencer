@@ -8,7 +8,7 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n;
+use apollo_infra_utils::info_every_n_sec;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use async_trait::async_trait;
@@ -82,8 +82,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         let (latest_l1_block, events) = self.fetch_events().await?;
         trace!("scraped up to {latest_l1_block:?}");
-        // TODO(guy.f): Replace with info_every_n_sec once implemented.
-        info_every_n!(100, "scraped up to {latest_l1_block:?}");
+        info_every_n_sec!(1, "scraped up to {latest_l1_block:?}");
 
         // Sending even if there are no events, to keep the flow as simple/debuggable as possible.
         // Perf hit is minimal, since the scraper is on the same machine as the provider (no net).
@@ -270,10 +269,10 @@ pub struct L1ScraperConfig {
 impl Default for L1ScraperConfig {
     fn default() -> Self {
         Self {
-            startup_rewind_time_seconds: Duration::from_secs(0),
+            startup_rewind_time_seconds: Duration::from_secs(60 * 60),
             chain_id: ChainId::Mainnet,
             finality: 0,
-            polling_interval_seconds: Duration::from_secs(1),
+            polling_interval_seconds: Duration::from_secs(120),
         }
     }
 }

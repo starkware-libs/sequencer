@@ -64,6 +64,7 @@ use crate::metrics::{
     PROPOSAL_SUCCEEDED,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
+    REVERTED_TRANSACTIONS,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
@@ -525,10 +526,10 @@ async fn send_content_to_unknown_proposal(#[case] content: SendProposalContent) 
 }
 
 #[rstest]
-#[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal)]
+#[case::send_txs(SendProposalContent::Txs(test_txs(0..1)), ProposalStatus::InvalidProposal("Block is full".to_string()))]
 #[case::send_finish(
     SendProposalContent::Finish(DUMMY_FINAL_N_EXECUTED_TXS),
-    ProposalStatus::InvalidProposal
+    ProposalStatus::InvalidProposal("Block is full".to_string())
 )]
 #[case::send_abort(SendProposalContent::Abort, ProposalStatus::Aborted)]
 #[tokio::test]
@@ -1045,6 +1046,17 @@ async fn decision_reached() {
     assert_eq!(
         REJECTED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
         Some(expected_artifacts.execution_data.rejected_tx_hashes.len())
+    );
+    assert_eq!(
+        REVERTED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics),
+        Some(
+            expected_artifacts
+                .execution_data
+                .execution_infos
+                .values()
+                .filter(|info| info.revert_error.is_some())
+                .count(),
+        )
     );
 }
 
