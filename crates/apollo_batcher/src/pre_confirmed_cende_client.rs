@@ -35,6 +35,7 @@ pub type PreconfirmedCendeClientResult<T> = Result<T, PreconfirmedCendeClientErr
 /// Interface for communicating pre-confirmed block data to the Cende recorder during block
 /// proposal.
 #[async_trait]
+#[cfg_attr(test, mockall::automock)]
 pub trait PreconfirmedCendeClientTrait: Send + Sync {
     /// Notifies the Cende recorder about a pre-confirmed block update.
     async fn write_pre_confirmed_block(
