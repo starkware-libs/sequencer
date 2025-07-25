@@ -27,13 +27,17 @@ use blockifier::state::stateful_compression::{
 };
 use errors::{add_py_exceptions, UndeclaredClassHashError};
 use py_block_executor::PyBlockExecutor;
-use py_objects::{PyCasmHashComputationData, PyExecutionResources};
+use py_objects::{
+    PyCasmHashComputationData,
+    PyCompiledClassHashesForMigration,
+    PyExecutionResources,
+    PyVersionedConstantsOverrides,
+};
 use py_validator::PyValidator;
 use pyo3::prelude::*;
 use starknet_api::block::StarknetVersion;
 use storage::StorageConfig;
 
-use crate::py_objects::PyVersionedConstantsOverrides;
 use crate::py_state_diff::PyStateDiff;
 use crate::py_testing_wrappers::{
     estimate_casm_hash_computation_resources_for_testing_list,
@@ -54,6 +58,7 @@ fn native_blockifier(py: Python<'_>, py_module: &PyModule) -> PyResult<()> {
     py_module.add_class::<PyExecutionResources>()?;
     py_module.add_class::<StorageConfig>()?;
     py_module.add_class::<PyCasmHashComputationData>()?;
+    py_module.add_class::<PyCompiledClassHashesForMigration>()?;
     py_module.add("UndeclaredClassHashError", py.get_type::<UndeclaredClassHashError>())?;
     add_py_exceptions(py, py_module)?;
 
