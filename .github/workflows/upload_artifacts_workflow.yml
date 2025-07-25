@@ -27,7 +27,7 @@ on:
       - 'scripts/install_build_tools.sh'
       - 'Cargo.lock'
       - 'Cargo.toml'
-      - 'crates/blockifier/**'
+      - 'crates/**'
       - 'crates/native_blockifier/**'
       - 'crates/apollo_state_reader/**'
       - 'crates/apollo_storage/**'

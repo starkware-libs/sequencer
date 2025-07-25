@@ -14,7 +14,7 @@ on:
       - "papyrus_utilities.Dockerfile"
       - "Cargo.toml"
       - "Cargo.lock"
-      - "crates/papyrus**/**"
+      - "crates/**"
       - "crates/apollo_starknet_client/**"
       - "scripts/dependencies.sh"
 
