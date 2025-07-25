@@ -1672,7 +1672,7 @@ ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
         indoc! {r#"
     if execution_helper.debug_mode:
         expected_initial_gas = execution_helper.call_info.call.initial_gas
-        call_initial_gas = ids.remaining_gas
+        call_initial_gas = ids.inner_remaining_gas
         assert expected_initial_gas == call_initial_gas, (
             f"Expected remaining_gas {expected_initial_gas}. Got: {call_initial_gas}.\n"
             f"{execution_helper.call_info=}"
