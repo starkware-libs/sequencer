@@ -1093,6 +1093,9 @@ fn check_sync_progress(
                 debug!("No progress in the sync. Return NoProgress event. Header marker: {header_marker}, \
                        State marker: {state_marker}, Casm marker: {casm_marker}.");
                 yield SyncEvent::NoProgress;
+            } else {
+                trace!("Sync is progressing. Header marker: {header_marker}, State marker: \
+                {state_marker}, Casm marker: {casm_marker}.");
             }
             header_marker=new_header_marker;
             state_marker=new_state_marker;
