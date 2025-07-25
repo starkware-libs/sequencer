@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
+use blockifier::execution::execution_utils::compute_blake_hash_steps;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::Blake2Felt252;
@@ -17,6 +19,22 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 
+// TODO(AvivG): Add test estimation for builtins usage and gas (including blake opcode evaluation).
+fn validate_estimation(cairo_runner: &CairoRunner, test_data: &[Felt]) {
+    // TODO(AvivG): Use `Blake2Felt252::SMALL_THRESHOLD` when exposed.
+    const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000"); // 2^63
+
+    let (n_small_felts, n_big_felts) = test_data.iter().fold((0, 0), |(small, big), felt| {
+        if *felt >= SMALL_THRESHOLD { (small, big + 1) } else { (small + 1, big) }
+    });
+
+    // TODO(AvivG): Investigate the 6-step discrepancy.
+    let expected_steps = compute_blake_hash_steps(n_big_felts, n_small_felts) - 6;
+
+    let actual_steps = cairo_runner.vm.get_current_step();
+    assert_eq!(actual_steps, expected_steps);
+}
+
 /// Test that compares Cairo and Rust implementations of
 /// encode_felt252_data_and_calc_blake_hash.
 #[rstest]
@@ -26,6 +44,7 @@ use crate::test_utils::cairo_runner::{
 #[case::boundary_at_2_63(vec![Felt::from(1u64 << 63)])]
 #[case::very_large_felt(vec![Felt::from_hex("0x800000000000011000000000000000000000000000000000000000000000000").unwrap()])]
 #[case::mixed_small_large(vec![Felt::from(42), Felt::from(1u64 << 63), Felt::from(1337)])]
+#[case::many_large(vec![Felt::from(1u64 << 63); 100])]
 fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
@@ -67,7 +86,7 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
     );
 
     match result {
-        Ok((_, explicit_return_values, _)) => {
+        Ok((_, explicit_return_values, cairo_runner)) => {
             assert_eq!(explicit_return_values.len(), 1, "Expected exactly one return value");
 
             let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(cairo_hash_felt))) =
@@ -79,6 +98,8 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
                 rust_hash, *cairo_hash_felt,
                 "Blake2s hash mismatch: Rust={rust_hash}, Cairo={cairo_hash_felt}",
             );
+
+            validate_estimation(&cairo_runner, &test_data);
         }
         Err(e) => {
             panic!("Failed to run Cairo blake2s function: {e:?}");
