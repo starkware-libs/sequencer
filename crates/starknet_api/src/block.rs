@@ -610,7 +610,7 @@ pub enum BlockVerificationError {
     BlockSignatureVerificationFailed { block_hash: BlockHash, error: CryptoError },
 }
 
-/// Verifies that the the block header was signed by the expected sequencer.
+/// Verifies that the block header was signed by the expected sequencer.
 pub fn verify_block_signature(
     sequencer_pub_key: &SequencerPublicKey,
     signature: &BlockSignature,
