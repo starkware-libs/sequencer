@@ -25,17 +25,15 @@ use starknet_api::staking::StakingWeight;
 use starknet_api::{contract_address, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
-use crate::committee_manager::{
+use crate::committee_provider::{
     Committee,
     CommitteeProvider,
     CommitteeProviderError,
     ExecutionContext,
-    RetdataDeserializationError,
     Staker,
-    StakerSet,
-    StakingManager,
-    StakingManagerConfig,
 };
+use crate::contract_types::RetdataDeserializationError;
+use crate::staking_manager::{StakerSet, StakingManager, StakingManagerConfig};
 use crate::utils::MockBlockRandomGenerator;
 
 const STAKING_CONTRACT: FeatureContract =
