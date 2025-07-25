@@ -1,7 +1,7 @@
-import argparse
-import json
 import os
+import json
 import subprocess
+import argparse
 from enum import Enum
 
 
@@ -13,10 +13,12 @@ class NodeType(Enum):
 
 # TODO(Nadin): Add support for hybrid nodes.
 def get_service_label(node_type: NodeType, service: str) -> str:
-    if node_type == NodeType.DISTRIBUTED:
+    if (
+        node_type == NodeType.DISTRIBUTED
+        or node_type == NodeType.HYBRID
+        or node_type == NodeType.CONSOLIDATED
+    ):
         return f"sequencer-{service.lower()}"
-    elif node_type == NodeType.CONSOLIDATED:
-        return "sequencer-node"
     else:
         raise ValueError(f"Unknown node type: {node_type}")
 
@@ -122,6 +124,9 @@ def main(
     elif node_type == NodeType.CONSOLIDATED:
         state_sync_service = "Node"
         http_server_service = "Node"
+    elif node_type == NodeType.HYBRID:
+        state_sync_service = "Core"
+        http_server_service = "HttpServer"
     else:
         print(f"❌ {node_type} node type is not supported for the sequencer simulator.")
         exit(1)
