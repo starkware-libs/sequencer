@@ -21,6 +21,7 @@ use apollo_starknet_client::reader::PendingData;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_BASE_LAYER_MARKER,
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
+    CENTRAL_SYNC_FORKS_FROM_FEEDER,
     STATE_SYNC_BODY_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
     STATE_SYNC_COMPILED_CLASS_MARKER,
@@ -730,11 +731,12 @@ impl<
 
         if prev_hash != block.header.block_header_without_hash.parent_hash {
             // A revert detected, log and restart sync loop.
-            info!(
+            warn!(
                 "Detected revert while processing block {}. Parent hash of the incoming block is \
                  {}, current block hash is {}.",
                 block_number, block.header.block_header_without_hash.parent_hash, prev_hash
             );
+            CENTRAL_SYNC_FORKS_FROM_FEEDER.increment(1);
             return Err(StateSyncError::ParentBlockHashMismatch {
                 block_number,
                 expected_parent_block_hash: block.header.block_header_without_hash.parent_hash,
