@@ -79,6 +79,26 @@ jobs:
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Set LLVM environment variables and install compiler binaries
+      - name: Setup LLVM and install compiler binaries
+        env:
+          MLIR_SYS_190_PREFIX: /usr/lib/llvm-19
+          LLVM_SYS_191_PREFIX: /usr/lib/llvm-19
+          TABLEGEN_190_PREFIX: /usr/lib/llvm-19
+        run: |
+          echo "🔍 Checking LLVM installation..."
+          ls -la /usr/lib/llvm-19/ || echo "LLVM 19 not found in /usr/lib/llvm-19"
+          which llvm-config-19 || echo "llvm-config-19 not in PATH"
+
+          echo "🔧 LLVM Environment variables:"
+          echo "MLIR_SYS_190_PREFIX=$MLIR_SYS_190_PREFIX"
+          echo "LLVM_SYS_191_PREFIX=$LLVM_SYS_191_PREFIX"
+          echo "TABLEGEN_190_PREFIX=$TABLEGEN_190_PREFIX"
+
+          echo "📦 Installing compiler binaries..."
+          ./scripts/install_compilers.sh
+
       # cairo_native is not activated by any workspace crate; test the build.
       - run: cargo build -p blockifier --features cairo_native
       - run: cargo test -p blockifier --features cairo_native
