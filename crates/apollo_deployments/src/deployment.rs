@@ -8,8 +8,7 @@ use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfig
 use crate::service::{NodeType, Service};
 
 // TODO(Tsabary): consider unifying pointer targets to a single file.
-// TODO(Tsabary): remove visibility once the test using it is removed.
-pub(crate) const BASE_APP_CONFIG_PATHS: [&str; 19] = [
+const BASE_APP_CONFIG_PATHS: [&str; 19] = [
     "crates/apollo_deployments/resources/app_configs/base_layer.json",
     "crates/apollo_deployments/resources/app_configs/batcher.json",
     "crates/apollo_deployments/resources/app_configs/class_manager.json",
@@ -40,7 +39,6 @@ pub struct Deployment {
 }
 
 impl Deployment {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         node_type: NodeType,
         environment: Environment,
