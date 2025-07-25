@@ -28,7 +28,7 @@ use crate::vm_utils::LoadCairoObject;
 
 /// Expected Poseidon hash for the test contract.
 const EXPECTED_HASH: expect_test::Expect =
-    expect!["2150674463996749144683780989243380489636302685101988784859767903560019656687"];
+    expect!["2699987117682355879179743666679201177869698343279118564476128749435926450101"];
 
 // TODO(Aviv): Share this test with compiled class hash blake test.
 #[test]
