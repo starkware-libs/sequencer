@@ -1039,30 +1039,32 @@ fn get_mempool_evictions_count_alert() -> Alert {
     )
 }
 
-fn get_general_pod_state_not_ready_alert() -> Alert {
-    Alert {
-        name: "pod_state_not_ready",
-        title: "Pod State Not Ready",
-        alert_group: AlertGroup::General,
-        expr: format!("kube_pod_container_status_ready{}", metric_label_filter!()),
-        conditions: &[AlertCondition {
+fn get_general_pod_state_not_ready() -> Alert {
+    Alert::new(
+        "pod_state_not_ready",
+        "Pod State Not Ready",
+        AlertGroup::General,
+        // Checks if a container in a pod is not ready (status_ready < 1).
+        // Triggers when at least one container is unhealthy or not passing readiness probes.
+        format!("kube_pod_container_status_ready{}", metric_label_filter!()),
+        vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
-        alert_env_filtering: AlertEnvFiltering::All,
-    }
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::Regular,
+        AlertEnvFiltering::All,
+    )
 }
 
 fn get_general_pod_state_crashloopbackoff() -> Alert {
-    Alert {
-        name: "pod_state_crashloopbackoff",
-        title: "Pod State CrashLoopBackOff",
-        alert_group: AlertGroup::General,
-        expr: format!(
+    Alert::new(
+        "pod_state_crashloopbackoff",
+        "Pod State CrashLoopBackOff",
+        AlertGroup::General,
+        format!(
             // Format the main query and append `reason="CrashLoopBackOff"` inside the label set
             // Using absent trick to convert "NoData" to 0
             "sum by(container, pod, namespace) \
@@ -1072,128 +1074,104 @@ fn get_general_pod_state_crashloopbackoff() -> Alert {
             &metric_label_filter!()[..metric_label_filter!().len() - 1],
             label = ", reason=\"CrashLoopBackOff\"}"
         ),
-        conditions: &[AlertCondition {
+        vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
-        alert_env_filtering: AlertEnvFiltering::All,
-    }
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::Regular,
+        AlertEnvFiltering::All,
+    )
 }
 
-fn get_general_pod_high_memory_utilization() -> Alert {
-    Alert {
-        name: "pod_state_high_memory_utilization",
-        title: "Pod High Memory Utilization ( >70% )",
-        alert_group: AlertGroup::General,
-        expr: format!(
+fn get_general_pod_memory_utilization(
+    name: &str,
+    title: &str,
+    comparison_value: f64,
+    severity: AlertSeverity,
+) -> Alert {
+    Alert::new(
+        name,
+        title,
+        AlertGroup::General,
+        format!(
+            // Calculates the memory usage percentage of each container in a pod, relative to its
+            // memory limit. This expression compares the actual memory usage
+            // (working_set_bytes) of containers against their defined memory limits
+            // (spec_memory_limit_bytes), and returns the result as a percentage.
             "max(container_memory_working_set_bytes{0}) by (container, pod, namespace) / \
              max(container_spec_memory_limit_bytes{0}) by (container, pod, namespace) * 100",
             metric_label_filter!()
         ),
-        conditions: &[AlertCondition {
+        vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 70.0,
+            comparison_value,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::DayOnly,
-        alert_env_filtering: AlertEnvFiltering::All,
-    }
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity,
+        AlertEnvFiltering::All,
+    )
 }
 
-fn get_general_pod_critical_memory_utilization() -> Alert {
-    Alert {
-        name: "pod_critical_memory_utilization",
-        title: "Pod Critical Memory Utilization ( >85% )",
-        alert_group: AlertGroup::General,
-        expr: format!(
-            "max(container_memory_working_set_bytes{0}) by (container, pod, namespace) / \
-             max(container_spec_memory_limit_bytes{0}) by (container, pod, namespace) * 100",
-            metric_label_filter!()
-        ),
-        conditions: &[AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 85.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
-        alert_env_filtering: AlertEnvFiltering::All,
-    }
-}
-
-fn get_general_pod_high_cpu_utilization() -> Alert {
-    Alert {
-        name: "pod_high_cpu_utilization",
-        title: "Pod High CPU Utilization ( >90% )",
-        alert_group: AlertGroup::General,
-        expr: format!(
+fn get_general_pod_cpu_utilization(
+    name: &str,
+    title: &str,
+    comparison_value: f64,
+    severity: AlertSeverity,
+) -> Alert {
+    Alert::new(
+        name,
+        title,
+        AlertGroup::General,
+        format!(
+            // Calculates CPU usage rate over 2 minutes per container, compared to its defined CPU
+            // quota. Showing CPU pressure.
             "max(irate(container_cpu_usage_seconds_total{0}[2m])) by (container, pod, namespace) \
              / (max(container_spec_cpu_quota{0}/100000) by (container, pod, namespace)) * 100",
             metric_label_filter!()
         ),
-        conditions: &[AlertCondition {
+        vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 90.0,
+            comparison_value,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
-        alert_env_filtering: AlertEnvFiltering::All,
-    }
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity,
+        AlertEnvFiltering::All,
+    )
 }
 
-fn get_general_pod_high_disk_utilization() -> Alert {
-    Alert {
-        name: "pod_high_disk_utilization",
-        title: "Pod High Disk Utilization ( >70% )",
-        alert_group: AlertGroup::General,
-        expr: format!(
+fn get_general_pod_disk_utilization(
+    name: &str,
+    title: &str,
+    comparison_value: f64,
+    severity: AlertSeverity,
+) -> Alert {
+    Alert::new(
+        name,
+        title,
+        AlertGroup::General,
+        format!(
             "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{0}) / (min \
              by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{0}) + max \
              by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{0}))*100",
             metric_label_filter!()
         ),
-        conditions: &[AlertCondition {
+        vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 70.0,
+            comparison_value,
             logical_op: AlertLogicalOp::And,
         }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::DayOnly,
-        alert_env_filtering: AlertEnvFiltering::All,
-    }
-}
-
-fn get_general_pod_critical_disk_utilization() -> Alert {
-    Alert {
-        name: "pod_critical_disk_utilization",
-        title: "Pod Critical Disk Utilization ( >90% )",
-        alert_group: AlertGroup::General,
-        expr: format!(
-            "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{0}) / (min \
-             by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{0}) + max \
-             by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{0}))*100",
-            metric_label_filter!()
-        ),
-        conditions: &[AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 90.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        pending_duration: PENDING_DURATION_DEFAULT,
-        evaluation_interval_sec: EVALUATION_INTERVAL_SEC_DEFAULT,
-        severity: AlertSeverity::Regular,
-        alert_env_filtering: AlertEnvFiltering::All,
-    }
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        severity,
+        AlertEnvFiltering::All,
+    )
 }
 
 pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
@@ -1221,13 +1199,38 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_eth_to_strk_error_count_alert(),
         get_eth_to_strk_success_count_alert(),
         get_gateway_add_tx_idle(),
-        get_general_pod_state_not_ready_alert(),
+        get_general_pod_state_not_ready(),
         get_general_pod_state_crashloopbackoff(),
-        get_general_pod_high_memory_utilization(),
-        get_general_pod_critical_memory_utilization(),
-        get_general_pod_high_cpu_utilization(),
-        get_general_pod_high_disk_utilization(),
-        get_general_pod_critical_disk_utilization(),
+        get_general_pod_memory_utilization(
+            "pod_state_high_memory_utilization",
+            "Pod High Memory Utilization ( >70% )",
+            70.0,
+            AlertSeverity::DayOnly,
+        ),
+        get_general_pod_memory_utilization(
+            "pod_state_critical_memory_utilization",
+            "Pod Critical Memory Utilization ( >85% )",
+            85.0,
+            AlertSeverity::Regular,
+        ),
+        get_general_pod_disk_utilization(
+            "pod_state_high_disk_utilization",
+            "Pod High Disk Utilization ( >70% )",
+            70.0,
+            AlertSeverity::DayOnly,
+        ),
+        get_general_pod_disk_utilization(
+            "pod_state_critical_disk_utilization",
+            "Pod Critical Disk Utilization ( >90% )",
+            90.0,
+            AlertSeverity::Regular,
+        ),
+        get_general_pod_cpu_utilization(
+            "pod_high_cpu_utilization",
+            "Pod High CPU Utilization ( >90% )",
+            90.0,
+            AlertSeverity::Regular,
+        ),
         get_http_server_add_tx_idle(),
         get_http_server_avg_add_tx_latency_alert(),
         get_http_server_high_transaction_failure_ratio(),
