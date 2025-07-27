@@ -119,10 +119,12 @@ pub fn run_os<S: StateReader>(
     Ok(StarknetOsRunnerOutput {
         #[cfg(feature = "include_program_output")]
         os_output: {
+            use crate::io::os_output_types::TryFromOutputIter;
             // Prepare and check expected output.
             let os_raw_output = runner_output.raw_output;
-            let os_output =
-                crate::io::os_output::OsOutput::from_output_iter(os_raw_output.into_iter())?;
+            let os_output = crate::io::os_output::OsOutput::try_from_output_iter(
+                &mut os_raw_output.into_iter(),
+            )?;
             log::debug!(
                 "OsOutput for block number={}: {os_output:?}",
                 os_output.common_os_output.new_block_number
