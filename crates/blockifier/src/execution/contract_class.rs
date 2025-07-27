@@ -359,6 +359,7 @@ impl HashableCompiledClass<EntryPointV1> for CompiledClassV1 {
     }
 }
 
+// TODO(Aviv): Fix the estimation with the recent os changes.
 /// Returns the estimated VM resources required for computing Casm hash (for Cairo 1 contracts).
 ///
 /// Note: the function focuses on the bytecode size, and currently ignores the cost handling the

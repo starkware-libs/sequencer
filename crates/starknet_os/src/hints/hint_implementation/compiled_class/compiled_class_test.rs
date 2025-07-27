@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use blockifier::execution::contract_class::estimate_casm_poseidon_hash_computation_resources;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -39,6 +40,9 @@ const EXPECTED_N_STEPS_FULL_CONTRACT: Expect = expect!["122264"];
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT: expect_test::Expect =
     expect!["poseidon_builtin: 300, range_check_builtin: 149"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT: Expect = expect!["8951"];
+// Allowed margin between estimated and actual execution resources.
+const ALLOWED_MARGIN_N_STEPS: usize = 5000;
+const ALLOWED_MARGIN_POSEIDON_BUILTIN: usize = 150;
 
 // TODO(Aviv): Share this test with compiled class hash blake test.
 #[rstest]
@@ -127,7 +131,8 @@ fn test_compiled_class_hash_poseidon(
     .unwrap();
 
     // Get the actual execution resources, and compare with expected values.
-    let actual_execution_resources = runner.get_execution_resources().unwrap();
+    let mut actual_execution_resources =
+        runner.get_execution_resources().unwrap().filter_unused_builtins();
 
     // Format builtin usage statistics for comparison with expected values.
     // Filter out unused builtins (count = 0), format as "name: count", sort alphabetically,
@@ -135,7 +140,6 @@ fn test_compiled_class_hash_poseidon(
     let mut actual_builtin_usage_parts: Vec<_> = actual_execution_resources
         .builtin_instance_counter
         .iter()
-        .filter(|(_, &count)| count > 0)
         .map(|(name, count)| format!("{}: {}", name.to_str_with_suffix(), count))
         .collect();
     actual_builtin_usage_parts.sort();
@@ -150,6 +154,38 @@ fn test_compiled_class_hash_poseidon(
 
     expected_builtin_usage.assert_eq(&actual_builtin_usage);
     expected_n_steps.assert_eq(&actual_execution_resources.n_steps.to_string());
+
+    // Compare the actual execution resources with the estimation with some allowed margin.
+    if load_full_contract {
+        let mut execution_resources_estimation = estimate_casm_poseidon_hash_computation_resources(
+            &contract_class.get_bytecode_segment_lengths(),
+        );
+        let margin_n_steps =
+            execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
+        assert!(
+            margin_n_steps <= ALLOWED_MARGIN_N_STEPS,
+            "Estimated n_steps and actual n_steps differ by more than {ALLOWED_MARGIN_N_STEPS}.\n \
+             Margin N Steps: {margin_n_steps}"
+        );
+        let margin_poseidon_builtin = execution_resources_estimation
+            .builtin_instance_counter
+            .remove(&BuiltinName::poseidon)
+            .unwrap()
+            .abs_diff(
+                actual_execution_resources
+                    .builtin_instance_counter
+                    .remove(&BuiltinName::poseidon)
+                    .unwrap(),
+            );
+        assert!(
+            margin_poseidon_builtin <= ALLOWED_MARGIN_POSEIDON_BUILTIN,
+            "Estimated poseidon_builtin and actual poseidon_builtin differ by more than \
+             {ALLOWED_MARGIN_POSEIDON_BUILTIN}.\n Margin Poseidon Builtin: \
+             {margin_poseidon_builtin}"
+        );
+        // Assert that all other builtins have exactly the same values.
+        assert_eq!(execution_resources_estimation.builtin_instance_counter, actual_execution_resources.builtin_instance_counter);
+    }
 
     // The explicit return value should be a felt (the computed hash).
     let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(hash_computed_by_the_os))) =
