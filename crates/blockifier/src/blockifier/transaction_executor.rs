@@ -246,7 +246,11 @@ pub(crate) fn finalize_block<S: StateReader>(
     }
 
     let compiled_class_hashes_for_migration =
-        update_compiled_class_hash_migration_in_state(&lock_bouncer(bouncer), block_state)?;
+        if block_context.versioned_constants.enable_class_hash_migration {
+            update_compiled_class_hash_migration_in_state(&lock_bouncer(bouncer), block_state)?
+        } else {
+            Vec::new()
+        };
     let state_diff = block_state.to_state_diff()?.state_maps;
 
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
