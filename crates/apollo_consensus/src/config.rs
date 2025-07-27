@@ -86,7 +86,7 @@ impl SerializeConfig for ConsensusConfig {
 impl Default for ConsensusConfig {
     fn default() -> Self {
         Self {
-            validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID),
+            validator_id: ValidatorId::from(DEFAULT_VALIDATOR_ID - 1),
             startup_delay: Duration::from_secs(5),
             timeouts: TimeoutsConfig::default(),
             sync_retry_interval: Duration::from_secs_f64(1.0),

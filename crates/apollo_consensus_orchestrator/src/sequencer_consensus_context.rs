@@ -609,7 +609,7 @@ impl ConsensusContext for SequencerConsensusContext {
             .checked_mul_u128(WEI_PER_ETH)
             .expect("Gas price overflow")
             .checked_div(sync_block.block_header_without_hash.l1_gas_price.price_in_wei.0)
-            .expect("Price in wei should be non-zero")
+            .unwrap_or(starknet_api::block::GasPrice(0))
             .0;
         self.previous_block_info = Some(ConsensusBlockInfo {
             height,

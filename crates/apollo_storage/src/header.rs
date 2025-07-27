@@ -38,6 +38,8 @@
 #[path = "header_test.rs"]
 mod header_test;
 
+use std::error::Error;
+
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{
     BlockHash,
@@ -60,7 +62,7 @@ use starknet_api::core::{
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
-use tracing::debug;
+use tracing::{debug, info};
 
 use crate::db::serialization::NoVersionValueWrapper;
 use crate::db::table_types::{DbCursorTrait, SimpleTable, Table};
@@ -89,6 +91,7 @@ pub(crate) struct StorageBlockHeader {
     pub n_transactions: usize,
     pub n_events: usize,
 }
+const FALLBACK_VERSION: StarknetVersion = StarknetVersion::V0_11_0;
 
 type BlockHashToNumberTable<'env> =
     TableHandle<'env, BlockHash, NoVersionValueWrapper<BlockNumber>, SimpleTable>;
@@ -155,6 +158,17 @@ where
     ) -> StorageResult<Self>;
 }
 
+fn log_err_chain<E: Error>(op: &str, e: &E) {
+    // Top-level error
+    info!(operation = op, err = %e, "storage op failed");
+    // Full source chain
+    let mut src = e.source();
+    while let Some(s) = src {
+        info!(operation = op, cause = %s, "caused by");
+        src = s.source();
+    }
+}
+
 impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
     fn get_header_marker(&self) -> StorageResult<BlockNumber> {
         let markers_table = self.open_table(&self.tables.markers)?;
@@ -162,13 +176,42 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
     }
 
     fn get_block_header(&self, block_number: BlockNumber) -> StorageResult<Option<BlockHeader>> {
-        let headers_table = self.open_table(&self.tables.headers)?;
-        let Some(block_header) = headers_table.get(&self.txn, &block_number)? else {
+        let headers_table = self.open_table(&self.tables.headers).map_err(|e| {
+            log_err_chain("open_table(headers)", &e);
+            e
+        })?;
+
+        // If your Result has inspect_err (stable), this is a bit terser:
+        // let maybe_hdr = headers_table.get(&self.txn, &block_number)
+        //     .inspect_err(|e| log_err_chain("headers_table.get", e))?;
+
+        let maybe_hdr = match headers_table.get(&self.txn, &block_number) {
+            Ok(v) => v,
+            Err(e) => {
+                log_err_chain("headers_table.get", &e);
+                return Err(StorageError::InnerError(e));
+            }
+        };
+
+        let Some(block_header) = maybe_hdr else {
+            info!("header missing in table: returning Ok(None)");
             return Ok(None);
         };
-        let Some(starknet_version) = self.get_starknet_version(block_number)? else {
-            return Ok(None);
+
+        let starknet_version = match self.get_starknet_version(block_number) {
+            Ok(Some(v)) => v,
+            Ok(None) => {
+                info!(%block_number, "starknet_version missing; returning Ok(None) (previous behavior)");
+                return Ok(None);
+            }
+            Err(e) => {
+                log_err_chain("get_starknet_version", &e);
+                info!(%block_number, fallback=?FALLBACK_VERSION,
+                    "get_starknet_version errored; using fallback");
+                FALLBACK_VERSION
+            }
         };
+
         Ok(Some(BlockHeader {
             block_hash: block_header.block_hash,
             block_header_without_hash: BlockHeaderWithoutHash {

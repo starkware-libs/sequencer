@@ -4,6 +4,7 @@ pub mod runner;
 mod test;
 
 use std::cmp::min;
+use std::error::Error;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
@@ -24,6 +25,7 @@ use starknet_api::core::{ClassHash, ContractAddress, Nonce, BLOCK_HASH_TABLE_ADD
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_api::transaction::{Transaction, TransactionHash};
 use starknet_types_core::felt::Felt;
+use tracing::info;
 
 use crate::config::StateSyncConfig;
 use crate::runner::StateSyncRunner;
@@ -87,18 +89,64 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 
 impl StateSync {
     fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<Option<SyncBlock>> {
-        let txn = self.storage_reader.begin_ro_txn()?;
-        let block_header = txn.get_block_header(block_number)?;
-        let Some(block_transactions_with_hash) =
-            txn.get_block_transactions_with_hash(block_number)?
-        else {
-            return Ok(None);
+        // Helper to print the full error chain
+        fn log_error_chain(ctx: &str, err: &dyn Error) {
+            info!("{ctx}: {err}");
+            let mut source = err.source();
+            while let Some(s) = source {
+                info!("  caused by: {s}");
+                source = s.source();
+            }
+        }
+
+        let txn = match self.storage_reader.begin_ro_txn() {
+            Ok(txn) => txn,
+            Err(e) => {
+                log_error_chain("begin_ro_txn failed", &e);
+                return Ok(None);
+            }
         };
-        let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
-            return Ok(None);
+
+        let block_header = match txn.get_block_header(block_number) {
+            Ok(h) => h,
+            Err(e) => {
+                log_error_chain("get_block_header failed", &e);
+                return Ok(None);
+            }
         };
-        let Some(block_header) = block_header else {
-            return Ok(None);
+
+        let block_transactions_with_hash = match txn.get_block_transactions_with_hash(block_number)
+        {
+            Ok(Some(v)) => v,
+            Ok(None) => {
+                // Not an error, but useful to log why we return None.
+                info!("No block transactions with hash for block_number={:?}", block_number);
+                return Ok(None);
+            }
+            Err(e) => {
+                log_error_chain("get_block_transactions_with_hash failed", &e);
+                return Ok(None);
+            }
+        };
+
+        let thin_state_diff = match txn.get_state_diff(block_number) {
+            Ok(Some(d)) => d,
+            Ok(None) => {
+                info!("No state diff for block_number={:?}", block_number);
+                return Ok(None);
+            }
+            Err(e) => {
+                log_error_chain("get_state_diff failed", &e);
+                return Ok(None);
+            }
+        };
+
+        let block_header = match block_header {
+            Some(h) => h,
+            None => {
+                info!("No block header for block_number={:?}", block_number);
+                return Ok(None);
+            }
         };
 
         let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
