@@ -555,7 +555,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         // constructor calldata.
         syscall_handler.increment_linear_factor_by(
             &SyscallSelector::Deploy,
-            request.constructor_calldata.0.len(),
+            request.get_linear_factor_length(),
         );
 
         let (deployed_contract_address, call_info) = syscall_handler.base.deploy(
