@@ -79,17 +79,33 @@ pub struct PartialCompiledClassHashUpdate {
 
 impl FullCompiledClassHashUpdate {
     pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
-        _iter: &mut It,
+        iter: &mut It,
     ) -> Result<Self, OsOutputError> {
-        unimplemented!()
+        Ok(Self {
+            class_hash: ClassHash(wrap_missing_as(iter.next(), "class_hash")?),
+            prev_compiled_class_hash: CompiledClassHash(wrap_missing_as(
+                iter.next(),
+                "prev_compiled_class_hash",
+            )?),
+            next_compiled_class_hash: CompiledClassHash(wrap_missing_as(
+                iter.next(),
+                "next_compiled_class_hash",
+            )?),
+        })
     }
 }
 
 impl PartialCompiledClassHashUpdate {
     pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
-        _iter: &mut It,
+        iter: &mut It,
     ) -> Result<Self, OsOutputError> {
-        unimplemented!()
+        Ok(Self {
+            class_hash: ClassHash(wrap_missing_as(iter.next(), "class_hash")?),
+            next_compiled_class_hash: CompiledClassHash(wrap_missing_as(
+                iter.next(),
+                "new_compiled_class_hash",
+            )?),
+        })
     }
 }
 
