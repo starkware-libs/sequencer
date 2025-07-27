@@ -703,7 +703,7 @@
       "severity": "p3"
     },
     {
-      "name": "pod_critical_memory_utilization",
+      "name": "pod_state_critical_memory_utilization",
       "title": "Pod Critical Memory Utilization ( >85% )",
       "ruleGroup": "general",
       "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
@@ -730,34 +730,7 @@
       "severity": "p2"
     },
     {
-      "name": "pod_high_cpu_utilization",
-      "title": "Pod High CPU Utilization ( >90% )",
-      "ruleGroup": "general",
-      "expr": "max(irate(container_cpu_usage_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) by (container, pod, namespace) / (max(container_spec_cpu_quota{cluster=~\"$cluster\", namespace=~\"$namespace\"}/100000) by (container, pod, namespace)) * 100",
-      "conditions": [
-        {
-          "evaluator": {
-            "params": [
-              90.0
-            ],
-            "type": "gt"
-          },
-          "operator": {
-            "type": "and"
-          },
-          "reducer": {
-            "params": [],
-            "type": "avg"
-          },
-          "type": "query"
-        }
-      ],
-      "for": "30s",
-      "intervalSec": 30,
-      "severity": "p2"
-    },
-    {
-      "name": "pod_high_disk_utilization",
+      "name": "pod_state_high_disk_utilization",
       "title": "Pod High Disk Utilization ( >70% )",
       "ruleGroup": "general",
       "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
@@ -784,10 +757,37 @@
       "severity": "p3"
     },
     {
-      "name": "pod_critical_disk_utilization",
+      "name": "pod_state_critical_disk_utilization",
       "title": "Pod Critical Disk Utilization ( >90% )",
       "ruleGroup": "general",
       "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              90.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "pod_high_cpu_utilization",
+      "title": "Pod High CPU Utilization ( >90% )",
+      "ruleGroup": "general",
+      "expr": "max(irate(container_cpu_usage_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) by (container, pod, namespace) / (max(container_spec_cpu_quota{cluster=~\"$cluster\", namespace=~\"$namespace\"}/100000) by (container, pod, namespace)) * 100",
       "conditions": [
         {
           "evaluator": {
