@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::template::Template;
@@ -37,7 +37,7 @@ use crate::k8s::{
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
 use crate::utils::{determine_port_numbers, get_validator_id};
 
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 14;
 pub(crate) const INSTANCE_NAME_FORMAT: Template = Template("hybrid_{}");
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
@@ -66,17 +66,42 @@ impl GetComponentConfigs for HybridNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
 
-        let ports = determine_port_numbers(ports, HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+        let mut service_ports: BTreeMap<ServicePort, u16> = BTreeMap::new();
+        match ports {
+            Some(ports) => {
+                let determined_ports =
+                    determine_port_numbers(Some(ports), HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+                for (service_port, port) in ServicePort::iter().zip(determined_ports) {
+                    service_ports.insert(service_port, port);
+                }
+            }
+            None => {
+                // Extract the service ports for all inner services of the hybrid node.
+                for inner_service_name in HybridNodeServiceName::iter() {
+                    let inner_service_port = inner_service_name.get_service_port_mapping();
+                    service_ports.extend(inner_service_port);
+                }
+            }
+        };
 
-        let batcher = HybridNodeServiceName::Core.component_config_pair(ports[0]);
-        let class_manager = HybridNodeServiceName::Core.component_config_pair(ports[1]);
-        let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
-        let l1_gas_price_provider = HybridNodeServiceName::Core.component_config_pair(ports[3]);
-        let l1_provider = HybridNodeServiceName::Core.component_config_pair(ports[4]);
-        let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5]);
-        let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6]);
-        let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7]);
-        let signature_manager = HybridNodeServiceName::Core.component_config_pair(ports[8]);
+        let batcher =
+            HybridNodeServiceName::Core.component_config_pair(service_ports[&ServicePort::Batcher]);
+        let class_manager = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&ServicePort::ClassManager]);
+        let gateway = HybridNodeServiceName::Gateway
+            .component_config_pair(service_ports[&ServicePort::Gateway]);
+        let l1_gas_price_provider = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&ServicePort::L1GasPriceProvider]);
+        let l1_provider = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&ServicePort::L1Provider]);
+        let mempool = HybridNodeServiceName::Mempool
+            .component_config_pair(service_ports[&ServicePort::Mempool]);
+        let sierra_compiler = HybridNodeServiceName::SierraCompiler
+            .component_config_pair(service_ports[&ServicePort::SierraCompiler]);
+        let state_sync = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&ServicePort::StateSync]);
+        let signature_manager = HybridNodeServiceName::Core
+            .component_config_pair(service_ports[&ServicePort::SignatureManager]);
 
         for inner_service_name in HybridNodeServiceName::iter() {
             let component_config = match inner_service_name {
@@ -342,11 +367,13 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::ConsensusManager => {
                             service_ports.insert(ServicePort::ConsensusManager);
                         }
+                        ServicePort::SignatureManager => {
+                            service_ports.insert(ServicePort::SignatureManager);
+                        }
                         ServicePort::HttpServer
                         | ServicePort::Gateway
                         | ServicePort::Mempool
                         | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
                         | ServicePort::SierraCompiler => {}
                     }
                 }
