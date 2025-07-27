@@ -185,6 +185,7 @@ define_string_enum! {
         (InitialCarriedOutputs),
         (InitialContractStateRoot),
         (InitialGas),
+        (InnerRemainingGas),
         (InitialRoot),
         (IsLeaf),
         (IsNUpdatesSmall),
