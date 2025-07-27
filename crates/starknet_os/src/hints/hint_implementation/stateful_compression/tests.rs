@@ -15,7 +15,7 @@ use starknet_api::core::{ContractAddress, L2_ADDRESS_UPPER_BOUND};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::io::os_output::DeprecatedOsStateDiff;
+use crate::io::os_output_types::FullOsStateDiff;
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
     initialize_cairo_runner,
@@ -573,15 +573,10 @@ fn test_allocate_addresses_for_state_diff_and_replace(
         .map(|f| f.get_int().unwrap())
         .chain([Felt::ZERO]) // Number of declared classes, zero in this case.
         .collect();
-    let full_output = true;
-    let os_state_diff = DeprecatedOsStateDiff::from_iter(
-        &mut contract_state_diff_as_felts.into_iter(),
-        full_output,
-    )
-    .unwrap();
-    let os_state_diff_with_aliases = DeprecatedOsStateDiff::from_iter(
+    let os_state_diff =
+        FullOsStateDiff::from_output_iter(&mut contract_state_diff_as_felts.into_iter()).unwrap();
+    let os_state_diff_with_aliases = FullOsStateDiff::from_output_iter(
         &mut contract_state_diff_with_aliases_as_felts.into_iter(),
-        full_output,
     )
     .unwrap();
 

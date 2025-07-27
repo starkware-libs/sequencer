@@ -1,3 +1,5 @@
+#[cfg(test)]
+use blockifier::state::cached_state::StateMaps;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::{Felt, NonZeroFelt};
@@ -207,6 +209,109 @@ impl PartialContractChanges {
     }
 }
 
+// Getters
+#[cfg(test)]
+pub(crate) trait StorageUpdateGetter {
+    fn key(&self) -> StorageKey;
+    fn new_value(&self) -> Felt;
+}
+
+#[cfg(test)]
+impl StorageUpdateGetter for FullContractStorageUpdate {
+    fn key(&self) -> StorageKey {
+        self.key
+    }
+
+    fn new_value(&self) -> Felt {
+        self.new_value
+    }
+}
+
+#[cfg(test)]
+impl StorageUpdateGetter for PartialContractStorageUpdate {
+    fn key(&self) -> StorageKey {
+        self.key
+    }
+
+    fn new_value(&self) -> Felt {
+        self.new_value
+    }
+}
+
+#[cfg(test)]
+pub(crate) trait ClassHashUpdateGetters {
+    fn class_hash(&self) -> ClassHash;
+    fn next_compiled_class_hash(&self) -> CompiledClassHash;
+}
+
+#[cfg(test)]
+impl ClassHashUpdateGetters for FullCompiledClassHashUpdate {
+    fn class_hash(&self) -> ClassHash {
+        self.class_hash
+    }
+
+    fn next_compiled_class_hash(&self) -> CompiledClassHash {
+        self.next_compiled_class_hash
+    }
+}
+
+#[cfg(test)]
+impl ClassHashUpdateGetters for PartialCompiledClassHashUpdate {
+    fn class_hash(&self) -> ClassHash {
+        self.class_hash
+    }
+
+    fn next_compiled_class_hash(&self) -> CompiledClassHash {
+        self.next_compiled_class_hash
+    }
+}
+
+#[cfg(test)]
+pub(crate) trait ContractChangesGetter {
+    fn addr(&self) -> ContractAddress;
+    fn new_nonce(&self) -> Option<Nonce>;
+    fn new_class_hash(&self) -> Option<ClassHash>;
+    fn storage_changes(&self) -> &[impl StorageUpdateGetter];
+}
+
+#[cfg(test)]
+impl ContractChangesGetter for FullContractChanges {
+    fn addr(&self) -> ContractAddress {
+        self.addr
+    }
+
+    fn new_nonce(&self) -> Option<Nonce> {
+        Some(self.new_nonce)
+    }
+
+    fn new_class_hash(&self) -> Option<ClassHash> {
+        Some(self.new_class_hash)
+    }
+
+    fn storage_changes(&self) -> &[impl StorageUpdateGetter] {
+        &self.storage_changes
+    }
+}
+
+#[cfg(test)]
+impl ContractChangesGetter for PartialContractChanges {
+    fn addr(&self) -> ContractAddress {
+        self.addr
+    }
+
+    fn new_nonce(&self) -> Option<Nonce> {
+        self.new_nonce
+    }
+
+    fn new_class_hash(&self) -> Option<ClassHash> {
+        self.new_class_hash
+    }
+
+    fn storage_changes(&self) -> &[impl StorageUpdateGetter] {
+        &self.storage_changes
+    }
+}
+
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 /// State diff of an OS run with use_kzg_da=false and full_output=true
@@ -222,9 +327,27 @@ pub struct FullOsStateDiff {
 
 impl FullOsStateDiff {
     pub fn from_output_iter<It: Iterator<Item = Felt>>(
-        _output_iter: &mut It,
+        iter: &mut It,
     ) -> Result<Self, OsOutputError> {
-        unimplemented!()
+        // Contracts changes.
+        let n_contracts = wrap_missing_as(iter.next(), "OsStateDiff.n_contracts")?;
+        let mut contracts = Vec::with_capacity(n_contracts);
+        for _ in 0..n_contracts {
+            contracts.push(FullContractChanges::from_output_iter(iter)?);
+        }
+
+        // Classes changes.
+        let n_classes = wrap_missing_as(iter.next(), "OsStateDiff.n_classes")?;
+        let mut classes = Vec::with_capacity(n_classes);
+        for _ in 0..n_classes {
+            classes.push(FullCompiledClassHashUpdate::from_output_iter(iter)?);
+        }
+        Ok(Self { contracts, classes })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn as_state_maps(&self) -> StateMaps {
+        to_state_maps(&self.contracts, &self.classes)
     }
 }
 
@@ -245,6 +368,42 @@ impl PartialOsStateDiff {
     ) -> Result<Self, OsOutputError> {
         unimplemented!()
     }
+
+    #[cfg(test)]
+    pub(crate) fn _as_state_maps(&self) -> StateMaps {
+        to_state_maps(&self.contracts, &self.classes)
+    }
+}
+
+#[cfg(test)]
+fn to_state_maps<CO: ContractChangesGetter, CL: ClassHashUpdateGetters>(
+    contracts: &[CO],
+    classes: &[CL],
+) -> StateMaps {
+    let class_hashes = contracts
+        .iter()
+        .filter_map(|contract| {
+            contract.new_class_hash().map(|class_hash| (contract.addr(), class_hash))
+        })
+        .collect();
+    let nonces = contracts
+        .iter()
+        .filter_map(|contract| contract.new_nonce().map(|nonce| (contract.addr(), nonce)))
+        .collect();
+    let mut storage = std::collections::HashMap::new();
+    for contract in contracts {
+        for change in contract.storage_changes() {
+            storage.insert((contract.addr(), change.key()), change.new_value());
+        }
+    }
+    let compiled_class_hashes = classes
+        .iter()
+        .map(|class_hash_update| {
+            (class_hash_update.class_hash(), class_hash_update.next_compiled_class_hash())
+        })
+        .collect();
+    let declared_contracts = std::collections::HashMap::new();
+    StateMaps { nonces, class_hashes, storage, compiled_class_hashes, declared_contracts }
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
