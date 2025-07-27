@@ -58,6 +58,7 @@
     "ignore_inner_event_resources": true,
     "disable_deploy_in_validation_mode": false,
     "enable_reverts": false,
+    "enable_class_hash_migration": false,
     "os_constants": {
         "nop_entry_point_offset": -1,
         "entry_point_type_external": 0,
