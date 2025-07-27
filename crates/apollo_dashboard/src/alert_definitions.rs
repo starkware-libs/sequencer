@@ -54,6 +54,7 @@ use apollo_state_sync_metrics::metrics::{
     STATE_SYNC_CLASS_MANAGER_MARKER,
 };
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
+use strum::IntoEnumIterator;
 
 use crate::alerts::{
     Alert,
@@ -1041,8 +1042,29 @@ fn get_mempool_p2p_disconnections() -> Alert {
 fn verify_unique_names(alerts: &[Alert]) {
     let mut names = HashSet::new();
     for alert in alerts.iter() {
-        if !names.insert(&alert.name) {
-            panic!("Duplicate alert name found: {}", alert.name);
+        match alert.alert_env_filtering {
+            AlertEnvFiltering::All => {
+                // To be future proof we use a loop to check all envs.
+                for env in AlertEnvFiltering::iter() {
+                    if env == AlertEnvFiltering::All {
+                        continue;
+                    }
+                    if !names.insert((&alert.name, env)) {
+                        panic!(
+                            "Duplicate alert name found: {} for env: {}",
+                            alert.name, alert.alert_env_filtering
+                        );
+                    }
+                }
+            }
+            _ => {
+                if !names.insert((&alert.name, alert.alert_env_filtering)) {
+                    panic!(
+                        "Duplicate alert name found: {} for env: {}",
+                        alert.name, alert.alert_env_filtering
+                    );
+                }
+            }
         }
     }
 }

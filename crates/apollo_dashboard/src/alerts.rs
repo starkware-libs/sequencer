@@ -21,7 +21,7 @@ impl Alerts {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, EnumIter)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumIter)]
 pub enum AlertEnvFiltering {
     All,
     MainnetStyleAlerts,
