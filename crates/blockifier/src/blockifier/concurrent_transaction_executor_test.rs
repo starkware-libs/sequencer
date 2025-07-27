@@ -46,6 +46,7 @@ fn get_test_data(block_deadline: Option<Instant>) -> TestData {
     let block_number_hash_pair =
         maybe_dummy_block_hash_and_number(block_context.block_info().block_number);
 
+    let block_deadline = block_deadline.or_else(|| Some(Instant::now() + Duration::from_secs(10)));
     let tx_executor = ConcurrentTransactionExecutor::start_block(
         state,
         block_context,
@@ -164,15 +165,15 @@ fn test_concurrent_transaction_executor_stream_txs() {
     // Check execution results.
     assert_eq!(results.len(), 4);
 
-    assert!(results[0].is_ok());
+    assert!(results[0].is_ok(), "results[0] failed with error: {:?}", results[0].as_ref().err());
     assert_matches!(
         results[1].as_ref().unwrap_err(),
         TransactionExecutorError::TransactionExecutionError(
             TransactionExecutionError::TransactionTooLarge { .. }
         )
     );
-    assert!(results[2].is_ok());
-    assert!(results[3].is_ok());
+    assert!(results[2].is_ok(), "results[2] failed with error: {:?}", results[2].as_ref().err());
+    assert!(results[3].is_ok(), "results[3] failed with error: {:?}", results[3].as_ref().err());
 
     // Close the block.
     let block_summary = tx_executor.close_block(results.len()).unwrap();
