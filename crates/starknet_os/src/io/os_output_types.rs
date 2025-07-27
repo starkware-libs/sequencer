@@ -1,8 +1,25 @@
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
-use starknet_types_core::felt::Felt;
+use starknet_types_core::felt::{Felt, NonZeroFelt};
 
-use crate::io::os_output::{wrap_missing, wrap_missing_as, OsOutputError};
+use crate::io::os_output::{
+    felt_as_bool,
+    try_into_custom_error,
+    wrap_missing,
+    wrap_missing_as,
+    OsOutputError,
+};
+
+#[cfg(test)]
+#[path = "os_output_types_test.rs"]
+mod os_output_types_test;
+
+// Defined in output.cairo
+const N_UPDATES_BOUND: NonZeroFelt =
+    NonZeroFelt::from_felt_unchecked(Felt::from_hex_unchecked("10000000000000000")); // 2^64.
+const N_UPDATES_SMALL_PACKING_BOUND: NonZeroFelt =
+    NonZeroFelt::from_felt_unchecked(Felt::from_hex_unchecked("100")); // 2^8.
+const FLAG_BOUND: NonZeroFelt = NonZeroFelt::TWO;
 
 // Cairo DictAccess types for concrete objects.
 
@@ -93,6 +110,28 @@ pub struct FullContractChanges {
     pub(crate) storage_changes: Vec<FullContractStorageUpdate>,
 }
 
+impl FullContractChanges {
+    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+        iter: &mut It,
+    ) -> Result<Self, OsOutputError> {
+        Ok(Self {
+            addr: wrap_missing_as(iter.next(), "addr")?,
+            prev_nonce: Nonce(wrap_missing(iter.next(), "prev_nonce")?),
+            new_nonce: Nonce(wrap_missing_as(iter.next(), "new_nonce")?),
+            prev_class_hash: ClassHash(wrap_missing_as(iter.next(), "prev_class_hash")?),
+            new_class_hash: ClassHash(wrap_missing_as(iter.next(), "new_class_hash")?),
+            storage_changes: {
+                let n_changes = wrap_missing_as(iter.next(), "n_storage_changes")?;
+                let mut storage_changes = Vec::with_capacity(n_changes);
+                for _ in 0..n_changes {
+                    storage_changes.push(FullContractStorageUpdate::from_output_iter(iter)?);
+                }
+                storage_changes
+            },
+        })
+    }
+}
+
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 /// Represents the changes in a contract instance, in a partial format.
@@ -105,6 +144,51 @@ pub struct PartialContractChanges {
     pub(crate) new_class_hash: Option<ClassHash>,
     // A map from storage key to its prev value (optional) and new value.
     pub(crate) storage_changes: Vec<PartialContractStorageUpdate>,
+}
+
+impl PartialContractChanges {
+    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+        iter: &mut It,
+    ) -> Result<Self, OsOutputError> {
+        let addr = wrap_missing_as(iter.next(), "addr")?;
+        // Parse packed info.
+        let nonce_n_changes_two_flags = wrap_missing(iter.next(), "nonce_n_changes_two_flags")?;
+
+        // Parse flags.
+        let (nonce_n_changes_one_flag, class_updated_felt) =
+            nonce_n_changes_two_flags.div_rem(&FLAG_BOUND);
+        let class_updated = felt_as_bool(class_updated_felt, "class_updated")?;
+        let (nonce_n_changes, is_n_updates_small_felt) =
+            nonce_n_changes_one_flag.div_rem(&FLAG_BOUND);
+        let is_n_updates_small = felt_as_bool(is_n_updates_small_felt, "is_n_updates_small")?;
+
+        // Parse n_changes.
+        let n_updates_bound =
+            if is_n_updates_small { N_UPDATES_SMALL_PACKING_BOUND } else { N_UPDATES_BOUND };
+        let (nonce, n_changes) = nonce_n_changes.div_rem(&n_updates_bound);
+
+        // Parse nonce.
+        let new_nonce = if nonce == Felt::ZERO { None } else { Some(Nonce(nonce)) };
+
+        let new_class_hash = if class_updated {
+            Some(ClassHash(wrap_missing(iter.next(), "new_class_hash")?))
+        } else {
+            None
+        };
+        Ok(Self {
+            addr,
+            new_nonce,
+            new_class_hash,
+            storage_changes: {
+                let n_changes = try_into_custom_error(n_changes, "n_changes")?;
+                let mut storage_changes = Vec::with_capacity(n_changes);
+                for _ in 0..n_changes {
+                    storage_changes.push(PartialContractStorageUpdate::from_output_iter(iter)?);
+                }
+                storage_changes
+            },
+        })
+    }
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]

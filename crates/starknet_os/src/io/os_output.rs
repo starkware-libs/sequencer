@@ -20,7 +20,7 @@ use starknet_api::core::{
 };
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
-use starknet_types_core::felt::{Felt, NonZeroFelt};
+use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
 use crate::hints::hint_implementation::stateless_compression::utils::decompress;
@@ -30,25 +30,12 @@ use crate::io::os_output_types::{
     FullContractStorageUpdate,
     FullOsStateDiff,
     PartialCommitmentOsStateDiff,
-    PartialContractChanges,
-    PartialContractStorageUpdate,
     PartialOsStateDiff,
 };
 use crate::metrics::OsMetrics;
 
-#[cfg(test)]
-#[path = "os_output_test.rs"]
-mod os_output_test;
-
 // Cairo DictAccess types for concrete objects.
 type CompiledClassHashUpdate = (ClassHash, (Option<CompiledClassHash>, CompiledClassHash));
-
-// Defined in output.cairo
-const N_UPDATES_BOUND: NonZeroFelt =
-    NonZeroFelt::from_felt_unchecked(Felt::from_hex_unchecked("10000000000000000")); // 2^64.
-const N_UPDATES_SMALL_PACKING_BOUND: NonZeroFelt =
-    NonZeroFelt::from_felt_unchecked(Felt::from_hex_unchecked("100")); // 2^8.
-const FLAG_BOUND: NonZeroFelt = NonZeroFelt::TWO;
 
 const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3; // from_address, to_address, payload_size.
 // from_address, to_address, nonce, selector, payload_size.
@@ -67,7 +54,10 @@ pub(crate) fn wrap_missing<T>(val: Option<T>, val_name: &str) -> Result<T, OsOut
     val.ok_or_else(|| OsOutputError::MissingFieldInOutput(val_name.to_string()))
 }
 
-fn try_into_custom_error<T: TryFrom<Felt>>(val: Felt, val_name: &str) -> Result<T, OsOutputError>
+pub(crate) fn try_into_custom_error<T: TryFrom<Felt>>(
+    val: Felt,
+    val_name: &str,
+) -> Result<T, OsOutputError>
 where
     <T as TryFrom<Felt>>::Error: std::fmt::Display,
 {
@@ -144,73 +134,6 @@ impl MessageToL2 {
         let payload = L1ToL2Payload(iter.take(payload_size).collect());
 
         Ok(Self { from_address, to_address, nonce, selector, payload })
-    }
-}
-
-impl FullContractChanges {
-    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
-        iter: &mut It,
-    ) -> Result<Self, OsOutputError> {
-        Ok(Self {
-            addr: wrap_missing_as(iter.next(), "addr")?,
-            prev_nonce: Nonce(wrap_missing(iter.next(), "prev_nonce")?),
-            new_nonce: Nonce(wrap_missing_as(iter.next(), "new_nonce")?),
-            prev_class_hash: ClassHash(wrap_missing_as(iter.next(), "prev_class_hash")?),
-            new_class_hash: ClassHash(wrap_missing_as(iter.next(), "new_class_hash")?),
-            storage_changes: {
-                let n_changes = wrap_missing_as(iter.next(), "n_storage_changes")?;
-                let mut storage_changes = Vec::with_capacity(n_changes);
-                for _ in 0..n_changes {
-                    storage_changes.push(FullContractStorageUpdate::from_output_iter(iter)?);
-                }
-                storage_changes
-            },
-        })
-    }
-}
-
-impl PartialContractChanges {
-    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
-        iter: &mut It,
-    ) -> Result<Self, OsOutputError> {
-        let addr = wrap_missing_as(iter.next(), "addr")?;
-        // Parse packed info.
-        let nonce_n_changes_two_flags = wrap_missing(iter.next(), "nonce_n_changes_two_flags")?;
-
-        // Parse flags.
-        let (nonce_n_changes_one_flag, class_updated_felt) =
-            nonce_n_changes_two_flags.div_rem(&FLAG_BOUND);
-        let class_updated = felt_as_bool(class_updated_felt, "class_updated")?;
-        let (nonce_n_changes, is_n_updates_small_felt) =
-            nonce_n_changes_one_flag.div_rem(&FLAG_BOUND);
-        let is_n_updates_small = felt_as_bool(is_n_updates_small_felt, "is_n_updates_small")?;
-
-        // Parse n_changes.
-        let n_updates_bound =
-            if is_n_updates_small { N_UPDATES_SMALL_PACKING_BOUND } else { N_UPDATES_BOUND };
-        let (nonce, n_changes) = nonce_n_changes.div_rem(&n_updates_bound);
-
-        // Parse nonce.
-        let new_nonce = if nonce == Felt::ZERO { None } else { Some(Nonce(nonce)) };
-
-        let new_class_hash = if class_updated {
-            Some(ClassHash(wrap_missing(iter.next(), "new_class_hash")?))
-        } else {
-            None
-        };
-        Ok(Self {
-            addr,
-            new_nonce,
-            new_class_hash,
-            storage_changes: {
-                let n_changes = try_into_custom_error(n_changes, "n_changes")?;
-                let mut storage_changes = Vec::with_capacity(n_changes);
-                for _ in 0..n_changes {
-                    storage_changes.push(PartialContractStorageUpdate::from_output_iter(iter)?);
-                }
-                storage_changes
-            },
-        })
     }
 }
 
