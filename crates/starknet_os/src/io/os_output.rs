@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-
-use blockifier::state::cached_state::StateMaps;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -21,10 +18,10 @@ use crate::io::os_output_types::{
     FullCommitmentOsStateDiff,
     FullCompiledClassHashUpdate,
     FullContractChanges,
-    FullContractStorageUpdate,
     FullOsStateDiff,
     PartialCommitmentOsStateDiff,
     PartialOsStateDiff,
+    TryFromOutputIter,
 };
 use crate::metrics::OsMetrics;
 
@@ -115,8 +112,8 @@ pub struct MessageToL2 {
     payload: L1ToL2Payload,
 }
 
-impl MessageToL2 {
-    pub fn from_output_iter<It: Iterator<Item = Felt>>(
+impl TryFromOutputIter for MessageToL2 {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         let from_address = wrap_missing_as(iter.next(), "MessageToL2::from_address")?;
@@ -176,40 +173,16 @@ impl DeprecatedOsStateDiff {
         let n_contracts = wrap_missing_as(iter.next(), "OsStateDiff.n_contracts")?;
         let mut contracts = Vec::with_capacity(n_contracts);
         for _ in 0..n_contracts {
-            contracts.push(FullContractChanges::from_output_iter(iter)?);
+            contracts.push(FullContractChanges::try_from_output_iter(iter)?);
         }
 
         // Classes changes.
         let n_classes = wrap_missing_as(iter.next(), "OsStateDiff.n_classes")?;
         let mut classes = Vec::with_capacity(n_classes);
         for _ in 0..n_classes {
-            classes.push(FullCompiledClassHashUpdate::from_output_iter(iter)?);
+            classes.push(FullCompiledClassHashUpdate::try_from_output_iter(iter)?);
         }
         Ok(Self { contracts, classes })
-    }
-
-    /// Returns the state diff as a [StateMaps] object.
-    pub fn as_state_maps(&self) -> StateMaps {
-        let class_hashes = self
-            .contracts
-            .iter()
-            .map(|contract| (contract.addr, contract.new_class_hash))
-            .collect();
-        let nonces =
-            self.contracts.iter().map(|contract| (contract.addr, contract.new_nonce)).collect();
-        let mut storage = HashMap::new();
-        for contract in &self.contracts {
-            for FullContractStorageUpdate { key, new_value, .. } in &contract.storage_changes {
-                storage.insert((contract.addr, *key), *new_value);
-            }
-        }
-        let compiled_class_hashes = self
-            .classes
-            .iter()
-            .map(|class| (class.class_hash, class.next_compiled_class_hash))
-            .collect();
-        let declared_contracts = HashMap::new();
-        StateMaps { nonces, class_hashes, storage, compiled_class_hashes, declared_contracts }
     }
 }
 
@@ -219,9 +192,9 @@ struct OutputIterParsedData {
     full_output: bool,
 }
 
-impl OutputIterParsedData {
-    pub fn try_from_output_iter<It: Iterator<Item = Felt>>(
-        mut output_iter: It,
+impl TryFromOutputIter for OutputIterParsedData {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+        output_iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         let initial_root = wrap_missing(output_iter.next(), "initial_root")?;
         let final_root = wrap_missing(output_iter.next(), "final_root")?;
@@ -240,7 +213,7 @@ impl OutputIterParsedData {
             // Read KZG data into a vec.
             let kzg_z = wrap_missing(output_iter.next(), "kzg_z")?;
             let n_blobs: usize = wrap_missing_as(output_iter.next(), "n_blobs")?;
-            let commitments = output_iter.by_ref().take(2 * 2 * n_blobs);
+            let commitments = output_iter.take(2 * 2 * n_blobs);
             Some([kzg_z, n_blobs.into()].into_iter().chain(commitments).collect::<Vec<_>>())
         } else {
             None
@@ -249,8 +222,7 @@ impl OutputIterParsedData {
         // Messages to L1 and L2.
         let mut messages_to_l1_segment_size =
             wrap_missing_as(output_iter.next(), "messages_to_l1_segment_size")?;
-        let mut messages_to_l1_iter =
-            output_iter.by_ref().take(messages_to_l1_segment_size).peekable();
+        let mut messages_to_l1_iter = output_iter.take(messages_to_l1_segment_size).peekable();
         let mut messages_to_l1 = Vec::<MessageToL1>::new();
 
         while messages_to_l1_iter.peek().is_some() {
@@ -266,12 +238,11 @@ impl OutputIterParsedData {
 
         let mut messages_to_l2_segment_size =
             wrap_missing_as(output_iter.next(), "messages_to_l2_segment_size")?;
-        let mut messages_to_l2_iter =
-            output_iter.by_ref().take(messages_to_l2_segment_size).peekable();
+        let mut messages_to_l2_iter = output_iter.take(messages_to_l2_segment_size).peekable();
         let mut messages_to_l2 = Vec::<MessageToL2>::new();
 
         while messages_to_l2_iter.peek().is_some() {
-            let message = MessageToL2::from_output_iter(&mut messages_to_l2_iter)?;
+            let message = MessageToL2::try_from_output_iter(&mut messages_to_l2_iter)?;
             messages_to_l2_segment_size -= message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
             messages_to_l2.push(message);
         }
@@ -360,27 +331,28 @@ pub struct OsOutput {
     pub state_diff: OsStateDiff,
 }
 
-impl OsOutput {
-    pub fn from_output_iter<It: Iterator<Item = Felt>>(
-        mut output_iter: It,
+impl TryFromOutputIter for OsOutput {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+        output_iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         let OutputIterParsedData { common_os_output, kzg_commitment_info, full_output } =
-            OutputIterParsedData::try_from_output_iter(&mut output_iter)?;
+            OutputIterParsedData::try_from_output_iter(output_iter)?;
 
         let state_diff = match (kzg_commitment_info, full_output) {
             (Some(info), true) => OsStateDiff::FullCommitment(FullCommitmentOsStateDiff(info)),
             (Some(info), false) => {
                 OsStateDiff::PartialCommitment(PartialCommitmentOsStateDiff(info))
             }
-            (None, true) => OsStateDiff::Full(FullOsStateDiff::from_output_iter(&mut output_iter)?),
+            (None, true) => OsStateDiff::Full(FullOsStateDiff::try_from_output_iter(output_iter)?),
             (None, false) => {
-                OsStateDiff::Partial(PartialOsStateDiff::from_output_iter(&mut output_iter)?)
+                OsStateDiff::Partial(PartialOsStateDiff::try_from_output_iter(output_iter)?)
             }
         };
 
         Ok(Self { common_os_output, state_diff })
     }
-
+}
+impl OsOutput {
     pub fn use_kzg_da(&self) -> bool {
         match self.state_diff {
             OsStateDiff::FullCommitment(_) | OsStateDiff::PartialCommitment(_) => true,
