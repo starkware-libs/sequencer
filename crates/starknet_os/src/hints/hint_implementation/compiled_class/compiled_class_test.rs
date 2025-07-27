@@ -4,12 +4,13 @@ use blockifier::execution::contract_class::estimate_casm_poseidon_hash_computati
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::any_box;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use expect_test::{expect, Expect};
-use log::info;
 use rstest::rstest;
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
@@ -20,7 +21,6 @@ use crate::hints::vars::{Const, Scope};
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
     run_cairo_0_entrypoint,
-    Cairo0EntryPointRunnerResult,
     EndpointArg,
     EntryPointRunnerConfig,
     ImplicitArg,
@@ -43,96 +43,53 @@ const EXPECTED_N_STEPS_PARTIAL_CONTRACT: Expect = expect!["8651"];
 const ALLOWED_MARGIN_N_STEPS: usize = 5000;
 const ALLOWED_MARGIN_POSEIDON_BUILTIN: usize = 150;
 
-// TODO(Aviv): Share this test with compiled class hash blake test.
-#[rstest]
-fn test_compiled_class_hash_poseidon(
-    #[values(true, false)] load_full_contract: bool,
-) -> Cairo0EntryPointRunnerResult<()> {
-    // Set up the entry point runner configuration.
-    let runner_config = EntryPointRunnerConfig {
-        layout: LayoutName::all_cairo,
-        trace_enabled: false,
-        verify_secure: false,
-        proof_mode: false,
-        add_main_prefix_to_entrypoint: false, // Set to false since we're using full path.
-    };
-
-    // Set up implicit arguments.
-    let implicit_args = vec![
-        ImplicitArg::Builtin(BuiltinName::range_check),
-        ImplicitArg::Builtin(BuiltinName::poseidon),
-    ];
-    // Expected return value (the hash as a felt).
-    let expected_return_values = vec![EndpointArg::from(
-        Felt::from_dec_str(EXPECTED_HASH.data()).expect("Failed to parse EXPECTED_HASH"),
-    )];
-    // Get the OS program as bytes.
-    let program_bytes = apollo_starknet_os_program::OS_PROGRAM_BYTES;
-    // Get the test contract class.
-    let feature_contract =
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let contract_class = match feature_contract.get_class() {
-        ContractClass::V1((casm, _sierra_version)) => casm,
-        _ => panic!("Expected ContractClass::V1"),
-    };
-
-    // Set up hint locals for the Cairo runner.
-    // This creates a bytecode segment structure from the contract's bytecode and stores it
-    // in the hint locals map for use during Cairo program execution.
-    let mut hint_locals: HashMap<String, Box<dyn std::any::Any>> = HashMap::new();
-    let bytecode_structure = create_bytecode_segment_structure(
-        &contract_class.bytecode.iter().map(|x| Felt::from(&x.value)).collect::<Vec<_>>(),
-        contract_class.get_bytecode_segment_lengths(),
-    )
-    .unwrap();
-    hint_locals.insert("bytecode_segment_structure".to_string(), any_box!(bytecode_structure));
-    // Set leaf_always_accessed to `load_full_contract` in the root level exec scope.
-    hint_locals.insert(
-        <&'static str>::from(Scope::LeafAlwaysAccessed).to_string(),
-        any_box!(load_full_contract),
+/// Asserts that estimated and actual execution resources differ by at most the allowed margins.
+///
+/// This function compares the number of steps and Poseidon builtin usage between estimated
+/// and actual execution resources, ensuring they are within acceptable tolerance levels.
+fn assert_execution_resources_within_allowed_margin(
+    execution_resources_estimation: &ExecutionResources,
+    actual_execution_resources: &ExecutionResources,
+) {
+    // Check that the number of execution steps is within the allowed margin.
+    let margin_n_steps =
+        execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
+    assert!(
+        margin_n_steps <= ALLOWED_MARGIN_N_STEPS,
+        "Estimated n_steps and actual n_steps differ by more than {ALLOWED_MARGIN_N_STEPS}.\n \
+         Margin N Steps: {margin_n_steps}"
     );
-    // Use the Poseidon version.
-    let (mut runner, program, entrypoint) = initialize_cairo_runner(
-        &runner_config,
-        program_bytes,
-        "starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash.\
-         compiled_class_hash",
-        &implicit_args,
-        hint_locals,
-    )?;
-    // Create constants.
-    let constants = HashMap::from([(
-        <&'static str>::from(Const::CompiledClassVersion).to_string(),
-        *COMPILED_CLASS_V1,
-    )]);
 
-    // Create explicit arguments for the Cairo entrypoint function.
-    // Pass the contract class base address as the function's input parameter.
-    let contract_class_base = runner.vm.add_memory_segment();
-    contract_class.load_into(&mut runner.vm, &program, contract_class_base, &constants).unwrap();
-    let explicit_args = vec![EndpointArg::Value(ValueArg::Single(contract_class_base.into()))];
-    // Run the Cairo entrypoint function.
-    // State reader is not used in this test.
-    let state_reader = None;
-    // Validations are not supported since we loaded the contract class by ourselves.
-    let skip_parameter_validations = true;
-    let (_implicit_return_values, explicit_return_values) = run_cairo_0_entrypoint(
-        entrypoint,
-        &explicit_args,
-        &implicit_args,
-        state_reader,
-        &mut runner,
-        &program,
-        &runner_config,
-        &expected_return_values,
-        skip_parameter_validations,
-    )
-    .unwrap();
+    // Check that Poseidon builtin usage is within the allowed margin.
+    let margin_poseidon_builtin = execution_resources_estimation
+        .builtin_instance_counter
+        .get(&BuiltinName::poseidon)
+        .unwrap()
+        .abs_diff(
+            *actual_execution_resources
+                .builtin_instance_counter
+                .get(&BuiltinName::poseidon)
+                .unwrap(),
+        );
+    assert!(
+        margin_poseidon_builtin <= ALLOWED_MARGIN_POSEIDON_BUILTIN,
+        "Estimated poseidon_builtin and actual poseidon_builtin differ by more than \
+         {ALLOWED_MARGIN_POSEIDON_BUILTIN}.\n Margin Poseidon Builtin: {margin_poseidon_builtin}"
+    );
+}
 
-    // Get the actual execution resources, and compare with expected values.
-    let actual_execution_resources =
-        runner.get_execution_resources().unwrap().filter_unused_builtins();
-
+/// Asserts that the actual execution resources match the expected values.
+///
+/// This function formats and compares the actual execution resources against predefined
+/// expected values for either full or partial contract loading scenarios.
+///
+/// # Arguments
+/// * `actual_execution_resources` - The execution resources from the Cairo VM run
+/// * `load_full_contract` - Whether the full contract was loaded (affects expected values)
+fn assert_expected_execution_resources(
+    actual_execution_resources: &ExecutionResources,
+    load_full_contract: bool,
+) {
     // Format builtin usage statistics for comparison with expected values.
     // Filter out unused builtins (count = 0), format as "name: count", sort alphabetically,
     // and join with commas for consistent test output.
@@ -153,51 +110,165 @@ fn test_compiled_class_hash_poseidon(
 
     expected_builtin_usage.assert_eq(&actual_builtin_usage);
     expected_n_steps.assert_eq(&actual_execution_resources.n_steps.to_string());
+}
 
-    // Compare the actual execution resources with the estimation with some allowed margin.
-    if load_full_contract {
-        let execution_resources_estimation = estimate_casm_poseidon_hash_computation_resources(
-            &contract_class.get_bytecode_segment_lengths(),
-        );
-        let margin_n_steps =
-            execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
-        assert!(
-            margin_n_steps <= ALLOWED_MARGIN_N_STEPS,
-            "Estimated n_steps and actual n_steps differ by more than {ALLOWED_MARGIN_N_STEPS}.\n \
-             Margin N Steps: {margin_n_steps}"
-        );
-        let margin_poseidon_builtin = execution_resources_estimation
-            .builtin_instance_counter
-            .get(&BuiltinName::poseidon)
-            .unwrap()
-            .abs_diff(
-                *actual_execution_resources
-                    .builtin_instance_counter
-                    .get(&BuiltinName::poseidon)
-                    .unwrap(),
-            );
-        assert!(
-            margin_poseidon_builtin <= ALLOWED_MARGIN_POSEIDON_BUILTIN,
-            "Estimated poseidon_builtin and actual poseidon_builtin differ by more than \
-             {ALLOWED_MARGIN_POSEIDON_BUILTIN}.\n Margin Poseidon Builtin: \
-             {margin_poseidon_builtin}"
-        );
-    }
+/// Runs the Poseidon compiled class hash computation using the Cairo VM.
+///
+/// This function sets up and executes a Cairo program that computes the compiled class hash
+/// of a given contract using the Poseidon hash function. It can operate in two modes:
+/// - Full contract loading: Loads all bytecode segments for complete hash computation
+/// - Partial loading: Only loads necessary segments for efficiency
+///
+/// # Arguments
+/// * `contract_class` - The CASM contract class to compute the hash for
+/// * `load_full_contract` - Whether to load the full contract or use partial loading
+///
+/// # Returns
+/// A tuple containing:
+/// * `Felt` - The computed Poseidon hash of the compiled class
+/// * `ExecutionResources` - The execution resources consumed during computation
+fn run_compiled_class_hash_poseidon(
+    contract_class: &CasmContractClass,
+    load_full_contract: bool,
+) -> (Felt, ExecutionResources) {
+    // Set up the entry point runner configuration.
+    let runner_config = EntryPointRunnerConfig {
+        layout: LayoutName::all_cairo,
+        trace_enabled: false,
+        verify_secure: false,
+        proof_mode: false,
+        add_main_prefix_to_entrypoint: false, // Set to false since we're using full path.
+    };
 
-    // The explicit return value should be a felt (the computed hash).
-    let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(hash_computed_by_the_os))) =
+    // Configure implicit arguments required by the Cairo program
+    // These builtins are needed for the hash computation
+    let implicit_args = vec![
+        ImplicitArg::Builtin(BuiltinName::range_check),
+        ImplicitArg::Builtin(BuiltinName::poseidon),
+    ];
+    // Expected return value (the hash as a felt).
+    let expected_return_values = vec![EndpointArg::from(
+        Felt::from_dec_str(EXPECTED_HASH.data()).expect("Failed to parse EXPECTED_HASH"),
+    )];
+    // Get the OS program as bytes.
+    let program_bytes = apollo_starknet_os_program::OS_PROGRAM_BYTES;
+
+    // Set up hint locals for the Cairo runner.
+    // This creates a bytecode segment structure from the contract's bytecode and stores it
+    // in the hint locals map for use during Cairo program execution.
+    let mut hint_locals: HashMap<String, Box<dyn std::any::Any>> = HashMap::new();
+    let bytecode_structure = create_bytecode_segment_structure(
+        &contract_class.bytecode.iter().map(|x| Felt::from(&x.value)).collect::<Vec<_>>(),
+        contract_class.get_bytecode_segment_lengths(),
+    )
+    .unwrap();
+    hint_locals.insert("bytecode_segment_structure".to_string(), any_box!(bytecode_structure));
+    // Set leaf_always_accessed to `load_full_contract` in the root level exec scope.
+    hint_locals.insert(
+        <&'static str>::from(Scope::LeafAlwaysAccessed).to_string(),
+        any_box!(load_full_contract),
+    );
+
+    // Initialize the Cairo runner with the Poseidon hash computation entry point
+    let (mut runner, program, entrypoint) = initialize_cairo_runner(
+        &runner_config,
+        program_bytes,
+        "starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash.\
+         compiled_class_hash",
+        &implicit_args,
+        hint_locals,
+    )
+    .unwrap();
+
+    // Create constants required by the Cairo program
+    let constants = HashMap::from([(
+        <&'static str>::from(Const::CompiledClassVersion).to_string(),
+        *COMPILED_CLASS_V1,
+    )]);
+
+    // Load the contract class into Cairo VM memory
+    // This makes the contract data available for the hash computation
+    let contract_class_base = runner.vm.add_memory_segment();
+    contract_class.load_into(&mut runner.vm, &program, contract_class_base, &constants).unwrap();
+
+    // Prepare explicit arguments for the Cairo entry point function
+    // Pass the contract class base address as the function's input parameter
+    let explicit_args = vec![EndpointArg::Value(ValueArg::Single(contract_class_base.into()))];
+
+    // Run the Cairo entrypoint function.
+    // State reader is not used in this test.
+    let state_reader = None;
+    // Validations are not supported since we loaded the contract class by ourselves.
+    let skip_parameter_validations = true;
+    let (_implicit_return_values, explicit_return_values) = run_cairo_0_entrypoint(
+        entrypoint,
+        &explicit_args,
+        &implicit_args,
+        state_reader,
+        &mut runner,
+        &program,
+        &runner_config,
+        &expected_return_values,
+        skip_parameter_validations,
+    )
+    .unwrap();
+
+    // Extract the computed hash from the return value.
+    let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(hash_result))) =
         &explicit_return_values[0]
     else {
         panic!("Expected a single felt return value");
     };
 
-    info!("Computed Poseidon compiled class hash: {hash_computed_by_the_os}");
-    // Verify the hash is not zero (a basic sanity check).
-    // Use expect! macro for easy test maintenance.
+    // Get execution resources and filter out unused builtins.
+    let execution_resources = runner.get_execution_resources().unwrap().filter_unused_builtins();
+
+    // Return the computed hash and execution resources.
+    (*hash_result, execution_resources)
+}
+
+/// Tests the Poseidon compiled class hash computation.
+///
+/// This test verifies that:
+/// 1. The computed hash matches the expected value.
+/// 2. Execution resources are close to the estimated values.
+/// 3. The hash matches the one computed by the compiler.
+///
+/// The test runs with two configurations:
+/// - `load_full_contract = true`: Tests complete hash computation with full contract loading
+/// - `load_full_contract = false`: Tests optimized computation with partial contract loading
+// TODO(Aviv): Share this test with compiled class hash blake test.
+#[rstest]
+fn test_compiled_class_hash_poseidon(#[values(true, false)] load_full_contract: bool) {
+    // Get the test contract class for hash computation.
+    let feature_contract =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let contract_class = match feature_contract.get_class() {
+        ContractClass::V1((casm, _sierra_version)) => casm,
+        _ => panic!("Expected ContractClass::V1"),
+    };
+
+    // Run the Poseidon hash computation using the Cairo VM.
+    let (hash_computed_by_the_os, actual_execution_resources) =
+        run_compiled_class_hash_poseidon(&contract_class, load_full_contract);
+
+    // Verify that the actual execution resources match the expected values.
+    assert_expected_execution_resources(&actual_execution_resources, load_full_contract);
+
+    // For full contract loading, compare actual resources with estimation within allowed margin.
+    if load_full_contract {
+        assert_execution_resources_within_allowed_margin(
+            &estimate_casm_poseidon_hash_computation_resources(
+                &contract_class.get_bytecode_segment_lengths(),
+            ),
+            &actual_execution_resources,
+        );
+    }
+
+    // Verify that the computed hash matches the expected value.
     EXPECTED_HASH.assert_eq(&hash_computed_by_the_os.to_string());
 
     // Compare with the hash computed by the compiler.
     let hash_computed_by_compiler = contract_class.compiled_class_hash();
-    assert_eq!(*hash_computed_by_the_os, hash_computed_by_compiler);
-    Ok(())
+    assert_eq!(hash_computed_by_the_os, hash_computed_by_compiler);
 }
