@@ -4,6 +4,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::{Felt, NonZeroFelt};
 
+use crate::hints::hint_implementation::stateless_compression::utils::decompress;
 use crate::io::os_output::{
     felt_as_bool,
     try_into_custom_error,
@@ -364,9 +365,24 @@ pub struct PartialOsStateDiff {
 
 impl PartialOsStateDiff {
     pub fn from_output_iter<It: Iterator<Item = Felt>>(
-        _output_iter: &mut It,
+        output_iter: &mut It,
     ) -> Result<Self, OsOutputError> {
-        unimplemented!()
+        let iter = &mut decompress(output_iter).into_iter().chain(output_iter);
+        // Contracts changes.
+        let n_contracts = wrap_missing_as(iter.next(), "OsStateDiff.n_contracts")?;
+        let mut contracts = Vec::with_capacity(n_contracts);
+        for _ in 0..n_contracts {
+            contracts.push(PartialContractChanges::from_output_iter(iter)?);
+        }
+
+        // Classes changes.
+        let n_classes = wrap_missing_as(iter.next(), "OsStateDiff.n_classes")?;
+        let mut classes = Vec::with_capacity(n_classes);
+        for _ in 0..n_classes {
+            classes.push(PartialCompiledClassHashUpdate::from_output_iter(iter)?);
+        }
+
+        Ok(Self { contracts, classes })
     }
 
     #[cfg(test)]
