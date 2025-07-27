@@ -25,6 +25,12 @@ use starknet_types_core::felt::{Felt, NonZeroFelt};
 
 use crate::errors::StarknetOsError;
 use crate::hints::hint_implementation::stateless_compression::utils::decompress;
+use crate::io::os_output_types::{
+    FullCommitmentOsStateDiff,
+    FullOsStateDiff,
+    PartialCommitmentOsStateDiff,
+    PartialOsStateDiff,
+};
 use crate::metrics::OsMetrics;
 
 #[cfg(test)]
@@ -51,6 +57,8 @@ pub enum OsOutputError {
     MissingFieldInOutput(String),
     #[error("Invalid output in field: {value_name}. Val: {val}. Error: {message}")]
     InvalidOsOutputField { value_name: String, val: Felt, message: String },
+    #[error("Failed to convert to FullOsOutput. State diff variant is of a different type")]
+    ConvertToFullOutput,
 }
 
 pub(crate) fn wrap_missing<T>(val: Option<T>, val_name: &str) -> Result<T, OsOutputError> {
@@ -236,7 +244,21 @@ impl ContractChanges {
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
-pub struct OsStateDiff {
+pub enum OsStateDiff {
+    // State diff of an OS run with use_kzg_da=false and full_output=true
+    // (expected input of the aggregator).
+    Full(FullOsStateDiff),
+    // State diff of an OS run with full_output=false.
+    Partial(PartialOsStateDiff),
+    FullCommitment(FullCommitmentOsStateDiff),
+    PartialCommitment(PartialCommitmentOsStateDiff),
+}
+
+// TODO(Tzahi): Remove after all derived methods for OsStateDiff are implemented.
+// Not in use - kept here as a reference for PR reviews.
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug, PartialEq)]
+pub struct DeprecatedOsStateDiff {
     // Contracts that were changed.
     pub contracts: Vec<ContractChanges>,
     // Classes that were declared. Represents the updates of a mapping from class hash to previous
@@ -244,7 +266,7 @@ pub struct OsStateDiff {
     pub classes: Vec<CompiledClassHashUpdate>,
 }
 
-impl OsStateDiff {
+impl DeprecatedOsStateDiff {
     pub fn from_iter<It: Iterator<Item = Felt>>(
         output_iter: &mut It,
         full_output: bool,
@@ -314,7 +336,7 @@ impl OsStateDiff {
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug)]
-pub struct OsOutput {
+pub struct DifflessOsOutput {
     // The root before.
     pub initial_root: StarkHash,
     // The root after.
@@ -331,22 +353,16 @@ pub struct OsOutput {
     pub os_program_hash: StarkHash,
     // The hash of the OS config.
     pub starknet_os_config_hash: StarkHash,
-    // Indicates whether KZG data availability was used.
-    pub use_kzg_da: bool,
-    // Indicates whether previous state values are included in the state update information.
-    pub full_output: bool,
     // Messages from L2 to L1.
     pub messages_to_l1: Vec<MessageToL1>,
     // Messages from L1 to L2.
     pub messages_to_l2: Vec<MessageToL2>,
-    // The state diff.
-    pub state_diff: Option<OsStateDiff>,
 }
 
-impl OsOutput {
-    pub fn from_raw_output_iter<It: Iterator<Item = Felt>>(
+impl DifflessOsOutput {
+    pub fn from_output_iter<It: Iterator<Item = Felt>>(
         mut output_iter: It,
-    ) -> Result<Self, OsOutputError> {
+    ) -> Result<(Self, Option<Vec<Felt>>, bool), OsOutputError> {
         let initial_root = wrap_missing(output_iter.next(), "initial_root")?;
         let final_root = wrap_missing(output_iter.next(), "final_root")?;
         let prev_block_number =
@@ -360,14 +376,15 @@ impl OsOutput {
         let use_kzg_da = wrap_missing_as_bool(output_iter.next(), "use_kzg_da")?;
         let full_output = wrap_missing_as_bool(output_iter.next(), "full_output")?;
 
-        if use_kzg_da {
-            // Skip KZG data.
-
-            let _kzg_z = wrap_missing(output_iter.next(), "kzg_z")?;
+        let kzg_commitment_info = if use_kzg_da {
+            // Read KZG data into a vec.
+            let kzg_z = wrap_missing(output_iter.next(), "kzg_z")?;
             let n_blobs: usize = wrap_missing_as(output_iter.next(), "n_blobs")?;
-            // Skip 'n_blobs' commitments and evaluations.
-            output_iter.nth((2 * 2 * n_blobs) - 1);
-        }
+            let commitments = output_iter.by_ref().take(2 * 2 * n_blobs);
+            Some([kzg_z, n_blobs.into()].into_iter().chain(commitments).collect::<Vec<_>>())
+        } else {
+            None
+        };
 
         // Messages to L1 and L2.
         let mut messages_to_l1_segment_size =
@@ -398,29 +415,98 @@ impl OsOutput {
             messages_to_l2_segment_size -= message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
             messages_to_l2.push(message);
         }
+        Ok((
+            Self {
+                initial_root,
+                final_root,
+                prev_block_number,
+                new_block_number,
+                prev_block_hash,
+                new_block_hash,
+                os_program_hash,
+                starknet_os_config_hash,
+                messages_to_l1,
+                messages_to_l2,
+            },
+            kzg_commitment_info,
+            full_output,
+        ))
+    }
+}
 
-        // State diff.
-        let state_diff = if use_kzg_da {
-            None
-        } else {
-            Some(OsStateDiff::from_iter(&mut output_iter, full_output)?)
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug)]
+/// A specific structured os output (with FullOsStateDiff).
+/// The aggregator inputs are expected to be in this format.
+pub struct FullOsOutput {
+    pub diff_less_os_output: DifflessOsOutput,
+    pub state_diff: FullOsStateDiff,
+}
+
+impl TryFrom<OsOutput> for FullOsOutput {
+    type Error = OsOutputError;
+
+    fn try_from(output: OsOutput) -> Result<Self, Self::Error> {
+        Ok(Self {
+            diff_less_os_output: output.diffless_os_output,
+            state_diff: match output.state_diff {
+                OsStateDiff::Full(state_diff) => state_diff,
+                _ => return Err(OsOutputError::ConvertToFullOutput),
+            },
+        })
+    }
+}
+impl FullOsOutput {
+    pub fn use_kzg_da(&self) -> bool {
+        false
+    }
+
+    pub fn full_output(&self) -> bool {
+        true
+    }
+}
+
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug)]
+/// A general structure os output (with OsStateDiff).
+pub struct OsOutput {
+    pub diffless_os_output: DifflessOsOutput,
+    pub state_diff: OsStateDiff,
+}
+
+impl OsOutput {
+    pub fn from_output_iter<It: Iterator<Item = Felt>>(
+        mut output_iter: It,
+    ) -> Result<Self, OsOutputError> {
+        let (diff_less_os_output, kzg_commitment_info, full_output) =
+            DifflessOsOutput::from_output_iter(&mut output_iter)?;
+
+        let state_diff = match (kzg_commitment_info, full_output) {
+            (Some(info), true) => OsStateDiff::FullCommitment(FullCommitmentOsStateDiff(info)),
+            (Some(info), false) => {
+                OsStateDiff::PartialCommitment(PartialCommitmentOsStateDiff(info))
+            }
+            (None, true) => OsStateDiff::Full(FullOsStateDiff::from_output_iter(&mut output_iter)?),
+            (None, false) => {
+                OsStateDiff::Partial(PartialOsStateDiff::from_output_iter(&mut output_iter)?)
+            }
         };
 
-        Ok(Self {
-            initial_root,
-            final_root,
-            prev_block_number,
-            new_block_number,
-            prev_block_hash,
-            new_block_hash,
-            os_program_hash,
-            starknet_os_config_hash,
-            use_kzg_da,
-            full_output,
-            messages_to_l1,
-            messages_to_l2,
-            state_diff,
-        })
+        Ok(Self { diffless_os_output: diff_less_os_output, state_diff })
+    }
+
+    pub fn use_kzg_da(&self) -> bool {
+        match self.state_diff {
+            OsStateDiff::FullCommitment(_) | OsStateDiff::PartialCommitment(_) => true,
+            OsStateDiff::Full(_) | OsStateDiff::Partial(_) => false,
+        }
+    }
+
+    pub fn full_output(&self) -> bool {
+        match self.state_diff {
+            OsStateDiff::Full(_) | OsStateDiff::FullCommitment(_) => true,
+            OsStateDiff::Partial(_) | OsStateDiff::PartialCommitment(_) => false,
+        }
     }
 }
 
@@ -435,7 +521,7 @@ pub struct StarknetOsRunnerOutput {
 }
 
 pub struct StarknetAggregatorRunnerOutput {
-    // TODO(Aner): Define a struct for the output.
+    // TODO(Tzahi): Define a struct for the output.
     #[cfg(feature = "include_program_output")]
     pub aggregator_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
