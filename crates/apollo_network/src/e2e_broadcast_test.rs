@@ -1,11 +1,13 @@
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
+use apollo_infra::trace_util::configure_tracing;
 use futures::{FutureExt, StreamExt};
 use libp2p::core::multiaddr::Protocol;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{Multiaddr, Swarm};
 use libp2p_swarm_test::SwarmExt;
 use starknet_api::core::ChainId;
+use tracing::info;
 
 use crate::discovery::DiscoveryConfig;
 use crate::gossipsub_impl::Topic;
@@ -21,7 +23,7 @@ async fn create_swarm(bootstrap_peer_multiaddr: Option<Multiaddr>) -> Swarm<Mixe
         MixedBehaviour::new(
             keypair.clone(),
             bootstrap_peer_multiaddr.map(|multiaddr| vec![multiaddr]),
-            sqmr::Config::default(),
+            sqmr::Config { session_timeout: Duration::from_secs(100) },
             ChainId::Mainnet,
             None,
             DiscoveryConfig::default(),
@@ -130,6 +132,141 @@ async fn broadcast_subscriber_end_to_end_test() {
                 assert_eq!(received_number2.unwrap(), number2);
                 assert!(broadcast_client2_1.next().now_or_never().is_none());
                 assert!(broadcast_client2_2.next().now_or_never().is_none());
+            }
+        ) => {
+            result.unwrap()
+        }
+    }
+}
+
+async fn make_peers(n: usize) -> Vec<GenericNetworkManager<Swarm<MixedBehaviour>>> {
+    let mut bootstrap_addresses = vec![];
+    let mut peers = vec![];
+    for _ in 0..n {
+        let swarm = create_swarm(bootstrap_addresses.first().cloned()).await;
+        let multiaddr = swarm.external_addresses().next().unwrap().clone();
+        let multiaddr = multiaddr.with_p2p(*swarm.local_peer_id()).unwrap();
+        let peer = create_network_manager(swarm);
+
+        bootstrap_addresses.push(multiaddr);
+        peers.push(peer);
+    }
+
+    peers
+}
+
+type BigMessage = Vec<u8>;
+
+#[tokio::test]
+async fn broadcast_subscriber_end_to_end_test_throughput_test() {
+    configure_tracing().await;
+
+    const MESSAGE_SIZE: usize = 1 << 20;
+    let message1: BigMessage = vec![1; MESSAGE_SIZE];
+
+    let topic1 = Topic::new("/TOPIC1");
+    let peers = make_peers(2).await;
+
+    // Move peers out of vector to avoid ownership issues
+    let mut peers_iter = peers.into_iter();
+    let mut peer1 = peers_iter.next().unwrap();
+    let mut peer2 = peers_iter.next().unwrap();
+
+    let mut p1c = peer1
+        .register_sqmr_protocol_client::<BigMessage, BigMessage>(topic1.to_string(), BUFFER_SIZE);
+    let mut p2s = peer2
+        .register_sqmr_protocol_server::<BigMessage, BigMessage>(topic1.to_string(), BUFFER_SIZE);
+
+    tokio::select! {
+        _ = peer1.run() => panic!("network manager ended"),
+        _ = peer2.run() => panic!("network manager ended"),
+        result = tokio::time::timeout(
+            Duration::from_secs(10), async move { // Reduced timeout for debugging
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                let start_time = Instant::now();
+
+                info!("Step 1: Sending query");
+                let mut handle1 = p1c.send_new_query(message1.clone()).await.unwrap(); // Send actual message instead of empty vec
+
+                info!("Step 2: Waiting for query on server");
+                let mut server_query_manager = p2s.next().await.unwrap();
+                info!("Step 2: Received query: {}", server_query_manager.query().as_ref().unwrap().len());
+
+                info!("Step 3: Sending response");
+                server_query_manager.send_response(vec![]).await.unwrap();
+
+                info!("Step 3.5: Dropping server query manager to close response stream");
+                // Drop the ServerQueryManager, which should trigger the Drop trait and close the response stream
+                drop(server_query_manager);
+                info!("Server query manager dropped");
+
+                info!("Step 4: Waiting for response on client");
+                let response = handle1.next().await.unwrap().unwrap();
+                info!("Step 4: Received response: {}", response.len());
+
+                info!("Test completed successfully!");
+                info!("Elapsed = {}", start_time.elapsed().as_secs_f32());
+                info!("Throughput: {:.2} MB/s", (MESSAGE_SIZE as f64) / (1024.0 * 1024.0) / start_time.elapsed().as_secs_f64());
+
+                assert!(start_time.elapsed() < Duration::from_secs(1));
+            }
+        ) => {
+            result.unwrap()
+        }
+    }
+}
+
+#[tokio::test]
+async fn broadcast_topic_throughput_test() {
+    configure_tracing().await;
+
+    const MESSAGE_SIZE: usize = 1 << 20; // 1MB message
+    let large_message: BigMessage = vec![42; MESSAGE_SIZE];
+
+    let topic1 = Topic::new("/BROADCAST_THROUGHPUT_TOPIC");
+    let peers = make_peers(2).await;
+
+    // Move peers out of vector to avoid ownership issues
+    let mut peers_iter = peers.into_iter();
+    let mut peer1 = peers_iter.next().unwrap();
+    let mut peer2 = peers_iter.next().unwrap();
+
+    let mut subscriber_channels1 =
+        peer1.register_broadcast_topic::<BigMessage>(topic1.clone(), BUFFER_SIZE).unwrap();
+    let subscriber_channels2 =
+        peer2.register_broadcast_topic::<BigMessage>(topic1.clone(), BUFFER_SIZE).unwrap();
+
+    tokio::select! {
+        _ = peer1.run() => panic!("network manager ended"),
+        _ = peer2.run() => panic!("network manager ended"),
+        result = tokio::time::timeout(
+            Duration::from_secs(10), async move {
+                // Wait for peers to connect
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                let start_time = Instant::now();
+
+                info!("Step 1: Broadcasting large message ({} bytes)", MESSAGE_SIZE);
+                subscriber_channels1.broadcast_topic_client
+                    .broadcast_message(large_message.clone())
+                    .await
+                    .unwrap();
+
+                info!("Step 2: Waiting for broadcast message on peer2");
+                let mut broadcast_receiver = subscriber_channels2.broadcasted_messages_receiver;
+                let (received_message, _report_callback) = broadcast_receiver.next().await.unwrap();
+                let received_message = received_message.unwrap();
+
+                info!("Step 3: Received message with {} bytes", received_message.len());
+                assert_eq!(received_message, large_message);
+
+                let elapsed = start_time.elapsed();
+                info!("Broadcast throughput test completed successfully!");
+                info!("Elapsed time: {:.3}s", elapsed.as_secs_f32());
+                info!("Throughput: {:.2} MB/s", (MESSAGE_SIZE as f64) / (1024.0 * 1024.0) / elapsed.as_secs_f64());
+                assert!(elapsed < Duration::from_secs(1));
+
+                // Verify no additional messages
+                assert!(broadcast_receiver.next().now_or_never().is_none());
             }
         ) => {
             result.unwrap()

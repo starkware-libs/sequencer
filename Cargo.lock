@@ -1689,6 +1689,7 @@ name = "apollo_network"
 version = "0.0.0"
 dependencies = [
  "apollo_config",
+ "apollo_infra",
  "apollo_metrics",
  "apollo_network_types",
  "assert_matches",
