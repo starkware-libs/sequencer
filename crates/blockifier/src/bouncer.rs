@@ -755,8 +755,8 @@ pub fn get_tx_weights<S: StateReader>(
     // Sierra gas computation.
     let vm_resources_sierra_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
-    let (class_hashes_to_migrate, migration_gas) =
-        get_migration_data(state_reader, executed_class_hashes);
+    let (class_hashes_to_migrate, (migration_gas, migration_poseidon_builtin_counter)) =
+        get_migration_data(state_reader, executed_class_hashes, versioned_constants);
     let sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
     // Each contract is migrated only once, and this migration resources is not part of the CASM
@@ -779,6 +779,12 @@ pub fn get_tx_weights<S: StateReader>(
         &mut builtin_counters_without_casm_hash_computation,
         &tx_resources.computation.os_vm_resources.prover_builtins(),
     );
+    // Since the migration occurs only once per contract, we don't consider it part of the CASM hash
+    // computation.
+    add_maps(
+        &mut builtin_counters_without_casm_hash_computation,
+        &migration_poseidon_builtin_counter,
+    );
     // TODO(Meshi): Add proving builtin_counters to the
     // `builtin_counters_without_casm_hash_computation`.
     let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
@@ -788,10 +794,6 @@ pub fn get_tx_weights<S: StateReader>(
         versioned_constants,
     );
 
-    // Since the migration occurs only once per contract, we don't consider it part of the CASM hash
-    // computation.
-    // TODO(Meshi): change this to use the proving migration gas.
-    proving_gas_without_casm_hash_computation.checked_add_panic_on_overflow(migration_gas);
 
     // Use the shared pattern to create proving gas data
     let casm_hash_computation_data_proving_gas = CasmHashComputationData::from_resources(
@@ -879,16 +881,30 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
 fn get_migration_data<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
-) -> (HashSet<ClassHash>, GasAmount) {
+    versioned_constants: &VersionedConstants,
+) -> (HashSet<ClassHash>, (GasAmount, BuiltinCounterMap)) {
     executed_class_hashes
         .iter()
         .filter(|&class_hash_ref| should_migrate(state_reader, *class_hash_ref))
         .map(|class_hash| {
             let class = state_reader.get_compiled_class(*class_hash).expect("Failed to get class");
-            (*class_hash, class.estimate_compiled_class_hash_migration_resources())
+            (
+                *class_hash,
+                class.estimate_compiled_class_hash_migration_resources(versioned_constants),
+            )
         })
-        .fold((HashSet::new(), GasAmount::ZERO), |(mut hashes, gas), (hash, new_gas)| {
-            hashes.insert(hash);
-            (hashes, gas.checked_add_panic_on_overflow(new_gas))
-        })
+        .fold(
+            (HashSet::new(), (GasAmount::ZERO, HashMap::new())),
+            |(mut hashes, (gas_without_poseidon_builtins, poseidon_builtin_counter)),
+             (hash, (new_gas, new_poseidon_builtin_counter))| {
+                hashes.insert(hash);
+                (
+                    hashes,
+                    (
+                        gas_without_poseidon_builtins.checked_add_panic_on_overflow(new_gas),
+                        poseidon_builtin_counter.extend(new_poseidon_builtin_counter),
+                    ),
+                )
+            },
+        )
 }
