@@ -35,7 +35,7 @@ impl FullContractStorageUpdate {
 }
 
 impl PartialContractStorageUpdate {
-    pub fn _from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
@@ -76,7 +76,6 @@ impl PartialCompiledClassHashUpdate {
     }
 }
 
-// TODO(Tzahi): replace ContractChanges with the next two structs.
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 /// Represents the changes in a contract instance, in a full format.
