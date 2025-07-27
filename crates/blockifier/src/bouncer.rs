@@ -755,8 +755,12 @@ pub fn get_tx_weights<S: StateReader>(
     // Sierra gas computation.
     let vm_resources_sierra_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
     let sierra_gas = tx_resources.computation.sierra_gas;
-    let (class_hashes_to_migrate, migration_gas) =
-        get_migration_data(state_reader, executed_class_hashes);
+    let (class_hashes_to_migrate, migration_gas) = if versioned_constants.enable_casm_hash_migration
+    {
+        get_migration_data(state_reader, executed_class_hashes)
+    } else {
+        (HashSet::new(), GasAmount::ZERO)
+    };
     let sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
     // Each contract is migrated only once, and this migration resources is not part of the CASM
