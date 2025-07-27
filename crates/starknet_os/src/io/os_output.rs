@@ -10,14 +10,7 @@ use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
-};
+use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
 use starknet_types_core::felt::Felt;
@@ -26,6 +19,7 @@ use crate::errors::StarknetOsError;
 use crate::hints::hint_implementation::stateless_compression::utils::decompress;
 use crate::io::os_output_types::{
     FullCommitmentOsStateDiff,
+    FullCompiledClassHashUpdate,
     FullContractChanges,
     FullContractStorageUpdate,
     FullOsStateDiff,
@@ -35,7 +29,6 @@ use crate::io::os_output_types::{
 use crate::metrics::OsMetrics;
 
 // Cairo DictAccess types for concrete objects.
-type CompiledClassHashUpdate = (ClassHash, (Option<CompiledClassHash>, CompiledClassHash));
 
 const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3; // from_address, to_address, payload_size.
 // from_address, to_address, nonce, selector, payload_size.
@@ -158,7 +151,7 @@ pub struct DeprecatedOsStateDiff {
     pub contracts: Vec<FullContractChanges>,
     // Classes that were declared. Represents the updates of a mapping from class hash to previous
     // (optional) and new compiled class hash.
-    pub classes: Vec<CompiledClassHashUpdate>,
+    pub classes: Vec<FullCompiledClassHashUpdate>,
 }
 
 impl DeprecatedOsStateDiff {
@@ -184,15 +177,7 @@ impl DeprecatedOsStateDiff {
         let n_classes = wrap_missing_as(iter.next(), "OsStateDiff.n_classes")?;
         let mut classes = Vec::with_capacity(n_classes);
         for _ in 0..n_classes {
-            let class_hash = ClassHash(wrap_missing(iter.next(), "class_hash")?);
-            let prev_compiled_class_hash = if full_output {
-                Some(CompiledClassHash(wrap_missing(iter.next(), "prev_compiled_class_hash")?))
-            } else {
-                None
-            };
-            let new_compiled_class_hash =
-                CompiledClassHash(wrap_missing(iter.next(), "new_compiled_class_hash")?);
-            classes.push((class_hash, (prev_compiled_class_hash, new_compiled_class_hash)));
+            classes.push(FullCompiledClassHashUpdate::from_output_iter(iter)?);
         }
         Ok(Self { contracts, classes })
     }
@@ -215,9 +200,7 @@ impl DeprecatedOsStateDiff {
         let compiled_class_hashes = self
             .classes
             .iter()
-            .map(|(class_hash, (_prev_compiled_class_hash, new_compiled_class_hash))| {
-                (*class_hash, *new_compiled_class_hash)
-            })
+            .map(|class| (class.class_hash, class.next_compiled_class_hash))
             .collect();
         let declared_contracts = HashMap::new();
         StateMaps { nonces, class_hashes, storage, compiled_class_hashes, declared_contracts }
