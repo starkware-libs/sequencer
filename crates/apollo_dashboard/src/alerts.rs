@@ -154,24 +154,55 @@ pub(crate) enum AlertGroup {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub(crate) struct Alert {
     // The name of the alert.
-    pub(crate) name: &'static str,
+    name: String,
     // The title that will be displayed.
-    pub(crate) title: &'static str,
+    title: String,
     // The group that the alert will be displayed under.
     #[serde(rename = "ruleGroup")]
-    pub(crate) alert_group: AlertGroup,
+    alert_group: AlertGroup,
     // The expression to evaluate for the alert.
-    pub(crate) expr: String,
+    expr: String,
     // The conditions that must be met for the alert to be triggered.
-    pub(crate) conditions: &'static [AlertCondition],
+    conditions: Vec<AlertCondition>,
     // The time duration for which the alert conditions must be true before an alert is triggered.
     #[serde(rename = "for")]
-    pub(crate) pending_duration: &'static str,
+    pending_duration: String,
     // The interval in sec between evaluations of the alert.
     #[serde(rename = "intervalSec")]
-    pub(crate) evaluation_interval_sec: u64,
+    evaluation_interval_sec: u64,
     // The severity level of the alert.
-    pub(crate) severity: AlertSeverity,
+    severity: AlertSeverity,
     #[serde(skip)]
-    pub(crate) alert_env_filtering: AlertEnvFiltering,
+    alert_env_filtering: AlertEnvFiltering,
+}
+
+impl Alert {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        name: impl ToString,
+        title: impl ToString,
+        alert_group: AlertGroup,
+        expr: impl ToString,
+        conditions: Vec<AlertCondition>,
+        pending_duration: impl ToString,
+        evaluation_interval_sec: u64,
+        severity: AlertSeverity,
+        alert_env_filtering: AlertEnvFiltering,
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            title: title.to_string(),
+            alert_group,
+            expr: expr.to_string(),
+            conditions,
+            pending_duration: pending_duration.to_string(),
+            evaluation_interval_sec,
+            severity,
+            alert_env_filtering,
+        }
+    }
+
+    pub(crate) fn get_name(&self) -> &str {
+        &self.name
+    }
 }
