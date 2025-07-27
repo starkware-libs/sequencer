@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use apollo_batcher::metrics::{BATCHED_TRANSACTIONS, PRECONFIRMED_BLOCK_WRITTEN};
 use apollo_consensus::metrics::{
     CONSENSUS_BLOCK_NUMBER,
@@ -6,7 +8,6 @@ use apollo_consensus::metrics::{
     CONSENSUS_DECISIONS_REACHED_BY_CONSENSUS,
     CONSENSUS_DECISIONS_REACHED_BY_SYNC,
     CONSENSUS_INBOUND_STREAM_EVICTED,
-    CONSENSUS_PROPOSALS_INVALID,
     CONSENSUS_ROUND,
     CONSENSUS_ROUND_ABOVE_ZERO,
 };
@@ -50,7 +51,6 @@ use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
 use apollo_metrics::metric_label_filter;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
-    CENTRAL_SYNC_FORKS_FROM_FEEDER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
 };
 use blockifier::metrics::NATIVE_COMPILATION_ERROR;
@@ -73,10 +73,40 @@ pub fn get_dev_alerts_json_path(alert_env_filtering: AlertEnvFiltering) -> Strin
     format!("crates/apollo_dashboard/resources/dev_grafana_alerts_{}.json", alert_env_filtering)
 }
 
-fn get_consensus_block_number_stuck() -> Alert {
+/// Block number is stuck for more than duration minutes.
+// TODO(shahak): Remove this for mainnet when we can.
+fn get_consensus_block_number_stuck(
+    alert_name: &'static str,
+    alert_env_filtering: AlertEnvFiltering,
+    duration: Duration,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
-        "consensus_block_number_stuck",
+        alert_name,
         "Consensus block number stuck",
+        AlertGroup::Consensus,
+        format!(
+            "sum(increase({}[{}m])) or vector(0)",
+            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
+            duration.as_secs() / 60,
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 1.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        alert_env_filtering,
+    )
+}
+
+/// Block number progressed slowly (< 10) in the last 5 minutes.
+fn get_consensus_block_number_progress_is_slow() -> Alert {
+    Alert::new(
+        "get_consensus_block_number_progress_is_slow",
+        "Consensus block number progress is slow",
         AlertGroup::Consensus,
         format!(
             "sum(increase({}[5m])) or vector(0)",
@@ -89,26 +119,7 @@ fn get_consensus_block_number_stuck() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
-    )
-}
-
-// If this happens, we expect to also see other nodes alert on `consensus_validate_proposal_failed`.
-fn get_consensus_build_proposal_failed_alert() -> Alert {
-    Alert::new(
-        "consensus_build_proposal_failed",
-        "Consensus build proposal failed",
-        AlertGroup::Consensus,
-        format!("increase({}[1h])", CONSENSUS_BUILD_PROPOSAL_FAILED.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 10.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
+        AlertSeverity::WorkingHours,
         AlertEnvFiltering::All,
     )
 }
@@ -127,24 +138,6 @@ fn get_consensus_build_proposal_failed_once_alert() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Informational,
-        AlertEnvFiltering::All,
-    )
-}
-
-fn get_consensus_validate_proposal_failed_alert() -> Alert {
-    Alert::new(
-        "consensus_validate_proposal_failed",
-        "Consensus validate proposal failed",
-        AlertGroup::Consensus,
-        format!("increase({}[1h])", CONSENSUS_PROPOSALS_INVALID.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 10.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
         AlertEnvFiltering::All,
     )
 }
@@ -221,8 +214,7 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
         ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            // This is 50% of the proposal timeout.
-            comparison_value: 1.5,
+            comparison_value: 3.0,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
@@ -232,7 +224,10 @@ fn get_cende_write_prev_height_blob_latency_too_high() -> Alert {
     )
 }
 
-fn get_cende_write_blob_failure_alert() -> Alert {
+fn get_cende_write_blob_failure_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "cende_write_blob_failure",
         "Cende write blob failure",
@@ -245,8 +240,8 @@ fn get_cende_write_blob_failure_alert() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
@@ -304,12 +299,16 @@ fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
     )
 }
 
-fn get_consensus_round_above_zero() -> Alert {
+/// The was a round larger than zero in the last hour.
+fn get_consensus_round_above_zero(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "consensus_round_above_zero",
         "Consensus round above zero",
         AlertGroup::Consensus,
-        format!("max_over_time({}[1h])", CONSENSUS_ROUND.get_name_with_filter()),
+        format!("increase({}[1h])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 0.0,
@@ -317,8 +316,30 @@ fn get_consensus_round_above_zero() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Informational,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
+    )
+}
+
+/// There were 5 times in the last 30 minutes that the round was larger than zero.
+fn get_consensus_round_above_zero_multiple_times(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    Alert::new(
+        "consensus_round_above_zero_multiple_times",
+        "Consensus round above zero multiple times",
+        AlertGroup::Consensus,
+        format!("increase({}[30m])", CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter()),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 5.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
@@ -341,15 +362,17 @@ fn get_consensus_conflicting_votes() -> Alert {
     )
 }
 
-fn get_gateway_add_tx_idle() -> Alert {
+fn build_idle_alert(
+    alert_name: &str,
+    alert_title: &str,
+    alert_group: AlertGroup,
+    metric_name_with_filter: &str,
+) -> Alert {
     Alert::new(
-        "gateway_add_tx_idle",
-        "Gateway add_tx idle",
-        AlertGroup::Gateway,
-        format!(
-            "sum(increase({}[20m])) or vector(0)",
-            GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter()
-        ),
+        alert_name,
+        alert_title,
+        alert_group,
+        format!("sum(increase({}[2m])) or vector(0)", metric_name_with_filter),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 0.1,
@@ -357,56 +380,44 @@ fn get_gateway_add_tx_idle() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
+        AlertSeverity::Sos,
         AlertEnvFiltering::All,
+    )
+}
+
+fn get_http_server_no_successful_transactions() -> Alert {
+    build_idle_alert(
+        "http_server_no_successful_transactions",
+        "http server no successful transactions",
+        AlertGroup::HttpServer,
+        ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
+    )
+}
+
+fn get_gateway_add_tx_idle() -> Alert {
+    build_idle_alert(
+        "gateway_add_tx_idle_all_sources",
+        "Gateway add_tx idle (all sources)",
+        AlertGroup::Gateway,
+        GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter(),
     )
 }
 
 // TODO(shahak): add gateway latency alert
 
 fn get_mempool_add_tx_idle() -> Alert {
-    Alert::new(
-        "mempool_add_tx_idle",
-        "Mempool add_tx idle",
+    build_idle_alert(
+        "mempool_add_tx_idle_all_sources",
+        "Mempool add_tx idle (all sources)",
         AlertGroup::Mempool,
-        format!(
-            "sum(increase({}[20m])) or vector(0)",
-            MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter()
-        ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 0.1,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
+        MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter(),
     )
 }
 
-fn get_http_server_add_tx_idle() -> Alert {
-    Alert::new(
-        "http_server_add_tx_idle",
-        "HTTP Server add_tx idle",
-        AlertGroup::HttpServer,
-        format!(
-            "sum(increase({}[20m])) or vector(0)",
-            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
-        ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 0.1,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
-    )
-}
-
-fn get_http_server_internal_error_ratio() -> Alert {
+fn get_http_server_internal_error_ratio(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "http_server_internal_error_ratio",
         "http server internal error ratio",
@@ -423,8 +434,8 @@ fn get_http_server_internal_error_ratio() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
@@ -467,7 +478,11 @@ fn get_eth_to_strk_error_count_alert() -> Alert {
     )
 }
 
-fn get_eth_to_strk_success_count_alert() -> Alert {
+/// Alert if we have no successful eth to strk rates data from the last hour.
+fn get_eth_to_strk_success_count_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "eth_to_strk_success_count",
         "Eth to Strk success count",
@@ -480,12 +495,16 @@ fn get_eth_to_strk_success_count_alert() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
-fn get_l1_gas_price_scraper_success_count_alert() -> Alert {
+/// Alert if had no successful l1 gas price scrape in the last hour.
+fn get_l1_gas_price_scraper_success_count_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "l1_gas_price_scraper_success_count",
         "L1 gas price scraper success count",
@@ -498,116 +517,8 @@ fn get_l1_gas_price_scraper_success_count_alert() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
-        AlertEnvFiltering::All,
-    )
-}
-
-fn get_http_server_no_successful_transactions() -> Alert {
-    Alert::new(
-        "http_server_no_successful_transactions",
-        "http server no successful transactions",
-        AlertGroup::HttpServer,
-        format!(
-            "sum(increase({}[1h])) or vector(0)",
-            ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()
-        ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 1.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
-    )
-}
-
-fn get_http_server_low_successful_transaction_rate() -> Alert {
-    Alert::new(
-        "http_server_low_successful_transaction_rate",
-        "http server low successful transaction rate",
-        AlertGroup::HttpServer,
-        format!("rate({}[5m]) or vector(0)", ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 0.01,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
-        AlertEnvFiltering::All,
-    )
-}
-
-fn get_http_server_high_transaction_failure_ratio() -> Alert {
-    Alert::new(
-        "http_server_high_transaction_failure_ratio",
-        "http server high transaction failure ratio",
-        AlertGroup::HttpServer,
-        format!(
-            "(increase({}[1h]) - increase({}[1h])) / clamp_min(increase({}[1h]), 1)",
-            ADDED_TRANSACTIONS_FAILURE.get_name_with_filter(),
-            ADDED_TRANSACTIONS_DEPRECATED_ERROR.get_name_with_filter(),
-            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
-        ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.5,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
-        AlertEnvFiltering::All,
-    )
-}
-
-/// Triggers if the average latency of `add_tx` calls, across all HTTP servers, exceeds 2 seconds
-/// over a 5-minute window.
-fn get_http_server_avg_add_tx_latency_alert() -> Alert {
-    let sum_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_sum_with_filter();
-    let count_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_count_with_filter();
-
-    Alert::new(
-        "http_server_avg_add_tx_latency",
-        "High HTTP server average add_tx latency",
-        AlertGroup::HttpServer,
-        format!("rate({sum_metric}[5m]) / rate({count_metric}[5m])"),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 2.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
-    )
-}
-
-/// Triggers when the slowest 5% of transactions for a specific HTTP server are taking longer than 2
-/// seconds over a 5-minute window.
-fn get_http_server_p95_add_tx_latency_alert() -> Alert {
-    Alert::new(
-        "http_server_p95_add_tx_latency",
-        "High HTTP server P95 add_tx latency",
-        AlertGroup::HttpServer,
-        format!(
-            "histogram_quantile(0.95, sum(rate({}[5m])) by (le))",
-            HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filter()
-        ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 2.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::WorkingHours,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
@@ -632,7 +543,10 @@ fn get_l1_gas_price_scraper_baselayer_error_count_alert() -> Alert {
     )
 }
 
-fn get_l1_gas_price_provider_insufficient_history_alert() -> Alert {
+fn get_l1_gas_price_provider_insufficient_history_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "l1_gas_price_provider_insufficient_history",
         "L1 gas price provider insufficient history",
@@ -648,8 +562,8 @@ fn get_l1_gas_price_provider_insufficient_history_alert() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Informational,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
@@ -671,12 +585,15 @@ fn get_l1_gas_price_reorg_detected_alert() -> Alert {
     )
 }
 
-fn get_l1_message_scraper_no_successes_alert() -> Alert {
+fn get_l1_message_scraper_no_successes_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "l1_message_no_successes",
         "L1 message no successes",
         AlertGroup::L1GasPrice,
-        format!("increase({}[20m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
+        format!("increase({}[5m])", L1_MESSAGE_SCRAPER_SUCCESS_COUNT.get_name_with_filter()),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
@@ -684,8 +601,131 @@ fn get_l1_message_scraper_no_successes_alert() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
+        alert_severity,
+        alert_env_filtering,
+    )
+}
+
+fn get_http_server_low_successful_transaction_rate(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    Alert::new(
+        "http_server_low_successful_transaction_rate",
+        "http server low successful transaction rate",
+        AlertGroup::HttpServer,
+        format!("rate({}[5m]) or vector(0)", ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::LessThan,
+            comparison_value: 0.01,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        alert_env_filtering,
+    )
+}
+
+fn get_http_server_high_transaction_failure_ratio(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    Alert::new(
+        "http_server_high_transaction_failure_ratio",
+        "http server high transaction failure ratio",
+        AlertGroup::HttpServer,
+        format!(
+            "(increase({}[1h]) - increase({}[1h])) / clamp_min(increase({}[1h]), 1)",
+            ADDED_TRANSACTIONS_FAILURE.get_name_with_filter(),
+            ADDED_TRANSACTIONS_DEPRECATED_ERROR.get_name_with_filter(),
+            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.5,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        alert_env_filtering,
+    )
+}
+
+// TODO(guy.f): Revisit severity 1 months after mainnet launch.
+// Change threshold to 0.05 after mainnet launch.
+fn get_http_server_high_deprecated_transaction_failure_ratio() -> Alert {
+    Alert::new(
+        "http_server_high_deprecated_transaction_failure_ratio",
+        "http server high deprecated transaction failure ratio",
+        AlertGroup::HttpServer,
+        format!(
+            "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
+            ADDED_TRANSACTIONS_DEPRECATED_ERROR.get_name_with_filter(),
+            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.1,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::Informational,
         AlertEnvFiltering::All,
+    )
+}
+
+/// Triggers if the average latency of `add_tx` calls, across all HTTP servers, exceeds 2 seconds
+/// over a 2-minute window.
+fn get_http_server_avg_add_tx_latency_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    let sum_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_sum_with_filter();
+    let count_metric = HTTP_SERVER_ADD_TX_LATENCY.get_name_count_with_filter();
+
+    Alert::new(
+        "http_server_avg_add_tx_latency",
+        "High HTTP server average add_tx latency",
+        AlertGroup::HttpServer,
+        format!("rate({sum_metric}[2m]) / rate({count_metric}[2m])"),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 2.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        alert_env_filtering,
+    )
+}
+
+/// Triggers when the slowest 5% of transactions for a specific HTTP server are taking longer than 2
+/// seconds over a 5-minute window.
+fn get_http_server_p95_add_tx_latency_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    Alert::new(
+        "http_server_p95_add_tx_latency",
+        "High HTTP server P95 add_tx latency",
+        AlertGroup::HttpServer,
+        format!(
+            "histogram_quantile(0.95, sum(rate({}[5m])) by (le))",
+            HTTP_SERVER_ADD_TX_LATENCY.get_name_with_filter()
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 2.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
@@ -731,7 +771,10 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
     )
 }
 
-fn get_mempool_pool_size_increase() -> Alert {
+fn get_mempool_pool_size_increase(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "mempool_pool_size_increase",
         "Mempool pool size increase",
@@ -744,12 +787,15 @@ fn get_mempool_pool_size_increase() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
-fn get_mempool_transaction_drop_ratio() -> Alert {
+fn get_mempool_transaction_drop_ratio(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "mempool_transaction_drop_ratio",
         "Mempool transaction drop ratio",
@@ -761,13 +807,14 @@ fn get_mempool_transaction_drop_ratio() -> Alert {
         ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.5,
+            // TODO(leo): Decide on the final ratio and if this should be an alert for product.
+            comparison_value: 0.2,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
@@ -785,28 +832,6 @@ fn get_consensus_round_high() -> Alert {
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
         AlertSeverity::Regular,
-        AlertEnvFiltering::All,
-    )
-}
-
-fn get_consensus_round_above_zero_ratio() -> Alert {
-    Alert::new(
-        "consensus_round_above_zero_ratio",
-        "Consensus round above zero ratio",
-        AlertGroup::Consensus,
-        format!(
-            "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
-            CONSENSUS_ROUND_ABOVE_ZERO.get_name_with_filter(),
-            CONSENSUS_BLOCK_NUMBER.get_name_with_filter(),
-        ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.05,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        10,
-        AlertSeverity::DayOnly,
         AlertEnvFiltering::All,
     )
 }
@@ -829,7 +854,10 @@ fn get_native_compilation_error_increase() -> Alert {
     )
 }
 
-fn get_state_sync_lag() -> Alert {
+fn get_state_sync_lag(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "state_sync_lag",
         "State sync lag",
@@ -846,17 +874,26 @@ fn get_state_sync_lag() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
-fn get_state_sync_stuck() -> Alert {
+fn get_state_sync_stuck(
+    alert_name: &'static str,
+    alert_env_filtering: AlertEnvFiltering,
+    duration: Duration,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
-        "state_sync_stuck",
+        alert_name,
         "State sync stuck",
         AlertGroup::StateSync,
-        format!("increase({}[5m])", STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter()), /* Alert is triggered when the class manager marker is not updated for 5m */
+        format!(
+            "increase({}[{}m])",
+            STATE_SYNC_CLASS_MANAGER_MARKER.get_name_with_filter(),
+            duration.as_secs() / 60
+        ), // Alert is triggered when the class manager marker is not updated for {duration}m
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
@@ -864,35 +901,26 @@ fn get_state_sync_stuck() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
-fn get_state_sync_fork_from_central() -> Alert {
+fn get_batched_transactions_stuck(
+    alert_name: &'static str,
+    alert_env_filtering: AlertEnvFiltering,
+    duration: Duration,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
-        "state_sync_fork_from_central",
-        "State sync fork from central",
-        AlertGroup::StateSync,
-        format!("increase({}[1m])", CENTRAL_SYNC_FORKS_FROM_FEEDER.get_name_with_filter()),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Sos,
-        AlertEnvFiltering::All,
-    )
-}
-
-fn get_batched_transactions_stuck() -> Alert {
-    Alert::new(
-        "batched_transactions_stuck",
+        alert_name,
         "Batched transactions stuck",
         AlertGroup::Batcher,
-        format!("changes({}[5m])", BATCHED_TRANSACTIONS.get_name_with_filter()),
+        format!(
+            "changes({}[{}m])",
+            BATCHED_TRANSACTIONS.get_name_with_filter(),
+            duration.as_secs() / 60
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
@@ -900,17 +928,21 @@ fn get_batched_transactions_stuck() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
-fn get_preconfirmed_block_not_written() -> Alert {
+/// No preconfirmed block was written in the last 10 minutes.
+fn get_preconfirmed_block_not_written(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "preconfirmed_block_not_written",
         "Preconfirmed block not written",
         AlertGroup::Batcher,
-        format!("increase({}[1h])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
+        format!("increase({}[10m])", PRECONFIRMED_BLOCK_WRITTEN.get_name_with_filter()),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             comparison_value: 1.0,
@@ -918,17 +950,20 @@ fn get_preconfirmed_block_not_written() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
-fn get_consensus_p2p_peer_down() -> Alert {
+fn get_consensus_p2p_peer_down(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "consensus_p2p_peer_down",
         "Consensus p2p peer down",
         AlertGroup::Consensus,
-        format!("max_over_time({}[1h])", CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()),
+        format!("max_over_time({}[2m])", CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators
@@ -937,17 +972,26 @@ fn get_consensus_p2p_peer_down() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
-fn get_consensus_p2p_not_enough_peers_for_quorum() -> Alert {
+fn get_consensus_p2p_not_enough_peers_for_quorum(
+    alert_name: &'static str,
+    alert_env_filtering: AlertEnvFiltering,
+    duration: Duration,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
-        "consensus_p2p_not_enough_peers_for_quorum",
+        alert_name,
         "Consensus p2p not enough peers for quorum",
         AlertGroup::Consensus,
-        format!("max_over_time({}[5m])", CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter()),
+        format!(
+            "max_over_time({}[{}m])",
+            CONSENSUS_NUM_CONNECTED_PEERS.get_name_with_filter(),
+            duration.as_secs() / 60
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators and
@@ -957,8 +1001,8 @@ fn get_consensus_p2p_not_enough_peers_for_quorum() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
@@ -986,12 +1030,15 @@ fn get_consensus_p2p_disconnections() -> Alert {
     )
 }
 
-fn get_mempool_p2p_peer_down() -> Alert {
+fn get_mempool_p2p_peer_down(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "mempool_p2p_peer_down",
         "Mempool p2p peer down",
         AlertGroup::Mempool,
-        format!("max_over_time({}[1h])", MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()),
+        format!("max_over_time({}[2m])", MEMPOOL_P2P_NUM_CONNECTED_PEERS.get_name_with_filter()),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
             // TODO(shahak): find a way to make this depend on num_validators
@@ -1000,8 +1047,8 @@ fn get_mempool_p2p_peer_down() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::DayOnly,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
@@ -1029,7 +1076,10 @@ fn get_mempool_p2p_disconnections() -> Alert {
     )
 }
 
-fn get_mempool_evictions_count_alert() -> Alert {
+fn get_mempool_evictions_count_alert(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
     Alert::new(
         "mempool_evictions_count",
         "Mempool evictions count",
@@ -1042,8 +1092,8 @@ fn get_mempool_evictions_count_alert() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Regular,
-        AlertEnvFiltering::All,
+        alert_severity,
+        alert_env_filtering,
     )
 }
 
@@ -1181,12 +1231,53 @@ fn get_general_pod_disk_utilization(
 
 pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     let alerts = vec![
-        get_batched_transactions_stuck(),
-        get_cende_write_blob_failure_alert(),
+        get_batched_transactions_stuck(
+            "batched_transactions_stuck",
+            AlertEnvFiltering::MainnetStyleAlerts,
+            Duration::from_secs(2 * 60),
+            AlertSeverity::Sos,
+        ),
+        get_batched_transactions_stuck(
+            "batched_transactions_stuck",
+            AlertEnvFiltering::TestnetStyleAlerts,
+            Duration::from_secs(2 * 60),
+            AlertSeverity::DayOnly,
+        ),
+        get_batched_transactions_stuck(
+            "batched_transactions_stuck_long_time",
+            AlertEnvFiltering::TestnetStyleAlerts,
+            Duration::from_secs(30 * 60),
+            AlertSeverity::Regular,
+        ),
+        get_cende_write_blob_failure_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::DayOnly,
+        ),
+        get_cende_write_blob_failure_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
         get_cende_write_blob_failure_once_alert(),
         get_cende_write_prev_height_blob_latency_too_high(),
-        get_consensus_block_number_stuck(),
-        get_consensus_build_proposal_failed_alert(),
+        get_consensus_block_number_stuck(
+            "consensus_block_number_stuck",
+            AlertEnvFiltering::MainnetStyleAlerts,
+            Duration::from_secs(2 * 60),
+            AlertSeverity::Sos,
+        ),
+        get_consensus_block_number_stuck(
+            "consensus_block_number_stuck",
+            AlertEnvFiltering::TestnetStyleAlerts,
+            Duration::from_secs(2 * 60),
+            AlertSeverity::DayOnly,
+        ),
+        get_consensus_block_number_stuck(
+            "consensus_block_number_stuck_long_time",
+            AlertEnvFiltering::TestnetStyleAlerts,
+            Duration::from_secs(30 * 60),
+            AlertSeverity::Regular,
+        ),
+        get_consensus_block_number_progress_is_slow(),
         get_consensus_build_proposal_failed_once_alert(),
         get_consensus_conflicting_votes(),
         get_consensus_decisions_reached_by_consensus_ratio(),
@@ -1194,15 +1285,58 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
         get_consensus_l1_gas_price_provider_failure(),
         get_consensus_l1_gas_price_provider_failure_once(),
         get_consensus_p2p_disconnections(),
-        get_consensus_p2p_not_enough_peers_for_quorum(),
-        get_consensus_p2p_peer_down(),
-        get_consensus_round_above_zero(),
-        get_consensus_round_above_zero_ratio(),
+        get_consensus_p2p_not_enough_peers_for_quorum(
+            "consensus_p2p_not_enough_peers_for_quorum",
+            AlertEnvFiltering::MainnetStyleAlerts,
+            Duration::from_secs(2 * 60),
+            AlertSeverity::Sos,
+        ),
+        get_consensus_p2p_not_enough_peers_for_quorum(
+            "consensus_p2p_not_enough_peers_for_quorum",
+            AlertEnvFiltering::TestnetStyleAlerts,
+            Duration::from_secs(2 * 60),
+            AlertSeverity::WorkingHours,
+        ),
+        get_consensus_p2p_not_enough_peers_for_quorum(
+            "consensus_p2p_not_enough_peers_for_quorum_long_time",
+            AlertEnvFiltering::TestnetStyleAlerts,
+            Duration::from_secs(30 * 60),
+            AlertSeverity::Regular,
+        ),
+        // TODO(shahak): When reviewing this PR. This seems very noisy for an SOS alert. Are you
+        // sure?
+        get_consensus_p2p_peer_down(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Sos),
+        get_consensus_p2p_peer_down(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+        get_consensus_round_above_zero(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::DayOnly,
+        ),
+        get_consensus_round_above_zero(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+        get_consensus_round_above_zero_multiple_times(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Sos,
+        ),
+        get_consensus_round_above_zero_multiple_times(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
         get_consensus_round_high(),
-        get_consensus_validate_proposal_failed_alert(),
         get_consensus_votes_num_sent_messages_alert(),
         get_eth_to_strk_error_count_alert(),
-        get_eth_to_strk_success_count_alert(),
+        get_eth_to_strk_success_count_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::DayOnly,
+        ),
+        get_eth_to_strk_success_count_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
         get_gateway_add_tx_idle(),
         get_general_pod_state_not_ready(),
         get_general_pod_state_crashloopbackoff(),
@@ -1231,32 +1365,137 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
             AlertSeverity::Regular,
         ),
         get_general_pod_high_cpu_utilization(),
-        get_http_server_add_tx_idle(),
-        get_http_server_avg_add_tx_latency_alert(),
-        get_http_server_high_transaction_failure_ratio(),
-        get_http_server_internal_error_ratio(),
+        get_http_server_avg_add_tx_latency_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Regular,
+        ),
+        get_http_server_avg_add_tx_latency_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+        get_http_server_high_transaction_failure_ratio(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Regular,
+        ),
+        get_http_server_high_transaction_failure_ratio(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+        get_http_server_high_deprecated_transaction_failure_ratio(),
+        get_http_server_internal_error_ratio(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Regular,
+        ),
+        get_http_server_internal_error_ratio(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
         get_http_server_internal_error_once(),
-        get_http_server_low_successful_transaction_rate(),
+        get_http_server_low_successful_transaction_rate(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::DayOnly,
+        ),
+        get_http_server_low_successful_transaction_rate(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
         get_http_server_no_successful_transactions(),
-        get_http_server_p95_add_tx_latency_alert(),
-        get_l1_gas_price_provider_insufficient_history_alert(),
+        get_http_server_p95_add_tx_latency_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Regular,
+        ),
+        get_http_server_p95_add_tx_latency_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+        get_l1_gas_price_provider_insufficient_history_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::DayOnly,
+        ),
+        get_l1_gas_price_provider_insufficient_history_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
         get_l1_gas_price_reorg_detected_alert(),
-        get_l1_gas_price_scraper_success_count_alert(),
+        get_l1_gas_price_scraper_success_count_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::DayOnly,
+        ),
+        get_l1_gas_price_scraper_success_count_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
         get_l1_gas_price_scraper_baselayer_error_count_alert(),
         get_l1_message_scraper_baselayer_error_count_alert(),
-        get_l1_message_scraper_no_successes_alert(),
+        get_l1_message_scraper_no_successes_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Regular,
+        ),
+        get_l1_message_scraper_no_successes_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::DayOnly,
+        ),
         get_l1_message_scraper_reorg_detected_alert(),
         get_mempool_add_tx_idle(),
-        get_mempool_evictions_count_alert(),
+        get_mempool_evictions_count_alert(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Regular,
+        ),
+        get_mempool_evictions_count_alert(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::DayOnly,
+        ),
         get_mempool_p2p_disconnections(),
-        get_mempool_p2p_peer_down(),
-        get_mempool_pool_size_increase(),
-        get_mempool_transaction_drop_ratio(),
+        get_mempool_p2p_peer_down(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Regular),
+        get_mempool_p2p_peer_down(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+        get_mempool_pool_size_increase(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Regular,
+        ),
+        get_mempool_pool_size_increase(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+        get_mempool_transaction_drop_ratio(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::DayOnly,
+        ),
+        get_mempool_transaction_drop_ratio(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
         get_native_compilation_error_increase(),
-        get_preconfirmed_block_not_written(),
-        get_state_sync_lag(),
-        get_state_sync_stuck(),
-        get_state_sync_fork_from_central(),
+        get_preconfirmed_block_not_written(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Regular,
+        ),
+        get_preconfirmed_block_not_written(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+        get_state_sync_lag(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Regular),
+        get_state_sync_lag(AlertEnvFiltering::TestnetStyleAlerts, AlertSeverity::DayOnly),
+        get_state_sync_stuck(
+            "state_sync_stuck",
+            AlertEnvFiltering::MainnetStyleAlerts,
+            Duration::from_secs(2 * 60),
+            AlertSeverity::Regular,
+        ),
+        get_state_sync_stuck(
+            "state_sync_stuck",
+            AlertEnvFiltering::TestnetStyleAlerts,
+            Duration::from_secs(2 * 60),
+            AlertSeverity::DayOnly,
+        ),
+        get_state_sync_stuck(
+            "state_sync_stuck_long_time",
+            AlertEnvFiltering::TestnetStyleAlerts,
+            Duration::from_secs(30 * 60),
+            AlertSeverity::Regular,
+        ),
     ];
     Alerts::new(alerts, alert_env_filtering)
 }
