@@ -61,6 +61,7 @@ pub async fn end_to_end_flow(
     let chain_id = mock_running_system.chain_id().clone();
     let mut send_rpc_tx_fn = |tx| sequencer_to_add_txs.assert_add_tx_success(tx);
     let mut total_expected_txs = vec![];
+    let mut total_expected_txs_count = 0;
 
     // Build multiple heights to ensure heights are committed.
     for (
@@ -83,6 +84,8 @@ pub async fn end_to_end_flow(
         )
         .await;
         total_expected_txs.append(&mut expected_batched_tx_hashes.clone());
+        total_expected_txs_count = u64::try_from(total_expected_txs.len())
+            .expect("total_expected_txs.len() does not fit in u64");
 
         tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {
             loop {
@@ -94,7 +97,10 @@ pub async fn end_to_end_flow(
                 let batched_txs =
                     &mock_running_system.accumulated_txs.lock().await.accumulated_tx_hashes;
                 expected_batched_tx_hashes.retain(|tx| !batched_txs.contains(tx));
-                if expected_batched_tx_hashes.is_empty() {
+                if expected_batched_tx_hashes.is_empty()
+                    && mock_running_system.accumulated_txs.lock().await.get_executed_tx_count()
+                        == total_expected_txs_count
+                {
                     break;
                 }
 
@@ -110,6 +116,10 @@ pub async fn end_to_end_flow(
         });
     }
 
+    assert_executed_tx_count(
+        total_expected_txs_count,
+        mock_running_system.accumulated_txs.lock().await.get_executed_tx_count(),
+    );
     assert_only_expected_txs(
         total_expected_txs,
         mock_running_system.accumulated_txs.lock().await.accumulated_tx_hashes.clone(),
@@ -123,12 +133,21 @@ pub struct TestScenario {
     pub test_tx_hashes_fn: TestTxHashesFn,
 }
 
+fn assert_executed_tx_count(total_expected_txs: u64, executed_tx_count: u64) {
+    assert_eq!(
+        total_expected_txs, executed_tx_count,
+        "Expected {} executed transactions, got {}",
+        total_expected_txs, executed_tx_count,
+    );
+}
+
 fn assert_only_expected_txs(
     mut total_expected_txs: Vec<TransactionHash>,
     mut batched_txs: Vec<TransactionHash>,
 ) {
     total_expected_txs.sort();
     batched_txs.sort();
+    batched_txs.dedup();
     assert_eq!(total_expected_txs, batched_txs);
 }
 

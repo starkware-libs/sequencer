@@ -679,6 +679,7 @@ pub struct AccumulatedTransactions {
     pub accumulated_tx_hashes: Vec<TransactionHash>,
     // Will be added when next height starts.
     current_round_tx_hashes: Vec<TransactionHash>,
+    executed_tx_counter: u64,
 }
 
 impl AccumulatedTransactions {
@@ -715,6 +716,21 @@ impl AccumulatedTransactions {
             self.latest_block_number
         );
         self.current_round_tx_hashes.extend_from_slice(tx_hashes);
+    }
+
+    pub fn add_executed_tx_count(&mut self, count: u64) {
+        info!(
+            "Adding {} executed transactions from height: {}. Total executed: {}.",
+            count,
+            self.latest_block_number,
+            self.executed_tx_counter + count
+        );
+        self.executed_tx_counter += count;
+    }
+
+    /// Returns the total number of executed transactions across all blocks
+    pub fn get_executed_tx_count(&self) -> u64 {
+        self.executed_tx_counter
     }
 
     fn validate_coherent_height_and_round(&self, height: BlockNumber, round: u32) {
