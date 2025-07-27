@@ -50,7 +50,7 @@ use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionVersion};
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
-use tracing::{debug, instrument, Instrument};
+use tracing::{debug, info, instrument, Instrument};
 use url::Url;
 
 use crate::state_reader::{StorageTestHandles, StorageTestSetup};
@@ -65,7 +65,7 @@ use crate::utils::{
     AccumulatedTransactions,
 };
 
-const NUM_OF_SEQUENCERS: usize = 2;
+pub const NUM_OF_SEQUENCERS: usize = 2;
 const SEQUENCER_0: usize = 0;
 const SEQUENCER_1: usize = 1;
 const BUILDER_BASE_ADDRESS: Felt = Felt::from_hex_unchecked("0x42");
@@ -448,8 +448,17 @@ impl TxCollector {
                         .collect();
                     self.accumulated_txs.lock().await.add_transactions(&received_tx_hashes);
                 }
-                StreamMessageBody::Content(ProposalPart::ExecutedTransactionCount(_)) => {
-                    // TODO(Asmaa): Add validation for executed transaction count when implemented.
+                StreamMessageBody::Content(ProposalPart::ExecutedTransactionCount(
+                    executed_txs_count,
+                )) => {
+                    info!(
+                        "Received executed transaction count: {} with height: {}",
+                        executed_txs_count, incoming_proposal_init.height
+                    );
+                    self.accumulated_txs
+                        .lock()
+                        .await
+                        .increase_total_executed_txs(executed_txs_count);
                 }
                 StreamMessageBody::Fin => {
                     got_channel_fin = true;

@@ -7,7 +7,11 @@ use std::time::Duration;
 
 use apollo_infra::trace_util::configure_tracing;
 use apollo_infra_utils::test_utils::TestIdentifier;
-use apollo_integration_tests::flow_test_setup::{FlowSequencerSetup, FlowTestSetup};
+use apollo_integration_tests::flow_test_setup::{
+    FlowSequencerSetup,
+    FlowTestSetup,
+    NUM_OF_SEQUENCERS,
+};
 use apollo_integration_tests::utils::{
     create_flow_test_tx_generator,
     run_test_scenario,
@@ -60,7 +64,10 @@ pub async fn end_to_end_flow(
     expected_proposer_iter.next().unwrap();
     let chain_id = mock_running_system.chain_id().clone();
     let mut send_rpc_tx_fn = |tx| sequencer_to_add_txs.assert_add_tx_success(tx);
-    let mut total_expected_txs = vec![];
+
+    // Every sequencer increases the BATCHED_TRANSACTIONS metric which holds the number of
+    // accepted transactions. Track cumulative count across all scenarios.
+    let mut total_expected_batched_txs_count = 0;
 
     // Build multiple heights to ensure heights are committed.
     for (
@@ -73,7 +80,9 @@ pub async fn end_to_end_flow(
         // TODO(Arni): move send messages to l2 into [run_test_scenario].
         let l1_to_l2_messages_args = create_l1_to_l2_messages_args_fn(&mut tx_generator);
         mock_running_system.send_messages_to_l2(&l1_to_l2_messages_args).await;
-        let mut expected_batched_tx_hashes = run_test_scenario(
+
+        // Run the test scenario and get the expected batched tx hashes of the current scenario.
+        let expected_batched_tx_hashes = run_test_scenario(
             &mut tx_generator,
             create_rpc_txs_fn,
             l1_to_l2_messages_args,
@@ -82,19 +91,22 @@ pub async fn end_to_end_flow(
             &chain_id,
         )
         .await;
-        total_expected_txs.append(&mut expected_batched_tx_hashes.clone());
+
+        // Every sequencer is increasing the BATCHED_TRANSACTIONS metric which holds the number of
+        // accepted txs.
+        total_expected_batched_txs_count += NUM_OF_SEQUENCERS * expected_batched_tx_hashes.len();
+        let mut current_batched_txs_count = 0;
 
         tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {
             loop {
                 info!(
-                    "Waiting for sent txs to be included in a block: {:#?}",
-                    expected_batched_tx_hashes
+                    "Waiting for more txs to be batched in a block. Expected batched txs: \
+                     {total_expected_batched_txs_count}, Currently batched txs: \
+                     {current_batched_txs_count}"
                 );
 
-                let batched_txs =
-                    &mock_running_system.accumulated_txs.lock().await.accumulated_tx_hashes;
-                expected_batched_tx_hashes.retain(|tx| !batched_txs.contains(tx));
-                if expected_batched_tx_hashes.is_empty() {
+                current_batched_txs_count = get_total_batched_txs_count(&recorder);
+                if current_batched_txs_count == total_expected_batched_txs_count {
                     break;
                 }
 
@@ -105,15 +117,12 @@ pub async fn end_to_end_flow(
         .unwrap_or_else(|_| {
             panic!(
                 "Scenario {i}: Expected transactions should be included in a block by now, \
-                 remaining txs: {expected_batched_tx_hashes:#?}"
+                 Expected amount of batched txs: {total_expected_batched_txs_count}, Currently \
+                 amount of batched txs: {current_batched_txs_count}"
             )
         });
     }
 
-    assert_only_expected_txs(
-        total_expected_txs,
-        mock_running_system.accumulated_txs.lock().await.accumulated_tx_hashes.clone(),
-    );
     assert_full_blocks_flow(&recorder, expecting_full_blocks);
 }
 
@@ -123,13 +132,9 @@ pub struct TestScenario {
     pub test_tx_hashes_fn: TestTxHashesFn,
 }
 
-fn assert_only_expected_txs(
-    mut total_expected_txs: Vec<TransactionHash>,
-    mut batched_txs: Vec<TransactionHash>,
-) {
-    total_expected_txs.sort();
-    batched_txs.sort();
-    assert_eq!(total_expected_txs, batched_txs);
+fn get_total_batched_txs_count(recorder: &PrometheusRecorder) -> usize {
+    let metrics = recorder.handle().render();
+    apollo_batcher::metrics::BATCHED_TRANSACTIONS.parse_numeric_metric::<usize>(&metrics).unwrap()
 }
 
 fn assert_full_blocks_flow(recorder: &PrometheusRecorder, expecting_full_blocks: bool) {
