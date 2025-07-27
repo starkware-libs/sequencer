@@ -65,7 +65,7 @@ use crate::utils::{
     AccumulatedTransactions,
 };
 
-const NUM_OF_SEQUENCERS: usize = 2;
+pub const NUM_OF_SEQUENCERS: usize = 2;
 const SEQUENCER_0: usize = 0;
 const SEQUENCER_1: usize = 1;
 const BUILDER_BASE_ADDRESS: Felt = Felt::from_hex_unchecked("0x42");
