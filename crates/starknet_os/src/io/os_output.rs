@@ -13,11 +13,8 @@ use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
-use crate::hints::hint_implementation::stateless_compression::utils::decompress;
 use crate::io::os_output_types::{
     FullCommitmentOsStateDiff,
-    FullCompiledClassHashUpdate,
-    FullContractChanges,
     FullOsStateDiff,
     PartialCommitmentOsStateDiff,
     PartialOsStateDiff,
@@ -113,7 +110,7 @@ pub struct MessageToL2 {
 }
 
 impl TryFromOutputIter for MessageToL2 {
-    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+    fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         let from_address = wrap_missing_as(iter.next(), "MessageToL2::from_address")?;
@@ -145,47 +142,6 @@ pub enum OsStateDiff {
     PartialCommitment(PartialCommitmentOsStateDiff),
 }
 
-// TODO(Tzahi): Remove after all derived methods for OsStateDiff are implemented.
-// Not in use - kept here as a reference for PR reviews.
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Debug, PartialEq)]
-pub struct DeprecatedOsStateDiff {
-    // Contracts that were changed.
-    pub contracts: Vec<FullContractChanges>,
-    // Classes that were declared. Represents the updates of a mapping from class hash to previous
-    // (optional) and new compiled class hash.
-    pub classes: Vec<FullCompiledClassHashUpdate>,
-}
-
-impl DeprecatedOsStateDiff {
-    pub fn from_iter<It: Iterator<Item = Felt>>(
-        output_iter: &mut It,
-        full_output: bool,
-    ) -> Result<Self, OsOutputError> {
-        let state_diff;
-        let iter: &mut dyn Iterator<Item = Felt> = if !full_output {
-            state_diff = decompress(output_iter);
-            &mut state_diff.into_iter().chain(output_iter)
-        } else {
-            output_iter
-        };
-        // Contracts changes.
-        let n_contracts = wrap_missing_as(iter.next(), "OsStateDiff.n_contracts")?;
-        let mut contracts = Vec::with_capacity(n_contracts);
-        for _ in 0..n_contracts {
-            contracts.push(FullContractChanges::try_from_output_iter(iter)?);
-        }
-
-        // Classes changes.
-        let n_classes = wrap_missing_as(iter.next(), "OsStateDiff.n_classes")?;
-        let mut classes = Vec::with_capacity(n_classes);
-        for _ in 0..n_classes {
-            classes.push(FullCompiledClassHashUpdate::try_from_output_iter(iter)?);
-        }
-        Ok(Self { contracts, classes })
-    }
-}
-
 struct OutputIterParsedData {
     common_os_output: CommonOsOutput,
     kzg_commitment_info: Option<Vec<Felt>>,
@@ -193,7 +149,7 @@ struct OutputIterParsedData {
 }
 
 impl TryFromOutputIter for OutputIterParsedData {
-    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+    fn try_from_output_iter<It: Iterator<Item = Felt>>(
         output_iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         let initial_root = wrap_missing(output_iter.next(), "initial_root")?;
@@ -332,7 +288,7 @@ pub struct OsOutput {
 }
 
 impl TryFromOutputIter for OsOutput {
-    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+    fn try_from_output_iter<It: Iterator<Item = Felt>>(
         output_iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         let OutputIterParsedData { common_os_output, kzg_commitment_info, full_output } =
