@@ -26,9 +26,12 @@ use crate::errors::StarknetOsError;
 use crate::hints::hint_implementation::stateless_compression::utils::decompress;
 use crate::io::os_output_types::{
     FullCommitmentOsStateDiff,
+    FullContractChanges,
     FullContractStorageUpdate,
     FullOsStateDiff,
     PartialCommitmentOsStateDiff,
+    PartialContractChanges,
+    PartialContractStorageUpdate,
     PartialOsStateDiff,
 };
 use crate::metrics::OsMetrics;
@@ -144,47 +147,33 @@ impl MessageToL2 {
     }
 }
 
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Debug, PartialEq)]
-/// Represents the changes in a contract instance.
-pub struct ContractChanges {
-    // The address of the contract.
-    addr: ContractAddress,
-    // The previous nonce of the contract (for account contracts, if full output).
-    prev_nonce: Option<Nonce>,
-    // The new nonce of the contract (for account contracts, if changed or full output).
-    new_nonce: Option<Nonce>,
-    // The previous class hash (if full output).
-    prev_class_hash: Option<ClassHash>,
-    // The new class hash (if changed or full output).
-    new_class_hash: Option<ClassHash>,
-    // A map from storage key to its prev value (optional) and new value.
-    storage_changes: Vec<FullContractStorageUpdate>,
+impl FullContractChanges {
+    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+        iter: &mut It,
+    ) -> Result<Self, OsOutputError> {
+        Ok(Self {
+            addr: wrap_missing_as(iter.next(), "addr")?,
+            prev_nonce: Nonce(wrap_missing(iter.next(), "prev_nonce")?),
+            new_nonce: Nonce(wrap_missing_as(iter.next(), "new_nonce")?),
+            prev_class_hash: ClassHash(wrap_missing_as(iter.next(), "prev_class_hash")?),
+            new_class_hash: ClassHash(wrap_missing_as(iter.next(), "new_class_hash")?),
+            storage_changes: {
+                let n_changes = wrap_missing_as(iter.next(), "n_storage_changes")?;
+                let mut storage_changes = Vec::with_capacity(n_changes);
+                for _ in 0..n_changes {
+                    storage_changes.push(FullContractStorageUpdate::from_output_iter(iter)?);
+                }
+                storage_changes
+            },
+        })
+    }
 }
 
-impl ContractChanges {
-    pub fn from_iter<It: Iterator<Item = Felt> + ?Sized>(
+impl PartialContractChanges {
+    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
         iter: &mut It,
-        full_output: bool,
     ) -> Result<Self, OsOutputError> {
         let addr = wrap_missing_as(iter.next(), "addr")?;
-        if full_output {
-            return Ok(Self {
-                addr,
-                prev_nonce: Some(Nonce(wrap_missing(iter.next(), "prev_nonce")?)),
-                new_nonce: Some(Nonce(wrap_missing_as(iter.next(), "new_nonce")?)),
-                prev_class_hash: Some(ClassHash(wrap_missing_as(iter.next(), "prev_class_hash")?)),
-                new_class_hash: Some(ClassHash(wrap_missing_as(iter.next(), "new_class_hash")?)),
-                storage_changes: {
-                    let n_changes = wrap_missing_as(iter.next(), "n_changes")?;
-                    let mut changes = Vec::with_capacity(n_changes);
-                    for _ in 0..n_changes {
-                        changes.push(FullContractStorageUpdate::from_output_iter(iter)?);
-                    }
-                    changes
-                },
-            });
-        }
         // Parse packed info.
         let nonce_n_changes_two_flags = wrap_missing(iter.next(), "nonce_n_changes_two_flags")?;
 
@@ -199,7 +188,7 @@ impl ContractChanges {
         // Parse n_changes.
         let n_updates_bound =
             if is_n_updates_small { N_UPDATES_SMALL_PACKING_BOUND } else { N_UPDATES_BOUND };
-        let (nonce, _n_changes) = nonce_n_changes.div_rem(&n_updates_bound);
+        let (nonce, n_changes) = nonce_n_changes.div_rem(&n_updates_bound);
 
         // Parse nonce.
         let new_nonce = if nonce == Felt::ZERO { None } else { Some(Nonce(nonce)) };
@@ -211,12 +200,16 @@ impl ContractChanges {
         };
         Ok(Self {
             addr,
-            prev_nonce: None,
             new_nonce,
-            prev_class_hash: None,
             new_class_hash,
-            // Should be similar to the full_output code,only with partial updates.
-            storage_changes: vec![],
+            storage_changes: {
+                let n_changes = try_into_custom_error(n_changes, "n_changes")?;
+                let mut storage_changes = Vec::with_capacity(n_changes);
+                for _ in 0..n_changes {
+                    storage_changes.push(PartialContractStorageUpdate::from_output_iter(iter)?);
+                }
+                storage_changes
+            },
         })
     }
 }
@@ -239,7 +232,7 @@ pub enum OsStateDiff {
 #[derive(Debug, PartialEq)]
 pub struct DeprecatedOsStateDiff {
     // Contracts that were changed.
-    pub contracts: Vec<ContractChanges>,
+    pub contracts: Vec<FullContractChanges>,
     // Classes that were declared. Represents the updates of a mapping from class hash to previous
     // (optional) and new compiled class hash.
     pub classes: Vec<CompiledClassHashUpdate>,
@@ -261,7 +254,7 @@ impl DeprecatedOsStateDiff {
         let n_contracts = wrap_missing_as(iter.next(), "OsStateDiff.n_contracts")?;
         let mut contracts = Vec::with_capacity(n_contracts);
         for _ in 0..n_contracts {
-            contracts.push(ContractChanges::from_iter(iter, full_output)?);
+            contracts.push(FullContractChanges::from_output_iter(iter)?);
         }
 
         // Classes changes.
@@ -286,15 +279,10 @@ impl DeprecatedOsStateDiff {
         let class_hashes = self
             .contracts
             .iter()
-            .filter_map(|contract| {
-                contract.new_class_hash.map(|class_hash| (contract.addr, class_hash))
-            })
+            .map(|contract| (contract.addr, contract.new_class_hash))
             .collect();
-        let nonces = self
-            .contracts
-            .iter()
-            .filter_map(|contract| contract.new_nonce.map(|nonce| (contract.addr, nonce)))
-            .collect();
+        let nonces =
+            self.contracts.iter().map(|contract| (contract.addr, contract.new_nonce)).collect();
         let mut storage = HashMap::new();
         for contract in &self.contracts {
             for FullContractStorageUpdate { key, new_value, .. } in &contract.storage_changes {
