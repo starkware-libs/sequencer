@@ -89,6 +89,10 @@ fn create_callinfo(
 
     let gas_consumed = syscall_handler.base.call.initial_gas - remaining_gas;
     let vm_resources = CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
+    let versioned_constants = syscall_handler.base.context.versioned_constants();
+    let syscall_usage_resources =
+        versioned_constants.get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
+    let _builtin_counters = syscall_usage_resources.builtin_instance_counter;
 
     Ok(CallInfo {
         call: syscall_handler.base.call.into(),
