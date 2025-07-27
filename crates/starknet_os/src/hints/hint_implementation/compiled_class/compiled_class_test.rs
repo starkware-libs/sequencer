@@ -7,8 +7,9 @@ use cairo_vm::any_box;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
-use expect_test::expect;
+use expect_test::{expect, Expect};
 use log::info;
+use rstest::rstest;
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
@@ -29,10 +30,20 @@ use crate::vm_utils::LoadCairoObject;
 /// Expected Poseidon hash for the test contract.
 const EXPECTED_HASH: expect_test::Expect =
     expect!["2699987117682355879179743666679201177869698343279118564476128749435926450101"];
+// Expected execution resources for loading full contract.
+const EXPECTED_BUILTIN_USAGE_FULL_CONTRACT: expect_test::Expect =
+    expect!["poseidon_builtin: 10290"];
+const EXPECTED_N_STEPS_FULL_CONTRACT: Expect = expect!["122113"];
+// Expected execution resources for loading partial contract.
+const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT: expect_test::Expect =
+    expect!["poseidon_builtin: 300, range_check_builtin: 149"];
+const EXPECTED_N_STEPS_PARTIAL_CONTRACT: Expect = expect!["8651"];
 
 // TODO(Aviv): Share this test with compiled class hash blake test.
-#[test]
-fn test_compiled_class_hash_poseidon() -> Cairo0EntryPointRunnerResult<()> {
+#[rstest]
+fn test_compiled_class_hash_poseidon(
+    #[values(true, false)] load_full_contract: bool,
+) -> Cairo0EntryPointRunnerResult<()> {
     // Set up the entry point runner configuration.
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
@@ -71,8 +82,11 @@ fn test_compiled_class_hash_poseidon() -> Cairo0EntryPointRunnerResult<()> {
     )
     .unwrap();
     hint_locals.insert("bytecode_segment_structure".to_string(), any_box!(bytecode_structure));
-    // Set leaf_always_accessed to true in the root level exec scope.
-    hint_locals.insert(<&'static str>::from(Scope::LeafAlwaysAccessed).to_string(), any_box!(true));
+    // Set leaf_always_accessed to `load_full_contract` in the root level exec scope.
+    hint_locals.insert(
+        <&'static str>::from(Scope::LeafAlwaysAccessed).to_string(),
+        any_box!(load_full_contract),
+    );
     // Use the Poseidon version.
     let (mut runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
@@ -98,7 +112,7 @@ fn test_compiled_class_hash_poseidon() -> Cairo0EntryPointRunnerResult<()> {
     let state_reader = None;
     // Validations are not supported since we loaded the contract class by ourselves.
     let skip_parameter_validations = true;
-    let (implicit_return_values, explicit_return_values) = run_cairo_0_entrypoint(
+    let (_implicit_return_values, explicit_return_values) = run_cairo_0_entrypoint(
         entrypoint,
         &explicit_args,
         &implicit_args,
@@ -111,10 +125,32 @@ fn test_compiled_class_hash_poseidon() -> Cairo0EntryPointRunnerResult<()> {
     )
     .unwrap();
 
-    // Verify we got a return value.
-    assert_eq!(explicit_return_values.len(), 1, "Expected exactly one return value");
-    assert!(!implicit_return_values.is_empty(), "Expected implicit return values");
-    // The return value should be a felt (the computed hash).
+    // Get the actual execution resources, and compare with expected values.
+    let actual_execution_resources = runner.get_execution_resources().unwrap();
+
+    // Format builtin usage statistics for comparison with expected values.
+    // Filter out unused builtins (count = 0), format as "name: count", sort alphabetically,
+    // and join with commas for consistent test output.
+    let mut actual_builtin_usage_parts: Vec<_> = actual_execution_resources
+        .builtin_instance_counter
+        .iter()
+        .filter(|(_, &count)| count > 0)
+        .map(|(name, count)| format!("{}: {}", name.to_str_with_suffix(), count))
+        .collect();
+    actual_builtin_usage_parts.sort();
+    let actual_builtin_usage = actual_builtin_usage_parts.join(", ");
+
+    // Select expected values based on whether we're loading full or partial contract.
+    let (expected_builtin_usage, expected_n_steps) = if load_full_contract {
+        (EXPECTED_BUILTIN_USAGE_FULL_CONTRACT, EXPECTED_N_STEPS_FULL_CONTRACT)
+    } else {
+        (EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT, EXPECTED_N_STEPS_PARTIAL_CONTRACT)
+    };
+
+    expected_builtin_usage.assert_eq(&actual_builtin_usage);
+    expected_n_steps.assert_eq(&actual_execution_resources.n_steps.to_string());
+
+    // The explicit return value should be a felt (the computed hash).
     let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(hash_computed_by_the_os))) =
         &explicit_return_values[0]
     else {
