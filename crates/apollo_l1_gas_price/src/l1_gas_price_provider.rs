@@ -41,7 +41,7 @@ impl Default for L1GasPriceProviderConfig {
         const MEAN_NUMBER_OF_BLOCKS: u64 = 300;
         Self {
             number_of_blocks_for_mean: MEAN_NUMBER_OF_BLOCKS,
-            lag_margin_seconds: 60,
+            lag_margin_seconds: 300,
             storage_limit: usize::try_from(10 * MEAN_NUMBER_OF_BLOCKS).unwrap(),
             max_time_gap_seconds: 900, // 15 minutes
         }

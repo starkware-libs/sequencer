@@ -94,6 +94,7 @@ impl StateSync {
         else {
             return Ok(None);
         };
+
         let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
             return Ok(None);
         };

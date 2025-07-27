@@ -29,13 +29,24 @@ services:
     environment:
       - RUST_LOG=${RUST_LOG}
       - RUST_BACKTRACE=${RUST_BACKTRACE}
-    entrypoint: "/bin/bash -c"
-    command: >
-      "./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-distributed 0 --n-consolidated 1;
-      cp -r ./output/data/* /data; cp -r ./output/configs/* /config"
+    entrypoint: /bin/bash -c
+    command: |
+      '
+      ./target/debug/sequencer_node_setup \
+          --output-base-dir ./output \
+          --data-prefix-path /data \
+          --n-distributed 0 \
+          --n-consolidated 1
+      cp -r ./output/configs/* /config
+      if [ ! -f /data/node_0/executable_0/state_sync/CHAIN_ID_SUBDIR/marker ]; then
+          cp -r ./output/data/* /data
+          mkdir -p /data/node_0/executable_0/state_sync/CHAIN_ID_SUBDIR
+          touch   /data/node_0/executable_0/state_sync/CHAIN_ID_SUBDIR/marker
+      fi
+      '
     volumes:
-      - data:/data
-      - config:/config
+      - data:/data     
+      - config:/config 
     networks:
       - sequencer-network
 
@@ -123,28 +134,10 @@ services:
     networks:
       - sequencer-network
 
-  sequencer_simulator:
-    depends_on:
-      - sequencer_node
-    build:
-      context: ${SEQUENCER_ROOT_DIR}
-      dockerfile: ${SEQUENCER_ROOT_DIR}/deployments/images/sequencer/simulator.Dockerfile
-    environment:
-      - RUST_LOG=${RUST_LOG}
-      - RUST_BACKTRACE=${RUST_BACKTRACE}
-    entrypoint: "/bin/bash -c"
-    command: >
-      "./target/debug/sequencer_simulator \
-      --http-url http://sequencer_node \
-      --http-port ${SEQUENCER_HTTP_PORT} \
-      --monitoring-url http://sequencer_node \
-      --monitoring-port ${SEQUENCER_MONITORING_PORT} \
-      $(if [ \"$SIMULATOR_RUN_FOREVER\" = \"true\" ]; then echo '--run-forever'; fi)"
-    networks:
-      - sequencer-network
-
 volumes:
-  data:
+  data:               
+    name: local_data  
+    external: true  
   config:
 
 networks:

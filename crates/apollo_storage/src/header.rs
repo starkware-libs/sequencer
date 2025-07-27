@@ -169,6 +169,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         let Some(starknet_version) = self.get_starknet_version(block_number)? else {
             return Ok(None);
         };
+
         Ok(Some(BlockHeader {
             block_hash: block_header.block_hash,
             block_header_without_hash: BlockHeaderWithoutHash {

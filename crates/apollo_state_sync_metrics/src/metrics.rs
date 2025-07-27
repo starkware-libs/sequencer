@@ -6,7 +6,6 @@ use apollo_storage::db::TransactionKind;
 use apollo_storage::header::HeaderStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::StorageTxn;
-use starknet_api::block::BlockNumber;
 
 define_metrics!(
     StateSync => {
@@ -39,7 +38,6 @@ pub fn register_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
     STATE_SYNC_REVERTED_TRANSACTIONS.register();
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER.register();
     update_marker_metrics(txn);
-    reconstruct_processed_transactions_metric(txn);
 }
 
 pub fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) {
@@ -53,17 +51,4 @@ pub fn update_marker_metrics<Mode: TransactionKind>(txn: &StorageTxn<'_, Mode>) 
     );
     STATE_SYNC_COMPILED_CLASS_MARKER
         .set_lossy(txn.get_compiled_class_marker().expect("Should have a compiled class marker").0);
-}
-
-fn reconstruct_processed_transactions_metric(txn: &StorageTxn<'_, impl TransactionKind>) {
-    let block_marker = txn.get_body_marker().expect("Should have a body marker");
-
-    for current_block_number in 0..block_marker.0 {
-        let current_block_tx_count = txn
-            .get_block_transactions_count(BlockNumber(current_block_number))
-            .expect("Should have block transactions count")
-            .expect("Missing block body with block number smaller than body marker");
-        STATE_SYNC_PROCESSED_TRANSACTIONS
-            .increment(current_block_tx_count.try_into().expect("Failed to convert usize to u64"));
-    }
 }

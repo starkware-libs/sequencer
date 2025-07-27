@@ -9,5 +9,13 @@
   "state_sync_config.central_sync_client_config.#is_none": true,
   "state_sync_config.network_config.#is_none": false,
   "state_sync_config.p2p_sync_client_config.#is_none": false,
-  "strk_fee_token_address": "0x1002"
+  "strk_fee_token_address": "0x1002",
+  "base_layer_config.node_url": "http://anvil.sequencer-dev.sw-dev.io",
+  "consensus_manager_config.eth_to_strk_oracle_config.url_header_list": "http://dummy-eth2strk-oracle.sequencer-dev.sw-dev.io",
+  "consensus_manager_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
+  "l1_endpoint_monitor_config.ordered_l1_endpoint_urls": "http://anvil.sequencer-dev.sw-dev.io",
+  "mempool_p2p_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101",
+  "recorder_url": "https://httpbin.org/anything",
+  "state_sync_config.central_sync_client_config.central_source_config.http_headers": "",
+  "state_sync_config.network_config.secret_key": "0x0101010101010101010101010101010101010101010101010101010101010101"
 }

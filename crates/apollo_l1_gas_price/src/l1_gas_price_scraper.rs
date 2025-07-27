@@ -77,7 +77,7 @@ impl Default for L1GasPriceScraperConfig {
             starting_block: None,
             chain_id: ChainId::Other("0x0".to_string()),
             finality: 0,
-            polling_interval: Duration::from_secs(1),
+            polling_interval: Duration::from_secs(120),
             number_of_blocks_for_mean: 300,
             startup_num_blocks_multiplier: 2,
         }

@@ -104,9 +104,9 @@ impl StateSyncType {
                 state_sync_config_network_config_is_none: true,
             },
             StateSyncType::P2P => StateSyncConfig {
-                state_sync_config_central_sync_client_config_is_none: true,
-                state_sync_config_p2p_sync_client_config_is_none: false,
-                state_sync_config_network_config_is_none: false,
+                state_sync_config_central_sync_client_config_is_none: false,
+                state_sync_config_p2p_sync_client_config_is_none: true,
+                state_sync_config_network_config_is_none: true,
             },
         }
     }
