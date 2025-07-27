@@ -115,7 +115,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "The ID of the validator. \
                  Also the address of this validator as a starknet contract.",
             ),
-            set_pointing_param_paths(&["consensus_manager_config.consensus_config.validator_id"]),
+            set_pointing_param_paths(&["consensus_manager_config.consensus_manager_config.validator_id"]),
         ),
         (
             ser_pointer_target_param(
