@@ -46,6 +46,7 @@ pub enum DistributedNodeServiceName {
     L1,
     Mempool,
     SierraCompiler,
+    SignatureManager,
     StateSync,
 }
 
@@ -120,6 +121,9 @@ impl GetComponentConfigs for DistributedNodeServiceName {
                 DistributedNodeServiceName::SierraCompiler => {
                     get_sierra_compiler_component_config(sierra_compiler.local())
                 }
+                DistributedNodeServiceName::SignatureManager => {
+                    get_signature_manager_component_config(signature_manager.local())
+                }
                 DistributedNodeServiceName::StateSync => {
                     get_state_sync_component_config(state_sync.local(), class_manager.remote())
                 }
@@ -144,6 +148,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::Mempool => Controller::Deployment,
             DistributedNodeServiceName::SierraCompiler => Controller::Deployment,
             DistributedNodeServiceName::StateSync => Controller::StatefulSet,
+            // TODO(Nadin): Decide on controller for the SignatureManager.
+            DistributedNodeServiceName::SignatureManager => Controller::StatefulSet,
         }
     }
 
@@ -158,6 +164,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::Mempool => false,
             DistributedNodeServiceName::SierraCompiler => true,
             DistributedNodeServiceName::StateSync => false,
+            DistributedNodeServiceName::SignatureManager => false,
         }
     }
 
@@ -172,6 +179,9 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::L1 => Some(Toleration::ApolloGeneralService),
                 DistributedNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::SierraCompiler => {
+                    Some(Toleration::ApolloGeneralService)
+                }
+                DistributedNodeServiceName::SignatureManager => {
                     Some(Toleration::ApolloGeneralService)
                 }
                 DistributedNodeServiceName::StateSync => Some(Toleration::ApolloGeneralService),
@@ -196,6 +206,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::L1 => None,
             DistributedNodeServiceName::Mempool => None,
             DistributedNodeServiceName::SierraCompiler => None,
+            DistributedNodeServiceName::SignatureManager => None,
             DistributedNodeServiceName::StateSync => None,
         }
     }
@@ -210,7 +221,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
             | DistributedNodeServiceName::HttpServer
             | DistributedNodeServiceName::Gateway
             | DistributedNodeServiceName::L1
-            | DistributedNodeServiceName::SierraCompiler => false,
+            | DistributedNodeServiceName::SierraCompiler
+            | DistributedNodeServiceName::SignatureManager => false,
         }
     }
 
@@ -225,6 +237,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::L1 => None,
                 DistributedNodeServiceName::Mempool => None,
                 DistributedNodeServiceName::SierraCompiler => None,
+                DistributedNodeServiceName::SignatureManager => None,
                 DistributedNodeServiceName::StateSync => Some(STATE_SYNC_STORAGE),
             },
             Environment::LocalK8s => None,
@@ -250,6 +263,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::L1 => false,
                 DistributedNodeServiceName::Mempool => true,
                 DistributedNodeServiceName::SierraCompiler => false,
+                DistributedNodeServiceName::SignatureManager => false,
                 DistributedNodeServiceName::StateSync => false,
             },
             Environment::LocalK8s => false,
@@ -456,6 +470,30 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
+            DistributedNodeServiceName::SignatureManager => {
+                for service_port in ServicePort::iter() {
+                    match service_port {
+                        ServicePort::MonitoringEndpoint => {
+                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        }
+                        ServicePort::SignatureManager => {
+                            service_ports.insert(ServicePort::SignatureManager);
+                        }
+                        ServicePort::Batcher
+                        | ServicePort::HttpServer
+                        | ServicePort::ConsensusManager
+                        | ServicePort::ClassManager
+                        | ServicePort::L1EndpointMonitor
+                        | ServicePort::L1GasPriceProvider
+                        | ServicePort::L1Provider
+                        | ServicePort::StateSync
+                        | ServicePort::Mempool
+                        | ServicePort::Gateway
+                        | ServicePort::MempoolP2p
+                        | ServicePort::SierraCompiler => {}
+                    }
+                }
+            }
             DistributedNodeServiceName::StateSync => {
                 for service_port in ServicePort::iter() {
                     match service_port {
@@ -518,6 +556,7 @@ impl DistributedNodeServiceName {
             | DistributedNodeServiceName::HttpServer
             | DistributedNodeServiceName::L1
             | DistributedNodeServiceName::Mempool
+            | DistributedNodeServiceName::SignatureManager
             | DistributedNodeServiceName::StateSync => {}
         };
         base
@@ -571,6 +610,15 @@ fn get_class_manager_component_config(
     let mut config = ComponentConfig::disabled();
     config.class_manager = class_manager_local_config;
     config.sierra_compiler = sierra_compiler_remote_config;
+    config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
+    config
+}
+
+fn get_signature_manager_component_config(
+    signature_manager_local_config: ReactiveComponentExecutionConfig,
+) -> ComponentConfig {
+    let mut config = ComponentConfig::disabled();
+    config.signature_manager = signature_manager_local_config;
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config
 }
