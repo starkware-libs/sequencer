@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fmt;
 
 use serde::ser::SerializeStruct;
@@ -12,16 +13,25 @@ pub struct Alerts {
 
 impl Alerts {
     pub(crate) fn new(alerts: Vec<Alert>, alert_env_filtering: AlertEnvFiltering) -> Self {
-        Self {
-            alerts: alerts
-                .into_iter()
-                .filter(|alert| alert.alert_env_filtering.matches(&alert_env_filtering))
-                .collect(),
+        let alerts: Vec<Alert> = alerts
+            .into_iter()
+            .filter(|alert| alert.alert_env_filtering.matches(&alert_env_filtering))
+            .collect();
+        let mut alert_names: HashSet<&str> = HashSet::new();
+
+        for alert in &alerts {
+            if !alert_names.insert(alert.name.as_str()) {
+                panic!(
+                    "Duplicate alert name found: {} for env: {}",
+                    alert.name, alert.alert_env_filtering
+                );
+            }
         }
+        Self { alerts }
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, EnumIter)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumIter)]
 pub enum AlertEnvFiltering {
     All,
     MainnetStyleAlerts,
@@ -201,9 +211,5 @@ impl Alert {
             severity,
             alert_env_filtering,
         }
-    }
-
-    pub(crate) fn get_name(&self) -> &str {
-        &self.name
     }
 }
