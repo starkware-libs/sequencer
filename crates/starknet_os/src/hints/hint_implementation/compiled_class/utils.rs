@@ -4,7 +4,7 @@ use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmCo
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_api::core::ClassHash;
+use starknet_api::core::CompiledClassHash;
 use starknet_api::hash::PoseidonHash;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash};
@@ -142,7 +142,7 @@ impl<IG: IdentifierGetter> CairoSized<IG> for CasmContractClass {
 }
 
 pub(crate) struct CompiledClassFact<'a> {
-    pub(crate) class_hash: &'a ClassHash,
+    pub(crate) compiled_class_hash: &'a CompiledClassHash,
     pub(crate) compiled_class: &'a CasmContractClass,
 }
 
@@ -156,8 +156,10 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for CompiledClassFact<'_> {
     ) -> VmUtilsResult<Relocatable> {
         let compiled_class_address = vm.add_memory_segment();
         self.compiled_class.load_into(vm, identifier_getter, compiled_class_address, constants)?;
-        let nested_fields_and_value =
-            [("hash", self.class_hash.0.into()), ("compiled_class", compiled_class_address.into())];
+        let nested_fields_and_value = [
+            ("hash", self.compiled_class_hash.0.into()),
+            ("compiled_class", compiled_class_address.into()),
+        ];
         insert_values_to_fields(
             address,
             CairoStruct::CompiledClassFact,
