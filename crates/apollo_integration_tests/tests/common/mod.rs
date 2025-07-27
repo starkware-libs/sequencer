@@ -61,6 +61,7 @@ pub async fn end_to_end_flow(
     let chain_id = mock_running_system.chain_id().clone();
     let mut send_rpc_tx_fn = |tx| sequencer_to_add_txs.assert_add_tx_success(tx);
     let mut total_expected_txs = vec![];
+    let mut total_expected_txs_count = 0;
 
     // Build multiple heights to ensure heights are committed.
     for (
@@ -83,6 +84,14 @@ pub async fn end_to_end_flow(
         )
         .await;
         total_expected_txs.append(&mut expected_batched_tx_hashes.clone());
+        total_expected_txs_count = u64::try_from(total_expected_txs.len())
+            .expect("total_expected_txs.len() does not fit in u64");
+
+        // Bootstrap declare txs are always executed twice, once accepted and once rejected.
+        // See https://github.com/starkware-libs/sequencer/blob/979ac77de374f7cbeef0fe7b809711f89d23a0bc/crates/apollo_integration_tests/tests/bootstrap_declare.rs#L17
+        if allow_bootstrap_txs {
+            total_expected_txs_count *= 2;
+        }
 
         tokio::time::timeout(TEST_SCENARIO_TIMEOUT, async {
             loop {
@@ -91,10 +100,17 @@ pub async fn end_to_end_flow(
                     expected_batched_tx_hashes
                 );
 
-                let batched_txs =
-                    &mock_running_system.accumulated_txs.lock().await.accumulated_tx_hashes;
+                let accumulated_txs = mock_running_system.accumulated_txs.lock().await;
+                let batched_txs = accumulated_txs.accumulated_tx_hashes.clone();
+                let total_executed_txs_count = accumulated_txs.get_executed_tx_count();
+
                 expected_batched_tx_hashes.retain(|tx| !batched_txs.contains(tx));
-                if expected_batched_tx_hashes.is_empty() {
+
+                // All the expected txs are proposed at least once and the exact expected number of
+                // txs are executed.
+                if expected_batched_tx_hashes.is_empty()
+                    && total_executed_txs_count == total_expected_txs_count
+                {
                     break;
                 }
 
@@ -110,6 +126,10 @@ pub async fn end_to_end_flow(
         });
     }
 
+    assert_executed_tx_count(
+        total_expected_txs_count,
+        mock_running_system.accumulated_txs.lock().await.get_executed_tx_count(),
+    );
     assert_only_expected_txs(
         total_expected_txs,
         mock_running_system.accumulated_txs.lock().await.accumulated_tx_hashes.clone(),
@@ -123,12 +143,25 @@ pub struct TestScenario {
     pub test_tx_hashes_fn: TestTxHashesFn,
 }
 
+fn assert_executed_tx_count(total_expected_txs: u64, executed_tx_count: u64) {
+    assert_eq!(
+        total_expected_txs, executed_tx_count,
+        "Expected {} executed transactions, got {}",
+        total_expected_txs, executed_tx_count,
+    );
+}
+
 fn assert_only_expected_txs(
     mut total_expected_txs: Vec<TransactionHash>,
     mut batched_txs: Vec<TransactionHash>,
 ) {
     total_expected_txs.sort();
     batched_txs.sort();
+
+    // Remove duplicates from batched_txs because the same transaction can be counted multiple
+    // times in a block proposal even if not executed. We validate execution before breaking from
+    // the loop.
+    batched_txs.dedup();
     assert_eq!(total_expected_txs, batched_txs);
 }
 

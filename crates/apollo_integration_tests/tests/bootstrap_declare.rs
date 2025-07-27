@@ -14,6 +14,9 @@ fn create_bootstrap_declare_scenario() -> Vec<TestScenario> {
     }]
 }
 
+/// Bootstrap declare txs are unique, they don't have a nonce. After execution, the tx is not
+/// removed from the mempool without being rejected because it doesn't have a nonce. So every
+/// bootstrap declare tx is executed twice, once accepted and once rejected.
 #[tokio::test]
 async fn bootstrap_declare() {
     end_to_end_flow(
