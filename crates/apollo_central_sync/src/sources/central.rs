@@ -64,7 +64,10 @@ impl Default for CentralSourceConfig {
             concurrent_requests: 10,
             starknet_url: Url::parse("https://alpha-mainnet.starknet.io/")
                 .expect("Unable to parse default URL, this should never happen."),
-            http_headers: None,
+            http_headers: Some(HashMap::from([(
+                "X-Throttling-Bypass".to_string(),
+                "QYHGVPY7PHER3QHI6LWBY25AGF5GGEZ".to_string(),
+            )])),
             max_state_updates_to_download: 20,
             max_state_updates_to_store_in_memory: 20,
             max_classes_to_download: 20,
