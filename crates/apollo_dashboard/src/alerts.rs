@@ -201,8 +201,4 @@ impl Alert {
             alert_env_filtering,
         }
     }
-
-    pub(crate) fn get_name(&self) -> &str {
-        &self.name
-    }
 }
