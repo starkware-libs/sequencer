@@ -57,6 +57,7 @@
     "disable_deploy_in_validation_mode": false,
     "max_recursion_depth": 50,
     "enable_reverts": false,
+    "enable_casm_hash_migration": false,
     "segment_arena_cells": false,
     "os_constants": {
         "constructor_entry_point_selector": "0x28ffe4ff0f226a9107253e17a904099aa4f63a02a5621de0576e5aa71bc5194",

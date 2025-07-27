@@ -25,6 +25,7 @@
     "ignore_inner_event_resources": false,
     "disable_deploy_in_validation_mode": false,
     "enable_reverts": false,
+    "enable_casm_hash_migration": false,
     "tx_event_limits": {
         "max_data_length": 1000000000,
         "max_keys_length": 1000000000,
