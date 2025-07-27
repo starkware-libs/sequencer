@@ -14,7 +14,7 @@ class EnvironmentName(Enum):
 # Translates the environment name to a suffix for alert filenames. We use the `mainnet` setting for development and the mainnet environment.
 # The `testnet` setting is used for integration and testnet environments.
 def alert_env_filename_suffix(env: EnvironmentName) -> str:
-    if env == EnvironmentName.DEV:
+    if env == "dev":
         return "mainnet"
     elif env == EnvironmentName.INTEGRATION:
         return "testnet"
