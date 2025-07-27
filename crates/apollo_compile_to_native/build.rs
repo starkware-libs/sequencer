@@ -3,6 +3,12 @@ include!("src/constants.rs");
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
 
+    // Skip validation if explicitly disabled (useful for CI/Docker builds)
+    if std::env::var("SKIP_NATIVE_COMPILE_VALIDATION").is_ok() {
+        println!("⚠️  Skipping starknet-native-compile validation (SKIP_NATIVE_COMPILE_VALIDATION set)");
+        return;
+    }
+
     validate_starknet_native_compile();
 }
 
