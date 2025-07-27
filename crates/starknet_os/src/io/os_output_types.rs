@@ -2,7 +2,7 @@ use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
-use crate::io::os_output::OsOutputError;
+use crate::io::os_output::{wrap_missing, wrap_missing_as, OsOutputError};
 
 // Cairo DictAccess types for concrete objects.
 
@@ -23,18 +23,25 @@ pub(crate) struct PartialContractStorageUpdate {
 }
 
 impl FullContractStorageUpdate {
-    pub fn _from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
-        _iter: &mut It,
+    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+        iter: &mut It,
     ) -> Result<Self, OsOutputError> {
-        unimplemented!()
+        Ok(Self {
+            key: wrap_missing_as(iter.next(), "storage key")?,
+            prev_value: wrap_missing_as(iter.next(), "previous storage value")?,
+            new_value: wrap_missing_as(iter.next(), "storage value")?,
+        })
     }
 }
 
 impl PartialContractStorageUpdate {
     pub fn _from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
-        _iter: &mut It,
+        iter: &mut It,
     ) -> Result<Self, OsOutputError> {
-        unimplemented!()
+        Ok(Self {
+            key: wrap_missing_as(iter.next(), "storage key")?,
+            new_value: wrap_missing(iter.next(), "storage value")?,
+        })
     }
 }
 

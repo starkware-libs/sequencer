@@ -19,7 +19,6 @@ use starknet_api::core::{
     Nonce,
 };
 use starknet_api::hash::StarkHash;
-use starknet_api::state::StorageKey;
 use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
 use starknet_types_core::felt::{Felt, NonZeroFelt};
 
@@ -27,6 +26,7 @@ use crate::errors::StarknetOsError;
 use crate::hints::hint_implementation::stateless_compression::utils::decompress;
 use crate::io::os_output_types::{
     FullCommitmentOsStateDiff,
+    FullContractStorageUpdate,
     FullOsStateDiff,
     PartialCommitmentOsStateDiff,
     PartialOsStateDiff,
@@ -38,7 +38,6 @@ use crate::metrics::OsMetrics;
 mod os_output_test;
 
 // Cairo DictAccess types for concrete objects.
-type ContractStorageUpdate = (StorageKey, (Option<Felt>, Felt));
 type CompiledClassHashUpdate = (ClassHash, (Option<CompiledClassHash>, CompiledClassHash));
 
 // Defined in output.cairo
@@ -145,26 +144,6 @@ impl MessageToL2 {
     }
 }
 
-fn parse_storage_changes<It: Iterator<Item = Felt> + ?Sized>(
-    n_changes: usize,
-    iter: &mut It,
-    full_output: bool,
-) -> Result<Vec<ContractStorageUpdate>, OsOutputError> {
-    (0..n_changes)
-        .map(|_| {
-            let key = wrap_missing_as(iter.next(), "storage key")?;
-            let prev_value = if full_output {
-                Some(wrap_missing(iter.next(), "previous storage value")?)
-            } else {
-                None
-            };
-            let new_value = wrap_missing(iter.next(), "storage value")?;
-            // Wrapped in Ok to be able to use ? operator in the closure.
-            Ok((key, (prev_value, new_value)))
-        })
-        .collect()
-}
-
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 /// Represents the changes in a contract instance.
@@ -180,7 +159,7 @@ pub struct ContractChanges {
     // The new class hash (if changed or full output).
     new_class_hash: Option<ClassHash>,
     // A map from storage key to its prev value (optional) and new value.
-    storage_changes: Vec<ContractStorageUpdate>,
+    storage_changes: Vec<FullContractStorageUpdate>,
 }
 
 impl ContractChanges {
@@ -196,11 +175,14 @@ impl ContractChanges {
                 new_nonce: Some(Nonce(wrap_missing_as(iter.next(), "new_nonce")?)),
                 prev_class_hash: Some(ClassHash(wrap_missing_as(iter.next(), "prev_class_hash")?)),
                 new_class_hash: Some(ClassHash(wrap_missing_as(iter.next(), "new_class_hash")?)),
-                storage_changes: parse_storage_changes(
-                    wrap_missing_as(iter.next(), "storage_changes")?,
-                    iter,
-                    full_output,
-                )?,
+                storage_changes: {
+                    let n_changes = wrap_missing_as(iter.next(), "n_changes")?;
+                    let mut changes = Vec::with_capacity(n_changes);
+                    for _ in 0..n_changes {
+                        changes.push(FullContractStorageUpdate::from_output_iter(iter)?);
+                    }
+                    changes
+                },
             });
         }
         // Parse packed info.
@@ -217,7 +199,7 @@ impl ContractChanges {
         // Parse n_changes.
         let n_updates_bound =
             if is_n_updates_small { N_UPDATES_SMALL_PACKING_BOUND } else { N_UPDATES_BOUND };
-        let (nonce, n_changes) = nonce_n_changes.div_rem(&n_updates_bound);
+        let (nonce, _n_changes) = nonce_n_changes.div_rem(&n_updates_bound);
 
         // Parse nonce.
         let new_nonce = if nonce == Felt::ZERO { None } else { Some(Nonce(nonce)) };
@@ -233,11 +215,8 @@ impl ContractChanges {
             new_nonce,
             prev_class_hash: None,
             new_class_hash,
-            storage_changes: parse_storage_changes(
-                try_into_custom_error(n_changes, "n_changes")?,
-                iter,
-                full_output,
-            )?,
+            // Should be similar to the full_output code,only with partial updates.
+            storage_changes: vec![],
         })
     }
 }
@@ -324,8 +303,8 @@ impl DeprecatedOsStateDiff {
             .collect();
         let mut storage = HashMap::new();
         for contract in &self.contracts {
-            for (key, (_prev_val, new_val)) in &contract.storage_changes {
-                storage.insert((contract.addr, *key), *new_val);
+            for FullContractStorageUpdate { key, new_value, .. } in &contract.storage_changes {
+                storage.insert((contract.addr, *key), *new_value);
             }
         }
         let compiled_class_hashes = self
