@@ -141,10 +141,6 @@ pub(crate) fn iter_current_segment_info(
 
     let is_used = full_contract == Felt::ONE || vm.is_accessed(&data_ptr)?;
 
-    // For testing purposes, we allow marking all segments as used.
-    #[cfg(test)]
-    let is_used = is_used || exec_scopes.get(Scope::LeafAlwaysAccessed.into()).unwrap_or(false);
-
     if !is_used {
         for i in 0..current_segment_info.length() {
             let pc = (data_ptr + i)?;

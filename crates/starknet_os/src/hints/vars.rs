@@ -100,8 +100,6 @@ define_string_enum! {
         (DictManager),
         (InitialDict),
         (IsDeprecated),
-        #[cfg(test)]
-        (LeafAlwaysAccessed),
         (LeftChild),
         (NSelectedBuiltins),
         (Node),
