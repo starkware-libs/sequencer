@@ -287,8 +287,6 @@ pub struct OsOutput {
     pub state_diff: OsStateDiff,
 }
 
-// Tzahi: Remove once used in the aggregator
-#[allow(dead_code)]
 impl TryFromOutputIter for OsOutput {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         output_iter: &mut It,
