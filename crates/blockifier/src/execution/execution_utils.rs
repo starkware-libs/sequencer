@@ -397,8 +397,11 @@ mod blake_estimation {
     pub const STEPS_PER_2_U32_REMINDER: usize = 3;
 
     // BLAKE opcode gas cost in Stwo.
-    // TODO(AvivG): Replace with actual cost when known.
-    pub const BLAKE_OPCODE_GAS: usize = 0;
+    // TODO(AvivG): This is not a final value.
+    // The Blake opcode gas cost should be defined in a more centralized location (e.g.
+    // VersionedConstants), not hardcoded here. Once integrated properly, this constant should
+    // be removed.
+    pub const BLAKE_OPCODE_GAS: usize = 8000;
 }
 
 /// Calculates the total number of u32s required to encode the given number of big and small felts.
