@@ -354,7 +354,11 @@ async fn test_stuck_sync() {
 
     let sync_client = MockStateSyncClient::default();
     let l1_provider_client = Arc::new(FakeL1ProviderClient::default());
-    let config = Default::default();
+    let config = L1ProviderConfig {
+        // Override the default retry interval which is way too long for a test.
+        startup_sync_sleep_retry_interval_seconds: Duration::from_millis(10),
+        ..Default::default()
+    };
     let mut l1_provider = L1ProviderBuilder::new(
         config,
         l1_provider_client.clone(),
