@@ -22,6 +22,8 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
@@ -482,15 +484,11 @@ pub fn blake_hash_execution_resources(
 ///
 /// TODO(AvivG): Consider separating `encode_felt252_to_u32s` and `blake_with_opcode` costs
 /// for improved granularity and testability.
-pub fn cost_of_encode_felt252_data_and_calc_blake_hash<F>(
+pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
     n_big_felts: usize,
     n_small_felts: usize,
-    // TODO(AvivG): Replace this argument with a `VersionedConstants` reference and use
-    // `vm_resources_to_sierra_gas` instead.
-    resources_to_gas_fn: F,
+    versioned_constants: &VersionedConstants,
 ) -> GasAmount
-where
-    F: Fn(&ExecutionResources) -> GasAmount,
 {
     let vm_resources = blake_hash_execution_resources(n_big_felts, n_small_felts);
 
@@ -501,7 +499,7 @@ where
         vm_resources.builtin_instance_counter.keys().collect::<Vec<_>>()
     );
 
-    let vm_gas = resources_to_gas_fn(&vm_resources);
+    let vm_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
 
     let blake_opcode_count = count_blake_opcode(n_big_felts, n_small_felts);
     let blake_opcode_gas = blake_opcode_count
