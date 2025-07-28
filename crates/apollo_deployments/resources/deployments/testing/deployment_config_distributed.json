@@ -93,7 +93,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
-        "ClassManager": 55001,
+        "ConsensusManager": 53080,
         "MonitoringEndpoint": 8082
       }
     },
