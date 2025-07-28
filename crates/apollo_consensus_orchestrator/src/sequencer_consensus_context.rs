@@ -291,7 +291,7 @@ impl ConsensusContext for SequencerConsensusContext {
                         info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.");
                     }
                     Err(e) => {
-                        warn!("Proposal failed. Error: {e:?}");
+                        warn!("PROPOSAL_FAILED: Proposal failed as proposer. Error: {e:?}");
                     }
                 }
             }
@@ -723,7 +723,7 @@ impl SequencerConsensusContext {
                         info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.");
                     }
                     Err(e) => {
-                        warn!("Proposal failed. Error: {e:?}");
+                        warn!("PROPOSAL_FAILED: Proposal failed as validator. Error: {e:?}");
                     }
                 }
             }
