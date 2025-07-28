@@ -48,6 +48,9 @@ pub const CONFIG_SECRETS_SCHEMA_PATH: &str =
     "crates/apollo_node/resources/config_secrets_schema.json";
 pub(crate) const POINTER_TARGET_VALUE: &str = "PointerTarget";
 
+// TODO(Tsabary): move metrics recorder to the node level, like tracing, instead of being
+// initialized as part of the endpoint.
+
 // Configuration parameters that share the same value across multiple components.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
     let mut pointers = vec![
@@ -191,23 +194,23 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub http_server_config: Option<HttpServerConfig>,
     #[validate]
-    pub sierra_compiler_config: Option<SierraCompilationConfig>,
-    #[validate]
     pub l1_endpoint_monitor_config: Option<L1EndpointMonitorConfig>,
     #[validate]
-    pub l1_provider_config: Option<L1ProviderConfig>,
-    #[validate]
     pub l1_gas_price_provider_config: Option<L1GasPriceProviderConfig>,
+    #[validate]
+    pub l1_gas_price_scraper_config: Option<L1GasPriceScraperConfig>,
+    #[validate]
+    pub l1_provider_config: Option<L1ProviderConfig>,
     #[validate]
     pub l1_scraper_config: Option<L1ScraperConfig>,
     #[validate]
     pub mempool_config: Option<MempoolConfig>,
     #[validate]
-    pub l1_gas_price_scraper_config: Option<L1GasPriceScraperConfig>,
-    #[validate]
     pub mempool_p2p_config: Option<MempoolP2pConfig>,
     #[validate]
     pub monitoring_endpoint_config: Option<MonitoringEndpointConfig>,
+    #[validate]
+    pub sierra_compiler_config: Option<SierraCompilationConfig>,
     #[validate]
     pub state_sync_config: Option<StateSyncConfig>,
 }
@@ -215,22 +218,20 @@ pub struct SequencerNodeConfig {
 impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = vec![
+            // Infra related configs.
             prepend_sub_config_name(self.components.dump(), "components"),
             prepend_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
+            // Business-logic component configs.
             ser_optional_sub_config(&self.base_layer_config, "base_layer_config"),
             ser_optional_sub_config(&self.batcher_config, "batcher_config"),
             ser_optional_sub_config(&self.class_manager_config, "class_manager_config"),
             ser_optional_sub_config(&self.consensus_manager_config, "consensus_manager_config"),
             ser_optional_sub_config(&self.gateway_config, "gateway_config"),
             ser_optional_sub_config(&self.http_server_config, "http_server_config"),
-            ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
             ser_optional_sub_config(&self.mempool_config, "mempool_config"),
             ser_optional_sub_config(&self.mempool_p2p_config, "mempool_p2p_config"),
             ser_optional_sub_config(&self.monitoring_endpoint_config, "monitoring_endpoint_config"),
-            ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
             ser_optional_sub_config(&self.l1_endpoint_monitor_config, "l1_endpoint_monitor_config"),
-            ser_optional_sub_config(&self.l1_provider_config, "l1_provider_config"),
-            ser_optional_sub_config(&self.l1_scraper_config, "l1_scraper_config"),
             ser_optional_sub_config(
                 &self.l1_gas_price_provider_config,
                 "l1_gas_price_provider_config",
@@ -239,6 +240,10 @@ impl SerializeConfig for SequencerNodeConfig {
                 &self.l1_gas_price_scraper_config,
                 "l1_gas_price_scraper_config",
             ),
+            ser_optional_sub_config(&self.l1_provider_config, "l1_provider_config"),
+            ser_optional_sub_config(&self.l1_scraper_config, "l1_scraper_config"),
+            ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
+            ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
         ];
 
         sub_configs.into_iter().flatten().collect()
@@ -248,23 +253,25 @@ impl SerializeConfig for SequencerNodeConfig {
 impl Default for SequencerNodeConfig {
     fn default() -> Self {
         Self {
+            // Infra related configs.
             components: ComponentConfig::default(),
             monitoring_config: MonitoringConfig::default(),
+            // Business-logic component configs.
             base_layer_config: Some(EthereumBaseLayerConfig::default()),
             batcher_config: Some(BatcherConfig::default()),
             class_manager_config: Some(FsClassManagerConfig::default()),
             consensus_manager_config: Some(ConsensusManagerConfig::default()),
             gateway_config: Some(GatewayConfig::default()),
             http_server_config: Some(HttpServerConfig::default()),
-            sierra_compiler_config: Some(SierraCompilationConfig::default()),
             l1_endpoint_monitor_config: Some(L1EndpointMonitorConfig::default()),
-            l1_provider_config: Some(L1ProviderConfig::default()),
             l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
+            l1_gas_price_scraper_config: Some(L1GasPriceScraperConfig::default()),
+            l1_provider_config: Some(L1ProviderConfig::default()),
             l1_scraper_config: Some(L1ScraperConfig::default()),
             mempool_config: Some(MempoolConfig::default()),
-            l1_gas_price_scraper_config: Some(L1GasPriceScraperConfig::default()),
             mempool_p2p_config: Some(MempoolP2pConfig::default()),
             monitoring_endpoint_config: Some(MonitoringEndpointConfig::default()),
+            sierra_compiler_config: Some(SierraCompilationConfig::default()),
             state_sync_config: Some(StateSyncConfig::default()),
         }
     }
