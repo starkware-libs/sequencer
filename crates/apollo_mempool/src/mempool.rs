@@ -341,6 +341,8 @@ impl Mempool {
         self.validate_incoming_tx(tx_reference, args.account_state.nonce)?;
         self.handle_fee_escalation(&args.tx)?;
 
+        info!("memory usage: {}+{} bytes out of {}", self.size_in_bytes(), args.tx.total_bytes(), self.config.capacity_in_bytes);
+
         if self.exceeds_capacity(&args.tx) {
             self.handle_capacity_overflow(&args.tx, args.account_state.nonce)?;
         }
