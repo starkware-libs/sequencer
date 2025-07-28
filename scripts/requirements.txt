@@ -4,6 +4,7 @@ aiosignal==1.4.0
 annotated-types==0.7.0
 async-timeout==5.0.1
 attrs==25.3.0
+backports.asyncio.runner==1.2.0
 bitarray==3.5.2
 cachetools==6.1.0
 cairo-lang==0.14.0.1
@@ -51,7 +52,7 @@ pydantic==2.11.7
 pydantic_core==2.33.2
 Pygments==2.19.2
 pytest==8.4.1
-pytest-asyncio==1.0.0
+pytest-asyncio==1.1.0
 pytest-profiling==1.8.1
 pytest-xdist==3.8.0
 pyunormalize==16.0.0
