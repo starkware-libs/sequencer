@@ -356,11 +356,11 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
-                        ComponentConfigInService::Batcher
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
-                        | ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
@@ -381,11 +381,11 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
-                        ComponentConfigInService::Batcher
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
@@ -401,7 +401,8 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::L1 => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
-                        ComponentConfigInService::General
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::General
                         | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
@@ -415,7 +416,6 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::Mempool
                         | ComponentConfigInService::MempoolP2p
                         | ComponentConfigInService::SierraCompiler
@@ -432,12 +432,12 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::MonitoringEndpoint => {
                             components.insert(component_config_in_service);
                         }
-                        ComponentConfigInService::Batcher
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
@@ -456,12 +456,12 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::SierraCompiler => {
                             components.insert(component_config_in_service);
                         }
-                        ComponentConfigInService::Batcher
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
                         | ComponentConfigInService::ClassManager
                         | ComponentConfigInService::Consensus
                         | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
-                        | ComponentConfigInService::BaseLayer
                         | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
                         | ComponentConfigInService::L1GasPriceScraper
