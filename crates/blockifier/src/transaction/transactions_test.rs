@@ -283,11 +283,7 @@ fn expected_validate_call_info(
         CairoVersion::Cairo0 => {
             usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
         }
-        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-            if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
-        }
-        #[cfg(feature = "cairo_native")]
-        CairoVersion::Cairo1(RunnableCairo1::Native) => {
+        CairoVersion::Cairo1(_) => {
             if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
         }
     };
@@ -422,11 +418,7 @@ fn expected_fee_transfer_call_info(
         CairoVersion::Cairo0 => {
             HashMap::from([(BuiltinName::range_check, 32), (BuiltinName::pedersen, 4)])
         }
-        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-            HashMap::from([(BuiltinName::range_check, 38), (BuiltinName::pedersen, 4)])
-        }
-        #[cfg(feature = "cairo_native")]
-        CairoVersion::Cairo1(RunnableCairo1::Native) => {
+        CairoVersion::Cairo1(_) => {
             HashMap::from([(BuiltinName::range_check, 38), (BuiltinName::pedersen, 4)])
         }
     };

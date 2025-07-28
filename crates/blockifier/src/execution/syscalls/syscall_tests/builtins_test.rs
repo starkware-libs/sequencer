@@ -129,7 +129,6 @@ fn test_builtin_counts_consistency() {
     let native_call_info = entry_point_call_native.execute_directly(&mut native_state).unwrap();
     assert!(!native_call_info.execution.failed, "Native execution failed");
 
-    // TODO(Einat): Uncomment this when native builtins are supported.
     let casm_builtins = &casm_call_info.builtin_counters;
     let native_builtins = &native_call_info.builtin_counters;
     assert_eq!(
