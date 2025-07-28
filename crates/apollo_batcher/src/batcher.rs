@@ -506,7 +506,7 @@ impl Batcher {
                 error!("Failed to get commitment: {}", err);
                 BatcherError::InternalError
             })?;
-
+        info!("Finished building proposal {proposal_id} with {final_n_executed_txs} transactions.");
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished { id: commitment, final_n_executed_txs },
         })
