@@ -7,10 +7,15 @@ use apollo_node::config::component_execution_config::{
 };
 use indexmap::IndexMap;
 use serde::Serialize;
-use strum::{Display, IntoEnumIterator};
+use strum::Display;
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{Environment, ServicePort};
+use crate::deployment_definitions::{
+    BusinessLogicServicePort,
+    Environment,
+    InfraServicePort,
+    ServicePort,
+};
 use crate::k8s::{
     get_ingress,
     Controller,
@@ -112,28 +117,23 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         let mut service_ports = BTreeSet::new();
         for service_port in ServicePort::iter() {
             match service_port {
-                ServicePort::MonitoringEndpoint => {
-                    service_ports.insert(ServicePort::MonitoringEndpoint);
+                ServicePort::BusinessLogic(BusinessLogicServicePort::MonitoringEndpoint)
+                | ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
+                | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p) => {
+                    service_ports.insert(service_port);
                 }
-                ServicePort::HttpServer => {
-                    service_ports.insert(ServicePort::HttpServer);
-                }
-                ServicePort::ConsensusManager => {
-                    service_ports.insert(ServicePort::ConsensusManager);
-                }
-                ServicePort::MempoolP2p => {
-                    service_ports.insert(ServicePort::MempoolP2p);
-                }
-                ServicePort::Batcher
-                | ServicePort::Mempool
-                | ServicePort::ClassManager
-                | ServicePort::Gateway
-                | ServicePort::L1EndpointMonitor
-                | ServicePort::L1GasPriceProvider
-                | ServicePort::L1Provider
-                | ServicePort::SierraCompiler
-                | ServicePort::StateSync
-                | ServicePort::SignatureManager => {}
+
+                ServicePort::Infra(InfraServicePort::Batcher)
+                | ServicePort::Infra(InfraServicePort::Mempool)
+                | ServicePort::Infra(InfraServicePort::ClassManager)
+                | ServicePort::Infra(InfraServicePort::Gateway)
+                | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                | ServicePort::Infra(InfraServicePort::L1Provider)
+                | ServicePort::Infra(InfraServicePort::SierraCompiler)
+                | ServicePort::Infra(InfraServicePort::StateSync)
+                | ServicePort::Infra(InfraServicePort::SignatureManager) => {}
             }
         }
         service_ports

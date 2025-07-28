@@ -11,7 +11,12 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{Environment, ServicePort};
+use crate::deployment_definitions::{
+    BusinessLogicServicePort,
+    Environment,
+    InfraServicePort,
+    ServicePort,
+};
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
@@ -277,244 +282,244 @@ impl ServiceNameInner for DistributedNodeServiceName {
             DistributedNodeServiceName::Batcher => {
                 for service_port in ServicePort::iter() {
                     match service_port {
-                        ServicePort::MonitoringEndpoint => {
-                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        ServicePort::BusinessLogic(
+                            BusinessLogicServicePort::MonitoringEndpoint,
+                        )
+                        | ServicePort::Infra(InfraServicePort::Batcher) => {
+                            service_ports.insert(service_port);
                         }
-                        ServicePort::Batcher => {
-                            service_ports.insert(ServicePort::Batcher);
-                        }
-                        ServicePort::HttpServer
-                        | ServicePort::ClassManager
-                        | ServicePort::ConsensusManager
-                        | ServicePort::Gateway
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::Mempool
-                        | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::StateSync
-                        | ServicePort::SierraCompiler => {}
+                        ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
+                        | ServicePort::Infra(InfraServicePort::ClassManager)
+                        | ServicePort::Infra(InfraServicePort::Gateway)
+                        | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                        | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                        | ServicePort::Infra(InfraServicePort::L1Provider)
+                        | ServicePort::Infra(InfraServicePort::Mempool)
+                        | ServicePort::Infra(InfraServicePort::SignatureManager)
+                        | ServicePort::Infra(InfraServicePort::StateSync)
+                        | ServicePort::Infra(InfraServicePort::SierraCompiler) => {}
                     }
                 }
             }
             DistributedNodeServiceName::ClassManager => {
                 for service_port in ServicePort::iter() {
                     match service_port {
-                        ServicePort::MonitoringEndpoint => {
-                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        ServicePort::BusinessLogic(
+                            BusinessLogicServicePort::MonitoringEndpoint,
+                        )
+                        | ServicePort::Infra(InfraServicePort::ClassManager) => {
+                            service_ports.insert(service_port);
                         }
-                        ServicePort::ClassManager => {
-                            service_ports.insert(ServicePort::ClassManager);
-                        }
-                        ServicePort::Batcher
-                        | ServicePort::ConsensusManager
-                        | ServicePort::Gateway
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::Mempool
-                        | ServicePort::MempoolP2p
-                        | ServicePort::SierraCompiler
-                        | ServicePort::StateSync
-                        | ServicePort::HttpServer
-                        | ServicePort::SignatureManager => {}
+
+                        ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
+                        | ServicePort::Infra(InfraServicePort::Batcher)
+                        | ServicePort::Infra(InfraServicePort::Gateway)
+                        | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                        | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                        | ServicePort::Infra(InfraServicePort::L1Provider)
+                        | ServicePort::Infra(InfraServicePort::Mempool)
+                        | ServicePort::Infra(InfraServicePort::SierraCompiler)
+                        | ServicePort::Infra(InfraServicePort::StateSync)
+                        | ServicePort::Infra(InfraServicePort::SignatureManager) => {}
                     }
                 }
             }
             DistributedNodeServiceName::ConsensusManager => {
                 for service_port in ServicePort::iter() {
                     match service_port {
-                        ServicePort::MonitoringEndpoint => {
-                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        ServicePort::BusinessLogic(
+                            BusinessLogicServicePort::MonitoringEndpoint,
+                        )
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager) => {
+                            service_ports.insert(service_port);
                         }
-                        ServicePort::ConsensusManager => {
-                            service_ports.insert(ServicePort::ClassManager);
-                        }
-                        ServicePort::Batcher
-                        | ServicePort::ClassManager
-                        | ServicePort::Gateway
-                        | ServicePort::HttpServer
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::Mempool
-                        | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::StateSync
-                        | ServicePort::SierraCompiler => {}
+
+                        ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
+                        | ServicePort::Infra(InfraServicePort::Batcher)
+                        | ServicePort::Infra(InfraServicePort::ClassManager)
+                        | ServicePort::Infra(InfraServicePort::Gateway)
+                        | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                        | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                        | ServicePort::Infra(InfraServicePort::L1Provider)
+                        | ServicePort::Infra(InfraServicePort::Mempool)
+                        | ServicePort::Infra(InfraServicePort::SignatureManager)
+                        | ServicePort::Infra(InfraServicePort::StateSync)
+                        | ServicePort::Infra(InfraServicePort::SierraCompiler) => {}
                     }
                 }
             }
             DistributedNodeServiceName::HttpServer => {
                 for service_port in ServicePort::iter() {
                     match service_port {
-                        ServicePort::MonitoringEndpoint => {
-                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        ServicePort::BusinessLogic(
+                            BusinessLogicServicePort::MonitoringEndpoint,
+                        )
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer) => {
+                            service_ports.insert(service_port);
                         }
-                        ServicePort::HttpServer => {
-                            service_ports.insert(ServicePort::HttpServer);
-                        }
-                        ServicePort::Batcher
-                        | ServicePort::ClassManager
-                        | ServicePort::ConsensusManager
-                        | ServicePort::Gateway
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::Mempool
-                        | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::StateSync
-                        | ServicePort::SierraCompiler => {}
+                        ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
+                        | ServicePort::Infra(InfraServicePort::Batcher)
+                        | ServicePort::Infra(InfraServicePort::ClassManager)
+                        | ServicePort::Infra(InfraServicePort::Gateway)
+                        | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                        | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                        | ServicePort::Infra(InfraServicePort::L1Provider)
+                        | ServicePort::Infra(InfraServicePort::Mempool)
+                        | ServicePort::Infra(InfraServicePort::SignatureManager)
+                        | ServicePort::Infra(InfraServicePort::StateSync)
+                        | ServicePort::Infra(InfraServicePort::SierraCompiler) => {}
                     }
                 }
             }
             DistributedNodeServiceName::Gateway => {
                 for service_port in ServicePort::iter() {
                     match service_port {
-                        ServicePort::MonitoringEndpoint => {
-                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        ServicePort::BusinessLogic(
+                            BusinessLogicServicePort::MonitoringEndpoint,
+                        )
+                        | ServicePort::Infra(InfraServicePort::Gateway) => {
+                            service_ports.insert(service_port);
                         }
-                        ServicePort::Gateway => {
-                            service_ports.insert(ServicePort::Gateway);
-                        }
-                        ServicePort::Batcher
-                        | ServicePort::ClassManager
-                        | ServicePort::ConsensusManager
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::Mempool
-                        | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::StateSync
-                        | ServicePort::HttpServer
-                        | ServicePort::SierraCompiler => {}
+
+                        ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
+                        | ServicePort::Infra(InfraServicePort::Batcher)
+                        | ServicePort::Infra(InfraServicePort::ClassManager)
+                        | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                        | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                        | ServicePort::Infra(InfraServicePort::L1Provider)
+                        | ServicePort::Infra(InfraServicePort::Mempool)
+                        | ServicePort::Infra(InfraServicePort::SignatureManager)
+                        | ServicePort::Infra(InfraServicePort::StateSync)
+                        | ServicePort::Infra(InfraServicePort::SierraCompiler) => {}
                     }
                 }
             }
             DistributedNodeServiceName::L1 => {
                 for service_port in ServicePort::iter() {
                     match service_port {
-                        ServicePort::MonitoringEndpoint => {
-                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        ServicePort::BusinessLogic(
+                            BusinessLogicServicePort::MonitoringEndpoint,
+                        )
+                        | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                        | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                        | ServicePort::Infra(InfraServicePort::L1Provider) => {
+                            service_ports.insert(service_port);
                         }
-                        ServicePort::L1EndpointMonitor => {
-                            service_ports.insert(ServicePort::L1EndpointMonitor);
-                        }
-                        ServicePort::L1GasPriceProvider => {
-                            service_ports.insert(ServicePort::L1GasPriceProvider);
-                        }
-                        ServicePort::L1Provider => {
-                            service_ports.insert(ServicePort::L1Provider);
-                        }
-                        ServicePort::Batcher
-                        | ServicePort::ClassManager
-                        | ServicePort::ConsensusManager
-                        | ServicePort::Gateway
-                        | ServicePort::HttpServer
-                        | ServicePort::Mempool
-                        | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::StateSync
-                        | ServicePort::SierraCompiler => {}
+                        ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
+                        | ServicePort::Infra(InfraServicePort::Batcher)
+                        | ServicePort::Infra(InfraServicePort::ClassManager)
+                        | ServicePort::Infra(InfraServicePort::Gateway)
+                        | ServicePort::Infra(InfraServicePort::Mempool)
+                        | ServicePort::Infra(InfraServicePort::SignatureManager)
+                        | ServicePort::Infra(InfraServicePort::StateSync)
+                        | ServicePort::Infra(InfraServicePort::SierraCompiler) => {}
                     }
                 }
             }
             DistributedNodeServiceName::Mempool => {
                 for service_port in ServicePort::iter() {
                     match service_port {
-                        ServicePort::MonitoringEndpoint => {
-                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        ServicePort::BusinessLogic(
+                            BusinessLogicServicePort::MonitoringEndpoint,
+                        )
+                        | ServicePort::Infra(InfraServicePort::Mempool) => {
+                            service_ports.insert(service_port);
                         }
-                        ServicePort::Mempool => {
-                            service_ports.insert(ServicePort::Mempool);
-                        }
-                        ServicePort::Batcher
-                        | ServicePort::ClassManager
-                        | ServicePort::ConsensusManager
-                        | ServicePort::Gateway
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::StateSync
-                        | ServicePort::HttpServer
-                        | ServicePort::SierraCompiler => {}
+                        ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
+                        | ServicePort::Infra(InfraServicePort::Batcher)
+                        | ServicePort::Infra(InfraServicePort::ClassManager)
+                        | ServicePort::Infra(InfraServicePort::Gateway)
+                        | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                        | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                        | ServicePort::Infra(InfraServicePort::L1Provider)
+                        | ServicePort::Infra(InfraServicePort::SignatureManager)
+                        | ServicePort::Infra(InfraServicePort::StateSync)
+                        | ServicePort::Infra(InfraServicePort::SierraCompiler) => {}
                     }
                 }
             }
             DistributedNodeServiceName::SierraCompiler => {
                 for service_port in ServicePort::iter() {
                     match service_port {
-                        ServicePort::MonitoringEndpoint => {
-                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        ServicePort::BusinessLogic(
+                            BusinessLogicServicePort::MonitoringEndpoint,
+                        )
+                        | ServicePort::Infra(InfraServicePort::SierraCompiler) => {
+                            service_ports.insert(service_port);
                         }
-                        ServicePort::SierraCompiler => {
-                            service_ports.insert(ServicePort::SierraCompiler);
-                        }
-                        ServicePort::Batcher
-                        | ServicePort::HttpServer
-                        | ServicePort::ClassManager
-                        | ServicePort::ConsensusManager
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::StateSync
-                        | ServicePort::Mempool
-                        | ServicePort::Gateway
-                        | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager => {}
+
+                        ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
+                        | ServicePort::Infra(InfraServicePort::Batcher)
+                        | ServicePort::Infra(InfraServicePort::ClassManager)
+                        | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                        | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                        | ServicePort::Infra(InfraServicePort::L1Provider)
+                        | ServicePort::Infra(InfraServicePort::StateSync)
+                        | ServicePort::Infra(InfraServicePort::Mempool)
+                        | ServicePort::Infra(InfraServicePort::Gateway)
+                        | ServicePort::Infra(InfraServicePort::SignatureManager) => {}
                     }
                 }
             }
             DistributedNodeServiceName::SignatureManager => {
                 for service_port in ServicePort::iter() {
                     match service_port {
-                        ServicePort::MonitoringEndpoint => {
-                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        ServicePort::BusinessLogic(
+                            BusinessLogicServicePort::MonitoringEndpoint,
+                        )
+                        | ServicePort::Infra(InfraServicePort::SignatureManager) => {
+                            service_ports.insert(service_port);
                         }
-                        ServicePort::SignatureManager => {
-                            service_ports.insert(ServicePort::SignatureManager);
-                        }
-                        ServicePort::Batcher
-                        | ServicePort::HttpServer
-                        | ServicePort::ConsensusManager
-                        | ServicePort::ClassManager
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::StateSync
-                        | ServicePort::Mempool
-                        | ServicePort::Gateway
-                        | ServicePort::MempoolP2p
-                        | ServicePort::SierraCompiler => {}
+                        ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
+                        | ServicePort::Infra(InfraServicePort::Batcher)
+                        | ServicePort::Infra(InfraServicePort::ClassManager)
+                        | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                        | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                        | ServicePort::Infra(InfraServicePort::L1Provider)
+                        | ServicePort::Infra(InfraServicePort::StateSync)
+                        | ServicePort::Infra(InfraServicePort::Mempool)
+                        | ServicePort::Infra(InfraServicePort::Gateway)
+                        | ServicePort::Infra(InfraServicePort::SierraCompiler) => {}
                     }
                 }
             }
             DistributedNodeServiceName::StateSync => {
                 for service_port in ServicePort::iter() {
                     match service_port {
-                        ServicePort::MonitoringEndpoint => {
-                            service_ports.insert(ServicePort::MonitoringEndpoint);
+                        ServicePort::BusinessLogic(
+                            BusinessLogicServicePort::MonitoringEndpoint,
+                        )
+                        | ServicePort::Infra(InfraServicePort::StateSync) => {
+                            service_ports.insert(service_port);
                         }
-                        ServicePort::StateSync => {
-                            service_ports.insert(ServicePort::StateSync);
-                        }
-                        ServicePort::Batcher
-                        | ServicePort::ClassManager
-                        | ServicePort::ConsensusManager
-                        | ServicePort::Gateway
-                        | ServicePort::HttpServer
-                        | ServicePort::L1EndpointMonitor
-                        | ServicePort::L1GasPriceProvider
-                        | ServicePort::L1Provider
-                        | ServicePort::Mempool
-                        | ServicePort::MempoolP2p
-                        | ServicePort::SignatureManager
-                        | ServicePort::SierraCompiler => {}
+                        ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
+                        | ServicePort::Infra(InfraServicePort::Batcher)
+                        | ServicePort::Infra(InfraServicePort::ClassManager)
+                        | ServicePort::Infra(InfraServicePort::Gateway)
+                        | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
+                        | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
+                        | ServicePort::Infra(InfraServicePort::L1Provider)
+                        | ServicePort::Infra(InfraServicePort::Mempool)
+                        | ServicePort::Infra(InfraServicePort::SignatureManager)
+                        | ServicePort::Infra(InfraServicePort::SierraCompiler) => {}
                     }
                 }
             }
