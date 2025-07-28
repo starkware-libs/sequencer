@@ -283,11 +283,9 @@ fn expected_validate_call_info(
         CairoVersion::Cairo0 => {
             usize::from(entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME)
         }
-        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
+        CairoVersion::Cairo1(_) => {
             if entry_point_selector_name == constants::VALIDATE_ENTRY_POINT_NAME { 7 } else { 2 }
         }
-        #[cfg(feature = "cairo_native")]
-        CairoVersion::Cairo1(RunnableCairo1::Native) => 0,
     };
     let vm_resources = match tracked_resource {
         TrackedResource::SierraGas => ExecutionResources::default(),
@@ -420,12 +418,9 @@ fn expected_fee_transfer_call_info(
         CairoVersion::Cairo0 => {
             HashMap::from([(BuiltinName::range_check, 32), (BuiltinName::pedersen, 4)])
         }
-        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
+        CairoVersion::Cairo1(_) => {
             HashMap::from([(BuiltinName::range_check, 38), (BuiltinName::pedersen, 4)])
         }
-        // TODO(YonatanK): Change this once Cairo native supports builtins counters.
-        #[cfg(feature = "cairo_native")]
-        CairoVersion::Cairo1(RunnableCairo1::Native) => HashMap::default(),
     };
     let expected_tracked_resource = match cairo_version {
         CairoVersion::Cairo0 => TrackedResource::CairoSteps,
@@ -694,11 +689,7 @@ fn test_invoke_tx(
     };
     let builtin_counters = match account_cairo_version {
         CairoVersion::Cairo0 => HashMap::from([(BuiltinName::range_check, 19)]),
-        CairoVersion::Cairo1(RunnableCairo1::Casm) => {
-            HashMap::from([(BuiltinName::range_check, 27)])
-        }
-        #[cfg(feature = "cairo_native")]
-        CairoVersion::Cairo1(RunnableCairo1::Native) => HashMap::default(),
+        CairoVersion::Cairo1(_) => HashMap::from([(BuiltinName::range_check, 27)]),
     };
     let expected_execute_call_info = Some(CallInfo {
         call: expected_execute_call,
