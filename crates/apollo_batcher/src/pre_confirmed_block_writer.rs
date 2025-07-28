@@ -233,7 +233,7 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
     }
 }
 
-fn is_round_mismatch_error(
+pub(crate) fn is_round_mismatch_error(
     error: &PreconfirmedCendeClientError,
     next_write_iteration: u64,
 ) -> bool {
