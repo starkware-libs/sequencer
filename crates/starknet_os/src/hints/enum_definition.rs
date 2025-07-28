@@ -492,7 +492,9 @@ define_stateless_hint_enum!(
         indoc! {r#"
     current_segment_info = next(bytecode_segments)
 
-    is_used = is_segment_used_callback(ids.data_ptr, current_segment_info.segment_length)
+    is_used = ids.full_contract or is_segment_used_callback(
+        ids.data_ptr, current_segment_info.segment_length
+    )
     ids.is_segment_used = 1 if is_used else 0
 
     is_used_leaf = is_used and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
