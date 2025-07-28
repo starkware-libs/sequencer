@@ -37,7 +37,7 @@ type DeploymentFn = fn() -> Vec<Deployment>;
 
 const BATCHER_PORT: u16 = 55000;
 const CLASS_MANAGER_PORT: u16 = 55001;
-const CONSENSUS_MANAGER_PORT: u16 = 53080;
+const CONSENSUS_P2P_PORT: u16 = 53080;
 const GATEWAY_PORT: u16 = 55002;
 const L1_ENDPOINT_MONITOR_PORT: u16 = 55005;
 const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;
@@ -130,7 +130,7 @@ impl StateSyncType {
 
 #[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
 pub enum BusinessLogicServicePort {
-    ConsensusManager,
+    ConsensusP2p,
     HttpServer,
     MempoolP2p,
     MonitoringEndpoint,
@@ -139,7 +139,7 @@ pub enum BusinessLogicServicePort {
 impl BusinessLogicServicePort {
     pub fn get_port(&self) -> u16 {
         match self {
-            BusinessLogicServicePort::ConsensusManager => CONSENSUS_MANAGER_PORT,
+            BusinessLogicServicePort::ConsensusP2p => CONSENSUS_P2P_PORT,
             BusinessLogicServicePort::HttpServer => HTTP_SERVER_PORT,
             BusinessLogicServicePort::MempoolP2p => MEMPOOL_P2P_PORT,
             BusinessLogicServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
