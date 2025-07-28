@@ -622,6 +622,195 @@
       "severity": "p2"
     },
     {
+      "name": "pod_state_not_ready",
+      "title": "Pod State Not Ready",
+      "ruleGroup": "general",
+      "expr": "kube_pod_container_status_ready{cluster=~\"$cluster\", namespace=~\"$namespace\"}",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              1.0
+            ],
+            "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "pod_state_crashloopbackoff",
+      "title": "Pod State CrashLoopBackOff",
+      "ruleGroup": "general",
+      "expr": "sum by(container, pod, namespace) (kube_pod_container_status_waiting_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", reason=\"CrashLoopBackOff\"}) or absent(kube_pod_container_status_waiting_reason{cluster=~\"$cluster\", namespace=~\"$namespace\", reason=\"CrashLoopBackOff\"}) * 0",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "pod_state_high_memory_utilization",
+      "title": "Pod High Memory Utilization ( >70% )",
+      "ruleGroup": "general",
+      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              70.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3"
+    },
+    {
+      "name": "pod_state_critical_memory_utilization",
+      "title": "Pod Critical Memory Utilization ( >85% )",
+      "ruleGroup": "general",
+      "expr": "max(container_memory_working_set_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) / max(container_spec_memory_limit_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) by (container, pod, namespace) * 100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              85.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "pod_state_high_disk_utilization",
+      "title": "Pod High Disk Utilization ( >70% )",
+      "ruleGroup": "general",
+      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              70.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p3"
+    },
+    {
+      "name": "pod_state_critical_disk_utilization",
+      "title": "Pod Critical Disk Utilization ( >90% )",
+      "ruleGroup": "general",
+      "expr": "max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) / (min by (namespace,persistentvolumeclaim) (kubelet_volume_stats_available_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}) + max by (namespace,persistentvolumeclaim) (kubelet_volume_stats_used_bytes{cluster=~\"$cluster\", namespace=~\"$namespace\"}))*100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              90.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
+      "name": "pod_high_cpu_utilization",
+      "title": "Pod High CPU Utilization ( >90% )",
+      "ruleGroup": "general",
+      "expr": "max(irate(container_cpu_usage_seconds_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) by (container, pod, namespace) / (max(container_spec_cpu_quota{cluster=~\"$cluster\", namespace=~\"$namespace\"}/100000) by (container, pod, namespace)) * 100",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              90.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p2"
+    },
+    {
       "name": "http_server_add_tx_idle",
       "title": "HTTP Server add_tx idle",
       "ruleGroup": "http_server",
