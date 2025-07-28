@@ -492,13 +492,13 @@ define_stateless_hint_enum!(
         indoc! {r#"
     current_segment_info = next(bytecode_segments)
 
-    is_used = ids.full_contract or is_segment_used_callback(
+    should_load = ids.full_contract or is_segment_used_callback(
         ids.data_ptr, current_segment_info.segment_length
     )
-    ids.is_segment_used = 1 if is_used else 0
+    ids.load_segment = 1 if should_load else 0
 
-    is_used_leaf = is_used and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
-    ids.is_used_leaf = 1 if is_used_leaf else 0
+    load_leaf = should_load and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
+    ids.load_leaf = 1 if load_leaf else 0
 
     ids.segment_length = current_segment_info.segment_length
     vm_enter_scope(new_scope_locals={

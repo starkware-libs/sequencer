@@ -139,13 +139,14 @@ pub(crate) fn iter_current_segment_info(
     let full_contract =
         get_integer_from_var_name(Ids::FullContract.into(), vm, ids_data, ap_tracking)?;
 
-    let is_used = full_contract == Felt::ONE || vm.is_accessed(&data_ptr)?;
+    let should_load = full_contract == Felt::ONE || vm.is_accessed(&data_ptr)?;
 
     // For testing purposes, we allow marking all segments as used.
     #[cfg(test)]
-    let is_used = is_used || exec_scopes.get(Scope::LeafAlwaysAccessed.into()).unwrap_or(false);
+    let should_load =
+        should_load || exec_scopes.get(Scope::LeafAlwaysAccessed.into()).unwrap_or(false);
 
-    if !is_used {
+    if !should_load {
         for i in 0..current_segment_info.length() {
             let pc = (data_ptr + i)?;
             if vm.is_accessed(&pc)? {
@@ -160,16 +161,16 @@ pub(crate) fn iter_current_segment_info(
     }
 
     insert_value_from_var_name(
-        Ids::IsSegmentUsed.into(),
-        Felt::from(is_used),
+        Ids::LoadSegment.into(),
+        Felt::from(should_load),
         vm,
         ids_data,
         ap_tracking,
     )?;
-    let is_used_leaf = is_used && current_segment_info.is_leaf();
+    let load_leaf = should_load && current_segment_info.is_leaf();
     insert_value_from_var_name(
-        Ids::IsUsedLeaf.into(),
-        Felt::from(is_used_leaf),
+        Ids::LoadLeaf.into(),
+        Felt::from(load_leaf),
         vm,
         ids_data,
         ap_tracking,
