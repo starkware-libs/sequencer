@@ -10,7 +10,7 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use expect_test::{expect, Expect};
 use log::info;
 use rstest::rstest;
-use starknet_api::contract_class::compiled_class_hash::COMPILED_CLASS_V1;
+use starknet_api::contract_class::compiled_class_hash::{HashableCompiledClass, COMPILED_CLASS_V1};
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
@@ -45,6 +45,8 @@ fn test_compiled_class_hash_poseidon(
     #[values(true, false)] load_full_contract: bool,
 ) -> Cairo0EntryPointRunnerResult<()> {
     // Set up the entry point runner configuration.
+
+    use starknet_types_core::hash::Poseidon;
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
         trace_enabled: false,
@@ -162,8 +164,8 @@ fn test_compiled_class_hash_poseidon(
     // Use expect! macro for easy test maintenance.
     EXPECTED_HASH.assert_eq(&hash_computed_by_the_os.to_string());
 
-    // Compare with the hash computed by the compiler.
-    let hash_computed_by_compiler = contract_class.compiled_class_hash();
-    assert_eq!(*hash_computed_by_the_os, hash_computed_by_compiler);
+    // Compare with the hash computed by the starknet_api.
+    let hash_computed_by_compiler = contract_class.hash::<Poseidon>();
+    assert_eq!(*hash_computed_by_the_os, hash_computed_by_compiler.0);
     Ok(())
 }
