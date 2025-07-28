@@ -1,5 +1,5 @@
 {
-  "base_layer_config.#is_none": true,
+  "base_layer_config.#is_none": false,
   "batcher_config.#is_none": true,
   "class_manager_config.#is_none": true,
   "components.batcher.execution_mode": "Remote",
