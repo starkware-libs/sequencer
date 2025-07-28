@@ -36,59 +36,109 @@ use crate::state_reader::{MempoolStateReader, StateReaderFactory};
 #[path = "stateful_transaction_validator_test.rs"]
 mod stateful_transaction_validator_test;
 
-pub struct StatefulTransactionValidator {
+type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
+
+pub struct StatefulTransactionValidatorFactory {
     pub config: StatefulTransactionValidatorConfig,
 }
 
-type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
-
-impl StatefulTransactionValidator {
-    pub fn run_transaction_validations<V: BlockifierStatefulValidatorTrait>(
+impl StatefulTransactionValidatorFactory {
+    pub fn instantiate_validator(
         &self,
+        state_reader_factory: &dyn StateReaderFactory,
+        chain_info: &ChainInfo,
+    ) -> StatefulTransactionValidatorResult<StatefulTransactionValidator<BlockifierStatefulValidator>>
+    {
+        // TODO(yael 6/5/2024): consider storing the block_info as part of the
+        // StatefulTransactionValidator and update it only once a new block is created.
+        let latest_block_info = get_latest_block_info(state_reader_factory)?;
+        let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
+        let state = CachedState::new(state_reader);
+        let versioned_constants = VersionedConstants::get_versioned_constants(
+            self.config.versioned_constants_overrides.clone(),
+        );
+        let mut block_info = latest_block_info;
+        block_info.block_number = block_info.block_number.unchecked_next();
+        // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
+        // able to read the block_hash of 10 blocks ago from papyrus.
+        let block_context = BlockContext::new(
+            block_info,
+            chain_info.clone(),
+            versioned_constants,
+            BouncerConfig::max(),
+        );
+
+        let blockifier_stateful_tx_validator =
+            BlockifierStatefulValidator::create(state, block_context);
+
+        Ok(StatefulTransactionValidator {
+            config: self.config.clone(),
+            blockifier_stateful_tx_validator,
+        })
+    }
+}
+
+pub trait StatefulTransactionValidatorTrait {
+    fn run_transaction_validations(
+        &mut self,
         executable_tx: &ExecutableTransaction,
         mempool_client: SharedMempoolClient,
-        mut validator: V,
+        runtime: tokio::runtime::Handle,
+    ) -> StatefulTransactionValidatorResult<Nonce>;
+}
+
+pub struct StatefulTransactionValidator<B: BlockifierStatefulValidatorTrait> {
+    config: StatefulTransactionValidatorConfig,
+    blockifier_stateful_tx_validator: B,
+}
+
+impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidatorTrait
+    for StatefulTransactionValidator<B>
+{
+    fn run_transaction_validations(
+        &mut self,
+        executable_tx: &ExecutableTransaction,
+        mempool_client: SharedMempoolClient,
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<Nonce> {
         let address = executable_tx.contract_address();
-        let account_nonce = validator.get_nonce(address).map_err(|e| {
-            error!("Failed to get nonce for sender address {}: {}", address, e);
-            // TODO(yair): Fix this. Need to map the errors better.
-            StarknetError::internal(&e.to_string())
-        })?;
-        self.validate_state_preconditions(executable_tx, account_nonce, &validator)?;
-        self.run_validate_entry_point(
-            executable_tx,
-            account_nonce,
-            mempool_client,
-            validator,
-            runtime,
-        )?;
+        let account_nonce =
+            self.blockifier_stateful_tx_validator.get_nonce(address).map_err(|e| {
+                error!("Failed to get nonce for sender address {}: {}", address, e);
+                // TODO(yair): Fix this. Need to map the errors better.
+                StarknetError::internal(&e.to_string())
+            })?;
+
+        self.validate_state_preconditions(executable_tx, account_nonce)?;
+        self.run_validate_entry_point(executable_tx, account_nonce, mempool_client, runtime)?;
         Ok(account_nonce)
     }
-
-    fn validate_state_preconditions<V: BlockifierStatefulValidatorTrait>(
+}
+impl<B: BlockifierStatefulValidatorTrait> StatefulTransactionValidator<B> {
+    fn validate_state_preconditions(
         &self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
-        validator: &V,
     ) -> StatefulTransactionValidatorResult<()> {
-        self.validate_resource_bounds(executable_tx, validator)?;
+        self.validate_resource_bounds(executable_tx)?;
         self.validate_nonce(executable_tx, account_nonce)?;
 
         Ok(())
     }
 
-    fn validate_resource_bounds<V: BlockifierStatefulValidatorTrait>(
+    fn validate_resource_bounds(
         &self,
         executable_tx: &ExecutableTransaction,
-        validator: &V,
     ) -> StatefulTransactionValidatorResult<()> {
         // Skip this validation during the systems bootstrap phase.
         if self.config.validate_resource_bounds {
             // TODO(Arni): getnext_l2_gas_price from the block header.
-            let previous_block_l2_gas_price =
-                validator.block_info().gas_prices.strk_gas_prices.l2_gas_price;
+            let previous_block_l2_gas_price = self
+                .blockifier_stateful_tx_validator
+                .block_info()
+                .gas_prices
+                .strk_gas_prices
+                .l2_gas_price;
             self.validate_tx_l2_gas_price_within_threshold(
                 executable_tx.resource_bounds(),
                 previous_block_l2_gas_price,
@@ -123,12 +173,11 @@ impl StatefulTransactionValidator {
     }
 
     #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
-    fn run_validate_entry_point<V: BlockifierStatefulValidatorTrait>(
-        &self,
+    fn run_validate_entry_point(
+        &mut self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
         mempool_client: SharedMempoolClient,
-        mut validator: V,
         runtime: tokio::runtime::Handle,
     ) -> StatefulTransactionValidatorResult<()> {
         let skip_validate =
@@ -140,38 +189,11 @@ impl StatefulTransactionValidator {
             ExecutionFlags { only_query, charge_fee, validate: !skip_validate, strict_nonce_check };
 
         let account_tx = AccountTransaction { tx: executable_tx.clone(), execution_flags };
-        validator.validate(account_tx).map_err(|e| StarknetError {
+        self.blockifier_stateful_tx_validator.validate(account_tx).map_err(|e| StarknetError {
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
             message: e.to_string(),
         })?;
         Ok(())
-    }
-
-    pub fn instantiate_validator(
-        &self,
-        state_reader_factory: &dyn StateReaderFactory,
-        chain_info: &ChainInfo,
-    ) -> StatefulTransactionValidatorResult<BlockifierStatefulValidator> {
-        // TODO(yael 6/5/2024): consider storing the block_info as part of the
-        // StatefulTransactionValidator and update it only once a new block is created.
-        let latest_block_info = get_latest_block_info(state_reader_factory)?;
-        let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
-        let state = CachedState::new(state_reader);
-        let versioned_constants = VersionedConstants::get_versioned_constants(
-            self.config.versioned_constants_overrides.clone(),
-        );
-        let mut block_info = latest_block_info;
-        block_info.block_number = block_info.block_number.unchecked_next();
-        // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
-        // able to read the block_hash of 10 blocks ago from papyrus.
-        let block_context = BlockContext::new(
-            block_info,
-            chain_info.clone(),
-            versioned_constants,
-            BouncerConfig::max(),
-        );
-
-        Ok(BlockifierStatefulValidator::create(state, block_context))
     }
 
     fn is_valid_nonce(&self, executable_tx: &ExecutableTransaction, account_nonce: Nonce) -> bool {
