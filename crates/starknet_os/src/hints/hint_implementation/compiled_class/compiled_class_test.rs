@@ -10,10 +10,10 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use expect_test::{expect, Expect};
 use log::info;
 use rstest::rstest;
+use starknet_api::contract_class::compiled_class_hash::COMPILED_CLASS_V1;
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::hint_implementation::compiled_class::implementation::COMPILED_CLASS_V1;
 use crate::hints::hint_implementation::compiled_class::utils::create_bytecode_segment_structure;
 use crate::hints::vars::{Const, Scope};
 use crate::test_utils::cairo_runner::{

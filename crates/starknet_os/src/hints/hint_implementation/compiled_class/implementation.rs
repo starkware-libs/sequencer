@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashMap};
-use std::sync::LazyLock;
 use std::vec::IntoIter;
 
 use blockifier::state::state_api::StateReader;
@@ -31,11 +30,6 @@ use crate::vm_utils::{
     CairoSized,
     LoadCairoObject,
 };
-
-// TODO(Aviv): Use the const from Cairo repo.
-#[allow(dead_code)]
-pub static COMPILED_CLASS_V1: LazyLock<Felt> =
-    LazyLock::new(|| Felt::from_bytes_be_slice(b"COMPILED_CLASS_V1"));
 
 pub(crate) fn assign_bytecode_segments(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let bytecode_segment_structure: BytecodeSegmentNode =
