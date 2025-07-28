@@ -41,9 +41,11 @@ fn test_zero_inputs() {
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
     // Should result in base cost gas only (no opcode gas).
-    let gas = cost_of_encode_felt252_data_and_calc_blake_hash(0, 0, |resources| {
-        vm_resources_to_sierra_gas(resources, VersionedConstants::latest_constants())
-    });
+    let gas = cost_of_encode_felt252_data_and_calc_blake_hash(
+        0,
+        0,
+        VersionedConstants::latest_constants(),
+    );
     let expected_gas = {
         let resources = ExecutionResources { n_steps: BASE_STEPS_FULL_MSG, ..Default::default() };
         vm_resources_to_sierra_gas(&resources, VersionedConstants::latest_constants())
