@@ -1,0 +1,13 @@
+name: Idan Test Workflow
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main-v0.14.0
+
+jobs:
+  test:
+    runs-on: gcp-spot-runner
+    steps:
+      - run: echo "Hello World"
