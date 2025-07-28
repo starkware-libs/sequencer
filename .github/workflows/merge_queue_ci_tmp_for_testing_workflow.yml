@@ -1,0 +1,68 @@
+name: Merge-queue-CI-Flow
+
+on:
+  push:
+    branches:
+      - main
+      - main-v[0-9].**
+    tags:
+      - v[0-9].**
+
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - auto_merge_enabled
+      - edited
+
+env:
+  CI: 1
+  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
+
+jobs:
+  check_logical_conflicts:
+    runs-on: starkware-ubuntu-24.04-large
+    steps:
+      # Environment setup.
+      - uses: actions/checkout@v4
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+          cache: 'pip'
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - run: pip install -r scripts/requirements.txt
+
+      # Install rust components.
+      - uses: ./.github/actions/bootstrap
+        with:
+          extra_rust_toolchains: ${{ env.EXTRA_RUST_TOOLCHAINS }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Check Cargo.lock is up to date.
+      - name: "Check Cargo.lock"
+        run: |
+          cargo update -w --locked
+          git diff --exit-code Cargo.lock
+
+      # Only run unit tests, which should run in <= 30s after compilation.
+      - name: "Run unit tests on merge queue"
+        run: |
+          cargo nextest run --lib \
+            -- \
+            --skip remote_component_client_server_test \
+            --skip deployment_definitions_test \
+            --skip transfers_flow_test \
+            --skip cairo_formatting_test
+
+      - name: "Run rustfmt on merge queue"
+        # The nightly here is coupled with the one in install_rust/action.yml.
+        # If we move the install here we can use a const.
+        run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check

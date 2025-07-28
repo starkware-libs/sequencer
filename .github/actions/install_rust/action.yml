@@ -17,7 +17,7 @@ runs:
       with:
         cache-base: main(-v[0-9].*)?
         inherit-toolchain: true
-        bins: taplo-cli@0.9.3, cargo-machete
+        bins: taplo-cli@0.9.3, cargo-machete, cargo-nextest
         # Install additional non-default toolchains (for rustfmt for example), NOP if input omitted.
         channel: ${{ inputs.extra_rust_toolchains }}
       env:
