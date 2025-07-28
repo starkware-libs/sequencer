@@ -466,28 +466,49 @@ pub fn blake_hash_execution_resources(
     ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter: builtins }
 }
 
-/// Estimates the VM resources for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
-/// Assumes small felts unpack into 2 u32s and big felts into 8 u32s, matching the logic of the OS
-/// function being estimated.
-/// TODO(AvivG): Consider evaluating the cost of `encode_felt252_to_u32s` and `blake_with_opcode`
-/// separately for better granularity.
+/// Estimates the L2 gas for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
+/// This includes:
+/// - ExecutionResources gas.
+/// - Blake opcode gas.
+///
+/// # Encoding Details
+/// - Small felts → 2 `u32`s each; Big felts → 8 `u32`s each.
+/// - Each felt requires one `range_check` operation.
+///
+/// # Compatibility Assumptions
+/// This function is used for both Stwo ("proving_gas") and Stone ("sierra_gas") gas estimation.
+/// This unified logic is valid here because the only builtin involved is `range_check`, which has
+/// the same cost in both provers (see use in `bouncer.get_tx_weights`).
+///
+/// TODO(AvivG): Consider separating `encode_felt252_to_u32s` and `blake_with_opcode` costs
+/// for improved granularity and testability.
 pub fn cost_of_encode_felt252_data_and_calc_blake_hash<F>(
     n_big_felts: usize,
     n_small_felts: usize,
+    // TODO(AvivG): Replace this argument with a `VersionedConstants` reference and use
+    // `vm_resources_to_sierra_gas` instead.
     resources_to_gas_fn: F,
 ) -> GasAmount
 where
     F: Fn(&ExecutionResources) -> GasAmount,
 {
-    let resources = blake_hash_execution_resources(n_big_felts, n_small_felts);
-    let gas = resources_to_gas_fn(&resources);
+    let vm_resources = blake_hash_execution_resources(n_big_felts, n_small_felts);
 
-    let blake_op_count = count_blake_opcode(n_big_felts, n_small_felts);
-    let blake_op_gas = blake_op_count
+    assert!(
+        vm_resources.builtin_instance_counter.keys().eq([BuiltinName::range_check].iter()),
+        "Expected only `range_check` builtin, got: {:?}. This breaks the assumption that builtin \
+         costs are identical between provers.",
+        vm_resources.builtin_instance_counter.keys().collect::<Vec<_>>()
+    );
+
+    let vm_gas = resources_to_gas_fn(&vm_resources);
+
+    let blake_opcode_count = count_blake_opcode(n_big_felts, n_small_felts);
+    let blake_opcode_gas = blake_opcode_count
         .checked_mul(blake_estimation::BLAKE_OPCODE_GAS)
         .map(u64_from_usize)
         .map(GasAmount)
         .expect("Overflow computing Blake opcode gas.");
 
-    gas.checked_add_panic_on_overflow(blake_op_gas)
+    vm_gas.checked_add_panic_on_overflow(blake_opcode_gas)
 }
