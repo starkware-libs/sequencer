@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs::File;
 
+use apollo_config::validators::config_validate;
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -102,7 +103,7 @@ fn load_and_process_service_config_files() {
             config_load_command.extend(config_file_args);
             let load_result = SequencerNodeConfig::load_and_process(config_load_command);
 
-            load_result.unwrap_or_else(|err| {
+            let mut loaded_config = load_result.unwrap_or_else(|err| {
                 panic!(
                     "Loading deployment in path {:?} with application config files {:?}\nResulted \
                      in error: {}",
@@ -111,6 +112,14 @@ fn load_and_process_service_config_files() {
                     err
                 );
             });
+
+            // The config files are set with the actual service host names, which are not
+            // DNS-resolvable in the test setting. As such, we set all host names to
+            // localhost to allow successful validation.
+            loaded_config.components.set_urls_to_localhost();
+            if let Err(error) = config_validate(&loaded_config) {
+                panic!("Config validation failed: {}", error);
+            }
         }
     }
 }
