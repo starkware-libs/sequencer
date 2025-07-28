@@ -334,8 +334,8 @@ impl ServiceNameInner for HybridNodeServiceName {
                         | ComponentConfigInService::StateSync => {
                             components.insert(component_config_in_service);
                         }
-                        ComponentConfigInService::Gateway
-                        | ComponentConfigInService::BaseLayer
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Gateway
                         | ComponentConfigInService::HttpServer
                         | ComponentConfigInService::L1EndpointMonitor
                         | ComponentConfigInService::L1GasPriceProvider
