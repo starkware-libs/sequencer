@@ -29,7 +29,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
-        "ConsensusManager": 53080,
+        "ConsensusP2p": 53080,
         "HttpServer": 8080,
         "MempoolP2p": 53200,
         "MonitoringEndpoint": 8082

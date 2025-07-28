@@ -93,7 +93,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
-        "ConsensusManager": 53080,
+        "ConsensusP2p": 53080,
         "MonitoringEndpoint": 8082
       }
     },

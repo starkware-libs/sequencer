@@ -328,7 +328,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         )
                         | ServicePort::Infra(InfraServicePort::Batcher)
                         | ServicePort::Infra(InfraServicePort::ClassManager)
-                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusP2p)
                         | ServicePort::Infra(InfraServicePort::StateSync) => {
                             service_ports.insert(service_port);
                         }
@@ -356,7 +356,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         }
                         ServicePort::Infra(InfraServicePort::Batcher)
                         | ServicePort::Infra(InfraServicePort::ClassManager)
-                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusP2p)
                         | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
                         | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
                         | ServicePort::Infra(InfraServicePort::L1Provider)
@@ -381,7 +381,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
                         | ServicePort::Infra(InfraServicePort::Batcher)
                         | ServicePort::Infra(InfraServicePort::ClassManager)
-                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusP2p)
                         | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
                         | ServicePort::Infra(InfraServicePort::L1GasPriceProvider)
                         | ServicePort::Infra(InfraServicePort::L1Provider)
@@ -407,7 +407,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
                         | ServicePort::Infra(InfraServicePort::Batcher)
                         | ServicePort::Infra(InfraServicePort::ClassManager)
-                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusP2p)
                         | ServicePort::Infra(InfraServicePort::StateSync)
                         | ServicePort::Infra(InfraServicePort::Mempool)
                         | ServicePort::Infra(InfraServicePort::Gateway)
@@ -427,7 +427,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             service_ports.insert(service_port);
                         }
                         ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
-                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusP2p)
                         | ServicePort::Infra(InfraServicePort::Batcher)
                         | ServicePort::Infra(InfraServicePort::ClassManager)
                         | ServicePort::Infra(InfraServicePort::L1EndpointMonitor)
@@ -451,7 +451,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             service_ports.insert(service_port);
                         }
                         ServicePort::BusinessLogic(BusinessLogicServicePort::HttpServer)
-                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusManager)
+                        | ServicePort::BusinessLogic(BusinessLogicServicePort::ConsensusP2p)
                         | ServicePort::BusinessLogic(BusinessLogicServicePort::MempoolP2p)
                         | ServicePort::Infra(InfraServicePort::Batcher)
                         | ServicePort::Infra(InfraServicePort::ClassManager)
