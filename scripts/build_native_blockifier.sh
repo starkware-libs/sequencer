@@ -66,7 +66,7 @@ function build() {
     # Build with cairo_native feature
     cargo build --release -p native_blockifier --features "cairo_native" || ret=$?
 
-    # Binaries are now available via PATH - no copying needed
+    # Binary is available at $HOME/.cargo/bin/starknet-native-compile
 
     clean
     return $ret

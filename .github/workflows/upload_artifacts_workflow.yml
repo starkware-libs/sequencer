@@ -135,5 +135,5 @@ jobs:
         id: upload_snc_file
         uses: "google-github-actions/upload-cloud-storage@v2"
         with:
-          path: "target/release/starknet-native-compile"
+          path: "${{ env.HOME }}/.cargo/bin/starknet-native-compile"
           destination: "native_blockifier_artifacts/${{ env.SHORT_HASH }}/release/"
