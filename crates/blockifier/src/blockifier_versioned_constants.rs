@@ -78,6 +78,7 @@ pub struct RawVersionedConstants {
     pub ignore_inner_event_resources: bool,
     pub disable_deploy_in_validation_mode: bool,
     pub enable_reverts: bool,
+    pub enable_casm_hash_migration: bool,
     pub min_sierra_version_for_sierra_gas: SierraVersion,
     pub enable_tip: bool,
     pub segment_arena_cells: bool,
@@ -249,6 +250,7 @@ pub struct VersionedConstants {
 
     // Compiler settings.
     pub enable_reverts: bool,
+    pub enable_casm_hash_migration: bool,
 
     // Cairo OS constants.
     // Note: if loaded from a json file, there are some assumptions made on its structure.
@@ -289,6 +291,7 @@ impl From<RawVersionedConstants> for VersionedConstants {
             ignore_inner_event_resources: raw_vc.ignore_inner_event_resources,
             disable_deploy_in_validation_mode: raw_vc.disable_deploy_in_validation_mode,
             enable_reverts: raw_vc.enable_reverts,
+            enable_casm_hash_migration: raw_vc.enable_casm_hash_migration,
             os_constants: Arc::new(os_constants),
             vm_resource_fee_cost: Arc::new(raw_vc.vm_resource_fee_cost),
             enable_tip: raw_vc.enable_tip,
