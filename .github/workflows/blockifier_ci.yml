@@ -17,7 +17,6 @@ on:
       - opened
       - reopened
       - synchronize
-      - auto_merge_enabled
       - edited
     paths:
       # Other than code-related changes, all changes related to the native-blockifier build-and-push

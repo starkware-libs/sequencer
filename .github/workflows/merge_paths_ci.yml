@@ -6,7 +6,6 @@ on:
       - opened
       - reopened
       - synchronize
-      - auto_merge_enabled
       - edited
     paths:
       - '.github/workflows/merge_paths_ci.yml'
