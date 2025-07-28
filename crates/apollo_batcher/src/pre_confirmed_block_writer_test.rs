@@ -263,3 +263,61 @@ async fn test_preconfirmed_before_candidate_no_extra_write() {
 
     assert_matches!(writer_task.await, Ok(Ok(())));
 }
+
+#[tokio::test]
+async fn test_channels_closed_with_pending_changes() {
+    let tx_hash = tx_hash!(1);
+    let internal_consensus_tx = create_test_internal_consensus_tx(tx_hash);
+    let mut mock_client = MockPreconfirmedCendeClientTrait::new();
+
+    // Expect first call with empty transactions (write_iteration 0)
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .withf(|block| {
+            block.write_iteration == 0 && block.pre_confirmed_block.transactions.is_empty()
+        })
+        .returning(|_| Box::pin(async { Ok(()) }));
+
+    let expected_candidate_tx = CendePreconfirmedTransaction::from(internal_consensus_tx.clone());
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .withf(move |block| {
+            block.write_iteration == 1
+                && block.pre_confirmed_block.transactions.len() == 1
+                && block.pre_confirmed_block.transactions[0] == expected_candidate_tx
+                && block.pre_confirmed_block.transaction_receipts.len() == 1
+                && block.pre_confirmed_block.transaction_receipts[0].is_none()
+                && block.pre_confirmed_block.transaction_state_diffs.len() == 1
+                && block.pre_confirmed_block.transaction_state_diffs[0].is_none()
+        })
+        .returning(|_| Box::pin(async { Ok(()) }));
+
+    // Use large write interval to prevent timer-triggered writes
+    let config = PreconfirmedBlockWriterConfig {
+        channel_buffer_capacity: 10,
+        write_block_interval_millis: u64::MAX,
+    };
+
+    let factory = PreconfirmedBlockWriterFactory { config, cende_client: Arc::new(mock_client) };
+
+    let (mut writer, candidate_tx_sender, preconfirmed_tx_sender) =
+        factory.create(BlockNumber(TEST_BLOCK_NUMBER), TEST_ROUND, create_test_block_metadata());
+
+    let writer_task = task::spawn(async move { writer.run().await });
+
+    // Wait for initial empty write
+    let short_sleep = Duration::from_millis(1);
+    tokio::time::sleep(short_sleep).await;
+
+    // Send candidate transaction and close channels to signal that current block build is complete
+    // and it should exit.
+    candidate_tx_sender.send(vec![internal_consensus_tx]).await.unwrap();
+    tokio::time::sleep(short_sleep).await;
+
+    drop(candidate_tx_sender);
+    drop(preconfirmed_tx_sender);
+
+    assert_matches!(writer_task.await, Ok(Ok(())));
+}
