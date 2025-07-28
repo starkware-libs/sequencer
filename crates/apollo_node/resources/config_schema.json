@@ -1,4 +1,9 @@
 {
+  "base_layer_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "base_layer_config.node_url": {
     "description": "Initial ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. May be be replaced during runtime if becomes inoperative",
     "privacy": "Private",
@@ -18,6 +23,11 @@
     "description": "The timeout (milliseconds) for a query of the L1 base layer",
     "privacy": "Public",
     "value": 1000
+  },
+  "batcher_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "batcher_config.block_builder_config.bouncer_config.block_max_capacity.l1_gas": {
     "description": "An upper bound on the total l1_gas used in a block.",
@@ -87,7 +97,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.pedersen": {
     "description": "Pedersen gas weight.",
     "privacy": "Public",
-    "value": 10125
+    "value": 4769
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.poseidon": {
     "description": "Poseidon gas weight.",
@@ -202,7 +212,7 @@
   "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time": {
     "description": "Limitation of compilation cpu time (seconds).",
     "privacy": "Public",
-    "value": 20
+    "value": 600
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_cpu_time.#is_none": {
     "description": "Flag for an optional field.",
@@ -212,7 +222,7 @@
   "batcher_config.contract_class_manager_config.native_compiler_config.max_file_size": {
     "description": "Limitation of compiled Cairo Native file size (bytes).",
     "privacy": "Public",
-    "value": 15728640
+    "value": 52428800
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_file_size.#is_none": {
     "description": "Flag for an optional field.",
@@ -222,7 +232,7 @@
   "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage": {
     "description": "Limitation of compilation process's virtual memory (bytes).",
     "privacy": "Public",
-    "value": 5368709120
+    "value": 16106127360
   },
   "batcher_config.contract_class_manager_config.native_compiler_config.max_memory_usage.#is_none": {
     "description": "Flag for an optional field.",
@@ -319,6 +329,11 @@
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
+  "class_manager_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "class_manager_config.class_manager_config.cached_class_storage_config.class_cache_size": {
     "description": "Contract classes cache size.",
     "privacy": "Public",
@@ -383,21 +398,6 @@
     "description": "Path to the node's class storage directory.",
     "privacy": "Public",
     "value": "/data/classes"
-  },
-  "compiler_config.max_bytecode_size": {
-    "description": "Limitation of compiled CASM bytecode size (felts).",
-    "privacy": "Public",
-    "value": 81920
-  },
-  "compiler_config.max_memory_usage": {
-    "description": "Limitation of compilation process's virtual memory (bytes).",
-    "privacy": "Public",
-    "value": 5368709120
-  },
-  "compiler_config.max_memory_usage.#is_none": {
-    "description": "Flag for an optional field.",
-    "privacy": "TemporaryValue",
-    "value": false
   },
   "components.batcher.execution_mode": {
     "description": "The component execution mode.",
@@ -974,6 +974,11 @@
     "privacy": "Public",
     "value": "localhost"
   },
+  "consensus_manager_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "consensus_manager_config.assume_no_malicious_validators": {
     "description": "Assumes all validators are honest. If true, uses 1/2 votes to get quorum. Use with caution!",
     "privacy": "Public",
@@ -999,47 +1004,47 @@
     "privacy": "TemporaryValue",
     "value": true
   },
-  "consensus_manager_config.consensus_config.future_height_limit": {
+  "consensus_manager_config.consensus_manager_config.future_height_limit": {
     "description": "How many heights in the future should we cache.",
     "privacy": "Public",
     "value": 10
   },
-  "consensus_manager_config.consensus_config.future_height_round_limit": {
+  "consensus_manager_config.consensus_manager_config.future_height_round_limit": {
     "description": "How many rounds should we cache for future heights.",
     "privacy": "Public",
     "value": 1
   },
-  "consensus_manager_config.consensus_config.future_round_limit": {
+  "consensus_manager_config.consensus_manager_config.future_round_limit": {
     "description": "How many rounds in the future (for current height) should we cache.",
     "privacy": "Public",
     "value": 10
   },
-  "consensus_manager_config.consensus_config.startup_delay": {
+  "consensus_manager_config.consensus_manager_config.startup_delay": {
     "description": "Delay (seconds) before starting consensus to give time for network peering.",
     "privacy": "Public",
     "value": 5
   },
-  "consensus_manager_config.consensus_config.sync_retry_interval": {
+  "consensus_manager_config.consensus_manager_config.sync_retry_interval": {
     "description": "The duration (seconds) between sync attempts.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_config.timeouts.precommit_timeout": {
+  "consensus_manager_config.consensus_manager_config.timeouts.precommit_timeout": {
     "description": "The timeout (seconds) for a precommit.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_config.timeouts.prevote_timeout": {
+  "consensus_manager_config.consensus_manager_config.timeouts.prevote_timeout": {
     "description": "The timeout (seconds) for a prevote.",
     "privacy": "Public",
     "value": 1.0
   },
-  "consensus_manager_config.consensus_config.timeouts.proposal_timeout": {
+  "consensus_manager_config.consensus_manager_config.timeouts.proposal_timeout": {
     "description": "The timeout (seconds) for a proposal.",
     "privacy": "Public",
     "value": 3.0
   },
-  "consensus_manager_config.consensus_config.validator_id": {
+  "consensus_manager_config.consensus_manager_config.validator_id": {
     "description": "The validator id of the node.",
     "pointer_target": "validator_id",
     "privacy": "Public"
@@ -1264,6 +1269,11 @@
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
   },
+  "gateway_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "gateway_config.authorized_declarer_accounts": {
     "description": "Authorized declarer accounts. If set, only these accounts can declare new contracts. Addresses are in hex format and separated by a comma with no space.",
     "privacy": "Public",
@@ -1314,10 +1324,10 @@
     "privacy": "Public",
     "value": true
   },
-  "gateway_config.stateful_tx_validator_config.validate_resource_bounds_above_threshold": {
-    "description": "If true, ensures the L2 gas price exceeds a dynamically calculated threshold based on EIP-1559 network usage.",
-    "privacy": "Public",
-    "value": true
+  "gateway_config.stateful_tx_validator_config.validate_resource_bounds": {
+    "description": "If true, ensures the max L2 gas price exceeds (a configurable percentage of) the base gas price of the previous block.",
+    "pointer_target": "validate_resource_bounds",
+    "privacy": "Public"
   },
   "gateway_config.stateful_tx_validator_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
@@ -1394,10 +1404,15 @@
     "privacy": "Public",
     "value": 0
   },
-  "gateway_config.stateless_tx_validator_config.validate_non_zero_resource_bounds": {
-    "description": "If true, validates that at least one resource bound (L1, L2, or L1 Data) is non-zero.",
-    "privacy": "Public",
-    "value": true
+  "gateway_config.stateless_tx_validator_config.validate_resource_bounds": {
+    "description": "If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.",
+    "pointer_target": "validate_resource_bounds",
+    "privacy": "Public"
+  },
+  "http_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "http_server_config.ip": {
     "description": "The http server ip.",
@@ -1409,10 +1424,25 @@
     "privacy": "Public",
     "value": 8080
   },
+  "l1_endpoint_monitor_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "l1_endpoint_monitor_config.ordered_l1_endpoint_urls": {
     "description": "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the current one is non-operational.",
     "privacy": "Private",
     "value": "https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY"
+  },
+  "l1_endpoint_monitor_config.timeout_millis": {
+    "description": "The timeout (milliseconds) for a query of the L1 base layer",
+    "privacy": "Public",
+    "value": 1000
+  },
+  "l1_gas_price_provider_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "l1_gas_price_provider_config.lag_margin_seconds": {
     "description": "Difference between the time of the block from L1 used to calculate the gas price and the time of the L2 block this price is used in",
@@ -1433,6 +1463,11 @@
     "description": "Maximum number of L1 blocks to keep cached",
     "privacy": "Public",
     "value": 3000
+  },
+  "l1_gas_price_scraper_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "l1_gas_price_scraper_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id",
@@ -1469,6 +1504,11 @@
     "privacy": "Public",
     "value": 2
   },
+  "l1_provider_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "l1_provider_config.bootstrap_catch_up_height_override": {
     "description": "Override height at which the provider should catch up to the bootstrapper.",
     "privacy": "Public",
@@ -1504,6 +1544,11 @@
     "privacy": "Public",
     "value": 2
   },
+  "l1_scraper_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "l1_scraper_config.chain_id": {
     "description": "The chain to follow. For more details see https://docs.starknet.io/documentation/architecture_and_concepts/Blocks/transactions/#chain-id.",
     "pointer_target": "chain_id",
@@ -1523,6 +1568,11 @@
     "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
     "privacy": "Public",
     "value": 3600
+  },
+  "mempool_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "mempool_config.capacity_in_bytes": {
     "description": "Maximum size of the mempool, in bytes.",
@@ -1549,15 +1599,20 @@
     "privacy": "Public",
     "value": 10
   },
-  "mempool_config.override_gas_price_threshold_check": {
-    "description": "If true, transactions with max L2 gas price per unit bound that are less than the threshold are still inserted into the priority queue.",
-    "privacy": "Public",
-    "value": false
-  },
   "mempool_config.transaction_ttl": {
     "description": "Time-to-live for transactions in the mempool, in seconds.",
     "privacy": "Public",
     "value": 60
+  },
+  "mempool_config.validate_resource_bounds": {
+    "description": "If true, only transactions with max L2 gas price per unit bound that are above the threshold are inserted into the priority queue. If false, all transactions are inserted into the priority queue.",
+    "pointer_target": "validate_resource_bounds",
+    "privacy": "Public"
+  },
+  "mempool_p2p_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "mempool_p2p_config.max_transaction_batch_size": {
     "description": "Maximum number of transactions in each batch.",
@@ -1669,6 +1724,11 @@
     "privacy": "Public",
     "value": true
   },
+  "monitoring_endpoint_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "monitoring_endpoint_config.collect_metrics": {
     "description": "If true, collect and return metrics in the monitoring endpoint.",
     "privacy": "Public",
@@ -1704,10 +1764,35 @@
     "privacy": "TemporaryValue",
     "value": false
   },
+  "sierra_compiler_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
+  "sierra_compiler_config.max_bytecode_size": {
+    "description": "Limitation of compiled CASM bytecode size (felts).",
+    "privacy": "Public",
+    "value": 81920
+  },
+  "sierra_compiler_config.max_memory_usage": {
+    "description": "Limitation of compilation process's virtual memory (bytes).",
+    "privacy": "Public",
+    "value": 5368709120
+  },
+  "sierra_compiler_config.max_memory_usage.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "starknet_url": {
     "description": "URL for communicating with Starknet.",
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
+  },
+  "state_sync_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
   },
   "state_sync_config.central_sync_client_config.#is_none": {
     "description": "Flag for an optional field.",
@@ -2063,6 +2148,11 @@
     "description": "Address of the STRK fee token.",
     "privacy": "TemporaryValue",
     "value": "PointerTarget"
+  },
+  "validate_resource_bounds": {
+    "description": "Indicates that validations related to resource bounds are applied. It should be set to false during a system bootstrap.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "validator_id": {
     "description": "The ID of the validator. Also the address of this validator as a starknet contract.",

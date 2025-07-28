@@ -4,11 +4,11 @@ use apollo_compilation_utils::compiler_utils::compile_with_args;
 use apollo_compilation_utils::errors::CompilationUtilError;
 use apollo_compilation_utils::paths::binary_path;
 use apollo_compilation_utils::resource_limits::ResourceLimits;
+use apollo_compile_to_native_types::SierraCompilationConfig;
 use cairo_lang_starknet_classes::contract_class::ContractClass;
 use cairo_native::executor::AotContractExecutor;
 use tempfile::NamedTempFile;
 
-use crate::config::SierraCompilationConfig;
 use crate::constants::CAIRO_NATIVE_BINARY_NAME;
 
 #[derive(Clone)]
@@ -50,7 +50,9 @@ impl SierraToNativeCompiler {
             resource_limits,
         )?;
 
-        Ok(AotContractExecutor::from_path(Path::new(&output_file_path))?.unwrap())
+        Ok(AotContractExecutor::from_path(Path::new(&output_file_path))
+            .map_err(|e| CompilationUtilError::CompilationError(e.to_string()))?
+            .unwrap())
     }
 }
 

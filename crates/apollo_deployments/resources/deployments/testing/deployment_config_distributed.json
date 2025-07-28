@@ -5,7 +5,11 @@
       "name": "Batcher",
       "controller": "StatefulSet",
       "config_paths": [
-        "base_app_config.json",
+        "app_configs/batcher_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
         "services/distributed/batcher.json"
@@ -37,7 +41,11 @@
       "name": "ClassManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "base_app_config.json",
+        "app_configs/class_manager_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
         "services/distributed/class_manager.json"
@@ -69,7 +77,11 @@
       "name": "ConsensusManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "base_app_config.json",
+        "app_configs/consensus_manager_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
         "services/distributed/consensus_manager.json"
@@ -101,7 +113,11 @@
       "name": "HttpServer",
       "controller": "Deployment",
       "config_paths": [
-        "base_app_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/http_server_config.json",
+        "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
         "services/distributed/http_server.json"
@@ -144,7 +160,11 @@
       "name": "Gateway",
       "controller": "Deployment",
       "config_paths": [
-        "base_app_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/gateway_config.json",
+        "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
         "services/distributed/gateway.json"
@@ -176,7 +196,15 @@
       "name": "L1",
       "controller": "Deployment",
       "config_paths": [
-        "base_app_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/l1_endpoint_monitor_config.json",
+        "app_configs/l1_gas_price_provider_config.json",
+        "app_configs/l1_gas_price_scraper_config.json",
+        "app_configs/l1_provider_config.json",
+        "app_configs/l1_scraper_config.json",
+        "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
         "services/distributed/l1.json"
@@ -210,7 +238,12 @@
       "name": "Mempool",
       "controller": "Deployment",
       "config_paths": [
-        "base_app_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/mempool_config.json",
+        "app_configs/mempool_p2p_config.json",
+        "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
         "services/distributed/mempool.json"
@@ -242,7 +275,11 @@
       "name": "SierraCompiler",
       "controller": "Deployment",
       "config_paths": [
-        "base_app_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "app_configs/sierra_compiler_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
         "services/distributed/sierra_compiler.json"
@@ -306,7 +343,11 @@
       "name": "StateSync",
       "controller": "StatefulSet",
       "config_paths": [
-        "base_app_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "app_configs/state_sync_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
         "services/distributed/state_sync.json"

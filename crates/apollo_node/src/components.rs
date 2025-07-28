@@ -61,10 +61,15 @@ pub async fn create_node_components(
     config: &SequencerNodeConfig,
     clients: &SequencerNodeClients,
 ) -> SequencerNodeComponents {
+    // TODO(tsabary): consider moving ownership of component configs to the components themselves
+    // instead of cloning them and retaining ownership. Alternatively, consider passing references
+    // to the components instead.
     info!("Creating node components.");
     let batcher = match config.components.batcher.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let batcher_config =
+                config.batcher_config.as_ref().expect("Batcher config should be set");
             let mempool_client =
                 clients.get_mempool_shared_client().expect("Mempool Client should be available");
             let l1_provider_client = clients
@@ -74,28 +79,36 @@ pub async fn create_node_components(
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
             let pre_confirmed_cende_client = std::sync::Arc::new(PreconfirmedCendeClient::new(
-                config.batcher_config.pre_confirmed_cende_config.clone(),
+                batcher_config.pre_confirmed_cende_config.clone(),
             ));
             Some(create_batcher(
-                config.batcher_config.clone(),
+                batcher_config.clone(),
                 mempool_client,
                 l1_provider_client,
                 class_manager_client,
                 pre_confirmed_cende_client,
             ))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
 
     let class_manager = match config.components.class_manager.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let class_manager_config =
+                config.class_manager_config.as_ref().expect("Class Manager config should be set");
             let compiler_shared_client = clients
                 .get_sierra_compiler_shared_client()
                 .expect("Sierra Compiler Client should be available");
-            Some(create_class_manager(config.class_manager_config.clone(), compiler_shared_client))
+            Some(create_class_manager(class_manager_config.clone(), compiler_shared_client))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
 
     let signature_manager = match config.components.signature_manager.execution_mode {
@@ -108,6 +121,10 @@ pub async fn create_node_components(
 
     let consensus_manager = match config.components.consensus_manager.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
+            let consensus_manager_config = config
+                .consensus_manager_config
+                .as_ref()
+                .expect("Consensus Manager config should be set");
             let batcher_client =
                 clients.get_batcher_shared_client().expect("Batcher Client should be available");
             let state_sync_client = clients
@@ -123,7 +140,7 @@ pub async fn create_node_components(
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price shared client should be available");
             Some(ConsensusManager::new(
-                config.consensus_manager_config.clone(),
+                consensus_manager_config.clone(),
                 batcher_client,
                 state_sync_client,
                 class_manager_client,
@@ -131,11 +148,16 @@ pub async fn create_node_components(
                 l1_gas_price_client,
             ))
         }
-        ActiveComponentExecutionMode::Disabled => None,
+        ActiveComponentExecutionMode::Disabled => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
     let gateway = match config.components.gateway.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let gateway_config =
+                config.gateway_config.as_ref().expect("Gateway config should be set");
             let mempool_client =
                 clients.get_mempool_shared_client().expect("Mempool Client should be available");
             let state_sync_client = clients
@@ -145,7 +167,7 @@ pub async fn create_node_components(
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
             Some(create_gateway(
-                config.gateway_config.clone(),
+                gateway_config.clone(),
                 state_sync_client,
                 mempool_client,
                 class_manager_client,
@@ -156,18 +178,25 @@ pub async fn create_node_components(
     };
     let http_server = match config.components.http_server.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
+            let http_server_config =
+                config.http_server_config.as_ref().expect("HTTP Server config should be set");
             let gateway_client =
                 clients.get_gateway_shared_client().expect("Gateway Client should be available");
 
-            Some(create_http_server(config.http_server_config.clone(), gateway_client))
+            Some(create_http_server(http_server_config.clone(), gateway_client))
         }
-        ActiveComponentExecutionMode::Disabled => None,
+        ActiveComponentExecutionMode::Disabled => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
 
     let (mempool_p2p_propagator, mempool_p2p_runner) =
         match config.components.mempool_p2p.execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+                let mempool_p2p_config =
+                    config.mempool_p2p_config.as_ref().expect("Mempool P2P config should be set");
                 let gateway_client = clients
                     .get_gateway_shared_client()
                     .expect("Gateway Client should be available");
@@ -178,7 +207,7 @@ pub async fn create_node_components(
                     .get_mempool_p2p_propagator_shared_client()
                     .expect("Mempool P2p Propagator Client should be available");
                 let (mempool_p2p_propagator, mempool_p2p_runner) = create_p2p_propagator_and_runner(
-                    config.mempool_p2p_config.clone(),
+                    mempool_p2p_config.clone(),
                     gateway_client,
                     class_manager_client,
                     mempool_p2p_propagator_client,
@@ -186,6 +215,7 @@ pub async fn create_node_components(
                 (Some(mempool_p2p_propagator), Some(mempool_p2p_runner))
             }
             ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                // TODO(tsabary): assert config is not set.
                 (None, None)
             }
         };
@@ -193,18 +223,27 @@ pub async fn create_node_components(
     let mempool = match config.components.mempool.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let mempool_config =
+                config.mempool_config.as_ref().expect("Mempool config should be set");
             let mempool_p2p_propagator_client = clients
                 .get_mempool_p2p_propagator_shared_client()
                 .expect("Propagator Client should be available");
-            let mempool =
-                create_mempool(config.mempool_config.clone(), mempool_p2p_propagator_client);
+            let mempool = create_mempool(mempool_config.clone(), mempool_p2p_propagator_client);
             Some(mempool)
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
 
     let monitoring_endpoint = match config.components.monitoring_endpoint.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
+            let monitoring_endpoint_config = config
+                .monitoring_endpoint_config
+                .as_ref()
+                .expect("Monitoring Endpoint config should be set");
+
             let mempool_client = match config.components.mempool.execution_mode {
                 ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
                 | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
@@ -228,64 +267,82 @@ pub async fn create_node_components(
             };
 
             Some(create_monitoring_endpoint(
-                config.monitoring_endpoint_config.clone(),
+                monitoring_endpoint_config.clone(),
                 VERSION_FULL,
                 mempool_client,
                 l1_provider_client,
             ))
         }
-        ActiveComponentExecutionMode::Disabled => None,
+        ActiveComponentExecutionMode::Disabled => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
 
     let (state_sync, state_sync_runner) = match config.components.state_sync.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let state_sync_config =
+                config.state_sync_config.as_ref().expect("State Sync config should be set");
             let class_manager_client = clients
                 .get_class_manager_shared_client()
                 .expect("Class Manager Client should be available");
-            let (state_sync, state_sync_runner) = create_state_sync_and_runner(
-                config.state_sync_config.clone(),
-                class_manager_client,
-            );
+            let (state_sync, state_sync_runner) =
+                create_state_sync_and_runner(state_sync_config.clone(), class_manager_client);
             (Some(state_sync), Some(state_sync_runner))
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            // TODO(tsabary): assert config is not set.
             (None, None)
         }
     };
 
     let l1_endpoint_monitor = match config.components.l1_endpoint_monitor.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
-        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => Some(
-            L1EndpointMonitor::new(
-                config.l1_endpoint_monitor_config.clone(),
-                &config.base_layer_config.node_url,
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let base_layer_config =
+                config.base_layer_config.as_ref().expect("Base Layer config should be set");
+            let l1_endpoint_monitor_config = config
+                .l1_endpoint_monitor_config
+                .as_ref()
+                .expect("L1 Endpoint Monitor config should be set");
+            Some(
+                L1EndpointMonitor::new(
+                    l1_endpoint_monitor_config.clone(),
+                    &base_layer_config.node_url,
+                )
+                .unwrap(),
             )
-            .unwrap(),
-        ),
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        }
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
 
     let l1_scraper = match config.components.l1_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
+            let base_layer_config =
+                config.base_layer_config.as_ref().expect("Base Layer config should be set");
+            let l1_scraper_config =
+                config.l1_scraper_config.as_ref().expect("L1 Scraper config should be set");
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
-            let l1_scraper_config = config.l1_scraper_config.clone();
-            let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
-            let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config)
+            let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+            let l1_start_block = fetch_start_block(&base_layer, l1_scraper_config)
                 .await
                 .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
 
             let monitored_base_layer = MonitoredEthereumBaseLayer::new(
                 base_layer,
                 l1_endpoint_monitor_client,
-                config.base_layer_config.node_url.clone(),
+                base_layer_config.node_url.clone(),
             );
 
             Some(
                 L1Scraper::new(
-                    l1_scraper_config,
+                    l1_scraper_config.clone(),
                     l1_provider_client,
                     monitored_base_layer,
                     event_identifiers_to_track(),
@@ -295,7 +352,10 @@ pub async fn create_node_components(
                 .unwrap(),
             )
         }
-        ActiveComponentExecutionMode::Disabled => None,
+        ActiveComponentExecutionMode::Disabled => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
 
     // Must be initialized after the l1 scraper, since the provider's (L2) startup height is derived
@@ -303,8 +363,12 @@ pub async fn create_node_components(
     let l1_provider = match config.components.l1_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
+            let base_layer_config =
+                config.base_layer_config.as_ref().expect("Base Layer config should be set");
+            let l1_provider_config =
+                config.l1_provider_config.expect("L1 Provider config should be set");
             let mut l1_provider_builder = L1ProviderBuilder::new(
-                config.l1_provider_config,
+                l1_provider_config,
                 clients.get_l1_provider_shared_client().unwrap(),
                 clients.get_batcher_shared_client().unwrap(),
                 clients.get_state_sync_shared_client().unwrap(),
@@ -312,8 +376,7 @@ pub async fn create_node_components(
             match &l1_scraper {
                 Some(l1_scraper) => {
                     let l1_scraper_start_l1_height = l1_scraper.last_l1_block_processed.number;
-                    let base_layer =
-                        EthereumBaseLayerContract::new(config.base_layer_config.clone());
+                    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
                     let scraper_synced_startup_height = base_layer
                         .get_proved_block_at(l1_scraper_start_l1_height)
                         .await
@@ -354,18 +417,17 @@ pub async fn create_node_components(
 
                     // Helps keep override use more structured, prevents bugs.
                     assert!(
-                        config
-                            .l1_provider_config
+                        l1_provider_config
                             .provider_startup_height_override
-                            .xor(config.l1_provider_config.bootstrap_catch_up_height_override)
+                            .xor(l1_provider_config.bootstrap_catch_up_height_override)
                             .is_none(),
                         "Configuration error: overriding only one of startup_height={startup:?} \
                          or catchup_height={catchup:?} is not supported in l1 provider's dummy \
                          mode. Either set neither (this is the preferred way) which sets both \
                          values to the batcher height, or set both if you have a specific startup \
                          flow in mind.",
-                        startup = config.l1_provider_config.provider_startup_height_override,
-                        catchup = config.l1_provider_config.bootstrap_catch_up_height_override
+                        startup = l1_provider_config.provider_startup_height_override,
+                        catchup = l1_provider_config.bootstrap_catch_up_height_override
                     );
                     Some(
                         l1_provider_builder
@@ -376,46 +438,71 @@ pub async fn create_node_components(
                 }
             }
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
 
     let l1_gas_price_provider = match config.components.l1_gas_price_provider.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(L1GasPriceProvider::new(config.l1_gas_price_provider_config.clone()))
+            let l1_gas_price_provider_config = config
+                .l1_gas_price_provider_config
+                .as_ref()
+                .expect("L1 Gas Price Provider config should be set");
+            Some(L1GasPriceProvider::new(l1_gas_price_provider_config.clone()))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
     let l1_gas_price_scraper = match config.components.l1_gas_price_scraper.execution_mode {
         ActiveComponentExecutionMode::Enabled => {
+            let base_layer_config =
+                config.base_layer_config.as_ref().expect("Base Layer config should be set");
+            let l1_gas_price_scraper_config = config
+                .l1_gas_price_scraper_config
+                .as_ref()
+                .expect("L1 Gas Price Scraper config should be set");
             let l1_gas_price_client = clients
                 .get_l1_gas_price_shared_client()
                 .expect("L1 gas price client should be available");
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
-            let l1_gas_price_scraper_config = config.l1_gas_price_scraper_config.clone();
-            let base_layer = EthereumBaseLayerContract::new(config.base_layer_config.clone());
+            let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
             let monitored_base_layer = MonitoredEthereumBaseLayer::new(
                 base_layer,
                 l1_endpoint_monitor_client,
-                config.base_layer_config.node_url.clone(),
+                base_layer_config.node_url.clone(),
             );
 
             Some(L1GasPriceScraper::new(
-                l1_gas_price_scraper_config,
+                l1_gas_price_scraper_config.clone(),
                 l1_gas_price_client,
                 monitored_base_layer,
             ))
         }
-        ActiveComponentExecutionMode::Disabled => None,
+        ActiveComponentExecutionMode::Disabled => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
 
     let sierra_compiler = match config.components.sierra_compiler.execution_mode {
         ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
-            Some(create_sierra_compiler(config.compiler_config.clone()))
+            let sierra_compiler_config = config
+                .sierra_compiler_config
+                .as_ref()
+                .expect("Sierra Compiler config should be set");
+            Some(create_sierra_compiler(sierra_compiler_config.clone()))
         }
-        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => None,
+        ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+            // TODO(tsabary): assert config is not set.
+            None
+        }
     };
 
     SequencerNodeComponents {

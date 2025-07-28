@@ -172,8 +172,13 @@ fn perform_basic_validations_on_endpoint_arg(
     expected_arg: &Member,
     actual_arg: &EndpointArg,
 ) -> Cairo0EntryPointRunnerResult<()> {
-    let actual_arg_is_felt = matches!(actual_arg, EndpointArg::Value(ValueArg::Single(_)));
-    let actual_arg_is_pointer = matches!(actual_arg, EndpointArg::Pointer(_));
+    let actual_arg_is_felt =
+        matches!(actual_arg, EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(_))));
+    let actual_arg_is_pointer = matches!(actual_arg, EndpointArg::Pointer(_))
+        || matches!(
+            actual_arg,
+            EndpointArg::Value(ValueArg::Single(MaybeRelocatable::RelocatableValue(_)))
+        );
     let actual_arg_is_struct_or_tuple = !actual_arg_is_felt && !actual_arg_is_pointer;
 
     let expected_arg_is_pointer = expected_arg.cairo_type.ends_with("*");

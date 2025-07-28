@@ -11,7 +11,7 @@ use cairo_vm::vm::errors::runner_errors::RunnerError;
 use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
 use num_bigint::{BigUint, TryFromBigIntError};
 use starknet_api::block::BlockNumber;
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::StarknetApiError;
 use starknet_patricia::hash::hash_trait::HashOutput;
@@ -85,7 +85,7 @@ pub enum OsHintError {
     #[error(transparent)]
     Memory(#[from] MemoryError),
     #[error("No bytecode segment structure for class hash: {0:?}.")]
-    MissingBytecodeSegmentStructure(ClassHash),
+    MissingBytecodeSegmentStructure(CompiledClassHash),
     #[error("Hint {hint:?} has no nondet offset.")]
     MissingOffsetForHint { hint: AllHints },
     #[error("No component hashes for class hash {0:?}.")]

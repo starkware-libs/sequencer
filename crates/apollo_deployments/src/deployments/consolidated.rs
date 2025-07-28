@@ -10,7 +10,7 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{Environment, ServicePort};
+use crate::deployment_definitions::{ComponentConfigInService, Environment, ServicePort};
 use crate::k8s::{
     get_ingress,
     Controller,
@@ -137,6 +137,12 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
             }
         }
         service_ports
+    }
+
+    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+        match self {
+            ConsolidatedNodeServiceName::Node => ComponentConfigInService::iter().collect(),
+        }
     }
 }
 

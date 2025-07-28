@@ -58,8 +58,8 @@ pub struct OsHints {
 pub struct StarknetOsInput {
     pub os_block_inputs: Vec<OsBlockInput>,
     pub cached_state_inputs: Vec<CachedStateInput>,
-    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
-    pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
+    pub(crate) deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
+    pub(crate) compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
 
 // TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.

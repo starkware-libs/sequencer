@@ -119,7 +119,10 @@ pub struct UrlAndHeaderMap {
     pub headers: HeaderMap,
 }
 
+type PriceQuery = AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>>;
+
 /// Client for interacting with the eth to strk Oracle API.
+#[derive(Clone, Debug)]
 pub struct EthToStrkOracleClient {
     config: EthToStrkOracleConfig,
     /// The index of the current URL in the `url_header_list`.
@@ -127,8 +130,8 @@ pub struct EthToStrkOracleClient {
     index: Arc<AtomicUsize>,
     url_header_list: Arc<Vec<UrlAndHeaderMap>>,
     client: reqwest::Client,
-    cached_prices: Mutex<LruCache<u64, u128>>,
-    queries: Mutex<LruCache<u64, AbortOnDropHandle<Result<u128, EthToStrkOracleClientError>>>>,
+    cached_prices: Arc<Mutex<LruCache<u64, u128>>>,
+    queries: Arc<Mutex<LruCache<u64, PriceQuery>>>,
 }
 
 impl EthToStrkOracleClient {
@@ -153,12 +156,12 @@ impl EthToStrkOracleClient {
             index: Arc::new(AtomicUsize::new(0)),
             url_header_list: Arc::new(url_header_list),
             client: reqwest::Client::new(),
-            cached_prices: Mutex::new(LruCache::new(
+            cached_prices: Arc::new(Mutex::new(LruCache::new(
                 NonZeroUsize::new(config.max_cache_size).expect("Invalid cache size"),
-            )),
-            queries: Mutex::new(LruCache::new(
+            ))),
+            queries: Arc::new(Mutex::new(LruCache::new(
                 NonZeroUsize::new(config.max_cache_size).expect("Invalid cache size"),
-            )),
+            ))),
         }
     }
 

@@ -402,17 +402,19 @@ impl ValidResourceBounds {
         }
     }
 
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing() -> Self {
+        Self::AllResources(AllResourceBounds::zero_amount_min_gas_price())
+    }
+
     pub fn new_unlimited_gas_no_fee_enforcement() -> Self {
         let default_l2_gas_amount = GasAmount(HIGH_GAS_AMOUNT); // Sufficient to avoid out of gas errors.
-        let default_resource =
-            ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) };
         Self::AllResources(AllResourceBounds {
-            l1_gas: default_resource,
             l2_gas: ResourceBounds {
                 max_amount: default_l2_gas_amount,
                 max_price_per_unit: GasPrice(0), // Set to zero for no enforce_fee mechanism.
             },
-            l1_data_gas: default_resource,
+            ..AllResourceBounds::zero_amount_min_gas_price()
         })
     }
 
@@ -467,6 +469,19 @@ pub struct AllResourceBounds {
     pub l1_gas: ResourceBounds,
     pub l2_gas: ResourceBounds,
     pub l1_data_gas: ResourceBounds,
+}
+
+impl AllResourceBounds {
+    fn zero_amount_min_gas_price() -> Self {
+        let resource_bounds =
+            ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) };
+        Self { l1_gas: resource_bounds, l2_gas: resource_bounds, l1_data_gas: resource_bounds }
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing() -> Self {
+        Self::zero_amount_min_gas_price()
+    }
 }
 
 impl std::fmt::Display for AllResourceBounds {

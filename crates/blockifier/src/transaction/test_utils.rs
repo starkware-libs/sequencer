@@ -408,7 +408,7 @@ pub fn emit_n_events_tx(
     let tx = executable_invoke_tx(invoke_tx_args! {
         sender_address: account_contract,
         calldata,
-        nonce
+        nonce,
     });
 
     AccountTransaction::new_for_sequencing(tx)

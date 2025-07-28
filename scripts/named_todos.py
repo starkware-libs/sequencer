@@ -5,9 +5,7 @@ import os
 import re
 from typing import Optional
 
-from tests_utils import (
-    get_local_changes,
-)
+from tests_utils import get_local_changes
 
 
 def validate_todo_format(file_path: str) -> bool:

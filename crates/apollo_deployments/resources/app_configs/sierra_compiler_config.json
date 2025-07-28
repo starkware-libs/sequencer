@@ -1,0 +1,5 @@
+{
+  "sierra_compiler_config.max_bytecode_size": 81920,
+  "sierra_compiler_config.max_memory_usage": 5368709120,
+  "sierra_compiler_config.max_memory_usage.#is_none": false
+}

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use starknet_api::block::BlockInfo;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction as ApiTransaction;
 use starknet_api::execution_resources::GasAmount;
@@ -78,8 +79,8 @@ impl<S: StateReader> StatefulValidator<S> {
         Ok(())
     }
 
-    pub fn block_context(&self) -> &BlockContext {
-        self.tx_executor.block_context.as_ref()
+    pub fn block_info(&self) -> &BlockInfo {
+        self.tx_executor.block_context.as_ref().block_info()
     }
 
     fn state(&mut self) -> &mut CachedState<S> {

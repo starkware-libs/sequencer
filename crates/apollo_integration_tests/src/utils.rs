@@ -203,9 +203,10 @@ pub fn create_node_config(
         // This is the Anvil URL, initialized at the callsite.
         // TODO(Gilad): make this explicit in the Anvil refactor.
         ordered_l1_endpoint_urls: vec![base_layer_config.node_url.clone()],
+        ..Default::default()
     };
-    let override_gas_price_threshold_check = allow_bootstrap_txs;
-    let mempool_config = create_mempool_config(override_gas_price_threshold_check);
+    let validate_resource_bounds = !allow_bootstrap_txs;
+    let mempool_config = create_mempool_config(validate_resource_bounds);
     let l1_gas_price_provider_config = L1GasPriceProviderConfig {
         // Use newly minted blocks on Anvil to be used for gas price calculations.
         lag_margin_seconds: 0,
@@ -249,21 +250,21 @@ pub fn create_node_config(
     );
     (
         SequencerNodeConfig {
-            base_layer_config,
-            batcher_config,
-            class_manager_config,
-            consensus_manager_config,
-            gateway_config,
-            http_server_config,
-            mempool_config,
-            mempool_p2p_config,
-            monitoring_endpoint_config,
-            state_sync_config,
+            base_layer_config: Some(base_layer_config),
+            batcher_config: Some(batcher_config),
+            class_manager_config: Some(class_manager_config),
+            consensus_manager_config: Some(consensus_manager_config),
+            gateway_config: Some(gateway_config),
+            http_server_config: Some(http_server_config),
+            mempool_config: Some(mempool_config),
+            mempool_p2p_config: Some(mempool_p2p_config),
+            monitoring_endpoint_config: Some(monitoring_endpoint_config),
+            state_sync_config: Some(state_sync_config),
             components: component_config,
-            l1_scraper_config,
-            l1_provider_config,
-            l1_endpoint_monitor_config,
-            l1_gas_price_provider_config,
+            l1_scraper_config: Some(l1_scraper_config),
+            l1_provider_config: Some(l1_provider_config),
+            l1_endpoint_monitor_config: Some(l1_endpoint_monitor_config),
+            l1_gas_price_provider_config: Some(l1_gas_price_provider_config),
             ..Default::default()
         },
         config_pointers_map,
@@ -289,7 +290,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
         .map(|network_config| ConsensusManagerConfig {
             network_config,
             immediate_active_height: BlockNumber(1),
-            consensus_config: ConsensusConfig {
+            consensus_manager_config: ConsensusConfig {
                 // TODO(Matan, Dan): Set the right amount
                 startup_delay: Duration::from_secs(15),
                 timeouts: timeouts.clone(),
@@ -558,13 +559,16 @@ pub fn create_gateway_config(
     validate_non_zero_resource_bounds: bool,
 ) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds,
+        validate_resource_bounds: validate_non_zero_resource_bounds,
         max_calldata_length: 10,
         max_signature_length: 2,
         ..Default::default()
     };
-    let stateful_tx_validator_config =
-        StatefulTransactionValidatorConfig { max_allowed_nonce_gap: 1000, ..Default::default() };
+    let stateful_tx_validator_config = StatefulTransactionValidatorConfig {
+        max_allowed_nonce_gap: 1000,
+        validate_resource_bounds: validate_non_zero_resource_bounds,
+        ..Default::default()
+    };
 
     GatewayConfig {
         stateless_tx_validator_config,
@@ -602,10 +606,10 @@ pub fn create_batcher_config(
     }
 }
 
-pub fn create_mempool_config(override_gas_price_threshold_check: bool) -> MempoolConfig {
+pub fn create_mempool_config(validate_resource_bounds: bool) -> MempoolConfig {
     MempoolConfig {
         transaction_ttl: Duration::from_secs(5 * 60),
-        override_gas_price_threshold_check,
+        validate_resource_bounds,
         ..Default::default()
     }
 }
@@ -625,10 +629,11 @@ pub fn set_validator_id(
     node_index: usize,
 ) -> ValidatorId {
     let validator_id = ValidatorId::try_from(
-        Felt::from(consensus_manager_config.consensus_config.validator_id) + Felt::from(node_index),
+        Felt::from(consensus_manager_config.consensus_manager_config.validator_id)
+            + Felt::from(node_index),
     )
     .unwrap();
-    consensus_manager_config.consensus_config.validator_id = validator_id;
+    consensus_manager_config.consensus_manager_config.validator_id = validator_id;
     validator_id
 }
 
