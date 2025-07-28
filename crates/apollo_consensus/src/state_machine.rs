@@ -289,7 +289,10 @@ impl StateMachine {
         if self.step != Step::Propose || round != self.round {
             return VecDeque::new();
         };
-        warn!("Proposal failed. Applying TimeoutPropose for round={round}.");
+        warn!(
+            "PROPOSAL_FAILED: Proposal failed as validator. Applying TimeoutPropose for \
+             round={round}."
+        );
         CONSENSUS_TIMEOUTS
             .increment(1, &[(LABEL_NAME_TIMEOUT_REASON, TimeoutReason::Propose.into())]);
         let mut output = VecDeque::from([StateMachineEvent::Prevote(None, round)]);
