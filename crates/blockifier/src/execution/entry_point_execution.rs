@@ -485,7 +485,7 @@ pub fn finalize_execution(
     })
 }
 
-fn get_call_result(
+pub fn get_call_result(
     runner: &CairoRunner,
     syscall_handler: &SyscallHintProcessor<'_>,
     tracked_resource: &TrackedResource,
