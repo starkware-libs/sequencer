@@ -1,5 +1,4 @@
 {
-  "l1_gas_price_scraper_config.#is_none": false,
   "l1_gas_price_scraper_config.finality": 10,
   "l1_gas_price_scraper_config.number_of_blocks_for_mean": 300,
   "l1_gas_price_scraper_config.polling_interval": 120,
