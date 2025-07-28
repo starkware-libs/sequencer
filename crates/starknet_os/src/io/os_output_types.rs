@@ -23,6 +23,28 @@ const FLAG_BOUND: NonZeroFelt = NonZeroFelt::TWO;
 
 // Cairo DictAccess types for concrete objects.
 
+pub(crate) trait TryFromOutputIter {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+        iter: &mut It,
+    ) -> Result<Self, OsOutputError>
+    where
+        Self: Sized;
+}
+
+impl<T: TryFromOutputIter> TryFromOutputIter for Vec<T> {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+        iter: &mut It,
+    ) -> Result<Self, OsOutputError> {
+        let n_items =
+            wrap_missing_as(iter.next(), &format!("n_items of {}", std::any::type_name::<T>()))?;
+        let mut items = Vec::with_capacity(n_items);
+        for _ in 0..n_items {
+            items.push(T::try_from_output_iter(iter)?);
+        }
+        Ok(items)
+    }
+}
+
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 /// Represents a full contract storage update.
@@ -39,8 +61,8 @@ pub(crate) struct PartialContractStorageUpdate {
     pub(crate) new_value: Felt,
 }
 
-impl FullContractStorageUpdate {
-    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+impl TryFromOutputIter for FullContractStorageUpdate {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
@@ -51,8 +73,8 @@ impl FullContractStorageUpdate {
     }
 }
 
-impl PartialContractStorageUpdate {
-    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+impl TryFromOutputIter for PartialContractStorageUpdate {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
@@ -77,8 +99,8 @@ pub struct PartialCompiledClassHashUpdate {
     pub(crate) next_compiled_class_hash: CompiledClassHash,
 }
 
-impl FullCompiledClassHashUpdate {
-    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+impl TryFromOutputIter for FullCompiledClassHashUpdate {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
@@ -95,8 +117,8 @@ impl FullCompiledClassHashUpdate {
     }
 }
 
-impl PartialCompiledClassHashUpdate {
-    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+impl TryFromOutputIter for PartialCompiledClassHashUpdate {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
@@ -127,8 +149,8 @@ pub struct FullContractChanges {
     pub(crate) storage_changes: Vec<FullContractStorageUpdate>,
 }
 
-impl FullContractChanges {
-    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+impl TryFromOutputIter for FullContractChanges {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         Ok(Self {
@@ -137,14 +159,7 @@ impl FullContractChanges {
             new_nonce: Nonce(wrap_missing_as(iter.next(), "new_nonce")?),
             prev_class_hash: ClassHash(wrap_missing_as(iter.next(), "prev_class_hash")?),
             new_class_hash: ClassHash(wrap_missing_as(iter.next(), "new_class_hash")?),
-            storage_changes: {
-                let n_changes = wrap_missing_as(iter.next(), "n_storage_changes")?;
-                let mut storage_changes = Vec::with_capacity(n_changes);
-                for _ in 0..n_changes {
-                    storage_changes.push(FullContractStorageUpdate::from_output_iter(iter)?);
-                }
-                storage_changes
-            },
+            storage_changes: Vec::<FullContractStorageUpdate>::try_from_output_iter(iter)?,
         })
     }
 }
@@ -163,8 +178,8 @@ pub struct PartialContractChanges {
     pub(crate) storage_changes: Vec<PartialContractStorageUpdate>,
 }
 
-impl PartialContractChanges {
-    pub fn from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+impl TryFromOutputIter for PartialContractChanges {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         let addr = wrap_missing_as(iter.next(), "addr")?;
@@ -200,7 +215,7 @@ impl PartialContractChanges {
                 let n_changes = try_into_custom_error(n_changes, "n_changes")?;
                 let mut storage_changes = Vec::with_capacity(n_changes);
                 for _ in 0..n_changes {
-                    storage_changes.push(PartialContractStorageUpdate::from_output_iter(iter)?);
+                    storage_changes.push(PartialContractStorageUpdate::try_from_output_iter(iter)?);
                 }
                 storage_changes
             },
@@ -221,11 +236,14 @@ pub struct FullOsStateDiff {
     pub classes: Vec<FullCompiledClassHashUpdate>,
 }
 
-impl FullOsStateDiff {
-    pub fn from_output_iter<It: Iterator<Item = Felt>>(
-        _output_iter: &mut It,
+impl TryFromOutputIter for FullOsStateDiff {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
+        iter: &mut It,
     ) -> Result<Self, OsOutputError> {
-        unimplemented!()
+        Ok(Self {
+            contracts: Vec::<FullContractChanges>::try_from_output_iter(iter)?,
+            classes: Vec::<FullCompiledClassHashUpdate>::try_from_output_iter(iter)?,
+        })
     }
 }
 
@@ -241,8 +259,8 @@ pub struct PartialOsStateDiff {
     pub classes: Vec<PartialCompiledClassHashUpdate>,
 }
 
-impl PartialOsStateDiff {
-    pub fn from_output_iter<It: Iterator<Item = Felt>>(
+impl TryFromOutputIter for PartialOsStateDiff {
+    fn try_from_output_iter<It: Iterator<Item = Felt> + ?Sized>(
         _output_iter: &mut It,
     ) -> Result<Self, OsOutputError> {
         unimplemented!()
