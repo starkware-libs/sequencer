@@ -4,15 +4,9 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
-<<<<<<< HEAD
-use rstest::{fixture, rstest};
-||||||| 656da0bac
-use rstest::rstest;
-=======
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
-use rstest::rstest;
+use rstest::{fixture, rstest};
 use starknet_api::core::ClassHash;
->>>>>>> origin/main-v0.13.6
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{class_hash, contract_address, storage_key};
@@ -20,14 +14,9 @@ use starknet_api::{class_hash, contract_address, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
-<<<<<<< HEAD
-    get_tx_weights,
-||||||| 656da0bac
-=======
-    get_casm_hash_calculation_resources,
     get_particia_update_resources,
     get_tx_weights,
->>>>>>> origin/main-v0.13.6
+    map_class_hash_to_casm_hash_computation_resources,
     verify_tx_weights_within_max_capacity,
     Bouncer,
     BouncerWeights,
@@ -38,18 +27,10 @@ use crate::bouncer::{
 use crate::context::BlockContext;
 use crate::execution::call_info::{BuiltinCounterMap, ExecutionSummary};
 use crate::fee::resources::{ComputationResources, TransactionResources};
-<<<<<<< HEAD
 use crate::state::cached_state::{CachedState, StateChangesKeys, StateMaps, TransactionalState};
 use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
-||||||| 656da0bac
-use crate::state::cached_state::{StateChangesKeys, TransactionalState};
-=======
-use crate::state::cached_state::{StateChangesKeys, StateMaps, TransactionalState};
-use crate::test_utils::contracts::FeatureContract;
->>>>>>> origin/main-v0.13.6
 use crate::test_utils::initial_test_state::test_state;
-use crate::test_utils::{CairoVersion, RunnableCairo1};
 use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::ExecutionResourcesTraits;
 use crate::utils::{add_maps, u64_from_usize};
@@ -339,7 +320,6 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
         )
     )  if *max_capacity == bouncer_config.block_max_capacity && *tx_size == expected_weights);
 }
-<<<<<<< HEAD
 
 #[rstest]
 fn test_bouncer_try_update_n_txs(
@@ -483,8 +463,6 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
         tx_weights.casm_hash_computation_data_proving_gas.total_gas()
     );
 }
-||||||| 656da0bac
-=======
 
 /// Verifies that the difference between proving gas and Sierra gas
 /// is fully accounted for by the builtin gas delta (Stone vs Stwo).
@@ -556,8 +534,10 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
     let casm_hash_computation_builtins = if contract_instances.is_empty() {
         HashMap::new()
     } else {
-        get_casm_hash_calculation_resources(&state, &executed_class_hashes)
+        map_class_hash_to_casm_hash_computation_resources(&state, &executed_class_hashes)
             .unwrap()
+            .iter()
+            .fold(ExecutionResources::default(), |acc, (_class_hash, resources)| &acc + resources)
             .prover_builtins()
     };
 
@@ -608,12 +588,11 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         .expect("overflow in sum");
 
     assert_eq!(
-        result.proving_gas.0 - result.sierra_gas.0,
+        result.bouncer_weights.proving_gas.0 - result.bouncer_weights.sierra_gas.0,
         expected_builtin_gas_delta,
         "Proving gas: {} - Sierra gas: {} ≠ builtins gap: {}",
-        result.proving_gas.0,
-        result.sierra_gas.0,
+        result.bouncer_weights.proving_gas.0,
+        result.bouncer_weights.sierra_gas.0,
         expected_builtin_gas_delta
     );
 }
->>>>>>> origin/main-v0.13.6
