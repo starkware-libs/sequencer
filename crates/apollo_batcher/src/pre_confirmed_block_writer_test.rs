@@ -196,3 +196,70 @@ async fn test_basic_flow_candidate_then_preconfirmed() {
 
     assert_matches!(writer_task.await, Ok(Ok(())));
 }
+
+#[tokio::test]
+async fn test_preconfirmed_before_candidate_no_extra_write() {
+    let tx_hash = tx_hash!(1);
+    let internal_consensus_tx = create_test_internal_consensus_tx(tx_hash);
+    let receipt = create_test_transaction_receipt(tx_hash);
+    let state_diff = create_test_state_diff();
+
+    let mut mock_client = MockPreconfirmedCendeClientTrait::new();
+
+    // Expect first call with empty transactions (write_iteration 0)
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .withf(|block| {
+            block.write_iteration == 0 && block.pre_confirmed_block.transactions.is_empty()
+        })
+        .returning(|_| Box::pin(async { Ok(()) }));
+
+    // Expect second call with pre confirmed tx (write_iteration 1)
+    let expected_pre_confirmed_tx =
+        CendePreconfirmedTransaction::from(internal_consensus_tx.clone());
+    let expected_receipt = Some(receipt.clone());
+    let expected_state_diff = Some(state_diff.clone());
+    mock_client
+        .expect_write_pre_confirmed_block()
+        .times(1)
+        .withf(move |block| {
+            block.write_iteration == 1
+                && block.pre_confirmed_block.transactions.len() == 1
+                && block.pre_confirmed_block.transactions[0] == expected_pre_confirmed_tx
+                && block.pre_confirmed_block.transaction_receipts.len() == 1
+                && block.pre_confirmed_block.transaction_receipts[0] == expected_receipt
+                && block.pre_confirmed_block.transaction_state_diffs.len() == 1
+                && block.pre_confirmed_block.transaction_state_diffs[0] == expected_state_diff
+        })
+        .returning(|_| Box::pin(async { Ok(()) }));
+
+    let config = create_test_config();
+    let factory = PreconfirmedBlockWriterFactory { config, cende_client: Arc::new(mock_client) };
+
+    let (mut writer, candidate_tx_sender, preconfirmed_tx_sender) =
+        factory.create(BlockNumber(TEST_BLOCK_NUMBER), TEST_ROUND, create_test_block_metadata());
+
+    let writer_task = task::spawn(async move { writer.run().await });
+
+    // Wait for initial empty write
+    wait_for_write_interval(&config).await;
+
+    // Send preconfirmed transaction first
+    preconfirmed_tx_sender
+        .send((internal_consensus_tx.clone(), receipt, state_diff))
+        .await
+        .unwrap();
+    wait_for_write_interval(&config).await;
+
+    // Send candidate transaction (should not trigger additional write)
+    candidate_tx_sender.send(vec![internal_consensus_tx]).await.unwrap();
+    wait_for_write_interval(&config).await;
+
+    // Dropping the senders signals the writer that current block build is complete and it should
+    // exit.
+    drop(candidate_tx_sender);
+    drop(preconfirmed_tx_sender);
+
+    assert_matches!(writer_task.await, Ok(Ok(())));
+}
