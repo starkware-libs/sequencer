@@ -29,7 +29,7 @@ pub struct Foo {}
 // Blank line here.
 // Directly after type definition.
 impl Foo {
-    /// Same layout here as in the file.
+    // Same layout here as in the file.
 
     pub type X = ...
     type Y = ...
@@ -94,7 +94,7 @@ Always _consider_ using `checked_add` or `saturating_add` (depending on usage) i
 
 Use `unwrap` either in tests, or in absolutely trivial, bulletproof scenarios.
 
-Use `expect` only if you have additional information that explain why the value is assumed to exist. [Do not use `expect` as a boilerplate replacement for `unwrap`](https://doc.rust-lang.org/std/error/index.html#common-message-styles), this ends up just repeating information already encoded in rust's panic message:
+Use `expect` only if you have additional information that explains why the value is assumed to exist. [Do not use `expect` as a boilerplate replacement for `unwrap`](https://doc.rust-lang.org/std/error/index.html#common-message-styles), this ends up just repeating information already encoded in rust's panic message:
 
 ```rust
 // BAD
@@ -158,7 +158,7 @@ TransactionBuilder::new().with_dry_run(true).with_execution_status(ExecutionStat
 
 **Rationale**: callsite is more readable, without having to resort to using auxiliary args.
 
-**Rationale**: when bool parameters are used for configuration, like `foo(also_bar: bool)`, this very commonly breeds more configuration parameters `foo(also_bar: bool, but_maybe_also_baz: bool)` which almost always leads to impossible states (can baz be true without bar?) and are hard to reason about: "how does one know what the "real" set of configurations are?". Rethink the design, consider a builder, or a config object that validates consistency.
+**Rationale**: when bool parameters are used for configuration, like `fn foo(also_bar: bool)`, this very commonly breeds more configuration parameters `foo(also_bar: bool, but_maybe_also_baz: bool)` which almost always leads to impossible states (can baz be true without bar?) and are hard to reason about: "how does one know what the "real" set of configurations are?". Rethink the design, consider a builder, or a config object that validates consistency.
 
 ### Option Parameters
 
@@ -186,7 +186,9 @@ Note: This rule is not strict, use discretion. For example, types that are inclu
 
 ### Avoid `mod.rs`
 
-Use `submodule_name.rs`, as `mod.rs` [is considered legacy](https://doc.rust-lang.org/edition-guide/rust-2018/path-changes.html#no-more-modrs) since 2018.
+Use `submodule_name.rs`.
+
+`mod.rs` [is considered legacy](https://doc.rust-lang.org/edition-guide/rust-2018/path-changes.html#no-more-modrs) since 2018.
 
 **Rationale**: fuzzy-finding files is harder when you have a large number of files with the same name.
 
@@ -202,20 +204,21 @@ Avoid "ip addresses" (`let bar = foo.0.0.0.0.1`): prefer getters if the wrapper 
 
 ### Type Safety
 
-Before using raw types like `u64` to represent a value, first grep the repo for existing types that wrap around it.
+Before using raw types like `u64` to represent a value, first search the repo for existing types that wrap around it.
+
 Rationale: mainly consistency, but also they might have constraints on the values.
 
 ## Performance & Allocations
 
 ### Allocations
 
-Avoid allocations when a stack-based type will do, in particular: prefer arrays/iterators over vecs if possible, prefer `&str` or `impl ToString` over `String`.
+Avoid allocations when a stack-based type will do, in particular: prefer arrays/iterators over vectors if possible, prefer `&str` or `impl ToString` over `String`.
 
 Use `Vec::with_capacity()` when size is known to avoid reallocations.
 
 ### Laziness
 
-Prefer returning lazy types from inner functions and delay the actual evaluation when possible, in practice this mostly mean holding off on `collect`ing until the actual usage.
+Prefer returning lazy types from inner functions and delay the actual evaluation when possible, in practice this mostly means holding off on `collect`ing until the actual usage.
 
 **Motivation**: helps the compiler optimize better, usually means less allocations, and in some cases avoid allocation entirely if somewhere up the stack it short-circuits.
 
@@ -228,15 +231,15 @@ The same also holds for `expect`, and in general for all methods that take a non
 
 Use unit tests for short (< 1 sec) and threadsafe tests, otherwise use cargo integration tests.
 
-A failure in a unit test should immediately point to the source of the issue, and the clearly display the error encountered. Moreover, it should be possible to debug a test even if the test writer is not available, for example:
+A failure in a unit test should immediately point to the source of the issue, and clearly display the error encountered. Moreover, it should be possible to debug a test even if the test writer is not available, for example:
 
--   add `#[track_caller]` on test-utils which include a critical assert, so that the trace will be the callsite in the test
--   use `assert_eq(result, Ok(<Value>))` over `assert!(result.is_ok())` --- the former will display the error, and the latter will simply say `expected True, got False`.
--   Avoid doing too many things in one test with a single assert at the end, unless other tests exist that cover enough parts of the test separately so that finding the source will be simple.
+- Add `#[track_caller]` on test-utils which include a critical assert, so that the trace will be the callsite in the test.
+- Use `assert_eq!(result, Ok(<Value>))` over `assert!(result.is_ok())` --- the former will display the error, and the latter will simply say `expected True, got False`.
+- Avoid doing too many things in one test with a single assert at the end, unless other tests exist that cover enough parts of the test separately so that finding the source will be simple.
 
 Put integration tests inside `tests/` at the crate root if they don't depend on features of their crate (this constraint is valid until [this cargo issue](https://github.com/rust-lang/cargo/issues/2911#issuecomment-1739880593) or [this cargo bug](https://github.com/rust-lang/cargo/issues/15151) get resolved), otherwise put them in `apollo_integration_tests/tests`. Cargo integration test files are not parallelized, and are run in an anonymous crate without `cfg(test)`, which allows the test writer to simulate real UX.
 
-To test binary crates, either add a `lib.rs` and call its main from `main.rs` and from the test, or use integration tests that spawn the binary as a subprocess (See `CARGO_BIN_EXE_<binary_name>`).
+To test binary crates, either add a `lib.rs` and call its entry point from `main.rs` and from the test, or use integration tests that spawn the binary as a subprocess (See `CARGO_BIN_EXE_<binary_name>`).
 
 ## Documentation Standards
 
@@ -283,7 +286,7 @@ Don't use `ref` keyword, it's considered legacy, as all of its uses can be repla
 
 Avoid float types unless you're sure it's necessary. If you're sure it's necessary, avoid anyway and [read this](https://stackoverflow.com/questions/3730019/why-not-use-double-or-float-to-represent-currency).
 
-**Rationale**: they have surprising results when performing arithmetic, ordering, and equality. Additionally (and consequently), they don't support casts to other types unless one uses `as` casts, which we are banning (see casting section).
+**Rationale**: they have surprising results when performing arithmetic, ordering, and equality. Additionally (and consequently), they don't support casts to other types unless one uses `as` casts, which we are banning (see [Casting](#casting) section).
 
 ### Turbofish
 
@@ -296,7 +299,7 @@ Using the non-pure `for_each` combinator is also fine but only for one-liners.
 
 ```rust
 // BAD
-// Even if rust allows the closure to mutate self, it's surprising to do this inside a transformer like `map`.
+// Even if Rust allows the closure to mutate self, it's surprising to do this inside a transformer like `map`.
 let new_vec = old_vec.map(|num| self.mutate_self(num))
 
 // GOOD
@@ -309,7 +312,7 @@ for num in old_vec {
 
 ### If-let-else Pattern
 
-Prefer `let-else` or `match` patterns, they are always more concise and incur less cognitive load
+Prefer `let-else` or `match` patterns, they are always more concise and incur less cognitive load.
 
 ```rust
 // BAD
@@ -321,24 +324,24 @@ if let Some(num) = foo {
 
 // GOOD
 match foo {
-    Some(num) => derp(num)
-    None => not_derp()
+    Some(num) => derp(num),
+    None => not_derp(),
 }
 
 // GOOD for short-circuits
 let Some(num) = foo else {
-    return not_derp()
+    return not_derp();
 }
 derp(num)
 ```
 
 ## Github Smell-Testing
 
-If you have a oneliner you suspect is a bad practice, when applicable, try searching for it in the global search bar in `github.com`, if you don't see any production-grade crates doing it consider changing it.
+If you have a one liner you suspect is a bad practice, when applicable, try searching for it in the global search bar in `github.com`. If you don't see any production-grade crates doing it, consider changing it.
 
 ## External Dependencies
 
-Be conservative with helper crates, and especially avoid single-use crates --- external deps increase our compilation time, and increase potential of version clashes and sudden breaking changes (not all crates adhere to Semver properly).
+Be conservative with helper crates, and especially avoid single-use crates --- external dependencies increase compilation time, and increase potential of version clashes and sudden breaking changes (not all crates adhere to Semver properly).
 
 If a crate has a viable use-case that doesn't require some heavy-dependency, feature-gate the dependency, this helps reduce compilation time.
 
@@ -346,16 +349,16 @@ If a crate has a viable use-case that doesn't require some heavy-dependency, fea
 
 Recommended checklist before adding a new dependency:
 
--   Last commit should be less than a month ago
--   Small crates should have at least ~100 github stars, large ones should have ~1000.
--   Skim through the README for important notes, ESPECIALLY look for "no longer maintained" or "archived" notices.
--   If there are indications for the crate no longer being maintained, search for "maintained" or "dead" in the crate's issues. Or see if recent pull-requests received any attention from the maintainers.
+- Last commit should be less than a month ago.
+- Small crates should have at least ~100 github stars, large ones should have ~1000.
+- Skim through the README for important notes, ESPECIALLY look for "no longer maintained" or "archived" notices.
+- If there are indications for the crate no longer being maintained, search for "maintained" or "dead" in the crate's issues. Or see if recent pull-requests received any attention from the maintainers.
 
 ### `lazy_static` crate
 
 Do not use `lazy_static`.
 This functionality [is part of `std` now](https://github.com/rust-lang-nursery/lazy-static.rs?tab=readme-ov-file#standard-library) and the crate is dead.
-If you're working around code that uses lazy_static, remove it in favor of the `std` type and help us close in on removing the extra dependency from the project.
+If you're working around code that uses `lazy_static`, remove it in favor of the `std` type and help us close in on removing the extra dependency from the project.
 
 ## Advanced Patterns
 
@@ -369,7 +372,7 @@ For example: using parametrization in a test (using rstest) can make tests harde
 
 ### Async
 
-Mostly avoid `join!`, as it doesn't short-circuit on errors in one of the tasks: use safe alternatives like `try_join!` (there are others that are also fine).
+Mostly avoid `join!`, as it doesn't short-circuit on errors in one of the tasks - use safe alternatives like `try_join!` (there are others that are also fine).
 
 Mostly avoid `select!` unless you are certain the tasks are cancel-safe, this can lead to leaks and deadlocks: either spawn the tasks separately (`JoinHandle` is cancel-safe) or use safe alternatives like `FuturesUnordered` or `JoinSet`.
 
@@ -381,14 +384,14 @@ Commits should be [small](https://docs.google.com/presentation/d/1b4uTSMs16AlaY6
 
 ## AI-Generated Code Guidelines
 
-Take extra care when reviewing ai-generated code for these issues:
+Take extra care when reviewing AI-generated code for these issues:
 
--   Using deprecated/dead crates (!): for example `lazy_static` often appears in ai-code (see [lazy static section](#lazy_static-crate)).
--   Using "toy" crates (low github-starred, pet‑project crates not intended for production): just because a crate out there can fulfil a given set of requirements doesn't mean it's production-ready, see also [External Dependencies](#external-dependencies) section.
--   Excessive code-comment bloat: see [Textual Content Quality](#textual-content-quality) section.
--   Hygiene issues: leaks and races are common, since chatbots rarely take a step back and analyze the surrounding conditions in which a code is being run; always analyze flows affected by your change as the AI will not do so.
--   Excessive allocations/clones.
+- Using deprecated/dead crates (!): for example `lazy_static` often appears in AI-code (see [lazy static section](#lazy_static-crate)).
+- Using "toy" crates (low github-starred, pet‑project crates not intended for production): just because a crate out there can fulfil a given set of requirements doesn't mean it's production-ready, see also [External Dependencies](#external-dependencies) section.
+- Excessive code-comment bloat: see [Textual Content Quality](#textual-content-quality) section.
+- Hygiene issues: leaks and races are common, since chatbots rarely take a step back and analyze the surrounding conditions in which a code is being run; always analyze flows affected by your change as the AI will not do so.
+- Excessive allocations/clones.
 
 ## Open issues
 
--   Derive ordering: rustfmt can't enforce alphabetization, and there isn't a clear standard in the community for this anyway. Alternative orderings include ordering the builtin derives first (Debug/Clone), then third-party dep's derives (Serialize), then custom derives, all in order of commonality (the more common the derive is, the more "to the left" it appears).
+- Derive ordering: rustfmt can't enforce alphabetization, and there isn't a clear standard in the community for this anyway. Alternative orderings include ordering the builtin derives first (`Debug`/`Clone`), then third-party dependency derives (`Serialize`), then custom derives, all in order of commonality (the more common the derive is, the earlier it appears).
