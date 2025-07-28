@@ -1,17 +1,31 @@
 use blake2s::encode_felts_to_u32s;
+use blockifier_test_utils::types::u64_from_usize;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::vm_resources_to_sierra_gas;
+use crate::bouncer::{vm_resources_to_sierra_gas, BouncerConfig};
 use crate::execution::execution_utils::blake_encoding::{N_U32S_BIG_FELT, N_U32S_SMALL_FELT};
-use crate::execution::execution_utils::blake_estimation::BASE_STEPS_FULL_MSG;
+use crate::execution::execution_utils::blake_estimation::{self, BASE_STEPS_FULL_MSG};
 use crate::execution::execution_utils::{
     compute_blake_hash_steps,
     cost_of_encode_felt252_data_and_calc_blake_hash,
     count_blake_opcode,
 };
+
+// TODO(AvivG): Temporary sanity check to ensure the hardcoded `BLAKE_OPCODE_GAS` is aligned with
+// the bouncer config's `sierra_gas` block limit and the expected number of Blake opcodes per proof.
+// This test should be removed once `BLAKE_OPCODE_GAS` is sourced from VersionedConstants (or a more
+// centralized location).
+#[test]
+fn test_blake_opcode_gas() {
+    const BLAKE_OPCODE_PER_PROOF: u64 = 500000;
+    assert_eq!(
+        u64_from_usize(blake_estimation::BLAKE_OPCODE_GAS),
+        BouncerConfig::default().block_max_capacity.sierra_gas.0 / BLAKE_OPCODE_PER_PROOF
+    );
+}
 
 #[test]
 fn test_u32_constants() {
