@@ -9,6 +9,7 @@ use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::HashableCompiledClass;
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::hash::Poseidon;
+use test_case::test_case;
 
 use crate::execution::contract_class::{
     CompiledClassV1,
@@ -54,12 +55,15 @@ fn test_get_visited_segments() {
     );
 }
 
-#[rstest]
 /// Tests that the hash of the compiled contract class (CASM) matches the hash of the corresponding
 /// runnable contract class.
-fn test_compiled_class_hash() {
-    let feature_contract =
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm); "Cairo1 VM")]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(CairoVersion::Cairo1(RunnableCairo1::Native); "Cairo1 Native")
+)]
+fn test_compiled_class_hash(cairo_version: CairoVersion) {
+    let feature_contract = FeatureContract::TestContract(cairo_version);
     let casm = match feature_contract.get_class() {
         ContractClass::V1((casm, _sierra_version)) => casm,
         _ => panic!("Expected ContractClass::V1"),

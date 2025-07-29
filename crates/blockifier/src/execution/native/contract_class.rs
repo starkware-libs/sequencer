@@ -44,6 +44,28 @@ impl NativeCompiledClassV1 {
     }
 }
 
+impl HashableCompiledClass<CasmContractEntryPoint> for NativeCompiledClassV1 {
+    fn get_hashable_l1_entry_points(&self) -> &[CasmContractEntryPoint] {
+        self.get_hashable_l1_entry_points()
+    }
+
+    fn get_hashable_external_entry_points(&self) -> &[CasmContractEntryPoint] {
+        self.get_hashable_external_entry_points()
+    }
+
+    fn get_hashable_constructor_entry_points(&self) -> &[CasmContractEntryPoint] {
+        self.get_hashable_constructor_entry_points()
+    }
+
+    fn get_bytecode(&self) -> Vec<Felt> {
+        self.get_bytecode()
+    }
+
+    fn get_bytecode_segment_lengths(&self) -> &NestedIntList {
+        self.get_bytecode_segment_lengths()
+    }
+}
+
 #[derive(Debug)]
 pub struct NativeCompiledClassV1Inner {
     pub executor: AotContractExecutor,
