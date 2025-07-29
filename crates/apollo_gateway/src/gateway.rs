@@ -41,7 +41,7 @@ use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATEN
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::{
     StatefulTransactionValidatorFactory,
-    StatefulTransactionValidatorTrait,
+    StatefulTransactionValidatorFactoryTrait,
 };
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 use crate::sync_state_reader::SyncStateReaderFactory;
@@ -54,7 +54,7 @@ pub mod gateway_test;
 pub struct Gateway {
     pub config: Arc<GatewayConfig>,
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
-    pub stateful_tx_validator_factory: Arc<StatefulTransactionValidatorFactory>,
+    pub stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
     pub transaction_converter: Arc<TransactionConverter>,
@@ -162,7 +162,7 @@ impl Gateway {
 /// from running.
 struct ProcessTxBlockingTask {
     stateless_tx_validator: Arc<StatelessTransactionValidator>,
-    stateful_tx_validator_factory: Arc<StatefulTransactionValidatorFactory>,
+    stateful_tx_validator_factory: Arc<dyn StatefulTransactionValidatorFactoryTrait>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
     chain_info: Arc<ChainInfo>,
