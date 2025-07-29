@@ -342,7 +342,7 @@ async fn test_is_valid_nonce(
     mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
     let executable_tx = executable_invoke_tx(invoke_tx_args!(
         nonce: nonce!(tx_nonce),
-        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+        resource_bounds: ValidResourceBounds::create_for_testing(),
     ));
 
     let result = tokio::task::spawn_blocking(move || {
@@ -381,7 +381,7 @@ async fn test_reject_future_declares(
     let executable_tx = executable_declare_tx(
         declare_tx_args!(
             nonce: nonce!(account_nonce + account_nonce_diff),
-            resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+            resource_bounds: ValidResourceBounds::create_for_testing(),
         ),
         calculate_class_info_for_testing(
             FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class(),

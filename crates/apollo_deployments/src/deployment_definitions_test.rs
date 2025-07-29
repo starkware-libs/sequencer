@@ -118,7 +118,7 @@ fn load_and_process_service_config_files() {
             // localhost to allow successful validation.
             loaded_config.components.set_urls_to_localhost();
             if let Err(error) = config_validate(&loaded_config) {
-                panic!("Config validation failed: {}", error);
+                panic!("Config validation failed: {error}");
             }
         }
     }
