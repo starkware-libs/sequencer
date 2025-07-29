@@ -269,7 +269,7 @@ pub enum EthereumBaseLayerError {
     Contract(#[from] alloy::contract::Error),
     #[error("{0}")]
     FeeOutOfRange(alloy::primitives::ruint::FromUintError<u128>),
-    #[error("L1 provider response timed out.")]
+    #[error("timed-out while querying the L1 base layer")]
     ProviderTimeout(#[from] Elapsed),
     #[error(transparent)]
     RpcError(#[from] RpcError<TransportErrorKind>),

@@ -106,10 +106,8 @@ where
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatelessTransactionValidatorConfig {
-    // TODO(Arni): Align the name of this field with the mempool config, and all other places where
-    // validation is skipped during the systems bootstrap phase.
-    // If true, validates that the resource bounds are not zero.
-    pub validate_non_zero_resource_bounds: bool,
+    // If true, ensures that at least one resource bound (L1, L2, or L1 data) is greater than zero.
+    pub validate_resource_bounds: bool,
     // TODO(AlonH): Remove this field and use the one from the versioned constants.
     pub min_gas_price: u128,
     pub max_calldata_length: usize,
@@ -125,7 +123,7 @@ pub struct StatelessTransactionValidatorConfig {
 impl Default for StatelessTransactionValidatorConfig {
     fn default() -> Self {
         StatelessTransactionValidatorConfig {
-            validate_non_zero_resource_bounds: true,
+            validate_resource_bounds: true,
             min_gas_price: 3_000_000_000,
             max_calldata_length: 4000,
             max_signature_length: 4000,
@@ -141,10 +139,10 @@ impl SerializeConfig for StatelessTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let members = BTreeMap::from_iter([
             ser_param(
-                "validate_non_zero_resource_bounds",
-                &self.validate_non_zero_resource_bounds,
-                "If true, validates that at least one resource bound (L1, L2, or L1 Data) is \
-                 non-zero.",
+                "validate_resource_bounds",
+                &self.validate_resource_bounds,
+                "If true, ensures that at least one resource bound (L1, L2, or L1 data) is \
+                 greater than zero.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -230,11 +228,9 @@ impl SerializeConfig for RpcStateReaderConfig {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct StatefulTransactionValidatorConfig {
-    // TODO(Arni): Align the name of this field with the mempool config, and all other places where
-    // validation is skipped during the systems bootstrap phase.
-    // If true, ensures the L2 gas price exceeds a dynamically calculated threshold based on
-    // EIP-1559 network usage.
-    pub validate_resource_bounds_above_threshold: bool,
+    // If true, ensures the max L2 gas price exceeds (a configurable percentage of) the base gas
+    // price of the previous block.
+    pub validate_resource_bounds: bool,
     pub max_allowed_nonce_gap: u32,
     pub reject_future_declare_txs: bool,
     pub max_nonce_for_validation_skip: Nonce,
@@ -246,7 +242,7 @@ pub struct StatefulTransactionValidatorConfig {
 impl Default for StatefulTransactionValidatorConfig {
     fn default() -> Self {
         StatefulTransactionValidatorConfig {
-            validate_resource_bounds_above_threshold: true,
+            validate_resource_bounds: true,
             max_allowed_nonce_gap: 50,
             reject_future_declare_txs: true,
             max_nonce_for_validation_skip: Nonce(Felt::ONE),
@@ -260,10 +256,10 @@ impl SerializeConfig for StatefulTransactionValidatorConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut dump = BTreeMap::from_iter([
             ser_param(
-                "validate_resource_bounds_above_threshold",
-                &self.validate_resource_bounds_above_threshold,
-                "If true, ensures the L2 gas price exceeds a dynamically calculated threshold \
-                 based on EIP-1559 network usage.",
+                "validate_resource_bounds",
+                &self.validate_resource_bounds,
+                "If true, ensures the max L2 gas price exceeds (a configurable percentage of) the \
+                 base gas price of the previous block.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

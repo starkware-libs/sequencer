@@ -10,7 +10,7 @@ use cairo_vm::hint_processor::hint_processor_definition::{
 use cairo_vm::serde::deserialize_program::{HintParams, ReferenceManager};
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
-use starknet_api::core::ClassHash;
+use starknet_api::core::CompiledClassHash;
 use starknet_api::deprecated_contract_class::ContractClass;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
@@ -38,7 +38,7 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, exec_scopes, ids_data, ap_tracking, constants }: HintArgs<'_>,
 ) -> OsHintResult {
-    let (class_hash, deprecated_class) =
+    let (compiled_class_hash, deprecated_class) =
         hint_processor.deprecated_compiled_classes_iter.next().ok_or_else(|| {
             OsHintError::EndOfIterator { item_type: "deprecated_compiled_classes".to_string() }
         })?;
@@ -46,7 +46,7 @@ pub(crate) fn load_deprecated_class_inner<S: StateReader>(
     let dep_class_base = vm.add_memory_segment();
     deprecated_class.load_into(vm, hint_processor.program, dep_class_base, constants)?;
 
-    exec_scopes.insert_value(Scope::CompiledClassHash.into(), class_hash);
+    exec_scopes.insert_value(Scope::CompiledClassHash.into(), compiled_class_hash);
     exec_scopes.insert_value(Scope::CompiledClass.into(), deprecated_class);
 
     Ok(insert_value_from_var_name(
@@ -72,7 +72,7 @@ pub(crate) fn load_deprecated_class<S: StateReader>(
         hint_processor.program,
     )?;
     let computed_hash = vm.get_integer(computed_hash_addr)?;
-    let expected_hash = exec_scopes.get::<ClassHash>(Scope::CompiledClassHash.into())?;
+    let expected_hash = exec_scopes.get::<CompiledClassHash>(Scope::CompiledClassHash.into())?;
 
     if computed_hash.as_ref() != &expected_hash.0 {
         return Err(OsHintError::AssertionFailed {

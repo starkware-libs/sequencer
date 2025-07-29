@@ -18,16 +18,11 @@ pub struct SequencerSimulator {
 }
 
 impl SequencerSimulator {
-    pub fn new(
-        http_url: String,
-        http_port: u16,
-        monitoring_url: String,
-        monitoring_port: u16,
-    ) -> Self {
+    pub fn new(http_url: &str, http_port: u16, monitoring_url: &str, monitoring_port: u16) -> Self {
         let monitoring_client =
-            MonitoringClient::new(get_socket_addr(&monitoring_url, monitoring_port).unwrap());
+            MonitoringClient::new(get_socket_addr(monitoring_url, monitoring_port).unwrap());
 
-        let http_client = HttpTestClient::new(get_socket_addr(&http_url, http_port).unwrap());
+        let http_client = HttpTestClient::new(get_socket_addr(http_url, http_port).unwrap());
 
         Self { monitoring_client, http_client }
     }

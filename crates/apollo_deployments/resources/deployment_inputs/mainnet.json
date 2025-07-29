@@ -1,0 +1,17 @@
+{
+  "node_ids": [0, 1, 2],
+  "http_server_ingress_alternative_name": "alpha-mainnet.starknet.io",
+  "ingress_domain": "starknet.io",
+  "secret_name_format": "apollo-mainnet-{}",
+  "node_namespace_format": "apollo-mainnet-{}",
+  "starknet_contract_address": "0xc662c410C0ECf747543f5bA90660f6ABeBD9C8c4",
+  "chain_id_string": "SN_MAIN",
+  "eth_fee_token_address": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+  "starknet_gateway_url": "https://feeder.alpha-mainnet.starknet.io",
+  "strk_fee_token_address": "0x4718f5a0fc34cc1af16a1cdee98ffb20c31f5cd61d6ab07201858f4287c938d",
+  "l1_startup_height_override": null,
+  "state_sync_type": "Central",
+  "p2p_communication_type": "External",
+  "deployment_environment": "Mainnet",
+  "requires_k8s_service_config_params": true
+}

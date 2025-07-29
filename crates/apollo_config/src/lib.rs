@@ -61,8 +61,10 @@ pub const CONFIG_FILE_ARG_NAME: &str = "config_file";
 /// The config file arg name prepended with a double dash.
 pub const CONFIG_FILE_ARG: &str = formatcp!("--{}", CONFIG_FILE_ARG_NAME);
 
-pub(crate) const IS_NONE_MARK: &str = "#is_none";
-pub(crate) const FIELD_SEPARATOR: &str = ".";
+/// A config indicator for optional parameters.
+pub const IS_NONE_MARK: &str = "#is_none";
+/// A config indicator for a sub config.
+pub const FIELD_SEPARATOR: &str = ".";
 
 /// A nested path of a configuration parameter.
 pub type ParamPath = String;

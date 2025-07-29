@@ -9,9 +9,20 @@
 # deactivate
 # rm -r reqs_venv
 # ```
+<<<<<<< HEAD
 autoflake
 black==23.1a1
 cairo-lang==0.14.0a1
 isort>=5.0.0
 sympy==1.12.0 # pypy3.9 issue.
+||||||| 937a3d39a
+cairo-lang==0.14.0a1
+sympy==1.12.0 # pypy3.9 issue.
+=======
+cairo-lang==0.14.0.1
+>>>>>>> origin/main-v0.14.0
 GitPython
+# pytest-asyncio 1.1.0 depends on backports.asyncio.runner, which is not compatible with python 3.11
+# or above.
+pytest-asyncio<=1.0.0
+sympy==1.12.0 # pypy3.9 issue.

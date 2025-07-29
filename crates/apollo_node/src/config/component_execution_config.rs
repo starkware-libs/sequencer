@@ -222,13 +222,11 @@ fn validate_max_concurrency(max_concurrency: usize) -> Result<(), ValidationErro
 fn validate_reactive_component_execution_config(
     component_config: &ReactiveComponentExecutionConfig,
 ) -> Result<(), ValidationError> {
-    match (component_config.execution_mode.clone(), component_config.is_valid_socket()) {
+    match (&component_config.execution_mode, component_config.is_valid_socket()) {
         (ReactiveComponentExecutionMode::Disabled, _) => Ok(()),
-        (ReactiveComponentExecutionMode::Remote, true) => {
-            validate_url(component_config.url.as_str())
-        }
-        (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true) => {
-            validate_url(component_config.url.as_str())
+        (ReactiveComponentExecutionMode::Remote, true)
+        | (ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled, true) => {
+            validate_url(&component_config.url)
         }
         (ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled, _) => Ok(()),
         (mode, socket) => {

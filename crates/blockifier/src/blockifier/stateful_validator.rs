@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use starknet_api::block::BlockInfo;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction as ApiTransaction;
 use starknet_api::execution_resources::GasAmount;
@@ -41,6 +42,24 @@ pub enum StatefulValidatorError {
 
 pub type StatefulValidatorResult<T> = Result<T, StatefulValidatorError>;
 
+#[cfg_attr(any(test, feature = "mocks"), mockall::automock)]
+pub trait StatefulValidatorTrait {
+    #[allow(clippy::result_large_err)]
+    fn validate(&mut self, account_tx: AccountTransaction) -> StatefulValidatorResult<()>;
+    fn block_info(&self) -> &BlockInfo;
+}
+
+impl<S: StateReader> StatefulValidatorTrait for StatefulValidator<S> {
+    #[allow(clippy::result_large_err)]
+    fn validate(&mut self, account_tx: AccountTransaction) -> StatefulValidatorResult<()> {
+        self.perform_validations(account_tx)
+    }
+
+    fn block_info(&self) -> &BlockInfo {
+        StatefulValidator::block_info(self)
+    }
+}
+
 /// Manages state related transaction validations for pre-execution flows.
 pub struct StatefulValidator<S: StateReader> {
     tx_executor: TransactionExecutor<S>,
@@ -78,8 +97,8 @@ impl<S: StateReader> StatefulValidator<S> {
         Ok(())
     }
 
-    pub fn block_context(&self) -> &BlockContext {
-        self.tx_executor.block_context.as_ref()
+    pub fn block_info(&self) -> &BlockInfo {
+        self.tx_executor.block_context.as_ref().block_info()
     }
 
     fn state(&mut self) -> &mut CachedState<S> {

@@ -278,7 +278,7 @@ fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> 
             .execution
             .events
             .iter()
-            .map(|orderable_event| (call_info.call.caller_address, orderable_event));
+            .map(|orderable_event| (call_info.call.storage_address, orderable_event));
         accumulated_sortable_events.extend(sortable_events);
     }
     // Sort the events by their order.

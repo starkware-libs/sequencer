@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 use std::collections::BTreeSet;
+||||||| 937a3d39a
+use std::collections::BTreeMap;
+=======
+use std::collections::{BTreeMap, BTreeSet};
+>>>>>>> origin/main-v0.14.0
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_node::config::component_config::ComponentConfig;
@@ -11,7 +17,7 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{Environment, ServicePort};
+use crate::deployment_definitions::{ComponentConfigInService, Environment, ServicePort};
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
@@ -521,6 +527,239 @@ impl ServiceNameInner for DistributedNodeServiceName {
         };
 
         service_ports
+    }
+
+    // TODO(Tsabary): verify that each service runs the components it should.
+    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+        let mut components = BTreeSet::new();
+        match self {
+            DistributedNodeServiceName::Batcher => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::Batcher
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            DistributedNodeServiceName::ClassManager => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            DistributedNodeServiceName::ConsensusManager => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::Consensus
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            DistributedNodeServiceName::HttpServer => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            DistributedNodeServiceName::Gateway => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::Gateway
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            DistributedNodeServiceName::L1 => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::General
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            DistributedNodeServiceName::Mempool => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::General
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            DistributedNodeServiceName::SierraCompiler => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint
+                        | ComponentConfigInService::SierraCompiler => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            DistributedNodeServiceName::StateSync => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint
+                        | ComponentConfigInService::StateSync => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler => {}
+                    }
+                }
+            }
+        }
+        components
     }
 }
 

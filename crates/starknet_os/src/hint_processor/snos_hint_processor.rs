@@ -22,7 +22,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::hint_errors::HintError as VmHintError;
 use cairo_vm::vm::runners::cairo_runner::ResourceTracker;
 use cairo_vm::vm::vm_core::VirtualMachine;
-use starknet_api::core::ClassHash;
+use starknet_api::core::CompiledClassHash;
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
@@ -125,9 +125,9 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     pub(crate) program: &'a Program,
     pub(crate) execution_helpers_manager: ExecutionHelpersManager<'a, S>,
     pub(crate) os_hints_config: OsHintsConfig,
-    pub(crate) deprecated_compiled_classes_iter: IntoIter<ClassHash, ContractClass>,
-    pub(crate) deprecated_class_hashes: HashSet<ClassHash>,
-    pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
+    pub(crate) deprecated_compiled_classes_iter: IntoIter<CompiledClassHash, ContractClass>,
+    pub(crate) deprecated_class_hashes: HashSet<CompiledClassHash>,
+    pub(crate) compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     pub(crate) state_update_pointers: Option<StateUpdatePointers>,
     builtin_hint_processor: BuiltinHintProcessor,
     // The type of commitment tree next in line for hashing. Used to determine which HashBuiltin
@@ -149,8 +149,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         os_hints_config: OsHintsConfig,
         os_block_inputs: Vec<&'a OsBlockInput>,
         cached_state_inputs: Vec<CachedStateInput>,
-        deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
-        compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
+        deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
+        compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
         state_readers: Vec<S>,
     ) -> Result<Self, StarknetOsError> {
         if state_readers.len() != os_block_inputs.len() {

@@ -1,0 +1,6 @@
+{
+  "l1_gas_price_provider_config.lag_margin_seconds": 300,
+  "l1_gas_price_provider_config.number_of_blocks_for_mean": 300,
+  "l1_gas_price_provider_config.storage_limit": 3000,
+  "l1_gas_price_provider_config.max_time_gap_seconds": 900
+}

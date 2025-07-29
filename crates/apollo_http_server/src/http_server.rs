@@ -108,6 +108,7 @@ async fn add_rpc_tx(
     headers: HeaderMap,
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<GatewayOutput>> {
+    debug!("ADD_TX_START: Http server received a new transaction.");
     ADDED_TRANSACTIONS_TOTAL.increment(1);
     add_tx_inner(app_state, headers, tx).await
 }
@@ -120,6 +121,7 @@ async fn add_tx(
     tx: String,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     ADDED_TRANSACTIONS_TOTAL.increment(1);
+    debug!("ADD_TX_START: Http server received a new transaction.");
     validate_supported_tx_version(&tx).inspect_err(|e| {
         debug!("Error while validating transaction version: {}", e);
         increment_failure_metrics(e);
@@ -186,10 +188,29 @@ async fn add_tx_inner(
     tx: RpcTransaction,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
+<<<<<<< HEAD
     let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
         debug!("Error while adding transaction: {}", e);
         HttpServerError::from(Box::new(e))
     });
+||||||| 937a3d39a
+    let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
+        debug!("Error while adding transaction: {}", e);
+        HttpServerError::from(e)
+    });
+=======
+    // Wrap the gateway client interaction with a tokio::spawn as it is NOT cancel-safe.
+    // Even if the current task is cancelled, e.g., when a request is dropped while still being
+    // processed, the inner task will continue to run.
+    let add_tx_result =
+        tokio::spawn(async move { app_state.gateway_client.add_tx(gateway_input).await })
+            .await
+            .expect("Should be able to get add_tx result")
+            .map_err(|e| {
+                debug!("Error while adding transaction: {}", e);
+                HttpServerError::from(e)
+            });
+>>>>>>> origin/main-v0.14.0
 
     let region =
         headers.get(CLIENT_REGION_HEADER).and_then(|region| region.to_str().ok()).unwrap_or("N/A");

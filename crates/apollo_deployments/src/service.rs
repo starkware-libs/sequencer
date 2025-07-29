@@ -3,8 +3,8 @@ use std::fmt::Display;
 use std::iter::once;
 use std::path::PathBuf;
 
-use apollo_config::dumping::{prepend_sub_config_name, SerializeConfig};
-use apollo_config::{ParamPath, SerializedParam};
+use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam, FIELD_SEPARATOR, IS_NONE_MARK};
 use apollo_infra_utils::dumping::serialize_to_file;
 #[cfg(test)]
 use apollo_infra_utils::dumping::serialize_to_file_test;
@@ -18,7 +18,12 @@ use strum::{Display, EnumVariantNames, IntoEnumIterator};
 use strum_macros::{EnumDiscriminants, EnumIter, IntoStaticStr};
 
 use crate::deployment::build_service_namespace_domain_address;
-use crate::deployment_definitions::{Environment, ServicePort, CONFIG_BASE_DIR};
+use crate::deployment_definitions::{
+    ComponentConfigInService,
+    Environment,
+    ServicePort,
+    CONFIG_BASE_DIR,
+};
 use crate::deployments::consolidated::ConsolidatedNodeServiceName;
 use crate::deployments::distributed::DistributedNodeServiceName;
 use crate::deployments::hybrid::HybridNodeServiceName;
@@ -73,8 +78,16 @@ impl Service {
 
         let service_file_path = node_service.get_service_file_path();
 
-        let config_paths =
-            config_filenames.iter().cloned().chain(once(service_file_path)).collect();
+        let components_in_service = node_service
+            .get_components_in_service()
+            .into_iter()
+            .flat_map(|c| c.get_component_config_file_paths())
+            .collect::<Vec<_>>();
+        let config_paths = components_in_service
+            .into_iter()
+            .chain(config_filenames)
+            .chain(once(service_file_path))
+            .collect();
 
         let controller = node_service.get_controller();
         let autoscale = node_service.get_autoscale();
@@ -221,7 +234,7 @@ impl NodeService {
         self.as_inner().k8s_service_name()
     }
 
-    pub fn get_service_file_path(&self) -> String {
+    fn get_service_file_path(&self) -> String {
         PathBuf::from(CONFIG_BASE_DIR)
             .join(SERVICES_DIR_NAME)
             .join(NodeType::from(self).get_folder_name())
@@ -230,8 +243,20 @@ impl NodeService {
             .to_string()
     }
 
+<<<<<<< HEAD
     pub fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
         self.as_inner().get_service_port_mapping()
+||||||| 937a3d39a
+    pub fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
+        self.as_inner().get_ports()
+=======
+    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+        self.as_inner().get_components_in_service()
+    }
+
+    pub fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
+        self.as_inner().get_ports()
+>>>>>>> origin/main-v0.14.0
     }
 }
 
@@ -297,6 +322,8 @@ pub(crate) trait ServiceNameInner: Display {
         let formatted_service_name = self.to_string().replace('_', "");
         format!("sequencer-{formatted_service_name}-service")
     }
+
+    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService>;
 }
 
 impl NodeType {
@@ -334,8 +361,10 @@ impl NodeType {
         SerdeFn: Fn(&serde_json::Value, &str),
     {
         let component_configs = self.get_component_configs(ports);
-        for (node_service, config) in component_configs {
-            let wrapper = ComponentConfigsSerializationWrapper::from(config);
+        for (node_service, component_config) in component_configs {
+            let components_in_service = node_service.get_components_in_service();
+            let wrapper =
+                ComponentConfigsSerializationWrapper::new(component_config, components_in_service);
             let flattened = config_to_preset(&json!(wrapper.dump()));
             let file_path = node_service.get_service_file_path();
             writer(&flattened, &file_path);
@@ -380,17 +409,40 @@ impl Serialize for NodeService {
 // serialization as part of the entire config, i.e., by prepending "components.".
 #[derive(Clone, Debug, Default, Serialize)]
 struct ComponentConfigsSerializationWrapper {
-    components: ComponentConfig,
+    component_config: ComponentConfig,
+    components_in_service: BTreeSet<ComponentConfigInService>,
 }
 
-impl From<ComponentConfig> for ComponentConfigsSerializationWrapper {
-    fn from(value: ComponentConfig) -> Self {
-        ComponentConfigsSerializationWrapper { components: value }
+impl ComponentConfigsSerializationWrapper {
+    fn new(
+        component_config: ComponentConfig,
+        components_in_service: BTreeSet<ComponentConfigInService>,
+    ) -> Self {
+        ComponentConfigsSerializationWrapper { component_config, components_in_service }
     }
 }
 
 impl SerializeConfig for ComponentConfigsSerializationWrapper {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        prepend_sub_config_name(self.components.dump(), "components")
+        let mut map = prepend_sub_config_name(self.component_config.dump(), "components");
+        for component_config_in_service in ComponentConfigInService::iter() {
+            if component_config_in_service == ComponentConfigInService::General {
+                // General configs are not toggle-able, i.e., no need to add their existence to the
+                // service config.
+                continue;
+            }
+            let component_config_names = component_config_in_service.get_component_config_names();
+            let is_in_service = self.components_in_service.contains(&component_config_in_service);
+            for component_config_name in component_config_names {
+                let (param_path, serialized_param) = ser_param(
+                    &format!("{component_config_name}{FIELD_SEPARATOR}{IS_NONE_MARK}"),
+                    &!is_in_service, // Marking the config as None.
+                    "Placeholder description",
+                    ParamPrivacyInput::Public,
+                );
+                map.insert(param_path, serialized_param);
+            }
+        }
+        map
     }
 }

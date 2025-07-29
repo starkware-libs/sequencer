@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-
-use blockifier::state::cached_state::StateMaps;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::memory_errors::MemoryError;
@@ -10,37 +7,22 @@ use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{
-    ClassHash,
-    CompiledClassHash,
-    ContractAddress,
-    EntryPointSelector,
-    EthAddress,
-    Nonce,
-};
+use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::hash::StarkHash;
-use starknet_api::state::StorageKey;
 use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
-use starknet_types_core::felt::{Felt, NonZeroFelt};
+use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
-use crate::hints::hint_implementation::stateless_compression::utils::decompress;
+use crate::io::os_output_types::{
+    FullCommitmentOsStateDiff,
+    FullOsStateDiff,
+    PartialCommitmentOsStateDiff,
+    PartialOsStateDiff,
+    TryFromOutputIter,
+};
 use crate::metrics::OsMetrics;
 
-#[cfg(test)]
-#[path = "os_output_test.rs"]
-mod os_output_test;
-
 // Cairo DictAccess types for concrete objects.
-type ContractStorageUpdate = (StorageKey, (Option<Felt>, Felt));
-type CompiledClassHashUpdate = (ClassHash, (Option<CompiledClassHash>, CompiledClassHash));
-
-// Defined in output.cairo
-const N_UPDATES_BOUND: NonZeroFelt =
-    NonZeroFelt::from_felt_unchecked(Felt::from_hex_unchecked("10000000000000000")); // 2^64.
-const N_UPDATES_SMALL_PACKING_BOUND: NonZeroFelt =
-    NonZeroFelt::from_felt_unchecked(Felt::from_hex_unchecked("100")); // 2^8.
-const FLAG_BOUND: NonZeroFelt = NonZeroFelt::TWO;
 
 const MESSAGE_TO_L1_CONST_FIELD_SIZE: usize = 3; // from_address, to_address, payload_size.
 // from_address, to_address, nonce, selector, payload_size.
@@ -49,56 +31,65 @@ const MESSAGE_TO_L2_CONST_FIELD_SIZE: usize = 5;
 pub enum OsOutputError {
     #[error("Missing expected field: {0}.")]
     MissingFieldInOutput(String),
-    #[error("Invalid output in field: {0}. Error: {1}")]
-    InvalidOsOutputField(String, String),
+    #[error("Invalid output in field: {value_name}. Val: {val}. Error: {message}")]
+    InvalidOsOutputField { value_name: String, val: Felt, message: String },
+    #[error("Failed to convert to FullOsOutput. State diff variant is of a different type")]
+    ConvertToFullOutput,
 }
 
-fn wrap_missing(val: Option<Felt>, val_name: &str) -> Result<Felt, OsOutputError> {
+pub(crate) fn wrap_missing<T>(val: Option<T>, val_name: &str) -> Result<T, OsOutputError> {
     val.ok_or_else(|| OsOutputError::MissingFieldInOutput(val_name.to_string()))
 }
 
-fn try_into_custom_error<T: TryFrom<Felt>>(val: Felt, val_name: &str) -> Result<T, OsOutputError>
+pub(crate) fn try_into_custom_error<T: TryFrom<Felt>>(
+    val: Felt,
+    val_name: &str,
+) -> Result<T, OsOutputError>
 where
     <T as TryFrom<Felt>>::Error: std::fmt::Display,
 {
-    val.try_into().map_err(|e: <T as TryFrom<Felt>>::Error| {
-        OsOutputError::InvalidOsOutputField(val_name.to_string(), e.to_string())
+    val.try_into().map_err(|e: <T as TryFrom<Felt>>::Error| OsOutputError::InvalidOsOutputField {
+        value_name: val_name.to_string(),
+        val,
+        message: e.to_string(),
     })
 }
 
-fn wrap_missing_as<T: TryFrom<Felt>>(val: Option<Felt>, val_name: &str) -> Result<T, OsOutputError>
+pub(crate) fn wrap_missing_as<T: TryFrom<Felt>>(
+    val: Option<Felt>,
+    val_name: &str,
+) -> Result<T, OsOutputError>
 where
     <T as TryFrom<Felt>>::Error: std::fmt::Display,
 {
     try_into_custom_error(wrap_missing(val, val_name)?, val_name)
 }
 
-fn felt_as_bool(felt_val: Felt, val_name: &str) -> Result<bool, OsOutputError> {
+pub(crate) fn felt_as_bool(felt_val: Felt, val_name: &str) -> Result<bool, OsOutputError> {
     if felt_val == Felt::ZERO || felt_val == Felt::ONE {
         return Ok(felt_val == Felt::ONE);
     }
-    Err(OsOutputError::InvalidOsOutputField(
-        val_name.to_string(),
-        format!("Expected a bool felt, got {felt_val}"),
-    ))
+    Err(OsOutputError::InvalidOsOutputField {
+        value_name: val_name.to_string(),
+        val: felt_val,
+        message: "Expected a bool felt".to_string(),
+    })
 }
-fn wrap_missing_as_bool(val: Option<Felt>, val_name: &str) -> Result<bool, OsOutputError> {
+
+pub(crate) fn wrap_missing_as_bool(
+    val: Option<Felt>,
+    val_name: &str,
+) -> Result<bool, OsOutputError> {
     let felt_val = wrap_missing(val, val_name)?;
-    if felt_val == Felt::ZERO || felt_val == Felt::ONE {
-        return Ok(felt_val == Felt::ONE);
-    }
-    Err(OsOutputError::InvalidOsOutputField(
-        val_name.to_string(),
-        format!("Expected a bool felt, got {felt_val}"),
-    ))
+    felt_as_bool(felt_val, val_name)
 }
 
 pub fn message_l1_from_output_iter<It: Iterator<Item = Felt>>(
     iter: &mut It,
 ) -> Result<MessageToL1, OsOutputError> {
-    let from_address = wrap_missing_as(iter.next(), "from_address")?;
-    let to_address = wrap_missing_as(iter.next(), "to_address")?;
-    let payload_size = wrap_missing_as(iter.next(), "payload_size")?;
+    let from_address = wrap_missing_as(iter.next(), "MessageToL1::from_address")?;
+    let to_address = wrap_missing_as(iter.next(), "MessageToL1::to_address")?;
+    let payload_size = wrap_missing_as(iter.next(), "MessageToL1::payload_size")?;
     let payload = L2ToL1Payload(iter.take(payload_size).collect());
 
     Ok(MessageToL1 { from_address, to_address, payload })
@@ -118,199 +109,121 @@ pub struct MessageToL2 {
     payload: L1ToL2Payload,
 }
 
-impl MessageToL2 {
-    pub fn from_output_iter<It: Iterator<Item = Felt>>(
+impl TryFromOutputIter for MessageToL2 {
+    fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
     ) -> Result<Self, OsOutputError> {
-        let from_address = wrap_missing_as(iter.next(), "from_address")?;
-        let to_address = wrap_missing_as(iter.next(), "to_address")?;
-        let nonce = Nonce(wrap_missing(iter.next(), "nonce")?);
-        let selector = EntryPointSelector(wrap_missing(iter.next(), "selector")?);
-        let payload_size = wrap_missing_as(iter.next(), "payload_size")?;
+        let from_address = wrap_missing_as(iter.next(), "MessageToL2::from_address")?;
+        let to_address = wrap_missing_as(iter.next(), "MessageToL2::to_address")?;
+        let nonce = Nonce(wrap_missing(iter.next(), "MessageToL2::nonce")?);
+        let selector = EntryPointSelector(wrap_missing(iter.next(), "MessageToL2::selector")?);
+        let payload_size = wrap_missing_as(iter.next(), "MessageToL2::payload_size")?;
         let payload = L1ToL2Payload(iter.take(payload_size).collect());
 
         Ok(Self { from_address, to_address, nonce, selector, payload })
     }
 }
 
-fn parse_storage_changes<It: Iterator<Item = Felt> + ?Sized>(
-    n_changes: usize,
-    iter: &mut It,
-    full_output: bool,
-) -> Result<Vec<ContractStorageUpdate>, OsOutputError> {
-    (0..n_changes)
-        .map(|_| {
-            let key = wrap_missing_as(iter.next(), "storage key")?;
-            let prev_value = if full_output {
-                Some(wrap_missing(iter.next(), "previous storage value")?)
-            } else {
-                None
-            };
-            let new_value = wrap_missing(iter.next(), "storage value")?;
-            // Wrapped in Ok to be able to use ? operator in the closure.
-            Ok((key, (prev_value, new_value)))
-        })
-        .collect()
-}
-
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
-/// Represents the changes in a contract instance.
-pub struct ContractChanges {
-    // The address of the contract.
-    addr: ContractAddress,
-    // The previous nonce of the contract (for account contracts, if full output).
-    prev_nonce: Option<Nonce>,
-    // The new nonce of the contract (for account contracts, if changed or full output).
-    new_nonce: Option<Nonce>,
-    // The previous class hash (if full output).
-    prev_class_hash: Option<ClassHash>,
-    // The new class hash (if changed or full output).
-    new_class_hash: Option<ClassHash>,
-    // A map from storage key to its prev value (optional) and new value.
-    storage_changes: Vec<ContractStorageUpdate>,
+/// A representation of the state diff of an OS run, with 4 variants that depends on the use_kzg_da
+/// and the full_output flags of the OS run.
+pub enum OsStateDiff {
+    // An explicit state diff (no KZG commitment applied) in the full output format (with previous
+    // values for every storage/class hash change). The expected input format for the
+    // aggregator.
+    Full(FullOsStateDiff),
+    // An explicit state diff (no KZG commitment applied) in the partial output format (no
+    // previous values).
+    Partial(PartialOsStateDiff),
+    // A commitment to the state diff (with KZG commitment applied) in the full output format.
+    FullCommitment(FullCommitmentOsStateDiff),
+    // A commitment to the state diff (with KZG commitment applied) in the partial output format.
+    PartialCommitment(PartialCommitmentOsStateDiff),
 }
 
-impl ContractChanges {
-    pub fn from_iter<It: Iterator<Item = Felt> + ?Sized>(
-        iter: &mut It,
-        full_output: bool,
+struct OutputIterParsedData {
+    common_os_output: CommonOsOutput,
+    kzg_commitment_info: Option<Vec<Felt>>,
+    full_output: bool,
+}
+
+impl TryFromOutputIter for OutputIterParsedData {
+    fn try_from_output_iter<It: Iterator<Item = Felt>>(
+        output_iter: &mut It,
     ) -> Result<Self, OsOutputError> {
-        let addr = wrap_missing_as(iter.next(), "addr")?;
-        if full_output {
-            return Ok(Self {
-                addr,
-                prev_nonce: Some(Nonce(wrap_missing(iter.next(), "prev_nonce")?)),
-                new_nonce: Some(Nonce(wrap_missing_as(iter.next(), "new_nonce")?)),
-                prev_class_hash: Some(ClassHash(wrap_missing_as(iter.next(), "prev_class_hash")?)),
-                new_class_hash: Some(ClassHash(wrap_missing_as(iter.next(), "new_class_hash")?)),
-                storage_changes: parse_storage_changes(
-                    wrap_missing_as(iter.next(), "storage_changes")?,
-                    iter,
-                    full_output,
-                )?,
-            });
-        }
-        // Parse packed info.
-        let nonce_n_changes_two_flags = wrap_missing(iter.next(), "nonce_n_changes_two_flags")?;
+        let initial_root = wrap_missing(output_iter.next(), "initial_root")?;
+        let final_root = wrap_missing(output_iter.next(), "final_root")?;
+        let prev_block_number =
+            BlockNumber(wrap_missing_as(output_iter.next(), "prev_block_number")?);
+        let new_block_number =
+            BlockNumber(wrap_missing_as(output_iter.next(), "new_block_number")?);
+        let prev_block_hash = wrap_missing(output_iter.next(), "prev_block_hash")?;
+        let new_block_hash = wrap_missing(output_iter.next(), "new_block_hash")?;
+        let os_program_hash = wrap_missing(output_iter.next(), "os_program_hash")?;
+        let starknet_os_config_hash = wrap_missing(output_iter.next(), "starknet_os_config_hash")?;
+        let use_kzg_da = wrap_missing_as_bool(output_iter.next(), "use_kzg_da")?;
+        let full_output = wrap_missing_as_bool(output_iter.next(), "full_output")?;
 
-        // Parse flags.
-        let (nonce_n_changes_one_flag, class_updated_felt) =
-            nonce_n_changes_two_flags.div_rem(&FLAG_BOUND);
-        let class_updated = felt_as_bool(class_updated_felt, "class_updated")?;
-        let (nonce_n_changes, is_n_updates_small_felt) =
-            nonce_n_changes_one_flag.div_rem(&FLAG_BOUND);
-        let is_n_updates_small = felt_as_bool(is_n_updates_small_felt, "is_n_updates_small")?;
-
-        // Parse n_changes.
-        let n_updates_bound =
-            if is_n_updates_small { N_UPDATES_SMALL_PACKING_BOUND } else { N_UPDATES_BOUND };
-        let (nonce, n_changes) = nonce_n_changes.div_rem(&n_updates_bound);
-
-        // Parse nonce.
-        let new_nonce = if nonce == Felt::ZERO { None } else { Some(Nonce(nonce)) };
-
-        let new_class_hash = if class_updated {
-            Some(ClassHash(wrap_missing(iter.next(), "new_class_hash")?))
+        let kzg_commitment_info = if use_kzg_da {
+            // Read KZG data into a vec.
+            let kzg_z = wrap_missing(output_iter.next(), "kzg_z")?;
+            let n_blobs: usize = wrap_missing_as(output_iter.next(), "n_blobs")?;
+            let commitments = output_iter.take(2 * 2 * n_blobs);
+            Some([kzg_z, n_blobs.into()].into_iter().chain(commitments).collect::<Vec<_>>())
         } else {
             None
         };
+
+        // Messages to L1 and L2.
+        let mut messages_to_l1_segment_size =
+            wrap_missing_as(output_iter.next(), "messages_to_l1_segment_size")?;
+        let mut messages_to_l1_iter = output_iter.take(messages_to_l1_segment_size).peekable();
+        let mut messages_to_l1 = Vec::<MessageToL1>::new();
+
+        while messages_to_l1_iter.peek().is_some() {
+            let message = message_l1_from_output_iter(&mut messages_to_l1_iter)?;
+            messages_to_l1_segment_size -= message.payload.0.len() + MESSAGE_TO_L1_CONST_FIELD_SIZE;
+            messages_to_l1.push(message);
+        }
+        assert_eq!(
+            messages_to_l1_segment_size, 0,
+            "Expected messages to L1 segment to be consumed, but {} felts were left.",
+            messages_to_l1_segment_size
+        );
+
+        let mut messages_to_l2_segment_size =
+            wrap_missing_as(output_iter.next(), "messages_to_l2_segment_size")?;
+        let mut messages_to_l2_iter = output_iter.take(messages_to_l2_segment_size).peekable();
+        let mut messages_to_l2 = Vec::<MessageToL2>::new();
+
+        while messages_to_l2_iter.peek().is_some() {
+            let message = MessageToL2::try_from_output_iter(&mut messages_to_l2_iter)?;
+            messages_to_l2_segment_size -= message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
+            messages_to_l2.push(message);
+        }
         Ok(Self {
-            addr,
-            prev_nonce: None,
-            new_nonce,
-            prev_class_hash: None,
-            new_class_hash,
-            storage_changes: parse_storage_changes(
-                try_into_custom_error(n_changes, "n_changes")?,
-                iter,
-                full_output,
-            )?,
+            common_os_output: CommonOsOutput {
+                initial_root,
+                final_root,
+                prev_block_number,
+                new_block_number,
+                prev_block_hash,
+                new_block_hash,
+                os_program_hash,
+                starknet_os_config_hash,
+                messages_to_l1,
+                messages_to_l2,
+            },
+            kzg_commitment_info,
+            full_output,
         })
-    }
-}
-
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
-#[derive(Debug, PartialEq)]
-pub struct OsStateDiff {
-    // Contracts that were changed.
-    pub contracts: Vec<ContractChanges>,
-    // Classes that were declared. Represents the updates of a mapping from class hash to previous
-    // (optional) and new compiled class hash.
-    pub classes: Vec<CompiledClassHashUpdate>,
-}
-
-impl OsStateDiff {
-    pub fn from_iter<It: Iterator<Item = Felt>>(
-        output_iter: &mut It,
-        full_output: bool,
-    ) -> Result<Self, OsOutputError> {
-        let state_diff;
-        let iter: &mut dyn Iterator<Item = Felt> = if !full_output {
-            state_diff = decompress(output_iter);
-            &mut state_diff.into_iter().chain(output_iter)
-        } else {
-            output_iter
-        };
-        // Contracts changes.
-        let n_contracts = wrap_missing_as(iter.next(), "OsStateDiff.n_contracts")?;
-        let mut contracts = Vec::with_capacity(n_contracts);
-        for _ in 0..n_contracts {
-            contracts.push(ContractChanges::from_iter(iter, full_output)?);
-        }
-
-        // Classes changes.
-        let n_classes = wrap_missing_as(iter.next(), "OsStateDiff.n_classes")?;
-        let mut classes = Vec::with_capacity(n_classes);
-        for _ in 0..n_classes {
-            let class_hash = ClassHash(wrap_missing(iter.next(), "class_hash")?);
-            let prev_compiled_class_hash = if full_output {
-                Some(CompiledClassHash(wrap_missing(iter.next(), "prev_compiled_class_hash")?))
-            } else {
-                None
-            };
-            let new_compiled_class_hash =
-                CompiledClassHash(wrap_missing(iter.next(), "new_compiled_class_hash")?);
-            classes.push((class_hash, (prev_compiled_class_hash, new_compiled_class_hash)));
-        }
-        Ok(Self { contracts, classes })
-    }
-
-    /// Returns the state diff as a [StateMaps] object.
-    pub fn as_state_maps(&self) -> StateMaps {
-        let class_hashes = self
-            .contracts
-            .iter()
-            .filter_map(|contract| {
-                contract.new_class_hash.map(|class_hash| (contract.addr, class_hash))
-            })
-            .collect();
-        let nonces = self
-            .contracts
-            .iter()
-            .filter_map(|contract| contract.new_nonce.map(|nonce| (contract.addr, nonce)))
-            .collect();
-        let mut storage = HashMap::new();
-        for contract in &self.contracts {
-            for (key, (_prev_val, new_val)) in &contract.storage_changes {
-                storage.insert((contract.addr, *key), *new_val);
-            }
-        }
-        let compiled_class_hashes = self
-            .classes
-            .iter()
-            .map(|(class_hash, (_prev_compiled_class_hash, new_compiled_class_hash))| {
-                (*class_hash, *new_compiled_class_hash)
-            })
-            .collect();
-        let declared_contracts = HashMap::new();
-        StateMaps { nonces, class_hashes, storage, compiled_class_hashes, declared_contracts }
     }
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug)]
-pub struct OsOutput {
+pub struct CommonOsOutput {
     // The root before.
     pub initial_root: StarkHash,
     // The root after.
@@ -327,56 +240,91 @@ pub struct OsOutput {
     pub os_program_hash: StarkHash,
     // The hash of the OS config.
     pub starknet_os_config_hash: StarkHash,
-    // Indicates whether KZG data availability was used.
-    pub use_kzg_da: bool,
-    // Indicates whether previous state values are included in the state update information.
-    pub full_output: bool,
     // Messages from L2 to L1.
     pub messages_to_l1: Vec<MessageToL1>,
     // Messages from L1 to L2.
     pub messages_to_l2: Vec<MessageToL2>,
-    // The state diff.
-    pub state_diff: Option<OsStateDiff>,
+}
+
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug)]
+/// A specific structured os output (with FullOsStateDiff).
+/// The aggregator inputs are expected to be in this format.
+pub struct FullOsOutput {
+    pub common_os_output: CommonOsOutput,
+    pub state_diff: FullOsStateDiff,
+}
+
+impl TryFrom<OsOutput> for FullOsOutput {
+    type Error = OsOutputError;
+
+    fn try_from(output: OsOutput) -> Result<Self, Self::Error> {
+        Ok(Self {
+            common_os_output: output.common_os_output,
+            state_diff: match output.state_diff {
+                OsStateDiff::Full(state_diff) => state_diff,
+                _ => return Err(OsOutputError::ConvertToFullOutput),
+            },
+        })
+    }
+}
+
+impl FullOsOutput {
+    pub fn use_kzg_da(&self) -> bool {
+        false
+    }
+
+    pub fn full_output(&self) -> bool {
+        true
+    }
+}
+
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
+#[derive(Debug)]
+/// A general structure os output (with OsStateDiff).
+pub struct OsOutput {
+    pub common_os_output: CommonOsOutput,
+    pub state_diff: OsStateDiff,
+}
+
+// Tzahi: Remove once used in the aggregator
+#[allow(dead_code)]
+impl TryFromOutputIter for OsOutput {
+    fn try_from_output_iter<It: Iterator<Item = Felt>>(
+        output_iter: &mut It,
+    ) -> Result<Self, OsOutputError> {
+        let OutputIterParsedData { common_os_output, kzg_commitment_info, full_output } =
+            OutputIterParsedData::try_from_output_iter(output_iter)?;
+
+        let state_diff = match (kzg_commitment_info, full_output) {
+            (Some(info), true) => OsStateDiff::FullCommitment(FullCommitmentOsStateDiff(info)),
+            (Some(info), false) => {
+                OsStateDiff::PartialCommitment(PartialCommitmentOsStateDiff(info))
+            }
+            (None, true) => OsStateDiff::Full(FullOsStateDiff::try_from_output_iter(output_iter)?),
+            (None, false) => {
+                OsStateDiff::Partial(PartialOsStateDiff::try_from_output_iter(output_iter)?)
+            }
+        };
+
+        Ok(Self { common_os_output, state_diff })
+    }
 }
 
 impl OsOutput {
-    pub fn from_raw_output_iter<It: Iterator<Item = Felt>>(
-        mut output_iter: It,
-    ) -> Result<Self, OsOutputError> {
-        let initial_root = wrap_missing(output_iter.next(), "initial_root")?;
-        let final_root = wrap_missing(output_iter.next(), "final_root")?;
-        let prev_block_number =
-            BlockNumber(wrap_missing_as(output_iter.next(), "prev_block_number")?);
-        let new_block_number =
-            BlockNumber(wrap_missing_as(output_iter.next(), "new_block_number")?);
-        let prev_block_hash = wrap_missing(output_iter.next(), "prev_block_hash")?;
-        let new_block_hash = wrap_missing(output_iter.next(), "new_block_hash")?;
-        let os_program_hash = wrap_missing(output_iter.next(), "os_program_hash")?;
-        let starknet_os_config_hash = wrap_missing(output_iter.next(), "starknet_os_config_hash")?;
-        let use_kzg_da = wrap_missing_as_bool(output_iter.next(), "use_kzg_da")?;
-        let full_output = wrap_missing_as_bool(output_iter.next(), "full_output")?;
-
-        if use_kzg_da {
-            // Skip KZG data.
-
-            let _kzg_z = wrap_missing(output_iter.next(), "kzg_z")?;
-            let n_blobs: usize = wrap_missing_as(output_iter.next(), "n_blobs")?;
-            // Skip 'n_blobs' commitments and evaluations.
-            output_iter.nth((2 * 2 * n_blobs) - 1);
+    pub fn use_kzg_da(&self) -> bool {
+        match self.state_diff {
+            OsStateDiff::FullCommitment(_) | OsStateDiff::PartialCommitment(_) => true,
+            OsStateDiff::Full(_) | OsStateDiff::Partial(_) => false,
         }
+    }
 
-        // Messages to L1 and L2.
-        let mut messages_to_l1_segment_size =
-            wrap_missing_as(output_iter.next(), "messages_to_l1_segment_size")?;
-        let mut messages_to_l1_iter =
-            output_iter.by_ref().take(messages_to_l1_segment_size).peekable();
-        let mut messages_to_l1 = Vec::<MessageToL1>::new();
-
-        while messages_to_l1_iter.peek().is_some() {
-            let message = message_l1_from_output_iter(&mut messages_to_l1_iter)?;
-            messages_to_l1_segment_size -= message.payload.0.len() + MESSAGE_TO_L1_CONST_FIELD_SIZE;
-            messages_to_l1.push(message);
+    pub fn full_output(&self) -> bool {
+        match self.state_diff {
+            OsStateDiff::Full(_) | OsStateDiff::FullCommitment(_) => true,
+            OsStateDiff::Partial(_) | OsStateDiff::PartialCommitment(_) => false,
         }
+<<<<<<< HEAD
         assert_eq!(
             messages_to_l1_segment_size, 0,
             "Expected messages to L1 segment to be consumed, but {messages_to_l1_segment_size} \
@@ -417,6 +365,49 @@ impl OsOutput {
             messages_to_l2,
             state_diff,
         })
+||||||| 937a3d39a
+        assert_eq!(
+            messages_to_l1_segment_size, 0,
+            "Expected messages to L1 segment to be consumed, but {} felts were left.",
+            messages_to_l1_segment_size
+        );
+
+        let mut messages_to_l2_segment_size =
+            wrap_missing_as(output_iter.next(), "messages_to_l2_segment_size")?;
+        let mut messages_to_l2_iter =
+            output_iter.by_ref().take(messages_to_l2_segment_size).peekable();
+        let mut messages_to_l2 = Vec::<MessageToL2>::new();
+
+        while messages_to_l2_iter.peek().is_some() {
+            let message = MessageToL2::from_output_iter(&mut messages_to_l2_iter)?;
+            messages_to_l2_segment_size -= message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
+            messages_to_l2.push(message);
+        }
+
+        // State diff.
+        let state_diff = if use_kzg_da {
+            None
+        } else {
+            Some(OsStateDiff::from_iter(&mut output_iter, full_output)?)
+        };
+
+        Ok(Self {
+            initial_root,
+            final_root,
+            prev_block_number,
+            new_block_number,
+            prev_block_hash,
+            new_block_hash,
+            os_program_hash,
+            starknet_os_config_hash,
+            use_kzg_da,
+            full_output,
+            messages_to_l1,
+            messages_to_l2,
+            state_diff,
+        })
+=======
+>>>>>>> origin/main-v0.14.0
     }
 }
 
@@ -431,7 +422,7 @@ pub struct StarknetOsRunnerOutput {
 }
 
 pub struct StarknetAggregatorRunnerOutput {
-    // TODO(Aner): Define a struct for the output.
+    // TODO(Tzahi): Define a struct for the output.
     #[cfg(feature = "include_program_output")]
     pub aggregator_output: Vec<Felt>,
     pub cairo_pie: CairoPie,

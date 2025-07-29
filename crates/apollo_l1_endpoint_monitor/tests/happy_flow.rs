@@ -27,6 +27,7 @@ async fn end_to_end_cycle_and_recovery() {
                 good_url_1.clone(),
                 good_url_2.clone(),
             ],
+            ..Default::default()
         },
     };
 

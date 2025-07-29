@@ -506,7 +506,7 @@ impl Batcher {
                 error!("Failed to get commitment: {}", err);
                 BatcherError::InternalError
             })?;
-
+        info!("Finished building proposal {proposal_id} with {final_n_executed_txs} transactions.");
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished { id: commitment, final_n_executed_txs },
         })
@@ -678,8 +678,8 @@ impl Batcher {
             .await;
 
         if let Err(mempool_err) = mempool_result {
+            // Recoverable error, mempool won't be updated with the new block.
             error!("Failed to commit block to mempool: {}", mempool_err);
-            // TODO(AlonH): Should we rollback the state diff and return an error?
         };
 
         STORAGE_HEIGHT.increment(1);

@@ -1,6 +1,13 @@
+<<<<<<< HEAD
 use std::collections::BTreeSet;
+||||||| 937a3d39a
+use std::collections::BTreeMap;
+=======
+use std::collections::{BTreeMap, BTreeSet};
+>>>>>>> origin/main-v0.14.0
 use std::net::{IpAddr, Ipv4Addr};
 
+use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_infra_utils::template::Template;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
@@ -20,7 +27,13 @@ use crate::config_override::{
     NetworkConfigOverride,
 };
 use crate::deployment::{build_service_namespace_domain_address, Deployment, P2PCommunicationType};
-use crate::deployment_definitions::{CloudK8sEnvironment, Environment, ServicePort};
+use crate::deployment_definitions::{
+    CloudK8sEnvironment,
+    ComponentConfigInService,
+    DeploymentInputs,
+    Environment,
+    ServicePort,
+};
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
@@ -37,11 +50,20 @@ use crate::k8s::{
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
 use crate::utils::{determine_port_numbers, get_validator_id};
 
+<<<<<<< HEAD
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
 pub(crate) const INSTANCE_NAME_FORMAT: Template = Template("hybrid_{}");
+||||||| 937a3d39a
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 8;
+pub(crate) const INSTANCE_NAME_FORMAT: Template = Template("hybrid_{}");
+=======
+pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 8;
+pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
+>>>>>>> origin/main-v0.14.0
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const CORE_STORAGE: usize = 1000;
+const TEST_CORE_STORAGE: usize = 1;
 const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
@@ -71,8 +93,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let batcher = HybridNodeServiceName::Core.component_config_pair(ports[0]);
         let class_manager = HybridNodeServiceName::Core.component_config_pair(ports[1]);
         let gateway = HybridNodeServiceName::Gateway.component_config_pair(ports[2]);
-        let l1_gas_price_provider = HybridNodeServiceName::Core.component_config_pair(ports[3]);
-        let l1_provider = HybridNodeServiceName::Core.component_config_pair(ports[4]);
+        let l1_gas_price_provider = HybridNodeServiceName::L1.component_config_pair(ports[3]);
+        let l1_provider = HybridNodeServiceName::L1.component_config_pair(ports[4]);
         let mempool = HybridNodeServiceName::Mempool.component_config_pair(ports[5]);
         let sierra_compiler = HybridNodeServiceName::SierraCompiler.component_config_pair(ports[6]);
         let state_sync = HybridNodeServiceName::Core.component_config_pair(ports[7]);
@@ -225,7 +247,14 @@ impl ServiceNameInner for HybridNodeServiceName {
                 | HybridNodeServiceName::Mempool
                 | HybridNodeServiceName::SierraCompiler => None,
             },
-            Environment::LocalK8s => None,
+            Environment::LocalK8s => match self {
+                HybridNodeServiceName::Core => Some(TEST_CORE_STORAGE),
+                HybridNodeServiceName::HttpServer
+                | HybridNodeServiceName::Gateway
+                | HybridNodeServiceName::L1
+                | HybridNodeServiceName::Mempool
+                | HybridNodeServiceName::SierraCompiler => None,
+            },
         }
     }
 
@@ -474,6 +503,163 @@ impl ServiceNameInner for HybridNodeServiceName {
         };
         service_ports
     }
+
+    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+        let mut components = BTreeSet::new();
+        match self {
+            HybridNodeServiceName::Core => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint
+                        | ComponentConfigInService::StateSync => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler => {}
+                    }
+                }
+            }
+            HybridNodeServiceName::HttpServer => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::General
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            HybridNodeServiceName::Gateway => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::Gateway
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            HybridNodeServiceName::L1 => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::General
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            HybridNodeServiceName::Mempool => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::General
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+            HybridNodeServiceName::SierraCompiler => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint
+                        | ComponentConfigInService::SierraCompiler => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
+        }
+        components
+    }
 }
 
 impl HybridNodeServiceName {
@@ -624,7 +810,53 @@ fn get_http_server_component_config(
     config
 }
 
-// TODO(Tsaabry): unify these into inner structs.
+/// Loads the hybrid deployments from the given input file and returns a vector of `Deployment`.
+pub(crate) fn load_and_create_hybrid_deployments(input_file: &str) -> Vec<Deployment> {
+    let inputs =
+        DeploymentInputs::load_from_file(resolve_project_relative_path(input_file).unwrap());
+    hybrid_deployments(&inputs)
+}
+
+fn hybrid_deployments(inputs: &DeploymentInputs) -> Vec<Deployment> {
+    inputs
+        .node_ids
+        .iter()
+        .map(|&i| {
+            let k8s_service_config_params = if inputs.requires_k8s_service_config_params {
+                Some(K8sServiceConfigParams::new(
+                    inputs.node_namespace_format.format(&[&i]),
+                    inputs.ingress_domain.clone(),
+                    inputs.p2p_communication_type,
+                ))
+            } else {
+                None
+            };
+            hybrid_deployment(
+                i,
+                inputs.p2p_communication_type,
+                inputs.deployment_environment.clone(),
+                &Template::new(INSTANCE_NAME_FORMAT),
+                &inputs.secret_name_format,
+                DeploymentConfigOverride::new(
+                    &inputs.starknet_contract_address,
+                    &inputs.chain_id_string,
+                    &inputs.eth_fee_token_address,
+                    inputs.starknet_gateway_url.clone(),
+                    &inputs.strk_fee_token_address,
+                    inputs.l1_startup_height_override,
+                    inputs.node_ids.len(),
+                    inputs.state_sync_type.clone(),
+                ),
+                &inputs.node_namespace_format,
+                &inputs.ingress_domain,
+                &inputs.http_server_ingress_alternative_name,
+                k8s_service_config_params,
+            )
+        })
+        .collect()
+}
+
+// TODO(Tsabary): unify these into inner structs.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn hybrid_deployment(
     id: usize,

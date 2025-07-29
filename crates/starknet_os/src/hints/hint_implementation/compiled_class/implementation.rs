@@ -12,7 +12,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 };
 use cairo_vm::hint_processor::hint_processor_definition::HintExtension;
 use cairo_vm::types::relocatable::Relocatable;
-use starknet_api::core::ClassHash;
+use starknet_api::core::CompiledClassHash;
 use starknet_types_core::felt::Felt;
 
 use super::utils::BytecodeSegment;
@@ -67,7 +67,7 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { exec_scopes, ids_data, ap_tracking, vm, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let bytecode_segment_structures: &BTreeMap<ClassHash, BytecodeSegmentNode> =
+    let bytecode_segment_structures: &BTreeMap<CompiledClassHash, BytecodeSegmentNode> =
         exec_scopes.get_ref(Scope::BytecodeSegmentStructures.into())?;
 
     let class_hash_address = get_address_of_nested_fields(
@@ -80,7 +80,7 @@ pub(crate) fn bytecode_segment_structure<S: StateReader>(
         hint_processor.program,
     )?;
 
-    let class_hash = ClassHash(*vm.get_integer(class_hash_address)?.as_ref());
+    let class_hash = CompiledClassHash(*vm.get_integer(class_hash_address)?.as_ref());
     let bytecode_segment_structure = bytecode_segment_structures
         .get(&class_hash)
         .ok_or_else(|| OsHintError::MissingBytecodeSegmentStructure(class_hash))?;
@@ -273,7 +273,8 @@ pub(crate) fn load_class_inner<S: StateReader>(
     )?;
     // Iterate only over cairo 1 classes.
     for (class_hash, class) in hint_processor.compiled_classes.iter() {
-        let compiled_class_fact = CompiledClassFact { class_hash, compiled_class: class };
+        let compiled_class_fact =
+            CompiledClassFact { compiled_class_hash: class_hash, compiled_class: class };
         compiled_class_fact.load_into(
             vm,
             identifier_getter,

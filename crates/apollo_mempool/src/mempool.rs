@@ -366,7 +366,7 @@ impl Mempool {
     }
 
     fn insert_to_tx_queue(&mut self, tx_reference: TransactionReference) {
-        self.tx_queue.insert(tx_reference, self.config.override_gas_price_threshold_check);
+        self.tx_queue.insert(tx_reference, self.config.validate_resource_bounds);
     }
 
     fn add_tx_inner(&mut self, args: AddTransactionArgs) {
