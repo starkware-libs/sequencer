@@ -4,13 +4,18 @@ use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmCo
 use cairo_lang_starknet_classes::NestedIntList;
 use itertools::Itertools;
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::StarkHash;
+use starknet_types_core::hash::{Poseidon, StarkHash};
 
 use crate::core::CompiledClassHash;
 
 /// Constant that defines the version of the compiled class hash algorithm.
 pub static COMPILED_CLASS_V1: LazyLock<Felt> =
     LazyLock::new(|| Felt::from_bytes_be_slice(b"COMPILED_CLASS_V1"));
+
+/// The version of the hash function used to compute the compiled class hash.
+pub enum HashVersion {
+    V1,
+}
 
 /// A trait for types that can be hashed as an entry point.
 pub trait EntryPointHashable {
@@ -19,7 +24,6 @@ pub trait EntryPointHashable {
     fn get_builtins(&self) -> Vec<Felt>;
 }
 
-#[allow(dead_code)]
 fn entry_point_hash<H: StarkHash, EH: EntryPointHashable>(entry_points: &[EH]) -> Felt {
     let mut entry_point_hash_elements = vec![];
     for entry_point in entry_points {
@@ -50,7 +54,6 @@ impl EntryPointHashable for CasmContractEntryPoint {
 /// segments as described by the `NestedIntList`. For each segment, it recursively computes a hash
 /// using the provided `StarkHash` implementation. The final result is a hash representing the
 /// entire bytecode structure, as required by Starknet's contract class hash computation.
-#[allow(dead_code)]
 fn bytecode_hash<H>(bytecode: &[Felt], bytecode_segment_lengths: &NestedIntList) -> Felt
 where
     H: StarkHash,
@@ -65,7 +68,6 @@ where
 /// Computes the hash of a bytecode segment. See the documentation of `bytecode_hash_node` in
 /// the Starknet OS.
 /// Returns the length of the processed segment and its hash.
-#[allow(dead_code)]
 fn bytecode_hash_node<H: StarkHash>(
     iter: &mut impl Iterator<Item = Felt>,
     node: &NestedIntList,
@@ -90,32 +92,43 @@ fn bytecode_hash_node<H: StarkHash>(
 
 /// Trait for types that can be hashed as a Starknet compiled class.
 /// Used to abstract over different contract class representations.
-pub trait HashableCompiledClass<EH: EntryPointHashable> {
+pub trait HashableCompiledClass<EH: EntryPointHashable>: Sized {
     fn get_hashable_l1_entry_points(&self) -> &[EH];
     fn get_hashable_external_entry_points(&self) -> &[EH];
     fn get_hashable_constructor_entry_points(&self) -> &[EH];
     fn get_bytecode(&self) -> Vec<Felt>;
     fn get_bytecode_segment_lengths(&self) -> &NestedIntList;
 
-    fn hash<H: StarkHash>(&self) -> CompiledClassHash {
-        let external_funcs_hash =
-            entry_point_hash::<H, EH>(self.get_hashable_external_entry_points());
-        let l1_handlers_hash = entry_point_hash::<H, EH>(self.get_hashable_l1_entry_points());
-        let constructors_hash =
-            entry_point_hash::<H, EH>(self.get_hashable_constructor_entry_points());
-
-        let bytecode_hash =
-            bytecode_hash::<H>(&self.get_bytecode(), self.get_bytecode_segment_lengths());
-
-        // Compute total hash by hashing each component on top of the previous one.
-        CompiledClassHash(H::hash_array(&[
-            *COMPILED_CLASS_V1,
-            external_funcs_hash,
-            l1_handlers_hash,
-            constructors_hash,
-            bytecode_hash,
-        ]))
+    fn hash(&self, hash_version: HashVersion) -> CompiledClassHash {
+        match hash_version {
+            HashVersion::V1 => hash_inner::<Poseidon, EH>(self),
+        }
     }
+}
+
+/// Computes the compiled class hash for a given hashable class using the specified hash algorithm.
+fn hash_inner<H: StarkHash, EH: EntryPointHashable>(
+    hashable_class: &impl HashableCompiledClass<EH>,
+) -> CompiledClassHash {
+    let external_funcs_hash =
+        entry_point_hash::<H, EH>(hashable_class.get_hashable_external_entry_points());
+    let l1_handlers_hash = entry_point_hash::<H, EH>(hashable_class.get_hashable_l1_entry_points());
+    let constructors_hash =
+        entry_point_hash::<H, EH>(hashable_class.get_hashable_constructor_entry_points());
+
+    let bytecode_hash = bytecode_hash::<H>(
+        &hashable_class.get_bytecode(),
+        hashable_class.get_bytecode_segment_lengths(),
+    );
+
+    // Compute total hash by hashing each component on top of the previous one.
+    CompiledClassHash(H::hash_array(&[
+        *COMPILED_CLASS_V1,
+        external_funcs_hash,
+        l1_handlers_hash,
+        constructors_hash,
+        bytecode_hash,
+    ]))
 }
 
 impl HashableCompiledClass<CasmContractEntryPoint> for CasmContractClass {
