@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_node::config::component_config::ComponentConfig;
@@ -64,21 +64,47 @@ impl From<DistributedNodeServiceName> for NodeService {
 
 impl GetComponentConfigs for DistributedNodeServiceName {
     fn get_component_configs(ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
-        let ports = determine_port_numbers(ports, DISTRIBUTED_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
+        let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
+        match ports {
+            Some(ports) => {
+                let determined_ports = determine_port_numbers(
+                    Some(ports),
+                    DISTRIBUTED_NODE_REQUIRED_PORTS_NUM,
+                    BASE_PORT,
+                );
+                for (service_port, port) in InfraServicePort::iter().zip(determined_ports) {
+                    service_ports.insert(service_port, port);
+                }
+            }
+            None => {
+                // Extract the service ports for all inner services of the distributed node.
+                for inner_service_name in DistributedNodeServiceName::iter() {
+                    let inner_service_port = inner_service_name.get_infra_service_port_mapping();
+                    service_ports.extend(inner_service_port);
+                }
+            }
+        };
 
-        let batcher = DistributedNodeServiceName::Batcher.component_config_pair(ports[0]);
-        let class_manager =
-            DistributedNodeServiceName::ClassManager.component_config_pair(ports[1]);
-        let gateway = DistributedNodeServiceName::Gateway.component_config_pair(ports[2]);
-        let l1_gas_price_provider = DistributedNodeServiceName::L1.component_config_pair(ports[3]);
-        let l1_provider = DistributedNodeServiceName::L1.component_config_pair(ports[4]);
-        let l1_endpoint_monitor = DistributedNodeServiceName::L1.component_config_pair(ports[5]);
-        let mempool = DistributedNodeServiceName::Mempool.component_config_pair(ports[6]);
-        let sierra_compiler =
-            DistributedNodeServiceName::SierraCompiler.component_config_pair(ports[7]);
-        let state_sync = DistributedNodeServiceName::StateSync.component_config_pair(ports[8]);
-        let signature_manager =
-            DistributedNodeServiceName::ConsensusManager.component_config_pair(ports[9]);
+        let batcher = DistributedNodeServiceName::Batcher
+            .component_config_pair(service_ports[&InfraServicePort::Batcher]);
+        let class_manager = DistributedNodeServiceName::ClassManager
+            .component_config_pair(service_ports[&InfraServicePort::ClassManager]);
+        let gateway = DistributedNodeServiceName::Gateway
+            .component_config_pair(service_ports[&InfraServicePort::Gateway]);
+        let l1_endpoint_monitor = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1EndpointMonitor]);
+        let l1_gas_price_provider = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1GasPriceProvider]);
+        let l1_provider = DistributedNodeServiceName::L1
+            .component_config_pair(service_ports[&InfraServicePort::L1Provider]);
+        let mempool = DistributedNodeServiceName::Mempool
+            .component_config_pair(service_ports[&InfraServicePort::Mempool]);
+        let sierra_compiler = DistributedNodeServiceName::SierraCompiler
+            .component_config_pair(service_ports[&InfraServicePort::SierraCompiler]);
+        let signature_manager = DistributedNodeServiceName::SignatureManager
+            .component_config_pair(service_ports[&InfraServicePort::SignatureManager]);
+        let state_sync = DistributedNodeServiceName::StateSync
+            .component_config_pair(service_ports[&InfraServicePort::StateSync]);
 
         let mut component_config_map = IndexMap::<NodeService, ComponentConfig>::new();
         for inner_service_name in DistributedNodeServiceName::iter() {
