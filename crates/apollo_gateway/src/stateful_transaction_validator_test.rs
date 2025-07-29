@@ -7,6 +7,7 @@ use apollo_gateway_types::deprecated_gateway_error::{
 };
 use apollo_mempool_types::communication::MockMempoolClient;
 use blockifier::blockifier::stateful_validator::{
+    MockStatefulValidatorTrait as MockBlockifierStatefulValidatorTrait,
     StatefulValidatorError as BlockifierStatefulValidatorError,
     StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
@@ -43,10 +44,7 @@ use starknet_api::{declare_tx_args, deploy_account_tx_args, invoke_tx_args, nonc
 use crate::config::StatefulTransactionValidatorConfig;
 use crate::state_reader::{MockStateReaderFactory, StateReaderFactory};
 use crate::state_reader_test_utils::local_test_state_reader_factory;
-use crate::stateful_transaction_validator::{
-    MockStatefulTransactionValidatorTrait,
-    StatefulTransactionValidator,
-};
+use crate::stateful_transaction_validator::StatefulTransactionValidator;
 
 pub const STATEFUL_VALIDATOR_FEE_ERROR: BlockifierStatefulValidatorError =
     BlockifierStatefulValidatorError::TransactionPreValidationError(
@@ -89,9 +87,11 @@ async fn test_stateful_tx_validator(
             message: format!("{}", blockifier_error),
         });
 
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_| mocked_blockifier_result.map(|_| ()));
-    mock_validator.expect_block_info().return_const(BlockInfo::default());
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
+    mock_blockifier_validator
+        .expect_validate()
+        .return_once(|_| mocked_blockifier_result.map(|_| ()));
+    mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
 
     let account_nonce = nonce!(0);
     let mut mock_mempool_client = MockMempoolClient::new();
@@ -107,7 +107,7 @@ async fn test_stateful_tx_validator(
             &executable_tx,
             account_nonce,
             mempool_client,
-            mock_validator,
+            mock_blockifier_validator,
             runtime,
         )
     })
@@ -191,12 +191,12 @@ async fn test_skip_validate(
     #[case] should_validate: bool,
     stateful_validator: StatefulTransactionValidator,
 ) {
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
+    mock_blockifier_validator
         .expect_validate()
         .withf(move |tx| tx.execution_flags.validate == should_validate)
         .returning(|_| Ok(()));
-    mock_validator.expect_block_info().return_const(BlockInfo::default());
+    mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
     let mut mock_mempool_client = MockMempoolClient::new();
     mock_mempool_client
         .expect_account_tx_in_pool_or_recent_block()
@@ -209,7 +209,7 @@ async fn test_skip_validate(
             &executable_tx,
             sender_nonce,
             mempool_client,
-            mock_validator,
+            mock_blockifier_validator,
             runtime,
         );
     })
@@ -292,9 +292,9 @@ async fn validate_resource_bounds(
     });
     let executable_tx = executable_invoke_tx(invoke_tx_args!(resource_bounds));
 
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_| Ok(()));
-    mock_validator.expect_block_info().return_const(BlockInfo {
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
+    mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
+    mock_blockifier_validator.expect_block_info().return_const(BlockInfo {
         gas_prices: GasPrices {
             strk_gas_prices: GasPriceVector {
                 l2_gas_price: prev_l2_gas_price,
@@ -310,7 +310,7 @@ async fn validate_resource_bounds(
             &executable_tx,
             nonce!(0),
             Arc::new(MockMempoolClient::new()),
-            mock_validator,
+            mock_blockifier_validator,
             tokio::runtime::Handle::current(),
         )
     })
@@ -344,9 +344,9 @@ async fn test_is_valid_nonce(
     let stateful_validator = StatefulTransactionValidator {
         config: StatefulTransactionValidatorConfig { max_allowed_nonce_gap, ..Default::default() },
     };
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_| Ok(()));
-    mock_validator.expect_block_info().return_const(BlockInfo::default());
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
+    mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
+    mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
     let executable_tx = executable_invoke_tx(invoke_tx_args!(
         nonce: nonce!(tx_nonce),
         resource_bounds: ValidResourceBounds::create_for_testing(),
@@ -357,7 +357,7 @@ async fn test_is_valid_nonce(
             &executable_tx,
             nonce!(account_nonce),
             Arc::new(MockMempoolClient::new()),
-            mock_validator,
+            mock_blockifier_validator,
             tokio::runtime::Handle::current(),
         )
     })
@@ -380,9 +380,9 @@ async fn test_reject_future_declares(
     #[case] account_nonce_diff: i32,
     #[case] expected_result_code: Result<(), StarknetErrorCode>,
 ) {
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator.expect_validate().return_once(|_| Ok(()));
-    mock_validator.expect_block_info().return_const(BlockInfo::default());
+    let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
+    mock_blockifier_validator.expect_validate().return_once(|_| Ok(()));
+    mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
 
     let account_nonce = 10;
     let executable_tx = executable_declare_tx(
@@ -400,7 +400,7 @@ async fn test_reject_future_declares(
             &executable_tx,
             nonce!(account_nonce),
             Arc::new(MockMempoolClient::new()),
-            mock_validator,
+            mock_blockifier_validator,
             tokio::runtime::Handle::current(),
         )
     })
