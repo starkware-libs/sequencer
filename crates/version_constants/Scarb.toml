@@ -1,0 +1,33 @@
+[package]
+name = "version_constants"
+version = "0.1.0"
+edition = "2024_07"
+
+[dependencies]
+starknet = "2.11.4"
+snforge_std = "0.45.0"
+assert_macros = "2.11.4"
+openzeppelin = "2.0.0"
+openzeppelin_testing = "4.2.0"
+starkware_utils = { git ="https://github.com/starkware-libs/starkware-starknet-utils", rev="e716f3538e5edfefe441e3a8c207710460e3d511" }
+starkware_utils_testing = { git="https://github.com/starkware-libs/starkware-starknet-utils", rev="e716f3538e5edfefe441e3a8c207710460e3d511" }
+
+[tool.fmt]
+sort-module-level-items = true
+
+[tool.scarb]
+allow-prebuilt-plugins = ["snforge_std"]
+
+[scripts]
+test = "SNFORGE_BACKTRACE=1 snforge test"
+
+[[target.starknet-contract]]
+
+[[test]]
+name = "version_constants_unittest"
+
+
+[profile.dev.cairo]
+unstable-add-statements-code-locations-debug-info = true
+unstable-add-statements-functions-debug-info = true
+inlining-strategy = "avoid"
