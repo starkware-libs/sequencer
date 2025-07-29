@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use starknet_patricia_storage::errors::StorageError;
-use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, Storage};
+use starknet_patricia_storage::storage_trait::{create_db_key, DbKey, ReadOnlyStorage};
 use tracing::warn;
 
 use crate::hash::hash_trait::HashOutput;
@@ -126,7 +126,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     fn fetch_nodes<L: Leaf>(
         &mut self,
         subtrees: Vec<SubTree<'a>>,
-        storage: &impl Storage,
+        storage: &impl ReadOnlyStorage,
         leaf_modifications: &LeafModifications<L>,
         config: &impl OriginalSkeletonTreeConfig<L>,
         mut previous_leaves: Option<&mut HashMap<NodeIndex, L>>,
@@ -223,7 +223,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     // TODO(Aviv, 17/07/2024): Split between storage prefix implementation and function logic.
     fn calculate_subtrees_roots<L: Leaf>(
         subtrees: &[SubTree<'a>],
-        storage: &impl Storage,
+        storage: &impl ReadOnlyStorage,
     ) -> OriginalSkeletonTreeResult<Vec<FilledNode<L>>> {
         let mut subtrees_roots = vec![];
         let db_keys: Vec<DbKey> = subtrees
@@ -247,7 +247,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     }
 
     pub(crate) fn create_impl<L: Leaf>(
-        storage: &impl Storage,
+        storage: &impl ReadOnlyStorage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         config: &impl OriginalSkeletonTreeConfig<L>,
@@ -277,7 +277,7 @@ impl<'a> OriginalSkeletonTreeImpl<'a> {
     }
 
     pub(crate) fn create_and_get_previous_leaves_impl<L: Leaf>(
-        storage: &impl Storage,
+        storage: &impl ReadOnlyStorage,
         root_hash: HashOutput,
         sorted_leaf_indices: SortedLeafIndices<'a>,
         leaf_modifications: &LeafModifications<L>,

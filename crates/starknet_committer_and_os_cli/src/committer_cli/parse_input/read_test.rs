@@ -207,7 +207,6 @@ fn test_simple_input_parsing() {
     let expected_contracts_trie_root_hash = HashOutput(Felt::from(19_u128));
     let expected_classes_trie_root_hash = HashOutput(Felt::from(256_u128));
     let expected_input = Input {
-        storage: expected_storage,
         state_diff: StateDiff {
             address_to_class_hash: expected_address_to_class_hash,
             address_to_nonce: expected_address_to_nonce,
@@ -218,7 +217,7 @@ fn test_simple_input_parsing() {
         classes_trie_root_hash: expected_classes_trie_root_hash,
         config: ConfigImpl::new(true, LevelFilter::DEBUG),
     };
-    assert_eq!(parse_input(input).unwrap(), expected_input);
+    assert_eq!(parse_input(input).unwrap(), (expected_input, expected_storage));
 }
 
 #[test]
