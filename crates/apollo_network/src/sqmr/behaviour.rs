@@ -112,7 +112,7 @@ pub struct Behaviour {
     next_outbound_session_id: OutboundSessionId,
     next_inbound_session_id: Arc<AtomicUsize>,
     dropped_sessions: HashSet<SessionId>,
-    wakers_waiting_for_event: Vec<Waker>,
+    last_waker_waiting_for_event: Option<Waker>,
     outbound_sessions_pending_peer_assignment: HashMap<OutboundSessionId, (Bytes, StreamProtocol)>,
     supported_inbound_protocols: HashSet<StreamProtocol>,
 }
@@ -126,7 +126,7 @@ impl Behaviour {
             next_outbound_session_id: Default::default(),
             next_inbound_session_id: Arc::new(Default::default()),
             dropped_sessions: Default::default(),
-            wakers_waiting_for_event: Default::default(),
+            last_waker_waiting_for_event: Default::default(),
             outbound_sessions_pending_peer_assignment: Default::default(),
             supported_inbound_protocols: Default::default(),
         }
@@ -213,7 +213,7 @@ impl Behaviour {
 
     fn add_event_to_queue(&mut self, event: ToSwarm<Event, RequestFromBehaviourEvent>) {
         self.pending_events.push_back(event);
-        for waker in self.wakers_waiting_for_event.drain(..) {
+        if let Some(waker) = self.last_waker_waiting_for_event.take() {
             waker.wake();
         }
     }
@@ -330,7 +330,7 @@ impl NetworkBehaviour for Behaviour {
         if let Some(event) = self.pending_events.pop_front() {
             return Poll::Ready(event);
         }
-        self.wakers_waiting_for_event.push(cx.waker().clone());
+        self.last_waker_waiting_for_event = Some(cx.waker().clone());
         Poll::Pending
     }
 }
