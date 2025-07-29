@@ -34,9 +34,6 @@
         "Batcher": 55000,
         "ClassManager": 55001,
         "ConsensusManager": 53080,
-        "L1EndpointMonitor": 55005,
-        "L1GasPriceProvider": 55003,
-        "L1Provider": 55004,
         "StateSync": 55008,
         "MonitoringEndpoint": 8082
       }
@@ -152,6 +149,9 @@
       },
       "anti_affinity": false,
       "ports": {
+        "L1EndpointMonitor": 55005,
+        "L1GasPriceProvider": 55003,
+        "L1Provider": 55004,
         "MonitoringEndpoint": 8082
       }
     },
