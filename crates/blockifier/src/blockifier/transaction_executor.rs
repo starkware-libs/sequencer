@@ -245,14 +245,14 @@ pub(crate) fn finalize_block<S: StateReader>(
         allocate_aliases_in_storage(block_state, alias_contract_address)?;
     }
 
-    let compiled_class_hashes_for_migration =
-        update_compiled_class_hash_migration_in_state(&lock_bouncer(bouncer), block_state)?;
     if !block_context.versioned_constants.enable_casm_hash_migration {
         assert!(
-            compiled_class_hashes_for_migration.is_empty(),
+            lock_bouncer(bouncer).class_hashes_to_migrate().is_empty(),
             "Class hashes to migrate should be empty when migration is disabled"
         );
     }
+    let compiled_class_hashes_for_migration =
+        update_compiled_class_hash_migration_in_state(&lock_bouncer(bouncer), block_state)?;
     let state_diff = block_state.to_state_diff()?.state_maps;
 
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
