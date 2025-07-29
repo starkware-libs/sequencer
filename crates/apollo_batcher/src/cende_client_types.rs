@@ -248,38 +248,43 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
     // TODO(Arni): Fix this call. The iterator returns all the call infos in the order: `validate`,
     // `execute`, `fee_transfer`. For `deploy_account` transactions, the order is `execute`,
     // `validate`, `fee_transfer`.
-    let call_info_iterator = execution_info.non_optional_call_infos();
+    let main_call_info_iterator = execution_info.non_optional_call_infos();
 
     let mut l2_to_l1_messages = vec![];
-    for call in call_info_iterator {
-        let messages =
-            call.execution.l2_to_l1_messages.iter().map(|l2_to_l1_message| L2ToL1Message {
-                from_address: call.call.caller_address,
-                to_address: l2_to_l1_message.message.to_address,
-                payload: l2_to_l1_message.message.payload.clone(),
-            });
-        l2_to_l1_messages.extend(messages);
+    for main_call_info in main_call_info_iterator {
+        for inner_call_info in main_call_info.iter() {
+            let messages =
+                inner_call_info.execution.l2_to_l1_messages.iter().map(|l2_to_l1_message| {
+                    L2ToL1Message {
+                        from_address: main_call_info.call.storage_address,
+                        to_address: l2_to_l1_message.message.to_address,
+                        payload: l2_to_l1_message.message.payload.clone(),
+                    }
+                });
+            l2_to_l1_messages.extend(messages);
+        }
     }
 
     l2_to_l1_messages
 }
 
 fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
-    let call_info = if let Some(ref call_info) = execution_info.execute_call_info {
-        call_info
-    } else {
-        return vec![];
-    };
+    // TODO(Arni): Fix this call. The iterator returns all the call infos in the order:
+    // `validate`, `execute`, `fee_transfer`. For `deploy_account` transactions, the order is
+    // `execute`, `validate`, `fee_transfer`.
+    let main_call_info_iterator = execution_info.non_optional_call_infos();
 
     // Collect all the events from the call infos, along with their order.
     let mut accumulated_sortable_events = vec![];
-    for call_info in call_info.iter() {
-        let sortable_events = call_info
-            .execution
-            .events
-            .iter()
-            .map(|orderable_event| (call_info.call.storage_address, orderable_event));
-        accumulated_sortable_events.extend(sortable_events);
+    for main_call_info in main_call_info_iterator {
+        for call_info in main_call_info.iter() {
+            let sortable_events = call_info
+                .execution
+                .events
+                .iter()
+                .map(|orderable_event| (call_info.call.storage_address, orderable_event));
+            accumulated_sortable_events.extend(sortable_events);
+        }
     }
     // Sort the events by their order.
     accumulated_sortable_events.sort_by_key(|(_, OrderedEvent { order, .. })| *order);
