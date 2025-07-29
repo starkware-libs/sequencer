@@ -199,10 +199,17 @@ impl StarknetFeederGatewayClient {
     }
 
     async fn request_with_retry_url(&self, url: Url) -> ReaderClientResult<String> {
-        self.client
-            .request_with_retry(self.client.internal_client.get(url))
+        debug!("Calling feeder with url: {url:?}");
+        let result = self
+            .client
+            .request_with_retry(self.client.internal_client.get(url.clone()))
             .await
-            .map_err(Into::<ReaderClientError>::into)
+            .map_err(Into::<ReaderClientError>::into);
+        match &result {
+            Ok(_) => debug!("Call {url:?} to feeder finished successfully"),
+            Err(err) => debug!("Failed calling to feeder with {url:?}. Error = {err}"),
+        }
+        result
     }
 
     async fn request_block(
