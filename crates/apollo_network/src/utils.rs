@@ -20,11 +20,7 @@ pub struct StreamMap<K: Unpin + Clone + Ord, V: Stream + Unpin> {
 impl<K: Unpin + Clone + Ord, V: Stream + Unpin> StreamMap<K, V> {
     #[allow(dead_code)]
     pub fn new(map: BTreeMap<K, V>) -> Self {
-        Self {
-            map,
-            last_waker_waiting_for_new_stream: Default::default(),
-            next_index_to_poll: None,
-        }
+        Self { map, last_waker_waiting_for_new_stream: None, next_index_to_poll: None }
     }
 
     #[allow(dead_code)]
