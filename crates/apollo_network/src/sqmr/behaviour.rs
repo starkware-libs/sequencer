@@ -126,7 +126,7 @@ impl Behaviour {
             next_outbound_session_id: Default::default(),
             next_inbound_session_id: Arc::new(Default::default()),
             dropped_sessions: Default::default(),
-            last_waker_waiting_for_event: Default::default(),
+            last_waker_waiting_for_event: None,
             outbound_sessions_pending_peer_assignment: Default::default(),
             supported_inbound_protocols: Default::default(),
         }

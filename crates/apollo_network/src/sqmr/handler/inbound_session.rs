@@ -35,7 +35,7 @@ impl InboundSession {
         Self {
             pending_messages: Default::default(),
             current_task: WriteMessageTask::Waiting(write_stream),
-            last_waker_waiting_for_new_message: Default::default(),
+            last_waker_waiting_for_new_message: None,
         }
     }
 
