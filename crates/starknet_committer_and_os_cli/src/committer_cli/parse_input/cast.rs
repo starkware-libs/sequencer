@@ -18,7 +18,7 @@ use crate::committer_cli::parse_input::raw_input::RawInput;
 
 pub type InputImpl = Input<ConfigImpl>;
 
-impl TryFrom<RawInput> for InputImpl {
+impl TryFrom<RawInput> for (InputImpl, HashMap<DbKey, DbValue>) {
     type Error = DeserializationError;
     fn try_from(raw_input: RawInput) -> Result<Self, Self::Error> {
         let mut storage = HashMap::new();
@@ -76,22 +76,24 @@ impl TryFrom<RawInput> for InputImpl {
             )?;
         }
 
-        Ok(Input {
-            storage,
-            state_diff: StateDiff {
-                address_to_class_hash,
-                address_to_nonce,
-                class_hash_to_compiled_class_hash,
-                storage_updates,
+        Ok((
+            Input {
+                state_diff: StateDiff {
+                    address_to_class_hash,
+                    address_to_nonce,
+                    class_hash_to_compiled_class_hash,
+                    storage_updates,
+                },
+                contracts_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
+                    &raw_input.contracts_trie_root_hash,
+                )),
+                classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
+                    &raw_input.classes_trie_root_hash,
+                )),
+                config: raw_input.config.into(),
             },
-            contracts_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
-                &raw_input.contracts_trie_root_hash,
-            )),
-            classes_trie_root_hash: HashOutput(Felt::from_bytes_be_slice(
-                &raw_input.classes_trie_root_hash,
-            )),
-            config: raw_input.config.into(),
-        })
+            storage,
+        ))
     }
 }
 

@@ -285,8 +285,10 @@ pub(crate) fn parse_input_test(committer_input: String) -> CommitterPythonTestRe
     })?))
 }
 
-fn create_output_to_python(actual_input: InputImpl) -> String {
-    let (storage_keys_hash, storage_values_hash) = hash_storage(&actual_input.storage);
+fn create_output_to_python(
+    (actual_input, storage): (InputImpl, HashMap<DbKey, DbValue>),
+) -> String {
+    let (storage_keys_hash, storage_values_hash) = hash_storage(&storage);
     let (state_diff_keys_hash, state_diff_values_hash) = hash_state_diff(&actual_input.state_diff);
     format!(
         r#"
@@ -303,7 +305,7 @@ fn create_output_to_python(actual_input: InputImpl) -> String {
         "state_diff_keys_hash": {:?},
         "state_diff_values_hash": {:?}
         }}"#,
-        actual_input.storage.len(),
+        storage.len(),
         actual_input.state_diff.address_to_class_hash.len(),
         actual_input.state_diff.address_to_nonce.len(),
         actual_input.state_diff.class_hash_to_compiled_class_hash.len(),

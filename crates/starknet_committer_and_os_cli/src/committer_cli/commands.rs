@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use starknet_committer::block_committer::commit::commit_block;
-use starknet_committer::block_committer::input::{Config, ConfigImpl, Input};
+use starknet_committer::block_committer::input::Config;
+use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -15,7 +18,7 @@ pub async fn parse_and_commit(
     output_path: String,
     log_filter_handle: Handle<LevelFilter, Registry>,
 ) {
-    let input: InputImpl = load_input::<RawInput>(input_path)
+    let (input, storage) = load_input::<RawInput>(input_path)
         .try_into()
         .expect("Failed to convert RawInput to InputImpl.");
     info!(
@@ -27,12 +30,13 @@ pub async fn parse_and_commit(
     log_filter_handle
         .modify(|filter| *filter = input.config.logger_level())
         .expect("Failed to set the log level.");
-    commit(input, output_path).await;
+    commit(input, output_path, storage).await;
 }
 
-pub async fn commit(input: Input<ConfigImpl>, output_path: String) {
-    let serialized_filled_forest =
-        SerializedForest(commit_block(input).await.expect("Failed to commit the given block."));
+pub async fn commit(input: InputImpl, output_path: String, storage: HashMap<DbKey, DbValue>) {
+    let serialized_filled_forest = SerializedForest(
+        commit_block(input, &storage).await.expect("Failed to commit the given block."),
+    );
     let output = serialized_filled_forest.forest_to_output();
     write_to_file(&output_path, &output);
     info!(
