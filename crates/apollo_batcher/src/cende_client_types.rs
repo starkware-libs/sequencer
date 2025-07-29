@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
-use blockifier::execution::call_info::OrderedEvent;
+use blockifier::execution::call_info::{OrderedEvent, OrderedL2ToL1Message};
 use blockifier::state::cached_state::{StateMaps, StorageView};
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
@@ -250,22 +250,33 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
     // `validate`, `fee_transfer`.
     let main_call_info_iterator = execution_info.non_optional_call_infos();
 
-    let mut l2_to_l1_messages = vec![];
+    let mut accumulated_sortable_messages = vec![];
     for main_call_info in main_call_info_iterator {
         for inner_call_info in main_call_info.iter() {
-            let messages =
-                inner_call_info.execution.l2_to_l1_messages.iter().map(|l2_to_l1_message| {
-                    L2ToL1Message {
-                        from_address: main_call_info.call.storage_address,
-                        to_address: l2_to_l1_message.message.to_address,
-                        payload: l2_to_l1_message.message.payload.clone(),
-                    }
-                });
-            l2_to_l1_messages.extend(messages);
+            let sorable_messages = inner_call_info.execution.l2_to_l1_messages.iter().map(
+                |ordered_l2_to_l1_message| {
+                    (
+                        ordered_l2_to_l1_message.order,
+                        L2ToL1Message {
+                            from_address: main_call_info.call.storage_address,
+                            to_address: ordered_l2_to_l1_message.message.to_address,
+                            payload: ordered_l2_to_l1_message.message.payload.clone(),
+                        },
+                    )
+                },
+            );
+
+            accumulated_sortable_messages.extend(sorable_messages);
         }
     }
+    // Sort the messages by their order.
+    accumulated_sortable_messages.sort_by_key(|(order, ..)| *order);
 
-    l2_to_l1_messages
+    // Convert the sorted messages into the StarknetClient L2ToL1Message type.
+    accumulated_sortable_messages
+        .into_iter()
+        .map(|(_, l2_to_l1_message)| l2_to_l1_message)
+        .collect()
 }
 
 fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
