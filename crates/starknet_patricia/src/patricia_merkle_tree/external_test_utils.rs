@@ -47,7 +47,7 @@ pub fn get_random_u256<R: Rng>(rng: &mut R, low: U256, high: U256) -> U256 {
 
 pub async fn tree_computation_flow<L, TH>(
     leaf_modifications: LeafModifications<L>,
-    storage: &MapStorage,
+    storage: &MapStorage<'_>,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig<L>,
 ) -> FilledTreeImpl<L>
@@ -90,7 +90,7 @@ where
 
 pub async fn single_tree_flow_test<L: Leaf + 'static, TH: TreeHashFunction<L> + 'static>(
     leaf_modifications: LeafModifications<L>,
-    storage: MapStorage,
+    storage: MapStorage<'_>,
     root_hash: HashOutput,
     config: impl OriginalSkeletonTreeConfig<L>,
 ) -> String {

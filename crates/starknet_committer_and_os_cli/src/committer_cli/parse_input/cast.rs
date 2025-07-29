@@ -17,8 +17,13 @@ use starknet_types_core::felt::Felt;
 use crate::committer_cli::parse_input::raw_input::RawInput;
 
 pub type InputImpl = Input<ConfigImpl>;
+#[derive(Debug, PartialEq)]
+pub struct CommitterInputImpl {
+    pub input: InputImpl,
+    pub storage: HashMap<DbKey, DbValue>,
+}
 
-impl TryFrom<RawInput> for InputImpl {
+impl TryFrom<RawInput> for CommitterInputImpl {
     type Error = DeserializationError;
     fn try_from(raw_input: RawInput) -> Result<Self, Self::Error> {
         let mut storage = HashMap::new();
@@ -75,9 +80,7 @@ impl TryFrom<RawInput> for InputImpl {
                 inner_map,
             )?;
         }
-
-        Ok(Input {
-            storage,
+        let input = Input {
             state_diff: StateDiff {
                 address_to_class_hash,
                 address_to_nonce,
@@ -91,7 +94,8 @@ impl TryFrom<RawInput> for InputImpl {
                 &raw_input.classes_trie_root_hash,
             )),
             config: raw_input.config.into(),
-        })
+        };
+        Ok(Self { input, storage })
     }
 }
 

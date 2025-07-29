@@ -3,24 +3,15 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 use crate::storage_trait::{DbKey, DbValue, Storage};
-
-#[derive(Serialize, Debug, Default)]
-#[cfg_attr(any(test, feature = "testing"), derive(Clone))]
-pub struct MapStorage {
-    pub storage: HashMap<DbKey, DbValue>,
+// TODO(Nimrod): Rename to 'BorrowedMapStorage' and define a type for HashMap<DbKey, DbValue>.
+#[derive(Serialize, Debug)]
+pub struct MapStorage<'a> {
+    pub storage: &'a mut HashMap<DbKey, DbValue>,
 }
 
-impl Storage for MapStorage {
-    fn get(&self, key: &DbKey) -> Option<&DbValue> {
-        self.storage.get(key)
-    }
-
+impl Storage for MapStorage<'_> {
     fn set(&mut self, key: DbKey, value: DbValue) -> Option<DbValue> {
         self.storage.insert(key, value)
-    }
-
-    fn mget(&self, keys: &[DbKey]) -> Vec<Option<&DbValue>> {
-        keys.iter().map(|key| self.get(key)).collect::<Vec<_>>()
     }
 
     fn mset(&mut self, key_to_value: HashMap<DbKey, DbValue>) {
@@ -30,10 +21,12 @@ impl Storage for MapStorage {
     fn delete(&mut self, key: &DbKey) -> Option<DbValue> {
         self.storage.remove(key)
     }
-}
 
-impl From<HashMap<DbKey, DbValue>> for MapStorage {
-    fn from(storage: HashMap<DbKey, DbValue>) -> Self {
-        Self { storage }
+    fn get(&self, key: &DbKey) -> Option<&DbValue> {
+        self.storage.get(key)
+    }
+
+    fn mget(&self, keys: &[DbKey]) -> Vec<Option<&DbValue>> {
+        keys.iter().map(|key| self.storage.get(key)).collect()
     }
 }
