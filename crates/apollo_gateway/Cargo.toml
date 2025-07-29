@@ -66,6 +66,7 @@ mockito.workspace = true
 num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
 tracing-test.workspace = true
 
 [[bench]]
