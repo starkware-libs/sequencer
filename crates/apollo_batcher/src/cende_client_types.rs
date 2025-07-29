@@ -198,6 +198,7 @@ pub struct StarknetClientTransactionReceipt {
 }
 
 // Conversion logic from blockifier types to StarknetClient types.
+// TODO(Arni): Convert to a `new` method instead of an `impl From` block.
 impl
     From<(
         TransactionHash,
@@ -205,18 +206,20 @@ impl
         usize,
         &TransactionExecutionInfo,
         Option<starknet_api::transaction::L1HandlerTransaction>,
+        bool,
     )> for StarknetClientTransactionReceipt
 {
     fn from(
-        (tx_hash, tx_index, tx_execution_info, l1_handler): (
+        (tx_hash, tx_index, tx_execution_info, l1_handler, is_deploy_account): (
             TransactionHash,
             usize,
             &TransactionExecutionInfo,
             Option<starknet_api::transaction::L1HandlerTransaction>,
+            bool,
         ),
     ) -> Self {
-        let l2_to_l1_messages = get_l2_to_l1_messages(tx_execution_info);
-        let events = get_events_from_execution_info(tx_execution_info);
+        let l2_to_l1_messages = get_l2_to_l1_messages(tx_execution_info, is_deploy_account);
+        let events = get_events_from_execution_info(tx_execution_info, is_deploy_account);
         let execution_resources = get_execution_resources(tx_execution_info);
         let execution_status = if tx_execution_info.is_reverted() {
             TransactionExecutionStatus::Reverted
@@ -231,7 +234,6 @@ impl
         Self {
             transaction_index: TransactionOffsetInBlock(tx_index),
             transaction_hash: tx_hash,
-            // TODO(Arni): Fill this up. This is relevant only for L1 handler transactions.
             l1_to_l2_consumed_message: l1_handler.map(L1ToL2Message::from),
             l2_to_l1_messages,
             events,
@@ -243,11 +245,11 @@ impl
     }
 }
 
-fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL1Message> {
-    // TODO(Arni): Fix this call. The iterator returns all the call infos in the order: `validate`,
-    // `execute`, `fee_transfer`. For `deploy_account` transactions, the order is `execute`,
-    // `validate`, `fee_transfer`.
-    let main_call_info_iterator = execution_info.non_optional_call_infos();
+fn get_l2_to_l1_messages(
+    execution_info: &TransactionExecutionInfo,
+    is_deploy_account: bool,
+) -> Vec<L2ToL1Message> {
+    let main_call_info_iterator = execution_info.ordered_non_optional_call_infos(is_deploy_account);
 
     let mut accumulated_sortable_messages = vec![];
     for main_call_info in main_call_info_iterator {
@@ -277,11 +279,11 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
         .collect()
 }
 
-fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
-    // TODO(Arni): Fix this call. The iterator returns all the call infos in the order:
-    // `validate`, `execute`, `fee_transfer`. For `deploy_account` transactions, the order is
-    // `execute`, `validate`, `fee_transfer`.
-    let main_call_info_iterator = execution_info.non_optional_call_infos();
+fn get_events_from_execution_info(
+    execution_info: &TransactionExecutionInfo,
+    is_deploy_account: bool,
+) -> Vec<Event> {
+    let main_call_info_iterator = execution_info.ordered_non_optional_call_infos(is_deploy_account);
 
     // Collect all the events from the call infos, along with their order.
     let mut accumulated_sortable_events = vec![];

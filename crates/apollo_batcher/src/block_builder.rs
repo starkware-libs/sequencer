@@ -43,6 +43,7 @@ use starknet_api::block_hash::state_diff_hash::calculate_state_diff_hash;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::execution_resources::GasAmount;
+use starknet_api::rpc_transaction::InternalRpcTransactionWithoutTxHash;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
@@ -501,6 +502,11 @@ async fn collect_execution_results_and_stream_txs(
                 None
             };
         let tx_hash = input_tx.tx_hash();
+        let is_deploy_account = matches!(
+            input_tx,
+            InternalConsensusTransaction::RpcTransaction(tx)
+            if matches!(tx.tx, InternalRpcTransactionWithoutTxHash::DeployAccount(_))
+        );
 
         // Insert the tx_hash into the appropriate collection if it's an L1_Handler transaction.
         if let InternalConsensusTransaction::L1Handler(_) = input_tx {
@@ -526,6 +532,7 @@ async fn collect_execution_results_and_stream_txs(
                         // consumes it below this (if it doesn't change functionality).
                         &execution_data.execution_infos[&tx_hash],
                         optional_l1_handler_tx,
+                        is_deploy_account,
                     ));
 
                     let tx_state_diff = StarknetClientStateDiff::from(state_maps).0;

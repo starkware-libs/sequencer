@@ -200,13 +200,27 @@ pub struct TransactionExecutionInfo {
 }
 
 impl TransactionExecutionInfo {
-    // TODO(Arni): Add a flag to non_optional_call_infos to indicate the transaction
-    // type. Change the iteration order for `deploy_account` transactions.
+    // TODO(Arni): remove this method and use only 'ordered_non_optional_call_infos'. (rename to
+    // 'non_optional_call_infos').
     pub fn non_optional_call_infos(&self) -> impl Iterator<Item = &CallInfo> {
-        self.validate_call_info
-            .iter()
-            .chain(self.execute_call_info.iter())
-            .chain(self.fee_transfer_call_info.iter())
+        self.ordered_non_optional_call_infos(false)
+    }
+
+    pub fn ordered_non_optional_call_infos(
+        &self,
+        is_deploy_account: bool,
+    ) -> impl Iterator<Item = &CallInfo> {
+        let execute_call_info = self.execute_call_info.as_ref().into_iter();
+        let validate_call_info = self.validate_call_info.as_ref().into_iter();
+        let fee_transfer_call_info = self.fee_transfer_call_info.as_ref().into_iter();
+
+        if is_deploy_account {
+            // For deploy account transactions, the order is `execute`, `validate`, `fee_transfer`.
+            execute_call_info.chain(validate_call_info).chain(fee_transfer_call_info)
+        } else {
+            // For other transactions, the order is `validate`, `execute`, `fee_transfer`.
+            validate_call_info.chain(execute_call_info).chain(fee_transfer_call_info)
+        }
     }
 
     /// Returns call infos excluding fee transfer (to avoid double-counting in bouncer
