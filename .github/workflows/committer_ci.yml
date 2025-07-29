@@ -114,6 +114,9 @@ jobs:
           clean: false
       - run: echo "NEW_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
 
+      # If the pip requirements on the old commit are different from the new commit, re-install them.
+      - run: pip install -r scripts/requirements.txt
+
       # Input files didn't change.
       - if: env.OLD_BENCH_INPUT_FILES_PREFIX == env.NEW_BENCH_INPUT_FILES_PREFIX
         run: |
