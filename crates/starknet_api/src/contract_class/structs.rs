@@ -54,8 +54,7 @@ impl ContractClass {
         match self {
             ContractClass::V0(_) => panic!("Cairo 0 doesn't have compiled class hash."),
             ContractClass::V1((casm_contract_class, _sierra_version)) => {
-                // TODO(Aviv): use V2.
-                casm_contract_class.hash(Some(HashVersion::V1))
+                casm_contract_class.hash(Some(&HashVersion::V2))
             }
         }
     }
