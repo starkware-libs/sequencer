@@ -20,6 +20,7 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
+use starknet_api::contract_class::compiled_class_hash::EntryPointHashable;
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion, VersionedCasm};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
@@ -512,6 +513,21 @@ impl EntryPointV1 {
 impl HasSelector for EntryPointV1 {
     fn selector(&self) -> &EntryPointSelector {
         &self.selector
+    }
+}
+
+impl EntryPointHashable for EntryPointV1 {
+    fn get_selector(&self) -> Felt {
+        self.selector.0
+    }
+    fn get_offset(&self) -> Felt {
+        Felt::from(self.offset.0)
+    }
+    fn get_builtins(&self) -> Vec<Felt> {
+        self.builtins
+            .iter()
+            .map(|builtin| Felt::from_bytes_be_slice(builtin.to_str().as_bytes()))
+            .collect_vec()
     }
 }
 
