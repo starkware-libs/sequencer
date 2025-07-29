@@ -8,7 +8,7 @@ use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::{
     OriginalSkeletonTreeImpl,
 };
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::storage_trait::ReadOnlyStorage;
+use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::block_committer::input::{
     contract_address_into_node_index,
@@ -36,7 +36,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     /// contracts, the classes trie and the contracts trie. Additionally, returns the original
     /// contract states that are needed to compute the contract state tree.
     pub(crate) fn create(
-        storage: impl ReadOnlyStorage,
+        storage: impl Storage,
         contracts_trie_root_hash: HashOutput,
         classes_trie_root_hash: HashOutput,
         storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
@@ -74,7 +74,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     /// Also returns the previous contracts state of the modified contracts.
     fn create_contracts_trie(
         contracts_trie_root_hash: HashOutput,
-        storage: &impl ReadOnlyStorage,
+        storage: &impl Storage,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<(OriginalSkeletonTreeImpl<'a>, HashMap<NodeIndex, ContractState>)> {
         Ok(OriginalSkeletonTreeImpl::create_and_get_previous_leaves(
@@ -89,7 +89,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     fn create_storage_tries(
         actual_storage_updates: &HashMap<ContractAddress, LeafModifications<StarknetStorageValue>>,
         original_contracts_trie_leaves: &HashMap<NodeIndex, ContractState>,
-        storage: &impl ReadOnlyStorage,
+        storage: &impl Storage,
         config: &impl Config,
         storage_tries_sorted_indices: &HashMap<ContractAddress, SortedLeafIndices<'a>>,
     ) -> ForestResult<HashMap<ContractAddress, OriginalSkeletonTreeImpl<'a>>> {
@@ -119,7 +119,7 @@ impl<'a> OriginalSkeletonForest<'a> {
     fn create_classes_trie(
         actual_classes_updates: &LeafModifications<CompiledClassHash>,
         classes_trie_root_hash: HashOutput,
-        storage: &impl ReadOnlyStorage,
+        storage: &impl Storage,
         config: &impl Config,
         contracts_trie_sorted_indices: SortedLeafIndices<'a>,
     ) -> ForestResult<OriginalSkeletonTreeImpl<'a>> {

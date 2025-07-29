@@ -11,16 +11,14 @@ pub struct DbKey(pub Vec<u8>);
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 pub struct DbValue(pub Vec<u8>);
 
-pub trait ReadOnlyStorage {
+pub trait Storage {
     /// Returns value from storage, if it exists.
     fn get(&self, key: &DbKey) -> Option<&DbValue>;
 
     /// Returns values from storage in same order of given keys. Value is None for keys that do not
     /// exist.
     fn mget(&self, keys: &[DbKey]) -> Vec<Option<&DbValue>>;
-}
 
-pub trait Storage: From<HashMap<DbKey, DbValue>> + ReadOnlyStorage {
     /// Sets value in storage. If key already exists, its value is overwritten and the old value is
     /// returned.
     fn set(&mut self, key: DbKey, value: DbValue) -> Option<DbValue>;
