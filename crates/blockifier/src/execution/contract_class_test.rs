@@ -6,10 +6,8 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::NestedIntList;
 use rstest::rstest;
-use starknet_api::contract_class::compiled_class_hash::HashableCompiledClass;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-use starknet_types_core::hash::Poseidon;
-use test_case::test_case;
 
 use crate::execution::contract_class::{
     CompiledClassV1,
@@ -57,12 +55,15 @@ fn test_get_visited_segments() {
 
 /// Tests that the hash of the compiled contract class (CASM) matches the hash of the corresponding
 /// runnable contract class.
-#[test_case(RunnableCairo1::Casm; "Cairo1 VM")]
-#[cfg_attr(
-    feature = "cairo_native",
-    test_case(RunnableCairo1::Native; "Cairo1 Native")
-)]
-fn test_compiled_class_hash(runnable_cairo_version: RunnableCairo1) {
+#[rstest]
+#[case(RunnableCairo1::Casm, HashVersion::V1)]
+#[case(RunnableCairo1::Casm, HashVersion::V2)]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native, HashVersion::V1))]
+#[cfg_attr(feature = "cairo_native", case(RunnableCairo1::Native, HashVersion::V2))]
+fn test_compiled_class_hash(
+    #[case] runnable_cairo_version: RunnableCairo1,
+    #[case] hash_version: HashVersion,
+) {
     // Compute the hash of a Casm contract.
     let feature_contract =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
@@ -71,7 +72,7 @@ fn test_compiled_class_hash(runnable_cairo_version: RunnableCairo1) {
 
         _ => panic!("Expected ContractClass::V1"),
     };
-    let casm_hash = casm.hash::<Poseidon>();
+    let casm_hash = casm.hash(&hash_version);
 
     // Compute the hash of a runnable contract.
     let runnable_feature_contract =
@@ -79,11 +80,11 @@ fn test_compiled_class_hash(runnable_cairo_version: RunnableCairo1) {
     let runnable_contact_class = runnable_feature_contract.get_runnable_class();
     let runnable_contact_class_hash = match runnable_contact_class {
         RunnableCompiledClass::V1(runnable_contact_class) => {
-            runnable_contact_class.hash::<Poseidon>()
+            runnable_contact_class.hash(&hash_version)
         }
         #[cfg(feature = "cairo_native")]
         RunnableCompiledClass::V1Native(runnable_contact_class) => {
-            runnable_contact_class.hash::<Poseidon>()
+            runnable_contact_class.hash(&hash_version)
         }
         _ => panic!("RunnableCompiledClass::V0 does not support hash"),
     };
