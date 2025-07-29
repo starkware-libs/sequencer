@@ -11,7 +11,7 @@ pub struct DbKey(pub Vec<u8>);
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 pub struct DbValue(pub Vec<u8>);
 
-pub trait Storage: From<HashMap<DbKey, DbValue>> {
+pub trait Storage {
     /// Returns value from storage, if it exists.
     fn get(&self, key: &DbKey) -> Option<&DbValue>;
 
