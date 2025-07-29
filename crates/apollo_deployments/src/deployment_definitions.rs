@@ -45,8 +45,8 @@ const L1_PROVIDER_PORT: u16 = 55004;
 const MEMPOOL_PORT: u16 = 55006;
 const MEMPOOL_P2P_PORT: u16 = 53200;
 const SIERRA_COMPILER_PORT: u16 = 55007;
-const STATE_SYNC_PORT: u16 = 55008;
-const SIGNATURE_MANAGER_PORT: u16 = 55009;
+const SIGNATURE_MANAGER_PORT: u16 = 55008;
+const STATE_SYNC_PORT: u16 = 55009;
 
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     potc2_sepolia_hybrid_deployments,
