@@ -407,11 +407,11 @@ impl ValidResourceBounds {
         let default_resource =
             ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) };
         Self::AllResources(AllResourceBounds {
+            l1_gas: default_resource,
             l2_gas: ResourceBounds {
                 max_amount: default_l2_gas_amount,
                 max_price_per_unit: GasPrice(0), // Set to zero for no enforce_fee mechanism.
             },
-            l1_gas: default_resource,
             l1_data_gas: default_resource,
         })
     }
@@ -419,6 +419,11 @@ impl ValidResourceBounds {
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing_no_fee_enforcement() -> Self {
         Self::new_unlimited_gas_no_fee_enforcement()
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing() -> Self {
+        Self::AllResources(AllResourceBounds::create_for_testing())
     }
 
     /// Utility method to "zip" an amount vector and a price vector to get an AllResourceBounds.
