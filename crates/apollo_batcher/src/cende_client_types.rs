@@ -265,15 +265,14 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
 }
 
 fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
-    let call_info = if let Some(ref call_info) = execution_info.execute_call_info {
-        call_info
-    } else {
-        return vec![];
-    };
+    // TODO(noamsp): Fix this call. The iterator returns all the call infos in the order:
+    // `validate`, `execute`, `fee_transfer`. For `deploy_account` transactions, the order is
+    // `execute`, `validate`, `fee_transfer`.
+    let call_info_iterator = execution_info.non_optional_call_infos();
 
     // Collect all the events from the call infos, along with their order.
     let mut accumulated_sortable_events = vec![];
-    for call_info in call_info.iter() {
+    for call_info in call_info_iterator {
         let sortable_events = call_info
             .execution
             .events
