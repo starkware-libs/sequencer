@@ -9,6 +9,7 @@ use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::HashableCompiledClass;
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::hash::Poseidon;
+use test_case::test_case;
 
 use crate::execution::contract_class::{
     CompiledClassV1,
@@ -54,24 +55,36 @@ fn test_get_visited_segments() {
     );
 }
 
-#[rstest]
 /// Tests that the hash of the compiled contract class (CASM) matches the hash of the corresponding
 /// runnable contract class.
-fn test_compiled_class_hash() {
+#[test_case(CairoVersion::Cairo1(RunnableCairo1::Casm); "Cairo1 VM")]
+#[cfg_attr(
+    feature = "cairo_native",
+    test_case(CairoVersion::Cairo1(RunnableCairo1::Native); "Cairo1 Native")
+)]
+fn test_compiled_class_hash(runnable_cairo_version: CairoVersion) {
+    // Compute the hash of a Casm contract.
     let feature_contract =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let casm = match feature_contract.get_class() {
         ContractClass::V1((casm, _sierra_version)) => casm,
+
         _ => panic!("Expected ContractClass::V1"),
     };
     let casm_hash = casm.hash::<Poseidon>();
 
-    let runnable_contact_class = feature_contract.get_runnable_class();
+    // Compute the hash of a runnable contract.
+    let runnable_feature_contract = FeatureContract::TestContract(runnable_cairo_version);
+    let runnable_contact_class = runnable_feature_contract.get_runnable_class();
     let runnable_contact_class_hash = match runnable_contact_class {
         RunnableCompiledClass::V1(runnable_contact_class) => {
             runnable_contact_class.hash::<Poseidon>()
         }
-        _ => panic!("Expected RunnableCompiledClass::V1"),
+        #[cfg(feature = "cairo_native")]
+        RunnableCompiledClass::V1Native(runnable_contact_class) => {
+            runnable_contact_class.hash::<Poseidon>()
+        }
+        _ => panic!("RunnableCompiledClass::V0 does not support hash"),
     };
     assert_eq!(casm_hash, runnable_contact_class_hash);
 }
