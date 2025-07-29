@@ -596,7 +596,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
     } else {
         let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
         eth_to_strk_oracle_client.expect_eth_to_fri_rate().times(1).return_once(|_| {
-            Err(EthToStrkOracleClientError::MissingFieldError("", "".to_string()))
+            Err(EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()))
         });
         deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
     }
@@ -685,7 +685,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
             .times(1)
             .return_once(|_| Ok(ETH_TO_FRI_RATE));
         eth_to_strk_oracle_client.expect_eth_to_fri_rate().times(1).return_once(|_| {
-            Err(EthToStrkOracleClientError::MissingFieldError("", "".to_string()))
+            Err(EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()))
         });
         deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
     }

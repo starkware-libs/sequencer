@@ -223,7 +223,7 @@ fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
     let price = match json.get("price").and_then(|v| v.as_str()) {
         Some(price) => price,
         None => {
-            return Err(EthToStrkOracleClientError::MissingFieldError("price", body));
+            return Err(EthToStrkOracleClientError::MissingFieldError("price".to_string(), body));
         }
     };
     let rate = u128::from_str_radix(price.trim_start_matches("0x"), 16)
@@ -232,7 +232,10 @@ fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
     let decimals = match json.get("decimals").and_then(|v| v.as_u64()) {
         Some(decimals) => decimals,
         None => {
-            return Err(EthToStrkOracleClientError::MissingFieldError("decimals", body));
+            return Err(EthToStrkOracleClientError::MissingFieldError(
+                "decimals".to_string(),
+                body,
+            ));
         }
     };
     if decimals != ETH_TO_STRK_QUANTIZATION {
