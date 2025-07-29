@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
-use blockifier::execution::call_info::OrderedEvent;
 use blockifier::state::cached_state::{StateMaps, StorageView};
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
@@ -250,22 +249,32 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
     // `validate`, `fee_transfer`.
     let main_call_info_iterator = execution_info.non_optional_call_infos();
 
-    let mut l2_to_l1_messages = vec![];
+    let mut accumulated_sortable_messages = vec![];
     for main_call_info in main_call_info_iterator {
-        for inner_call_info in main_call_info.iter() {
-            let messages =
-                inner_call_info.execution.l2_to_l1_messages.iter().map(|l2_to_l1_message| {
-                    L2ToL1Message {
-                        from_address: main_call_info.call.storage_address,
-                        to_address: l2_to_l1_message.message.to_address,
-                        payload: l2_to_l1_message.message.payload.clone(),
-                    }
+        for call_info in main_call_info.iter() {
+            let sortable_messages =
+                call_info.execution.l2_to_l1_messages.iter().map(|ordered_l2_to_l1_message| {
+                    (
+                        ordered_l2_to_l1_message.order,
+                        L2ToL1Message {
+                            from_address: call_info.call.storage_address,
+                            to_address: ordered_l2_to_l1_message.message.to_address,
+                            payload: ordered_l2_to_l1_message.message.payload.clone(),
+                        },
+                    )
                 });
-            l2_to_l1_messages.extend(messages);
+
+            accumulated_sortable_messages.extend(sortable_messages);
         }
     }
+    // Sort the messages by their order.
+    accumulated_sortable_messages.sort_by_key(|(order, ..)| *order);
 
-    l2_to_l1_messages
+    // Convert the sorted messages into the StarknetClient L2ToL1Message type.
+    accumulated_sortable_messages
+        .into_iter()
+        .map(|(_, l2_to_l1_message)| l2_to_l1_message)
+        .collect()
 }
 
 fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
@@ -278,25 +287,23 @@ fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> 
     let mut accumulated_sortable_events = vec![];
     for main_call_info in main_call_info_iterator {
         for call_info in main_call_info.iter() {
-            let sortable_events = call_info
-                .execution
-                .events
-                .iter()
-                .map(|orderable_event| (call_info.call.storage_address, orderable_event));
+            let sortable_events = call_info.execution.events.iter().map(|ordered_event| {
+                (
+                    ordered_event.order,
+                    Event {
+                        from_address: call_info.call.storage_address,
+                        content: ordered_event.event.clone(),
+                    },
+                )
+            });
             accumulated_sortable_events.extend(sortable_events);
         }
     }
     // Sort the events by their order.
-    accumulated_sortable_events.sort_by_key(|(_, OrderedEvent { order, .. })| *order);
+    accumulated_sortable_events.sort_by_key(|(order, _)| *order);
 
     // Convert the sorted events into the StarknetClient Event type.
-    accumulated_sortable_events
-        .iter()
-        .map(|(from_address, OrderedEvent { event, .. })| Event {
-            from_address: *from_address,
-            content: event.clone(),
-        })
-        .collect()
+    accumulated_sortable_events.into_iter().map(|(_, event)| event).collect()
 }
 
 fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> ExecutionResources {
