@@ -6,9 +6,8 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::NestedIntList;
 use rstest::rstest;
-use starknet_api::contract_class::compiled_class_hash::HashableCompiledClass;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
-use starknet_types_core::hash::Poseidon;
 
 use crate::execution::contract_class::{
     CompiledClassV1,
@@ -54,22 +53,24 @@ fn test_get_visited_segments() {
     );
 }
 
-#[rstest]
 /// Tests that the hash of the compiled contract class (CASM) matches the hash of the corresponding
 /// runnable contract class.
-fn test_compiled_class_hash() {
+#[rstest]
+#[case(HashVersion::V1)]
+#[case(HashVersion::V2)]
+fn test_compiled_class_hash(#[case] hash_version: HashVersion) {
     let feature_contract =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let casm = match feature_contract.get_class() {
         ContractClass::V1((casm, _sierra_version)) => casm,
         _ => panic!("Expected ContractClass::V1"),
     };
-    let casm_hash = casm.hash::<Poseidon>();
+    let casm_hash = casm.hash(&hash_version);
 
     let runnable_contact_class = feature_contract.get_runnable_class();
     let runnable_contact_class_hash = match runnable_contact_class {
         RunnableCompiledClass::V1(runnable_contact_class) => {
-            runnable_contact_class.hash::<Poseidon>()
+            runnable_contact_class.hash(&hash_version)
         }
         _ => panic!("Expected RunnableCompiledClass::V1"),
     };
