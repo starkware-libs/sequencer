@@ -1,8 +1,14 @@
+use std::sync::LazyLock;
+
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractEntryPoint;
 use cairo_lang_starknet_classes::NestedIntList;
 use itertools::Itertools;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
+
+/// Constant that defines the version of the compiled class hash algorithm.
+pub static COMPILED_CLASS_V1: LazyLock<Felt> =
+    LazyLock::new(|| Felt::from_bytes_be_slice(b"COMPILED_CLASS_V1"));
 
 /// A trait for types that can be hashed as an entry point.
 pub trait EntryPointHashable {
