@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_storage::class_hash::ClassHashStorageReader;
 use apollo_storage::compiled_class::CasmStorageReader;
 use apollo_storage::db::RO;
 use apollo_storage::state::StateStorageReader;
@@ -72,6 +73,17 @@ impl ClassReader {
     ) -> StateResult<Option<DeprecatedClass>> {
         let casm = self.read_executable(class_hash)?;
         if let ContractClass::V0(casm) = casm { Ok(Some(casm)) } else { Ok(None) }
+    }
+
+    #[allow(dead_code)]
+    fn read_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        let compiled_class_hash_v2 = self
+            .runtime
+            .block_on(self.reader.get_executable_class_hash_v2(class_hash))
+            .map_err(|err| StateError::StateReadError(err.to_string()))?
+            .ok_or(StateError::UndeclaredClassHash(class_hash))?;
+
+        Ok(compiled_class_hash_v2)
     }
 }
 
@@ -159,6 +171,20 @@ impl PapyrusReader {
         };
 
         class_reader.read_optional_deprecated_casm(class_hash)
+    }
+
+    #[allow(dead_code)]
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        let Some(class_reader) = &self.class_reader else {
+            let compiled_class_hash_v2 = self
+                .reader()?
+                .get_executable_class_hash_v2(&class_hash)
+                .map_err(|err| StateError::StateReadError(err.to_string()))?
+                .ok_or(StateError::UndeclaredClassHash(class_hash))?;
+            return Ok(compiled_class_hash_v2);
+        };
+
+        class_reader.read_compiled_class_hash_v2(class_hash)
     }
 }
 
