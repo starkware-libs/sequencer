@@ -254,7 +254,7 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
     for call in call_info_iterator {
         let messages =
             call.execution.l2_to_l1_messages.iter().map(|l2_to_l1_message| L2ToL1Message {
-                from_address: call.call.caller_address,
+                from_address: call.call.storage_address,
                 to_address: l2_to_l1_message.message.to_address,
                 payload: l2_to_l1_message.message.payload.clone(),
             });
