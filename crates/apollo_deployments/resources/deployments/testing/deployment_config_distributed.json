@@ -311,7 +311,10 @@
       "name": "SignatureManager",
       "controller": "StatefulSet",
       "config_paths": [
-        "base_app_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
         "deployments/testing/deployment_config_override.json",
         "deployments/testing/distributed.json",
         "services/distributed/signature_manager.json"

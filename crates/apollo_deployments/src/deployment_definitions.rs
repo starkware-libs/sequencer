@@ -209,6 +209,7 @@ impl ServicePort {
     }
 }
 
+// TODO(Nadin/ Tsabary): Add SignatureManager to this enum.
 #[derive(Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
 pub enum ComponentConfigInService {
     BaseLayer,

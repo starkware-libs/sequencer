@@ -727,6 +727,31 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     }
                 }
             }
+            DistributedNodeServiceName::SignatureManager => {
+                for component_config_in_service in ComponentConfigInService::iter() {
+                    match component_config_in_service {
+                        ComponentConfigInService::General
+                        | ComponentConfigInService::MonitoringEndpoint => {
+                            components.insert(component_config_in_service);
+                        }
+                        ComponentConfigInService::BaseLayer
+                        | ComponentConfigInService::Batcher
+                        | ComponentConfigInService::ClassManager
+                        | ComponentConfigInService::Consensus
+                        | ComponentConfigInService::Gateway
+                        | ComponentConfigInService::HttpServer
+                        | ComponentConfigInService::L1EndpointMonitor
+                        | ComponentConfigInService::L1GasPriceProvider
+                        | ComponentConfigInService::L1GasPriceScraper
+                        | ComponentConfigInService::L1Provider
+                        | ComponentConfigInService::L1Scraper
+                        | ComponentConfigInService::Mempool
+                        | ComponentConfigInService::MempoolP2p
+                        | ComponentConfigInService::SierraCompiler
+                        | ComponentConfigInService::StateSync => {}
+                    }
+                }
+            }
             DistributedNodeServiceName::StateSync => {
                 for component_config_in_service in ComponentConfigInService::iter() {
                     match component_config_in_service {
