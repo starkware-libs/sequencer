@@ -16,7 +16,7 @@ use super::super::Bytes;
 pub(super) struct InboundSession {
     pending_messages: VecDeque<Bytes>,
     current_task: WriteMessageTask,
-    wakers_waiting_for_new_message: Vec<Waker>,
+    last_waker_waiting_for_new_message: Option<Waker>,
 }
 
 enum FinishReason {
@@ -35,13 +35,13 @@ impl InboundSession {
         Self {
             pending_messages: Default::default(),
             current_task: WriteMessageTask::Waiting(write_stream),
-            wakers_waiting_for_new_message: Default::default(),
+            last_waker_waiting_for_new_message: Default::default(),
         }
     }
 
     pub fn add_message_to_queue(&mut self, data: Bytes) {
         self.pending_messages.push_back(data);
-        for waker in self.wakers_waiting_for_new_message.drain(..) {
+        if let Some(waker) = self.last_waker_waiting_for_new_message.take() {
             waker.wake();
         }
     }
@@ -76,7 +76,7 @@ impl InboundSession {
             });
             Poll::Ready(())
         } else {
-            self.wakers_waiting_for_new_message.push(cx.waker().clone());
+            self.last_waker_waiting_for_new_message = Some(cx.waker().clone());
             Poll::Pending
         }
     }
