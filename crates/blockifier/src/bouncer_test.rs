@@ -4,7 +4,9 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::{fixture, rstest};
+use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
 use starknet_api::{class_hash, contract_address, storage_key};
@@ -12,7 +14,9 @@ use starknet_api::{class_hash, contract_address, storage_key};
 use super::BouncerConfig;
 use crate::blockifier::transaction_executor::TransactionExecutorError;
 use crate::bouncer::{
+    get_particia_update_resources,
     get_tx_weights,
+    map_class_hash_to_casm_hash_computation_resources,
     verify_tx_weights_within_max_capacity,
     Bouncer,
     BouncerWeights,
@@ -28,6 +32,8 @@ use crate::test_utils::contracts::FeatureContractData;
 use crate::test_utils::dict_state_reader::DictStateReader;
 use crate::test_utils::initial_test_state::test_state;
 use crate::transaction::errors::TransactionExecutionError;
+use crate::transaction::objects::ExecutionResourcesTraits;
+use crate::utils::{add_maps, u64_from_usize};
 
 #[fixture]
 fn block_context() -> BlockContext {
@@ -455,5 +461,138 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
     assert_eq!(
         bouncer_weights.proving_gas,
         tx_weights.casm_hash_computation_data_proving_gas.total_gas()
+    );
+}
+
+/// Verifies that the difference between proving gas and Sierra gas
+/// is fully accounted for by the builtin gas delta (Stone vs Stwo).
+///
+/// Covers combinations of OS computation builtins and CASM hash computation builtins.
+#[rstest]
+#[case::tx_builtins_only(&[], ExecutionResources::default())]
+#[case::tx_builtins_plus_os_tx_builtins(
+    &[],
+    ExecutionResources {
+        builtin_instance_counter: HashMap::from([
+            (BuiltinName::bitwise, 1),
+        ]),
+        ..Default::default()
+    },
+)]
+#[case::tx_builtins_plus_os_additional_cost(
+    &[
+        (FeatureContract::TestContract(CairoVersion::Cairo0), 1),
+        (FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)), 1),
+    ],
+    ExecutionResources::default(),
+)]
+#[case::tx_builtins_plus_os_tx_builtins_plus_os_additional_cost(
+    &[
+        (FeatureContract::TestContract(CairoVersion::Cairo0), 1),
+        (FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm)), 1),
+    ],
+    ExecutionResources {
+        builtin_instance_counter: HashMap::from([
+            (BuiltinName::range_check, 1),
+            (BuiltinName::bitwise, 2),
+        ]),
+        ..Default::default()
+    },
+)]
+fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
+    #[case] contract_instances: &[(FeatureContract, u16)],
+    #[case] os_vm_resources: ExecutionResources,
+) {
+    let block_context = BlockContext::create_for_account_testing();
+    let state = test_state(&block_context.chain_info, Fee(0), contract_instances);
+
+    // Derive executed_class_hashes from contract_instances
+    let executed_class_hashes: HashSet<ClassHash> =
+        contract_instances.iter().map(|(contract, _)| contract.get_class_hash()).collect();
+
+    // Transaction builtin counters.
+    let mut tx_builtin_counters =
+        HashMap::from([(BuiltinName::range_check, 2), (BuiltinName::pedersen, 1)]);
+
+    let tx_resources = TransactionResources {
+        computation: ComputationResources {
+            sierra_gas: GasAmount::ZERO,
+            tx_vm_resources: ExecutionResources {
+                builtin_instance_counter: tx_builtin_counters.clone(),
+                ..Default::default()
+            },
+            os_vm_resources: os_vm_resources.clone(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    // Create the os additional resources, which contains both patricia updates and CASM hash
+    // computation.
+
+    // Create CASM hash computation builtins only in case CASM computation aren't trivial.
+    let casm_hash_computation_builtins = if contract_instances.is_empty() {
+        HashMap::new()
+    } else {
+        map_class_hash_to_casm_hash_computation_resources(&state, &executed_class_hashes)
+            .unwrap()
+            .iter()
+            .fold(ExecutionResources::default(), |acc, (_class_hash, resources)| &acc + resources)
+            .prover_builtins()
+    };
+
+    // Create the patricia update builtins.
+    let n_visited_storage_entries = if casm_hash_computation_builtins.is_empty() { 0 } else { 1 };
+
+    let mut additional_os_resources =
+        get_particia_update_resources(n_visited_storage_entries).prover_builtins();
+    add_maps(&mut additional_os_resources, &casm_hash_computation_builtins);
+
+    let result = get_tx_weights(
+        &state,
+        &executed_class_hashes,
+        n_visited_storage_entries,
+        &tx_resources,
+        &StateMaps::default().keys(), // state changes keys
+        &block_context.versioned_constants,
+        &tx_builtin_counters,
+        &block_context.bouncer_config.builtin_weights,
+    )
+    .unwrap();
+
+    // Combine TX + TX overhead (OS) + CASM and patricia builtin usage.
+    add_maps(&mut tx_builtin_counters, &os_vm_resources.builtin_instance_counter);
+    add_maps(&mut tx_builtin_counters, &additional_os_resources);
+
+    // Compute expected gas delta from builtin delta (Stwo - Stone).
+    let expected_builtin_gas_delta = tx_builtin_counters
+        .iter()
+        .map(|(name, count)| {
+            let stwo_gas = block_context.bouncer_config.builtin_weights.builtin_weight(name);
+            let stone_gas = block_context
+                .versioned_constants
+                .os_constants
+                .gas_costs
+                .builtins
+                .get_builtin_gas_cost(name)
+                .unwrap();
+
+            let stwo_total = stwo_gas.checked_mul(*count).map(u64_from_usize).expect("overflow");
+            let stone_total = u64_from_usize(*count).checked_mul(stone_gas).expect("overflow");
+
+            // This assumes that the Stone gas is always less than or equal to Stwo gas.
+            stwo_total.checked_sub(stone_total).expect("underflow")
+        })
+        // Sum the deltas.
+        .try_fold(0u64, |acc, val| acc.checked_add(val))
+        .expect("overflow in sum");
+
+    assert_eq!(
+        result.bouncer_weights.proving_gas.0 - result.bouncer_weights.sierra_gas.0,
+        expected_builtin_gas_delta,
+        "Proving gas: {} - Sierra gas: {} ≠ builtins gap: {}",
+        result.bouncer_weights.proving_gas.0,
+        result.bouncer_weights.sierra_gas.0,
+        expected_builtin_gas_delta
     );
 }
