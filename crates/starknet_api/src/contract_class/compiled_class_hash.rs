@@ -1,10 +1,12 @@
 use std::sync::LazyLock;
 
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractEntryPoint;
+use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
 use itertools::Itertools;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
+
+use crate::core::CompiledClassHash;
 
 /// Constant that defines the version of the compiled class hash algorithm.
 pub static COMPILED_CLASS_V1: LazyLock<Felt> =
@@ -83,5 +85,59 @@ fn bytecode_hash_node<H: StarkHash>(
             ) + Felt::ONE;
             (inner_nodes.iter().map(|(len, _)| len).sum(), hash)
         }
+    }
+}
+
+/// Trait for types that can be hashed as a Starknet compiled class.
+/// Used to abstract over different contract class representations.
+pub trait HashableCompiledClass<EH: EntryPointHashable> {
+    fn get_hashable_l1_entry_points(&self) -> &[EH];
+    fn get_hashable_external_entry_points(&self) -> &[EH];
+    fn get_hashable_constructor_entry_points(&self) -> &[EH];
+    fn get_bytecode(&self) -> Vec<Felt>;
+    fn get_bytecode_segment_lengths(&self) -> &NestedIntList;
+
+    fn hash<H: StarkHash>(&self) -> CompiledClassHash {
+        let external_funcs_hash =
+            entry_point_hash::<H, EH>(self.get_hashable_external_entry_points());
+        let l1_handlers_hash = entry_point_hash::<H, EH>(self.get_hashable_l1_entry_points());
+        let constructors_hash =
+            entry_point_hash::<H, EH>(self.get_hashable_constructor_entry_points());
+
+        let bytecode_hash =
+            bytecode_hash::<H>(&self.get_bytecode(), self.get_bytecode_segment_lengths());
+
+        // Compute total hash by hashing each component on top of the previous one.
+        CompiledClassHash(H::hash_array(&[
+            *COMPILED_CLASS_V1,
+            external_funcs_hash,
+            l1_handlers_hash,
+            constructors_hash,
+            bytecode_hash,
+        ]))
+    }
+}
+
+impl HashableCompiledClass<CasmContractEntryPoint> for CasmContractClass {
+    fn get_hashable_l1_entry_points(&self) -> &[CasmContractEntryPoint] {
+        &self.entry_points_by_type.l1_handler
+    }
+
+    fn get_hashable_external_entry_points(&self) -> &[CasmContractEntryPoint] {
+        &self.entry_points_by_type.external
+    }
+
+    fn get_hashable_constructor_entry_points(&self) -> &[CasmContractEntryPoint] {
+        &self.entry_points_by_type.constructor
+    }
+
+    fn get_bytecode(&self) -> Vec<Felt> {
+        self.bytecode.iter().map(|big_uint| Felt::from(&big_uint.value)).collect()
+    }
+
+    fn get_bytecode_segment_lengths(&self) -> &NestedIntList {
+        self.bytecode_segment_lengths
+            .as_ref()
+            .expect("Failed to compute compiled class hash due to missing bytecode segment lengths")
     }
 }

@@ -20,7 +20,10 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use itertools::Itertools;
 use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
-use starknet_api::contract_class::compiled_class_hash::EntryPointHashable;
+use starknet_api::contract_class::compiled_class_hash::{
+    EntryPointHashable,
+    HashableCompiledClass,
+};
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion, VersionedCasm};
 use starknet_api::core::EntryPointSelector;
 use starknet_api::deprecated_contract_class::{
@@ -319,6 +322,38 @@ impl CompiledClassV1 {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
         let contract_class = CompiledClassV1::try_from((casm_contract_class, sierra_version))?;
         Ok(contract_class)
+    }
+}
+
+impl HashableCompiledClass<EntryPointV1> for CompiledClassV1 {
+    fn get_hashable_l1_entry_points(&self) -> &[EntryPointV1] {
+        &self.entry_points_by_type.l1_handler
+    }
+
+    fn get_hashable_external_entry_points(&self) -> &[EntryPointV1] {
+        &self.entry_points_by_type.external
+    }
+
+    fn get_hashable_constructor_entry_points(&self) -> &[EntryPointV1] {
+        &self.entry_points_by_type.constructor
+    }
+
+    fn get_bytecode(&self) -> Vec<Felt> {
+        self.program
+            .iter_data()
+            .map(|maybe_relocatable| match maybe_relocatable {
+                MaybeRelocatable::Int(felt) => *felt,
+                _ => panic!(
+                    "Found MaybeRelocatable::RelocatableValue in the program data while trying to \
+                     compute the compiled class hash. Expected all bytecode elements to be \
+                     MaybeRelocatable::Int."
+                ),
+            })
+            .collect()
+    }
+
+    fn get_bytecode_segment_lengths(&self) -> &NestedIntList {
+        &self.bytecode_segment_lengths
     }
 }
 
