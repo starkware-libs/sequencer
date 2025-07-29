@@ -587,7 +587,7 @@ impl Display for BlockTimestamp {
         let seconds_from_epoch = i64::try_from(self.0).map_err(|_| std::fmt::Error)?;
         let time_in_range =
             OffsetDateTime::from_unix_timestamp(seconds_from_epoch).map_err(|_| std::fmt::Error)?;
-        write!(f, "{}", time_in_range)
+        write!(f, "{time_in_range}")
     }
 }
 

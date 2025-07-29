@@ -140,18 +140,10 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             _ => None,
         });
 
-<<<<<<< HEAD
-        let formatted_pairs = zip_eq(l1_hashes, l2_hashes)
-            .map(|(l1_hash, l2_hash)| format!("L1 hash: {l1_hash:?}, L2 hash: {l2_hash}"))
-||||||| 937a3d39a
-        let formatted_pairs = zip_eq(l1_hashes, l2_hashes)
-            .map(|(l1_hash, l2_hash)| format!("L1 hash: {:?}, L2 hash: {}", l1_hash, l2_hash))
-=======
         let formatted_pairs = zip_eq(l1_messages_info, l2_hashes)
             .map(|((l1_hash, timestamp), l2_hash)| {
                 format!("L1 hash: {l1_hash:?}, L1 timestamp: {timestamp}, L2 hash: {l2_hash}")
             })
->>>>>>> origin/main-v0.14.0
             .collect::<Vec<_>>();
         if formatted_pairs.is_empty() {
             debug_every_n!(100, "Got Messages to L2: []");

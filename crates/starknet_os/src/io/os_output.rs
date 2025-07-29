@@ -188,8 +188,8 @@ impl TryFromOutputIter for OutputIterParsedData {
         }
         assert_eq!(
             messages_to_l1_segment_size, 0,
-            "Expected messages to L1 segment to be consumed, but {} felts were left.",
-            messages_to_l1_segment_size
+            "Expected messages to L1 segment to be consumed, but {messages_to_l1_segment_size} \
+             felts were left.",
         );
 
         let mut messages_to_l2_segment_size =
@@ -324,90 +324,6 @@ impl OsOutput {
             OsStateDiff::Full(_) | OsStateDiff::FullCommitment(_) => true,
             OsStateDiff::Partial(_) | OsStateDiff::PartialCommitment(_) => false,
         }
-<<<<<<< HEAD
-        assert_eq!(
-            messages_to_l1_segment_size, 0,
-            "Expected messages to L1 segment to be consumed, but {messages_to_l1_segment_size} \
-             felts were left."
-        );
-
-        let mut messages_to_l2_segment_size =
-            wrap_missing_as(output_iter.next(), "messages_to_l2_segment_size")?;
-        let mut messages_to_l2_iter =
-            output_iter.by_ref().take(messages_to_l2_segment_size).peekable();
-        let mut messages_to_l2 = Vec::<MessageToL2>::new();
-
-        while messages_to_l2_iter.peek().is_some() {
-            let message = MessageToL2::from_output_iter(&mut messages_to_l2_iter)?;
-            messages_to_l2_segment_size -= message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
-            messages_to_l2.push(message);
-        }
-
-        // State diff.
-        let state_diff = if use_kzg_da {
-            None
-        } else {
-            Some(OsStateDiff::from_iter(&mut output_iter, full_output)?)
-        };
-
-        Ok(Self {
-            initial_root,
-            final_root,
-            prev_block_number,
-            new_block_number,
-            prev_block_hash,
-            new_block_hash,
-            os_program_hash,
-            starknet_os_config_hash,
-            use_kzg_da,
-            full_output,
-            messages_to_l1,
-            messages_to_l2,
-            state_diff,
-        })
-||||||| 937a3d39a
-        assert_eq!(
-            messages_to_l1_segment_size, 0,
-            "Expected messages to L1 segment to be consumed, but {} felts were left.",
-            messages_to_l1_segment_size
-        );
-
-        let mut messages_to_l2_segment_size =
-            wrap_missing_as(output_iter.next(), "messages_to_l2_segment_size")?;
-        let mut messages_to_l2_iter =
-            output_iter.by_ref().take(messages_to_l2_segment_size).peekable();
-        let mut messages_to_l2 = Vec::<MessageToL2>::new();
-
-        while messages_to_l2_iter.peek().is_some() {
-            let message = MessageToL2::from_output_iter(&mut messages_to_l2_iter)?;
-            messages_to_l2_segment_size -= message.payload.0.len() + MESSAGE_TO_L2_CONST_FIELD_SIZE;
-            messages_to_l2.push(message);
-        }
-
-        // State diff.
-        let state_diff = if use_kzg_da {
-            None
-        } else {
-            Some(OsStateDiff::from_iter(&mut output_iter, full_output)?)
-        };
-
-        Ok(Self {
-            initial_root,
-            final_root,
-            prev_block_number,
-            new_block_number,
-            prev_block_hash,
-            new_block_hash,
-            os_program_hash,
-            starknet_os_config_hash,
-            use_kzg_da,
-            full_output,
-            messages_to_l1,
-            messages_to_l2,
-            state_diff,
-        })
-=======
->>>>>>> origin/main-v0.14.0
     }
 }
 

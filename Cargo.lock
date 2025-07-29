@@ -1014,7 +1014,7 @@ dependencies = [
 
 [[package]]
 name = "apollo_compile_to_native_types"
-version = "0.15.0-rc.2"
+version = "0.0.0"
 dependencies = [
  "apollo_config",
  "serde",
@@ -11919,7 +11919,7 @@ dependencies = [
 
 [[package]]
 name = "sizeof_internal"
-version = "0.15.0-rc.2"
+version = "0.0.0"
 dependencies = [
  "starknet-types-core",
 ]

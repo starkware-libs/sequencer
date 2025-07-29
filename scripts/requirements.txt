@@ -1,27 +1,15 @@
 aiohappyeyeballs==2.6.1
-aiohttp==3.12.14
+aiohttp==3.12.15
 aiosignal==1.4.0
 annotated-types==0.7.0
 async-timeout==5.0.1
 attrs==25.3.0
-<<<<<<< HEAD
 autoflake==2.3.1
-bitarray==3.5.1
-black==23.1a1
-cachetools==6.1.0
-cairo-lang==0.14.0a1
-certifi==2025.7.14
-||||||| 937a3d39a
-bitarray==3.3.2
-cachetools==5.5.2
-cairo-lang==0.14.0a1
-certifi==2025.4.26
-=======
 bitarray==3.5.2
+black==23.1a1
 cachetools==6.1.0
 cairo-lang==0.14.0.1
 certifi==2025.7.14
->>>>>>> origin/main-v0.14.0
 charset-normalizer==3.4.2
 ckzg==2.1.1
 click==8.1.8
@@ -58,44 +46,19 @@ mypy_extensions==1.1.0
 numpy==2.0.2
 packaging==25.0
 parsimonious==0.10.0
-<<<<<<< HEAD
 pathspec==0.12.1
-pipdeptree==2.27.0
+pipdeptree==2.28.0
 platformdirs==4.3.8
 pluggy==1.6.0
 prometheus_client==0.22.1
 propcache==0.3.2
 pycryptodome==3.23.0
 pydantic==2.11.7
-||||||| 937a3d39a
-pipdeptree==2.26.1
-pluggy==1.5.0
-prometheus_client==0.21.1
-propcache==0.3.1
-pycryptodome==3.22.0
-pydantic==2.11.4
-=======
-pipdeptree==2.28.0
-pluggy==1.6.0
-prometheus_client==0.22.1
-propcache==0.3.2
-pycryptodome==3.23.0
-pydantic==2.11.7
->>>>>>> origin/main-v0.14.0
 pydantic_core==2.33.2
-<<<<<<< HEAD
 pyflakes==3.4.0
 Pygments==2.19.2
 pytest==8.4.1
 pytest-asyncio==1.0.0
-||||||| 937a3d39a
-pytest==8.3.5
-pytest-asyncio==0.26.0
-=======
-Pygments==2.19.2
-pytest==8.4.1
-pytest-asyncio==1.0.0
->>>>>>> origin/main-v0.14.0
 pytest-profiling==1.8.1
 pytest-xdist==3.8.0
 pyunormalize==16.0.0

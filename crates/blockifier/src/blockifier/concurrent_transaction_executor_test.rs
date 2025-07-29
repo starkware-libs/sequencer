@@ -111,7 +111,7 @@ fn test_concurrent_transaction_executor(
     let results1 = tx_executor.add_txs_and_wait(&txs1);
 
     // Check execution results.
-    assert_eq!(results0.len(), 3, "The transaction results are {:?}", results0);
+    assert_eq!(results0.len(), 3, "The transaction results are {results0:?}");
 
     assert!(results0[0].is_ok(), "Transaction Failed: {:?}", results0[0]);
     assert_matches!(
@@ -122,7 +122,7 @@ fn test_concurrent_transaction_executor(
     );
     assert!(results0[2].is_ok(), "Transaction Failed: {:?}", results0[2]);
 
-    assert_eq!(results1.len(), 1, "The transaction results are {:?}", results1);
+    assert_eq!(results1.len(), 1, "The transaction results are {results1:?}");
     assert!(results1[0].is_ok(), "Transaction Failed: {:?}", results1[0]);
 
     // Close the block.
@@ -166,7 +166,7 @@ fn test_concurrent_transaction_executor_stream_txs() {
     results.extend(tx_executor.get_new_results());
 
     // Check execution results.
-    assert_eq!(results.len(), 4, "The transaction results are {:?}", results);
+    assert_eq!(results.len(), 4, "The transaction results are {results:?}");
 
     assert!(results[0].is_ok(), "Transaction Failed: {:?}", results[0]);
     assert_matches!(

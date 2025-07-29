@@ -2,20 +2,13 @@ use std::fmt::{Display, Formatter, Result};
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
-<<<<<<< HEAD
 use apollo_http_server::config::HTTP_SERVER_PORT;
-use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
-use serde::Serialize;
-use strum::EnumIter;
-||||||| 937a3d39a
-use serde::Serialize;
-=======
 use apollo_infra_utils::template::Template;
+use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use starknet_api::block::BlockNumber;
 use strum::EnumIter;
->>>>>>> origin/main-v0.14.0
 use strum_macros::{Display, EnumString};
 use url::Url;
 
@@ -194,7 +187,6 @@ pub enum ServicePort {
     HttpServer,
     MonitoringEndpoint,
 }
-<<<<<<< HEAD
 
 impl ServicePort {
     pub fn get_port(&self) -> u16 {
@@ -216,8 +208,6 @@ impl ServicePort {
         }
     }
 }
-||||||| 937a3d39a
-=======
 
 #[derive(Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
 pub enum ComponentConfigInService {
@@ -282,4 +272,3 @@ impl ComponentConfigInService {
             .collect()
     }
 }
->>>>>>> origin/main-v0.14.0

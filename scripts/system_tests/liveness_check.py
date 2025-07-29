@@ -5,13 +5,8 @@ import subprocess
 import sys
 import time
 from typing import List, Union
-<<<<<<< HEAD
 
 import numbers
-||||||| 937a3d39a
-=======
-
->>>>>>> origin/main-v0.14.0
 import requests
 
 

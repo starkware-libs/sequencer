@@ -53,7 +53,7 @@ impl fmt::Display for AlertEnvFiltering {
             AlertEnvFiltering::MainnetStyleAlerts => "mainnet",
             AlertEnvFiltering::TestnetStyleAlerts => "testnet",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

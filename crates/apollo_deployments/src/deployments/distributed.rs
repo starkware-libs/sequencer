@@ -1,10 +1,4 @@
-<<<<<<< HEAD
 use std::collections::BTreeSet;
-||||||| 937a3d39a
-use std::collections::BTreeMap;
-=======
-use std::collections::{BTreeMap, BTreeSet};
->>>>>>> origin/main-v0.14.0
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_node::config::component_config::ComponentConfig;

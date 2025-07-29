@@ -70,7 +70,7 @@ const PENDING_DURATION_DEFAULT: &str = "30s";
 const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 
 pub fn get_dev_alerts_json_path(alert_env_filtering: AlertEnvFiltering) -> String {
-    format!("crates/apollo_dashboard/resources/dev_grafana_alerts_{}.json", alert_env_filtering)
+    format!("crates/apollo_dashboard/resources/dev_grafana_alerts_{alert_env_filtering}.json")
 }
 
 fn get_consensus_block_number_stuck() -> Alert {
@@ -1080,9 +1080,9 @@ fn get_general_pod_state_crashloopbackoff() -> Alert {
         AlertGroup::General,
         format!(
             // Convert "NoData" to 0 using `absent`.
-            "sum by(container, pod, namespace) (kube_pod_container_status_waiting_reason{}) or \
-             absent(kube_pod_container_status_waiting_reason{}) * 0",
-            metric_label_filter_with_reason, metric_label_filter_with_reason,
+            "sum by(container, pod, namespace) \
+             (kube_pod_container_status_waiting_reason{metric_label_filter_with_reason}) or \
+             absent(kube_pod_container_status_waiting_reason{metric_label_filter_with_reason}) * 0",
         ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,

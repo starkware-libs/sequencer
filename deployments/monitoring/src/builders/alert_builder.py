@@ -5,7 +5,6 @@ import json
 import os
 from typing import Optional
 
-<<<<<<< HEAD
 from common import const
 from common.grafana10_objects import (
     alert_expression_model_object,
@@ -13,45 +12,15 @@ from common.grafana10_objects import (
     alert_query_object,
     alert_rule_object,
 )
-from common.helpers import get_logger
-||||||| 937a3d39a
-from common.grafana10_objects import (
-    alert_expression_model_object,
-    alert_query_model_object,
-    alert_query_object,
-    alert_rule_object,
-)
-from common.helpers import get_logger
-=======
->>>>>>> origin/main-v0.14.0
+from common.helpers import EnvironmentName, alert_env_filename_suffix, get_logger
 from grafana_client import GrafanaApi
-<<<<<<< HEAD
 from grafana_client.client import (
     GrafanaBadInputError,
     GrafanaClientError,
     GrafanaException,
     GrafanaServerError,
 )
-||||||| 937a3d39a
-from grafana_client.client import (
-    GrafanaBadInputError,
-    GrafanaClientError,
-    GrafanaException,
-    GrafanaServerError,
-)
-from common import const
-=======
-from grafana_client.client import (GrafanaBadInputError, GrafanaClientError,
-                                   GrafanaException, GrafanaServerError)
->>>>>>> origin/main-v0.14.0
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
-
-from common import const
-from common.grafana10_objects import (alert_expression_model_object,
-                                      alert_query_model_object,
-                                      alert_query_object, alert_rule_object)
-from common.helpers import (EnvironmentName, alert_env_filename_suffix,
-                            get_logger)
 
 
 def create_alert_expression_model(conditions: list[dict[str, any]]):

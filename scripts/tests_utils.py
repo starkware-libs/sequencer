@@ -3,17 +3,8 @@
 import os
 import re
 import subprocess
-<<<<<<< HEAD
 from typing import Dict, List, Optional, Set
 
-||||||| 937a3d39a
-import os
-from typing import Dict, List, Set, Optional
-=======
-from calendar import c
-from typing import Dict, List, Optional, Set
-
->>>>>>> origin/main-v0.14.0
 from git import Repo
 
 # Set of files which - if changed - should trigger tests for all packages.

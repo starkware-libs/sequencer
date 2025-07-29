@@ -1,6 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_blake2s.blake2s import (
-    encode_felt252_data_and_calc_224_bit_blake_hash,
+    encode_felt252_data_and_calc_blake_hash,
 )
 from starkware.cairo.common.memcpy import memcpy
 
@@ -29,7 +29,7 @@ func hash_update_single{hash_state: HashState}(item: felt) {
 func hash_update_with_nested_hash{hash_state: HashState, range_check_ptr: felt}(
     data_ptr: felt*, data_length: felt
 ) {
-    let (hash) = encode_felt252_data_and_calc_224_bit_blake_hash(
+    let (hash) = encode_felt252_data_and_calc_blake_hash(
         data_len=data_length, data=data_ptr
     );
     hash_update_single(item=hash);
@@ -38,7 +38,7 @@ func hash_update_with_nested_hash{hash_state: HashState, range_check_ptr: felt}(
 
 func hash_finalize{range_check_ptr: felt}(hash_state: HashState) -> felt {
     let data_length = hash_state.end - hash_state.start;
-    let (hash) = encode_felt252_data_and_calc_224_bit_blake_hash(
+    let (hash) = encode_felt252_data_and_calc_blake_hash(
         data_len=data_length, data=hash_state.start
     );
     return (hash);

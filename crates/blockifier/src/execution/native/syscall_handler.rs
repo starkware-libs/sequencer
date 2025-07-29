@@ -80,14 +80,6 @@ impl<'state> NativeSyscallHandler<'state> {
         self.base.context.gas_costs()
     }
 
-<<<<<<< HEAD
-    /// Handles all gas-related logics and perform additional checks. In native,
-    /// we need to explicitly call this method at the beginning of each syscall.
-||||||| 937a3d39a
-    /// Handles all gas-related logics and perform additional checks. In native,
-    /// we need to explicitly call this method at the beginning of each syscall.
-    #[allow(clippy::result_large_err)]
-=======
     // Increment syscall usage's count relative to the given selector
     fn increment_syscall_count_by(&mut self, selector: SyscallSelector, n: usize) {
         let syscall_usage = self.syscalls_usage.entry(selector).or_default();
@@ -102,8 +94,6 @@ impl<'state> NativeSyscallHandler<'state> {
 
     /// Handles all gas-related logics, syscall usage counting and perform additional checks. In
     /// native, we need to explicitly call this method at the beginning of each syscall.
-    #[allow(clippy::result_large_err)]
->>>>>>> origin/main-v0.14.0
     fn pre_execute_syscall(
         &mut self,
         remaining_gas: &mut u64,

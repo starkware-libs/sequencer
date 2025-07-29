@@ -243,20 +243,12 @@ impl NodeService {
             .to_string()
     }
 
-<<<<<<< HEAD
-    pub fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
-        self.as_inner().get_service_port_mapping()
-||||||| 937a3d39a
-    pub fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
-        self.as_inner().get_ports()
-=======
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         self.as_inner().get_components_in_service()
     }
 
-    pub fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
-        self.as_inner().get_ports()
->>>>>>> origin/main-v0.14.0
+    pub fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
+        self.as_inner().get_service_port_mapping()
     }
 }
 

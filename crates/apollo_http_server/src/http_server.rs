@@ -188,17 +188,6 @@ async fn add_tx_inner(
     tx: RpcTransaction,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
-<<<<<<< HEAD
-    let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
-        debug!("Error while adding transaction: {}", e);
-        HttpServerError::from(Box::new(e))
-    });
-||||||| 937a3d39a
-    let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
-        debug!("Error while adding transaction: {}", e);
-        HttpServerError::from(e)
-    });
-=======
     // Wrap the gateway client interaction with a tokio::spawn as it is NOT cancel-safe.
     // Even if the current task is cancelled, e.g., when a request is dropped while still being
     // processed, the inner task will continue to run.
@@ -208,9 +197,8 @@ async fn add_tx_inner(
             .expect("Should be able to get add_tx result")
             .map_err(|e| {
                 debug!("Error while adding transaction: {}", e);
-                HttpServerError::from(e)
+                HttpServerError::from(Box::new(e))
             });
->>>>>>> origin/main-v0.14.0
 
     let region =
         headers.get(CLIENT_REGION_HEADER).and_then(|region| region.to_str().ok()).unwrap_or("N/A");

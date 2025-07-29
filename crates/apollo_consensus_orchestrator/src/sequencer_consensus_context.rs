@@ -41,14 +41,8 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
-<<<<<<< HEAD
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
-||||||| 937a3d39a
-use apollo_state_sync_types::communication::StateSyncClient;
-=======
-use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
->>>>>>> origin/main-v0.14.0
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;

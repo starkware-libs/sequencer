@@ -5,13 +5,7 @@ This script is meant to run a subset of the presubmit checks, the ones whose run
 It can be used to run these checks locally or part of the CI.
 """
 
-<<<<<<< HEAD
 import argparse
-||||||| 937a3d39a
-=======
-import argparse
-import subprocess
->>>>>>> origin/main-v0.14.0
 from abc import ABC, abstractmethod
 from enum import Enum
 from os import path

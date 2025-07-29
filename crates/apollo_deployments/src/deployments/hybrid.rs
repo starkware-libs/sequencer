@@ -1,10 +1,4 @@
-<<<<<<< HEAD
 use std::collections::BTreeSet;
-||||||| 937a3d39a
-use std::collections::BTreeMap;
-=======
-use std::collections::{BTreeMap, BTreeSet};
->>>>>>> origin/main-v0.14.0
 use std::net::{IpAddr, Ipv4Addr};
 
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -50,16 +44,8 @@ use crate::k8s::{
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
 use crate::utils::{determine_port_numbers, get_validator_id};
 
-<<<<<<< HEAD
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
-pub(crate) const INSTANCE_NAME_FORMAT: Template = Template("hybrid_{}");
-||||||| 937a3d39a
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 8;
-pub(crate) const INSTANCE_NAME_FORMAT: Template = Template("hybrid_{}");
-=======
-pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 8;
 pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
->>>>>>> origin/main-v0.14.0
 
 const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const CORE_STORAGE: usize = 1000;

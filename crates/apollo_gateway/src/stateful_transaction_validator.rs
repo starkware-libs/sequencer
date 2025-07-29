@@ -42,47 +42,6 @@ pub struct StatefulTransactionValidator {
 
 type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
 
-<<<<<<< HEAD
-// TODO(yair): move the trait to Blockifier.
-#[cfg_attr(test, automock)]
-pub trait StatefulTransactionValidatorTrait {
-    #[allow(clippy::result_large_err)]
-    fn validate(&mut self, account_tx: AccountTransaction)
-    -> BlockifierStatefulValidatorResult<()>;
-}
-
-impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
-    #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
-    fn validate(
-        &mut self,
-        account_tx: AccountTransaction,
-    ) -> BlockifierStatefulValidatorResult<()> {
-        self.perform_validations(account_tx)
-    }
-}
-
-||||||| 937a3d39a
-// TODO(yair): move the trait to Blockifier.
-#[cfg_attr(test, automock)]
-pub trait StatefulTransactionValidatorTrait {
-    #[allow(clippy::result_large_err)]
-    fn validate(&mut self, account_tx: AccountTransaction)
-    -> BlockifierStatefulValidatorResult<()>;
-}
-
-impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
-    #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
-    #[allow(clippy::result_large_err)]
-    fn validate(
-        &mut self,
-        account_tx: AccountTransaction,
-    ) -> BlockifierStatefulValidatorResult<()> {
-        self.perform_validations(account_tx)
-    }
-}
-
-=======
->>>>>>> origin/main-v0.14.0
 impl StatefulTransactionValidator {
     pub fn run_transaction_validations<V: BlockifierStatefulValidatorTrait>(
         &self,
@@ -245,8 +204,8 @@ impl StatefulTransactionValidator {
                             "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
                         ),
                         message: format!(
-                            "Transaction L2 gas price {} is below the required threshold {}.",
-                            tx_l2_gas_price, threshold
+                            "Transaction L2 gas price {tx_l2_gas_price} is below the required \
+                             threshold {threshold}.",
                         ),
                     });
                 }

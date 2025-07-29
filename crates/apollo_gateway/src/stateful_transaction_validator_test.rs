@@ -6,20 +6,10 @@ use apollo_gateway_types::deprecated_gateway_error::{
     StarknetErrorCode,
 };
 use apollo_mempool_types::communication::MockMempoolClient;
-<<<<<<< HEAD
-use blockifier::blockifier::stateful_validator::StatefulValidatorError as BlockifierStatefulValidatorError;
-||||||| 937a3d39a
-use blockifier::blockifier::stateful_validator::{
-    StatefulValidatorError as BlockifierStatefulValidatorError,
-    StatefulValidatorResult as BlockifierStatefulValidatorResult,
-};
-=======
 use blockifier::blockifier::stateful_validator::{
     MockStatefulValidatorTrait as MockBlockifierStatefulValidatorTrait,
     StatefulValidatorError as BlockifierStatefulValidatorError,
-    StatefulValidatorResult as BlockifierStatefulValidatorResult,
 };
->>>>>>> origin/main-v0.14.0
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::errors::{TransactionFeeError, TransactionPreValidationError};
@@ -62,41 +52,14 @@ fn stateful_validator() -> StatefulTransactionValidator {
 
 // TODO(Arni): consider testing declare and deploy account.
 #[rstest]
-<<<<<<< HEAD
 #[case::valid_tx(create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)), true)]
 #[case::invalid_tx(create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)), false)]
-||||||| 937a3d39a
-#[case::valid_tx(
-    create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    Ok(())
-)]
-#[case::invalid_tx(
-    create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    Err(STATEFUL_VALIDATOR_FEE_ERROR)
-)]
-=======
-#[case::valid_tx(
-    create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    Ok(()),
-)]
-#[case::invalid_tx(
-    create_executable_invoke_tx(CairoVersion::Cairo1(RunnableCairo1::Casm)),
-    Err(STATEFUL_VALIDATOR_FEE_ERROR)
-)]
->>>>>>> origin/main-v0.14.0
 #[tokio::test]
 async fn test_stateful_tx_validator(
     #[case] executable_tx: AccountTransaction,
-<<<<<<< HEAD
     #[case] expect_ok: bool,
-||||||| 937a3d39a
-    #[case] expected_result: BlockifierStatefulValidatorResult<()>,
-=======
-    #[case] mocked_blockifier_result: BlockifierStatefulValidatorResult<()>,
->>>>>>> origin/main-v0.14.0
     stateful_validator: StatefulTransactionValidator,
 ) {
-<<<<<<< HEAD
     let expected_result = if expect_ok {
         Ok(())
     } else {
@@ -112,11 +75,6 @@ async fn test_stateful_tx_validator(
         ))
     };
     let expected_result_as_stateful_transaction_result = expected_result
-||||||| 937a3d39a
-    let expected_result_as_stateful_transaction_result = expected_result
-=======
-    let expected_result_as_stateful_transaction_result = mocked_blockifier_result
->>>>>>> origin/main-v0.14.0
         .as_ref()
         .map(|validate_result| *validate_result)
         .map_err(|blockifier_error| StarknetError {
@@ -125,9 +83,7 @@ async fn test_stateful_tx_validator(
         });
 
     let mut mock_blockifier_validator = MockBlockifierStatefulValidatorTrait::new();
-    mock_blockifier_validator
-        .expect_validate()
-        .return_once(|_| mocked_blockifier_result.map(|_| ()));
+    mock_blockifier_validator.expect_validate().return_once(|_| expected_result.map(|_| ()));
     mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
 
     let account_nonce = nonce!(0);
@@ -386,7 +342,7 @@ async fn test_is_valid_nonce(
     mock_blockifier_validator.expect_block_info().return_const(BlockInfo::default());
     let executable_tx = executable_invoke_tx(invoke_tx_args!(
         nonce: nonce!(tx_nonce),
-        resource_bounds: ValidResourceBounds::create_for_testing(),
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     ));
 
     let result = tokio::task::spawn_blocking(move || {
@@ -425,7 +381,7 @@ async fn test_reject_future_declares(
     let executable_tx = executable_declare_tx(
         declare_tx_args!(
             nonce: nonce!(account_nonce + account_nonce_diff),
-            resource_bounds: ValidResourceBounds::create_for_testing(),
+            resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
         ),
         calculate_class_info_for_testing(
             FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class(),
