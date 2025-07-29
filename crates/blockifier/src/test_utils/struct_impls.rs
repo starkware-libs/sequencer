@@ -168,9 +168,10 @@ impl TransactionExecutionInfo {
         }
     }
 
+    /// Checks that all call infos are executed with cairo native.
     pub fn check_call_infos_native_execution(&self, cairo_native: bool) {
-        // Check that the call infos are executed with cairo native.
-        for call_info in self.non_optional_call_infos() {
+        let is_deploy_account = false; // This is not relevant for the check.
+        for call_info in self.non_optional_call_infos(is_deploy_account) {
             call_info.check_native_execution(cairo_native);
         }
     }

@@ -200,13 +200,8 @@ pub struct TransactionExecutionInfo {
 }
 
 impl TransactionExecutionInfo {
-    // TODO(Arni): remove this method and use only 'ordered_non_optional_call_infos'. (rename to
-    // 'non_optional_call_infos').
-    pub fn non_optional_call_infos(&self) -> impl Iterator<Item = &CallInfo> {
-        self.ordered_non_optional_call_infos(false)
-    }
-
-    pub fn ordered_non_optional_call_infos(
+    /// Returns an iterator over the call infos in the order they were executed.
+    pub fn non_optional_call_infos(
         &self,
         is_deploy_account: bool,
     ) -> impl Iterator<Item = &CallInfo> {
@@ -236,7 +231,11 @@ impl TransactionExecutionInfo {
     /// Returns a summary of transaction execution, including executed class hashes, visited storage
     /// entries, L2-to-L1_payload_lengths, and the number of emitted events.
     pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
-        CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
+        let is_deploy_account = false; // This is not relevant for the summary.
+        CallInfo::summarize_many(
+            self.non_optional_call_infos(is_deploy_account),
+            versioned_constants,
+        )
     }
 
     pub fn summarize_builtins(&self) -> BuiltinCounterMap {

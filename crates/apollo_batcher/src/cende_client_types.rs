@@ -249,7 +249,7 @@ fn get_l2_to_l1_messages(
     execution_info: &TransactionExecutionInfo,
     is_deploy_account: bool,
 ) -> Vec<L2ToL1Message> {
-    let main_call_info_iterator = execution_info.ordered_non_optional_call_infos(is_deploy_account);
+    let main_call_info_iterator = execution_info.non_optional_call_infos(is_deploy_account);
 
     let mut accumulated_sortable_messages = vec![];
     for main_call_info in main_call_info_iterator {
@@ -283,7 +283,7 @@ fn get_events_from_execution_info(
     execution_info: &TransactionExecutionInfo,
     is_deploy_account: bool,
 ) -> Vec<Event> {
-    let main_call_info_iterator = execution_info.ordered_non_optional_call_infos(is_deploy_account);
+    let main_call_info_iterator = execution_info.non_optional_call_infos(is_deploy_account);
 
     // Collect all the events from the call infos, along with their order.
     let mut accumulated_sortable_events = vec![];
