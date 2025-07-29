@@ -37,6 +37,7 @@
         "L1EndpointMonitor": 55005,
         "L1GasPriceProvider": 55003,
         "L1Provider": 55004,
+        "SignatureManager": 55009,
         "StateSync": 55008,
         "MonitoringEndpoint": 8082
       }
