@@ -235,7 +235,8 @@ pub(crate) fn finalize_block<S: StateReader>(
     block_state: &mut CachedState<S>,
     block_context: &BlockContext,
 ) -> TransactionExecutorResult<BlockExecutionSummary> {
-    log::debug!("Final block weights: {:?}.", lock_bouncer(bouncer).get_bouncer_weights());
+    let bouncer = lock_bouncer(bouncer);
+    log::debug!("Final block weights: {:?}.", bouncer.get_bouncer_weights());
     let alias_contract_address = block_context
         .versioned_constants
         .os_constants
@@ -245,14 +246,14 @@ pub(crate) fn finalize_block<S: StateReader>(
         allocate_aliases_in_storage(block_state, alias_contract_address)?;
     }
 
-    let compiled_class_hashes_for_migration =
-        update_compiled_class_hash_migration_in_state(&lock_bouncer(bouncer), block_state)?;
     if !block_context.versioned_constants.enable_casm_hash_migration {
         assert!(
-            compiled_class_hashes_for_migration.is_empty(),
+            bouncer.class_hashes_to_migrate().is_empty(),
             "Class hashes to migrate should be empty when migration is disabled"
         );
     }
+    let compiled_class_hashes_for_migration =
+        update_compiled_class_hash_migration_in_state(&bouncer, block_state)?;
     let state_diff = block_state.to_state_diff()?.state_maps;
 
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
@@ -263,7 +264,7 @@ pub(crate) fn finalize_block<S: StateReader>(
 
     // Take CasmHashComputationData from bouncer,
     // and verify that class hashes are the same.
-    let mut bouncer = lock_bouncer(bouncer);
+    let mut bouncer = bouncer;
     let casm_hash_computation_data_sierra_gas =
         mem::take(bouncer.get_mut_casm_hash_computation_data_sierra_gas());
     let casm_hash_computation_data_proving_gas =
