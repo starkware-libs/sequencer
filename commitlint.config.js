@@ -81,6 +81,7 @@ const AllowedScopes = ['apollo_batcher',
     'starknet_patricia',
     'starknet_patricia_storage',
     'time',
+    'version_constants',
     'workspace_tests',
 ];
 
