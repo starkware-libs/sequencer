@@ -17,7 +17,6 @@ use async_trait::async_trait;
 use futures::FutureExt;
 use lru::LruCache;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
-use serde::de::Error;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use tokio_util::task::AbortOnDropHandle;
@@ -216,9 +215,9 @@ impl EthToStrkOracleClient {
 
 fn resolve_query(body: String) -> Result<u128, EthToStrkOracleClientError> {
     let Ok(json): Result<serde_json::Value, _> = serde_json::from_str(&body) else {
-        return Err(EthToStrkOracleClientError::ParseError(serde_json::Error::custom(format!(
+        return Err(EthToStrkOracleClientError::ParseError(format!(
             "Failed to parse JSON: {body}"
-        ))));
+        )));
     };
     // Extract price from API response. Also returns MissingFieldError if value is not a string.
     let price = match json.get("price").and_then(|v| v.as_str()) {
@@ -288,7 +287,7 @@ impl EthToStrkOracleClientTrait for EthToStrkOracleClient {
                 ETH_TO_STRK_ERROR_COUNT.increment(1);
                 // Must remove failed query from the cache, to avoid re-polling it.
                 queries.pop(&quantized_timestamp);
-                return Err(EthToStrkOracleClientError::JoinError(e));
+                return Err(EthToStrkOracleClientError::JoinError(e.to_string()));
             }
         };
 
