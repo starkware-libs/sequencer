@@ -298,7 +298,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
-        "SignatureManager": 55009,
+        "SignatureManager": 55008,
         "MonitoringEndpoint": 8082
       }
     },
@@ -330,7 +330,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
-        "StateSync": 55008,
+        "StateSync": 55009,
         "MonitoringEndpoint": 8082
       }
     }
