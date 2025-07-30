@@ -401,7 +401,7 @@ mod blake_estimation {
     pub const STEPS_EMPTY_INPUT: usize = 170;
 
     // BLAKE opcode gas cost in Stwo.
-    // TODO(AvivG): Replace with actual cost when known.
+    // TODO(AvivG): Remove this and use bouncer's blake_weight.
     pub const BLAKE_OPCODE_GAS: usize = 0;
 }
 
