@@ -36,7 +36,6 @@ fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> Executi
 
     // TODO(AvivG): Investigate the discrepancies.
     estimated.n_steps -= 1;
-    *estimated.builtin_instance_counter.entry(BuiltinName::range_check).or_default() += 3;
 
     estimated
 }
@@ -45,7 +44,7 @@ fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> Executi
 /// encode_felt252_data_and_calc_blake_hash.
 #[rstest]
 // TODO(Aviv): Add the empty case once the cairo implementation supports it.
-// #[case::empty(vec![])]
+#[case::empty(vec![])]
 #[case::boundary_small_felt(vec![Felt::from((1u64 << 63) - 1)])]
 #[case::boundary_at_2_63(vec![Felt::from(1u64 << 63)])]
 #[case::very_large_felt(vec![Felt::from_hex("0x800000000000011000000000000000000000000000000000000000000000000").unwrap()])]

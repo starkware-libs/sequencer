@@ -395,6 +395,10 @@ mod blake_estimation {
     pub const BASE_STEPS_PARTIAL_MSG: usize = 195;
     // Extra steps per 2-u32 remainder in partial messages.
     pub const STEPS_PER_2_U32_REMINDER: usize = 3;
+    // Overhead when input for `encode_felt252_data_and_calc_blake_hash` is non-empty.
+    pub const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
+    // Empty input steps.
+    pub const STEPS_EMPTY_INPUT: usize = 170;
 
     // BLAKE opcode gas cost in Stwo.
     // TODO(AvivG): Replace with actual cost when known.
@@ -458,12 +462,19 @@ pub fn encode_and_blake_hash_execution_resources(
     n_big_felts: usize,
     n_small_felts: usize,
 ) -> ExecutionResources {
-    let n_steps = compute_blake_hash_steps(n_big_felts, n_small_felts);
     let n_felts =
         n_big_felts.checked_add(n_small_felts).expect("Overflow computing total number of felts");
 
-    // One `range_check` per input felt to validate its size.
-    let builtins = HashMap::from([(BuiltinName::range_check, n_felts)]);
+    let (n_steps, range_check_count) = if n_felts == 0 {
+        (blake_estimation::STEPS_EMPTY_INPUT, 0)
+    } else {
+        let n_steps = compute_blake_hash_steps(n_big_felts, n_small_felts);
+        // One `range_check` per input felt to validate its size.
+        let range_check_count = n_felts + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY;
+        (n_steps, range_check_count)
+    };
+
+    let builtins = HashMap::from([(BuiltinName::range_check, range_check_count)]);
 
     ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter: builtins }
 }
