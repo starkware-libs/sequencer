@@ -198,6 +198,7 @@ pub struct StarknetClientTransactionReceipt {
 }
 
 // Conversion logic from blockifier types to StarknetClient types.
+// TODO(Arni): Convert to a `new` method instead of an `impl From` block.
 impl
     From<(
         TransactionHash,
@@ -231,7 +232,6 @@ impl
         Self {
             transaction_index: TransactionOffsetInBlock(tx_index),
             transaction_hash: tx_hash,
-            // TODO(Arni): Fill this up. This is relevant only for L1 handler transactions.
             l1_to_l2_consumed_message: l1_handler.map(L1ToL2Message::from),
             l2_to_l1_messages,
             events,
@@ -244,9 +244,6 @@ impl
 }
 
 fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL1Message> {
-    // TODO(Arni): Fix this call. The iterator returns all the call infos in the order: `validate`,
-    // `execute`, `fee_transfer`. For `deploy_account` transactions, the order is `execute`,
-    // `validate`, `fee_transfer`.
     let main_call_info_iterator = execution_info.non_optional_call_infos();
 
     let mut accumulated_sortable_messages = vec![];
@@ -278,9 +275,6 @@ fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL
 }
 
 fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
-    // TODO(Arni): Fix this call. The iterator returns all the call infos in the order:
-    // `validate`, `execute`, `fee_transfer`. For `deploy_account` transactions, the order is
-    // `execute`, `validate`, `fee_transfer`.
     let main_call_info_iterator = execution_info.non_optional_call_infos();
 
     // Collect all the events from the call infos, along with their order.

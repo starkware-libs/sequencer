@@ -4,6 +4,7 @@ use starknet_api::block::{BlockInfo, FeeType};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
+use starknet_api::transaction::constants::VALIDATE_DEPLOY_ENTRY_POINT_SELECTOR;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Fee,
@@ -200,13 +201,26 @@ pub struct TransactionExecutionInfo {
 }
 
 impl TransactionExecutionInfo {
-    // TODO(Arni): Add a flag to non_optional_call_infos to indicate the transaction
-    // type. Change the iteration order for `deploy_account` transactions.
     pub fn non_optional_call_infos(&self) -> impl Iterator<Item = &CallInfo> {
-        self.validate_call_info
-            .iter()
-            .chain(self.execute_call_info.iter())
-            .chain(self.fee_transfer_call_info.iter())
+        let execute_call_info = self.execute_call_info.as_ref().into_iter();
+        let validate_call_info = self.validate_call_info.as_ref().into_iter();
+        let fee_transfer_call_info = self.fee_transfer_call_info.as_ref().into_iter();
+
+        if self.is_deploy_account() {
+            // For deploy account transactions, the order is `execute`, `validate`, `fee_transfer`.
+            execute_call_info.chain(validate_call_info).chain(fee_transfer_call_info)
+        } else {
+            // For other transactions, the order is `validate`, `execute`, `fee_transfer`.
+            validate_call_info.chain(execute_call_info).chain(fee_transfer_call_info)
+        }
+    }
+
+    fn is_deploy_account(&self) -> bool {
+        if let Some(call_info) = self.validate_call_info.as_ref() {
+            call_info.call.entry_point_selector == *VALIDATE_DEPLOY_ENTRY_POINT_SELECTOR
+        } else {
+            false
+        }
     }
 
     /// Returns call infos excluding fee transfer (to avoid double-counting in bouncer
