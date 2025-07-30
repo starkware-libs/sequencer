@@ -23,15 +23,16 @@ impl From<gossipsub::Event> for mixed_behaviour::Event {
                 message: gossipsub::Message { data, topic, source, .. },
                 ..
             } => {
-                let Some(originated_peer_id) = source else {
-                    error!(
-                        "Received a message from gossipsub without source even though we've \
-                         configured it to reject such messages"
-                    );
-                    return mixed_behaviour::Event::ToOtherBehaviourEvent(
-                        mixed_behaviour::ToOtherBehaviourEvent::NoOp,
-                    );
-                };
+                // let Some(originated_peer_id) = source else {
+                //     error!(
+                //         "Received a message from gossipsub without source even though we've \
+                //          configured it to reject such messages"
+                //     );
+                //     return mixed_behaviour::Event::ToOtherBehaviourEvent(
+                //         mixed_behaviour::ToOtherBehaviourEvent::NoOp,
+                //     );
+                // };
+                let originated_peer_id = source.unwrap_or_else(PeerId::random);
                 mixed_behaviour::Event::ExternalEvent(mixed_behaviour::ExternalEvent::GossipSub(
                     ExternalEvent::Received {
                         originated_peer_id,
