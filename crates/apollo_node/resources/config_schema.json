@@ -114,6 +114,11 @@
     "privacy": "Public",
     "value": 56
   },
+  "batcher_config.block_builder_config.bouncer_config.blake_weight": {
+    "description": "blake opcode gas weight.",
+    "privacy": "Public",
+    "value": 8000
+  },
   "batcher_config.block_builder_config.chain_info.chain_id": {
     "description": "The chain ID of the StarkNet chain.",
     "pointer_target": "chain_id",
