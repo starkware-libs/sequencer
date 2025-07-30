@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::Config;
 use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
