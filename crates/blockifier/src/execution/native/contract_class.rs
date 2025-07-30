@@ -1,8 +1,11 @@
 use std::ops::Deref;
 use std::sync::Arc;
 
+use cairo_lang_starknet_classes::NestedIntList;
 use cairo_native::executor::AotContractExecutor;
+use starknet_api::contract_class::compiled_class_hash::HashableCompiledClass;
 use starknet_api::core::EntryPointSelector;
+use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::{CompiledClassV1, EntryPointV1};
 use crate::execution::entry_point::EntryPointTypeAndSelector;
@@ -41,6 +44,28 @@ impl NativeCompiledClassV1 {
 
     pub fn casm(&self) -> CompiledClassV1 {
         self.casm.clone()
+    }
+}
+
+impl HashableCompiledClass<EntryPointV1> for NativeCompiledClassV1 {
+    fn get_hashable_l1_entry_points(&self) -> &[EntryPointV1] {
+        &self.casm.entry_points_by_type.l1_handler
+    }
+
+    fn get_hashable_external_entry_points(&self) -> &[EntryPointV1] {
+        &self.casm.entry_points_by_type.external
+    }
+
+    fn get_hashable_constructor_entry_points(&self) -> &[EntryPointV1] {
+        &self.casm.entry_points_by_type.constructor
+    }
+
+    fn get_bytecode(&self) -> Vec<Felt> {
+        self.casm.get_bytecode()
+    }
+
+    fn get_bytecode_segment_lengths(&self) -> &NestedIntList {
+        self.casm.bytecode_segment_lengths()
     }
 }
 
