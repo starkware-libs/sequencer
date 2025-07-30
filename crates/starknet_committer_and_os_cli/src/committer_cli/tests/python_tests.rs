@@ -27,7 +27,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::errors::DeserializationError;
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
+use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue, Storage};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
@@ -387,7 +387,7 @@ generate_storage_map_xor_hasher!(
 generate_storage_map_xor_hasher!(hash_address_to_class_hash, ContractAddress, ClassHash);
 generate_storage_map_xor_hasher!(hash_address_to_nonce, ContractAddress, Nonce);
 
-fn hash_storage(storage: &HashMap<DbKey, DbValue>) -> (Vec<u8>, Vec<u8>) {
+fn hash_storage(storage: &MapStorage) -> (Vec<u8>, Vec<u8>) {
     let mut keys_hash = vec![0; 32];
     let mut values_hash = vec![0; 32];
     for (key, value) in storage {
