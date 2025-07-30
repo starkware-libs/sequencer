@@ -95,6 +95,16 @@ use crate::stateful_transaction_validator::{
 use crate::stateless_transaction_validator::StatelessTransactionValidator;
 
 #[fixture]
+fn mock_validator() -> MockStatefulTransactionValidatorTrait {
+    MockStatefulTransactionValidatorTrait::new()
+}
+
+#[fixture]
+fn mock_validator_factory() -> MockStatefulTransactionValidatorFactoryTrait {
+    MockStatefulTransactionValidatorFactoryTrait::new()
+}
+
+#[fixture]
 fn config() -> GatewayConfig {
     GatewayConfig {
         stateless_tx_validator_config: StatelessTransactionValidatorConfig::default(),
@@ -328,6 +338,28 @@ async fn run_add_tx_and_extract_metrics(
     AddTxResults { result, metric_handle_for_queries, metrics }
 }
 
+fn process_tx_task(
+    mock_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+) -> ProcessTxBlockingTask {
+    let chain_info = ChainInfo::create_for_testing();
+
+    ProcessTxBlockingTask {
+        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
+            config: StatelessTransactionValidatorConfig::default(),
+        }),
+        stateful_tx_validator_factory: Arc::new(mock_validator_factory),
+        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
+        mempool_client: Arc::new(MockMempoolClient::new()),
+        chain_info: Arc::new(chain_info.clone()),
+        tx: invoke_args().get_rpc_tx(),
+        transaction_converter: Arc::new(TransactionConverter::new(
+            Arc::new(MockClassManagerClient::new()),
+            chain_info.chain_id,
+        )),
+        runtime: tokio::runtime::Handle::current(),
+    }
+}
+
 // TODO(AlonH): add test with Some broadcasted message metadata
 #[rstest]
 #[case::tx_with_duplicate_tx_hash(
@@ -555,40 +587,25 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
 )]
 #[tokio::test]
-async fn test_process_tx_transaction_validations(#[case] error_code: StarknetErrorCode) {
+async fn process_tx_transaction_validations(
+    #[case] error_code: StarknetErrorCode,
+    mut mock_validator: MockStatefulTransactionValidatorTrait,
+    mut mock_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+) {
     let expected_error = StarknetError {
         code: error_code.clone(),
         message: "placeholder".into(), // Message is not checked
     };
 
-    let mut mock_validator = MockStatefulTransactionValidatorTrait::new();
-    mock_validator
-        .expect_run_transaction_validations()
-        .return_once(move |_, _, _| Err(expected_error.clone()));
+    mock_validator.expect_run_transaction_validations().return_once(|_, _, _| Err(expected_error));
 
-    let mut mock_factory = MockStatefulTransactionValidatorFactoryTrait::new();
-    mock_factory.expect_instantiate_validator().return_once(|_, _| Ok(Box::new(mock_validator)));
+    mock_validator_factory
+        .expect_instantiate_validator()
+        .return_once(|_, _| Ok(Box::new(mock_validator)));
 
-    let mock_class_manager_client = MockClassManagerClient::new();
-    let chain_info = ChainInfo::create_for_testing();
+    let process_tx_task = process_tx_task(mock_validator_factory);
 
-    let task = ProcessTxBlockingTask {
-        stateless_tx_validator: Arc::new(StatelessTransactionValidator {
-            config: StatelessTransactionValidatorConfig::default(),
-        }),
-        stateful_tx_validator_factory: Arc::new(mock_factory),
-        state_reader_factory: Arc::new(MockStateReaderFactory::new()),
-        mempool_client: Arc::new(MockMempoolClient::new()),
-        chain_info: Arc::new(chain_info.clone()),
-        tx: invoke_args().get_rpc_tx(),
-        transaction_converter: Arc::new(TransactionConverter::new(
-            Arc::new(mock_class_manager_client),
-            chain_info.chain_id,
-        )),
-        runtime: tokio::runtime::Handle::current(),
-    };
-
-    let result = tokio::task::spawn_blocking(move || task.process_tx()).await.unwrap();
+    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
