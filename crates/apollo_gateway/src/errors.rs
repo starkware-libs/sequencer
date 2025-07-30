@@ -1,3 +1,5 @@
+use apollo_class_manager_types::transaction_converter::TransactionConverterError;
+use apollo_class_manager_types::{ClassManagerClientError, ClassManagerError};
 use apollo_gateway_types::deprecated_gateway_error::{
     KnownStarknetErrorCode,
     StarknetError,
@@ -16,6 +18,7 @@ use thiserror::Error;
 use tracing::{debug, error, warn};
 
 use crate::compiler_version::{VersionId, VersionIdError};
+use crate::gateway::convert_compiled_class_hash_error;
 use crate::rpc_objects::{RpcErrorCode, RpcErrorResponse};
 
 pub type GatewayResult<T> = Result<T, StarknetError>;
@@ -311,4 +314,69 @@ impl From<RPCStateReaderError> for StateError {
 // Converts a serde error to the error type of the state reader.
 pub fn serde_err_to_state_err(err: SerdeError) -> StateError {
     StateError::StateReadError(format!("Failed to parse rpc result {:?}", err.to_string()))
+}
+
+pub fn transaction_converter_err_to_deprecated_gw_err(
+    err: TransactionConverterError,
+) -> StarknetError {
+    match err {
+        TransactionConverterError::ValidateCompiledClassHashError(err) => {
+            convert_compiled_class_hash_error(err)
+        }
+        TransactionConverterError::ClassManagerClientError(err) => {
+            convert_class_manager_client_error(err)
+        }
+        // TODO(noamsp): Handle ClassNotFound and StarknetApiError cases better.
+        TransactionConverterError::ClassNotFound { .. } => {
+            StarknetError::internal(&err.to_string())
+        }
+        TransactionConverterError::StarknetApiError(err) => {
+            StarknetError::internal(&err.to_string())
+        }
+    }
+}
+
+fn convert_class_manager_client_error(err: ClassManagerClientError) -> StarknetError {
+    match err {
+        ClassManagerClientError::ClassManagerError(err) => convert_class_manager_error(err),
+        ClassManagerClientError::ClientError(_) => StarknetError::internal(&err.to_string()),
+    }
+}
+
+fn convert_class_manager_error(err: ClassManagerError) -> StarknetError {
+    match err {
+        ClassManagerError::SierraCompiler { class_hash, error } => {
+            let compilation_err_output = &error.to_string();
+            if compilation_err_output.contains("Code size limit exceeded") {
+                StarknetError {
+                    code: StarknetErrorCode::KnownErrorCode(
+                        KnownStarknetErrorCode::ContractBytecodeSizeTooLarge,
+                    ),
+                    message: format!(
+                        "Compilation failed for class hash: {class_hash} because the CASM \
+                         bytecode size limit was exceeded. Compilation output: \
+                         {compilation_err_output}"
+                    ),
+                }
+            } else {
+                StarknetError {
+                    code: StarknetErrorCode::KnownErrorCode(
+                        KnownStarknetErrorCode::CompilationFailed,
+                    ),
+                    message: format!(
+                        "Compilation failed for class hash: {class_hash}. Compilation output: \
+                         {compilation_err_output}",
+                    ),
+                }
+            }
+        }
+        // TODO(noamsp): Handle ClassSerde, ClassStorage, Client, and
+        // ContractClassObjectSizeTooLarge cases better.
+        ClassManagerError::ClassSerde(err) => StarknetError::internal(&err.to_string()),
+        ClassManagerError::ClassStorage(err) => StarknetError::internal(&err.to_string()),
+        ClassManagerError::Client(err) => StarknetError::internal(&err.to_string()),
+        ClassManagerError::ContractClassObjectSizeTooLarge { .. } => {
+            StarknetError::internal(&err.to_string())
+        }
+    }
 }
