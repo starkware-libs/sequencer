@@ -119,6 +119,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                     service_ports.insert(ServicePort::HttpServer);
                 }
                 ServicePort::Batcher
+                | ServicePort::ConsensusManager
                 | ServicePort::Mempool
                 | ServicePort::ClassManager
                 | ServicePort::Gateway

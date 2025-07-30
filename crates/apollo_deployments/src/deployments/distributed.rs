@@ -266,6 +266,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -288,6 +289,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -309,6 +311,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         }
                         ServicePort::HttpServer
                         | ServicePort::Batcher
+                        | ServicePort::ConsensusManager
                         | ServicePort::ClassManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
@@ -334,6 +337,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         }
                         ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -356,6 +360,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -378,6 +383,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -400,6 +406,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -422,6 +429,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
@@ -444,6 +452,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::HttpServer
                         | ServicePort::Batcher
                         | ServicePort::ClassManager
+                        | ServicePort::ConsensusManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider
                         | ServicePort::L1Provider
