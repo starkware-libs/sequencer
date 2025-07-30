@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use tracing::{info, warn};
 
@@ -40,7 +40,7 @@ pub async fn commit_block(
     let actual_storage_updates = input.state_diff.actual_storage_updates();
     let actual_classes_updates = input.state_diff.actual_classes_updates();
     let (mut original_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-        MapStorage { storage },
+        BorrowedMapStorage { storage },
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &actual_storage_updates,
