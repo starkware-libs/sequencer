@@ -4,7 +4,7 @@ use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_patricia_storage::db_object::DBObject;
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
@@ -216,7 +216,7 @@ fn test_create_tree(
     let config = OriginalSkeletonMockTrieConfig::new(compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
-    let map_storage = MapStorage { storage: &mut storage };
+    let map_storage = BorrowedMapStorage { storage: &mut storage };
     let skeleton_tree = OriginalSkeletonTreeImpl::create::<MockLeaf>(
         &map_storage,
         root_hash,

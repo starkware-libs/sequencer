@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::Config;
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use tracing::info;
 use tracing::level_filters::LevelFilter;
@@ -38,7 +38,7 @@ pub async fn commit(input: InputImpl, output_path: String, mut storage: HashMap<
     let serialized_filled_forest = SerializedForest(
         commit_block(input, &mut storage).await.expect("Failed to commit the given block."),
     );
-    let storage = MapStorage { storage: &mut storage };
+    let storage = BorrowedMapStorage { storage: &mut storage };
     let output = serialized_filled_forest.forest_to_output(storage);
     write_to_file(&output_path, &output);
     info!(
