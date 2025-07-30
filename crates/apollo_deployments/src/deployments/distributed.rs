@@ -329,8 +329,10 @@ impl ServiceNameInner for DistributedNodeServiceName {
                         ServicePort::MonitoringEndpoint => {
                             service_ports.insert(ServicePort::MonitoringEndpoint);
                         }
-                        ServicePort::HttpServer
-                        | ServicePort::Batcher
+                        ServicePort::HttpServer => {
+                            service_ports.insert(ServicePort::HttpServer);
+                        }
+                        ServicePort::Batcher
                         | ServicePort::ClassManager
                         | ServicePort::L1EndpointMonitor
                         | ServicePort::L1GasPriceProvider

@@ -10,6 +10,7 @@ workspace = true
 
 [dependencies]
 apollo_config.workspace = true
+apollo_http_server.workspace = true
 apollo_infra_utils.workspace = true
 apollo_monitoring_endpoint.workspace = true
 apollo_node.workspace = true
