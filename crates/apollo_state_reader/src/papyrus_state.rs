@@ -173,10 +173,9 @@ impl PapyrusReader {
         class_reader.read_optional_deprecated_casm(class_hash)
     }
 
-    // TODO(Aviv): Use it once get_compiled_class_hash_v2 is added to the state reader trait.
-    #[allow(dead_code)]
     fn read_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         let Some(class_reader) = &self.class_reader else {
+            // Try to read directly from storage.
             let compiled_class_hash_v2 = self
                 .reader()?
                 .get_executable_class_hash_v2(&class_hash)
@@ -244,6 +243,10 @@ impl StateReader for PapyrusReader {
             Ok(None) => Ok(CompiledClassHash::default()),
             Err(err) => Err(StateError::StateReadError(err.to_string())),
         }
+    }
+
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.read_compiled_class_hash_v2(class_hash)
     }
 }
 
