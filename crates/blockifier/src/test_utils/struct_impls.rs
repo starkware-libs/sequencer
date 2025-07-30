@@ -28,7 +28,7 @@ use crate::blockifier::transaction_executor::BlockExecutionSummary;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::{BouncerConfig, BouncerWeights, CasmHashComputationData};
 use crate::context::{BlockContext, ChainInfo, FeeTokenAddresses, TransactionContext};
-use crate::execution::call_info::{BuiltinCounterMap, CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::common_hints::ExecutionMode;
 #[cfg(feature = "cairo_native")]
 use crate::execution::contract_class::CompiledClassV1;
@@ -139,7 +139,6 @@ impl CallInfo {
         for inner_call in self.inner_calls.iter_mut() {
             inner_call.clear_nonessential_fields_for_comparison();
         }
-        self.builtin_counters = BuiltinCounterMap::new();
         self.execution.cairo_native = false;
     }
 
