@@ -70,7 +70,7 @@ class ServiceApp(Construct):
             "service",
             metadata=k8s.ObjectMeta(
                 labels=self.labels,
-                annotations=self._get_service_anotations(),
+                annotations=self._get_service_annotations(),
             ),
             spec=k8s.ServiceSpec(
                 type=self._get_service_type(),
@@ -358,7 +358,7 @@ class ServiceApp(Construct):
             for attr in self._get_ports_subset_keys_from_config()
         ]
 
-    def _get_service_anotations(self) -> typing.Dict[str, str]:
+    def _get_service_annotations(self) -> typing.Dict[str, str]:
         annotations = {}
         if self.service_topology.k8s_service_config is None:
             return annotations
@@ -366,7 +366,12 @@ class ServiceApp(Construct):
             self.service_topology.k8s_service_config.get("internal") is True
             and self._get_service_type() == const.K8SServiceType.LOAD_BALANCER
         ):
-            annotations.update({"cloud.google.com/load-balancer-type": "Internal"})
+            annotations.update(
+                {
+                    "cloud.google.com/load-balancer-type": "Internal",
+                    "networking.gke.io/internal-load-balancer-allow-global-access": "true",
+                }
+            )
         if self.service_topology.k8s_service_config.get("external_dns_name"):
             annotations.update(
                 {
