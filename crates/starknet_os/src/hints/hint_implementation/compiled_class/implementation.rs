@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashMap};
-use std::sync::LazyLock;
 use std::vec::IntoIter;
 
 use blockifier::state::state_api::StateReader;
@@ -31,11 +30,6 @@ use crate::vm_utils::{
     CairoSized,
     LoadCairoObject,
 };
-
-// TODO(Aviv): Use the const from Cairo repo.
-#[allow(dead_code)]
-pub static COMPILED_CLASS_V1: LazyLock<Felt> =
-    LazyLock::new(|| Felt::from_bytes_be_slice(b"COMPILED_CLASS_V1"));
 
 pub(crate) fn assign_bytecode_segments(HintArgs { exec_scopes, .. }: HintArgs<'_>) -> OsHintResult {
     let bytecode_segment_structure: BytecodeSegmentNode =
@@ -139,13 +133,9 @@ pub(crate) fn iter_current_segment_info(
     let full_contract =
         get_integer_from_var_name(Ids::FullContract.into(), vm, ids_data, ap_tracking)?;
 
-    let is_used = full_contract == Felt::ONE || vm.is_accessed(&data_ptr)?;
+    let should_load = full_contract == Felt::ONE || vm.is_accessed(&data_ptr)?;
 
-    // For testing purposes, we allow marking all segments as used.
-    #[cfg(test)]
-    let is_used = is_used || exec_scopes.get(Scope::LeafAlwaysAccessed.into()).unwrap_or(false);
-
-    if !is_used {
+    if !should_load {
         for i in 0..current_segment_info.length() {
             let pc = (data_ptr + i)?;
             if vm.is_accessed(&pc)? {
@@ -160,16 +150,16 @@ pub(crate) fn iter_current_segment_info(
     }
 
     insert_value_from_var_name(
-        Ids::IsSegmentUsed.into(),
-        Felt::from(is_used),
+        Ids::LoadSegment.into(),
+        Felt::from(should_load),
         vm,
         ids_data,
         ap_tracking,
     )?;
-    let is_used_leaf = is_used && current_segment_info.is_leaf();
+    let is_leaf_and_loaded = should_load && current_segment_info.is_leaf();
     insert_value_from_var_name(
-        Ids::IsUsedLeaf.into(),
-        Felt::from(is_used_leaf),
+        Ids::IsLeafAndLoaded.into(),
+        Felt::from(is_leaf_and_loaded),
         vm,
         ids_data,
         ap_tracking,

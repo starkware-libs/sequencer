@@ -1,11 +1,11 @@
 use apollo_starknet_os_program::OS_PROGRAM;
 use blockifier::abi::constants::{L1_TO_L2_MSG_HEADER_SIZE, L2_TO_L1_MSG_HEADER_SIZE};
 use cairo_vm::types::program::Program;
+use starknet_api::contract_class::compiled_class_hash::COMPILED_CLASS_V1;
 use starknet_api::core::L2_ADDRESS_UPPER_BOUND;
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_types_core::felt::Felt;
 
-use crate::hints::hint_implementation::compiled_class::implementation::COMPILED_CLASS_V1;
 use crate::hints::hint_implementation::kzg::utils::FIELD_ELEMENTS_PER_BLOB;
 use crate::hints::vars::{CairoStruct, Const};
 use crate::vm_utils::get_size_of_cairo_struct;

@@ -65,7 +65,13 @@ pub enum GenericEvent<SessionError> {
     },
 }
 
-#[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Config {
     pub session_timeout: Duration,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self { session_timeout: Duration::from_secs(10) }
+    }
 }

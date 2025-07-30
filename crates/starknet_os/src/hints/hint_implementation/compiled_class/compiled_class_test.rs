@@ -10,12 +10,13 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use expect_test::{expect, Expect};
 use log::info;
 use rstest::rstest;
+use starknet_api::contract_class::compiled_class_hash::{HashableCompiledClass, COMPILED_CLASS_V1};
 use starknet_api::contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
+use starknet_types_core::hash::Poseidon;
 
-use crate::hints::hint_implementation::compiled_class::implementation::COMPILED_CLASS_V1;
 use crate::hints::hint_implementation::compiled_class::utils::create_bytecode_segment_structure;
-use crate::hints::vars::{Const, Scope};
+use crate::hints::vars::Const;
 use crate::test_utils::cairo_runner::{
     initialize_cairo_runner,
     run_cairo_0_entrypoint,
@@ -82,11 +83,6 @@ fn test_compiled_class_hash_poseidon(
     )
     .unwrap();
     hint_locals.insert("bytecode_segment_structure".to_string(), any_box!(bytecode_structure));
-    // Set leaf_always_accessed to `load_full_contract` in the root level exec scope.
-    hint_locals.insert(
-        <&'static str>::from(Scope::LeafAlwaysAccessed).to_string(),
-        any_box!(load_full_contract),
-    );
     // Use the Poseidon version.
     let (mut runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
@@ -110,8 +106,7 @@ fn test_compiled_class_hash_poseidon(
         // Compiled class
         EndpointArg::Value(ValueArg::Single(contract_class_base.into())),
         // Full contract
-        // TODO(Meshi): Test with full contract true as well.
-        Felt::from(0).into(),
+        Felt::from(load_full_contract).into(),
     ];
     // Run the Cairo entrypoint function.
     // State reader is not used in this test.
@@ -168,8 +163,8 @@ fn test_compiled_class_hash_poseidon(
     // Use expect! macro for easy test maintenance.
     EXPECTED_HASH.assert_eq(&hash_computed_by_the_os.to_string());
 
-    // Compare with the hash computed by the compiler.
-    let hash_computed_by_compiler = contract_class.compiled_class_hash();
-    assert_eq!(*hash_computed_by_the_os, hash_computed_by_compiler);
+    // Compare with the hash computed by the starknet_api.
+    let hash_computed_by_compiler = contract_class.hash::<Poseidon>();
+    assert_eq!(*hash_computed_by_the_os, hash_computed_by_compiler.0);
     Ok(())
 }
