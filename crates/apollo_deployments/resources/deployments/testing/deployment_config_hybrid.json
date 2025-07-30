@@ -39,7 +39,7 @@
         "Batcher": 55000,
         "ClassManager": 55001,
         "StateSync": 55009,
-        "ConsensusManager": 53080,
+        "ConsensusP2P": 53080,
         "MonitoringEndpoint": 8082
       }
     },
