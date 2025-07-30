@@ -11,6 +11,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::errors::DeserializationError;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
@@ -21,7 +22,7 @@ pub type InputImpl = Input<ConfigImpl>;
 #[derive(Debug, PartialEq)]
 pub struct CommitterInputImpl {
     pub input: InputImpl,
-    pub storage: HashMap<DbKey, DbValue>,
+    pub storage: MapStorage,
 }
 
 impl TryFrom<RawInput> for CommitterInputImpl {
