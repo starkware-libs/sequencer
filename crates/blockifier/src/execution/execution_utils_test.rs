@@ -45,6 +45,7 @@ fn test_zero_inputs() {
         0,
         0,
         VersionedConstants::latest_constants(),
+        BouncerConfig::default().blake_weight,
     );
     let expected_gas = {
         let resources = ExecutionResources { n_steps: BASE_STEPS_FULL_MSG, ..Default::default() };
