@@ -60,7 +60,7 @@ fn block_max_capacity() -> BouncerWeights {
 
 #[fixture]
 fn bouncer_config(block_max_capacity: BouncerWeights) -> BouncerConfig {
-    BouncerConfig { block_max_capacity, builtin_weights: BuiltinWeights::default() }
+    BouncerConfig { block_max_capacity, ..Default::default() }
 }
 
 #[rstest]
@@ -249,7 +249,8 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         sierra_gas: GasAmount(20),
         proving_gas: proving_gas_max_capacity,
     };
-    let bouncer_config = BouncerConfig { block_max_capacity, builtin_weights };
+    let bouncer_config =
+        BouncerConfig { block_max_capacity, builtin_weights, ..Default::default() };
 
     let bouncer_weights = BouncerWeights {
         l1_gas: 10,
@@ -295,8 +296,7 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
     let mut state = test_state(&block_context.chain_info, Fee(0), &[]);
     let mut transactional_state = TransactionalState::create_transactional(&mut state);
     let block_max_capacity = BouncerWeights { sierra_gas: GasAmount(20), ..Default::default() };
-    let bouncer_config =
-        BouncerConfig { block_max_capacity, builtin_weights: BuiltinWeights::default() };
+    let bouncer_config = BouncerConfig { block_max_capacity, ..Default::default() };
 
     // Use gas amount > block_max_capacity's.
     let exceeding_gas = GasAmount(30);
