@@ -118,8 +118,13 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ServicePort::HttpServer => {
                     service_ports.insert(ServicePort::HttpServer);
                 }
+                ServicePort::ConsensusManager => {
+                    service_ports.insert(ServicePort::ConsensusManager);
+                }
+                ServicePort::MempoolP2p => {
+                    service_ports.insert(ServicePort::MempoolP2p);
+                }
                 ServicePort::Batcher
-                | ServicePort::ConsensusManager
                 | ServicePort::Mempool
                 | ServicePort::ClassManager
                 | ServicePort::Gateway
@@ -127,8 +132,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 | ServicePort::L1GasPriceProvider
                 | ServicePort::L1Provider
                 | ServicePort::SierraCompiler
-                | ServicePort::StateSync
-                | ServicePort::MempoolP2p => {}
+                | ServicePort::StateSync => {}
             }
         }
         service_ports
