@@ -25,7 +25,6 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::context::ChainInfo;
-use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
@@ -241,23 +240,6 @@ impl ProcessTxBlockingTask {
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
         Ok(AddTransactionArgs { tx: internal_tx, account_state: AccountState { address, nonce } })
-    }
-}
-
-// TODO(noamsp): Move to errors.rs.
-pub(crate) fn convert_compiled_class_hash_error(
-    error: ValidateCompiledClassHashError,
-) -> StarknetError {
-    let ValidateCompiledClassHashError::CompiledClassHashMismatch {
-        computed_class_hash,
-        supplied_class_hash,
-    } = error;
-    StarknetError {
-        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidCompiledClassHash),
-        message: format!(
-            "Computed compiled class hash: {computed_class_hash} does not match the given value: \
-             {supplied_class_hash}.",
-        ),
     }
 }
 

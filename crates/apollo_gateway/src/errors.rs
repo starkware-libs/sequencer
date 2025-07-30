@@ -12,13 +12,13 @@ use axum::http::StatusCode;
 use blockifier::state::errors::StateError;
 use serde_json::{Error as SerdeError, Value};
 use starknet_api::block::GasPrice;
+use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::transaction::fields::AllResourceBounds;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tracing::{debug, error, warn};
 
 use crate::compiler_version::{VersionId, VersionIdError};
-use crate::gateway::convert_compiled_class_hash_error;
 use crate::rpc_objects::{RpcErrorCode, RpcErrorResponse};
 
 pub type GatewayResult<T> = Result<T, StarknetError>;
@@ -333,6 +333,20 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
         TransactionConverterError::StarknetApiError(err) => {
             StarknetError::internal(&err.to_string())
         }
+    }
+}
+
+fn convert_compiled_class_hash_error(err: ValidateCompiledClassHashError) -> StarknetError {
+    let ValidateCompiledClassHashError::CompiledClassHashMismatch {
+        computed_class_hash,
+        supplied_class_hash,
+    } = err;
+    StarknetError {
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidCompiledClassHash),
+        message: format!(
+            "Computed compiled class hash: {computed_class_hash} does not match the given value: \
+             {supplied_class_hash}.",
+        ),
     }
 }
 
