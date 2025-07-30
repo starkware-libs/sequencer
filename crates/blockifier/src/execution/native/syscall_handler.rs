@@ -106,6 +106,12 @@ impl<'state> NativeSyscallHandler<'state> {
             // accelerate the end of the execution. The returned data is not important
             return Err(vec![]);
         }
+
+        // Keccak syscall usages' increments are handled inside its implementation.
+        if !matches!(selector, SyscallSelector::Keccak) {
+            self.increment_syscall_count_by(selector, 1);
+        }
+
         // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
         let required_gas = total_gas_cost - self.gas_costs().base.syscall_base_gas_cost;
 
@@ -132,11 +138,6 @@ impl<'state> NativeSyscallHandler<'state> {
         //    the current tracked value), or we will pass through another syscall before failing -
         //    and by induction (we will reach this point again), the gas will be charged correctly.
         self.base.context.update_revert_gas_with_next_remaining_gas(GasAmount(*remaining_gas));
-
-        // Keccak syscall usages' increments are handled inside its implementation.
-        if !matches!(selector, SyscallSelector::Keccak) {
-            self.increment_syscall_count_by(selector, 1);
-        }
 
         Ok(())
     }
@@ -645,6 +646,8 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             remaining_gas,
         ) {
             Ok((state, n_rounds)) => {
+                // For the keccak system call we want to count the number of rounds rather than the
+                // number of syscall invocations.
                 self.increment_syscall_count_by(SyscallSelector::Keccak, n_rounds);
 
                 Ok(U256 {

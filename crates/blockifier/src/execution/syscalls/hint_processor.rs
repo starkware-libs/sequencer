@@ -329,7 +329,7 @@ impl<'a> SyscallHintProcessor<'a> {
         self.allocate_data_segment(vm, &flat_resource_bounds)
     }
 
-    pub fn increment_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
+    pub fn increment_syscall_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
         let syscall_usage = self
             .syscalls_usage
             .get_mut(selector)
@@ -553,7 +553,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
     ) -> Result<DeployResponse, Self::Error> {
         // Increment the Deploy syscall's linear cost counter by the number of elements in the
         // constructor calldata.
-        syscall_handler.increment_linear_factor_by(
+        syscall_handler.increment_syscall_linear_factor_by(
             &SyscallSelector::Deploy,
             request.get_linear_factor_length(),
         );
@@ -664,7 +664,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
     ) -> Result<MetaTxV0Response, Self::Error> {
         // Increment the MetaTxV0 syscall's linear cost counter by the number of elements in the
         // calldata.
-        syscall_handler.increment_linear_factor_by(
+        syscall_handler.increment_syscall_linear_factor_by(
             &SyscallSelector::MetaTxV0,
             request.get_linear_factor_length(),
         );
