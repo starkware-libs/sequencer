@@ -271,7 +271,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -298,7 +298,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -322,7 +322,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
                             BusinessLogicServicePort::MonitoringEndpoint
-                            | BusinessLogicServicePort::ConsensusManager => {
+                            | BusinessLogicServicePort::ConsensusP2P => {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
@@ -350,7 +350,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                             | BusinessLogicServicePort::HttpServer => {
                                 service_ports.insert(service_port);
                             }
-                            BusinessLogicServicePort::ConsensusManager
+                            BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -376,7 +376,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -403,7 +403,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -430,7 +430,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -457,7 +457,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -484,7 +484,7 @@ impl ServiceNameInner for DistributedNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {

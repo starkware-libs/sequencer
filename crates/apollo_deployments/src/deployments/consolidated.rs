@@ -10,7 +10,13 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{BusinessLogicServicePort, ComponentConfigInService, Environment, InfraServicePort, ServicePort};
+use crate::deployment_definitions::{
+    BusinessLogicServicePort,
+    ComponentConfigInService,
+    Environment,
+    InfraServicePort,
+    ServicePort,
+};
 use crate::k8s::{
     get_ingress,
     Controller,
@@ -115,7 +121,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ServicePort::BusinessLogic(bl_port) => match bl_port {
                     BusinessLogicServicePort::MonitoringEndpoint
                     | BusinessLogicServicePort::HttpServer
-                    | BusinessLogicServicePort::ConsensusManager
+                    | BusinessLogicServicePort::ConsensusP2P
                     | BusinessLogicServicePort::MempoolP2p => {
                         service_ports.insert(service_port);
                     }
