@@ -27,7 +27,7 @@ use starknet_patricia::patricia_merkle_tree::node_data::inner_node::{
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_patricia_storage::db_object::DBObject;
 use starknet_patricia_storage::errors::DeserializationError;
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue, Storage};
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Pedersen, StarkHash};
@@ -155,7 +155,7 @@ impl PythonTestRunner for CommitterPythonTestRunner {
                 let TreeFlowInput { leaf_modifications, mut storage, root_hash } =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
-                let storage = MapStorage { storage: &mut storage };
+                let storage = BorrowedMapStorage { storage: &mut storage };
                 let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
                     leaf_modifications,
                     storage,
@@ -465,7 +465,7 @@ pub(crate) fn test_node_db_key() -> String {
 /// and returns the serialized JSON string or panics with an error message if serialization fails.
 pub(crate) fn storage_serialize_test() -> CommitterPythonTestResult {
     let mut storage = HashMap::new();
-    let mut storage = MapStorage { storage: &mut storage };
+    let mut storage = BorrowedMapStorage { storage: &mut storage };
     for i in 0..=99_u128 {
         let key = DbKey(Felt::from(i).to_bytes_be().to_vec());
         let value = DbValue(Felt::from(i).to_bytes_be().to_vec());
@@ -503,7 +503,7 @@ fn python_hash_constants_compare() -> String {
 fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult {
     // Create a storage to store the nodes.
     let mut storage = HashMap::new();
-    let mut rust_fact_storage = MapStorage { storage: &mut storage };
+    let mut rust_fact_storage = BorrowedMapStorage { storage: &mut storage };
 
     // Parse the binary node data from the input.
     let binary_json = get_or_key_not_found(&data, "binary")?;
@@ -614,7 +614,7 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
 pub(crate) fn filled_forest_output_test() -> CommitterPythonTestResult {
     let dummy_forest = SerializedForest(FilledForest::dummy_random(&mut rand::thread_rng(), None));
     let mut storage = HashMap::new();
-    let map_storage = MapStorage { storage: &mut storage };
+    let map_storage = BorrowedMapStorage { storage: &mut storage };
     let output = dummy_forest.forest_to_output(map_storage);
     let output_string = serde_json::to_string(&output).expect("Failed to serialize");
     Ok(output_string)

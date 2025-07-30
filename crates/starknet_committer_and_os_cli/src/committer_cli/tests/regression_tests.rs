@@ -8,7 +8,7 @@ use starknet_committer::block_committer::input::{ConfigImpl, Input, StarknetStor
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use tempfile::NamedTempFile;
 
@@ -116,7 +116,7 @@ pub async fn test_regression_single_tree() {
 
     let start = std::time::Instant::now();
     // Benchmark the single tree flow test.
-    let storage = MapStorage { storage: &mut storage };
+    let storage = BorrowedMapStorage { storage: &mut storage };
     let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
         leaf_modifications,
         storage,

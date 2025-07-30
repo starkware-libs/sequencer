@@ -18,7 +18,7 @@ use starknet_patricia::patricia_merkle_tree::external_test_utils::{
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
 use starknet_patricia_storage::db_object::DBObject;
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
@@ -311,7 +311,7 @@ fn test_create_original_skeleton_forest(
     };
 
     let (actual_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-        MapStorage { storage: &mut storage },
+        BorrowedMapStorage { storage: &mut storage },
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &input.state_diff.actual_storage_updates(),

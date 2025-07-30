@@ -5,11 +5,11 @@ use serde::Serialize;
 use crate::storage_trait::{DbKey, DbValue, Storage};
 // TODO(Nimrod): Rename to 'BorrowedMapStorage' and define a type for HashMap<DbKey, DbValue>.
 #[derive(Serialize, Debug)]
-pub struct MapStorage<'a> {
+pub struct BorrowedMapStorage<'a> {
     pub storage: &'a mut HashMap<DbKey, DbValue>,
 }
 
-impl Storage for MapStorage<'_> {
+impl Storage for BorrowedMapStorage<'_> {
     fn set(&mut self, key: DbKey, value: DbValue) -> Option<DbValue> {
         self.storage.insert(key, value)
     }
