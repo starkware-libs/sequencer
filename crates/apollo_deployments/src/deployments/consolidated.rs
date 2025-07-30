@@ -10,7 +10,13 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{ComponentConfigInService, Environment, ServicePort};
+use crate::deployment_definitions::{
+    BusinessLogicServicePort,
+    ComponentConfigInService,
+    Environment,
+    InfraServicePort,
+    ServicePort,
+};
 use crate::k8s::{
     get_ingress,
     Controller,
@@ -112,29 +118,28 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         let mut service_ports = BTreeSet::new();
         for service_port in ServicePort::iter() {
             match service_port {
-                ServicePort::MonitoringEndpoint => {
-                    service_ports.insert(ServicePort::MonitoringEndpoint);
-                }
-                ServicePort::HttpServer => {
-                    service_ports.insert(ServicePort::HttpServer);
-                }
-                ServicePort::ConsensusManager => {
-                    service_ports.insert(ServicePort::ConsensusManager);
-                }
-                ServicePort::MempoolP2p => {
-                    service_ports.insert(ServicePort::MempoolP2p);
-                }
-                ServicePort::Batcher
-                | ServicePort::Mempool
-                | ServicePort::ClassManager
-                | ServicePort::Gateway
-                | ServicePort::L1EndpointMonitor
-                | ServicePort::L1GasPriceProvider
-                | ServicePort::L1Provider
-                | ServicePort::SierraCompiler
-                | ServicePort::StateSync => {}
+                ServicePort::BusinessLogic(bl_port) => match bl_port {
+                    BusinessLogicServicePort::MonitoringEndpoint
+                    | BusinessLogicServicePort::HttpServer
+                    | BusinessLogicServicePort::ConsensusManager
+                    | BusinessLogicServicePort::MempoolP2p => {
+                        service_ports.insert(service_port);
+                    }
+                },
+                ServicePort::Infra(infra_port) => match infra_port {
+                    InfraServicePort::Batcher
+                    | InfraServicePort::Mempool
+                    | InfraServicePort::ClassManager
+                    | InfraServicePort::Gateway
+                    | InfraServicePort::L1EndpointMonitor
+                    | InfraServicePort::L1GasPriceProvider
+                    | InfraServicePort::L1Provider
+                    | InfraServicePort::SierraCompiler
+                    | InfraServicePort::StateSync => {}
+                },
             }
         }
+
         service_ports
     }
 
