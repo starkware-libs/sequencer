@@ -42,6 +42,10 @@
       },
       "anti_affinity": true,
       "ports": {
+        "Batcher": 55000,
+        "ClassManager": 55001,
+        "StateSync": 55009,
+        "ConsensusManager": 53080,
         "MonitoringEndpoint": 8082
       }
     },
@@ -130,6 +134,7 @@
       },
       "anti_affinity": false,
       "ports": {
+        "Gateway": 55002,
         "MonitoringEndpoint": 8082
       }
     },
@@ -172,6 +177,9 @@
       },
       "anti_affinity": false,
       "ports": {
+        "L1EndpointMonitor": 55005,
+        "L1GasPriceProvider": 55003,
+        "L1Provider": 55004,
         "MonitoringEndpoint": 8082
       }
     },
@@ -214,6 +222,7 @@
       },
       "anti_affinity": true,
       "ports": {
+        "Mempool": 55006,
         "MonitoringEndpoint": 8082
       }
     },
@@ -251,6 +260,7 @@
       },
       "anti_affinity": false,
       "ports": {
+        "SierraCompiler": 55007,
         "MonitoringEndpoint": 8082
       }
     }
