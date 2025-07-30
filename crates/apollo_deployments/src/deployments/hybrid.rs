@@ -21,25 +21,15 @@ use crate::config_override::{
     NetworkConfigOverride,
 };
 use crate::deployment::{build_service_namespace_domain_address, Deployment, P2PCommunicationType};
-<<<<<<< HEAD
 use crate::deployment_definitions::{
+    BusinessLogicServicePort,
     CloudK8sEnvironment,
     ComponentConfigInService,
     DeploymentInputs,
     Environment,
-    ServicePort,
-};
-||||||| 923579022
-use crate::deployment_definitions::{CloudK8sEnvironment, Environment, ServicePort};
-=======
-use crate::deployment_definitions::{
-    BusinessLogicServicePort,
-    CloudK8sEnvironment,
-    Environment,
     InfraServicePort,
     ServicePort,
 };
->>>>>>> origin/main
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,

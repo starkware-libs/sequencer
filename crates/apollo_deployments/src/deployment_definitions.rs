@@ -5,22 +5,12 @@ use std::path::PathBuf;
 use apollo_http_server::config::HTTP_SERVER_PORT;
 use apollo_infra_utils::template::Template;
 use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
-<<<<<<< HEAD
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use starknet_api::block::BlockNumber;
-use strum::EnumIter;
-use strum_macros::{Display, EnumString};
-use url::Url;
-||||||| 923579022
-use serde::Serialize;
-use strum::EnumIter;
-use strum_macros::{Display, EnumString};
-=======
-use serde::Serialize;
 use strum::{EnumIter, IntoEnumIterator};
 use strum_macros::{Display, EnumDiscriminants, EnumString};
->>>>>>> origin/main
+use url::Url;
 
 use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::testing::system_test_deployments;

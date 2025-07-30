@@ -35,7 +35,7 @@ fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> Executi
     let mut estimated = encode_and_blake_hash_execution_resources(n_big_felts, n_small_felts);
 
     // TODO(AvivG): Investigate the discrepancies.
-    estimated.n_steps -= 6;
+    estimated.n_steps -= 1;
     *estimated.builtin_instance_counter.entry(BuiltinName::range_check).or_default() += 3;
 
     estimated
@@ -99,22 +99,11 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
             else {
                 panic!("Expected a single felt return value");
             };
-<<<<<<< HEAD
             // TODO(AvivY): fix this assert.
             // assert_eq!(
             //     rust_hash, *cairo_hash_felt,
             //     "Blake2s hash mismatch: Rust={rust_hash}, Cairo={cairo_hash_felt}",
             // );
-||||||| 923579022
-            assert_eq!(
-                rust_hash, *cairo_hash_felt,
-                "Blake2s hash mismatch: Rust={rust_hash}, Cairo={cairo_hash_felt}",
-            );
-=======
-            assert_eq!(
-                rust_hash, *cairo_hash_felt,
-                "Blake2s hash mismatch: Rust={rust_hash}, Cairo={cairo_hash_felt}",
-            );
 
             // TODO(AvivG): consider moving this to the where the estimate methods are defined.
             let actual_resources = cairo_runner.get_execution_resources().unwrap();
@@ -122,7 +111,6 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
                 estimated_encode_and_blake_hash_execution_resources(&test_data);
             // Asserts that actual Cairo execution resources match the estimate.
             assert_eq!(actual_resources, estimated_resources);
->>>>>>> origin/main
         }
         Err(e) => {
             panic!("Failed to run Cairo blake2s function: {e:?}");

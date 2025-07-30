@@ -7,21 +7,16 @@ use apollo_node::config::component_execution_config::{
 };
 use indexmap::IndexMap;
 use serde::Serialize;
-use strum::Display;
+use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-<<<<<<< HEAD
-use crate::deployment_definitions::{ComponentConfigInService, Environment, ServicePort};
-||||||| 923579022
-use crate::deployment_definitions::{Environment, ServicePort};
-=======
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
+    ComponentConfigInService,
     Environment,
     InfraServicePort,
     ServicePort,
 };
->>>>>>> origin/main
 use crate::k8s::{
     get_ingress,
     Controller,

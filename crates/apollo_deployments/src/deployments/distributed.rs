@@ -11,18 +11,13 @@ use serde::Serialize;
 use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-<<<<<<< HEAD
-use crate::deployment_definitions::{ComponentConfigInService, Environment, ServicePort};
-||||||| 923579022
-use crate::deployment_definitions::{Environment, ServicePort};
-=======
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
+    ComponentConfigInService,
     Environment,
     InfraServicePort,
     ServicePort,
 };
->>>>>>> origin/main
 use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
