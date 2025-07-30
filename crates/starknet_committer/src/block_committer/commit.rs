@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
-use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
+use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
@@ -25,7 +24,7 @@ type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
 pub async fn commit_block(
     input: Input<ConfigImpl>,
-    storage: &mut HashMap<DbKey, DbValue>,
+    storage: &mut MapStorage,
 ) -> BlockCommitmentResult<FilledForest> {
     let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
         get_all_modified_indices(&input.state_diff);

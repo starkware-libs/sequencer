@@ -4,7 +4,7 @@ use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_patricia_storage::db_object::DBObject;
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
+use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
@@ -202,7 +202,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
     SubTreeHeight::new(4),
 )]
 fn test_create_tree(
-    #[case] mut storage: HashMap<DbKey, DbValue>,
+    #[case] mut storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<MockLeaf>,
     #[case] root_hash: HashOutput,
     #[case] expected_skeleton_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,

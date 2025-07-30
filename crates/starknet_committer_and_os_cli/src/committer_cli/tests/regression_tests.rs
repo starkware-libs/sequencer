@@ -8,8 +8,7 @@ use starknet_committer::block_committer::input::{ConfigImpl, Input, StarknetStor
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
-use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
+use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
 use tempfile::NamedTempFile;
 
 use super::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
@@ -41,7 +40,7 @@ impl<'de> Deserialize<'de> for FactMap {
 }
 
 // TODO(Nimrod): Delete this struct and use `CommitterInputImpl` instead.
-struct CommitterInput(Input<ConfigImpl>, HashMap<DbKey, DbValue>);
+struct CommitterInput(Input<ConfigImpl>, MapStorage);
 
 impl<'de> Deserialize<'de> for CommitterInput {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
