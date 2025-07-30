@@ -44,7 +44,6 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SelfOrRevert,
     SyscallExecutorBaseError,
     SyscallSelector,
-    SyscallUsageMap,
     TryExtractRevert,
 };
 use crate::state::state_api::State;
@@ -55,9 +54,6 @@ pub const CALL_CONTRACT_SELECTOR_NAME: &str = "call_contract";
 pub const LIBRARY_CALL_SELECTOR_NAME: &str = "library_call";
 pub struct NativeSyscallHandler<'state> {
     pub base: Box<SyscallHandlerBase<'state>>,
-
-    // Track every use of each syscall selector
-    pub syscalls_usage: SyscallUsageMap,
 
     // It is set if an unrecoverable error happens during syscall execution
     pub unrecoverable_error: Option<SyscallExecutionError>,
@@ -71,7 +67,6 @@ impl<'state> NativeSyscallHandler<'state> {
     ) -> NativeSyscallHandler<'state> {
         NativeSyscallHandler {
             base: Box::new(SyscallHandlerBase::new(call, state, context)),
-            syscalls_usage: SyscallUsageMap::new(),
             unrecoverable_error: None,
         }
     }
@@ -82,13 +77,13 @@ impl<'state> NativeSyscallHandler<'state> {
 
     // Increment syscall usage's count relative to the given selector
     fn increment_syscall_count_by(&mut self, selector: SyscallSelector, n: usize) {
-        let syscall_usage = self.syscalls_usage.entry(selector).or_default();
+        let syscall_usage = self.base.syscalls_usage.entry(selector).or_default();
         syscall_usage.call_count += n;
     }
 
     // Increment syscall usage's linear factor relative to the given selector
     fn increment_syscall_linear_factor_by(&mut self, selector: SyscallSelector, n: usize) {
-        let syscall_usage = self.syscalls_usage.entry(selector).or_default();
+        let syscall_usage = self.base.syscalls_usage.entry(selector).or_default();
         syscall_usage.linear_factor += n;
     }
 

@@ -93,7 +93,7 @@ fn create_callinfo(
     // Retrieve the builtin counts from the syscall handler
     let version_constants = syscall_handler.base.context.versioned_constants();
     let syscall_resources =
-        version_constants.get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
+        version_constants.get_additional_os_syscall_resources(&syscall_handler.base.syscalls_usage);
 
     Ok(CallInfo {
         call: syscall_handler.base.call.into(),

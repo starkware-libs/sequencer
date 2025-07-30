@@ -78,7 +78,6 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SyscallExecutorBaseError,
     SyscallRequest,
     SyscallSelector,
-    SyscallUsageMap,
     TryExtractRevert,
 };
 use crate::state::errors::StateError;
@@ -229,9 +228,6 @@ pub const INVALID_ARGUMENT: &str =
 pub struct SyscallHintProcessor<'a> {
     pub base: Box<SyscallHandlerBase<'a>>,
 
-    // VM-specific fields.
-    pub syscalls_usage: SyscallUsageMap,
-
     // Fields needed for execution and validation.
     pub read_only_segments: ReadOnlySegments,
     pub syscall_ptr: Relocatable,
@@ -261,7 +257,6 @@ impl<'a> SyscallHintProcessor<'a> {
     ) -> Self {
         SyscallHintProcessor {
             base: Box::new(SyscallHandlerBase::new(call, state, context)),
-            syscalls_usage: SyscallUsageMap::default(),
             read_only_segments,
             syscall_ptr: initial_syscall_ptr,
             hints,
@@ -330,10 +325,10 @@ impl<'a> SyscallHintProcessor<'a> {
     }
 
     pub fn increment_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_usage = self
-            .syscalls_usage
-            .get_mut(selector)
-            .expect("syscalls_usage entry must be initialized before incrementing linear factor");
+        let syscall_usage =
+            self.base.syscalls_usage.get_mut(selector).expect(
+                "syscalls_usage entry must be initialized before incrementing linear factor",
+            );
         syscall_usage.linear_factor += n;
     }
 
@@ -486,7 +481,7 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
     }
 
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
+        let syscall_usage = self.base.syscalls_usage.entry(*selector).or_default();
         syscall_usage.call_count += n;
     }
 
