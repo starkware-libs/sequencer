@@ -587,7 +587,7 @@ fn test_full_cycle_dump_deserialize_authorized_declarer_accounts(
     StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
 )]
 #[tokio::test]
-async fn process_tx_transaction_validations(
+async fn process_tx_returns_error_when_extract_state_nonce_and_run_validations_fails(
     #[case] error_code: StarknetErrorCode,
     mut mock_stateful_transaction_validator: MockStatefulTransactionValidatorTrait,
     mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
@@ -604,6 +604,28 @@ async fn process_tx_transaction_validations(
     mock_stateful_transaction_validator_factory
         .expect_instantiate_validator()
         .return_once(|_, _| Ok(Box::new(mock_stateful_transaction_validator)));
+
+    let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
+
+    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
+
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().code, error_code);
+}
+
+#[rstest]
+#[tokio::test]
+async fn process_tx_returns_error_when_instantiating_validator_fails(
+    mut mock_stateful_transaction_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+) {
+    let error_code = StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into());
+    let expected_error = StarknetError {
+        code: error_code.clone(),
+        message: "placeholder".into(), // Message is not checked
+    };
+    mock_stateful_transaction_validator_factory
+        .expect_instantiate_validator()
+        .return_once(|_, _| Err(expected_error));
 
     let process_tx_task = process_tx_task(mock_stateful_transaction_validator_factory);
 
