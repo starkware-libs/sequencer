@@ -153,20 +153,20 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
     }
 
     alloc_locals;
-    local is_used_leaf;
-    local is_segment_used;
+    local is_leaf_and_loaded;
+    local load_segment;
     local segment_length;
 
     %{
         current_segment_info = next(bytecode_segments)
 
-        is_used = ids.full_contract or is_segment_used_callback(
+        should_load = ids.full_contract or is_segment_used_callback(
             ids.data_ptr, current_segment_info.segment_length
         )
-        ids.is_segment_used = 1 if is_used else 0
+        ids.load_segment = 1 if should_load else 0
 
-        is_used_leaf = isinstance(current_segment_info.inner_structure, BytecodeLeaf)
-        ids.is_used_leaf = 1 if is_used_leaf else 0
+        is_leaf_and_loaded = should_load and isinstance(current_segment_info.inner_structure, BytecodeLeaf)
+        ids.is_leaf_and_loaded = 1 if is_leaf_and_loaded else 0
 
         ids.segment_length = current_segment_info.segment_length
         vm_enter_scope(new_scope_locals={
@@ -175,7 +175,7 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
         })
     %}
 
-    if (is_used_leaf != FALSE) {
+    if (is_leaf_and_loaded != FALSE) {
         // Repeat the code of bytecode_hash_node() for performance reasons, instead of calling it.
         let (current_segment_hash) = encode_felt252_data_and_calc_224_bit_blake_hash(
             data_len=segment_length, data=data_ptr
@@ -183,7 +183,8 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
         tempvar range_check_ptr = range_check_ptr;
         tempvar current_segment_hash = current_segment_hash;
     } else {
-        if (is_segment_used != FALSE) {
+        // The segment is at least partially loaded, and it is not a leaf.
+        if (load_segment != FALSE) {
             let current_segment_hash = bytecode_hash_node(
                 data_ptr=data_ptr, data_length=segment_length, full_contract=full_contract
             );
