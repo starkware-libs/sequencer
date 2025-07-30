@@ -37,7 +37,7 @@
       "ports": {
         "Batcher": 55000,
         "ClassManager": 55001,
-        "StateSync": 55008,
+        "StateSync": 55009,
         "ConsensusP2p": 53080,
         "MonitoringEndpoint": 8082
       }
