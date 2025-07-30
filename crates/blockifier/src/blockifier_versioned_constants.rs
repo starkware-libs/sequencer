@@ -243,6 +243,7 @@ pub struct VersionedConstants {
     // Transactions settings.
     pub disable_cairo0_redeclaration: bool,
     pub enable_stateful_compression: bool,
+    pub enable_casm_hash_migration: bool,
     pub comprehensive_state_diff: bool,
     pub block_direct_execute_call: bool,
     pub ignore_inner_event_resources: bool,
@@ -250,7 +251,6 @@ pub struct VersionedConstants {
 
     // Compiler settings.
     pub enable_reverts: bool,
-    pub enable_casm_hash_migration: bool,
 
     // Cairo OS constants.
     // Note: if loaded from a json file, there are some assumptions made on its structure.
