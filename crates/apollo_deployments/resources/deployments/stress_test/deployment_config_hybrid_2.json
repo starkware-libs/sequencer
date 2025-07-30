@@ -33,8 +33,8 @@
       "ports": {
         "Batcher": 55000,
         "ClassManager": 55001,
-        "ConsensusManager": 53080,
         "StateSync": 55008,
+        "ConsensusManager": 53080,
         "MonitoringEndpoint": 8082
       }
     },
