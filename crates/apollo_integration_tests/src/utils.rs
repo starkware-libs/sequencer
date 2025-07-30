@@ -594,7 +594,7 @@ pub fn create_batcher_config(
                     sierra_gas: block_max_capacity_sierra_gas,
                     ..Default::default()
                 },
-                builtin_weights: BuiltinWeights::default(),
+                ..Default::default()
             },
             execute_config: WorkerPoolConfig::create_for_testing(),
             n_concurrent_txs: 3,

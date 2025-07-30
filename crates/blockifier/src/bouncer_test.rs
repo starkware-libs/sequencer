@@ -60,7 +60,7 @@ fn block_max_capacity() -> BouncerWeights {
 
 #[fixture]
 fn bouncer_config(block_max_capacity: BouncerWeights) -> BouncerConfig {
-    BouncerConfig { block_max_capacity, builtin_weights: BuiltinWeights::default() }
+    BouncerConfig { block_max_capacity, ..Default::default() }
 }
 
 #[rstest]
@@ -249,7 +249,10 @@ fn test_bouncer_try_update_gas_based(#[case] scenario: &'static str, block_conte
         sierra_gas: GasAmount(20),
         proving_gas: proving_gas_max_capacity,
     };
-    let bouncer_config = BouncerConfig { block_max_capacity, builtin_weights };
+    let blake_weight = BouncerConfig::default().blake_weight;
+    // TODO(AvivG): Once the migration is implemented, we should consider the migration gas in this
+    // test.
+    let bouncer_config = BouncerConfig { block_max_capacity, builtin_weights, blake_weight };
 
     let bouncer_weights = BouncerWeights {
         l1_gas: 10,
@@ -295,8 +298,7 @@ fn test_transaction_too_large_sierra_gas_based(block_context: BlockContext) {
     let mut state = test_state(&block_context.chain_info, Fee(0), &[]);
     let mut transactional_state = TransactionalState::create_transactional(&mut state);
     let block_max_capacity = BouncerWeights { sierra_gas: GasAmount(20), ..Default::default() };
-    let bouncer_config =
-        BouncerConfig { block_max_capacity, builtin_weights: BuiltinWeights::default() };
+    let bouncer_config = BouncerConfig { block_max_capacity, ..Default::default() };
 
     // Use gas amount > block_max_capacity's.
     let exceeding_gas = GasAmount(30);
@@ -475,6 +477,20 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
     assert_eq!(
         bouncer_weights.proving_gas,
         tx_weights.casm_hash_computation_data_proving_gas.total_gas()
+    );
+}
+
+// TODO(AvivG): Temporary sanity check to ensure the hardcoded `BLAKE_WEIGHT` is aligned with
+// the bouncer config's `sierra_gas` block limit and the expected number of Blake opcodes per proof.
+// This test should be removed once final value is known.
+#[test]
+fn test_blake_opcode_gas() {
+    const BLAKE_OPCODE_PER_PROOF: u64 = 500000;
+    let default_bouncer_config = BouncerConfig::default();
+
+    assert_eq!(
+        u64_from_usize(default_bouncer_config.blake_weight),
+        default_bouncer_config.block_max_capacity.sierra_gas.0 / BLAKE_OPCODE_PER_PROOF
     );
 }
 

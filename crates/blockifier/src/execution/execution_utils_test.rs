@@ -4,7 +4,7 @@ use pretty_assertions::assert_eq;
 use starknet_types_core::felt::Felt;
 
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::vm_resources_to_sierra_gas;
+use crate::bouncer::{vm_resources_to_sierra_gas, BouncerConfig};
 use crate::execution::execution_utils::blake_encoding::{N_U32S_BIG_FELT, N_U32S_SMALL_FELT};
 use crate::execution::execution_utils::blake_estimation::BASE_STEPS_FULL_MSG;
 use crate::execution::execution_utils::{
@@ -45,6 +45,7 @@ fn test_zero_inputs() {
         0,
         0,
         VersionedConstants::latest_constants(),
+        BouncerConfig::default().blake_weight,
     );
     let expected_gas = {
         let resources = ExecutionResources { n_steps: BASE_STEPS_FULL_MSG, ..Default::default() };
