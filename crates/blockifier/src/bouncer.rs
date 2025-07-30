@@ -50,10 +50,22 @@ macro_rules! impl_checked_ops {
     };
 }
 
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct BouncerConfig {
     pub block_max_capacity: BouncerWeights,
     pub builtin_weights: BuiltinWeights,
+    pub blake_weight: usize,
+}
+
+impl Default for BouncerConfig {
+    fn default() -> Self {
+        Self {
+            block_max_capacity: BouncerWeights::default(),
+            builtin_weights: BuiltinWeights::default(),
+            // TODO(AvivG): This is not a final value, this should be lowered.
+            blake_weight: 8000,
+        }
+    }
 }
 
 impl BouncerConfig {
@@ -61,6 +73,7 @@ impl BouncerConfig {
         Self {
             block_max_capacity: BouncerWeights::empty(),
             builtin_weights: BuiltinWeights::empty(),
+            blake_weight: 0,
         }
     }
 
@@ -68,6 +81,7 @@ impl BouncerConfig {
         Self {
             block_max_capacity: BouncerWeights::max(),
             builtin_weights: BuiltinWeights::default(),
+            blake_weight: usize::MAX,
         }
     }
 
@@ -95,6 +109,15 @@ impl SerializeConfig for BouncerConfig {
         let mut dump =
             prepend_sub_config_name(self.block_max_capacity.dump(), "block_max_capacity");
         dump.append(&mut prepend_sub_config_name(self.builtin_weights.dump(), "builtin_weights"));
+        dump.append(&mut prepend_sub_config_name(
+            BTreeMap::from([ser_param(
+                "blake_weight",
+                &self.blake_weight,
+                "blake opcode gas weight.",
+                ParamPrivacyInput::Public,
+            )]),
+            "blake_weight",
+        ));
         dump
     }
 }
