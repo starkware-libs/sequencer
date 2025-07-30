@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, Index};
 use std::sync::Arc;
@@ -354,8 +355,8 @@ impl HashableCompiledClass<EntryPointV1> for CompiledClassV1 {
             .collect()
     }
 
-    fn get_bytecode_segment_lengths(&self) -> &NestedIntList {
-        &self.bytecode_segment_lengths
+    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
+        Cow::Borrowed(&self.bytecode_segment_lengths)
     }
 }
 
