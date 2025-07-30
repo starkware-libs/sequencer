@@ -11,6 +11,7 @@ workspace = true
 [dependencies]
 apollo_config.workspace = true
 apollo_infra_utils.workspace = true
+apollo_monitoring_endpoint.workspace = true
 apollo_node.workspace = true
 apollo_protobuf.workspace = true
 indexmap.workspace = true
