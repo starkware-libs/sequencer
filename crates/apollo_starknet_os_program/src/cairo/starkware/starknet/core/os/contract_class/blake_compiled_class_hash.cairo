@@ -1,8 +1,6 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_blake2s.blake2s import (
-    encode_felt252_data_and_calc_224_bit_blake_hash,
-)
+from starkware.cairo.common.cairo_blake2s.blake2s import encode_felt252_data_and_calc_blake_hash
 from starkware.cairo.common.math import assert_lt_felt
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.starknet.core.os.constants import (
@@ -120,9 +118,7 @@ func bytecode_hash_node{range_check_ptr}(
     // Guess if the bytecode is a leaf or an internal node in the tree.
     if (is_leaf != FALSE) {
         // If the bytecode is a leaf, it must be loaded into memory. Compute its hash.
-        let (hash) = encode_felt252_data_and_calc_224_bit_blake_hash(
-            data_len=data_length, data=data_ptr
-        );
+        let (hash) = encode_felt252_data_and_calc_blake_hash(data_len=data_length, data=data_ptr);
         return hash;
     }
 
@@ -177,7 +173,7 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
 
     if (is_leaf_and_loaded != FALSE) {
         // Repeat the code of bytecode_hash_node() for performance reasons, instead of calling it.
-        let (current_segment_hash) = encode_felt252_data_and_calc_224_bit_blake_hash(
+        let (current_segment_hash) = encode_felt252_data_and_calc_blake_hash(
             data_len=segment_length, data=data_ptr
         );
         tempvar range_check_ptr = range_check_ptr;

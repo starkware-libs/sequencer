@@ -7,11 +7,12 @@ use apollo_node::config::component_execution_config::{
 };
 use indexmap::IndexMap;
 use serde::Serialize;
-use strum::Display;
+use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
 use crate::deployment_definitions::{
     BusinessLogicServicePort,
+    ComponentConfigInService,
     Environment,
     InfraServicePort,
     ServicePort,
@@ -141,6 +142,12 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         }
 
         service_ports
+    }
+
+    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+        match self {
+            ConsolidatedNodeServiceName::Node => ComponentConfigInService::iter().collect(),
+        }
     }
 }
 

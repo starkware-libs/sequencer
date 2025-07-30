@@ -207,9 +207,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
             ..Default::default()
         },
-        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
-            .then(|| HashMap::from([(BuiltinName::range_check, 7)]))
-            .unwrap_or_default(),
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 7)]),
         ..Default::default()
     };
 
@@ -226,9 +224,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         },
         inner_calls: vec![nested_storage_call_info],
         tracked_resource,
-        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
-            .then(|| HashMap::from([(BuiltinName::range_check, 26)]))
-            .unwrap_or_default(),
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 26)]),
         ..Default::default()
     };
 
@@ -249,9 +245,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             ..Default::default()
         },
         tracked_resource,
-        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
-            .then(|| HashMap::from([(BuiltinName::range_check, 7)]))
-            .unwrap_or_default(),
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 7)]),
         ..Default::default()
     };
 
@@ -268,9 +262,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         },
         inner_calls: vec![library_call_info, storage_call_info],
         tracked_resource,
-        builtin_counters: matches!(runnable_version, RunnableCairo1::Casm)
-            .then(|| HashMap::from([(BuiltinName::range_check, 41)]))
-            .unwrap_or_default(),
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 41)]),
         ..Default::default()
     };
 

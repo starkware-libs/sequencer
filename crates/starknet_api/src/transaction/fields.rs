@@ -421,6 +421,11 @@ impl ValidResourceBounds {
         Self::new_unlimited_gas_no_fee_enforcement()
     }
 
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing() -> Self {
+        Self::AllResources(AllResourceBounds::create_for_testing())
+    }
+
     /// Utility method to "zip" an amount vector and a price vector to get an AllResourceBounds.
     #[cfg(any(feature = "testing", test))]
     pub fn all_bounds_from_vectors(
@@ -467,6 +472,15 @@ pub struct AllResourceBounds {
     pub l1_gas: ResourceBounds,
     pub l2_gas: ResourceBounds,
     pub l1_data_gas: ResourceBounds,
+}
+
+impl AllResourceBounds {
+    #[cfg(any(feature = "testing", test))]
+    pub fn create_for_testing() -> Self {
+        let resource_bounds =
+            ResourceBounds { max_amount: GasAmount(0), max_price_per_unit: GasPrice(1) };
+        Self { l1_gas: resource_bounds, l2_gas: resource_bounds, l1_data_gas: resource_bounds }
+    }
 }
 
 impl std::fmt::Display for AllResourceBounds {

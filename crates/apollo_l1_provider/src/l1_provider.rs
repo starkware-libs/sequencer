@@ -52,6 +52,7 @@ impl L1Provider {
         state: SessionState,
     ) -> L1ProviderResult<()> {
         self.validate_height(height)?;
+        debug!("Starting block at height: {height}");
         self.state = state.into();
         self.tx_manager.start_block();
         Ok(())
@@ -131,6 +132,10 @@ impl L1Provider {
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
         if self.is_historical_height(height) {
+            debug!(
+                "Skipping commit block for historical height: {}, current height is higher: {}",
+                height, self.current_height
+            );
             return Ok(());
         }
 
@@ -227,6 +232,7 @@ impl L1Provider {
         consumed_txs: IndexSet<TransactionHash>,
         rejected_txs: IndexSet<TransactionHash>,
     ) {
+        debug!("Applying commit_block to height: {}", self.current_height);
         let (rejected_and_consumed, committed_txs): (Vec<_>, Vec<_>) =
             consumed_txs.iter().copied().partition(|tx| rejected_txs.contains(tx));
         self.tx_manager.commit_txs(&committed_txs, &rejected_and_consumed);
@@ -241,6 +247,11 @@ impl L1Provider {
         new_height: BlockNumber,
     ) -> L1ProviderResult<()> {
         let current_height = self.current_height;
+        debug!(
+            "Bootstrapper processing commit-block at height: {new_height}, current height is \
+             {current_height}"
+        );
+
         match new_height.cmp(&current_height) {
             // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
             Less => {
@@ -291,6 +302,10 @@ impl L1Provider {
 
         // If caught up, apply the backlog, drop the Bootstrapper and transition to Pending.
         if bootstrapper.is_caught_up(self.current_height) {
+            info!(
+                "Bootstrapper sync completed, provider height is now {}, processing backlog...",
+                self.current_height
+            );
             let backlog = std::mem::take(&mut bootstrapper.commit_block_backlog);
             assert!(
                 backlog.is_empty()
@@ -303,9 +318,21 @@ impl L1Provider {
                 self.current_height,
                 backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
             );
+
+            info!(
+                "Applying commit-block backlog for heights: {:?}",
+                backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
+            );
+
             for commit_block in backlog {
                 self.apply_commit_block(commit_block.committed_txs, Default::default());
             }
+
+            info!(
+                "Bootstrapping done: commit-block backlog was processed, now transitioning to \
+                 Pending state at new height: {} and dropping the bootstrapper.",
+                self.current_height
+            );
 
             // Drops bootstrapper and all of its assets.
             self.state = ProviderState::Pending;
@@ -416,6 +443,7 @@ impl L1ProviderBuilder {
             catchup_height,
         );
 
+        info!("Starting L1 provider at height: {l1_provider_startup_height}");
         L1Provider {
             start_height: l1_provider_startup_height,
             current_height: l1_provider_startup_height,

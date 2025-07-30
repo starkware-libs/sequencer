@@ -8,7 +8,7 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
-use apollo_infra_utils::info_every_n_sec;
+use apollo_infra_utils::{debug_every_n, info_every_n_sec};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use async_trait::async_trait;
@@ -116,10 +116,12 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         let l1_events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
         // Used for debug.
-        let l1_hashes = l1_events
+        let l1_messages_info = l1_events
             .iter()
             .filter_map(|event| match event {
-                L1Event::LogMessageToL2 { l1_tx_hash, .. } => Some(*l1_tx_hash),
+                L1Event::LogMessageToL2 { l1_tx_hash, timestamp, .. } => {
+                    Some((*l1_tx_hash, *timestamp))
+                }
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -138,11 +140,16 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             _ => None,
         });
 
-        let formatted_pairs = zip_eq(l1_hashes, l2_hashes)
-            .map(|(l1_hash, l2_hash)| format!("L1 hash: {l1_hash:?}, L2 hash: {l2_hash}"))
+        let formatted_pairs = zip_eq(l1_messages_info, l2_hashes)
+            .map(|((l1_hash, timestamp), l2_hash)| {
+                format!("L1 hash: {l1_hash:?}, L1 timestamp: {timestamp}, L2 hash: {l2_hash}")
+            })
             .collect::<Vec<_>>();
-        debug!("Got Messages to L2: {:?}", formatted_pairs);
-
+        if formatted_pairs.is_empty() {
+            debug_every_n!(100, "Got Messages to L2: []");
+        } else {
+            debug!("Got Messages to L2: {formatted_pairs:?}");
+        }
         Ok((latest_l1_block, events))
     }
 

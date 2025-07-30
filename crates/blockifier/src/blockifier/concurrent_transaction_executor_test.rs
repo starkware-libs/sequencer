@@ -111,19 +111,19 @@ fn test_concurrent_transaction_executor(
     let results1 = tx_executor.add_txs_and_wait(&txs1);
 
     // Check execution results.
-    assert_eq!(results0.len(), 3);
+    assert_eq!(results0.len(), 3, "The transaction results are {results0:?}");
 
-    assert!(results0[0].is_ok());
+    assert!(results0[0].is_ok(), "Transaction Failed: {:?}", results0[0]);
     assert_matches!(
         results0[1].as_ref().unwrap_err(),
         TransactionExecutorError::TransactionExecutionError(
             TransactionExecutionError::TransactionTooLarge { .. }
         )
     );
-    assert!(results0[2].is_ok());
+    assert!(results0[2].is_ok(), "Transaction Failed: {:?}", results0[2]);
 
-    assert_eq!(results1.len(), 1);
-    assert!(results1[0].is_ok());
+    assert_eq!(results1.len(), 1, "The transaction results are {results1:?}");
+    assert!(results1[0].is_ok(), "Transaction Failed: {:?}", results1[0]);
 
     // Close the block.
     let block_summary = tx_executor.close_block(final_n_executed_txs).unwrap();
@@ -155,24 +155,28 @@ fn test_concurrent_transaction_executor_stream_txs() {
 
     // Collect the results.
     let mut results = vec![];
+    let start_time = Instant::now();
     while !tx_executor.is_done() {
+        if start_time.elapsed() > Duration::from_secs(10) {
+            panic!("Test timed out: tx_executor did not finish within 10 seconds");
+        }
         results.extend(tx_executor.get_new_results());
         std::thread::sleep(Duration::from_millis(1));
     }
     results.extend(tx_executor.get_new_results());
 
     // Check execution results.
-    assert_eq!(results.len(), 4);
+    assert_eq!(results.len(), 4, "The transaction results are {results:?}");
 
-    assert!(results[0].is_ok());
+    assert!(results[0].is_ok(), "Transaction Failed: {:?}", results[0]);
     assert_matches!(
         results[1].as_ref().unwrap_err(),
         TransactionExecutorError::TransactionExecutionError(
             TransactionExecutionError::TransactionTooLarge { .. }
         )
     );
-    assert!(results[2].is_ok());
-    assert!(results[3].is_ok());
+    assert!(results[2].is_ok(), "Transaction Failed: {:?}", results[2]);
+    assert!(results[3].is_ok(), "Transaction Failed: {:?}", results[3]);
 
     // Close the block.
     let block_summary = tx_executor.close_block(results.len()).unwrap();

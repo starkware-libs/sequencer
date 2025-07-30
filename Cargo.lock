@@ -948,7 +948,6 @@ dependencies = [
  "cairo-lang-sierra",
  "cairo-lang-starknet-classes",
  "cairo-lang-utils",
- "cairo-native",
  "rlimit",
  "rstest",
  "serde",
@@ -1002,16 +1001,23 @@ name = "apollo_compile_to_native"
 version = "0.0.0"
 dependencies = [
  "apollo_compilation_utils",
- "apollo_config",
+ "apollo_compile_to_native_types",
  "apollo_infra_utils",
  "assert_matches",
  "cairo-lang-starknet-classes",
  "cairo-native",
  "mempool_test_utils",
  "rstest",
- "serde",
  "tempfile",
  "toml_test_utils",
+]
+
+[[package]]
+name = "apollo_compile_to_native_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_config",
+ "serde",
  "validator",
 ]
 
@@ -1180,6 +1186,8 @@ dependencies = [
  "indexmap 2.9.0",
  "serde",
  "serde_json",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
 ]
 
 [[package]]
@@ -3353,6 +3361,7 @@ dependencies = [
  "anyhow",
  "apollo_compilation_utils",
  "apollo_compile_to_native",
+ "apollo_compile_to_native_types",
  "apollo_config",
  "apollo_infra_utils",
  "apollo_metrics",
@@ -4163,9 +4172,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.5.0-rc.6"
+version = "0.6.0-rc.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a0d61db673287e071a97aca5b1127dddd40f97d8247818f2d5d37ba94a78c74"
+checksum = "9bb843f93a320c7d8cb99843a02c4c613f8263022ce8b52070d82cc4341168ee"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -8941,7 +8950,7 @@ dependencies = [
 name = "native_blockifier"
 version = "0.0.0"
 dependencies = [
- "apollo_compile_to_native",
+ "apollo_compile_to_native_types",
  "apollo_state_reader",
  "apollo_storage",
  "blockifier",
@@ -11909,6 +11918,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "sizeof_internal"
+version = "0.0.0"
+dependencies = [
+ "starknet-types-core",
+]
+
+[[package]]
 name = "sketches-ddsketch"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12193,6 +12209,7 @@ dependencies = [
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+ "time",
 ]
 
 [[package]]

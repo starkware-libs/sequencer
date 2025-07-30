@@ -42,6 +42,7 @@ pub async fn configure_tracing() {
                 .add_directive("libp2p-gossipsub=info".parse().unwrap())
                 .add_directive("multistream_select=info".parse().unwrap())
                 .add_directive("netlink_proto=info".parse().unwrap())
+                .add_directive("reqwest=info".parse().unwrap())
                 .add_directive("yamux=info".parse().unwrap());
 
             // This sets a single subscriber to all of the threads. We may want to implement

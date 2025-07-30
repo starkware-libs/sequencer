@@ -7,7 +7,6 @@ version.workspace = true
 description = "A utility crate for Sierra compilation related code."
 
 [features]
-cairo_native = ["dep:cairo-native"]
 testing = []
 
 [lints]
@@ -17,7 +16,6 @@ workspace = true
 cairo-lang-sierra.workspace = true
 cairo-lang-starknet-classes.workspace = true
 cairo-lang-utils.workspace = true
-cairo-native = { workspace = true, optional = true }
 rlimit.workspace = true
 serde.workspace = true
 serde_json.workspace = true

@@ -1,12 +1,13 @@
-use std::iter::once;
 use std::path::PathBuf;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::config_override::ConfigOverride;
-use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH, CONFIG_BASE_DIR};
+use crate::deployment_definitions::{Environment, CONFIG_BASE_DIR};
 use crate::k8s::{ExternalSecret, IngressParams, K8SServiceType, K8sServiceConfigParams};
 use crate::service::{NodeType, Service};
+
+// TODO(Tsabary): consider unifying pointer targets to a single file.
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Deployment {
@@ -17,7 +18,6 @@ pub struct Deployment {
 }
 
 impl Deployment {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         node_type: NodeType,
         environment: Environment,
@@ -29,10 +29,8 @@ impl Deployment {
     ) -> Self {
         let node_services = node_type.all_service_names();
 
-        let config_override_files =
+        let config_filenames =
             config_override.get_config_file_paths(&environment.env_dir_path(), instance_name);
-        let config_filenames: Vec<String> =
-            once(BASE_APP_CONFIG_PATH.to_string()).chain(config_override_files).collect();
 
         let services = node_services
             .iter()
@@ -108,7 +106,7 @@ pub(crate) fn build_service_namespace_domain_address(
 
 // TODO(Tsabary): when transitioning runnings nodes in different clusters, this enum should be
 // removed, and the p2p address should always be `External`.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub enum P2PCommunicationType {
     Internal,
     External,

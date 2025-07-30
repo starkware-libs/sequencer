@@ -8,7 +8,7 @@ use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_proc_macros::sequencer_latency_histogram;
 use blockifier::blockifier::stateful_validator::{
     StatefulValidator,
-    StatefulValidatorResult as BlockifierStatefulValidatorResult,
+    StatefulValidatorTrait as BlockifierStatefulValidatorTrait,
 };
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
@@ -16,14 +16,14 @@ use blockifier::context::{BlockContext, ChainInfo};
 use blockifier::state::cached_state::CachedState;
 use blockifier::transaction::account_transaction::{AccountTransaction, ExecutionFlags};
 use blockifier::transaction::transactions::enforce_fee;
-#[cfg(test)]
-use mockall::automock;
-use starknet_api::block::BlockInfo;
+use num_rational::Ratio;
+use starknet_api::block::{BlockInfo, NonzeroGasPrice};
 use starknet_api::core::Nonce;
 use starknet_api::executable_transaction::{
     AccountTransaction as ExecutableTransaction,
     InvokeTransaction as ExecutableInvokeTransaction,
 };
+use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_types_core::felt::Felt;
 use tracing::{debug, error};
 
@@ -42,32 +42,60 @@ pub struct StatefulTransactionValidator {
 
 type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
 
-// TODO(yair): move the trait to Blockifier.
-#[cfg_attr(test, automock)]
-pub trait StatefulTransactionValidatorTrait {
-    #[allow(clippy::result_large_err)]
-    fn validate(&mut self, account_tx: AccountTransaction)
-    -> BlockifierStatefulValidatorResult<()>;
-}
-
-impl StatefulTransactionValidatorTrait for BlockifierStatefulValidator {
-    #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
-    fn validate(
-        &mut self,
-        account_tx: AccountTransaction,
-    ) -> BlockifierStatefulValidatorResult<()> {
-        self.perform_validations(account_tx)
-    }
-}
-
 impl StatefulTransactionValidator {
-    pub fn run_validate<V: StatefulTransactionValidatorTrait>(
+    pub fn run_transaction_validations<V: BlockifierStatefulValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
         account_nonce: Nonce,
         mempool_client: SharedMempoolClient,
-        mut validator: V,
+        validator: V,
         runtime: tokio::runtime::Handle,
+    ) -> StatefulTransactionValidatorResult<()> {
+        self.validate_state_preconditions(executable_tx, account_nonce, &validator)?;
+        self.run_validate_entry_point(
+            executable_tx,
+            account_nonce,
+            mempool_client,
+            validator,
+            runtime,
+        )
+    }
+
+    fn validate_state_preconditions<V: BlockifierStatefulValidatorTrait>(
+        &self,
+        executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
+        validator: &V,
+    ) -> StatefulTransactionValidatorResult<()> {
+        self.validate_resource_bounds(executable_tx, validator)?;
+        self.validate_nonce(executable_tx, account_nonce)?;
+
+        Ok(())
+    }
+
+    fn validate_resource_bounds<V: BlockifierStatefulValidatorTrait>(
+        &self,
+        executable_tx: &ExecutableTransaction,
+        validator: &V,
+    ) -> StatefulTransactionValidatorResult<()> {
+        // Skip this validation during the systems bootstrap phase.
+        if self.config.validate_resource_bounds {
+            // TODO(Arni): getnext_l2_gas_price from the block header.
+            let previous_block_l2_gas_price =
+                validator.block_info().gas_prices.strk_gas_prices.l2_gas_price;
+            self.validate_tx_l2_gas_price_within_threshold(
+                executable_tx.resource_bounds(),
+                previous_block_l2_gas_price,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn validate_nonce(
+        &self,
+        executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
     ) -> StatefulTransactionValidatorResult<()> {
         if !self.is_valid_nonce(executable_tx, account_nonce) {
             let tx_nonce = executable_tx.nonce();
@@ -85,6 +113,18 @@ impl StatefulTransactionValidator {
             });
         }
 
+        Ok(())
+    }
+
+    #[sequencer_latency_histogram(GATEWAY_VALIDATE_TX_LATENCY, true)]
+    fn run_validate_entry_point<V: BlockifierStatefulValidatorTrait>(
+        &self,
+        executable_tx: &ExecutableTransaction,
+        account_nonce: Nonce,
+        mempool_client: SharedMempoolClient,
+        mut validator: V,
+        runtime: tokio::runtime::Handle,
+    ) -> StatefulTransactionValidatorResult<()> {
         let skip_validate =
             skip_stateful_validations(executable_tx, account_nonce, mempool_client, runtime)?;
         let only_query = false;
@@ -141,6 +181,41 @@ impl StatefulTransactionValidator {
         let max_allowed_nonce =
             Nonce(account_nonce.0 + Felt::from(self.config.max_allowed_nonce_gap));
         account_nonce <= incoming_tx_nonce && incoming_tx_nonce <= max_allowed_nonce
+    }
+
+    // TODO(Arni): Consider running this validation for all gas prices.
+    fn validate_tx_l2_gas_price_within_threshold(
+        &self,
+        tx_resource_bounds: ValidResourceBounds,
+        previous_block_l2_gas_price: NonzeroGasPrice,
+    ) -> StatefulTransactionValidatorResult<()> {
+        match tx_resource_bounds {
+            ValidResourceBounds::AllResources(tx_resource_bounds) => {
+                let tx_l2_gas_price = tx_resource_bounds.l2_gas.max_price_per_unit;
+                let gas_price_threshold_multiplier =
+                    Ratio::new(self.config.min_gas_price_percentage.into(), 100_u128);
+                let threshold = (gas_price_threshold_multiplier
+                    * previous_block_l2_gas_price.get().0)
+                    .to_integer();
+                if tx_l2_gas_price.0 < threshold {
+                    return Err(StarknetError {
+                        // We didn't have this kind of an error.
+                        code: StarknetErrorCode::UnknownErrorCode(
+                            "StarknetErrorCode.GAS_PRICE_TOO_LOW".to_string(),
+                        ),
+                        message: format!(
+                            "Transaction L2 gas price {tx_l2_gas_price} is below the required \
+                             threshold {threshold}.",
+                        ),
+                    });
+                }
+            }
+            ValidResourceBounds::L1Gas(_) => {
+                // No validation required for legacy transactions.
+            }
+        }
+
+        Ok(())
     }
 }
 

@@ -10,4 +10,7 @@
 # deactivate
 # rm -r reqs_venv
 # ```
-cairo-lang==0.14.0a1
+cairo-lang==0.14.0.1
+# pytest-asyncio 1.1.0 depends on backports.asyncio.runner, which is not compatible with python 3.11
+# or above.
+pytest-asyncio<=1.0.0

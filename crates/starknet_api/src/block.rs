@@ -11,6 +11,7 @@ use size_of::SizeOf;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 use strum_macros::EnumIter;
+use time::OffsetDateTime;
 
 use crate::core::{
     ContractAddress,
@@ -583,7 +584,10 @@ impl From<u64> for BlockTimestamp {
 
 impl Display for BlockTimestamp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        let seconds_from_epoch = i64::try_from(self.0).map_err(|_| std::fmt::Error)?;
+        let time_in_range =
+            OffsetDateTime::from_unix_timestamp(seconds_from_epoch).map_err(|_| std::fmt::Error)?;
+        write!(f, "{time_in_range}")
     }
 }
 

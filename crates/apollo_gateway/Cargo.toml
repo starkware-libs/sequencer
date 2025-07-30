@@ -55,7 +55,7 @@ apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
 assert_matches.workspace = true
-blockifier = { workspace = true, features = ["testing"] }
+blockifier = { workspace = true, features = ["mocks", "testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-sierra-to-casm.workspace = true
 criterion = { workspace = true, features = ["async_tokio"] }
@@ -66,6 +66,7 @@ mockito.workspace = true
 num-bigint.workspace = true
 pretty_assertions.workspace = true
 rstest.workspace = true
+starknet_api = { workspace = true, features = ["testing"] }
 tracing-test.workspace = true
 
 [[bench]]

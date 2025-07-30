@@ -1,4 +1,7 @@
 {
+  "base_layer_config.#is_none": true,
+  "batcher_config.#is_none": true,
+  "class_manager_config.#is_none": false,
   "components.batcher.execution_mode": "Disabled",
   "components.batcher.ip": "0.0.0.0",
   "components.batcher.local_server_config.channel_capacity": 128,
@@ -113,5 +116,18 @@
   "components.state_sync.remote_client_config.idle_timeout": 30,
   "components.state_sync.remote_client_config.retries": 150,
   "components.state_sync.remote_client_config.retry_interval": 1,
-  "components.state_sync.url": "localhost"
+  "components.state_sync.url": "localhost",
+  "consensus_manager_config.#is_none": true,
+  "gateway_config.#is_none": true,
+  "http_server_config.#is_none": true,
+  "l1_endpoint_monitor_config.#is_none": true,
+  "l1_gas_price_provider_config.#is_none": true,
+  "l1_gas_price_scraper_config.#is_none": true,
+  "l1_provider_config.#is_none": true,
+  "l1_scraper_config.#is_none": true,
+  "mempool_config.#is_none": true,
+  "mempool_p2p_config.#is_none": true,
+  "monitoring_endpoint_config.#is_none": false,
+  "sierra_compiler_config.#is_none": true,
+  "state_sync_config.#is_none": true
 }

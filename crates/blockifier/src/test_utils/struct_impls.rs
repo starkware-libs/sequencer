@@ -138,6 +138,16 @@ impl CallInfo {
         self.builtin_counters = BuiltinCounterMap::new();
         self.execution.cairo_native = false;
     }
+
+    pub fn check_native_execution(&self, cairo_native: bool) {
+        assert_eq!(
+            self.execution.cairo_native, cairo_native,
+            "CallInfo execution mode does not match expected native execution mode."
+        );
+        for inner_call in self.inner_calls.iter() {
+            inner_call.check_native_execution(cairo_native);
+        }
+    }
 }
 
 impl TransactionExecutionInfo {
@@ -151,6 +161,13 @@ impl TransactionExecutionInfo {
         }
         if let Some(call_info) = &mut self.fee_transfer_call_info {
             call_info.clear_nonessential_fields_for_comparison();
+        }
+    }
+
+    pub fn check_call_infos_native_execution(&self, cairo_native: bool) {
+        // Check that the call infos are executed with cairo native.
+        for call_info in self.non_optional_call_infos() {
+            call_info.check_native_execution(cairo_native);
         }
     }
 }
