@@ -36,7 +36,6 @@ fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> Executi
 
     // TODO(AvivG): Investigate the discrepancies.
     estimated.n_steps -= 1;
-    *estimated.builtin_instance_counter.entry(BuiltinName::range_check).or_default() += 3;
 
     estimated
 }
@@ -45,7 +44,7 @@ fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> Executi
 /// encode_felt252_data_and_calc_blake_hash.
 #[rstest]
 // TODO(Aviv): Add the empty case once the cairo implementation supports it.
-// #[case::empty(vec![])]
+#[case::empty(vec![])]
 #[case::boundary_small_felt(vec![Felt::from((1u64 << 63) - 1)])]
 #[case::boundary_at_2_63(vec![Felt::from(1u64 << 63)])]
 #[case::very_large_felt(vec![Felt::from_hex("0x800000000000011000000000000000000000000000000000000000000000000").unwrap()])]
@@ -105,7 +104,7 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
             );
 
             // TODO(AvivG): consider moving this to the where the estimate methods are defined.
-            let actual_resources = cairo_runner.get_execution_resources().unwrap();
+            let actual_resources = cairo_runner.get_execution_resources().unwrap().filter_unused_builtins();
             let estimated_resources =
                 estimated_encode_and_blake_hash_execution_resources(&test_data);
             // Asserts that actual Cairo execution resources match the estimate.
