@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use serde::Serialize;
 
 use crate::storage_trait::{DbKey, DbValue, Storage};
-// TODO(Nimrod): Rename to 'BorrowedMapStorage' and define a type for HashMap<DbKey, DbValue>.
+pub type MapStorage = HashMap<DbKey, DbValue>;
 #[derive(Serialize, Debug)]
 pub struct BorrowedMapStorage<'a> {
-    pub storage: &'a mut HashMap<DbKey, DbValue>,
+    pub storage: &'a mut MapStorage,
 }
 
 impl Storage for BorrowedMapStorage<'_> {
@@ -14,7 +14,7 @@ impl Storage for BorrowedMapStorage<'_> {
         self.storage.insert(key, value)
     }
 
-    fn mset(&mut self, key_to_value: HashMap<DbKey, DbValue>) {
+    fn mset(&mut self, key_to_value: MapStorage) {
         self.storage.extend(key_to_value);
     }
 
