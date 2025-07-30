@@ -3,6 +3,7 @@ use std::fs::read_to_string;
 use std::path::PathBuf;
 
 use apollo_infra_utils::template::Template;
+use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use starknet_api::block::BlockNumber;
@@ -14,7 +15,6 @@ use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::testing::system_test_deployments;
 use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments;
 use crate::deployments::hybrid::load_and_create_hybrid_deployments;
-
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
@@ -155,7 +155,7 @@ impl StateSyncType {
     }
 }
 
-#[derive(Clone, Debug, Display, Serialize, PartialEq)]
+#[derive(Clone, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
 pub enum ServicePort {
     Batcher,
     ClassManager,
@@ -169,6 +169,25 @@ pub enum ServicePort {
     StateSync,
     HttpServer,
     MonitoringEndpoint,
+}
+
+impl ServicePort {
+    pub fn get_port(&self) -> u16 {
+        match self {
+            ServicePort::Batcher => 0,
+            ServicePort::ClassManager => 0,
+            ServicePort::Gateway => 0,
+            ServicePort::L1EndpointMonitor => 0,
+            ServicePort::L1GasPriceProvider => 0,
+            ServicePort::L1Provider => 0,
+            ServicePort::Mempool => 0,
+            ServicePort::MempoolP2p => 0,
+            ServicePort::SierraCompiler => 0,
+            ServicePort::StateSync => 0,
+            ServicePort::HttpServer => 0,
+            ServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Display, Serialize, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
