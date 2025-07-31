@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use starknet_committer::block_committer::commit::commit_block;
-use starknet_committer::block_committer::input::Config;
+use starknet_committer::block_committer::input::{CommitterInputImpl, Config, InputImpl};
 use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
 use tracing::info;
 use tracing::level_filters::LevelFilter;
@@ -9,7 +9,6 @@ use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
 
 use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
-use crate::committer_cli::parse_input::cast::{CommitterInputImpl, InputImpl};
 use crate::committer_cli::parse_input::raw_input::RawInput;
 use crate::shared_utils::read::{load_input, write_to_file};
 

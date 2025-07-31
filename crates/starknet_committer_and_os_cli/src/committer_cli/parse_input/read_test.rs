@@ -4,6 +4,7 @@ use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_committer::block_committer::input::{
+    CommitterInputImpl,
     ConfigImpl,
     Input,
     StarknetStorageKey,
@@ -18,7 +19,6 @@ use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
 use super::parse_input;
-use crate::committer_cli::parse_input::cast::CommitterInputImpl;
 
 #[test]
 fn test_simple_input_parsing() {

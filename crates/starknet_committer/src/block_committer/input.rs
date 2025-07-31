@@ -6,6 +6,7 @@ use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
@@ -67,6 +68,14 @@ pub trait Config: Debug + Eq + PartialEq {
 
     /// Indicates from which log level output should be printed out to console.
     fn logger_level(&self) -> LevelFilter;
+}
+
+pub type InputImpl = Input<ConfigImpl>;
+
+#[derive(Debug, PartialEq)]
+pub struct CommitterInputImpl {
+    pub input: InputImpl,
+    pub storage: MapStorage,
 }
 
 #[derive(Debug, Eq, PartialEq)]

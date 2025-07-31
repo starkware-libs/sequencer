@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_committer::block_committer::input::{
-    ConfigImpl,
+    CommitterInputImpl,
     Input,
     StarknetStorageKey,
     StarknetStorageValue,
@@ -11,19 +11,10 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia_storage::errors::DeserializationError;
-use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
 use crate::committer_cli::parse_input::raw_input::RawInput;
-
-pub type InputImpl = Input<ConfigImpl>;
-
-#[derive(Debug, PartialEq)]
-pub struct CommitterInputImpl {
-    pub input: InputImpl,
-    pub storage: MapStorage,
-}
 
 impl TryFrom<RawInput> for CommitterInputImpl {
     type Error = DeserializationError;

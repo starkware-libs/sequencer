@@ -4,7 +4,7 @@ use std::fs;
 use clap::Error;
 use serde::{Deserialize, Deserializer};
 use serde_json::{Map, Value};
-use starknet_committer::block_committer::input::StarknetStorageValue;
+use starknet_committer::block_committer::input::{CommitterInputImpl, StarknetStorageValue};
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::single_tree_flow_test;
@@ -13,7 +13,6 @@ use tempfile::NamedTempFile;
 
 use super::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 use crate::committer_cli::commands::commit;
-use crate::committer_cli::parse_input::cast::CommitterInputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
 use crate::committer_cli::tests::utils::parse_from_python::TreeFlowInput;
 
@@ -39,21 +38,23 @@ impl<'de> Deserialize<'de> for FactMap {
     }
 }
 
-impl<'de> Deserialize<'de> for CommitterInputImpl {
+struct DeserializableCommitterInputImpl(CommitterInputImpl);
+
+#[derive(Deserialize)]
+struct CommitterRegressionInput {
+    committer_input: DeserializableCommitterInputImpl,
+    contract_states_root: String,
+    contract_classes_root: String,
+    expected_facts: FactMap,
+}
+
+impl<'de> Deserialize<'de> for DeserializableCommitterInputImpl {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Ok(parse_input(&String::deserialize(deserializer)?).unwrap())
+        Ok(Self(parse_input(&String::deserialize(deserializer)?).unwrap()))
     }
-}
-
-#[derive(Deserialize)]
-struct CommitterRegressionInput {
-    committer_input: CommitterInputImpl,
-    contract_states_root: String,
-    contract_classes_root: String,
-    expected_facts: FactMap,
 }
 
 #[derive(Deserialize)]
@@ -142,7 +143,7 @@ pub async fn test_single_committer_flow(input: String, output_path: String) -> R
         expected_facts,
     } = serde_json::from_str(&input).unwrap();
     // Benchmark the committer flow test.
-    commit(committer_input.input, output_path.to_owned(), committer_input.storage).await;
+    commit(committer_input.0.input, output_path.to_owned(), committer_input.0.storage).await;
 
     // Assert correctness of the output of the committer flow test.
     let CommitterRegressionOutput {

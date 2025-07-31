@@ -10,11 +10,10 @@
 use std::collections::HashMap;
 
 use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
-use starknet_committer::block_committer::input::StarknetStorageValue;
+use starknet_committer::block_committer::input::{CommitterInputImpl, StarknetStorageValue};
 use starknet_committer::hash_function::hash::TreeHashFunctionImpl;
 use starknet_committer::patricia_merkle_tree::tree::OriginalSkeletonStorageTrieConfig;
 use starknet_committer_and_os_cli::committer_cli::commands::commit;
-use starknet_committer_and_os_cli::committer_cli::parse_input::cast::CommitterInputImpl;
 use starknet_committer_and_os_cli::committer_cli::parse_input::read::parse_input;
 use starknet_committer_and_os_cli::committer_cli::tests::utils::parse_from_python::TreeFlowInput;
 use starknet_patricia::patricia_merkle_tree::external_test_utils::tree_computation_flow;

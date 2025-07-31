@@ -1,6 +1,6 @@
+use starknet_committer::block_committer::input::CommitterInputImpl;
 use starknet_patricia_storage::errors::DeserializationError;
 
-use crate::committer_cli::parse_input::cast::CommitterInputImpl;
 use crate::committer_cli::parse_input::raw_input::RawInput;
 
 #[cfg(test)]
