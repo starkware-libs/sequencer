@@ -46,11 +46,16 @@ impl StatefulTransactionValidator {
     pub fn run_transaction_validations<V: BlockifierStatefulValidatorTrait>(
         &self,
         executable_tx: &ExecutableTransaction,
-        account_nonce: Nonce,
         mempool_client: SharedMempoolClient,
-        validator: V,
+        mut validator: V,
         runtime: tokio::runtime::Handle,
-    ) -> StatefulTransactionValidatorResult<()> {
+    ) -> StatefulTransactionValidatorResult<Nonce> {
+        let address = executable_tx.contract_address();
+        let account_nonce = validator.get_nonce(address).map_err(|e| {
+            error!("Failed to get nonce for sender address {}: {}", address, e);
+            // TODO(yair): Fix this. Need to map the errors better.
+            StarknetError::internal(&e.to_string())
+        })?;
         self.validate_state_preconditions(executable_tx, account_nonce, &validator)?;
         self.run_validate_entry_point(
             executable_tx,
@@ -58,7 +63,8 @@ impl StatefulTransactionValidator {
             mempool_client,
             validator,
             runtime,
-        )
+        )?;
+        Ok(account_nonce)
     }
 
     fn validate_state_preconditions<V: BlockifierStatefulValidatorTrait>(
