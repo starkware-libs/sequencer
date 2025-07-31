@@ -17,6 +17,8 @@ pub enum L1GasPriceProviderError {
          {last_valid_price_timestamp} seconds"
     )]
     StaleL1GasPricesError { current_timestamp: u64, last_valid_price_timestamp: u64 },
+    #[error(transparent)]
+    EthToStrkOracleClientError(#[from] EthToStrkOracleClientError),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -25,9 +27,11 @@ pub enum L1GasPriceClientError {
     ClientError(#[from] ClientError),
     #[error(transparent)]
     L1GasPriceProviderError(#[from] L1GasPriceProviderError),
+    #[error(transparent)]
+    EthToStrkOracleClientError(#[from] EthToStrkOracleClientError),
 }
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug, Error, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EthToStrkOracleClientError {
     #[error("Join error: {0}")]
     JoinError(String),

@@ -20,11 +20,7 @@ use apollo_class_manager_types::transaction_converter::{
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::EmptyClassManagerClient;
-use apollo_l1_gas_price_types::{
-    MockEthToStrkOracleClientTrait,
-    MockL1GasPriceProviderClient,
-    PriceInfo,
-};
+use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo};
 use apollo_network::network_manager::test_utils::{
     mock_register_broadcast_topic,
     BroadcastNetworkMock,
@@ -93,7 +89,6 @@ pub(crate) struct TestDeps {
     pub state_sync_client: MockStateSyncClient,
     pub batcher: MockBatcherClient,
     pub cende_ambassador: MockCendeContext,
-    pub eth_to_strk_oracle_client: MockEthToStrkOracleClientTrait,
     pub l1_gas_price_provider: MockL1GasPriceProviderClient,
     pub clock: Arc<dyn Clock>,
     pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
@@ -107,7 +102,6 @@ impl From<TestDeps> for SequencerConsensusContextDeps {
             state_sync_client: Arc::new(deps.state_sync_client),
             batcher: Arc::new(deps.batcher),
             cende_ambassador: Arc::new(deps.cende_ambassador),
-            eth_to_strk_oracle_client: Arc::new(deps.eth_to_strk_oracle_client),
             l1_gas_price_provider: Arc::new(deps.l1_gas_price_provider),
             clock: deps.clock,
             outbound_proposal_sender: deps.outbound_proposal_sender,
@@ -121,7 +115,6 @@ impl TestDeps {
         self.setup_default_transaction_converter();
         self.setup_default_cende_ambassador();
         self.setup_default_gas_price_provider();
-        self.setup_default_eth_to_strk_oracle_client();
     }
 
     pub(crate) fn setup_deps_for_build(
@@ -229,10 +222,7 @@ impl TestDeps {
             base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
             blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
         }));
-    }
-
-    pub(crate) fn setup_default_eth_to_strk_oracle_client(&mut self) {
-        self.eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
+        self.l1_gas_price_provider.expect_get_eth_to_fri_rate().return_const(Ok(ETH_TO_FRI_RATE));
     }
 
     pub(crate) fn build_context(self) -> SequencerConsensusContext {
@@ -261,7 +251,6 @@ pub(crate) fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) 
     let state_sync_client = MockStateSyncClient::new();
     let batcher = MockBatcherClient::new();
     let cende_ambassador = MockCendeContext::new();
-    let eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
     let l1_gas_price_provider = MockL1GasPriceProviderClient::new();
     let clock = Arc::new(DefaultClock);
 
@@ -270,7 +259,6 @@ pub(crate) fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) 
         state_sync_client,
         batcher,
         cende_ambassador,
-        eth_to_strk_oracle_client,
         l1_gas_price_provider,
         clock,
         outbound_proposal_sender,
