@@ -57,6 +57,12 @@ pub(crate) struct FullContractStorageUpdate {
     pub(crate) new_value: Felt,
 }
 
+impl ToMaybeRelocatables for FullContractStorageUpdate {
+    fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable> {
+        vec![Felt::from(self.key).into(), self.prev_value.into(), self.new_value.into()]
+    }
+}
+
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 pub(crate) struct PartialContractStorageUpdate {
@@ -134,9 +140,13 @@ impl TryFromOutputIter for PartialCompiledClassHashUpdate {
     }
 }
 
-impl ToMaybeRelocatables for FullContractStorageUpdate {
+impl ToMaybeRelocatables for FullCompiledClassHashUpdate {
     fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable> {
-        vec![Felt::from(self.key).into(), self.prev_value.into(), self.new_value.into()]
+        vec![
+            self.class_hash.0.into(),
+            self.prev_compiled_class_hash.0.into(),
+            self.next_compiled_class_hash.0.into(),
+        ]
     }
 }
 
