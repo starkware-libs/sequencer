@@ -1,3 +1,4 @@
+use apollo_starknet_client::reader::ReaderClientError;
 use apollo_storage::StorageError;
 use futures::channel::mpsc::SendError;
 use serde::{Deserialize, Serialize};
@@ -28,6 +29,8 @@ pub enum StateSyncError {
     StarknetApiError(String),
     #[error("State is empty, latest block returned None")]
     EmptyState,
+    #[error("Error while trying to communicate with feeder gateway: {0}")]
+    ReaderClientError(String),
 }
 
 impl From<StorageError> for StateSyncError {
@@ -45,5 +48,11 @@ impl From<StarknetApiError> for StateSyncError {
 impl From<SendError> for StateSyncError {
     fn from(error: SendError) -> Self {
         StateSyncError::SendError(error.to_string())
+    }
+}
+
+impl From<ReaderClientError> for StateSyncError {
+    fn from(error: ReaderClientError) -> Self {
+        StateSyncError::ReaderClientError(error.to_string())
     }
 }
