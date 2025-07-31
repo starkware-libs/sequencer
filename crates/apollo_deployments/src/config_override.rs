@@ -120,9 +120,12 @@ pub struct DeploymentConfigOverride {
     eth_fee_token_address: String,
     starknet_url: Url,
     strk_fee_token_address: String,
-    #[serde(rename = "l1_provider_config.provider_startup_height_override")]
+    #[serde(
+        rename = "l1_message_provider_config.l1_provider_config.provider_startup_height_override"
+    )]
     l1_provider_config_provider_startup_height_override: u64,
-    #[serde(rename = "l1_provider_config.provider_startup_height_override.#is_none")]
+    #[serde(rename = "l1_message_provider_config.l1_provider_config.\
+                      provider_startup_height_override.#is_none")]
     l1_provider_config_provider_startup_height_override_is_none: bool,
     #[serde(rename = "consensus_manager_config.context_config.num_validators")]
     consensus_manager_config_context_config_num_validators: usize,

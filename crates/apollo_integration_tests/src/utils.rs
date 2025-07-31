@@ -28,7 +28,7 @@ use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::eth_to_strk_oracle::{EthToStrkOracleConfig, ETH_TO_STRK_QUANTIZATION};
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
-use apollo_l1_provider::config::{L1ProviderConfig, L1ScraperConfig};
+use apollo_l1_provider::config::{L1MessageProviderConfig, L1ProviderConfig, L1ScraperConfig};
 use apollo_mempool::config::MempoolConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
@@ -198,6 +198,8 @@ pub fn create_node_config(
         new_l1_handler_cooldown_seconds: Duration::from_secs(0),
         ..Default::default()
     };
+    let l1_message_provider_config =
+        L1MessageProviderConfig { l1_provider_config, l1_scraper_config };
     let l1_endpoint_monitor_config = L1EndpointMonitorConfig {
         // This is the Anvil URL, initialized at the callsite.
         // TODO(Gilad): make this explicit in the Anvil refactor.
@@ -260,8 +262,7 @@ pub fn create_node_config(
             monitoring_endpoint_config: Some(monitoring_endpoint_config),
             state_sync_config: Some(state_sync_config),
             components: component_config,
-            l1_scraper_config: Some(l1_scraper_config),
-            l1_provider_config: Some(l1_provider_config),
+            l1_message_provider_config: Some(l1_message_provider_config),
             l1_endpoint_monitor_config: Some(l1_endpoint_monitor_config),
             l1_gas_price_provider_config: Some(l1_gas_price_provider_config),
             ..Default::default()

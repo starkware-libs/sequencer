@@ -324,13 +324,19 @@ pub async fn create_node_components(
         ActiveComponentExecutionMode::Enabled => {
             let base_layer_config =
                 config.base_layer_config.as_ref().expect("Base Layer config should be set");
-            let l1_scraper_config =
-                config.l1_scraper_config.as_ref().expect("L1 Scraper config should be set");
+            let l1_scraper_config = config
+                .l1_message_provider_config
+                .as_ref()
+                .expect(
+                    "L1 Scraper config should be set, as part of the L1 Message Provider config",
+                )
+                .l1_scraper_config
+                .clone();
             let l1_provider_client = clients.get_l1_provider_shared_client().unwrap();
             let l1_endpoint_monitor_client =
                 clients.get_l1_endpoint_monitor_shared_client().unwrap();
             let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
-            let l1_start_block = fetch_start_block(&base_layer, l1_scraper_config)
+            let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config)
                 .await
                 .unwrap_or_else(|err| panic!("Error while initializing the L1 scraper: {err}"));
 
@@ -342,7 +348,7 @@ pub async fn create_node_components(
 
             Some(
                 L1Scraper::new(
-                    l1_scraper_config.clone(),
+                    l1_scraper_config,
                     l1_provider_client,
                     monitored_base_layer,
                     event_identifiers_to_track(),
@@ -365,8 +371,13 @@ pub async fn create_node_components(
         | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
             let base_layer_config =
                 config.base_layer_config.as_ref().expect("Base Layer config should be set");
-            let l1_provider_config =
-                config.l1_provider_config.expect("L1 Provider config should be set");
+            let l1_provider_config = config
+                .l1_message_provider_config
+                .as_ref()
+                .expect(
+                    "L1 Provider config should be set, as part of the L1 Message Provider config",
+                )
+                .l1_provider_config;
             let mut l1_provider_builder = L1ProviderBuilder::new(
                 l1_provider_config,
                 clients.get_l1_provider_shared_client().unwrap(),
@@ -416,6 +427,8 @@ pub async fn create_node_components(
                     );
 
                     // Helps keep override use more structured, prevents bugs.
+                    // TODO(tsabary): Revisit this assertion. Consider replacing with a validation
+                    // on l1_message_provider_config.
                     assert!(
                         l1_provider_config
                             .provider_startup_height_override
