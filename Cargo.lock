@@ -12304,6 +12304,8 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "starknet_committer",
+ "starknet_patricia",
+ "starknet_patricia_storage",
 ]
 
 [[package]]
