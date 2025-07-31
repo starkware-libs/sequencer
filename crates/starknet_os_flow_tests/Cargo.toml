@@ -8,6 +8,8 @@ license-file.workspace = true
 
 [dev-dependencies]
 blockifier.workspace = true
+blockifier_test_utils.workspace = true
+starknet_committer.workspace = true
 
 [lints]
 workspace = true
