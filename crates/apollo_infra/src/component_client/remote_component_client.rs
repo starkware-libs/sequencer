@@ -24,8 +24,8 @@ use crate::serde_utils::SerdeWrapper;
 const DEFAULT_RETRIES: usize = 150;
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 // TODO(Tsabary): add `_SECS` suffix to the constant names and the config fields.
-const DEFAULT_IDLE_TIMEOUT: u64 = 30;
-const DEFAULT_RETRY_INTERVAL: u64 = 1;
+const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
+const DEFAULT_RETRY_INTERVAL_MS: u64 = 1000;
 
 // TODO(Tsabary): consider retry delay mechanisms, e.g., exponential backoff, jitter, etc.
 
@@ -33,8 +33,8 @@ const DEFAULT_RETRY_INTERVAL: u64 = 1;
 pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
-    pub idle_timeout: u64,
-    pub retry_interval: u64,
+    pub idle_timeout_ms: u64,
+    pub retry_interval_ms: u64,
 }
 
 impl Default for RemoteClientConfig {
@@ -42,8 +42,8 @@ impl Default for RemoteClientConfig {
         Self {
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
-            idle_timeout: DEFAULT_IDLE_TIMEOUT,
-            retry_interval: DEFAULT_RETRY_INTERVAL,
+            idle_timeout_ms: DEFAULT_IDLE_TIMEOUT_MS,
+            retry_interval_ms: DEFAULT_RETRY_INTERVAL_MS,
         }
     }
 }
@@ -64,15 +64,15 @@ impl SerializeConfig for RemoteClientConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "idle_timeout",
-                &self.idle_timeout,
-                "The duration in seconds to keep an idle connection open before closing.",
+                "idle_timeout_ms",
+                &self.idle_timeout_ms,
+                "The duration in milliseconds to keep an idle connection open before closing.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "retry_interval",
-                &self.retry_interval,
-                "The duration in seconds to wait between remote connection retries.",
+                "retry_interval_ms",
+                &self.retry_interval_ms,
+                "The duration in milliseconds to wait between remote connection retries.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -120,12 +120,7 @@ impl SerializeConfig for RemoteClientConfig {
 ///     // Instantiate the client.
 ///     let url = "127.0.0.1".to_string();
 ///     let port: u16 = 8080;
-///     let config = RemoteClientConfig {
-///         retries: 3,
-///         idle_connections: usize::MAX,
-///         idle_timeout: 90,
-///         retry_interval: 3,
-///     };
+///     let config = RemoteClientConfig::default();
 ///
 ///     const EXAMPLE_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
 ///         MetricScope::Infra,
@@ -185,7 +180,7 @@ where
         let client = Client::builder()
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
-            .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
+            .pool_idle_timeout(Duration::from_millis(config.idle_timeout_ms))
             .build_http();
         debug!("RemoteComponentClient created with URI: {:?}", uri);
         Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
@@ -259,7 +254,7 @@ where
                 self.metrics.record_attempt(attempt);
                 return res;
             }
-            tokio::time::sleep(Duration::from_secs(self.config.retry_interval)).await;
+            tokio::time::sleep(Duration::from_millis(self.config.retry_interval_ms)).await;
         }
         unreachable!("Guaranteed to return a response before reaching this point.");
     }
