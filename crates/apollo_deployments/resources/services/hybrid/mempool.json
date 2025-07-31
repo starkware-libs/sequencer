@@ -70,7 +70,7 @@
   "components.mempool.ip": "0.0.0.0",
   "components.mempool.local_server_config.channel_capacity": 128,
   "components.mempool.max_concurrency": 8,
-  "components.mempool.port": 55005,
+  "components.mempool.port": 55006,
   "components.mempool.remote_client_config.idle_connections": 10,
   "components.mempool.remote_client_config.idle_timeout": 30,
   "components.mempool.remote_client_config.retries": 150,
