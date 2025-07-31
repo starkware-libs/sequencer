@@ -30,6 +30,7 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
 
 # Binaries dependencies
 prost-build = { workspace = true, optional = true }

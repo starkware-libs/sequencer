@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::{env, io};
 
-use tracing::info;
+use tracing::{debug, info};
 
 pub const PROTO_DIR: &str = "src/protobuf";
 pub const PROTO_FILES: &[&str] = &[
@@ -21,6 +21,7 @@ pub const PROTOC_OUTPUT: &str = "protoc_output.rs";
 
 pub fn generate_protos(out_dir: PathBuf, proto_files: &[&str]) -> Result<(), io::Error> {
     info!("Building protos");
+    debug!("Files: {:?}", proto_files);
 
     // OUT_DIR env variable is required by protoc_prebuilt
     env::set_var("OUT_DIR", &out_dir);
@@ -32,7 +33,7 @@ pub fn generate_protos(out_dir: PathBuf, proto_files: &[&str]) -> Result<(), io:
         );
         let (protoc_bin, _) = protoc_prebuilt::init("27.0").expect(
         "Build failed due to Github's rate limit. Please run `gh auth login` to lift the rate limit and allow protoc compilation to proceed. \
-        If this issue persists please download Protoc following the instructions at https://github.com/starkware-libs/sequencer/blob/main/docs/papyrus/README.adoc#prerequisites",
+        If this issue persists please download Protoc following the instructions at http://protobuf.dev/installation/",
         );
         info!("Prebuilt protoc added to the project.");
         env::set_var("PROTOC", protoc_bin);
