@@ -16,6 +16,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.add_mod": 312,
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.mul_mod": 604,
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.range_check96": 56,
+  "batcher_config.block_builder_config.bouncer_config.blake_weight": 8000,
   "batcher_config.block_builder_config.execute_config.n_workers": 28,
   "batcher_config.block_builder_config.execute_config.stack_size": 62914560,
   "batcher_config.block_builder_config.n_concurrent_txs": 100,

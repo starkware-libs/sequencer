@@ -112,6 +112,7 @@ impl From<PyVersionedConstantsOverrides> for VersionedConstantsOverrides {
 pub struct PyBouncerConfig {
     pub full_total_weights: HashMap<String, usize>,
     pub builtin_weights: HashMap<String, usize>,
+    pub blake_weight: usize,
 }
 
 impl TryFrom<PyBouncerConfig> for BouncerConfig {
@@ -124,6 +125,7 @@ impl TryFrom<PyBouncerConfig> for BouncerConfig {
             builtin_weights: hash_map_into_builtin_weights(
                 py_bouncer_config.builtin_weights.clone(),
             )?,
+            blake_weight: py_bouncer_config.blake_weight,
         })
     }
 }

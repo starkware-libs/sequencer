@@ -48,7 +48,7 @@ use axum::{Json, Router};
 use blockifier::blockifier::config::WorkerPoolConfig;
 #[cfg(feature = "cairo_native")]
 use blockifier::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
-use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinWeights};
+use blockifier::bouncer::{BouncerConfig, BouncerWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -594,7 +594,7 @@ pub fn create_batcher_config(
                     sierra_gas: block_max_capacity_sierra_gas,
                     ..Default::default()
                 },
-                builtin_weights: BuiltinWeights::default(),
+                ..Default::default()
             },
             execute_config: WorkerPoolConfig::create_for_testing(),
             n_concurrent_txs: 3,
