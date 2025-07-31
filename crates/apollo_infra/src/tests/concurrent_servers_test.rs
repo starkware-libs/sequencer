@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
+use strum_macros::AsRefStr;
 use tokio::sync::mpsc::channel;
 use tokio::sync::Semaphore;
 use tokio::task;
@@ -35,7 +36,7 @@ use crate::tests::{
 
 type TestResult = ClientResult<()>;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, AsRefStr)]
 enum ConcurrentComponentRequest {
     PerformAction(TestSemaphore),
 }

@@ -109,6 +109,12 @@ impl SerializeConfig for RemoteClientConfig {
 ///     pub content: String,
 /// }
 ///
+/// impl AsRef<str> for MyRequest {
+///     fn as_ref(&self) -> &str {
+///         &self.content
+///     }
+/// }
+///
 /// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyResponse {
 ///     content: String,
@@ -181,13 +187,13 @@ where
         port: u16,
         metrics: RemoteClientMetrics,
     ) -> Self {
-        let uri = format!("http://{}:{}/", url, port).parse().unwrap();
+        let uri = format!("http://{url}:{port}/").parse().unwrap();
         let client = Client::builder()
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
             .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
             .build_http();
-        debug!("RemoteComponentClient created with URI: {:?}", uri);
+        debug!("RemoteComponentClient created with URI: {uri:?}");
         Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
     }
 
@@ -214,8 +220,7 @@ where
             }
             status_code => {
                 warn!(
-                    "Unexpected response status: {:?}. Unable to deserialize response.",
-                    status_code
+                    "Unexpected response status: {status_code:?}. Unable to deserialize response."
                 );
                 Err(ClientError::ResponseError(
                     status_code,
@@ -232,10 +237,12 @@ where
 impl<Request, Response> ComponentClient<Request, Response>
     for RemoteComponentClient<Request, Response>
 where
-    Request: Send + Serialize + DeserializeOwned + Debug,
+    Request: Send + Serialize + DeserializeOwned + Debug + AsRef<str>,
     Response: Send + Serialize + DeserializeOwned + Debug,
 {
     async fn send(&self, component_request: Request) -> ClientResult<Response> {
+        let log_message = format!("{} to {}", component_request.as_ref(), self.uri);
+
         // Serialize the request.
         let serialized_request = SerdeWrapper::new(component_request)
             .wrapper_serialize()
@@ -244,17 +251,17 @@ where
         // Construct the request, and send it up to 'max_retries + 1' times. Return if received a
         // successful response, or the last response if all attempts failed.
         let max_attempts = self.config.retries + 1;
-        trace!("Starting retry loop: max_attempts = {:?}", max_attempts);
+        trace!("Starting retry loop: max_attempts = {max_attempts}");
         for attempt in 1..max_attempts + 1 {
-            trace!("Attempt {} of {:?}", attempt, max_attempts);
+            trace!("Request {log_message} attempt {attempt} of {max_attempts}");
             let http_request = self.construct_http_request(serialized_request.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
-                trace!("Request successful on attempt {}/{}", attempt, max_attempts);
+                trace!("Request {log_message} successful on attempt {attempt}/{max_attempts}");
                 self.metrics.record_attempt(attempt);
                 return res;
             }
-            warn!("Request failed on attempt {}/{}: {:?}", attempt, max_attempts, res);
+            warn!("Request {log_message} failed on attempt {attempt}/{max_attempts}: {res:?}");
             if attempt == max_attempts {
                 self.metrics.record_attempt(attempt);
                 return res;

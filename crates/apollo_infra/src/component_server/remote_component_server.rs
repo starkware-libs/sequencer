@@ -86,6 +86,12 @@ use crate::serde_utils::SerdeWrapper;
 ///     pub content: String,
 /// }
 ///
+/// impl AsRef<str> for MyRequest {
+///     fn as_ref(&self) -> &str {
+///         &self.content
+///     }
+/// }
+///
 /// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyResponse {
 ///     content: String,
