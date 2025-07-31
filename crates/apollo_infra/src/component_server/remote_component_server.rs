@@ -46,6 +46,7 @@ use crate::serde_utils::SerdeWrapper;
 /// use apollo_metrics::metrics::{MetricCounter, MetricScope};
 /// use async_trait::async_trait;
 /// use serde::{Deserialize, Serialize};
+/// use strum_macros::AsRefStr;
 /// use tokio::task;
 ///
 /// use crate::apollo_infra::component_client::LocalComponentClient;
@@ -81,7 +82,7 @@ use crate::serde_utils::SerdeWrapper;
 /// impl ComponentStarter for MyComponent {}
 ///
 /// // Define your request and response types
-/// #[derive(Serialize, Deserialize, Debug)]
+/// #[derive(Serialize, Deserialize, Debug, AsRefStr)]
 /// struct MyRequest {
 ///     pub content: String,
 /// }
