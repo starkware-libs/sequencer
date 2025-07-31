@@ -21,7 +21,7 @@ use crate::StateSync;
 fn setup() -> (StateSync, StorageWriter) {
     let ((storage_reader, storage_writer), _) = get_test_storage();
     let state_sync =
-        StateSync { storage_reader, new_block_sender: channel(0).0, _starknet_client: None };
+        StateSync { storage_reader, new_block_sender: channel(0).0, starknet_client: None };
     (state_sync, storage_writer)
 }
 
