@@ -20,7 +20,7 @@
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-core-service.apollo-mainnet-0.starknet.io",
+        "external_dns_name": "sequencer-core-service.apollo-sync-test-0.starknet.io",
         "internal": true
       },
       "autoscale": false,
@@ -38,7 +38,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-0"
+        "gcsm_key": "apollo-sync-test-0"
       },
       "anti_affinity": true,
       "ports": {
@@ -95,7 +95,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-0"
+        "gcsm_key": "apollo-sync-test-0"
       },
       "anti_affinity": false,
       "ports": {
@@ -133,7 +133,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-0"
+        "gcsm_key": "apollo-sync-test-0"
       },
       "anti_affinity": false,
       "ports": {
@@ -176,7 +176,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-0"
+        "gcsm_key": "apollo-sync-test-0"
       },
       "anti_affinity": false,
       "ports": {
@@ -200,7 +200,7 @@
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-mempool-service.apollo-mainnet-0.starknet.io",
+        "external_dns_name": "sequencer-mempool-service.apollo-sync-test-0.starknet.io",
         "internal": true
       },
       "autoscale": false,
@@ -218,7 +218,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-0"
+        "gcsm_key": "apollo-sync-test-0"
       },
       "anti_affinity": true,
       "ports": {
@@ -256,7 +256,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-mainnet-0"
+        "gcsm_key": "apollo-sync-test-0"
       },
       "anti_affinity": false,
       "ports": {
