@@ -47,9 +47,9 @@ fn write_full_os_output(
     output: &FullOsOutput,
     vm: &mut VirtualMachine,
     _address: Relocatable,
-    _state_diff_writer: &mut FullStateDiffWriter,
+    state_diff_writer: &mut FullStateDiffWriter,
 ) -> VmUtilsResult<Relocatable> {
-    let FullOsOutput { common_os_output, .. } = output;
+    let FullOsOutput { common_os_output, state_diff } = output;
     let messages_to_l1_start = vm.add_temporary_segment();
     let _messages_to_l1_end =
         common_os_output.messages_to_l1.load_into_vm_memory(vm, messages_to_l1_start)?;
@@ -57,7 +57,12 @@ fn write_full_os_output(
     let messages_to_l2_start = vm.add_temporary_segment();
     let _messages_to_l2_end =
         common_os_output.messages_to_l2.load_into_vm_memory(vm, messages_to_l2_start)?;
-    todo!()
+
+    // A cairo dict from contract address to StateEntry (class_hash, storage_dict_ptr, nonce).
+    // See StateEntryManager::storage_dict_ptr for an explanation about storage_dict_ptr.
+    let _state_dict_ptr_start = state_diff_writer.get_state_dict_ptr();
+    state_diff_writer.write_contract_changes(&state_diff.contracts, vm)?;
+    todo!("Finish implementation.");
 }
 
 pub(crate) fn get_os_output_for_inner_blocks(
