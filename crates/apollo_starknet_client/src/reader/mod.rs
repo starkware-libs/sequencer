@@ -17,7 +17,7 @@ use cairo_lang_starknet_classes::casm_contract_class::{
 use mockall::automock;
 use papyrus_common::pending_classes::ApiContractClass;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::core::{ClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::transaction::TransactionHash;
@@ -81,9 +81,15 @@ pub trait StarknetReader {
     /// Returns the last block in the system, returning [`None`] in case there are no blocks in the
     /// system.
     async fn latest_block(&self) -> ReaderClientResult<Option<Block>>;
+    /// Returns the number of the last block in the system, returning [`None`] in case there are no
+    /// blocks in the system.
+    async fn latest_block_number(&self) -> ReaderClientResult<Option<BlockNumber>>;
     /// Returns a [`Block`] corresponding to `block_number`, returning [`None`] in case
     /// no such block exists in the system.
     async fn block(&self, block_number: BlockNumber) -> ReaderClientResult<Option<Block>>;
+    /// Returns a [`BlockHash`] corresponding to `block_number`, returning [`None`] in case
+    /// no such block exists in the system.
+    async fn block_hash(&self, block_number: BlockNumber) -> ReaderClientResult<Option<BlockHash>>;
     /// Returns a [`GenericContractClass`] corresponding to `class_hash`.
     async fn class_by_hash(
         &self,
@@ -141,6 +147,7 @@ const GET_COMPILED_CLASS_BY_CLASS_HASH_URL: &str =
     "feeder_gateway/get_compiled_class_by_class_hash";
 const GET_STATE_UPDATE_URL: &str = "feeder_gateway/get_state_update";
 const BLOCK_NUMBER_QUERY: &str = "blockNumber";
+const ONLY_HEADER_QUERY: &str = "onlyHeader";
 const FEE_MARKET_INFO_QUERY: &str = "withFeeMarketInfo";
 const LATEST_BLOCK_NUMBER: &str = "latest";
 const CLASS_HASH_QUERY: &str = "classHash";
@@ -212,15 +219,19 @@ impl StarknetFeederGatewayClient {
         result
     }
 
-    async fn request_block(
+    async fn request_block_raw(
         &self,
         block_number: Option<BlockNumber>,
-    ) -> ReaderClientResult<Option<Block>> {
+        only_header: bool,
+    ) -> ReaderClientResult<String> {
         let block_number =
             block_number.map(|bn| bn.to_string()).unwrap_or(String::from(LATEST_BLOCK_NUMBER));
 
         let mut get_block_url = self.urls.get_block.clone();
         get_block_url.query_pairs_mut().append_pair(BLOCK_NUMBER_QUERY, block_number.as_str());
+        if only_header {
+            get_block_url.query_pairs_mut().append_pair(ONLY_HEADER_QUERY, "true");
+        }
         let old_get_block_url = get_block_url.clone();
         // For version >= 0.14.0
         get_block_url.query_pairs_mut().append_pair(FEE_MARKET_INFO_QUERY, "true");
@@ -235,11 +246,33 @@ impl StarknetFeederGatewayClient {
         {
             response = self.request_with_retry_url(old_get_block_url).await;
         }
+        response
+    }
 
+    async fn request_block(
+        &self,
+        block_number: Option<BlockNumber>,
+    ) -> ReaderClientResult<Option<Block>> {
+        let response = self.request_block_raw(block_number, false).await;
         load_object_from_response(
             response,
             Some(KnownStarknetErrorCode::BlockNotFound),
             format!("Failed to get block number {block_number:?} from starknet server."),
+        )
+    }
+
+    // TODO(shahak): reduce code duplication with request_block.
+    async fn request_block_number_and_hash(
+        &self,
+        block_number: Option<BlockNumber>,
+    ) -> ReaderClientResult<Option<BlockHashAndNumber>> {
+        let response = self.request_block_raw(block_number, true).await;
+        load_object_from_response(
+            response,
+            Some(KnownStarknetErrorCode::BlockNotFound),
+            format!(
+                "Failed to get block hash for block number {block_number:?} from starknet server."
+            ),
         )
     }
 }
@@ -252,8 +285,24 @@ impl StarknetReader for StarknetFeederGatewayClient {
     }
 
     #[instrument(skip(self), level = "debug")]
+    async fn latest_block_number(&self) -> ReaderClientResult<Option<BlockNumber>> {
+        Ok(self
+            .request_block_number_and_hash(None)
+            .await?
+            .map(|block_hash_and_number| block_hash_and_number.number))
+    }
+
+    #[instrument(skip(self), level = "debug")]
     async fn block(&self, block_number: BlockNumber) -> ReaderClientResult<Option<Block>> {
         self.request_block(Some(block_number)).await
+    }
+
+    #[instrument(skip(self), level = "debug")]
+    async fn block_hash(&self, block_number: BlockNumber) -> ReaderClientResult<Option<BlockHash>> {
+        Ok(self
+            .request_block_number_and_hash(Some(block_number))
+            .await?
+            .map(|block_hash_and_number| block_hash_and_number.hash))
     }
 
     #[instrument(skip(self), level = "debug")]
