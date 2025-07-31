@@ -904,16 +904,6 @@ auto_impl_get_test_instance! {
         AllResources(AllResourceBounds) = 1,
     }
 
-    pub struct CasmContractClass {
-        pub prime: BigUint,
-        pub compiler_version: String,
-        pub bytecode: Vec<BigUintAsHex>,
-        pub bytecode_segment_lengths: Option<NestedIntList>,
-        pub hints: Vec<(usize, Vec<Hint>)>,
-        pub pythonic_hints: Option<Vec<(usize, Vec<String>)>>,
-        pub entry_points_by_type: CasmContractEntryPoints,
-    }
-
     pub struct CasmContractEntryPoints {
         pub external: Vec<CasmContractEntryPoint>,
         pub l1_handler: Vec<CasmContractEntryPoint>,
@@ -1204,6 +1194,22 @@ impl GetTestInstance for ResourceBounds {
             max_amount: GasAmount(rng.next_u64()),
             // TODO(alonl): change GasPrice generation to use u128 directly
             max_price_per_unit: GasPrice(rng.next_u64().into()),
+        }
+    }
+}
+
+// Custom implementation for CasmContractClass to ensure legal CASM without contradiction between
+// bytecode and segment structure.
+impl GetTestInstance for CasmContractClass {
+    fn get_test_instance(rng: &mut ChaCha8Rng) -> Self {
+        Self {
+            prime: BigUint::get_test_instance(rng),
+            compiler_version: String::get_test_instance(rng),
+            bytecode: Vec::get_test_instance(rng),
+            bytecode_segment_lengths: None,
+            hints: Vec::get_test_instance(rng),
+            pythonic_hints: Option::get_test_instance(rng),
+            entry_points_by_type: CasmContractEntryPoints::get_test_instance(rng),
         }
     }
 }
