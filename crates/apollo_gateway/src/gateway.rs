@@ -260,8 +260,8 @@ fn convert_compiled_class_hash_error(error: ValidateCompiledClassHashError) -> S
             "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
         ),
         message: format!(
-            "Computed compiled class hash: {computed_class_hash} does not match the given value: \
-             {supplied_class_hash}.",
+            "Computed compiled class hash: {:#x} does not match the given value: {:#x}.",
+            computed_class_hash.0, supplied_class_hash.0
         ),
     }
 }
