@@ -2,6 +2,59 @@ use std::collections::HashMap;
 
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::transaction::MessageToL1;
+use starknet_types_core::felt::Felt;
+
+use crate::io::os_output::{
+    MessageToL2,
+    MESSAGE_TO_L1_CONST_FIELD_SIZE,
+    MESSAGE_TO_L2_CONST_FIELD_SIZE,
+};
+use crate::vm_utils::{IdentifierGetter, LoadCairoObject, VmUtilsResult};
+
+pub(crate) trait ToMaybeRelocatables {
+    fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable>;
+}
+
+impl ToMaybeRelocatables for MessageToL1 {
+    fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable> {
+        let mut res = Vec::<MaybeRelocatable>::with_capacity(
+            MESSAGE_TO_L1_CONST_FIELD_SIZE + self.payload.0.len(),
+        );
+        res.push(Felt::from(self.from_address).into());
+        res.push(Felt::from(self.to_address).into());
+        res.push(Felt::from(self.payload.0.len()).into());
+        res.extend(self.payload.0.iter().map(|felt| felt.into()));
+        res
+    }
+}
+
+impl ToMaybeRelocatables for MessageToL2 {
+    fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable> {
+        let mut res = Vec::<MaybeRelocatable>::with_capacity(
+            MESSAGE_TO_L2_CONST_FIELD_SIZE + self.payload.0.len(),
+        );
+        res.push(Felt::from(self.from_address).into());
+        res.push(Felt::from(self.to_address).into());
+        res.push((self.nonce.0).into());
+        res.push((self.selector.0).into());
+        res.push(Felt::from(self.payload.0.len()).into());
+        res.extend(self.payload.0.iter().map(|felt| felt.into()));
+        res
+    }
+}
+
+impl<IG: IdentifierGetter, T: ToMaybeRelocatables> LoadCairoObject<IG> for T {
+    fn load_into(
+        &self,
+        vm: &mut VirtualMachine,
+        _identifier_getter: &IG,
+        address: Relocatable,
+        _constants: &std::collections::HashMap<String, Felt>,
+    ) -> VmUtilsResult<Relocatable> {
+        Ok(vm.load_data(address, &self.to_maybe_relocatables())?)
+    }
+}
 
 struct StateEntryManager {
     _state_entry_ptr: Relocatable,

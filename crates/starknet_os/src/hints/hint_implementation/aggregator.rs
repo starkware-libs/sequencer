@@ -16,7 +16,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 use crate::io::os_output::{wrap_missing, FullOsOutput, OsOutput};
 use crate::io::os_output_types::TryFromOutputIter;
-use crate::vm_utils::{IdentifierGetter, VmUtilsResult};
+use crate::vm_utils::{IdentifierGetter, LoadCairoObject, VmUtilsResult};
 
 pub(crate) fn allocate_segments_for_messages(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -44,13 +44,29 @@ pub(crate) fn disable_da_page_creation(
 
 /// Writes the given `FullOsOutput` to the VM at the specified address.
 fn write_full_os_output<IG: IdentifierGetter>(
-    _output: &FullOsOutput,
-    _vm: &mut VirtualMachine,
-    _identifier_getter: &IG,
+    output: &FullOsOutput,
+    vm: &mut VirtualMachine,
+    identifier_getter: &IG,
     _address: Relocatable,
-    _constants: &std::collections::HashMap<String, Felt>,
+    constants: &std::collections::HashMap<String, Felt>,
     _state_diff_writer: &mut FullStateDiffWriter,
 ) -> VmUtilsResult<Relocatable> {
+    let FullOsOutput { common_os_output, .. } = output;
+    let messages_to_l1_start = vm.add_temporary_segment();
+    let _messages_to_l1_end = common_os_output.messages_to_l1.load_into(
+        vm,
+        identifier_getter,
+        messages_to_l1_start,
+        constants,
+    )?;
+
+    let messages_to_l2_start = vm.add_temporary_segment();
+    let _messages_to_l2_end = common_os_output.messages_to_l2.load_into(
+        vm,
+        identifier_getter,
+        messages_to_l2_start,
+        constants,
+    )?;
     todo!()
 }
 
