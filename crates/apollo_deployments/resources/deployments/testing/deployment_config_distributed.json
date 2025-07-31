@@ -33,6 +33,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "Batcher": 55000,
         "MonitoringEndpoint": 8082
       }
     },
@@ -68,6 +69,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "ClassManager": 55001,
         "MonitoringEndpoint": 8082
       }
     },
@@ -103,6 +105,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "ClassManager": 55001,
         "MonitoringEndpoint": 8082
       }
     },
@@ -185,6 +188,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "Gateway": 55002,
         "MonitoringEndpoint": 8082
       }
     },
@@ -224,6 +228,9 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "L1EndpointMonitor": 55005,
+        "L1GasPriceProvider": 55003,
+        "L1Provider": 55004,
         "MonitoringEndpoint": 8082
       }
     },
@@ -260,6 +267,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "Mempool": 55006,
         "MonitoringEndpoint": 8082
       }
     },
@@ -295,6 +303,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "SierraCompiler": 55007,
         "MonitoringEndpoint": 8082
       }
     },
@@ -330,6 +339,7 @@
       "external_secret": null,
       "anti_affinity": false,
       "ports": {
+        "StateSync": 55009,
         "MonitoringEndpoint": 8082
       }
     }
