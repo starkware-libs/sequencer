@@ -10,7 +10,7 @@ use thiserror::Error;
 pub enum StateSyncError {
     #[error("Communication error between StateSync and StateSyncRunner")]
     RunnerCommunicationError,
-    #[error("Block number {0} was not found")]
+    #[error("Block number {0} was not found. State sync might not be synced up to this block.")]
     BlockNotFound(BlockNumber),
     #[error("Contract address {0} was not found")]
     ContractNotFound(ContractAddress),

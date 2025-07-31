@@ -7,7 +7,12 @@ use apollo_l1_gas_price_types::{
     DEFAULT_ETH_TO_FRI_RATE,
 };
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
-use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::communication::{
+    StateSyncClient,
+    StateSyncClientError,
+    StateSyncClientResult,
+};
+use apollo_state_sync_types::errors::StateSyncError;
 // TODO(Gilad): Define in consensus, either pass to blockifier as config or keep the dup.
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
@@ -50,28 +55,24 @@ pub(crate) struct GasPriceParams {
     pub l1_gas_tip_wei: GasPrice,
 }
 
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum StateSyncError {
-    #[error("State sync is not ready: {0}")]
-    NotReady(String),
-    #[error("State sync client error: {0}")]
-    ClientError(#[from] StateSyncClientError),
-}
-
-impl From<StateSyncError> for BuildProposalError {
-    fn from(e: StateSyncError) -> Self {
+impl From<StateSyncClientError> for BuildProposalError {
+    fn from(e: StateSyncClientError) -> Self {
         match e {
-            StateSyncError::NotReady(e) => BuildProposalError::StateSyncNotReady(e),
-            StateSyncError::ClientError(e) => BuildProposalError::StateSyncClientError(e),
+            StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(e)) => {
+                BuildProposalError::StateSyncNotReady(e)
+            }
+            e => BuildProposalError::StateSyncClientError(e.to_string()),
         }
     }
 }
 
-impl From<StateSyncError> for ValidateProposalError {
-    fn from(e: StateSyncError) -> Self {
+impl From<StateSyncClientError> for ValidateProposalError {
+    fn from(e: StateSyncClientError) -> Self {
         match e {
-            StateSyncError::NotReady(e) => ValidateProposalError::StateSyncNotReady(e),
-            StateSyncError::ClientError(e) => ValidateProposalError::StateSyncClientError(e),
+            StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(e)) => {
+                ValidateProposalError::StateSyncNotReady(e)
+            }
+            e => ValidateProposalError::StateSyncClientError(e.to_string()),
         }
     }
 }
@@ -185,23 +186,13 @@ pub(crate) fn convert_to_sn_api_block_info(
 pub(crate) async fn retrospective_block_hash(
     state_sync_client: Arc<dyn StateSyncClient>,
     block_info: &ConsensusBlockInfo,
-) -> Result<Option<BlockHashAndNumber>, StateSyncError> {
+) -> StateSyncClientResult<Option<BlockHashAndNumber>> {
     let retrospective_block_number = block_info.height.0.checked_sub(STORED_BLOCK_HASH_BUFFER);
     let retrospective_block_hash = match retrospective_block_number {
         Some(block_number) => {
             let block_number = BlockNumber(block_number);
-            let block = state_sync_client
-                // Getting the next block hash because the Sync block only contains parent hash.
-                .get_block(block_number.unchecked_next())
-                .await
-                .map_err(StateSyncError::ClientError)?
-                .ok_or(StateSyncError::NotReady(format!(
-                "Failed to get retrospective block number {block_number}"
-            )))?;
-            Some(BlockHashAndNumber {
-                number: block_number,
-                hash: block.block_header_without_hash.parent_hash,
-            })
+            let block_hash = state_sync_client.get_block_hash(block_number).await?;
+            Some(BlockHashAndNumber { number: block_number, hash: block_hash })
         }
         None => {
             info!(

@@ -16,6 +16,7 @@ use apollo_consensus::types::Round;
 use apollo_infra::component_client::ClientError;
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalInit, ProposalPart};
 use apollo_state_sync_types::communication::StateSyncClientError;
+use apollo_state_sync_types::errors::StateSyncError;
 use assert_matches::assert_matches;
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use futures::channel::mpsc;
@@ -155,7 +156,7 @@ async fn state_sync_client_error() {
     // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
     // Setup state sync client to return an error.
-    proposal_args.deps.state_sync_client.expect_get_block().returning(|_| {
+    proposal_args.deps.state_sync_client.expect_get_block_hash().returning(|_| {
         Err(StateSyncClientError::ClientError(ClientError::CommunicationFailure("".to_string())))
     });
 
@@ -169,7 +170,11 @@ async fn state_sync_not_ready_error() {
     // Make sure state_sync_client being called, by setting height to >= STORED_BLOCK_HASH_BUFFER.
     proposal_args.proposal_init.height = BlockNumber(STORED_BLOCK_HASH_BUFFER);
     // Setup state sync client to return None, indicating that the state sync is not ready.
-    proposal_args.deps.state_sync_client.expect_get_block().returning(|_| Ok(None));
+    proposal_args
+        .deps
+        .state_sync_client
+        .expect_get_block_hash()
+        .returning(|block_number| Err(StateSyncError::BlockNotFound(block_number).into()));
 
     let res = build_proposal(proposal_args.into()).await;
     assert!(matches!(res, Err(BuildProposalError::StateSyncNotReady(_))));
