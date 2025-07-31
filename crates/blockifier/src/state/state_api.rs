@@ -1,4 +1,5 @@
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
@@ -42,6 +43,7 @@ pub trait StateReader {
     fn get_compiled_class(&self, class_hash: ClassHash) -> StateResult<RunnableCompiledClass>;
 
     /// Returns the compiled class hash of the given class hash.
+    /// Returns CompiledClassHash::default() if no v1_class is found for the given class hash.
     fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash>;
 
     /// Returns the storage value representing the balance (in fee token) at the given address.
@@ -60,6 +62,22 @@ pub trait StateReader {
         let high = self.get_storage_at(fee_token_address, high_key)?;
 
         Ok((low, high))
+    }
+
+    /// Returns the compiled class hash (v2) of the given class hash.
+    /// Returns CompiledClassHash::default() if no v1_class is found for the given class hash.
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        // Hashable compiled class are Cairo 1 contracts.
+        let hashable_compiled_class = match self.get_compiled_class(class_hash) {
+            Ok(RunnableCompiledClass::V0(_)) | Err(StateError::UndeclaredClassHash(_)) => {
+                return Ok(CompiledClassHash::default());
+            }
+            Ok(RunnableCompiledClass::V1(class)) => class,
+            #[cfg(feature = "cairo_native")]
+            Ok(RunnableCompiledClass::V1Native(class)) => class,
+            Err(e) => return Err(e),
+        };
+        Ok(hashable_compiled_class.hash(&HashVersion::V2))
     }
 }
 
