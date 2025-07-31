@@ -453,7 +453,7 @@ pub fn create_deploy_account_tx_and_invoke_tx(
     let undeployed_account_tx_generator = tx_generator.account_with_id_mut(account_id);
     assert!(!undeployed_account_tx_generator.is_deployed());
     let deploy_tx = undeployed_account_tx_generator.generate_deploy_account();
-    let invoke_tx = undeployed_account_tx_generator.generate_invoke_with_tip(1);
+    let invoke_tx = undeployed_account_tx_generator.generate_trivial_rpc_invoke_tx(1);
     vec![deploy_tx, invoke_tx]
 }
 
@@ -463,7 +463,7 @@ pub fn create_invoke_txs(
     n_txs: usize,
 ) -> Vec<RpcTransaction> {
     (0..n_txs)
-        .map(|_| tx_generator.account_with_id_mut(account_id).generate_invoke_with_tip(1))
+        .map(|_| tx_generator.account_with_id_mut(account_id).generate_trivial_rpc_invoke_tx(1))
         .collect()
 }
 
