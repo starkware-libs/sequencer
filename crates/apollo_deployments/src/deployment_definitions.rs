@@ -8,7 +8,7 @@ use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use starknet_api::block::BlockNumber;
-use strum::EnumIter;
+use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
 use strum_macros::{Display, EnumString};
 use url::Url;
 
@@ -168,40 +168,86 @@ impl StateSyncType {
     }
 }
 
-#[derive(Clone, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
-pub enum ServicePort {
+#[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
+pub enum BusinessLogicServicePort {
+    ConsensusManager,
+    HttpServer,
+    MempoolP2p,
+    MonitoringEndpoint,
+}
+
+impl BusinessLogicServicePort {
+    pub fn get_port(&self) -> u16 {
+        match self {
+            BusinessLogicServicePort::ConsensusManager => CONSENSUS_MANAGER_PORT,
+            BusinessLogicServicePort::HttpServer => HTTP_SERVER_PORT,
+            BusinessLogicServicePort::MempoolP2p => MEMPOOL_P2P_PORT,
+            BusinessLogicServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
+        }
+    }
+}
+
+// TODO(Nadin): Integrate this logic with `ComponentConfigInService` once the merge from main-14.0
+// is complete.
+#[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
+pub enum InfraServicePort {
     Batcher,
     ClassManager,
-    ConsensusManager,
     Gateway,
     L1EndpointMonitor,
     L1GasPriceProvider,
     L1Provider,
     Mempool,
-    MempoolP2p,
     SierraCompiler,
     StateSync,
-    HttpServer,
-    MonitoringEndpoint,
+}
+
+impl InfraServicePort {
+    pub fn get_port(&self) -> u16 {
+        match self {
+            InfraServicePort::Batcher => BATCHER_PORT,
+            InfraServicePort::ClassManager => CLASS_MANAGER_PORT,
+            InfraServicePort::Gateway => GATEWAY_PORT,
+            InfraServicePort::L1EndpointMonitor => L1_ENDPOINT_MONITOR_PORT,
+            InfraServicePort::L1GasPriceProvider => L1_GAS_PRICE_PROVIDER_PORT,
+            InfraServicePort::L1Provider => L1_PROVIDER_PORT,
+            InfraServicePort::Mempool => MEMPOOL_PORT,
+            InfraServicePort::SierraCompiler => SIERRA_COMPILER_PORT,
+            InfraServicePort::StateSync => STATE_SYNC_PORT,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Display, Ord, PartialEq, Eq, PartialOrd, EnumDiscriminants)]
+pub enum ServicePort {
+    Infra(InfraServicePort),
+    BusinessLogic(BusinessLogicServicePort),
+}
+
+impl serde::Serialize for ServicePort {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            ServicePort::Infra(port) => serde::Serialize::serialize(port, serializer),
+            ServicePort::BusinessLogic(port) => serde::Serialize::serialize(port, serializer),
+        }
+    }
 }
 
 impl ServicePort {
     pub fn get_port(&self) -> u16 {
         match self {
-            ServicePort::Batcher => BATCHER_PORT,
-            ServicePort::ClassManager => CLASS_MANAGER_PORT,
-            ServicePort::ConsensusManager => CONSENSUS_MANAGER_PORT,
-            ServicePort::Gateway => GATEWAY_PORT,
-            ServicePort::L1EndpointMonitor => L1_ENDPOINT_MONITOR_PORT,
-            ServicePort::L1GasPriceProvider => L1_GAS_PRICE_PROVIDER_PORT,
-            ServicePort::L1Provider => L1_PROVIDER_PORT,
-            ServicePort::Mempool => MEMPOOL_PORT,
-            ServicePort::MempoolP2p => MEMPOOL_P2P_PORT,
-            ServicePort::SierraCompiler => SIERRA_COMPILER_PORT,
-            ServicePort::StateSync => STATE_SYNC_PORT,
-            ServicePort::HttpServer => HTTP_SERVER_PORT,
-            ServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
+            ServicePort::Infra(inner) => inner.get_port(),
+            ServicePort::BusinessLogic(inner) => inner.get_port(),
         }
+    }
+
+    pub fn iter() -> impl Iterator<Item = ServicePort> {
+        InfraServicePort::iter()
+            .map(ServicePort::Infra)
+            .chain(BusinessLogicServicePort::iter().map(ServicePort::BusinessLogic))
     }
 }
 
