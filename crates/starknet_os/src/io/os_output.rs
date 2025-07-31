@@ -403,20 +403,15 @@ fn get_raw_output(
         output_base.to_isize().expect("Output segment index unexpectedly exceeds isize::MAX"),
         0,
     ));
-    let range_of_output = vm.get_range(output_address, output_size);
+    let range_of_output = vm
+        .get_continuous_range(output_address, output_size)
+        .map_err(VirtualMachineError::Memory)?;
     range_of_output
-        .iter()
+        .into_iter()
         .map(|x| match x {
-            Some(cow) => match **cow {
-                MaybeRelocatable::Int(val) => Ok(val),
-                MaybeRelocatable::RelocatableValue(val) => {
-                    Err(StarknetOsError::VirtualMachineError(
-                        VirtualMachineError::ExpectedIntAtRange(Box::new(Some(val.into()))),
-                    ))
-                }
-            },
-            None => Err(StarknetOsError::VirtualMachineError(
-                MemoryError::MissingMemoryCells(BuiltinName::output.into()).into(),
+            MaybeRelocatable::Int(val) => Ok(val),
+            MaybeRelocatable::RelocatableValue(val) => Err(StarknetOsError::VirtualMachineError(
+                VirtualMachineError::ExpectedIntAtRange(Box::new(Some(val.into()))),
             )),
         })
         .collect()
