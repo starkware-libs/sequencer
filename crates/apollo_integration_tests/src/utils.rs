@@ -11,6 +11,7 @@ use apollo_class_manager::config::{
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
+use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::converters::UrlAndHeaders;
 use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use apollo_consensus::types::ValidatorId;
@@ -27,6 +28,7 @@ use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::eth_to_strk_oracle::{EthToStrkOracleConfig, ETH_TO_STRK_QUANTIZATION};
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
+use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
@@ -36,7 +38,9 @@ use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
 use apollo_node::config::component_config::ComponentConfig;
+use apollo_node::config::component_execution_config::ExpectedComponentConfig;
 use apollo_node::config::definitions::ConfigPointersMap;
+use apollo_node::config::monitoring::MonitoringConfig;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use apollo_rpc::RpcConfig;
 use apollo_state_sync::config::StateSyncConfig;
@@ -170,7 +174,7 @@ pub fn create_node_config(
     consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
-    component_config: ComponentConfig,
+    components: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
     block_max_capacity_sierra_gas: GasAmount,
     validator_id: ValidatorId,
@@ -220,6 +224,9 @@ pub fn create_node_config(
     state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
     let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
 
+    let l1_gas_price_scraper_config = L1GasPriceScraperConfig::default();
+    let sierra_compiler_config = SierraCompilationConfig::default();
+
     // Update config pointer values.
     let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
     config_pointers_map.change_target_value(
@@ -248,24 +255,66 @@ pub fn create_node_config(
         "starknet_url",
         to_value(starknet_url).expect("Failed to serialize starknet_url"),
     );
+
+    // Obtain only required configs.
+
+    // A helper macro that wraps the config in `Some(...)` if `components.<field>` expects it;
+    // otherwise returns `None`. Assumes `components` is in scope.
+    macro_rules! wrap_if_component_config_expected {
+        ($component_field:ident, $config_field:expr) => {{
+            if components.$component_field.is_component_config_expected() {
+                Some($config_field)
+            } else {
+                None
+            }
+        }};
+    }
+
+    let base_layer_config = Some(base_layer_config);
+    let batcher_config = wrap_if_component_config_expected!(batcher, batcher_config);
+    let class_manager_config =
+        wrap_if_component_config_expected!(class_manager, class_manager_config);
+    let consensus_manager_config =
+        wrap_if_component_config_expected!(consensus_manager, consensus_manager_config);
+    let gateway_config = wrap_if_component_config_expected!(gateway, gateway_config);
+    let http_server_config = wrap_if_component_config_expected!(http_server, http_server_config);
+    let l1_endpoint_monitor_config =
+        wrap_if_component_config_expected!(l1_endpoint_monitor, l1_endpoint_monitor_config);
+    let l1_gas_price_provider_config =
+        wrap_if_component_config_expected!(l1_gas_price_provider, l1_gas_price_provider_config);
+    let l1_gas_price_scraper_config =
+        wrap_if_component_config_expected!(l1_gas_price_scraper, l1_gas_price_scraper_config);
+    let l1_provider_config = wrap_if_component_config_expected!(l1_provider, l1_provider_config);
+    let l1_scraper_config = wrap_if_component_config_expected!(l1_scraper, l1_scraper_config);
+    let mempool_config = wrap_if_component_config_expected!(mempool, mempool_config);
+    let mempool_p2p_config = wrap_if_component_config_expected!(mempool_p2p, mempool_p2p_config);
+    let monitoring_endpoint_config =
+        wrap_if_component_config_expected!(monitoring_endpoint, monitoring_endpoint_config);
+    let monitoring_config = MonitoringConfig::default();
+    let sierra_compiler_config =
+        wrap_if_component_config_expected!(sierra_compiler, sierra_compiler_config);
+    let state_sync_config = wrap_if_component_config_expected!(state_sync, state_sync_config);
+
     (
         SequencerNodeConfig {
-            base_layer_config: Some(base_layer_config),
-            batcher_config: Some(batcher_config),
-            class_manager_config: Some(class_manager_config),
-            consensus_manager_config: Some(consensus_manager_config),
-            gateway_config: Some(gateway_config),
-            http_server_config: Some(http_server_config),
-            mempool_config: Some(mempool_config),
-            mempool_p2p_config: Some(mempool_p2p_config),
-            monitoring_endpoint_config: Some(monitoring_endpoint_config),
-            state_sync_config: Some(state_sync_config),
-            components: component_config,
-            l1_scraper_config: Some(l1_scraper_config),
-            l1_provider_config: Some(l1_provider_config),
-            l1_endpoint_monitor_config: Some(l1_endpoint_monitor_config),
-            l1_gas_price_provider_config: Some(l1_gas_price_provider_config),
-            ..Default::default()
+            base_layer_config,
+            batcher_config,
+            class_manager_config,
+            components,
+            consensus_manager_config,
+            gateway_config,
+            http_server_config,
+            l1_endpoint_monitor_config,
+            l1_gas_price_provider_config,
+            l1_gas_price_scraper_config,
+            l1_provider_config,
+            l1_scraper_config,
+            mempool_config,
+            mempool_p2p_config,
+            monitoring_endpoint_config,
+            monitoring_config,
+            sierra_compiler_config,
+            state_sync_config,
         },
         config_pointers_map,
     )
