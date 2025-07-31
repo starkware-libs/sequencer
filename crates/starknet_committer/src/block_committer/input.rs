@@ -91,6 +91,12 @@ impl ConfigImpl {
     }
 }
 
+impl Default for ConfigImpl {
+    fn default() -> Self {
+        Self { warn_on_trivial_modifications: false, log_level: LevelFilter::DEBUG }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct Input<C: Config> {
     /// All relevant information for the state diff commitment.
