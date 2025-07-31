@@ -57,8 +57,6 @@ use crate::tests::{
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
 
-const MAX_IDLE_CONNECTION: usize = usize::MAX;
-const IDLE_TIMEOUT: u64 = 90;
 const MOCK_SERVER_ERROR: &str = "mock server error";
 const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
@@ -361,12 +359,7 @@ async fn retry_request() {
     // The initial server state is 'false', hence the first attempt returns an error and
     // sets the server state to 'true'. The second attempt (first retry) therefore returns a
     // 'success', while setting the server state to 'false' yet again.
-    let retry_config = RemoteClientConfig {
-        retries: 1,
-        idle_connections: MAX_IDLE_CONNECTION,
-        idle_timeout: IDLE_TIMEOUT,
-        ..Default::default()
-    };
+    let retry_config = RemoteClientConfig { retries: 1, ..Default::default() };
     let a_client_retry = ComponentAClient::new(
         retry_config,
         &socket.ip().to_string(),
@@ -376,12 +369,7 @@ async fn retry_request() {
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
     // The current server state is 'false', hence the first and only attempt returns an error.
-    let no_retry_config = RemoteClientConfig {
-        retries: 0,
-        idle_connections: MAX_IDLE_CONNECTION,
-        idle_timeout: IDLE_TIMEOUT,
-        ..Default::default()
-    };
+    let no_retry_config = RemoteClientConfig { retries: 0, ..Default::default() };
     let a_client_no_retry = ComponentAClient::new(
         no_retry_config,
         &socket.ip().to_string(),
