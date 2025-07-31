@@ -83,7 +83,10 @@ pub(crate) enum BuildProposalError {
     L1GasPriceProvider(#[from] L1GasPriceClientError),
     #[error("Proposal interrupted.")]
     Interrupted,
-    #[error("Writing blob to Aerospike failed. {0}")]
+    // TODO(shahak): Add the CENDE_FAILURE warn logs into the error and erase them.
+    #[error(
+        "Writing blob to Aerospike failed. {0}. For more info search CENDE_FAILURE in the logs"
+    )]
     CendeWriteError(String),
     #[error("Failed to convert transactions: {0}")]
     TransactionConverterError(#[from] TransactionConverterError),
