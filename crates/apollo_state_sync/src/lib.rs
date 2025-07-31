@@ -44,7 +44,7 @@ pub fn create_state_sync_and_runner(
 pub struct StateSync {
     storage_reader: StorageReader,
     new_block_sender: Sender<SyncBlock>,
-    _starknet_client: Option<Box<dyn StarknetReader + Send>>,
+    starknet_client: Option<Box<dyn StarknetReader + Send + Sync>>,
 }
 
 impl StateSync {
@@ -55,7 +55,7 @@ impl StateSync {
     ) -> Self {
         let starknet_client = config.central_sync_client_config.map(|config| {
             let config = config.central_source_config;
-            let starknet_client: Box<dyn StarknetReader + Send> = Box::new(
+            let starknet_client: Box<dyn StarknetReader + Send + Sync> = Box::new(
                 StarknetFeederGatewayClient::new(
                     config.starknet_url.as_ref(),
                     config.http_headers,
@@ -68,7 +68,7 @@ impl StateSync {
             );
             starknet_client
         });
-        Self { storage_reader, new_block_sender, _starknet_client: starknet_client }
+        Self { storage_reader, new_block_sender, starknet_client }
     }
 }
 
@@ -82,7 +82,7 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
                 StateSyncResponse::GetBlock(self.get_block(block_number).map(Box::new))
             }
             StateSyncRequest::GetBlockHash(block_number) => {
-                StateSyncResponse::GetBlockHash(self.get_block_hash(block_number))
+                StateSyncResponse::GetBlockHash(self.get_block_hash(block_number).await)
             }
             StateSyncRequest::AddNewBlock(sync_block) => StateSyncResponse::AddNewBlock(
                 self.new_block_sender.send(*sync_block).await.map_err(StateSyncError::from),
@@ -149,10 +149,16 @@ impl StateSync {
         })
     }
 
-    fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
+    async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
         // Getting the next block because the Sync block only contains parent hash.
-        let block = self.get_block(block_number.unchecked_next())?;
-        Ok(block.block_header_without_hash.parent_hash)
+        match (self.get_block(block_number.unchecked_next()), self.starknet_client.as_ref()) {
+            (Ok(block), _) => Ok(block.block_header_without_hash.parent_hash),
+            (Err(StateSyncError::BlockNotFound(_)), Some(starknet_client)) => starknet_client
+                .block_hash(block_number)
+                .await?
+                .ok_or(StateSyncError::BlockNotFound(block_number)),
+            (Err(err), _) => Err(err),
+        }
     }
 
     fn get_storage_at(
