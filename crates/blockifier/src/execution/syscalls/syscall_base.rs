@@ -54,6 +54,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     exceeds_event_size_limit,
     SyscallBaseResult,
     SyscallExecutorBaseError,
+    SyscallUsageMap,
     TryExtractRevert,
 };
 use crate::state::state_api::State;
@@ -85,6 +86,8 @@ pub struct SyscallHandlerBase<'state> {
     // Should be moved back `context.revert_info` before executing an inner call.
     pub original_values: HashMap<StorageKey, Felt>,
 
+    pub syscalls_usage: SyscallUsageMap,
+
     revert_info_idx: usize,
 }
 
@@ -112,6 +115,7 @@ impl<'state> SyscallHandlerBase<'state> {
             inner_calls: Vec::new(),
             storage_access_tracker: StorageAccessTracker::default(),
             original_values,
+            syscalls_usage: SyscallUsageMap::new(),
             revert_info_idx,
         }
     }

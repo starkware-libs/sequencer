@@ -94,7 +94,7 @@ fn create_callinfo(
     // Retrieve the builtin counts from the syscall handler
     let version_constants = syscall_handler.base.context.versioned_constants();
     let syscall_builtin_counts = version_constants
-        .get_additional_os_syscall_resources(&syscall_handler.syscalls_usage)
+        .get_additional_os_syscall_resources(&syscall_handler.base.syscalls_usage)
         .filter_unused_builtins()
         .prover_builtins();
     let entry_point_builtins = builtin_stats_to_builtin_counter_map(call_result.builtin_stats);
