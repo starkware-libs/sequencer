@@ -293,7 +293,7 @@ impl SingleHeightConsensus {
                     // Only replay the newest precommit.
                     return Ok(ShcReturn::Tasks(Vec::new()));
                 }
-                debug!("Rebroadcasting {last_vote:?}");
+                trace!("Rebroadcasting {last_vote:?}");
                 context.broadcast(last_vote.clone()).await?;
                 Ok(ShcReturn::Tasks(vec![ShcTask::Precommit(
                     self.timeouts.precommit_timeout,
