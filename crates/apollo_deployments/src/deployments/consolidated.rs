@@ -121,7 +121,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
                 ServicePort::BusinessLogic(bl_port) => match bl_port {
                     BusinessLogicServicePort::MonitoringEndpoint
                     | BusinessLogicServicePort::HttpServer
-                    | BusinessLogicServicePort::ConsensusManager
+                    | BusinessLogicServicePort::ConsensusP2P
                     | BusinessLogicServicePort::MempoolP2p => {
                         service_ports.insert(service_port);
                     }

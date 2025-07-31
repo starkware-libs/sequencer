@@ -333,7 +333,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     match service_port {
                         ServicePort::BusinessLogic(bl_port) => match bl_port {
                             BusinessLogicServicePort::MonitoringEndpoint
-                            | BusinessLogicServicePort::ConsensusManager => {
+                            | BusinessLogicServicePort::ConsensusP2P => {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
@@ -363,7 +363,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                             | BusinessLogicServicePort::HttpServer => {
                                 service_ports.insert(service_port);
                             }
-                            BusinessLogicServicePort::ConsensusManager
+                            BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -388,7 +388,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -415,7 +415,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -442,7 +442,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
@@ -469,7 +469,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                                 service_ports.insert(service_port);
                             }
                             BusinessLogicServicePort::HttpServer
-                            | BusinessLogicServicePort::ConsensusManager
+                            | BusinessLogicServicePort::ConsensusP2P
                             | BusinessLogicServicePort::MempoolP2p => {}
                         },
                         ServicePort::Infra(infra_port) => match infra_port {
