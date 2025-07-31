@@ -25,7 +25,7 @@ use apollo_state_sync::{create_state_sync_and_runner, StateSync};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
 use papyrus_base_layer::monitored_base_layer::MonitoredEthereumBaseLayer;
 use papyrus_base_layer::BaseLayerContract;
-use tracing::{debug, info, warn};
+use tracing::{debug, info};
 
 use crate::clients::SequencerNodeClients;
 use crate::config::component_execution_config::{
@@ -359,11 +359,47 @@ pub async fn create_node_components(
                 clients.get_batcher_shared_client().unwrap(),
                 clients.get_state_sync_shared_client().unwrap(),
             );
-            match &l1_scraper {
-                Some(l1_scraper) => {
-                    let l1_scraper_start_l1_height = l1_scraper.last_l1_block_processed.number;
-                    let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
-                    let scraper_synced_startup_height = base_layer
+            if l1_provider_config.dummy_mode {
+                let batcher_height = batcher
+                    .as_ref()
+                    .expect(
+                        "L1 provider's dummy mode initialization requires the batcher to be set \
+                         up in order to align to its height",
+                    )
+                    .get_height()
+                    .await
+                    .unwrap()
+                    .height;
+                info!(
+                    "L1 provider dummy mode startup height set at batcher height: {batcher_height}"
+                );
+                // Helps keep override use more structured, prevents bugs.
+                assert!(
+                    l1_provider_config
+                        .provider_startup_height_override
+                        .xor(l1_provider_config.bootstrap_catch_up_height_override)
+                        .is_none(),
+                    "Configuration error: overriding only one of startup_height={startup:?} or \
+                     catchup_height={catchup:?} is not supported in l1 provider's dummy mode. \
+                     Either set neither (this is the preferred way) which sets both values to the \
+                     batcher height, or set both if you have a specific startup flow in mind.",
+                    startup = l1_provider_config.provider_startup_height_override,
+                    catchup = l1_provider_config.bootstrap_catch_up_height_override
+                );
+                Some(
+                    l1_provider_builder
+                        .startup_height(batcher_height)
+                        .catchup_height(batcher_height)
+                        .build(),
+                )
+            } else {
+                let l1_scraper = l1_scraper.as_ref().expect(
+                    "L1 provider's initialization requires the L1 scraper to be set up in order \
+                     to align to its height",
+                );
+                let l1_scraper_start_l1_height = l1_scraper.last_l1_block_processed.number;
+                let base_layer = EthereumBaseLayerContract::new(base_layer_config.clone());
+                let scraper_synced_startup_height = base_layer
                         .get_proved_block_at(l1_scraper_start_l1_height)
                         .await
                         .map(|block| block.number)
@@ -378,50 +414,11 @@ pub async fn create_node_components(
                             instead (read its docstring before using!).\n {err}")})
                         .ok();
 
-                    if let Some(height) = scraper_synced_startup_height {
-                        l1_provider_builder = l1_provider_builder.startup_height(height);
-                    }
-
-                    Some(l1_provider_builder.build())
+                if let Some(height) = scraper_synced_startup_height {
+                    l1_provider_builder = l1_provider_builder.startup_height(height);
                 }
-                None => {
-                    warn!("L1 Scraper is disabled, initialize L1 provider in dummy mode");
-                    let batcher_height = batcher
-                        .as_ref()
-                        .expect(
-                            "L1 provider's dummy mode initialization requires the batcher to be \
-                             set up in order to align to its height",
-                        )
-                        .get_height()
-                        .await
-                        .unwrap()
-                        .height;
-                    info!(
-                        "L1 provider dummy mode startup height set at batcher height: \
-                         {batcher_height}"
-                    );
 
-                    // Helps keep override use more structured, prevents bugs.
-                    assert!(
-                        l1_provider_config
-                            .provider_startup_height_override
-                            .xor(l1_provider_config.bootstrap_catch_up_height_override)
-                            .is_none(),
-                        "Configuration error: overriding only one of startup_height={startup:?} \
-                         or catchup_height={catchup:?} is not supported in l1 provider's dummy \
-                         mode. Either set neither (this is the preferred way) which sets both \
-                         values to the batcher height, or set both if you have a specific startup \
-                         flow in mind.",
-                        startup = l1_provider_config.provider_startup_height_override,
-                        catchup = l1_provider_config.bootstrap_catch_up_height_override
-                    );
-                    Some(
-                        l1_provider_builder
-                            .startup_height(batcher_height)
-                            .catchup_height(batcher_height)
-                            .build(),
-                    )
-                }
+                Some(l1_provider_builder.build())
             }
         }
         ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
