@@ -22,6 +22,7 @@ use serde_json;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{debug, info, instrument, warn};
 use url::Url;
+use validator::Validate;
 
 use crate::metrics::{
     register_eth_to_strk_metrics,
@@ -47,7 +48,7 @@ fn btreemap_to_headermap(hash_map: BTreeMap<String, String>) -> HeaderMap {
     header_map
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Validate)]
 pub struct EthToStrkOracleConfig {
     #[serde(deserialize_with = "deserialize_optional_list_with_url_and_headers")]
     pub url_header_list: Option<Vec<UrlAndHeaders>>,

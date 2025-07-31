@@ -24,6 +24,7 @@ use apollo_gateway::config::GatewayConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
+use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
@@ -202,6 +203,8 @@ pub struct SequencerNodeConfig {
     #[validate]
     pub l1_provider_config: Option<L1ProviderConfig>,
     #[validate]
+    pub eth_to_strk_oracle_config: Option<EthToStrkOracleConfig>,
+    #[validate]
     pub l1_scraper_config: Option<L1ScraperConfig>,
     #[validate]
     pub mempool_config: Option<MempoolConfig>,
@@ -240,6 +243,7 @@ impl SerializeConfig for SequencerNodeConfig {
                 &self.l1_gas_price_scraper_config,
                 "l1_gas_price_scraper_config",
             ),
+            ser_optional_sub_config(&self.eth_to_strk_oracle_config, "eth_to_strk_oracle_config"),
             ser_optional_sub_config(&self.l1_provider_config, "l1_provider_config"),
             ser_optional_sub_config(&self.l1_scraper_config, "l1_scraper_config"),
             ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
@@ -266,6 +270,7 @@ impl Default for SequencerNodeConfig {
             l1_endpoint_monitor_config: Some(L1EndpointMonitorConfig::default()),
             l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
             l1_gas_price_scraper_config: Some(L1GasPriceScraperConfig::default()),
+            eth_to_strk_oracle_config: Some(EthToStrkOracleConfig::default()),
             l1_provider_config: Some(L1ProviderConfig::default()),
             l1_scraper_config: Some(L1ScraperConfig::default()),
             mempool_config: Some(MempoolConfig::default()),

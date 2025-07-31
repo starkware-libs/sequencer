@@ -168,6 +168,7 @@ pub fn create_node_config(
     storage_config: StorageTestConfig,
     mut state_sync_config: StateSyncConfig,
     consensus_manager_config: ConsensusManagerConfig,
+    eth_to_strk_oracle_config: EthToStrkOracleConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
     component_config: ComponentConfig,
@@ -265,6 +266,7 @@ pub fn create_node_config(
             l1_provider_config: Some(l1_provider_config),
             l1_endpoint_monitor_config: Some(l1_endpoint_monitor_config),
             l1_gas_price_provider_config: Some(l1_gas_price_provider_config),
+            eth_to_strk_oracle_config: Some(eth_to_strk_oracle_config),
             ..Default::default()
         },
         config_pointers_map,
@@ -304,15 +306,6 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
             },
             cende_config: CendeConfig{
                 skip_write_height: Some(BlockNumber(1)),
-                ..Default::default()
-            },
-            eth_to_strk_oracle_config: EthToStrkOracleConfig {
-                url_header_list: Some(vec![
-                    UrlAndHeaders{
-                        url: Url::parse("https://eth_to_strk_oracle_url").expect("Should be a valid URL"),
-                        headers: Default::default(),
-                    }
-                ]),
                 ..Default::default()
             },
             assume_no_malicious_validators: true,
