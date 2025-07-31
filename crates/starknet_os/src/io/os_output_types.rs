@@ -1,7 +1,9 @@
+use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::{Felt, NonZeroFelt};
 
+use crate::hints::hint_implementation::aggregator_utils::ToMaybeRelocatables;
 use crate::hints::hint_implementation::stateless_compression::utils::decompress;
 use crate::io::os_output::{
     felt_as_bool,
@@ -129,6 +131,12 @@ impl TryFromOutputIter for PartialCompiledClassHashUpdate {
                 "new_compiled_class_hash",
             )?),
         })
+    }
+}
+
+impl ToMaybeRelocatables for FullContractStorageUpdate {
+    fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable> {
+        vec![Felt::from(self.key).into(), self.prev_value.into(), self.new_value.into()]
     }
 }
 
