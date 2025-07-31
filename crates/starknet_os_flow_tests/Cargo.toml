@@ -10,8 +10,10 @@ license-file.workspace = true
 blockifier.workspace = true
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
+starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
+starknet_os.workspace = true
 starknet_patricia.workspace = true
 starknet_patricia_storage = { workspace = true, features = ["testing"] }
 

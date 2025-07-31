@@ -36,3 +36,10 @@ pub(crate) struct InitialState<S: FlowTestState> {
     pub(crate) contracts_trie_root_hash: HashOutput,
     pub(crate) classes_trie_root_hash: HashOutput,
 }
+
+/// Creates the initial state for the flow test which includes:
+/// Declares token and account contracts.
+/// Deploys both contracts and funds the account.
+pub(crate) async fn create_default_initial_state_data<S: FlowTestState>() -> InitialStateData<S> {
+    todo!()
+}
