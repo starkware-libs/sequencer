@@ -24,8 +24,6 @@ const N_UPDATES_SMALL_PACKING_BOUND: NonZeroFelt =
     NonZeroFelt::from_felt_unchecked(Felt::from_hex_unchecked("100")); // 2^8.
 const FLAG_BOUND: NonZeroFelt = NonZeroFelt::TWO;
 
-// Cairo DictAccess types for concrete objects.
-
 pub(crate) trait TryFromOutputIter {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         iter: &mut It,
@@ -47,6 +45,31 @@ impl<T: TryFromOutputIter> TryFromOutputIter for Vec<T> {
         Ok(items)
     }
 }
+/// Corresponds to the Cairo DictAccess struct.
+pub(crate) trait DictEntry {
+    type Key: Copy;
+    type Value: Copy;
+
+    fn key(&self) -> Self::Key;
+    fn prev_value(&self) -> Self::Value;
+    fn new_value(&self) -> Self::Value;
+}
+
+impl<T: DictEntry> ToMaybeRelocatables for T
+where
+    Felt: From<<T as DictEntry>::Key>,
+    Felt: From<<T as DictEntry>::Value>,
+{
+    fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable> {
+        vec![
+            Felt::from(self.key()).into(),
+            Felt::from(self.prev_value()).into(),
+            Felt::from(self.new_value()).into(),
+        ]
+    }
+}
+
+// Cairo DictAccess types for concrete objects.
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
@@ -55,6 +78,23 @@ pub(crate) struct FullContractStorageUpdate {
     pub(crate) key: StorageKey,
     pub(crate) prev_value: Felt,
     pub(crate) new_value: Felt,
+}
+
+impl DictEntry for FullContractStorageUpdate {
+    type Key = StorageKey;
+    type Value = Felt;
+
+    fn key(&self) -> Self::Key {
+        self.key
+    }
+
+    fn prev_value(&self) -> Self::Value {
+        self.prev_value
+    }
+
+    fn new_value(&self) -> Self::Value {
+        self.new_value
+    }
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
@@ -134,9 +174,20 @@ impl TryFromOutputIter for PartialCompiledClassHashUpdate {
     }
 }
 
-impl ToMaybeRelocatables for FullContractStorageUpdate {
-    fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable> {
-        vec![Felt::from(self.key).into(), self.prev_value.into(), self.new_value.into()]
+impl DictEntry for FullCompiledClassHashUpdate {
+    type Key = ClassHash;
+    type Value = CompiledClassHash;
+
+    fn key(&self) -> Self::Key {
+        self.class_hash
+    }
+
+    fn prev_value(&self) -> Self::Value {
+        self.prev_compiled_class_hash
+    }
+
+    fn new_value(&self) -> Self::Value {
+        self.next_compiled_class_hash
     }
 }
 
