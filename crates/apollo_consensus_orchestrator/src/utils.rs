@@ -55,32 +55,8 @@ pub(crate) struct GasPriceParams {
     pub l1_gas_tip_wei: GasPrice,
 }
 
-<<<<<<< HEAD
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum StateSyncError {
-    #[error("State sync is not ready: {0}")]
-    NotReady(String),
-    #[error("State sync client error: {0}")]
-    ClientError(#[from] StateSyncClientError),
-}
-
-impl From<StateSyncError> for BuildProposalError {
-    fn from(e: StateSyncError) -> Self {
-||||||| parent of 7ee8efd5b (apollo_state_sync: add get_block_hash and change get_block to return BlockNotFound (#8089))
-#[derive(Debug, thiserror::Error)]
-pub enum StateSyncError {
-    #[error("State sync is not ready: {0}")]
-    NotReady(String),
-    #[error("State sync client error: {0}")]
-    ClientError(#[from] StateSyncClientError),
-}
-
-impl From<StateSyncError> for BuildProposalError {
-    fn from(e: StateSyncError) -> Self {
-=======
 impl From<StateSyncClientError> for BuildProposalError {
     fn from(e: StateSyncClientError) -> Self {
->>>>>>> 7ee8efd5b (apollo_state_sync: add get_block_hash and change get_block to return BlockNotFound (#8089))
         match e {
             StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(e)) => {
                 BuildProposalError::StateSyncNotReady(e)
@@ -215,26 +191,8 @@ pub(crate) async fn retrospective_block_hash(
     let retrospective_block_hash = match retrospective_block_number {
         Some(block_number) => {
             let block_number = BlockNumber(block_number);
-<<<<<<< HEAD
-            let block = state_sync_client
-                // Getting the next block hash because the Sync block only contains parent hash.
-                .get_block(block_number.unchecked_next())
-                .await
-                .map_err(StateSyncError::ClientError)?
-                .ok_or(StateSyncError::NotReady(format!(
-                "Failed to get retrospective block number {block_number}"
-            )))?;
-            Some(BlockHashAndNumber {
-                number: block_number,
-                hash: block.block_header_without_hash.parent_hash,
-            })
-||||||| parent of 7ee8efd5b (apollo_state_sync: add get_block_hash and change get_block to return BlockNotFound (#8089))
-            let block_hash = get_block_hash(state_sync_client, block_number).await?;
-            Ok(Some(BlockHashAndNumber { number: block_number, hash: block_hash }))
-=======
             let block_hash = state_sync_client.get_block_hash(block_number).await?;
-            Ok(Some(BlockHashAndNumber { number: block_number, hash: block_hash }))
->>>>>>> 7ee8efd5b (apollo_state_sync: add get_block_hash and change get_block to return BlockNotFound (#8089))
+            Some(BlockHashAndNumber { number: block_number, hash: block_hash })
         }
         None => {
             info!(
