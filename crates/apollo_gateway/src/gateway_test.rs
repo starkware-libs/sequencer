@@ -610,3 +610,23 @@ async fn process_tx_transaction_validations(
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
 }
+
+#[rstest]
+#[tokio::test]
+async fn process_tx_instantiate_validator(
+    mut mock_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+) {
+    let error_code = StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into());
+    let expected_error = StarknetError {
+        code: error_code.clone(),
+        message: "placeholder".into(), // Message is not checked
+    };
+    mock_validator_factory.expect_instantiate_validator().return_once(|_, _| Err(expected_error));
+
+    let process_tx_task = process_tx_task(mock_validator_factory);
+
+    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
+
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err().code, error_code);
+}
