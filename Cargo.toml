@@ -76,6 +76,7 @@ members = [
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
   "crates/starknet_os",
+  "crates/starknet_os_flow_tests",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
   "toml_test_utils",
@@ -296,6 +297,7 @@ starknet_api = { path = "crates/starknet_api", version = "0.0.0" }
 starknet_committer.path = "crates/starknet_committer"
 starknet_committer_and_os_cli.path = "crates/starknet_committer_and_os_cli"
 starknet_os.path = "crates/starknet_os"
+starknet_os_flow_tests.path = "crates/starknet_os_flow_tests"
 starknet_patricia.path = "crates/starknet_patricia"
 starknet_patricia_storage.path = "crates/starknet_patricia_storage"
 static_assertions = "1.1.0"

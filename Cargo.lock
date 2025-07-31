@@ -12298,6 +12298,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "starknet_os_flow_tests"
+version = "0.0.0"
+dependencies = [
+ "blockifier",
+]
+
+[[package]]
 name = "starknet_patricia"
 version = "0.0.0"
 dependencies = [
