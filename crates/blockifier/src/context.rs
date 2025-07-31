@@ -117,10 +117,10 @@ impl GasCounter {
 #[derive(Clone, Debug)]
 pub struct BlockContext {
     // TODO(Yoni, 1/10/2024): consider making these fields public.
-    pub(crate) block_info: BlockInfo,
-    pub(crate) chain_info: ChainInfo,
-    pub(crate) versioned_constants: VersionedConstants,
-    pub(crate) bouncer_config: BouncerConfig,
+    pub block_info: BlockInfo,
+    pub chain_info: ChainInfo,
+    pub versioned_constants: VersionedConstants,
+    pub bouncer_config: BouncerConfig,
 }
 
 impl BlockContext {

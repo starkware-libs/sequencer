@@ -6,10 +6,10 @@ use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
-use crate::state::cached_state::StorageEntry;
+use crate::state::cached_state::{ContractClassMapping, StateMaps, StorageEntry};
 use crate::state::errors::StateError;
 use crate::state::global_cache::CompiledClasses;
-use crate::state::state_api::{StateReader, StateResult};
+use crate::state::state_api::{StateReader, StateResult, UpdatableState};
 use crate::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use crate::test_utils::contracts::FeatureContractData;
 
@@ -115,5 +115,25 @@ impl FetchCompiledClasses for DictStateReader {
             Some(class) => !matches!(class, RunnableCompiledClass::V0(_)),
             None => false,
         })
+    }
+}
+
+impl UpdatableState for DictStateReader {
+    fn apply_writes(&mut self, writes: &StateMaps, class_hash_to_class: &ContractClassMapping) {
+        for (key, value) in &writes.storage {
+            self.storage_view.insert(*key, *value);
+        }
+        for (address, nonce) in &writes.nonces {
+            self.address_to_nonce.insert(*address, *nonce);
+        }
+        for (address, class_hash) in &writes.class_hashes {
+            self.address_to_class_hash.insert(*address, *class_hash);
+        }
+        for (class_hash, compiled_class_hash) in &writes.compiled_class_hashes {
+            self.class_hash_to_compiled_class_hash.insert(*class_hash, *compiled_class_hash);
+        }
+        for (class_hash, class) in class_hash_to_class {
+            self.class_hash_to_class.insert(*class_hash, class.clone());
+        }
     }
 }

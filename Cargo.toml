@@ -75,6 +75,7 @@ members = [
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
   "crates/starknet_os",
+  "crates/starknet_os_flow_tests",
   "crates/starknet_patricia",
   "crates/starknet_patricia_storage",
   "toml_test_utils",
