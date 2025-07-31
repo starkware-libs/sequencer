@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
+use strum_macros::AsRefStr;
 use thiserror::Error;
 
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
@@ -157,7 +158,7 @@ pub enum SierraCompilerClientError {
     SierraCompilerError(#[from] SierraCompilerError),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, AsRefStr)]
 pub enum SierraCompilerRequest {
     Compile(RawClass),
 }
