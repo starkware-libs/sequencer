@@ -25,6 +25,18 @@ mod upgrade_test;
 
 type DeploymentFn = fn() -> Vec<Deployment>;
 
+const BATCHER_PORT: u16 = 55000;
+const CLASS_MANAGER_PORT: u16 = 55001;
+const CONSENSUS_MANAGER_PORT: u16 = 53080;
+const GATEWAY_PORT: u16 = 55002;
+const L1_ENDPOINT_MONITOR_PORT: u16 = 55005;
+const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;
+const L1_PROVIDER_PORT: u16 = 55004;
+const MEMPOOL_PORT: u16 = 55006;
+const MEMPOOL_P2P_PORT: u16 = 53200;
+const SIERRA_COMPILER_PORT: u16 = 55007;
+const STATE_SYNC_PORT: u16 = 55009;
+
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     || load_and_create_hybrid_deployments(POTC2_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(MAINNET_DEPLOYMENT_INPUTS_PATH),
@@ -176,17 +188,17 @@ pub enum ServicePort {
 impl ServicePort {
     pub fn get_port(&self) -> u16 {
         match self {
-            ServicePort::Batcher => 0,
-            ServicePort::ClassManager => 0,
-            ServicePort::ConsensusManager => 0,
-            ServicePort::Gateway => 0,
-            ServicePort::L1EndpointMonitor => 0,
-            ServicePort::L1GasPriceProvider => 0,
-            ServicePort::L1Provider => 0,
-            ServicePort::Mempool => 0,
-            ServicePort::MempoolP2p => 0,
-            ServicePort::SierraCompiler => 0,
-            ServicePort::StateSync => 0,
+            ServicePort::Batcher => BATCHER_PORT,
+            ServicePort::ClassManager => CLASS_MANAGER_PORT,
+            ServicePort::ConsensusManager => CONSENSUS_MANAGER_PORT,
+            ServicePort::Gateway => GATEWAY_PORT,
+            ServicePort::L1EndpointMonitor => L1_ENDPOINT_MONITOR_PORT,
+            ServicePort::L1GasPriceProvider => L1_GAS_PRICE_PROVIDER_PORT,
+            ServicePort::L1Provider => L1_PROVIDER_PORT,
+            ServicePort::Mempool => MEMPOOL_PORT,
+            ServicePort::MempoolP2p => MEMPOOL_P2P_PORT,
+            ServicePort::SierraCompiler => SIERRA_COMPILER_PORT,
+            ServicePort::StateSync => STATE_SYNC_PORT,
             ServicePort::HttpServer => HTTP_SERVER_PORT,
             ServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
         }
