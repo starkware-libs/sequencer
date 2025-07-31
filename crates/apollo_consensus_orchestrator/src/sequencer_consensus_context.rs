@@ -41,14 +41,8 @@ use apollo_protobuf::consensus::{
     Vote,
     DEFAULT_VALIDATOR_ID,
 };
-<<<<<<< HEAD
-use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
-||||||| parent of 7ee8efd5b (apollo_state_sync: add get_block_hash and change get_block to return BlockNotFound (#8089))
-use apollo_state_sync_types::communication::StateSyncClient;
-=======
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
 use apollo_state_sync_types::errors::StateSyncError;
->>>>>>> 7ee8efd5b (apollo_state_sync: add get_block_hash and change get_block to return BlockNotFound (#8089))
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_time::time::Clock;
 use async_trait::async_trait;
