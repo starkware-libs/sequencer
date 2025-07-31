@@ -131,56 +131,6 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
 #[rstest]
 #[case(
     Input {
-        storage: HashMap::from([
-            // Roots.
-            create_root_edge_entry(29, SubTreeHeight::new(3)),
-            create_root_edge_entry(55, SubTreeHeight::new(3)),
-            create_root_edge_entry(155, SubTreeHeight::new(3)),
-            create_root_edge_entry(861, SubTreeHeight::new(3)),
-            // Contracts trie inner nodes.
-            create_binary_entry(303, 1),
-            create_binary_entry(277, 277),
-            create_edge_entry(304, 0, 1),
-            create_edge_entry(554, 1, 1),
-            create_binary_entry(305, 556),
-            // Contracts trie leaves.
-            create_contract_state_leaf_entry(277),
-            create_contract_state_leaf_entry(303),
-            create_contract_state_leaf_entry(1),
-            // Classes trie inner nodes.
-            create_binary_entry(33, 47),
-            create_edge_entry(72, 1, 1),
-            create_binary_entry(80, 74),
-            create_edge_entry(154, 0, 1),
-            // Classes trie leaves.
-            create_compiled_class_leaf_entry(33),
-            create_compiled_class_leaf_entry(47),
-            create_compiled_class_leaf_entry(72),
-            // Storage tries #6, #7 inner nodes.
-            create_binary_entry(10, 2),
-            create_edge_entry(3, 1, 1),
-            create_binary_entry(4, 7),
-            create_edge_entry(12, 0, 1),
-            create_binary_entry(5, 11),
-            create_binary_entry(13, 16),
-            // Storage tries #6, #7 leaves.
-            create_storage_leaf_entry(2),
-            create_storage_leaf_entry(3),
-            create_storage_leaf_entry(4),
-            create_storage_leaf_entry(7),
-            create_storage_leaf_entry(10),
-            // Storage trie #0 inner nodes.
-            create_binary_entry(8, 9),
-            create_edge_entry(16, 1, 1),
-            create_edge_entry(15, 3, 2),
-            create_binary_entry(17, 18),
-            create_binary_entry(35, 20),
-            // Storage trie #0 leaves.
-            create_storage_leaf_entry(8),
-            create_storage_leaf_entry(9),
-            create_storage_leaf_entry(15),
-            create_storage_leaf_entry(16),
-        ]),
         state_diff: StateDiff {
             storage_updates: create_storage_updates(&[
                 (7, &[0, 3, 5]),
@@ -193,7 +143,58 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
         contracts_trie_root_hash: HashOutput(Felt::from(861_u128 + 248_u128)),
         classes_trie_root_hash: HashOutput(Felt::from(155_u128 + 248_u128)),
         config: ConfigImpl::new(true, LevelFilter::DEBUG),
-    }, OriginalSkeletonForest{
+    },
+    HashMap::from([
+        // Roots.
+        create_root_edge_entry(29, SubTreeHeight::new(3)),
+        create_root_edge_entry(55, SubTreeHeight::new(3)),
+        create_root_edge_entry(155, SubTreeHeight::new(3)),
+        create_root_edge_entry(861, SubTreeHeight::new(3)),
+        // Contracts trie inner nodes.
+        create_binary_entry(303, 1),
+        create_binary_entry(277, 277),
+        create_edge_entry(304, 0, 1),
+        create_edge_entry(554, 1, 1),
+        create_binary_entry(305, 556),
+        // Contracts trie leaves.
+        create_contract_state_leaf_entry(277),
+        create_contract_state_leaf_entry(303),
+        create_contract_state_leaf_entry(1),
+        // Classes trie inner nodes.
+        create_binary_entry(33, 47),
+        create_edge_entry(72, 1, 1),
+        create_binary_entry(80, 74),
+        create_edge_entry(154, 0, 1),
+        // Classes trie leaves.
+        create_compiled_class_leaf_entry(33),
+        create_compiled_class_leaf_entry(47),
+        create_compiled_class_leaf_entry(72),
+        // Storage tries #6, #7 inner nodes.
+        create_binary_entry(10, 2),
+        create_edge_entry(3, 1, 1),
+        create_binary_entry(4, 7),
+        create_edge_entry(12, 0, 1),
+        create_binary_entry(5, 11),
+        create_binary_entry(13, 16),
+        // Storage tries #6, #7 leaves.
+        create_storage_leaf_entry(2),
+        create_storage_leaf_entry(3),
+        create_storage_leaf_entry(4),
+        create_storage_leaf_entry(7),
+        create_storage_leaf_entry(10),
+        // Storage trie #0 inner nodes.
+        create_binary_entry(8, 9),
+        create_edge_entry(16, 1, 1),
+        create_edge_entry(15, 3, 2),
+        create_binary_entry(17, 18),
+        create_binary_entry(35, 20),
+        // Storage trie #0 leaves.
+        create_storage_leaf_entry(8),
+        create_storage_leaf_entry(9),
+        create_storage_leaf_entry(15),
+        create_storage_leaf_entry(16),
+        ]),
+     OriginalSkeletonForest{
         classes_trie: OriginalSkeletonTreeImpl {
             nodes: create_expected_skeleton_nodes(
                         vec![
@@ -291,6 +292,7 @@ pub(crate) fn create_contract_state_leaf_entry(val: u128) -> (DbKey, DbValue) {
 )]
 fn test_create_original_skeleton_forest(
     #[case] input: Input<ConfigImpl>,
+    #[case] mut storage: HashMap<DbKey, DbValue>,
     #[case] expected_forest: OriginalSkeletonForest<'_>,
     #[case] expected_original_contracts_trie_leaves: HashMap<ContractAddress, ContractState>,
     #[case] expected_storage_tries_sorted_indices: HashMap<u128, Vec<u128>>,
@@ -307,8 +309,9 @@ fn test_create_original_skeleton_forest(
         contracts_trie_sorted_indices: SortedLeafIndices::new(&mut contracts_trie_indices),
         classes_trie_sorted_indices: SortedLeafIndices::new(&mut classes_trie_indices),
     };
+
     let (actual_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-        MapStorage::from(input.storage),
+        MapStorage { storage: &mut storage },
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &input.state_diff.actual_storage_updates(),

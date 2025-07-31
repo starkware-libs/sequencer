@@ -36,7 +36,7 @@ use tracing::{debug, error, info, warn};
 
 use super::utils::parse_from_python::TreeFlowInput;
 use crate::committer_cli::filled_tree_output::filled_forest::SerializedForest;
-use crate::committer_cli::parse_input::cast::InputImpl;
+use crate::committer_cli::parse_input::cast::CommitterInputImpl;
 use crate::committer_cli::parse_input::read::parse_input;
 use crate::committer_cli::tests::utils::parse_from_python::parse_input_single_storage_tree_flow_test;
 use crate::committer_cli::tests::utils::random_structs::DummyRandomValue;
@@ -152,9 +152,10 @@ impl PythonTestRunner for CommitterPythonTestRunner {
             }
             Self::ComputeHashSingleTree => {
                 // 1. Get and deserialize input.
-                let TreeFlowInput { leaf_modifications, storage, root_hash } =
+                let TreeFlowInput { leaf_modifications, mut storage, root_hash } =
                     serde_json::from_str(Self::non_optional_input(input)?)?;
                 // 2. Run the test.
+                let storage = MapStorage { storage: &mut storage };
                 let output = single_tree_flow_test::<StarknetStorageValue, TreeHashFunctionImpl>(
                     leaf_modifications,
                     storage,
@@ -194,7 +195,7 @@ fn serialize_for_rust_committer_flow_test(input: HashMap<String, String>) -> Str
 
     // Create a json string to compare with the expected string in python.
     serde_json::to_string(&json!(
-        {"leaf_modifications": leaf_modifications_to_print, "storage": storage.storage, "root_hash": root_hash.0}
+        {"leaf_modifications": leaf_modifications_to_print, "storage": storage, "root_hash": root_hash.0}
     )).expect("serialization failed")
 }
 
@@ -285,8 +286,10 @@ pub(crate) fn parse_input_test(committer_input: String) -> CommitterPythonTestRe
     })?))
 }
 
-fn create_output_to_python(actual_input: InputImpl) -> String {
-    let (storage_keys_hash, storage_values_hash) = hash_storage(&actual_input.storage);
+fn create_output_to_python(
+    CommitterInputImpl { input: actual_input, storage }: CommitterInputImpl,
+) -> String {
+    let (storage_keys_hash, storage_values_hash) = hash_storage(&storage);
     let (state_diff_keys_hash, state_diff_values_hash) = hash_state_diff(&actual_input.state_diff);
     format!(
         r#"
@@ -303,7 +306,7 @@ fn create_output_to_python(actual_input: InputImpl) -> String {
         "state_diff_keys_hash": {:?},
         "state_diff_values_hash": {:?}
         }}"#,
-        actual_input.storage.len(),
+        storage.len(),
         actual_input.state_diff.address_to_class_hash.len(),
         actual_input.state_diff.address_to_nonce.len(),
         actual_input.state_diff.class_hash_to_compiled_class_hash.len(),
@@ -461,7 +464,8 @@ pub(crate) fn test_node_db_key() -> String {
 /// serializes it to a JSON string using Serde,
 /// and returns the serialized JSON string or panics with an error message if serialization fails.
 pub(crate) fn storage_serialize_test() -> CommitterPythonTestResult {
-    let mut storage = MapStorage { storage: HashMap::new() };
+    let mut storage = HashMap::new();
+    let mut storage = MapStorage { storage: &mut storage };
     for i in 0..=99_u128 {
         let key = DbKey(Felt::from(i).to_bytes_be().to_vec());
         let value = DbValue(Felt::from(i).to_bytes_be().to_vec());
@@ -498,7 +502,8 @@ fn python_hash_constants_compare() -> String {
 /// success, or an error if keys are missing or parsing fails.
 fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult {
     // Create a storage to store the nodes.
-    let mut rust_fact_storage = MapStorage { storage: HashMap::new() };
+    let mut storage = HashMap::new();
+    let mut rust_fact_storage = MapStorage { storage: &mut storage };
 
     // Parse the binary node data from the input.
     let binary_json = get_or_key_not_found(&data, "binary")?;
@@ -608,7 +613,9 @@ fn test_storage_node(data: HashMap<String, String>) -> CommitterPythonTestResult
 /// Generates a dummy random filled forest and serializes it to a JSON string.
 pub(crate) fn filled_forest_output_test() -> CommitterPythonTestResult {
     let dummy_forest = SerializedForest(FilledForest::dummy_random(&mut rand::thread_rng(), None));
-    let output = dummy_forest.forest_to_output();
+    let mut storage = HashMap::new();
+    let map_storage = MapStorage { storage: &mut storage };
+    let output = dummy_forest.forest_to_output(map_storage);
     let output_string = serde_json::to_string(&output).expect("Failed to serialize");
     Ok(output_string)
 }
