@@ -14,7 +14,11 @@ use crate::io::os_output::{
     MESSAGE_TO_L1_CONST_FIELD_SIZE,
     MESSAGE_TO_L2_CONST_FIELD_SIZE,
 };
-use crate::io::os_output_types::{FullContractChanges, FullContractStorageUpdate};
+use crate::io::os_output_types::{
+    FullCompiledClassHashUpdate,
+    FullContractChanges,
+    FullContractStorageUpdate,
+};
 use crate::vm_utils::{LoadIntoVmMemory, VmUtilsResult};
 
 #[cfg(test)]
@@ -149,7 +153,9 @@ pub(crate) struct FullStateDiffWriter {
     // of {contract address: (prev_state, new_state)}. A state is a triplet represented by the
     // StateEntry cairo struct.
     state_dict_ptr: Relocatable,
-    _class_dict_ptr: Relocatable,
+    // A pointer to the end (first free memory cell) of a (cairo) dict for class hash updates:
+    // {class_hash: (prev_compiled_class_hash, new_compiled_class_hash)}.
+    class_dict_ptr: Relocatable,
     // A dict from class hash to a representation dict: from storage key to StateEntry (class_hash,
     // storage_dict_ptr, nonce).
     inner_storage: HashMap<MaybeRelocatable, StateEntryManager>,
@@ -159,7 +165,7 @@ impl FullStateDiffWriter {
     pub(crate) fn new(vm: &mut VirtualMachine) -> Self {
         Self {
             state_dict_ptr: vm.add_memory_segment(),
-            _class_dict_ptr: vm.add_memory_segment(),
+            class_dict_ptr: vm.add_memory_segment(),
             inner_storage: HashMap::new(),
         }
     }
@@ -168,8 +174,8 @@ impl FullStateDiffWriter {
         self.state_dict_ptr
     }
 
-    pub(crate) fn _get_class_dict_ptr(&self) -> Relocatable {
-        self._class_dict_ptr
+    pub(crate) fn get_class_dict_ptr(&self) -> Relocatable {
+        self.class_dict_ptr
     }
 
     pub(crate) fn write_contract_changes(
@@ -205,6 +211,15 @@ impl FullStateDiffWriter {
         self.state_dict_ptr = vm.load_data(self.state_dict_ptr, &state_dict)?;
         Ok(())
     }
+
+    pub(crate) fn write_classes_changes(
+        &mut self,
+        classes: &Vec<FullCompiledClassHashUpdate>,
+        vm: &mut VirtualMachine,
+    ) -> VmUtilsResult<()> {
+        self.class_dict_ptr = classes.load_into_vm_memory(vm, self.class_dict_ptr)?;
+        Ok(())
+    }
 }
 
 /// Writes the given `FullOsOutput` to the VM at the specified address.
@@ -226,6 +241,9 @@ fn write_full_os_output(
     // See StateEntryManager::storage_dict_ptr for an explanation about storage_dict_ptr.
     let _state_dict_ptr_start = state_diff_writer.get_state_dict_ptr();
     state_diff_writer.write_contract_changes(&state_diff.contracts, vm)?;
+
+    let _class_dict_ptr_start = state_diff_writer.get_class_dict_ptr();
+    state_diff_writer.write_classes_changes(&state_diff.classes, vm)?;
     todo!("Finish implementation.");
 }
 
