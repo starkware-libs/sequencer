@@ -62,6 +62,9 @@ fn write_full_os_output(
     // See StateEntryManager::storage_dict_ptr for an explanation about storage_dict_ptr.
     let _state_dict_ptr_start = state_diff_writer.get_state_dict_ptr();
     state_diff_writer.write_contract_changes(&state_diff.contracts, vm)?;
+
+    let _class_dict_ptr_start = state_diff_writer.get_class_dict_ptr();
+    state_diff_writer.write_classes_changes(&state_diff.classes, vm)?;
     todo!("Finish implementation.");
 }
 
