@@ -16,7 +16,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 use crate::io::os_output::{wrap_missing, FullOsOutput, OsOutput};
 use crate::io::os_output_types::TryFromOutputIter;
-use crate::vm_utils::{IdentifierGetter, LoadCairoObject, VmUtilsResult};
+use crate::vm_utils::{LoadCairoObjectStateless, VmUtilsResult};
 
 pub(crate) fn allocate_segments_for_messages(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -43,36 +43,26 @@ pub(crate) fn disable_da_page_creation(
 }
 
 /// Writes the given `FullOsOutput` to the VM at the specified address.
-fn write_full_os_output<IG: IdentifierGetter>(
+fn write_full_os_output(
     output: &FullOsOutput,
     vm: &mut VirtualMachine,
-    identifier_getter: &IG,
     _address: Relocatable,
-    constants: &std::collections::HashMap<String, Felt>,
     _state_diff_writer: &mut FullStateDiffWriter,
 ) -> VmUtilsResult<Relocatable> {
     let FullOsOutput { common_os_output, .. } = output;
     let messages_to_l1_start = vm.add_temporary_segment();
-    let _messages_to_l1_end = common_os_output.messages_to_l1.load_into(
-        vm,
-        identifier_getter,
-        messages_to_l1_start,
-        constants,
-    )?;
+    let _messages_to_l1_end =
+        common_os_output.messages_to_l1.load_into_stateless(vm, messages_to_l1_start)?;
 
     let messages_to_l2_start = vm.add_temporary_segment();
-    let _messages_to_l2_end = common_os_output.messages_to_l2.load_into(
-        vm,
-        identifier_getter,
-        messages_to_l2_start,
-        constants,
-    )?;
+    let _messages_to_l2_end =
+        common_os_output.messages_to_l2.load_into_stateless(vm, messages_to_l2_start)?;
     todo!()
 }
 
 pub(crate) fn get_os_output_for_inner_blocks(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let mut bootloader_iter = hint_processor.input.bootloader_output.clone().into_iter();
     let n_outputs = wrap_missing(bootloader_iter.next(), "n_output")?;
@@ -105,14 +95,8 @@ pub(crate) fn get_os_output_for_inner_blocks(
         get_ptr_from_var_name(Ids::OsOutputs.into(), vm, ids_data, ap_tracking)?;
     let mut contract_changes_writer = FullStateDiffWriter::new(vm);
     for output in outputs.into_iter() {
-        os_output_ptr = write_full_os_output(
-            &output,
-            vm,
-            hint_processor.program,
-            os_output_ptr,
-            constants,
-            &mut contract_changes_writer,
-        )?;
+        os_output_ptr =
+            write_full_os_output(&output, vm, os_output_ptr, &mut contract_changes_writer)?;
     }
     Ok(())
 }

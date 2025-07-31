@@ -10,7 +10,7 @@ use crate::io::os_output::{
     MESSAGE_TO_L1_CONST_FIELD_SIZE,
     MESSAGE_TO_L2_CONST_FIELD_SIZE,
 };
-use crate::vm_utils::{IdentifierGetter, LoadCairoObject, VmUtilsResult};
+use crate::vm_utils::{LoadCairoObjectStateless, VmUtilsResult};
 
 pub(crate) trait ToMaybeRelocatables {
     fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable>;
@@ -44,13 +44,11 @@ impl ToMaybeRelocatables for MessageToL2 {
     }
 }
 
-impl<IG: IdentifierGetter, T: ToMaybeRelocatables> LoadCairoObject<IG> for T {
-    fn load_into(
+impl<T: ToMaybeRelocatables> LoadCairoObjectStateless for T {
+    fn load_into_stateless(
         &self,
         vm: &mut VirtualMachine,
-        _identifier_getter: &IG,
         address: Relocatable,
-        _constants: &std::collections::HashMap<String, Felt>,
     ) -> VmUtilsResult<Relocatable> {
         Ok(vm.load_data(address, &self.to_maybe_relocatables())?)
     }
