@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
-    TransactionConverterError,
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
@@ -36,7 +35,11 @@ use starknet_api::rpc_transaction::{
 use tracing::{debug, error, info, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
-use crate::errors::{mempool_client_result_to_deprecated_gw_result, GatewayResult};
+use crate::errors::{
+    mempool_client_result_to_deprecated_gw_result,
+    transaction_converter_err_to_deprecated_gw_err,
+    GatewayResult,
+};
 use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -195,15 +198,7 @@ impl ProcessTxBlockingTask {
             .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
             .map_err(|e| {
                 warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                match e {
-                    TransactionConverterError::ValidateCompiledClassHashError(err) => {
-                        convert_compiled_class_hash_error(err)
-                    }
-                    other => {
-                        // TODO(yair): Fix this. Need to map the errors better.
-                        StarknetError::internal(&other.to_string())
-                    }
-                }
+                transaction_converter_err_to_deprecated_gw_err(e)
             })?;
 
         let executable_tx = self
@@ -217,8 +212,7 @@ impl ProcessTxBlockingTask {
                     "Failed to convert internal RPC transaction to executable transaction: {}",
                     e
                 );
-                // TODO(yair): Fix this.
-                StarknetError::internal(&e.to_string())
+                transaction_converter_err_to_deprecated_gw_err(e)
             })?;
 
         let mut validator = self
@@ -250,7 +244,10 @@ impl ProcessTxBlockingTask {
     }
 }
 
-fn convert_compiled_class_hash_error(error: ValidateCompiledClassHashError) -> StarknetError {
+// TODO(noamsp): Move to errors.rs.
+pub(crate) fn convert_compiled_class_hash_error(
+    error: ValidateCompiledClassHashError,
+) -> StarknetError {
     let ValidateCompiledClassHashError::CompiledClassHashMismatch {
         computed_class_hash,
         supplied_class_hash,
