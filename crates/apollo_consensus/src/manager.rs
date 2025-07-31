@@ -451,7 +451,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
         match message.height.cmp(&height.0) {
             std::cmp::Ordering::Greater => {
-                debug!("Cache message for a future height. {:?}", message);
+                trace!("Cache message for a future height. {:?}", message);
                 self.future_votes.entry(message.height).or_default().push(message);
                 Ok(ShcReturn::Tasks(Vec::new()))
             }
