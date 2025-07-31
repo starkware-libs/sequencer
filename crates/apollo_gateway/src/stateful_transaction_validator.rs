@@ -38,17 +38,24 @@ mod stateful_transaction_validator_test;
 
 type BlockifierStatefulValidator = StatefulValidator<Box<dyn MempoolStateReader>>;
 
+#[cfg_attr(test, mockall::automock)]
+pub trait StatefulTransactionValidatorFactoryTrait: Send + Sync {
+    fn instantiate_validator(
+        &self,
+        state_reader_factory: &dyn StateReaderFactory,
+        chain_info: &ChainInfo,
+    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>>;
+}
 pub struct StatefulTransactionValidatorFactory {
     pub config: StatefulTransactionValidatorConfig,
 }
 
-impl StatefulTransactionValidatorFactory {
-    pub fn instantiate_validator(
+impl StatefulTransactionValidatorFactoryTrait for StatefulTransactionValidatorFactory {
+    fn instantiate_validator(
         &self,
         state_reader_factory: &dyn StateReaderFactory,
         chain_info: &ChainInfo,
-    ) -> StatefulTransactionValidatorResult<StatefulTransactionValidator<BlockifierStatefulValidator>>
-    {
+    ) -> StatefulTransactionValidatorResult<Box<dyn StatefulTransactionValidatorTrait>> {
         // TODO(yael 6/5/2024): consider storing the block_info as part of the
         // StatefulTransactionValidator and update it only once a new block is created.
         let latest_block_info = get_latest_block_info(state_reader_factory)?;
@@ -71,13 +78,14 @@ impl StatefulTransactionValidatorFactory {
         let blockifier_stateful_tx_validator =
             BlockifierStatefulValidator::create(state, block_context);
 
-        Ok(StatefulTransactionValidator {
+        Ok(Box::new(StatefulTransactionValidator {
             config: self.config.clone(),
             blockifier_stateful_tx_validator,
-        })
+        }))
     }
 }
 
+#[cfg_attr(test, mockall::automock)]
 pub trait StatefulTransactionValidatorTrait {
     fn run_transaction_validations(
         &mut self,
