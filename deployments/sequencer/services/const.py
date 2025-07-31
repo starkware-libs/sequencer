@@ -44,3 +44,6 @@ HPA_MAX_REPLICAS = 100
 
 SECRETS_FILE_NAME = "secrets.json"
 SECRETS_MOUNT_PATH = "/etc/secrets"
+
+AFFINITY_HOSTNAME_TOPOLOGY = {"key": "kubernetes.io/hostname", "weight": 100}
+AFFINITY_ZONE_TOPOLOGY = {"key": "topology.kubernetes.io/zone", "weight": 50}
