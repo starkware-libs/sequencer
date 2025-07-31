@@ -1,0 +1,12 @@
+[package]
+name = "starknet_os_flow_tests"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+license-file.workspace = true
+
+[dependencies]
+blockifier.workspace = true
+[lints]
+workspace = true
