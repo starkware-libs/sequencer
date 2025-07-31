@@ -12321,6 +12321,8 @@ version = "0.0.0"
 dependencies = [
  "blockifier",
  "blockifier_test_utils",
+ "cairo-lang-starknet-classes",
+ "starknet_api",
  "starknet_committer",
  "starknet_patricia",
  "starknet_patricia_storage",
