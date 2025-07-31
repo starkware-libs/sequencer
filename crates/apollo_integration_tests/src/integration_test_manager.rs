@@ -98,6 +98,7 @@ pub struct NodeSetup {
     batcher_index: usize,
     http_server_index: usize,
     state_sync_index: usize,
+    consensus_manager_index: usize,
 
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
@@ -117,6 +118,7 @@ impl NodeSetup {
         batcher_index: usize,
         http_server_index: usize,
         state_sync_index: usize,
+        consensus_manager_index: usize,
         add_tx_http_client: HttpTestClient,
         storage_handles: StorageTestHandles,
     ) -> Self {
@@ -135,12 +137,14 @@ impl NodeSetup {
         validate_index(batcher_index, len, "Batcher");
         validate_index(http_server_index, len, "HTTP server");
         validate_index(state_sync_index, len, "State sync");
+        validate_index(consensus_manager_index, len, "Consensus manager");
 
         Self {
             executables,
             batcher_index,
             http_server_index,
             state_sync_index,
+            consensus_manager_index,
             add_tx_http_client,
             storage_handles,
         }
@@ -156,6 +160,10 @@ impl NodeSetup {
 
     pub fn state_sync_monitoring_client(&self) -> &MonitoringClient {
         &self.executables[self.state_sync_index].monitoring_client
+    }
+
+    pub fn consensus_manager_monitoring_client(&self) -> &MonitoringClient {
+        &self.executables[self.consensus_manager_index].monitoring_client
     }
 
     pub fn get_executables(&self) -> &Vec<ExecutableSetup> {
@@ -911,6 +919,7 @@ pub async fn get_sequencer_setup_configs(
         let http_server_index = node_component_config.get_http_server_index();
         let state_sync_index = node_component_config.get_state_sync_index();
         let class_manager_index = node_component_config.get_class_manager_index();
+        let consensus_manager_index = node_component_config.get_consensus_manager_index();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
@@ -982,6 +991,7 @@ pub async fn get_sequencer_setup_configs(
             batcher_index,
             http_server_index,
             state_sync_index,
+            consensus_manager_index,
             add_tx_http_client,
             storage_setup.storage_handles,
         ));
