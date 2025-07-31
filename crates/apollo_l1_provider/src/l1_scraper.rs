@@ -1,13 +1,20 @@
 use std::any::type_name;
+use std::fmt::Debug;
 
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::{debug_every_n, info_every_n_sec};
+use apollo_l1_endpoint_monitor_types::SharedL1EndpointMonitorClient;
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
 use async_trait::async_trait;
 use itertools::zip_eq;
 use papyrus_base_layer::constants::EventIdentifier;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+};
+use papyrus_base_layer::monitored_base_layer::{MonitoredBaseLayer, MonitoredEthereumBaseLayer};
 use papyrus_base_layer::{BaseLayerContract, L1BlockNumber, L1BlockReference, L1Event};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
@@ -15,6 +22,7 @@ use tokio::time::sleep;
 use tracing::{debug, info, instrument, trace, warn};
 
 use crate::config::L1ScraperConfig;
+use crate::event_identifiers_to_track;
 use crate::metrics::{
     register_scraper_metrics,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
@@ -212,20 +220,45 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 }
 
-pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
+pub async fn create_l1_scraper(
+    l1_scraper_config: L1ScraperConfig,
+    l1_provider_client: SharedL1ProviderClient,
+    l1_endpoint_monitor_client: SharedL1EndpointMonitorClient,
+    base_layer_config: EthereumBaseLayerConfig,
+) -> L1Scraper<MonitoredBaseLayer<EthereumBaseLayerContract>> {
+    let initial_node_url = base_layer_config.node_url.clone();
+    let base_layer = EthereumBaseLayerContract::new(base_layer_config);
+    let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config).await;
+
+    let monitored_base_layer =
+        MonitoredEthereumBaseLayer::new(base_layer, l1_endpoint_monitor_client, initial_node_url);
+
+    L1Scraper::new(
+        l1_scraper_config,
+        l1_provider_client,
+        monitored_base_layer,
+        event_identifiers_to_track(),
+        l1_start_block,
+    )
+    .await
+    .unwrap()
+}
+
+pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync + Debug>(
     base_layer: &B,
     config: &L1ScraperConfig,
-) -> Result<L1BlockReference, L1ScraperError<B>> {
+) -> L1BlockReference {
     let finality = config.finality;
     let latest_l1_block_number = base_layer
         .latest_l1_block_number(finality)
         .await
-        .map_err(L1ScraperError::BaseLayerError)?;
+        .expect("Failed to fetch latest L1 block number");
 
     let latest_l1_block = match latest_l1_block_number {
         Some(latest_l1_block_number) => Ok(latest_l1_block_number),
         None => Err(L1ScraperError::finality_too_high(finality, base_layer).await),
-    }?;
+    }
+    .expect("Latest L1 block number's finality is too high.");
 
     // Estimate the number of blocks in the interval, to rewind from the latest block.
     let blocks_in_interval = config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
@@ -237,12 +270,12 @@ pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
     let block_reference_rewind = base_layer
         .l1_block_at(l1_block_number_rewind)
         .await
-        .map_err(L1ScraperError::BaseLayerError)?
+        .expect("Failed to fetch L1 block reference for rewind")
         .expect(
             "Rewound L1 block number is between 0 and the verified latest L1 block, so should \
              exist",
         );
-    Ok(block_reference_rewind)
+    block_reference_rewind
 }
 
 #[async_trait]
