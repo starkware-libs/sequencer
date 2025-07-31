@@ -253,9 +253,7 @@ pub(crate) fn convert_compiled_class_hash_error(
         supplied_class_hash,
     } = error;
     StarknetError {
-        code: StarknetErrorCode::UnknownErrorCode(
-            "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
-        ),
+        code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::InvalidCompiledClassHash),
         message: format!(
             "Computed compiled class hash: {computed_class_hash} does not match the given value: \
              {supplied_class_hash}.",
