@@ -1,5 +1,4 @@
 use apollo_config::presentation::get_config_presentation;
-use apollo_config::validators::config_validate;
 use apollo_config::ConfigError;
 use tracing::info;
 
@@ -28,7 +27,7 @@ pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig
         config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {}", err));
     info!("Finished loading configuration.");
 
-    if let Err(error) = config_validate(&config) {
+    if let Err(error) = config.validate_node_config() {
         panic!("Config validation failed: {}", error);
     }
     info!("Finished validating configuration.");
