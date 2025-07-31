@@ -149,7 +149,7 @@ const GET_COMPILED_CLASS_BY_CLASS_HASH_URL: &str =
     "feeder_gateway/get_compiled_class_by_class_hash";
 const GET_STATE_UPDATE_URL: &str = "feeder_gateway/get_state_update";
 const BLOCK_NUMBER_QUERY: &str = "blockNumber";
-const ONLY_HEADER_QUERY: &str = "onlyHeader";
+const HEADER_ONLY_QUERY: &str = "headerOnly";
 const FEE_MARKET_INFO_QUERY: &str = "withFeeMarketInfo";
 const LATEST_BLOCK_NUMBER: &str = "latest";
 const CLASS_HASH_QUERY: &str = "classHash";
@@ -232,7 +232,7 @@ impl StarknetFeederGatewayClient {
         let mut get_block_url = self.urls.get_block.clone();
         get_block_url.query_pairs_mut().append_pair(BLOCK_NUMBER_QUERY, block_number.as_str());
         if only_header {
-            get_block_url.query_pairs_mut().append_pair(ONLY_HEADER_QUERY, "true");
+            get_block_url.query_pairs_mut().append_pair(HEADER_ONLY_QUERY, "true");
         }
         let old_get_block_url = get_block_url.clone();
         // For version >= 0.14.0
