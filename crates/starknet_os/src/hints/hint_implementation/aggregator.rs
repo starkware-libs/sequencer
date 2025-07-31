@@ -14,7 +14,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 use crate::io::os_output::{wrap_missing, FullOsOutput, OsOutput};
 use crate::io::os_output_types::TryFromOutputIter;
-use crate::vm_utils::LoadCairoObject;
+use crate::vm_utils::LoadIntoVmMemory;
 
 pub(crate) fn allocate_segments_for_messages(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
@@ -42,7 +42,7 @@ pub(crate) fn disable_da_page_creation(
 
 pub(crate) fn get_os_output_for_inner_blocks(
     hint_processor: &mut AggregatorHintProcessor<'_>,
-    HintArgs { vm, ids_data, ap_tracking, constants, .. }: HintArgs<'_>,
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let mut bootloader_iter = hint_processor
         .input
@@ -77,7 +77,7 @@ pub(crate) fn get_os_output_for_inner_blocks(
     insert_value_from_var_name(Ids::NTasks.into(), n_outputs, vm, ids_data, ap_tracking)?;
 
     let os_output_ptr = get_ptr_from_var_name(Ids::OsOutputs.into(), vm, ids_data, ap_tracking)?;
-    outputs.load_into(vm, hint_processor.program, os_output_ptr, constants)?;
+    outputs.load_into_vm_memory(vm, os_output_ptr)?;
     Ok(())
 }
 

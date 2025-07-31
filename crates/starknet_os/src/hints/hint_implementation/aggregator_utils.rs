@@ -11,7 +11,7 @@ use crate::io::os_output::{
     MESSAGE_TO_L1_CONST_FIELD_SIZE,
     MESSAGE_TO_L2_CONST_FIELD_SIZE,
 };
-use crate::vm_utils::{IdentifierGetter, LoadCairoObject, VmUtilsResult};
+use crate::vm_utils::{LoadIntoVmMemory, VmUtilsResult};
 
 pub(crate) trait ToMaybeRelocatables {
     fn to_maybe_relocatables(&self) -> Vec<MaybeRelocatable>;
@@ -45,13 +45,11 @@ impl ToMaybeRelocatables for MessageToL2 {
     }
 }
 
-impl<IG: IdentifierGetter, T: ToMaybeRelocatables> LoadCairoObject<IG> for T {
-    fn load_into(
+impl<T: ToMaybeRelocatables> LoadIntoVmMemory for T {
+    fn load_into_vm_memory(
         &self,
         vm: &mut VirtualMachine,
-        _identifier_getter: &IG,
         address: Relocatable,
-        _constants: &std::collections::HashMap<String, Felt>,
     ) -> VmUtilsResult<Relocatable> {
         Ok(vm.load_data(address, &self.to_maybe_relocatables())?)
     }
@@ -89,54 +87,36 @@ impl FullStateDiffWriter {
 }
 
 /// Writes the given `FullOsOutput` to the VM at the specified address.
-fn write_full_os_output<IG: IdentifierGetter>(
+fn write_full_os_output(
     output: &FullOsOutput,
     vm: &mut VirtualMachine,
-    identifier_getter: &IG,
     _address: Relocatable,
-    constants: &std::collections::HashMap<String, Felt>,
     _state_diff_writer: &mut FullStateDiffWriter,
 ) -> VmUtilsResult<Relocatable> {
     let FullOsOutput { common_os_output, .. } = output;
     let messages_to_l1_start = vm.add_temporary_segment();
-    let _messages_to_l1_end = common_os_output.messages_to_l1.load_into(
-        vm,
-        identifier_getter,
-        messages_to_l1_start,
-        constants,
-    )?;
+    let _messages_to_l1_end =
+        common_os_output.messages_to_l1.load_into_vm_memory(vm, messages_to_l1_start)?;
 
     let messages_to_l2_start = vm.add_temporary_segment();
-    let _messages_to_l2_end = common_os_output.messages_to_l2.load_into(
-        vm,
-        identifier_getter,
-        messages_to_l2_start,
-        constants,
-    )?;
+    let _messages_to_l2_end =
+        common_os_output.messages_to_l2.load_into_vm_memory(vm, messages_to_l2_start)?;
     todo!()
 }
 
 pub(crate) struct FullOsOutputs(pub Vec<FullOsOutput>);
 
-impl<IG: IdentifierGetter> LoadCairoObject<IG> for FullOsOutputs {
-    fn load_into(
+impl LoadIntoVmMemory for FullOsOutputs {
+    fn load_into_vm_memory(
         &self,
         vm: &mut VirtualMachine,
-        identifier_getter: &IG,
         address: Relocatable,
-        constants: &HashMap<String, Felt>,
     ) -> VmUtilsResult<Relocatable> {
         let mut os_output_ptr = address;
         let mut contract_changes_writer = FullStateDiffWriter::new(vm);
         for output in &self.0 {
-            os_output_ptr = write_full_os_output(
-                output,
-                vm,
-                identifier_getter,
-                os_output_ptr,
-                constants,
-                &mut contract_changes_writer,
-            )?;
+            os_output_ptr =
+                write_full_os_output(output, vm, os_output_ptr, &mut contract_changes_writer)?;
         }
         Ok(os_output_ptr)
     }
