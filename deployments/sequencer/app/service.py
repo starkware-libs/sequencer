@@ -677,19 +677,35 @@ class ServiceApp(Construct):
             ]
         return None
 
+    def _get_pod_affinity_term(self, topology_key: str) -> k8s.PodAffinityTerm:
+        match_labels = {"service": Names.to_label_value(self, include_hash=False)}
+        return k8s.PodAffinityTerm(
+            label_selector=k8s.LabelSelector(
+                match_labels=match_labels,
+            ),
+            topology_key=topology_key,
+            namespace_selector={},
+        )
+
+    def _get_weighted_pod_affinity_term(
+        self, topology_key: str, weight: int
+    ) -> k8s.WeightedPodAffinityTerm:
+        return k8s.WeightedPodAffinityTerm(
+            weight=weight, pod_affinity_term=self._get_pod_affinity_term(topology_key=topology_key)
+        )
+
     def _get_affinity(self) -> k8s.Affinity:
         if self.service_topology.anti_affinity:
             return k8s.Affinity(
                 pod_anti_affinity=k8s.PodAntiAffinity(
-                    required_during_scheduling_ignored_during_execution=[
-                        k8s.PodAffinityTerm(
-                            label_selector=k8s.LabelSelector(
-                                match_labels={
-                                    "service": Names.to_label_value(self, include_hash=False)
-                                },
-                            ),
-                            topology_key="kubernetes.io/hostname",
-                            namespace_selector={},
+                    preferred_during_scheduling_ignored_during_execution=[
+                        self._get_weighted_pod_affinity_term(
+                            topology_key=const.AFFINITY_ZONE_TOPOLOGY["key"],
+                            weight=const.AFFINITY_ZONE_TOPOLOGY["weight"],
+                        ),
+                        self._get_weighted_pod_affinity_term(
+                            topology_key=const.AFFINITY_HOSTNAME_TOPOLOGY["key"],
+                            weight=const.AFFINITY_HOSTNAME_TOPOLOGY["weight"],
                         ),
                     ],
                 ),
