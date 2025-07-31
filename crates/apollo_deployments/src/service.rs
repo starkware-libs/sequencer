@@ -21,6 +21,7 @@ use crate::deployment::build_service_namespace_domain_address;
 use crate::deployment_definitions::{
     ComponentConfigInService,
     Environment,
+    InfraServicePort,
     ServicePort,
     CONFIG_BASE_DIR,
 };
@@ -306,6 +307,23 @@ pub(crate) trait ServiceNameInner: Display {
         for service_port in self.get_service_ports() {
             let port = service_port.get_port();
             ports.insert(service_port, port);
+        }
+        ports
+    }
+
+    fn get_infra_service_port_mapping(&self) -> BTreeMap<InfraServicePort, u16> {
+        let mut ports = BTreeMap::new();
+
+        for service_port in self.get_service_ports() {
+            match service_port {
+                ServicePort::Infra(service) => {
+                    let port = service.get_port();
+                    ports.insert(service, port);
+                }
+                ServicePort::BusinessLogic(_) => {
+                    continue;
+                }
+            }
         }
         ports
     }
