@@ -427,7 +427,10 @@ impl Batcher {
         proposal_id: ProposalId,
         final_n_executed_txs: usize,
     ) -> BatcherResult<SendProposalContentResponse> {
-        debug!("Send proposal content done for {}", proposal_id);
+        info!(
+            "BATCHER_FIN_VALIDATOR: Send proposal content done for {}. n_txs: {}",
+            proposal_id, final_n_executed_txs
+        );
 
         self.validate_tx_streams.remove(&proposal_id).expect("validate tx stream should exist.");
         if self.is_active(proposal_id).await {
@@ -506,7 +509,10 @@ impl Batcher {
                 error!("Failed to get commitment: {}", err);
                 BatcherError::InternalError
             })?;
-        info!("Finished building proposal {proposal_id} with {final_n_executed_txs} transactions.");
+        info!(
+            "BATCHER_FIN_PROPOSER: Finished building proposal {proposal_id} with \
+             {final_n_executed_txs} transactions."
+        );
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished { id: commitment, final_n_executed_txs },
         })
