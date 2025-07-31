@@ -4,7 +4,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     insert_value_into_ap,
 };
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
-use cairo_vm::types::relocatable::Relocatable;
+use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_types_core::felt::Felt;
 
@@ -46,26 +46,58 @@ pub(crate) fn disable_da_page_creation(
 fn write_full_os_output(
     output: &FullOsOutput,
     vm: &mut VirtualMachine,
-    _address: Relocatable,
+    address: Relocatable,
     state_diff_writer: &mut FullStateDiffWriter,
 ) -> VmUtilsResult<Relocatable> {
     let FullOsOutput { common_os_output, state_diff } = output;
     let messages_to_l1_start = vm.add_temporary_segment();
-    let _messages_to_l1_end =
+    let messages_to_l1_end =
         common_os_output.messages_to_l1.load_into_vm_memory(vm, messages_to_l1_start)?;
 
     let messages_to_l2_start = vm.add_temporary_segment();
-    let _messages_to_l2_end =
+    let messages_to_l2_end =
         common_os_output.messages_to_l2.load_into_vm_memory(vm, messages_to_l2_start)?;
 
     // A cairo dict from contract address to StateEntry (class_hash, storage_dict_ptr, nonce).
     // See StateEntryManager::storage_dict_ptr for an explanation about storage_dict_ptr.
-    let _state_dict_ptr_start = state_diff_writer.get_state_dict_ptr();
+    let state_dict_ptr_start = state_diff_writer.get_state_dict_ptr();
     state_diff_writer.write_contract_changes(&state_diff.contracts, vm)?;
 
-    let _class_dict_ptr_start = state_diff_writer.get_class_dict_ptr();
+    let class_dict_ptr_start = state_diff_writer.get_class_dict_ptr();
     state_diff_writer.write_classes_changes(&state_diff.classes, vm)?;
-    todo!("Finish implementation.");
+
+    // Write the OsOutput struct into cairo.
+    let state_update_output = vm.gen_arg(&vec![
+        MaybeRelocatable::Int(common_os_output.initial_root),
+        common_os_output.final_root.into(),
+    ])?;
+
+    let header = vm.gen_arg(&vec![
+        state_update_output,
+        Felt::from(common_os_output.prev_block_number.0).into(),
+        Felt::from(common_os_output.new_block_number.0).into(),
+        common_os_output.prev_block_hash.into(),
+        common_os_output.new_block_hash.into(),
+        common_os_output.os_program_hash.into(),
+        common_os_output.starknet_os_config_hash.into(),
+        Felt::ZERO.into(), // use_kzg_da field (False in the aggregator input).
+        Felt::ONE.into(),  // full_output field (True in the aggregator input).
+    ])?;
+
+    let squashed_os_state_update = vm.gen_arg(&vec![
+        MaybeRelocatable::RelocatableValue(state_dict_ptr_start),
+        Felt::from(state_diff.contracts.len()).into(),
+        MaybeRelocatable::RelocatableValue(class_dict_ptr_start),
+        Felt::from(state_diff.classes.len()).into(),
+    ])?;
+
+    let initial_carried_outputs = vm.gen_arg(&vec![messages_to_l1_start, messages_to_l2_start])?;
+    let final_carried_outputs = vm.gen_arg(&vec![messages_to_l1_end, messages_to_l2_end])?;
+
+    Ok(vm.load_data(
+        address,
+        &[header, squashed_os_state_update, initial_carried_outputs, final_carried_outputs],
+    )?)
 }
 
 pub(crate) fn get_os_output_for_inner_blocks(
