@@ -44,12 +44,11 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
-use crate::utils::{determine_port_numbers, get_validator_id};
+use crate::utils::{get_validator_id, validate_port_numbers};
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
 pub(crate) const INSTANCE_NAME_FORMAT: &str = "hybrid_{}";
 
-const BASE_PORT: u16 = 55000; // TODO(Tsabary): arbitrary port, need to resolve.
 const CORE_STORAGE: usize = 1000;
 const TEST_CORE_STORAGE: usize = 1;
 const MAX_NODE_ID: usize = 9; // Currently supporting up to 9 nodes, to avoid more complicated string manipulations.
@@ -79,9 +78,8 @@ impl GetComponentConfigs for HybridNodeServiceName {
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
         match ports {
             Some(ports) => {
-                let determined_ports =
-                    determine_port_numbers(Some(ports), HYBRID_NODE_REQUIRED_PORTS_NUM, BASE_PORT);
-                for (service_port, port) in InfraServicePort::iter().zip(determined_ports) {
+                validate_port_numbers(&ports, HYBRID_NODE_REQUIRED_PORTS_NUM);
+                for (service_port, port) in InfraServicePort::iter().zip(ports) {
                     service_ports.insert(service_port, port);
                 }
             }
