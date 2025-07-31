@@ -6,6 +6,7 @@ use starknet_committer::block_committer::input::StarknetStorageValue;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::LeafModifications;
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
+use starknet_patricia_storage::map_storage::MapStorage;
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
@@ -14,7 +15,7 @@ use crate::committer_cli::parse_input::raw_input::RawStorageEntry;
 
 pub struct TreeFlowInput {
     pub leaf_modifications: LeafModifications<StarknetStorageValue>,
-    pub storage: HashMap<DbKey, DbValue>,
+    pub storage: MapStorage,
     pub root_hash: HashOutput,
 }
 
