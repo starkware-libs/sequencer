@@ -2,7 +2,12 @@ use std::collections::HashSet;
 use std::fs::File;
 use std::sync::{Arc, LazyLock};
 
-use apollo_class_manager_types::transaction_converter::TransactionConverter;
+use apollo_class_manager_types::transaction_converter::{
+    MockTransactionConverterTrait,
+    TransactionConverter,
+    TransactionConverterError,
+    TransactionConverterResult,
+};
 use apollo_class_manager_types::{ClassHashes, EmptyClassManagerClient, MockClassManagerClient};
 use apollo_config::dumping::SerializeConfig;
 use apollo_config::loading::load_and_process_config;
@@ -30,6 +35,7 @@ use apollo_test_utils::{get_rng, GetTestInstance};
 use assert_matches::assert_matches;
 use blockifier::context::ChainInfo;
 use blockifier::test_utils::initial_test_state::fund_account;
+use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_trivial_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
@@ -45,15 +51,16 @@ use metrics_exporter_prometheus::PrometheusBuilder;
 use mockall::predicate::eq;
 use rstest::{fixture, rstest};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
-use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::rpc_transaction::{
+    InternalRpcTransaction,
     RpcDeclareTransaction,
     RpcTransaction,
     RpcTransactionLabelValue,
 };
 use starknet_api::test_utils::declare::DeclareTxArgsWithContractClass;
 use starknet_api::test_utils::deploy_account::DeployAccountTxArgs;
-use starknet_api::test_utils::invoke::InvokeTxArgs;
+use starknet_api::test_utils::invoke::{executable_invoke_tx, InvokeTxArgs};
 use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
@@ -102,6 +109,11 @@ fn mock_validator() -> MockStatefulTransactionValidatorTrait {
 #[fixture]
 fn mock_validator_factory() -> MockStatefulTransactionValidatorFactoryTrait {
     MockStatefulTransactionValidatorFactoryTrait::new()
+}
+
+#[fixture]
+fn mock_transaction_converter() -> MockTransactionConverterTrait {
+    MockTransactionConverterTrait::new()
 }
 
 #[fixture]
@@ -340,9 +352,9 @@ async fn run_add_tx_and_extract_metrics(
 
 fn process_tx_task(
     mock_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+    mock_transaction_converter: MockTransactionConverterTrait,
 ) -> ProcessTxBlockingTask {
     let chain_info = ChainInfo::create_for_testing();
-
     ProcessTxBlockingTask {
         stateless_tx_validator: Arc::new(StatelessTransactionValidator {
             config: StatelessTransactionValidatorConfig::default(),
@@ -352,10 +364,7 @@ fn process_tx_task(
         mempool_client: Arc::new(MockMempoolClient::new()),
         chain_info: Arc::new(chain_info.clone()),
         tx: invoke_args().get_rpc_tx(),
-        transaction_converter: Arc::new(TransactionConverter::new(
-            Arc::new(MockClassManagerClient::new()),
-            chain_info.chain_id,
-        )),
+        transaction_converter: Arc::new(mock_transaction_converter),
         runtime: tokio::runtime::Handle::current(),
     }
 }
@@ -591,6 +600,7 @@ async fn process_tx_transaction_validations(
     #[case] error_code: StarknetErrorCode,
     mut mock_validator: MockStatefulTransactionValidatorTrait,
     mut mock_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+    mock_transaction_converter: MockTransactionConverterTrait,
 ) {
     let expected_error = StarknetError {
         code: error_code.clone(),
@@ -603,7 +613,7 @@ async fn process_tx_transaction_validations(
         .expect_instantiate_validator()
         .return_once(|_, _| Ok(Box::new(mock_validator)));
 
-    let process_tx_task = process_tx_task(mock_validator_factory);
+    let process_tx_task = process_tx_task(mock_validator_factory, mock_transaction_converter);
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
@@ -615,6 +625,7 @@ async fn process_tx_transaction_validations(
 #[tokio::test]
 async fn process_tx_instantiate_validator(
     mut mock_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+    mock_transaction_converter: MockTransactionConverterTrait,
 ) {
     let error_code = StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into());
     let expected_error = StarknetError {
@@ -623,10 +634,48 @@ async fn process_tx_instantiate_validator(
     };
     mock_validator_factory.expect_instantiate_validator().return_once(|_, _| Err(expected_error));
 
-    let process_tx_task = process_tx_task(mock_validator_factory);
+    let process_tx_task = process_tx_task(mock_validator_factory, mock_transaction_converter);
 
     let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err().code, error_code);
+}
+
+#[rstest]
+#[case::rpc_to_internal_fails(
+    Err(TransactionConverterError::ClassNotFound { class_hash: ClassHash::default() }),
+    Ok(executable_invoke_tx(invoke_args())),
+)]
+#[case::internal_to_executable_fails(
+    Ok(invoke_args().get_rpc_tx())
+    Err(TransactionConverterError::ClassNotFound { class_hash: ClassHash::default() })
+)]
+#[tokio::test]
+async fn process_tx_conversion_errors_are_mapped_to_internal_error(
+    #[case] expect_internal_rpc_tx_result: TransactionConverterResult<InternalRpcTransaction>,
+    #[case] expect_executable_tx_result: TransactionConverterResult<AccountTransaction>,
+    mock_validator_factory: MockStatefulTransactionValidatorFactoryTrait,
+) {
+    let mock_transaction_converter = MockTransactionConverterTrait::new(
+        Arc::new(MockClassManagerClient::new()),
+        ChainInfo::create_for_testing().chain_id,
+    );
+    mock_transaction_converter
+        .expect_convert_rpc_tx_to_internal_rpc_tx()
+        .return_once(|_| expect_internal_rpc_tx_result);
+    mock_transaction_converter
+        .expect_convert_internal_rpc_tx_to_executable_tx()
+        .return_once(|_| expect_executable_tx_result);
+
+    let process_tx_task = process_tx_task(mock_validator_factory, mock_transaction_converter);
+
+    let result = tokio::task::spawn_blocking(move || process_tx_task.process_tx()).await.unwrap();
+
+    assert!(result.is_err());
+    // All TransactionConverter errors are mapped to InternalError.
+    assert_eq!(
+        result.unwrap_err().code,
+        StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".into())
+    );
 }
