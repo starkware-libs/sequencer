@@ -11,6 +11,7 @@ use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
+use strum_macros::AsRefStr;
 use tokio::sync::Mutex;
 
 use crate::component_client::ClientResult;
@@ -97,7 +98,7 @@ pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
     Arc::new(Mutex::new(available_ports))
 });
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, AsRefStr)]
 pub enum ComponentARequest {
     AGetValue,
 }
@@ -107,7 +108,7 @@ pub enum ComponentAResponse {
     AGetValue(ValueA),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, AsRefStr)]
 pub enum ComponentBRequest {
     BGetValue,
     BSetValue(ValueB),
