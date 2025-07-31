@@ -83,7 +83,7 @@ pub trait StarknetReader {
     async fn latest_block(&self) -> ReaderClientResult<Option<Block>>;
     /// Returns the number of the last block in the system, returning [`None`] in case there are no
     /// blocks in the system.
-    async fn latest_block_number(&self) -> ReaderClientResult<Option<BlockNumber>>;
+    async fn latest_block_number_and_hash(&self) -> ReaderClientResult<Option<BlockHashAndNumber>>;
     /// Returns a [`Block`] corresponding to `block_number`, returning [`None`] in case
     /// no such block exists in the system.
     async fn block(&self, block_number: BlockNumber) -> ReaderClientResult<Option<Block>>;
@@ -285,11 +285,8 @@ impl StarknetReader for StarknetFeederGatewayClient {
     }
 
     #[instrument(skip(self), level = "debug")]
-    async fn latest_block_number(&self) -> ReaderClientResult<Option<BlockNumber>> {
-        Ok(self
-            .request_block_number_and_hash(None)
-            .await?
-            .map(|block_hash_and_number| block_hash_and_number.number))
+    async fn latest_block_number_and_hash(&self) -> ReaderClientResult<Option<BlockHashAndNumber>> {
+        Ok(self.request_block_number_and_hash(None).await?)
     }
 
     #[instrument(skip(self), level = "debug")]
