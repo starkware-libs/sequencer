@@ -3,10 +3,10 @@ use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, Index};
 use std::sync::Arc;
 
-use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::serde::deserialize_program::{
     ApTracking,
     FlowTrackingData,
@@ -35,6 +35,35 @@ use starknet_api::deprecated_contract_class::{
 };
 use starknet_api::execution_resources::GasAmount;
 use starknet_types_core::felt::Felt;
+use {cairo_lang_casm, num_bigint};
+
+/// Represents size flags for bytecode segments in a tree structure parallel to NestedIntList.
+/// Each segment has a flag: 0 if all values in segment < 2^63, 1 if any value >= 2^63.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NestedSizeFlags {
+    Leaf(u8),
+    Node(Vec<NestedSizeFlags>),
+}
+
+/// Represents bytecode segment information combining length and large value count.
+/// Each segment stores its length and the count of values >= 2^63.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BytecodeSegmentInfo {
+    Leaf { length: usize, large_value_count: usize },
+    Node(Vec<BytecodeSegmentInfo>),
+}
+
+impl BytecodeSegmentInfo {
+    /// Converts to NestedIntList for compatibility with existing hash computation functions.
+    pub fn to_nested_int_list(&self) -> NestedIntList {
+        match self {
+            BytecodeSegmentInfo::Leaf { length, .. } => NestedIntList::Leaf(*length),
+            BytecodeSegmentInfo::Node(segments) => {
+                NestedIntList::Node(segments.iter().map(|seg| seg.to_nested_int_list()).collect())
+            }
+        }
+    }
+}
 
 use crate::abi::constants::{self};
 use crate::blockifier_versioned_constants::VersionedConstants;
@@ -280,8 +309,12 @@ impl CompiledClassV1 {
         self.program.data_len()
     }
 
-    pub fn bytecode_segment_lengths(&self) -> &NestedIntList {
-        &self.bytecode_segment_lengths
+    pub fn bytecode_segment_info(&self) -> &BytecodeSegmentInfo {
+        &self.bytecode_segment_info
+    }
+
+    pub fn bytecode_segment_lengths(&self) -> NestedIntList {
+        self.bytecode_segment_info.to_nested_int_list()
     }
 
     pub fn get_entry_point(
@@ -304,7 +337,7 @@ impl CompiledClassV1 {
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths)
+        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths())
     }
 
     /// Estimate the VM gas required to perform a CompiledClassHash migration.
@@ -323,12 +356,12 @@ impl CompiledClassV1 {
         versioned_constants: &VersionedConstants,
     ) -> (GasAmount, BuiltinCounterMap) {
         let blake_hash_gas = estimate_casm_blake_hash_computation_resources(
-            &self.bytecode_segment_lengths,
+            &self.bytecode_segment_lengths(),
             versioned_constants,
         );
 
         let poseidon_hash_resources =
-            estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths);
+            estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths());
         let poseidon_hash_gas =
             vm_resources_to_sierra_gas(&poseidon_hash_resources, versioned_constants);
 
@@ -345,7 +378,7 @@ impl CompiledClassV1 {
         visited_pcs: &HashSet<usize>,
     ) -> Result<Vec<usize>, TransactionExecutionError> {
         let mut reversed_visited_pcs: Vec<_> = visited_pcs.iter().cloned().sorted().rev().collect();
-        get_visited_segments(&self.bytecode_segment_lengths, &mut reversed_visited_pcs, &mut 0)
+        get_visited_segments(&self.bytecode_segment_lengths(), &mut reversed_visited_pcs, &mut 0)
     }
 
     pub fn try_from_json_string(
@@ -386,7 +419,7 @@ impl HashableCompiledClass<EntryPointV1> for CompiledClassV1 {
     }
 
     fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
-        Cow::Borrowed(&self.bytecode_segment_lengths)
+        Cow::Owned(self.bytecode_segment_lengths())
     }
 }
 
@@ -553,7 +586,7 @@ pub struct ContractClassV1Inner {
     pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
     pub sierra_version: SierraVersion,
-    bytecode_segment_lengths: NestedIntList,
+    bytecode_segment_info: BytecodeSegmentInfo,
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
@@ -594,8 +627,24 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
     type Error = ProgramError;
 
     fn try_from((class, sierra_version): VersionedCasm) -> Result<Self, Self::Error> {
-        let data: Vec<MaybeRelocatable> =
-            class.bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
+        // Process bytecode in a single pass: create data vector AND compute segment info
+        // efficiently
+        let bytecode_segment_lengths = class
+            .bytecode_segment_lengths
+            .unwrap_or_else(|| NestedIntList::Leaf(class.bytecode.len()));
+
+        let threshold = num_bigint::BigUint::from(1u64) << 63; // 2^63
+        let mut data = Vec::with_capacity(class.bytecode.len());
+
+        // Process bytecode: build data vector AND compute segment info
+        let (bytecode_segment_info, total_len) = process_bytecode_segments(
+            &class.bytecode,
+            bytecode_segment_lengths,
+            &threshold,
+            0,
+            &mut data,
+        );
+        assert_eq!(total_len, class.bytecode.len());
 
         let mut hints: HashMap<usize, Vec<HintParams>> = HashMap::new();
         for (i, hint_list) in class.hints.iter() {
@@ -636,15 +685,12 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
             external: convert_entry_points_v1(&class.entry_points_by_type.external),
             l1_handler: convert_entry_points_v1(&class.entry_points_by_type.l1_handler),
         };
-        let bytecode_segment_lengths = class
-            .bytecode_segment_lengths
-            .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
         Ok(CompiledClassV1(Arc::new(ContractClassV1Inner {
             program,
             entry_points_by_type,
             hints: string_to_hint,
             sierra_version,
-            bytecode_segment_lengths,
+            bytecode_segment_info,
         })))
     }
 }
@@ -730,6 +776,54 @@ impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
             EntryPointType::Constructor => &self.constructor,
             EntryPointType::External => &self.external,
             EntryPointType::L1Handler => &self.l1_handler,
+        }
+    }
+}
+
+/// Processes bytecode segments and returns a tuple containing:
+/// - The segment info (BytecodeSegmentInfo)
+/// - The total length of the processed segments
+/// - The total count of large values (>= 2^63) in all segments
+fn process_bytecode_segments(
+    bytecode: &[BigUintAsHex],
+    segment_lengths: NestedIntList,
+    threshold: &num_bigint::BigUint,
+    bytecode_offset: usize,
+    data: &mut Vec<MaybeRelocatable>,
+) -> (BytecodeSegmentInfo, usize) {
+    match segment_lengths {
+        NestedIntList::Leaf(length) => {
+            let segment_end = bytecode_offset + length;
+            let segment_slice = &bytecode[bytecode_offset..segment_end];
+
+            // Process this segment: add to data AND count large values in this segment
+            // only
+            let mut large_value_count = 0;
+            for element in segment_slice {
+                data.push(MaybeRelocatable::from(Felt::from(&element.value)));
+                if element.value >= *threshold {
+                    large_value_count += 1;
+                }
+            }
+
+            (BytecodeSegmentInfo::Leaf { length, large_value_count }, length)
+        }
+        NestedIntList::Node(segments) => {
+            let mut segment_infos = Vec::new();
+            let mut total_len = 0;
+            let mut current_offset = bytecode_offset;
+
+            // Process each sub-segment recursively
+            for segment in segments {
+                let (segment_info, segment_len) =
+                    process_bytecode_segments(bytecode, segment, threshold, current_offset, data);
+
+                segment_infos.push(segment_info);
+                current_offset += segment_len;
+                total_len += segment_len;
+            }
+
+            (BytecodeSegmentInfo::Node(segment_infos), total_len)
         }
     }
 }

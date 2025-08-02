@@ -66,7 +66,7 @@ impl HashableCompiledClass<EntryPointV1> for NativeCompiledClassV1 {
     }
 
     fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
-        Cow::Borrowed(self.casm.bytecode_segment_lengths())
+        Cow::Owned(self.casm.bytecode_segment_lengths())
     }
 }
 
