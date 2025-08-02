@@ -1,0 +1,61 @@
+name: Version Constants CI
+
+on:
+  pull_request:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - auto_merge_enabled
+      - edited
+    paths:
+      - 'crates/cairo_contracts/version_constants/**'
+      - '.github/workflows/version_constants_ci.yml'
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: >
+    ${{ github.workflow }}-
+    ${{ github.ref }}-
+    ${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  version_constants_ci:
+    runs-on: starkware-ubuntu-24.04-small
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Foundry
+        uses: foundry-rs/setup-snfoundry@v3
+        with:
+          starknet-foundary-version: "0.45.0"
+
+      - name: Install Scarb
+        uses: software-mansion/setup-scarb@v1
+        with:
+          scarb-version: "2.11.4"
+
+      - name: Install Cairo Coverage
+        run: |
+          curl -L https://raw.githubusercontent.com/software-mansion/cairo-coverage/main/scripts/install.sh | sh
+
+      - name: Check Cairo formatting
+        working-directory: crates/cairo_contracts/version_constants
+        run: scarb fmt --check
+
+      - name: Build version_constants
+        working-directory: crates/cairo_contracts/version_constants
+        run: scarb build
+
+      - name: Run version_constants tests
+        working-directory: crates/cairo_contracts/version_constants
+        run: scarb test --coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          verbose: true
