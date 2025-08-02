@@ -409,6 +409,8 @@ pub fn emit_n_events_tx(
         sender_address: account_contract,
         calldata,
         nonce,
+        // TODO(Arni): Consider using `ValidResourceBounds::create_for_testing()`. It is simpler.
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     });
 
     AccountTransaction::new_for_sequencing(tx)
