@@ -27,10 +27,11 @@ use starknet_api::test_utils::l1_handler::{executable_l1_handler_tx, L1HandlerTx
 use starknet_api::transaction::TransactionHash;
 
 use crate::bootstrapper::CommitBlockBacklog;
+use crate::config::L1ProviderConfig;
 use crate::l1_provider::L1Provider;
 use crate::transaction_manager::{StagingEpoch, TransactionManager, TransactionManagerConfig};
 use crate::transaction_record::{TransactionPayload, TransactionRecord};
-use crate::{L1ProviderConfig, ProviderState};
+use crate::ProviderState;
 
 pub fn l1_handler(tx_hash: usize) -> L1HandlerTransaction {
     let tx_hash = TransactionHash(StarkHash::from(tx_hash));
