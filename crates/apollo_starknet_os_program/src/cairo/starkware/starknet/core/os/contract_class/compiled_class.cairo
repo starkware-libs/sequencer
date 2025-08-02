@@ -1,5 +1,5 @@
 from starkware.cairo.common.alloc import alloc
-from starkware.cairo.common.bool import FALSE
+from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.hash_state_poseidon import (
     HashState,
@@ -27,7 +27,10 @@ from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     CompiledClassFact,
 )
 from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
-    compiled_class_hash,
+    compiled_class_hash as poseidon_compiled_class_hash,
+)
+from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
+    compiled_class_hash as blake_compiled_class_hash,
 )
 
 // Checks that the list of selectors is sorted.
@@ -196,7 +199,7 @@ func validate_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_p
             "is_segment_used_callback": is_segment_used_callback
         })
     %}
-    let (hash) = compiled_class_hash(compiled_class, full_contract=FALSE);
+    let (hash) = poseidon_compiled_class_hash(compiled_class, full_contract=FALSE);
     %{
         vm_exit_scope()
 
@@ -214,4 +217,13 @@ func validate_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_p
         compiled_class_facts=&compiled_class_facts[1],
         builtin_costs=builtin_costs,
     );
+}
+
+func get_compiled_class_hashes_v1_v2{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
+    compiled_class: CompiledClass*
+) -> (hash_v1: felt, hash_v2: felt) {
+    alloc_locals;
+    let (hash_v1) = poseidon_compiled_class_hash(compiled_class, full_contract=TRUE);
+    let (hash_v2) = blake_compiled_class_hash(compiled_class, full_contract=TRUE);
+    return (hash_v1=hash_v1, hash_v2=hash_v2);
 }
