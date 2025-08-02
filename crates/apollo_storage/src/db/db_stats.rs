@@ -83,7 +83,7 @@ impl DbReader {
         Ok(self.env.info()?)
     }
 
-    // Returns the the number of free pages in the database.
+    // Returns the number of free pages in the database.
     // NOTICE: currently, this function will return a garbage value due to a bug in the binding
     // freelist function.
     // TODO(dvir): bump libmdbx version when the bug is fixed.
