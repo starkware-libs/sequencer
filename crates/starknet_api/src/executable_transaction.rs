@@ -223,8 +223,8 @@ impl DeclareTransaction {
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum ValidateCompiledClassHashError {
     #[error(
-        "Computed compiled class hash: {computed_class_hash} does not match the given value: \
-         {supplied_class_hash}."
+        "Computed compiled class hash: {:#x} does not match the given value: {:#x}.",
+        computed_class_hash.0, supplied_class_hash.0
     )]
     CompiledClassHashMismatch {
         computed_class_hash: CompiledClassHash,
