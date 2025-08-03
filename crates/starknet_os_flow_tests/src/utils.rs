@@ -10,6 +10,14 @@ use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
 use blockifier::test_utils::maybe_dummy_block_hash_and_number;
 use blockifier::transaction::transaction_execution::Transaction;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
+use starknet_api::declare_tx_args;
+use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
+use starknet_api::state::SierraContractClass;
+use starknet_api::test_utils::declare::declare_tx;
+use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
+use starknet_api::transaction::fields::ValidResourceBounds;
 use starknet_committer::block_committer::commit::commit_block;
 use starknet_committer::block_committer::input::{
     ConfigImpl,
@@ -94,7 +102,7 @@ pub(crate) fn create_committer_state_diff(state_diff: CommitmentStateDiff) -> St
 }
 
 /// Commits the state diff, saves the new commitments and returns the computed roots.
-async fn commit_state_diff(
+pub(crate) async fn commit_state_diff(
     commitments: &mut BorrowedMapStorage<'_>,
     contracts_trie_root_hash: HashOutput,
     classes_trie_root_hash: HashOutput,
@@ -109,4 +117,30 @@ async fn commit_state_diff(
         contracts_trie_root_hash: filled_forest.get_contract_root_hash(),
         classes_trie_root_hash: filled_forest.get_compiled_class_root_hash(),
     }
+}
+
+pub(crate) fn create_cairo1_bootstrap_declare_tx(
+    sierra: &SierraContractClass,
+    casm: &CasmContractClass,
+) -> AccountTransaction {
+    let class_hash = sierra.calculate_class_hash();
+    let compiled_class_hash = starknet_api::core::CompiledClassHash(casm.compiled_class_hash());
+    let declare_tx_args = declare_tx_args! {
+        sender_address: DeclareTransaction::bootstrap_address(),
+        class_hash,
+        compiled_class_hash,
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
+    };
+    let account_declare_tx = declare_tx(declare_tx_args);
+    let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program).unwrap();
+    let contract_class = ContractClass::V1((casm.clone(), sierra_version.clone()));
+    let class_info = ClassInfo {
+        contract_class,
+        sierra_program_length: sierra.sierra_program.len(),
+        abi_length: sierra.abi.len(),
+        sierra_version,
+    };
+    let tx =
+        DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
+    AccountTransaction::Declare(tx)
 }
