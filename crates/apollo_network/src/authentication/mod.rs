@@ -18,6 +18,7 @@ use negotiator::{ConnectionEndpoint, Negotiator, NegotiatorOutput};
 use noise::Error as NoiseError;
 
 pub mod negotiator;
+pub mod stark_authentication;
 
 #[async_trait]
 impl<T> ConnectionEndpoint for Framed<T, NegotiatorChannelCodec>
