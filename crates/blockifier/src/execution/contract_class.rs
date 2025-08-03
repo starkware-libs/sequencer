@@ -59,6 +59,31 @@ pub trait HasSelector {
     fn selector(&self) -> &EntryPointSelector;
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FeltSizeGroups {
+    /// Number of felts below 2^32.
+    pub small: usize,
+    /// Number of felts above or equal to 2^32.
+    pub large: usize,
+}
+
+impl FeltSizeGroups {
+    pub fn total(&self) -> usize {
+        self.small + self.large
+    }
+
+    pub fn is_valid(&self, segment_len: usize) -> bool {
+        self.total() <= segment_len
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NestedMultipleIntList {
+    Leaf(usize, FeltSizeGroups), // (length, felt size groups)
+    Node(Vec<NestedMultipleIntList>),
+}
+
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
@@ -553,6 +578,7 @@ pub struct ContractClassV1Inner {
     pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
     pub sierra_version: SierraVersion,
+    // TODO(AvivG): replace with NestedMultipleIntList.
     bytecode_segment_lengths: NestedIntList,
 }
 
