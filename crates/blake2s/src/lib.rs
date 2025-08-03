@@ -3,6 +3,9 @@ use digest::Digest;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::StarkHash;
 
+// TODO(AvivG): Add this to the `starknet-types-core` crate.
+pub const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
+
 // Encode each `Felt` into 32-bit words:
 /// - **Small** values `< 2^63` get **2** words: `[ high_32_bits, low_32_bits ]` from the last 8
 ///   bytes of the 256-bit BE representation.
@@ -13,7 +16,6 @@ use starknet_types_core::hash::StarkHash;
 /// A flat `Vec<u32>` containing all the unpacked words, in the same order.
 pub fn encode_felts_to_u32s(felts: Vec<Felt>) -> Vec<u32> {
     // 2**63.
-    const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
     // MSB mask for the first u32 in the 8-limb case.
     const BIG_MARKER: u32 = 1 << 31;
 
