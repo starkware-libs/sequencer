@@ -19,6 +19,8 @@ use crate::io::os_input::{OsHints, StarknetOsInput};
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::OsMetrics;
 
+pub const DEFAULT_OS_LAYOUT: LayoutName = LayoutName::all_cairo;
+
 pub struct RunnerReturnObject {
     #[cfg(feature = "include_program_output")]
     pub raw_output: Vec<Felt>,
