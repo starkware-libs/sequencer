@@ -137,6 +137,7 @@ impl FlowTestSetup {
         )
         .await;
 
+        // TODO(Itamar): Remove txs collector logic when flow tests are stable enough.
         // Spawn a thread that listens to proposals and collects batched transactions.
         let accumulated_txs = Arc::new(Mutex::new(AccumulatedTransactions::default()));
         let tx_collector_task = TxCollector {
