@@ -415,12 +415,15 @@ pub async fn create_node_components(
                         startup = l1_provider_config.provider_startup_height_override,
                         catchup = l1_provider_config.bootstrap_catch_up_height_override
                     );
-                    Some(
-                        l1_provider_builder
-                            .startup_height(batcher_height)
-                            .catchup_height(batcher_height)
-                            .build(),
-                    )
+                    let mut provider = l1_provider_builder
+                        .startup_height(batcher_height)
+                        .catchup_height(batcher_height)
+                        .build();
+                    provider
+                        .initialize(vec![])
+                        .await
+                        .expect("Failed to initialize L1 provider in dummy mode");
+                    Some(provider)
                 }
             }
         }
