@@ -172,7 +172,7 @@ where
         local_client: LocalComponentClient<Request, Response>,
         metrics: Arc<RemoteServerMetrics>,
     ) -> Result<HyperResponse<Body>, hyper::Error> {
-        trace!("Received HTTP request: {:?}", http_request);
+        trace!("Received HTTP request: {http_request:?}");
         let body_bytes = to_bytes(http_request.into_body()).await?;
         trace!("Extracted {} bytes from HTTP request body", body_bytes.len());
 
@@ -182,7 +182,7 @@ where
             .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
         {
             Ok(request) => {
-                trace!("Successfully deserialized request: {:?}", request);
+                trace!("Successfully deserialized request: {request:?}");
                 metrics.increment_valid_received();
 
                 // Wrap the send operation in a tokio::spawn as it is NOT a cancel-safe operation.
@@ -195,7 +195,7 @@ where
 
                 match response {
                     Ok(response) => {
-                        trace!("Local client processed request successfully: {:?}", response);
+                        trace!("Local client processed request successfully: {response:?}");
                         HyperResponse::builder()
                             .status(StatusCode::OK)
                             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
@@ -207,14 +207,13 @@ where
                     }
                     Err(error) => {
                         panic!(
-                            "Remote server failed sending with its local client. Error: {:?}",
-                            error
+                            "Remote server failed sending with its local client. Error: {error:?}"
                         );
                     }
                 }
             }
             Err(error) => {
-                error!("Failed to deserialize request: {:?}", error);
+                error!("Failed to deserialize request: {error:?}");
                 let server_error = ServerError::RequestDeserializationFailure(error.to_string());
                 HyperResponse::builder().status(StatusCode::BAD_REQUEST).body(Body::from(
                     SerdeWrapper::new(server_error)
@@ -224,7 +223,7 @@ where
             }
         }
         .expect("Response building should succeed");
-        trace!("Built HTTP response: {:?}", http_response);
+        trace!("Built HTTP response: {http_response:?}");
 
         Ok(http_response)
     }
