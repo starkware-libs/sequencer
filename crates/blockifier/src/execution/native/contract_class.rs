@@ -65,8 +65,10 @@ impl HashableCompiledClass<EntryPointV1> for NativeCompiledClassV1 {
         self.casm.get_bytecode()
     }
 
+    // TODO(AvivG): Avoid unnecessary `NestedIntList` creation by having `HashableCompiledClass`
+    // accept `NestedMultipleInt` via a shared trait.
     fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
-        Cow::Borrowed(self.casm.bytecode_segment_lengths())
+        Cow::Owned(self.casm.bytecode_segment_lengths())
     }
 }
 
