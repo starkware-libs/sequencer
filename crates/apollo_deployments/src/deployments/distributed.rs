@@ -30,11 +30,10 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
-use crate::utils::determine_port_numbers;
+use crate::utils::validate_port_numbers;
 
 pub const DISTRIBUTED_NODE_REQUIRED_PORTS_NUM: usize = 9;
 
-const BASE_PORT: u16 = 15000; // TODO(Tsabary): arbitrary port, need to resolve.
 const BATCHER_STORAGE: usize = 500;
 const CLASS_MANAGER_STORAGE: usize = 500;
 const STATE_SYNC_STORAGE: usize = 500;
@@ -67,12 +66,8 @@ impl GetComponentConfigs for DistributedNodeServiceName {
         let mut service_ports: BTreeMap<InfraServicePort, u16> = BTreeMap::new();
         match ports {
             Some(ports) => {
-                let determined_ports = determine_port_numbers(
-                    Some(ports),
-                    DISTRIBUTED_NODE_REQUIRED_PORTS_NUM,
-                    BASE_PORT,
-                );
-                for (service_port, port) in InfraServicePort::iter().zip(determined_ports) {
+                validate_port_numbers(&ports, DISTRIBUTED_NODE_REQUIRED_PORTS_NUM);
+                for (service_port, port) in InfraServicePort::iter().zip(ports) {
                     service_ports.insert(service_port, port);
                 }
             }
