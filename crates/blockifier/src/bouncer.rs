@@ -778,7 +778,7 @@ pub fn get_tx_weights<S: StateReader>(
                 executed_class_hashes,
                 versioned_constants,
                 bouncer_config.blake_weight,
-            )
+            )?
         } else {
             (HashSet::new(), GasAmount::ZERO, HashMap::new())
         };
@@ -908,28 +908,25 @@ fn get_migration_data<S: StateReader>(
     executed_class_hashes: &HashSet<ClassHash>,
     versioned_constants: &VersionedConstants,
     blake_weight: usize,
-) -> (HashSet<ClassHash>, GasAmount, BuiltinCounterMap) {
-    executed_class_hashes
-        .iter()
-        .filter(|&class_hash_ref| should_migrate(state_reader, *class_hash_ref))
-        .map(|class_hash| {
-            let class = state_reader.get_compiled_class(*class_hash).expect("Failed to get class");
-            (
-                *class_hash,
-                class.estimate_compiled_class_hash_migration_resources(
-                    versioned_constants,
-                    blake_weight,
-                ),
-            )
-        })
-        .fold(
-            (HashSet::new(), GasAmount::ZERO, HashMap::new()),
-            |(mut hashes, mut gas, mut poseidon_builtins), (hash, (new_gas, new_builtins))| {
-                hashes.insert(hash);
-                gas = gas.checked_add_panic_on_overflow(new_gas);
-                poseidon_builtins.extend(new_builtins);
+) -> TransactionExecutionResult<(HashSet<ClassHash>, GasAmount, BuiltinCounterMap)> {
+    // TODO(Aviv): Return hash_map<class_hash, compiled_class_hashes_v2_to_v1>.
+    executed_class_hashes.iter().try_fold(
+        (HashSet::new(), GasAmount::ZERO, HashMap::new()),
+        |(mut compiled_class_hashes, mut gas, mut poseidon_builtins), &class_hash| {
+            if should_migrate(state_reader, class_hash)? {
+                let class = state_reader.get_compiled_class(class_hash)?;
+                let (new_gas, new_builtins) = class
+                    .estimate_compiled_class_hash_migration_resources(
+                        versioned_constants,
+                        blake_weight,
+                    );
 
-                (hashes, gas, poseidon_builtins)
-            },
-        )
+                compiled_class_hashes.insert(class_hash);
+                gas = gas.checked_add_panic_on_overflow(new_gas);
+                // TODO(Aviv): Use add maps instead of extend.
+                poseidon_builtins.extend(new_builtins);
+            }
+            Ok((compiled_class_hashes, gas, poseidon_builtins))
+        },
+    )
 }
