@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use std::sync::LazyLock;
 
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
@@ -6,7 +7,7 @@ use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::contract_class::ContractClass;
-use starknet_api::core::{CompiledClassHash, ContractAddress};
+use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::executable_transaction::{
     AccountTransaction,
     DeclareTransaction,
@@ -15,24 +16,28 @@ use starknet_api::executable_transaction::{
     Transaction as StarknetApiTransaction,
 };
 use starknet_api::state::SierraContractClass;
+use starknet_api::test_utils::NonceManager;
 use starknet_os::io::os_output::StarknetOsRunnerOutput;
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
     create_default_initial_state_data,
+    get_deploy_account_tx,
+    get_fee_token_tx_and_address,
     InitialState,
     InitialStateData,
     OsExecutionContracts,
 };
 use crate::state_trait::FlowTestState;
 
-// TODO(Nimrod): Replace with actual values.
 /// The STRK fee token address that was deployed when initializing the default initial state.
-pub(crate) const STRK_FEE_TOKEN_ADDRESS: u128 = 11;
+pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
+    LazyLock::new(|| get_fee_token_tx_and_address(Nonce::default()).1);
 
 /// The address of a funded account that is able to pay fees for transactions.
 /// This address was initialized when creating the default initial state.
-pub(crate) const FUNDED_ACCOUNT_ADDRESS: u128 = 12;
+pub(crate) static FUNDED_ACCOUNT_ADDRESS: LazyLock<ContractAddress> =
+    LazyLock::new(|| get_deploy_account_tx().contract_address);
 
 /// Manages the execution of flow tests by maintaining the initial state and transactions.
 pub(crate) struct TestManager<S: FlowTestState> {
@@ -53,9 +58,10 @@ impl<S: FlowTestState> TestManager<S> {
     }
 
     /// Creates a new `TestManager` with the default initial state.
-    pub(crate) async fn new_with_default_initial_state() -> Self {
-        let default_initial_state_data = create_default_initial_state_data::<S>().await;
-        Self::new_with_initial_state_data(default_initial_state_data)
+    pub(crate) async fn new_with_default_initial_state() -> (Self, NonceManager) {
+        let (default_initial_state_data, nonce_manager) =
+            create_default_initial_state_data::<S>().await;
+        (Self::new_with_initial_state_data(default_initial_state_data), nonce_manager)
     }
 
     /// Advances the manager to the next block when adding new transactions.
@@ -191,7 +197,7 @@ impl<S: FlowTestState> TestManager<S> {
 /// was set in the default initial state.
 pub fn block_context_for_flow_tests(block_number: BlockNumber) -> BlockContext {
     let fee_token_addresses = FeeTokenAddresses {
-        strk_fee_token_address: STRK_FEE_TOKEN_ADDRESS.into(),
+        strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
         eth_fee_token_address: ContractAddress::default(),
     };
     BlockContext::new(
