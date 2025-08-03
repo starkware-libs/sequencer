@@ -12,7 +12,7 @@ use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
 use starknet_api::test_utils::DEFAULT_STRK_L1_GAS_PRICE;
-use starknet_api::transaction::fields::Fee;
+use starknet_api::transaction::fields::{Fee, ValidResourceBounds};
 use starknet_api::transaction::TransactionVersion;
 use starknet_api::{declare_tx_args, deploy_account_tx_args, felt, invoke_tx_args, nonce};
 use starknet_types_core::felt::Felt;
@@ -235,6 +235,7 @@ fn test_invoke(
         sender_address: account_contract.get_instance_address(0),
         calldata,
         version,
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     });
     let tx = AccountTransaction::new_for_sequencing(invoke_tx).into();
     tx_executor_test_body(state, block_context, tx, expected_bouncer_weights);
@@ -447,6 +448,7 @@ fn test_compiled_class_hash_migration(
         sender_address: account_address,
         calldata,
         version: TransactionVersion::THREE,
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     });
     let tx = AccountTransaction::new_for_sequencing(invoke_tx).into();
     let tx_exexution_result = tx_executor.execute_txs(&[tx], None);
@@ -553,6 +555,7 @@ fn test_stack_overflow(#[values(true, false)] concurrency_enabled: bool) {
         sender_address: account_address,
         calldata,
         nonce: nonce_manager.next(account_address),
+        resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     });
     let account_tx = AccountTransaction::new_for_sequencing(invoke_tx);
     // Ensure the transaction is allocated the maximum gas limits.

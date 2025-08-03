@@ -370,10 +370,7 @@ async fn test_reject_future_declares(
     let account_nonce = 10;
 
     let executable_tx = executable_declare_tx(
-        declare_tx_args!(
-            nonce: nonce!(account_nonce + account_nonce_diff),
-            resource_bounds: ValidResourceBounds::create_for_testing(),
-        ),
+        declare_tx_args!(nonce: nonce!(account_nonce + account_nonce_diff)),
         calculate_class_info_for_testing(
             FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class(),
         ),
