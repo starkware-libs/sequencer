@@ -329,6 +329,10 @@ fn commit_block_backlog() {
         .with_state(initial_bootstrap_state.clone())
         .build_into_l1_provider();
 
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let init_res = rt.block_on(l1_provider.initialize(vec![]));
+    assert!(init_res.is_ok());
+
     // Test.
     // Commit height too low to affect backlog.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(8));
@@ -387,6 +391,10 @@ fn bootstrap_commit_block_received_twice_no_error() {
         .with_state(initial_bootstrap_state)
         .build_into_l1_provider();
 
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let init_res = rt.block_on(l1_provider.initialize(vec![]));
+    assert!(init_res.is_ok());
+
     // Test.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
     // No error, since the this tx hash is already known to be committed.
@@ -404,6 +412,10 @@ fn bootstrap_commit_block_received_twice_error_if_new_uncommitted_txs() {
         .with_txs([l1_handler(1), l1_handler(2)])
         .with_state(initial_bootstrap_state)
         .build_into_l1_provider();
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let init_res = rt.block_on(l1_provider.initialize(vec![]));
+    assert!(init_res.is_ok());
 
     // Test.
     commit_block_no_rejected(&mut l1_provider, &[tx_hash!(1)], BlockNumber(0));
@@ -989,6 +1001,11 @@ fn commit_block_historical_height_short_circuits_bootstrap() {
 
     // Test.
     let mut l1_provider = l1_provider_builder.clone().build_into_l1_provider();
+
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    let init_res = rt.block_on(l1_provider.initialize(vec![]));
+    assert!(init_res.is_ok());
+
     l1_provider
         .commit_block([tx_hash!(1)].into(), [].into(), BlockNumber(batcher_height_old))
         .unwrap();
