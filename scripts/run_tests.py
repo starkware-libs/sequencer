@@ -20,6 +20,7 @@ SEQUENCER_BINARY_NAME: str = "apollo_node"
 SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     # TODO(NoamP): enable this once fixed.
     # "integration_test_restart_flow",
+    "integration_test_positive_flow",
 ]
 NIGHTLY_ONLY_SEQUENCER_INTEGRATION_TEST_NAMES: List[str] = [
     "integration_test_positive_flow",
