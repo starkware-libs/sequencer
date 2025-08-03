@@ -75,6 +75,20 @@ pub(crate) enum NestedMultipleIntList {
     Node(Vec<NestedMultipleIntList>),
 }
 
+impl From<&NestedMultipleIntList> for NestedIntList {
+    /// Converts a `NestedMultipleIntList` to a `NestedIntList` by extracting only the segment
+    /// lengths. This discards the felt size group information and keeps just the structure and
+    /// lengths.
+    fn from(value: &NestedMultipleIntList) -> Self {
+        match value {
+            NestedMultipleIntList::Leaf(len, _) => NestedIntList::Leaf(*len),
+            NestedMultipleIntList::Node(children) => NestedIntList::Node(
+                children.iter().map(NestedIntList::from).collect(),
+            ),
+        }
+    }
+}
+
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
@@ -296,8 +310,8 @@ impl CompiledClassV1 {
         self.program.data_len()
     }
 
-    pub fn bytecode_segment_lengths(&self) -> &NestedIntList {
-        &self.bytecode_segment_lengths
+    pub fn bytecode_segment_lengths(&self) -> NestedIntList {
+        NestedIntList::from(&self.bytecode_segment_felt_sizes)
     }
 
     pub fn get_entry_point(
@@ -320,7 +334,9 @@ impl CompiledClassV1 {
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths)
+        // TODO(AvivG): Pass `NestedMultipleInt` directly to avoid redundant `NestedIntList`
+        // conversion.
+        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths())
     }
 
     /// Estimate the VM gas required to perform a CompiledClassHash migration.
@@ -339,12 +355,15 @@ impl CompiledClassV1 {
         versioned_constants: &VersionedConstants,
     ) -> (GasAmount, BuiltinCounterMap) {
         let blake_hash_gas = estimate_casm_blake_hash_computation_resources(
-            &self.bytecode_segment_lengths,
+            // TODO(AvivG): Pass `NestedMultipleInt` directly to avoid redundant `NestedIntList`
+            // conversion.
+            &self.bytecode_segment_lengths(),
             versioned_constants,
         );
 
         let poseidon_hash_resources =
-            estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths);
+            // TODO(AvivG): Pass `NestedMultipleInt` directly to avoid redundant `NestedIntList` conversion.
+            estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths());
         let poseidon_hash_gas =
             vm_resources_to_sierra_gas(&poseidon_hash_resources, versioned_constants);
 
@@ -361,7 +380,9 @@ impl CompiledClassV1 {
         visited_pcs: &HashSet<usize>,
     ) -> Result<Vec<usize>, TransactionExecutionError> {
         let mut reversed_visited_pcs: Vec<_> = visited_pcs.iter().cloned().sorted().rev().collect();
-        get_visited_segments(&self.bytecode_segment_lengths, &mut reversed_visited_pcs, &mut 0)
+        // TODO(AvivG): Pass `NestedMultipleInt` directly to avoid redundant `NestedIntList`
+        // conversion.
+        get_visited_segments(&self.bytecode_segment_lengths(), &mut reversed_visited_pcs, &mut 0)
     }
 
     pub fn try_from_json_string(
@@ -401,8 +422,10 @@ impl HashableCompiledClass<EntryPointV1> for CompiledClassV1 {
             .collect()
     }
 
+    // TODO(AvivG): Avoid unnecessary `NestedIntList` creation by having `HashableCompiledClass`
+    // accept `NestedMultipleInt` via a shared trait.
     fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
-        Cow::Borrowed(&self.bytecode_segment_lengths)
+        Cow::Owned(self.bytecode_segment_lengths())
     }
 }
 
@@ -571,8 +594,7 @@ pub struct ContractClassV1Inner {
     pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
     pub sierra_version: SierraVersion,
-    // TODO(AvivG): add bytecode_segment_felt_sizes and remove bytecode_segment_lengths.
-    bytecode_segment_lengths: NestedIntList,
+    bytecode_segment_felt_sizes: NestedMultipleIntList,
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
@@ -658,12 +680,19 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
+
+        let bytecode_segment_felt_sizes = create_bytecode_segment_felt_sizes(
+            &bytecode_segment_lengths,
+            class.bytecode.iter().map(|x| Felt::from(&x.value)),
+            program.data_len(),
+        );
+
         Ok(CompiledClassV1(Arc::new(ContractClassV1Inner {
             program,
             entry_points_by_type,
             hints: string_to_hint,
             sierra_version,
-            bytecode_segment_lengths,
+            bytecode_segment_felt_sizes,
         })))
     }
 }
