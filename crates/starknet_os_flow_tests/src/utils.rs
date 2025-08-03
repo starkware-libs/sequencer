@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
