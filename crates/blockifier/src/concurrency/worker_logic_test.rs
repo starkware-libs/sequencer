@@ -7,7 +7,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
-use starknet_api::core::{ContractAddress, Nonce};
+use starknet_api::core::{CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
 use starknet_api::transaction::constants::DEPLOY_CONTRACT_FUNCTION_ENTRY_POINT_NAME;
@@ -450,7 +450,11 @@ fn test_worker_execute(default_all_resource_bounds: ValidResourceBounds) {
             (test_contract.get_class_hash(), true),
             (erc20.get_class_hash(), true),
         ]),
-        ..Default::default()
+        compiled_class_hashes: HashMap::from([
+            (account_contract.get_class_hash(), CompiledClassHash::default()),
+            (test_contract.get_class_hash(), CompiledClassHash::default()),
+            (erc20.get_class_hash(), CompiledClassHash::default()),
+        ]),
     };
 
     assert_eq!(execution_output.state_diff, writes.diff(&reads));
