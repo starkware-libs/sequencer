@@ -68,6 +68,18 @@ pub enum TrackedResource {
     SierraGas, // AKA Sierra mode.
 }
 
+/// NestedDoubleIntList is either a list of NestedDoubleIntList or a tuple of two integers.
+/// E.g., `[(0, 0), [(1, 0), (2, 1)], [(3, 0), [(4, 0)]]]`.
+///
+/// Used to represents the lengths of the segments in a contract, and the number of big felts in
+/// each segment, which are in a form of a tree.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NestedDoubleIntList {
+    Leaf(usize, usize),
+    Node(Vec<NestedDoubleIntList>),
+}
+
 /// Represents a runnable Starknet compiled class.
 /// Meaning, the program is runnable by the VM (or natively).
 #[derive(Clone, Debug, Eq, PartialEq, derive_more::From)]
@@ -322,8 +334,10 @@ impl CompiledClassV1 {
         &self,
         versioned_constants: &VersionedConstants,
     ) -> (GasAmount, BuiltinCounterMap) {
+        let combined_bytecode_segment_lengths_and_big_felt_count =
+            self.combine_bytecode_segment_big_felt_count_and_lengths();
         let blake_hash_gas = estimate_casm_blake_hash_computation_resources(
-            &self.bytecode_segment_lengths,
+            &combined_bytecode_segment_lengths_and_big_felt_count,
             versioned_constants,
         );
 
@@ -355,6 +369,30 @@ impl CompiledClassV1 {
         let casm_contract_class: CasmContractClass = serde_json::from_str(raw_contract_class)?;
         let contract_class = CompiledClassV1::try_from((casm_contract_class, sierra_version))?;
         Ok(contract_class)
+    }
+
+    fn combine_bytecode_segment_big_felt_count_and_lengths(&self) -> NestedDoubleIntList {
+        fn combine(lengths: &NestedIntList, counts: &NestedIntList) -> NestedDoubleIntList {
+            match (lengths, counts) {
+                (NestedIntList::Leaf(len), NestedIntList::Leaf(count)) => {
+                    assert!(
+                        count <= len,
+                        "Big felt count {} exceeds segment length {}",
+                        count,
+                        len
+                    );
+                    NestedDoubleIntList::Leaf(*len, *count)
+                }
+                (NestedIntList::Node(len_list), NestedIntList::Node(count_list)) => {
+                    let combined =
+                        len_list.iter().zip(count_list).map(|(l, c)| combine(l, c)).collect();
+                    NestedDoubleIntList::Node(combined)
+                }
+                _ => panic!("Mismatched structure between lengths and counts"),
+            }
+        }
+
+        combine(&self.bytecode_segment_lengths, &self.bytecode_segment_big_felt_count)
     }
 }
 
@@ -436,13 +474,21 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
 }
 
 /// Cost to hash a single flat segment of `len` felts.
-fn leaf_cost(len: usize, versioned_constants: &VersionedConstants) -> GasAmount {
+fn leaf_cost(
+    len: usize,
+    big_felt_count: usize,
+    versioned_constants: &VersionedConstants,
+) -> GasAmount {
     // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    cost_of_encode_felt252_data_and_calc_blake_hash(len, 0, versioned_constants)
+    cost_of_encode_felt252_data_and_calc_blake_hash(
+        big_felt_count,
+        len - big_felt_count,
+        versioned_constants,
+    )
 }
 
 /// Cost to hash a multi-segment contract:
-fn node_cost(segs: &[NestedIntList], versioned_constants: &VersionedConstants) -> GasAmount {
+fn node_cost(segs: &[NestedDoubleIntList], versioned_constants: &VersionedConstants) -> GasAmount {
     // TODO(AvivG): Add base estimation for node.
     let mut gas = GasAmount::ZERO;
 
@@ -452,9 +498,13 @@ fn node_cost(segs: &[NestedIntList], versioned_constants: &VersionedConstants) -
     // For each segment, hash its felts.
     for seg in segs {
         match seg {
-            NestedIntList::Leaf(len) => {
+            NestedDoubleIntList::Leaf(len, big_felt_count) => {
                 gas = gas.checked_add_panic_on_overflow(segment_overhead);
-                gas = gas.checked_add_panic_on_overflow(leaf_cost(*len, versioned_constants));
+                gas = gas.checked_add_panic_on_overflow(leaf_cost(
+                    *len,
+                    *big_felt_count,
+                    versioned_constants,
+                ));
             }
             _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
         }
@@ -474,7 +524,7 @@ fn node_cost(segs: &[NestedIntList], versioned_constants: &VersionedConstants) -
 /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
 /// - Uses only bytecode size (treats all felts as “big”, ignores the small-felt optimization).
 pub fn estimate_casm_blake_hash_computation_resources(
-    bytecode_segment_lengths: &NestedIntList,
+    bytecode_segment_lengths: &NestedDoubleIntList,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
     // TODO(AvivG): Currently ignores entry-point hashing costs.
@@ -493,8 +543,10 @@ pub fn estimate_casm_blake_hash_computation_resources(
     // Add leaf vs node cost
     let added_gas = match bytecode_segment_lengths {
         // Single-segment contract (e.g., older Sierra contracts).
-        NestedIntList::Leaf(len) => leaf_cost(*len, versioned_constants),
-        NestedIntList::Node(segs) => node_cost(segs, versioned_constants),
+        NestedDoubleIntList::Leaf(len, big_felt_count) => {
+            leaf_cost(*len, *big_felt_count, versioned_constants)
+        }
+        NestedDoubleIntList::Node(segs) => node_cost(segs, versioned_constants),
     };
 
     gas.checked_add_panic_on_overflow(added_gas)
