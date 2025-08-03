@@ -19,15 +19,15 @@ use tracing::level_filters::LevelFilter;
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
 #[derive(Debug)]
 pub struct CommitmentInfo {
-    pub(crate) previous_root: HashOutput,
-    pub(crate) updated_root: HashOutput,
-    pub(crate) tree_height: SubTreeHeight,
+    pub previous_root: HashOutput,
+    pub updated_root: HashOutput,
+    pub tree_height: SubTreeHeight,
     // TODO(Dori, 1/8/2025): The value type here should probably be more specific (NodeData<L> for
     //   L: Leaf). This poses a problem in deserialization, as a serialized edge node and a
     //   serialized contract state leaf are both currently vectors of 3 field elements; as the
     //   semantics of the values are unimportant for the OS commitments, we make do with a vector
     //   of field elements as values for now.
-    pub(crate) commitment_facts: HashMap<HashOutput, Vec<Felt>>,
+    pub commitment_facts: HashMap<HashOutput, Vec<Felt>>,
 }
 
 #[cfg(any(feature = "testing", test))]
@@ -132,10 +132,10 @@ impl OsHintsConfig {
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(feature = "deserialize", serde(deny_unknown_fields))]
 pub struct CachedStateInput {
-    pub(crate) storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
-    pub(crate) address_to_class_hash: HashMap<ContractAddress, ClassHash>,
-    pub(crate) address_to_nonce: HashMap<ContractAddress, Nonce>,
-    pub(crate) class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+    pub storage: HashMap<ContractAddress, HashMap<StorageKey, Felt>>,
+    pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
+    pub address_to_nonce: HashMap<ContractAddress, Nonce>,
+    pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
 }
 
 #[derive(Debug, thiserror::Error)]

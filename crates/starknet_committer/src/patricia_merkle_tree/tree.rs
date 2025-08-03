@@ -9,7 +9,7 @@ generate_trie_config!(OriginalSkeletonStorageTrieConfig, StarknetStorageValue);
 
 generate_trie_config!(OriginalSkeletonClassesTrieConfig, CompiledClassHash);
 
-pub(crate) struct OriginalSkeletonContractsTrieConfig;
+pub struct OriginalSkeletonContractsTrieConfig;
 
 impl OriginalSkeletonTreeConfig<ContractState> for OriginalSkeletonContractsTrieConfig {
     fn compare_modified_leaves(&self) -> bool {

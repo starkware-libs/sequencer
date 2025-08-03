@@ -1,5 +1,7 @@
 #![allow(dead_code)]
 
+use std::collections::HashMap;
+
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
@@ -8,14 +10,15 @@ use blockifier::blockifier::transaction_executor::{
     TransactionExecutorError,
 };
 use blockifier::context::BlockContext;
-use blockifier::state::cached_state::{CachedState, CommitmentStateDiff};
+use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
 use blockifier::test_utils::maybe_dummy_block_hash_and_number;
 use blockifier::transaction::transaction_execution::Transaction;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
+use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::declare_tx_args;
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
-use starknet_api::state::SierraContractClass;
+use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::fields::ValidResourceBounds;
@@ -27,9 +30,15 @@ use starknet_committer::block_committer::input::{
     StarknetStorageValue,
     StateDiff,
 };
+use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
+use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
 use starknet_patricia::hash::hash_trait::HashOutput;
+use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
+use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
+use starknet_patricia::test_utils::filter_inner_nodes_from_commitments;
 use starknet_patricia_storage::map_storage::BorrowedMapStorage;
+use starknet_types_core::felt::Felt;
 
 use crate::initial_state::OsExecutionContracts;
 use crate::state_trait::FlowTestState;
@@ -147,4 +156,169 @@ pub(crate) fn create_cairo1_bootstrap_declare_tx(
     let tx =
         DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
     AccountTransaction::Declare(tx)
+}
+
+pub(crate) struct CommitmentInfos {
+    pub(crate) contracts_trie_commitment_info: CommitmentInfo,
+    pub(crate) classes_trie_commitment_info: CommitmentInfo,
+    pub(crate) storage_tries_commitment_infos: HashMap<ContractAddress, CommitmentInfo>,
+}
+
+/// Creates the commitment infos and the cached state input for the OS.
+pub(crate) fn create_cached_state_input_and_commitment_infos(
+    previous_contract_trie_root: HashOutput,
+    new_contract_trie_root: HashOutput,
+    previous_class_trie_root: HashOutput,
+    new_class_trie_root: HashOutput,
+    commitments: &mut BorrowedMapStorage<'_>,
+    extended_state_diff: &StateMaps,
+) -> (CachedStateInput, CommitmentInfos) {
+    // TODO(Nimrod): Gather the keys from the state selector similarly to python.
+    let (previous_contract_states, new_storage_roots) = get_previous_and_new_contract_states(
+        extended_state_diff.get_contract_addresses().into_iter(),
+        previous_contract_trie_root,
+        new_contract_trie_root,
+        commitments,
+    );
+    let mut address_to_previous_class_hash = HashMap::new();
+    let mut address_to_previous_nonce = HashMap::new();
+    let mut address_to_previous_storage_root_hash = HashMap::new();
+    for (address, contract_state) in previous_contract_states.into_iter() {
+        // Subtract the first leaf index to get the leaf index.
+        let address = Felt::try_from(address - NodeIndex::FIRST_LEAF).unwrap().try_into().unwrap();
+        address_to_previous_class_hash.insert(address, contract_state.class_hash);
+        address_to_previous_nonce.insert(address, contract_state.nonce);
+        address_to_previous_storage_root_hash.insert(address, contract_state.storage_root_hash);
+    }
+
+    // Get previous class leaves.
+    let mut class_leaf_indices: Vec<NodeIndex> = extended_state_diff
+        .compiled_class_hashes
+        .keys()
+        .chain(extended_state_diff.declared_contracts.keys())
+        .map(|address| NodeIndex::from_leaf_felt(&address.0))
+        .collect();
+
+    let sorted_class_leaf_indices = SortedLeafIndices::new(&mut class_leaf_indices);
+    let previous_class_leaves: HashMap<NodeIndex, CompiledClassHash> =
+        OriginalSkeletonTreeImpl::get_leaves(
+            commitments,
+            previous_class_trie_root,
+            sorted_class_leaf_indices,
+        )
+        .unwrap();
+    let class_hash_to_compiled_class_hash = previous_class_leaves
+        .into_iter()
+        .map(|(idx, v)| {
+            (
+                ClassHash(Felt::try_from(idx - NodeIndex::FIRST_LEAF).unwrap()),
+                starknet_api::core::CompiledClassHash(v.0),
+            )
+        })
+        .collect();
+
+    let mut storage = HashMap::new();
+    for address in extended_state_diff.get_contract_addresses() {
+        let mut storage_keys_indices: Vec<NodeIndex> = extended_state_diff
+            .storage
+            .keys()
+            .filter_map(|(add, key)| {
+                if add == &address { Some(NodeIndex::from_leaf_felt(&key.0)) } else { None }
+            })
+            .collect();
+        let sorted_leaf_indices = SortedLeafIndices::new(&mut storage_keys_indices);
+        let previous_storage_leaves: HashMap<NodeIndex, StarknetStorageValue> =
+            OriginalSkeletonTreeImpl::get_leaves(
+                commitments,
+                address_to_previous_storage_root_hash[&address],
+                sorted_leaf_indices,
+            )
+            .unwrap();
+        let previous_storage_leaves: HashMap<StorageKey, Felt> = previous_storage_leaves
+            .into_iter()
+            .map(|(idx, v)| {
+                (Felt::try_from(idx - NodeIndex::FIRST_LEAF).unwrap().try_into().unwrap(), v.0)
+            })
+            .collect();
+        storage.insert(address, previous_storage_leaves);
+    }
+    // Note: The generic type `<CompiledClassHash>` here is arbitrary.
+    let commitments = filter_inner_nodes_from_commitments::<CompiledClassHash>(commitments.storage);
+    let contracts_trie_commitment_info = CommitmentInfo {
+        previous_root: previous_contract_trie_root,
+        updated_root: new_contract_trie_root,
+        tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+        commitment_facts: commitments.clone(),
+    };
+    let classes_trie_commitment_info = CommitmentInfo {
+        previous_root: previous_class_trie_root,
+        updated_root: new_class_trie_root,
+        tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+        commitment_facts: commitments.clone(),
+    };
+    let storage_tries_commitment_infos = address_to_previous_storage_root_hash
+        .iter()
+        .map(|(address, previous_root_hash)| {
+            (
+                *address,
+                CommitmentInfo {
+                    previous_root: *previous_root_hash,
+                    updated_root: new_storage_roots[address],
+                    tree_height: SubTreeHeight::ACTUAL_HEIGHT,
+                    commitment_facts: commitments.clone(),
+                },
+            )
+        })
+        .collect();
+    (
+        CachedStateInput {
+            storage,
+            address_to_class_hash: address_to_previous_class_hash,
+            address_to_nonce: address_to_previous_nonce,
+            class_hash_to_compiled_class_hash,
+        },
+        CommitmentInfos {
+            contracts_trie_commitment_info,
+            classes_trie_commitment_info,
+            storage_tries_commitment_infos,
+        },
+    )
+}
+
+pub(crate) fn get_previous_and_new_contract_states<I: Iterator<Item = ContractAddress>>(
+    contract_addresses: I,
+    previous_contract_trie_root: HashOutput,
+    new_contract_trie_root: HashOutput,
+    commitments: &BorrowedMapStorage<'_>,
+) -> (HashMap<NodeIndex, ContractState>, HashMap<ContractAddress, HashOutput>) {
+    let mut contract_leaf_indices: Vec<NodeIndex> =
+        contract_addresses.map(|address| NodeIndex::from_leaf_felt(&address.0)).collect();
+
+    // Get previous contract state leaves.
+    let sorted_contract_leaf_indices = SortedLeafIndices::new(&mut contract_leaf_indices);
+    // Get the previous and the new contract states.
+    let previous_contract_states = OriginalSkeletonTreeImpl::get_leaves(
+        commitments,
+        previous_contract_trie_root,
+        sorted_contract_leaf_indices,
+    )
+    .unwrap();
+    let new_contract_states: HashMap<NodeIndex, ContractState> =
+        OriginalSkeletonTreeImpl::get_leaves(
+            commitments,
+            new_contract_trie_root,
+            sorted_contract_leaf_indices,
+        )
+        .unwrap();
+    let new_contract_roots: HashMap<ContractAddress, HashOutput> = new_contract_states
+        .into_iter()
+        .map(|(idx, contract_state)| {
+            (
+                // Subtract the first leaf index to get the leaf index.
+                Felt::try_from(idx - NodeIndex::FIRST_LEAF).unwrap().try_into().unwrap(),
+                contract_state.storage_root_hash,
+            )
+        })
+        .collect();
+    (previous_contract_states, new_contract_roots)
 }
