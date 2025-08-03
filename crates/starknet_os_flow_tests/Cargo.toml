@@ -7,15 +7,17 @@ license.workspace = true
 license-file.workspace = true
 
 [dev-dependencies]
-blockifier.workspace = true
+blockifier = { workspace = true, features = ["testing"] }
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
+once_cell.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
 starknet_os.workspace = true
 starknet_patricia.workspace = true
 starknet_patricia_storage = { workspace = true, features = ["testing"] }
+tokio.workspace = true
 
 [lints]
 workspace = true

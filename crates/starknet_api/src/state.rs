@@ -31,7 +31,8 @@ use crate::{impl_from_through_intermediate, StarknetApiError};
 pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
 pub type DeprecatedDeclaredClasses = IndexMap<ClassHash, DeprecatedContractClass>;
 
-static API_VERSION: LazyLock<Felt> =
+// TODO(Nimrod): Delete this constant.
+pub static API_VERSION: LazyLock<Felt> =
     LazyLock::new(|| Felt::from_bytes_be_slice(b"CONTRACT_CLASS_V0.1.0"));
 
 /// The differences between two states before and after a block with hash block_hash
