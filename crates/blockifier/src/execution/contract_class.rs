@@ -554,6 +554,7 @@ pub struct ContractClassV1Inner {
     pub hints: HashMap<String, Hint>,
     pub sierra_version: SierraVersion,
     bytecode_segment_lengths: NestedIntList,
+    bytecode_segment_big_felt_count: NestedIntList,
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
@@ -594,8 +595,15 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
     type Error = ProgramError;
 
     fn try_from((class, sierra_version): VersionedCasm) -> Result<Self, Self::Error> {
-        let data: Vec<MaybeRelocatable> =
-            class.bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
+        let (data, big_felt_count): (Vec<MaybeRelocatable>, Vec<bool>) = class
+            .bytecode
+            .iter()
+            .map(|x| {
+                let x = Felt::from(&x.value);
+                let is_big_felt = x > Felt::from(1u64 << 63);
+                (MaybeRelocatable::from(x), is_big_felt)
+            })
+            .collect();
 
         let mut hints: HashMap<usize, Vec<HintParams>> = HashMap::new();
         for (i, hint_list) in class.hints.iter() {
@@ -639,12 +647,19 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
+
+        let bytecode_segment_big_felt_count = create_bytecode_segment_big_felt_count(
+            &bytecode_segment_lengths,
+            &big_felt_count,
+            program.data_len(),
+        );
         Ok(CompiledClassV1(Arc::new(ContractClassV1Inner {
             program,
             entry_points_by_type,
             hints: string_to_hint,
             sierra_version,
             bytecode_segment_lengths,
+            bytecode_segment_big_felt_count,
         })))
     }
 }
@@ -730,6 +745,62 @@ impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
             EntryPointType::Constructor => &self.constructor,
             EntryPointType::External => &self.external,
             EntryPointType::L1Handler => &self.l1_handler,
+        }
+    }
+}
+
+/// Creates the bytecode segment big felt count structure from the given bytecode segment lengths
+/// and big felt count.
+pub(crate) fn create_bytecode_segment_big_felt_count(
+    bytecode_segment_lengths: &NestedIntList,
+    big_felt_count: &Vec<bool>,
+    bytecode_length: usize,
+) -> NestedIntList {
+    let (structure, total_len) =
+        create_bytecode_segment_big_felt_count_inner(bytecode_segment_lengths, big_felt_count, 0);
+    // Sanity checks.
+    assert_eq!(total_len, bytecode_length, "Invalid length bytecode segment structure");
+
+    structure
+}
+
+/// Helper function for `create_bytecode_segment_big_felt_count`.
+/// Returns a nested structure matching `bytecode_segment_lengths`, containing big felt counts per
+/// segment, along with the total length of the processed segment.
+pub(crate) fn create_bytecode_segment_big_felt_count_inner(
+    bytecode_segment_lengths: &NestedIntList,
+    big_felt_count: &Vec<bool>,
+    bytecode_offset: usize,
+) -> (NestedIntList, usize) {
+    match bytecode_segment_lengths {
+        NestedIntList::Leaf(length) => {
+            let big_felt_count_in_segment = big_felt_count
+                [bytecode_offset..bytecode_offset + length]
+                .iter()
+                .filter(|&x| *x)
+                .count();
+            let segment_length = *length;
+            (NestedIntList::Leaf(big_felt_count_in_segment), segment_length)
+        }
+        NestedIntList::Node(lengths) => {
+            let mut total_len = 0;
+            let mut bytecode_offset = bytecode_offset;
+            let mut current_bytecode_segment_big_felt_count = Vec::new();
+
+            for item in lengths {
+                let (bytecode_segment_big_felt_count, segment_length) =
+                    create_bytecode_segment_big_felt_count_inner(
+                        item,
+                        big_felt_count,
+                        bytecode_offset,
+                    );
+
+                bytecode_offset += segment_length;
+                total_len += segment_length;
+                current_bytecode_segment_big_felt_count.push(bytecode_segment_big_felt_count);
+            }
+
+            (NestedIntList::Node(current_bytecode_segment_big_felt_count), total_len)
         }
     }
 }

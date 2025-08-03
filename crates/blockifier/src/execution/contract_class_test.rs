@@ -10,6 +10,7 @@ use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCom
 use starknet_api::contract_class::ContractClass;
 
 use crate::execution::contract_class::{
+    create_bytecode_segment_big_felt_count,
     CompiledClassV1,
     ContractClassV1Inner,
     RunnableCompiledClass,
@@ -36,6 +37,7 @@ fn test_get_visited_segments() {
             ])]),
             NestedIntList::Leaf(162),
         ]),
+        bytecode_segment_big_felt_count: NestedIntList::Leaf(0),
     }));
 
     assert_eq!(
@@ -87,4 +89,76 @@ fn test_compiled_class_hash(
         _ => panic!("RunnableCompiledClass::V0 does not support hash"),
     };
     assert_eq!(casm_hash, runnable_contact_class_hash);
+}
+
+#[rstest]
+#[case::empty_structure(
+    NestedIntList::Node(vec![]),
+    0, // total bytecode length = 0
+    vec![],
+    NestedIntList::Node(vec![]),
+)]
+#[case::single_segment(
+    NestedIntList::Leaf(3),
+    3, // total bytecode length = 3
+    vec![true, false, true], // 2 big felts
+    NestedIntList::Leaf(2),
+)]
+#[case::nested_with_all_false(
+    NestedIntList::Node(vec![
+        NestedIntList::Leaf(2),
+        NestedIntList::Leaf(1),
+    ]),
+    3, // total bytecode length = 2 + 1 = 3
+    vec![false, false, false], // 0 big felts
+    NestedIntList::Node(vec![
+        NestedIntList::Leaf(0),
+        NestedIntList::Leaf(0),
+    ]),
+
+)]
+#[case::flat_and_nested_segments(
+    NestedIntList::Node(vec![
+        NestedIntList::Leaf(5),
+        NestedIntList::Leaf(4),
+        NestedIntList::Leaf(3),
+        NestedIntList::Node(vec![
+            NestedIntList::Leaf(2),
+            NestedIntList::Leaf(1),
+        ]),
+    ]),
+    15, // total bytecode length =  5 + 4 + 3 + 2 + 1 = 15
+    vec![
+        true, true, false, false, true, // Segment 1 → 3 big felts
+        false, false, false, false,     // Segment 2 → 0 big felts
+        true, true, true,               // Segment 3 → 3 big felts
+        false, false,                   // Nested segment 1 → 0 big felts
+        true,                           // Nested segment 2 → 1 big felt
+    ],
+    NestedIntList::Node(vec![
+        NestedIntList::Leaf(3),
+        NestedIntList::Leaf(0),
+        NestedIntList::Leaf(3),
+        NestedIntList::Node(vec![
+            NestedIntList::Leaf(0),
+            NestedIntList::Leaf(1),
+        ]),
+    ])
+)]
+fn test_create_bytecode_segment_big_felt_count(
+    #[case] bytecode_segment_lengths: NestedIntList,
+    #[case] total_bytecode_length: usize,
+    #[case] is_big_felt_flags: Vec<bool>,
+    #[case] expected_bytecode_segment_big_felt_count: NestedIntList,
+) {
+    let actual = create_bytecode_segment_big_felt_count(
+        &bytecode_segment_lengths,
+        &is_big_felt_flags,
+        total_bytecode_length,
+    );
+
+    assert_eq!(
+        actual, expected_bytecode_segment_big_felt_count,
+        "Mismatch in bytecode segment big felt count structure"
+    );
 }
