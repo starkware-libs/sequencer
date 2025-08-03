@@ -571,8 +571,9 @@ pub struct ContractClassV1Inner {
     pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
     pub sierra_version: SierraVersion,
-    // TODO(AvivG): add bytecode_segment_felt_sizes and remove bytecode_segment_lengths.
+    // TODO(AvivG): remove bytecode_segment_lengths.
     bytecode_segment_lengths: NestedIntList,
+    bytecode_segment_felt_sizes: NestedMultipleIntList,
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
@@ -658,12 +659,20 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
+
+        let bytecode_segment_felt_sizes = create_bytecode_segment_felt_sizes(
+            &bytecode_segment_lengths,
+            class.bytecode.iter().map(|x| Felt::from(&x.value)),
+            program.data_len(),
+        );
+
         Ok(CompiledClassV1(Arc::new(ContractClassV1Inner {
             program,
             entry_points_by_type,
             hints: string_to_hint,
             sierra_version,
             bytecode_segment_lengths,
+            bytecode_segment_felt_sizes,
         })))
     }
 }
