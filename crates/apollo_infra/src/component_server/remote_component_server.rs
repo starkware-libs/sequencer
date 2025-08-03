@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
@@ -10,8 +11,8 @@ use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use tower::limit::ConcurrencyLimitLayer;
-use tower::ServiceBuilder;
+use tokio::sync::{OwnedSemaphorePermit, Semaphore};
+use tower::Service;
 use tracing::{debug, error, trace, warn};
 
 use crate::component_client::{ClientError, LocalComponentClient};
@@ -231,16 +232,21 @@ where
     Response: Serialize + DeserializeOwned + Send + Debug + 'static,
 {
     async fn start(&mut self) {
-        debug!("Starting server on socket: {:?}", self.socket);
+        debug!(
+            "Starting server with socket {:?} with {:?} concurrent connections",
+            self.socket, self.max_concurrency
+        );
+        let connection_semaphore = Arc::new(Semaphore::new(self.max_concurrency));
+
         let make_svc = make_service_fn(|_conn| {
+            let acquire_permit_fut = connection_semaphore.clone().acquire_owned();
             let local_client = self.local_client.clone();
-            let max_concurrency = self.max_concurrency;
-            debug!(
-                "Initializing service for new connection with max_concurrency: {:?}",
-                max_concurrency
-            );
             let metrics = self.metrics.clone();
+
             async move {
+                let permit =
+                    acquire_permit_fut.await.expect("Permit should be acquired successfully");
+
                 let app_service = service_fn(move |req| {
                     debug!("Received request: {:?}", req);
                     Self::remote_component_server_handler(
@@ -250,19 +256,18 @@ where
                     )
                 });
 
-                // Apply the ConcurrencyLimitLayer middleware
-                let service = ServiceBuilder::new()
-                    .layer(ConcurrencyLimitLayer::new(max_concurrency))
-                    .service(app_service);
+                // Bundle the service and the acquired permit to limit concurrency at the connection
+                // level.
+                let service = PermitGuardedService { inner: app_service, _permit: permit };
 
                 Ok::<_, hyper::Error>(service)
             }
         });
-        debug!("Binding server to socket: {:?}", self.socket);
+
         Server::bind(&self.socket)
             .serve(make_svc)
             .await
-            .unwrap_or_else(|e| panic!("HttpServerStartError: {}", e));
+            .unwrap_or_else(|e| panic!("Remote component server start error: {}", e));
     }
 }
 
@@ -273,5 +278,33 @@ where
 {
     fn drop(&mut self) {
         warn!("Dropping {}.", short_type_name::<Self>());
+    }
+}
+
+// TODO(Tsabary): consider moving this to `apollo_infra_utils`, and applying it on the http server
+// as well.
+/// A service wrapper that holds an `OwnedSemaphorePermit` for the lifetime of a connection.
+/// This ensures that the permit is only released when the service (and thus the connection) is
+/// dropped, achieving connection-level concurrency limits in asynchronous servers. Transparently
+/// delegates all service calls to the inner service.
+struct PermitGuardedService<S> {
+    inner: S,
+    _permit: OwnedSemaphorePermit,
+}
+
+impl<S, Req> Service<Req> for PermitGuardedService<S>
+where
+    S: Service<Req>,
+{
+    type Response = S::Response;
+    type Error = S::Error;
+    type Future = S::Future;
+
+    fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), Self::Error>> {
+        self.inner.poll_ready(cx)
+    }
+
+    fn call(&mut self, req: Req) -> Self::Future {
+        self.inner.call(req)
     }
 }
