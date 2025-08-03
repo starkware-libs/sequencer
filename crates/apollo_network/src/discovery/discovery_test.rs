@@ -1,11 +1,13 @@
 // TODO(shahak): add flow test
 
+use std::convert::Infallible;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::time::Duration;
 
 use assert_matches::assert_matches;
 use futures::{FutureExt, Stream, StreamExt};
+use libp2p::core::transport::PortUse;
 use libp2p::core::{ConnectedPoint, Endpoint};
 use libp2p::multihash::Multihash;
 use libp2p::swarm::behaviour::ConnectionEstablished;
@@ -20,7 +22,6 @@ use libp2p::swarm::{
 };
 use libp2p::{Multiaddr, PeerId};
 use tokio::time::timeout;
-use void::Void;
 
 use super::{Behaviour, DiscoveryConfig, RetryConfig, ToOtherBehaviourEvent};
 
@@ -56,7 +57,7 @@ const CONFIG_WITH_SMALL_HEARTBEAT_AND_LARGE_BOOTSTRAP_SLEEP: DiscoveryConfig = D
 impl Unpin for Behaviour {}
 
 impl Stream for Behaviour {
-    type Item = ToSwarm<ToOtherBehaviourEvent, Void>;
+    type Item = ToSwarm<ToOtherBehaviourEvent, Infallible>;
 
     fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::into_inner(self).poll(cx) {
@@ -80,7 +81,7 @@ fn assert_no_event(behaviour: &mut Behaviour) {
 async fn check_event_happens_after_given_duration(
     behaviour: &mut Behaviour,
     duration: Duration,
-) -> ToSwarm<ToOtherBehaviourEvent, Void> {
+) -> ToSwarm<ToOtherBehaviourEvent, Infallible> {
     const EPSILON_SLEEP: Duration = Duration::from_millis(5);
 
     // Check that there are no events until we sleep for enough time.
@@ -175,8 +176,10 @@ async fn discovery_redials_when_all_connections_closed(
         endpoint: &ConnectedPoint::Dialer {
             address: bootstrap_peer_address.clone(),
             role_override: Endpoint::Dialer,
+            port_use: PortUse::Reuse,
         },
         remaining_established: 0,
+        cause: None,
     }));
 
     let event = timeout(TIMEOUT, behaviour.next()).await.unwrap().unwrap();
@@ -210,6 +213,7 @@ async fn discovery_doesnt_redial_when_one_connection_closes(
         endpoint: &ConnectedPoint::Dialer {
             address: bootstrap_peer_address.clone(),
             role_override: Endpoint::Dialer,
+            port_use: PortUse::Reuse,
         },
         failed_addresses: &[],
         other_established: 1,
@@ -221,8 +225,10 @@ async fn discovery_doesnt_redial_when_one_connection_closes(
         endpoint: &ConnectedPoint::Dialer {
             address: bootstrap_peer_address.clone(),
             role_override: Endpoint::Dialer,
+            port_use: PortUse::Reuse,
         },
         remaining_established: 1,
+        cause: None,
     }));
 
     assert_no_event(&mut behaviour);
@@ -242,6 +248,7 @@ async fn connect_to_bootstrap_node(
         endpoint: &ConnectedPoint::Dialer {
             address: bootstrap_peer_address.clone(),
             role_override: Endpoint::Dialer,
+            port_use: PortUse::Reuse,
         },
         failed_addresses: &[],
         other_established: 0,

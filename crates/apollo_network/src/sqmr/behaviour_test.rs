@@ -5,6 +5,7 @@ use apollo_network_types::test_utils::DUMMY_PEER_ID;
 use assert_matches::assert_matches;
 use futures::{FutureExt, Stream, StreamExt};
 use lazy_static::lazy_static;
+use libp2p::core::transport::PortUse;
 use libp2p::core::{ConnectedPoint, Endpoint};
 use libp2p::swarm::{ConnectionClosed, ConnectionId, FromSwarm, NetworkBehaviour, ToSwarm};
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
@@ -112,8 +113,10 @@ fn simulate_connection_closed(behaviour: &mut Behaviour, peer_id: PeerId) {
         endpoint: &ConnectedPoint::Dialer {
             address: Multiaddr::empty(),
             role_override: Endpoint::Dialer,
+            port_use: PortUse::Reuse,
         },
         remaining_established: 0,
+        cause: None,
     }))
 }
 
