@@ -501,6 +501,7 @@ pub fn encode_and_blake_hash_execution_resources(
 // TODO(AvivG): Consider separating `encode_felt252_to_u32s` and `blake_with_opcode` costs for
 // improved granularity and testability.
 pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
+    // TODO(AvivG): Consider refactoring to use FeltSizeCount.
     n_big_felts: usize,
     n_small_felts: usize,
     versioned_constants: &VersionedConstants,
