@@ -1,9 +1,10 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::LazyLock;
 
 use apollo_starknet_os_program::OS_PROGRAM;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_vm::serde::deserialize_program::Identifier;
+use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use rstest::rstest;
@@ -17,8 +18,11 @@ use super::{
     IdentifierGetter,
     VmUtilsResult,
 };
+use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hints::hint_implementation::compiled_class::utils::CompiledClassFact;
 use crate::hints::vars::CairoStruct;
+use crate::io::os_input::{OsHints, OsHintsConfig, StarknetOsInput};
+use crate::runner::run_os;
 use crate::vm_utils::CairoSized;
 
 static IDENTIFIERS: LazyLock<HashMap<String, Identifier>> = LazyLock::new(|| {
@@ -143,4 +147,36 @@ fn test_cairo_sized_structs() {
     ContractClass::size(identifier_getter).unwrap();
     EntryPointV0::size(identifier_getter).unwrap();
     ResourceAsFelts::size(identifier_getter).unwrap();
+}
+
+#[test]
+/// Runs the OS with input that causes error to test the code snippet printing.
+fn test_run_os_with_code_snippet() {
+    let layout = LayoutName::all_cairo;
+    let os_hints_config = OsHintsConfig::default();
+    let os_input = StarknetOsInput {
+        os_block_inputs: vec![],
+        cached_state_inputs: vec![],
+        deprecated_compiled_classes: BTreeMap::new(),
+        compiled_classes: BTreeMap::new(),
+    };
+    let state_readers: Vec<PanickingStateReader> = vec![];
+
+    let error = run_os(layout, OsHints { os_hints_config, os_input }, state_readers).unwrap_err();
+    assert!(error.to_string().contains("Cairo traceback (most recent call last):"));
+    assert!(error.to_string().contains(
+        "crates/apollo_starknet_os_program/src/cairo/starkware/starknet/core/os/os.cairo:"
+    ));
+    assert!(error.to_string().contains(
+        r#"    let final_os_output = combine_blocks(
+                          ^*************^"#
+    ));
+    assert!(error.to_string().contains(
+        "crates/apollo_starknet_os_program/src/cairo/starkware/starknet/core/aggregator/\
+         combine_blocks.cairo:"
+    ));
+    assert!(error.to_string().contains(
+        r#"    assert_nn_le(1, n);
+    ^****************^"#
+    ));
 }
