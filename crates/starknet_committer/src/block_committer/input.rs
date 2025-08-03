@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
-use starknet_api::core::{ClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ClassHash, ContractAddress, Nonce, PatriciaKey};
 use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
@@ -18,12 +18,16 @@ pub mod input_test;
 pub fn try_node_index_into_contract_address(
     node_index: &NodeIndex,
 ) -> Result<ContractAddress, String> {
+    Ok(ContractAddress(try_node_index_into_patricia_key(node_index)?))
+}
+
+pub fn try_node_index_into_patricia_key(node_index: &NodeIndex) -> Result<PatriciaKey, String> {
     if !node_index.is_leaf() {
         return Err("NodeIndex is not a leaf.".to_string());
     }
     let result = Felt::try_from(*node_index - NodeIndex::FIRST_LEAF);
     match result {
-        Ok(felt) => Ok(ContractAddress::try_from(felt).map_err(|error| error.to_string())?),
+        Ok(felt) => Ok(PatriciaKey::try_from(felt).map_err(|error| error.to_string())?),
         Err(error) => Err(format!(
             "Tried to convert node index to felt and got the following error: {:?}",
             error.to_string()
