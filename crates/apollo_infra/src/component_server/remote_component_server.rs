@@ -182,7 +182,7 @@ where
             .map_err(|err| ClientError::ResponseDeserializationFailure(err.to_string()))
         {
             Ok(request) => {
-                debug!("Successfully deserialized request: {:?}", request);
+                trace!("Successfully deserialized request: {:?}", request);
                 metrics.increment_valid_received();
 
                 // Wrap the send operation in a tokio::spawn as it is NOT a cancel-safe operation.
@@ -195,7 +195,7 @@ where
 
                 match response {
                     Ok(response) => {
-                        debug!("Local client processed request successfully: {:?}", response);
+                        trace!("Local client processed request successfully: {:?}", response);
                         HyperResponse::builder()
                             .status(StatusCode::OK)
                             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
@@ -248,7 +248,7 @@ where
             let metrics = self.metrics.clone();
             async move {
                 let app_service = service_fn(move |req| {
-                    debug!("Received request: {:?}", req);
+                    trace!("Received request: {:?}", req);
                     Self::remote_component_server_handler(
                         req,
                         local_client.clone(),
