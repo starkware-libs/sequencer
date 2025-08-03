@@ -733,3 +733,66 @@ impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
         }
     }
 }
+
+/// NestedDoubleIntList is either a list of NestedDoubleIntList or a tuple of two integers.
+/// E.g., `[(0, 0), [(1, 0), (2, 1)], [(3, 0), [(4, 0)]]]`.
+///
+/// Used to represents the lengths of the segments in a contract, and the number of big felts in
+/// each segment, which are in a form of a tree.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NestedDoubleIntList {
+    Leaf(usize, usize),
+    Node(Vec<NestedDoubleIntList>),
+}
+
+/// Constructs a NestedDoubleIntList from `bytecode_segment_lengths` and `big_felt_count` in one
+/// pass. Each segment is annotated with its length and the count of "big felts" within it.
+pub(crate) fn create_bytecode_segment_length_and_big_felt_count(
+    bytecode_segment_lengths: &NestedIntList,
+    big_felt_count: &[bool],
+    bytecode_length: usize,
+) -> NestedDoubleIntList {
+    let (structure, total_len) =
+        create_combined_segment_structure(bytecode_segment_lengths, big_felt_count, 0);
+
+    assert_eq!(total_len, bytecode_length, "Invalid length bytecode segment structure");
+
+    structure
+}
+
+/// Helper function for `create_bytecode_segment_length_and_big_felt_count`.
+/// Recursively constructs NestedDoubleIntList with (length, big_felt_count) per segment.
+fn create_combined_segment_structure(
+    bytecode_segment_lengths: &NestedIntList,
+    big_felt_count: &[bool],
+    bytecode_offset: usize,
+) -> (NestedDoubleIntList, usize) {
+    match bytecode_segment_lengths {
+        NestedIntList::Leaf(length) => {
+            let count = big_felt_count[bytecode_offset..bytecode_offset + length]
+                .iter()
+                .filter(|&&is_big| is_big)
+                .count();
+
+            assert!(count <= *length, "Big felt count {} exceeds segment length {}", count, length);
+
+            (NestedDoubleIntList::Leaf(*length, count), *length)
+        }
+        NestedIntList::Node(lengths) => {
+            let mut total_len = 0;
+            let mut current_offset = bytecode_offset;
+            let mut combined = Vec::with_capacity(lengths.len());
+
+            for length in lengths {
+                let (combined_segment, segment_len) =
+                    create_combined_segment_structure(length, big_felt_count, current_offset);
+                current_offset += segment_len;
+                total_len += segment_len;
+                combined.push(combined_segment);
+            }
+
+            (NestedDoubleIntList::Node(combined), total_len)
+        }
+    }
+}

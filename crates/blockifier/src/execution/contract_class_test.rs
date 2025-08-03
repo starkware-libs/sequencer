@@ -10,8 +10,10 @@ use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCom
 use starknet_api::contract_class::ContractClass;
 
 use crate::execution::contract_class::{
+    create_bytecode_segment_length_and_big_felt_count,
     CompiledClassV1,
     ContractClassV1Inner,
+    NestedDoubleIntList,
     RunnableCompiledClass,
 };
 use crate::test_utils::contracts::FeatureContractTrait;
@@ -87,4 +89,62 @@ fn test_compiled_class_hash(
         _ => panic!("RunnableCompiledClass::V0 does not support hash"),
     };
     assert_eq!(casm_hash, runnable_contact_class_hash);
+}
+
+#[rstest]
+#[case::one_segment(
+    NestedIntList::Leaf(3),
+    vec![true, false, true],
+    3,
+    NestedDoubleIntList::Leaf(3, 2),
+)]
+#[case::simple_nested_structure(
+    NestedIntList::Node(vec![
+        NestedIntList::Leaf(3),
+        NestedIntList::Leaf(2),
+    ]),
+    // Segment 1: [true, false, true] --> 2 big felts
+    // Segment 2: [false, false] --> 0 big felts
+    vec![true, false, true, false, false],
+    // total length of the bytecode = 3 + 2 = 5
+    5,
+    NestedDoubleIntList::Node(vec![
+        NestedDoubleIntList::Leaf(3, 2),
+        NestedDoubleIntList::Leaf(2, 0),
+    ])
+)]
+#[case::nested_structure(
+    NestedIntList::Node(vec![
+        NestedIntList::Node(vec![
+            NestedIntList::Leaf(1),
+            NestedIntList::Leaf(2),
+        ]),
+        NestedIntList::Leaf(2),
+    ]),
+    // Segment 1: [false] --> 0 big felts
+    // Segment 2: [true, false] --> 1 big felt
+    // Segment 3: [true, false] --> 1 big felt
+    vec![false, true, false, true, false],
+    // total length of the bytecode = 1 + 2 + 2 = 5
+    5,
+    NestedDoubleIntList::Node(vec![
+        NestedDoubleIntList::Node(vec![
+            NestedDoubleIntList::Leaf(1, 0),
+            NestedDoubleIntList::Leaf(2, 1),
+        ]),
+        NestedDoubleIntList::Leaf(2, 1),
+    ])
+)]
+fn test_create_combined_segment_structure_success(
+    #[case] lengths: NestedIntList,
+    #[case] big_felt_flags: Vec<bool>,
+    #[case] expected_total_length: usize,
+    #[case] expected_result: NestedDoubleIntList,
+) {
+    let result = create_bytecode_segment_length_and_big_felt_count(
+        &lengths,
+        &big_felt_flags,
+        expected_total_length,
+    );
+    assert_eq!(result, expected_result);
 }
