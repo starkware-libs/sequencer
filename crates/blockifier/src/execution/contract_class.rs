@@ -59,6 +59,11 @@ pub trait HasSelector {
     fn selector(&self) -> &EntryPointSelector;
 }
 
+pub enum FeltSize {
+    Small,
+    Large,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FeltSizeGroups {
     /// Number of felts below 2^32.
@@ -758,4 +763,76 @@ impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
             EntryPointType::L1Handler => &self.l1_handler,
         }
     }
+}
+
+/// Creates a nested structure matching `bytecode_segment_lengths`, annotating each segment with
+/// counts of felts by sizes. The flat `felt_by_size` slice is consumed sequentially to produce
+/// felt counts per segment.
+pub(crate) fn create_bytecode_segment_felt_sizes(
+    bytecode_segment_lengths: &NestedIntList,
+    felt_by_size: &[FeltSize],
+    bytecode_length: usize,
+) -> NestedMultipleIntList {
+    let (structure, total_len) =
+        create_bytecode_segment_felt_sizes_inner(bytecode_segment_lengths, felt_by_size, 0);
+
+    assert_eq!(total_len, bytecode_length, "Invalid length bytecode segment structure");
+
+    structure
+}
+
+/// Helper function for `create_bytecode_segment_felt_sizes`.
+/// Recursively constructs NestedMultipleIntList with (length, felt_by_size) per segment.
+fn create_bytecode_segment_felt_sizes_inner(
+    bytecode_segment_lengths: &NestedIntList,
+    felt_by_size: &[FeltSize],
+    bytecode_offset: usize,
+) -> (NestedMultipleIntList, usize) {
+    match bytecode_segment_lengths {
+        NestedIntList::Leaf(length) => {
+            create_bytecode_segment_felt_sizes_leaf(felt_by_size, bytecode_offset, *length)
+        }
+        NestedIntList::Node(lengths) => {
+            let mut total_len = 0;
+            let mut current_offset = bytecode_offset;
+            let mut combined = Vec::with_capacity(lengths.len());
+
+            for length in lengths {
+                let (combined_segment, segment_len) =
+                    create_bytecode_segment_felt_sizes_inner(length, felt_by_size, current_offset);
+                current_offset += segment_len;
+                total_len += segment_len;
+                combined.push(combined_segment);
+            }
+
+            (NestedMultipleIntList::Node(combined), total_len)
+        }
+    }
+}
+
+fn create_bytecode_segment_felt_sizes_leaf(
+    felt_by_size: &[FeltSize],
+    offset: usize,
+    length: usize,
+) -> (NestedMultipleIntList, usize) {
+    let (small_count, large_count) = felt_by_size[offset..offset + length].iter().fold(
+        (0, 0),
+        |(small_count, large_count), felt_size| match felt_size {
+            FeltSize::Small => (small_count + 1, large_count),
+            FeltSize::Large => (small_count, large_count + 1),
+        },
+    );
+    let total_felt_count = small_count + large_count;
+    assert!(
+        total_felt_count == length,
+        "Felt count {total_felt_count} exceeds segment length {length}"
+    );
+
+    (
+        NestedMultipleIntList::Leaf(
+            length,
+            FeltSizeGroups { small: small_count, large: large_count },
+        ),
+        length,
+    )
 }

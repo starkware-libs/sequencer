@@ -10,8 +10,12 @@ use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCom
 use starknet_api::contract_class::ContractClass;
 
 use crate::execution::contract_class::{
+    create_bytecode_segment_felt_sizes,
     CompiledClassV1,
     ContractClassV1Inner,
+    FeltSize,
+    FeltSizeGroups,
+    NestedMultipleIntList,
     RunnableCompiledClass,
 };
 use crate::test_utils::contracts::FeatureContractTrait;
@@ -87,4 +91,76 @@ fn test_compiled_class_hash(
         _ => panic!("RunnableCompiledClass::V0 does not support hash"),
     };
     assert_eq!(casm_hash, runnable_contact_class_hash);
+}
+
+#[rstest]
+#[case::empty_case(
+    NestedIntList::Node(vec![]),
+    vec![],
+    NestedMultipleIntList::Node(vec![])
+)]
+#[case::only_leaf(
+    NestedIntList::Leaf(3),
+    vec![
+        FeltSize::Small,
+        FeltSize::Large,
+        FeltSize::Large,
+    ],
+    NestedMultipleIntList::Leaf(3, FeltSizeGroups { small: 1, large: 2 })
+)]
+#[case::nested(
+    NestedIntList::Node(vec![
+        NestedIntList::Leaf(1),
+        NestedIntList::Leaf(2),
+    ]),
+    vec![
+        FeltSize::Small,                    // Leaf 1
+        FeltSize::Large, FeltSize::Small, // Leaf 2
+    ],
+    NestedMultipleIntList::Node(vec![
+        NestedMultipleIntList::Leaf(1, FeltSizeGroups { small: 1, large: 0 }),
+        NestedMultipleIntList::Leaf(2, FeltSizeGroups { small: 1, large: 1 }),
+    ])
+)]
+#[case::complex_nested(
+    NestedIntList::Node(vec![
+        NestedIntList::Leaf(4),
+        NestedIntList::Leaf(3),
+        //TODO(AvivG): this structure is coreently not accepted - should test or remove? 
+        NestedIntList::Node(vec![
+            NestedIntList::Leaf(2),
+            NestedIntList::Leaf(1),
+        ]),
+    ]),
+    vec![
+        FeltSize::Small,
+        FeltSize::Small,
+        FeltSize::Small,
+        FeltSize::Small,  // Leaf 1
+        FeltSize::Large,
+        FeltSize::Large,
+        FeltSize::Large,  // Leaf 2
+        FeltSize::Small,  // Nested Leaf 1
+        FeltSize::Large,
+        FeltSize::Small,  // Nested Leaf 2
+    ],
+    NestedMultipleIntList::Node(vec![
+        NestedMultipleIntList::Leaf(4, FeltSizeGroups { small: 4, large: 0 }),
+        NestedMultipleIntList::Leaf(3, FeltSizeGroups { small: 0, large: 3 }),
+        NestedMultipleIntList::Node(vec![
+            NestedMultipleIntList::Leaf(2, FeltSizeGroups { small: 1, large: 1 }),
+            NestedMultipleIntList::Leaf(1, FeltSizeGroups { small: 1, large: 0 }),
+        ]),
+    ])
+)]
+fn test_create_bytecode_segment_felt_sizes(
+    #[case] bytecode_segment_lengths: NestedIntList,
+    #[case] felt_by_size: Vec<FeltSize>,
+    #[case] expected: NestedMultipleIntList,
+) {
+    let total_len = felt_by_size.len();
+    let result =
+        create_bytecode_segment_felt_sizes(&bytecode_segment_lengths, &felt_by_size, total_len);
+
+    assert_eq!(result, expected);
 }
