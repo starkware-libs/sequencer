@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, Index};
 use std::sync::Arc;
 
+use blake2s::SMALL_THRESHOLD;
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
@@ -71,9 +72,6 @@ pub(crate) struct FeltSizeGroups {
 /// Counts felts in bytecode by size (small < 2^63, large >= 2^63).
 impl From<&[BigUintAsHex]> for FeltSizeGroups {
     fn from(bytecode: &[BigUintAsHex]) -> Self {
-        // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
-        const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
-
         let (small, large) = bytecode.iter().fold((0, 0), |(small_count, large_count), x| {
             if Felt::from(&x.value) < SMALL_THRESHOLD {
                 (small_count + 1, large_count)
