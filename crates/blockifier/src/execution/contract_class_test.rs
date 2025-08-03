@@ -40,6 +40,8 @@ fn test_get_visited_segments() {
             ])]),
             IntList::Leaf(162),
         ]),
+        // TODO(AvivG): default Ok here?
+        bytecode_segment_felt_sizes: MultiList::Leaf(0, FeltSizeGroups { small: 0, large: 0 }),
     }));
 
     assert_eq!(

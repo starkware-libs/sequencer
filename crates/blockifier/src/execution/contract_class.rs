@@ -59,8 +59,6 @@ pub trait HasSelector {
     fn selector(&self) -> &EntryPointSelector;
 }
 
-// TODO(AvivG): remove the allow once in use.
-#[allow(unused)]
 pub(crate) enum FeltSize {
     Small,
     Large,
@@ -576,8 +574,8 @@ pub struct ContractClassV1Inner {
     pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
     pub sierra_version: SierraVersion,
-    // TODO(AvivG): add bytecode_segment_felt_sizes: NestedMultipleIntList.
     bytecode_segment_lengths: NestedIntList,
+    bytecode_segment_felt_sizes: NestedMultipleIntList,
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
@@ -618,8 +616,16 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
     type Error = ProgramError;
 
     fn try_from((class, sierra_version): VersionedCasm) -> Result<Self, Self::Error> {
-        let data: Vec<MaybeRelocatable> =
-            class.bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
+        let (data, felt_by_size): (Vec<MaybeRelocatable>, Vec<FeltSize>) = class
+            .bytecode
+            .iter()
+            .map(|x| {
+                let felt = Felt::from(&x.value);
+                let felt_size =
+                    if felt < Felt::from(1u64 << 63) { FeltSize::Small } else { FeltSize::Large };
+                (MaybeRelocatable::from(felt), felt_size)
+            })
+            .unzip();
 
         let mut hints: HashMap<usize, Vec<HintParams>> = HashMap::new();
         for (i, hint_list) in class.hints.iter() {
@@ -663,12 +669,21 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
+
+        let bytecode_segment_felt_sizes = create_bytecode_segment_felt_sizes(
+            &bytecode_segment_lengths,
+            &felt_by_size,
+            program.data_len(),
+        );
+
         Ok(CompiledClassV1(Arc::new(ContractClassV1Inner {
             program,
             entry_points_by_type,
             hints: string_to_hint,
             sierra_version,
+            // TODO(AvivG): Consider removing bytecode_segment_lengths.
             bytecode_segment_lengths,
+            bytecode_segment_felt_sizes,
         })))
     }
 }
