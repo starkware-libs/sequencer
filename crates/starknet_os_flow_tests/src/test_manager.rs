@@ -28,6 +28,7 @@ use crate::initial_state::{
     OsExecutionContracts,
 };
 use crate::state_trait::FlowTestState;
+use crate::utils::flow_test_body;
 
 /// The STRK fee token address that was deployed when initializing the default initial state.
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> =
@@ -154,8 +155,11 @@ impl<S: FlowTestState> TestManager<S> {
             self.per_block_transactions.len(),
             "Number of block contexts must match number of transaction blocks."
         );
-
-        todo!()
+        let initial_state_data = InitialStateData {
+            initial_state: self.initial_state,
+            execution_contracts: self.execution_contracts,
+        };
+        flow_test_body(initial_state_data, self.per_block_transactions, block_contexts).await
     }
 
     // TODO(Nimrod): Add unit tests for the division.
