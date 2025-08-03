@@ -6,7 +6,6 @@ use starknet_api::state::StorageKey;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::node_data::leaf::{LeafModifications, SkeletonLeaf};
 use starknet_patricia::patricia_merkle_tree::types::NodeIndex;
-use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 use tracing::level_filters::LevelFilter;
 
@@ -92,9 +91,14 @@ impl ConfigImpl {
     }
 }
 
+impl Default for ConfigImpl {
+    fn default() -> Self {
+        Self { warn_on_trivial_modifications: false, log_level: LevelFilter::INFO }
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct Input<C: Config> {
-    pub storage: HashMap<DbKey, DbValue>,
     /// All relevant information for the state diff commitment.
     pub state_diff: StateDiff,
     pub contracts_trie_root_hash: HashOutput,

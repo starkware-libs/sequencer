@@ -7,6 +7,7 @@ use derive_more::Deref;
 use semver::Version;
 use serde::{Deserialize, Serialize};
 
+use crate::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use crate::core::CompiledClassHash;
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use crate::StarknetApiError;
@@ -53,7 +54,7 @@ impl ContractClass {
         match self {
             ContractClass::V0(_) => panic!("Cairo 0 doesn't have compiled class hash."),
             ContractClass::V1((casm_contract_class, _sierra_version)) => {
-                CompiledClassHash(casm_contract_class.compiled_class_hash())
+                casm_contract_class.hash(&HashVersion::V2)
             }
         }
     }
