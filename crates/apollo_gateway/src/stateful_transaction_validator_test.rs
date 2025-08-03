@@ -115,7 +115,7 @@ async fn test_extract_state_nonce_and_run_validations(
             )),
         ))
     };
-    let expected_result_as_stateful_transaction_result = expected_result
+    let expected_result_as_stateful_transaction_validator_result = expected_result
         .as_ref()
         .map(|validate_result| *validate_result)
         .map_err(|blockifier_error| StarknetError {
@@ -154,7 +154,7 @@ async fn test_extract_state_nonce_and_run_validations(
     })
     .await
     .unwrap();
-    assert_eq!(result, expected_result_as_stateful_transaction_result);
+    assert_eq!(result, expected_result_as_stateful_transaction_validator_result);
 }
 
 #[rstest]
@@ -416,10 +416,7 @@ async fn test_reject_future_declares(
     let account_nonce = 10;
 
     let executable_tx = executable_declare_tx(
-        declare_tx_args!(
-            nonce: nonce!(account_nonce + account_nonce_diff),
-            resource_bounds: ValidResourceBounds::create_for_testing(),
-        ),
+        declare_tx_args!(nonce: nonce!(account_nonce + account_nonce_diff)),
         calculate_class_info_for_testing(
             FeatureContract::Empty(CairoVersion::Cairo1(RunnableCairo1::Casm)).get_class(),
         ),
