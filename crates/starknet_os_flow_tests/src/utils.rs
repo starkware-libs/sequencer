@@ -1,4 +1,6 @@
 #![allow(dead_code)]
+use std::collections::HashMap;
+
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
@@ -29,7 +31,12 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_patricia::hash::hash_trait::HashOutput;
-use starknet_patricia_storage::map_storage::BorrowedMapStorage;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node::FilledNode;
+use starknet_patricia::patricia_merkle_tree::filled_tree::node_serde::PatriciaPrefix;
+use starknet_patricia::patricia_merkle_tree::node_data::inner_node::NodeData;
+use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
+use starknet_patricia_storage::storage_trait::DbKeyPrefix;
+use starknet_types_core::felt::Felt;
 
 use crate::state_trait::FlowTestState;
 
@@ -148,4 +155,33 @@ pub(crate) fn create_cairo1_declare_tx(
     let tx =
         DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
     starknet_api::executable_transaction::AccountTransaction::Declare(tx)
+}
+
+// TODO(Nimrod): Remove once the committer has `fetch_witnesses` mechanism.
+/// Filters inner nodes from the commitment storage for the commitment info that will be passed to
+/// the OS.
+/// Note: This produces many redundancy as the entire fact storage will be contained in each
+/// commitment info.
+pub(crate) fn filter_inner_nodes_from_commitments(
+    commitments: &MapStorage,
+) -> HashMap<HashOutput, Vec<Felt>> {
+    let mut inner_nodes: HashMap<HashOutput, Vec<Felt>> = HashMap::new();
+    let inner_node_prefix = DbKeyPrefix::from(PatriciaPrefix::InnerNode).to_bytes();
+    for (key, value) in commitments.iter() {
+        if let Some(suffix) = key.0.strip_prefix(inner_node_prefix) {
+            // Note: The generic type `L`, `CompiledClassHash` is arbitrary here, as the result is
+            // an inner node.
+            let is_leaf = false;
+            let hash = HashOutput(Felt::from_bytes_be_slice(&suffix[1..]));
+            let node: FilledNode<CompiledClassHash> =
+                FilledNode::deserialize(hash, value, is_leaf).unwrap();
+            let flatten_value = match node.data {
+                NodeData::Binary(data) => data.flatten(),
+                NodeData::Edge(data) => data.flatten(),
+                NodeData::Leaf(_) => panic!("Expected an inner node, but found a leaf."),
+            };
+            inner_nodes.insert(hash, flatten_value);
+        }
+    }
+    inner_nodes
 }

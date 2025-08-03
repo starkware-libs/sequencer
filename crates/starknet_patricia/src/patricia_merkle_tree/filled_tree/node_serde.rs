@@ -103,7 +103,7 @@ impl<L: Leaf> DBObject for FilledNode<L> {
 
 impl<L: Leaf> FilledNode<L> {
     /// Deserializes filled nodes.
-    pub(crate) fn deserialize(
+    pub fn deserialize(
         node_hash: HashOutput,
         value: &DbValue,
         is_leaf: bool,
