@@ -26,7 +26,6 @@ fn get_code_snippet_from_filemap(
 }
 
 /// Adds code snippets to the traceback of a VM exception.
-#[allow(dead_code)]
 pub fn get_traceback_with_code_snippet(runner: &CairoRunner) -> Option<String> {
     let traceback: String = runner
         .vm
