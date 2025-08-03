@@ -757,7 +757,7 @@ pub fn get_tx_weights<S: StateReader>(
     let sierra_gas = tx_resources.computation.sierra_gas;
     let (class_hashes_to_migrate, migration_gas, migration_poseidon_builtin_counter) =
         if versioned_constants.enable_casm_hash_migration {
-            get_migration_data(state_reader, executed_class_hashes, versioned_constants)
+            get_migration_data(state_reader, executed_class_hashes, versioned_constants)?
         } else {
             (HashSet::new(), GasAmount::ZERO, HashMap::new())
         };
@@ -883,25 +883,21 @@ fn get_migration_data<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
     versioned_constants: &VersionedConstants,
-) -> (HashSet<ClassHash>, GasAmount, BuiltinCounterMap) {
-    executed_class_hashes
-        .iter()
-        .filter(|&class_hash_ref| should_migrate(state_reader, *class_hash_ref))
-        .map(|class_hash| {
-            let class = state_reader.get_compiled_class(*class_hash).expect("Failed to get class");
-            (
-                *class_hash,
-                class.estimate_compiled_class_hash_migration_resources(versioned_constants),
-            )
-        })
-        .fold(
-            (HashSet::new(), GasAmount::ZERO, HashMap::new()),
-            |(mut hashes, mut gas, mut poseidon_builtins), (hash, (new_gas, new_builtins))| {
-                hashes.insert(hash);
+) -> TransactionExecutionResult<(HashSet<ClassHash>, GasAmount, BuiltinCounterMap)> {
+    executed_class_hashes.iter().try_fold(
+        (HashSet::new(), GasAmount::ZERO, HashMap::new()),
+        |(mut hashes, mut gas, mut poseidon_builtins), &class_hash| {
+            if should_migrate(state_reader, class_hash)? {
+                let class =
+                    state_reader.get_compiled_class(class_hash).expect("Failed to get class");
+                let (new_gas, new_builtins) =
+                    class.estimate_compiled_class_hash_migration_resources(versioned_constants);
+
+                hashes.insert(class_hash);
                 gas = gas.checked_add_panic_on_overflow(new_gas);
                 poseidon_builtins.extend(new_builtins);
-
-                (hashes, gas, poseidon_builtins)
-            },
-        )
+            }
+            Ok((hashes, gas, poseidon_builtins))
+        },
+    )
 }
