@@ -6,13 +6,13 @@ use std::net::Ipv4Addr;
 use std::time::Duration;
 
 use futures::future::Either;
+use futures::StreamExt;
 use lazy_static::lazy_static;
 use libp2p::swarm::dial_opts::{DialOpts, PeerCondition};
 use libp2p::swarm::{ConnectionId, NetworkBehaviour, Swarm, SwarmEvent};
 use libp2p::{identity, Multiaddr, PeerId, Stream, StreamProtocol};
 use libp2p_swarm_test::SwarmExt;
 use tokio::task::JoinHandle;
-use tokio_stream::StreamExt;
 
 use crate::utils::{make_multiaddr, StreamMap};
 use crate::Bytes;
@@ -34,22 +34,37 @@ lazy_static! {
 /// that will perform the sends between the streams (this thread will run forever so it shouldn't
 /// be joined).
 pub(crate) async fn get_connected_streams() -> (Stream, Stream, JoinHandle<()>) {
-    let mut swarm1 = Swarm::new_ephemeral(|_| get_stream::Behaviour::default());
-    let mut swarm2 = Swarm::new_ephemeral(|_| get_stream::Behaviour::default());
+    let mut swarm1 = Swarm::new_ephemeral_tokio(|_| get_stream::Behaviour::default());
+    let mut swarm2 = Swarm::new_ephemeral_tokio(|_| get_stream::Behaviour::default());
     swarm1.listen().with_memory_addr_external().await;
     swarm2.listen().with_memory_addr_external().await;
 
     swarm1.connect(&mut swarm2).await;
 
-    let merged_swarm = swarm1.merge(swarm2);
-    let mut filtered_swarm = merged_swarm.filter_map(|event| {
-        if let SwarmEvent::Behaviour(stream) = event { Some(stream) } else { None }
+    // Get one stream from each swarm
+    let stream1 = loop {
+        if let SwarmEvent::Behaviour(stream) = swarm1.next().await.unwrap() {
+            break stream;
+        }
+    };
+
+    let stream2 = loop {
+        if let SwarmEvent::Behaviour(stream) = swarm2.next().await.unwrap() {
+            break stream;
+        }
+    };
+
+    // Create a task to continue processing events from both swarms
+    let task = tokio::task::spawn(async move {
+        loop {
+            futures::select! {
+                _event1 = swarm1.next() => {},
+                _event2 = swarm2.next() => {},
+            }
+        }
     });
-    (
-        filtered_swarm.next().await.unwrap(),
-        filtered_swarm.next().await.unwrap(),
-        tokio::task::spawn(async move { while filtered_swarm.next().await.is_some() {} }),
-    )
+
+    (stream1, stream2, task)
 }
 
 pub(crate) fn dummy_data() -> Vec<Bytes> {
@@ -79,8 +94,9 @@ pub(crate) async fn create_fully_connected_swarms_stream<TBehaviour: NetworkBeha
 where
     <TBehaviour as NetworkBehaviour>::ToSwarm: Debug,
 {
-    let mut swarms =
-        (0..num_swarms).map(|_| Swarm::new_ephemeral(|_| behaviour_gen())).collect::<Vec<_>>();
+    let mut swarms = (0..num_swarms)
+        .map(|_| Swarm::new_ephemeral_tokio(|_| behaviour_gen()))
+        .collect::<Vec<_>>();
 
     for swarm in &mut swarms {
         swarm.listen().with_memory_addr_external().await;
