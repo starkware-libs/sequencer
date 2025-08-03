@@ -2,9 +2,10 @@ use std::collections::HashMap;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::hash::StarkHash;
 
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
-use crate::state::state_api::{StateReader, StateResult};
+use crate::state::state_api::StateReader;
 use crate::transaction::errors::NumericConversionError;
 
 #[cfg(test)]
@@ -108,16 +109,21 @@ where
     }
 }
 
-// TODO(Meshi): Delete this function.
-pub fn should_migrate(_state_reader: &impl StateReader, _class_hash: ClassHash) -> bool {
-    false
-}
-
-// TODO(Meshi): Remove default implementation.
-// Returns the compiled class hash v2 of the given class hash.
-pub fn get_compiled_class_hash_v2(
-    _state_reader: &impl StateReader,
-    _class_hash: ClassHash,
-) -> StateResult<CompiledClassHash> {
-    Ok(CompiledClassHash::default())
+// Class should migrate if his compiled class hash v2 is different from the one in the state.
+pub fn should_migrate(state_reader: &impl StateReader, class_hash: ClassHash) -> bool {
+    let state_compiled_class_hash = state_reader
+        .get_compiled_class_hash(class_hash)
+        .unwrap_or_else(|e| panic!("Failed to get compiled class hash: {e}"));
+    match state_compiled_class_hash {
+        // Class hash is not exist in the state, or of cairo0 class.
+        CompiledClassHash(hash) if hash == StarkHash::ZERO => false,
+        state_compiled_class_hash => {
+            let compiled_class_hash_v2 = state_reader
+                .get_compiled_class_hash_v2(class_hash)
+                .unwrap_or_else(|e| panic!("Failed to get compiled class hash v2: {e}"));
+            // If the state compiled class hash is not compiled class hash v2, the class should
+            // migrate.
+            compiled_class_hash_v2 != state_compiled_class_hash
+        }
+    }
 }
