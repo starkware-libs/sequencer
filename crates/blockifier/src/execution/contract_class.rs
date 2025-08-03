@@ -59,6 +59,21 @@ pub trait HasSelector {
     fn selector(&self) -> &EntryPointSelector;
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct FeltSizeGroups {
+    // Number of felts below 2^63.
+    pub small: usize,
+    // Number of felts above or equal to 2^63.
+    pub large: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub(crate) enum NestedMultipleIntList {
+    Leaf(usize, FeltSizeGroups), // (leaf length, felt size groups)
+    Node(Vec<NestedMultipleIntList>),
+}
+
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
@@ -473,6 +488,8 @@ fn node_cost(segs: &[NestedIntList], versioned_constants: &VersionedConstants) -
 
 /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
 /// - Uses only bytecode size (treats all felts as “big”, ignores the small-felt optimization).
+// TODO(AvivG): use bytecode_segment_felt_sizes in estimation to account for small-big felt
+// optimization.
 pub fn estimate_casm_blake_hash_computation_resources(
     bytecode_segment_lengths: &NestedIntList,
     versioned_constants: &VersionedConstants,
@@ -553,6 +570,7 @@ pub struct ContractClassV1Inner {
     pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
     pub sierra_version: SierraVersion,
+    // TODO(AvivG): add bytecode_segment_felt_sizes and remove bytecode_segment_lengths.
     bytecode_segment_lengths: NestedIntList,
 }
 
@@ -732,4 +750,35 @@ impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
             EntryPointType::L1Handler => &self.l1_handler,
         }
     }
+}
+
+/// Builds a nested structure matching `layout`.
+///
+/// For each segment, assigns felt size counts by consuming values from `bytecode_iter`.
+#[allow(unused)]
+pub(crate) fn create_bytecode_segment_felt_sizes<I>(
+    layout: &NestedIntList,
+    bytecode_iter: I,
+    expected_len: usize,
+) -> NestedMultipleIntList
+where
+    I: Iterator<Item = Felt>,
+{
+    let mut iter = bytecode_iter;
+    let (result, actual_len) = create_bytecode_seg_inner(layout, &mut iter);
+    assert_eq!(actual_len, expected_len);
+    result
+}
+
+/// Helper function for `create_bytecode_segment_felt_sizes`.
+/// Recursively constructs `NestedMultipleIntList` with (length, felt size groups) per segment.
+// TODO(AvivG): Implement this.
+fn create_bytecode_seg_inner<I>(
+    _layout: &NestedIntList,
+    _iter: &mut I,
+) -> (NestedMultipleIntList, usize)
+where
+    I: Iterator<Item = Felt>,
+{
+    unimplemented!()
 }
