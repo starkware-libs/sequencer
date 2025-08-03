@@ -59,6 +59,27 @@ pub trait HasSelector {
     fn selector(&self) -> &EntryPointSelector;
 }
 
+// TODO(AvivG): remove the allow once in use.
+#[allow(unused)]
+pub(crate) enum FeltSize {
+    Small,
+    Large,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) struct FeltSizeGroups {
+    // Number of felts below 2^63.
+    pub small: usize,
+    // Number of felts above or equal to 2^63.
+    pub large: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub(crate) enum NestedMultipleIntList {
+    Leaf(usize, FeltSizeGroups), // (leaf length, felt size groups)
+    Node(Vec<NestedMultipleIntList>),
+}
+
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
@@ -553,6 +574,7 @@ pub struct ContractClassV1Inner {
     pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
     pub sierra_version: SierraVersion,
+    // TODO(AvivG): add bytecode_segment_felt_sizes: NestedMultipleIntList.
     bytecode_segment_lengths: NestedIntList,
 }
 
@@ -732,4 +754,22 @@ impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
             EntryPointType::L1Handler => &self.l1_handler,
         }
     }
+}
+
+/// Creates a `NestedMultipleIntList` structure that mirrors the layout of
+/// `bytecode_segment_lengths`.
+///
+/// For each segment in the nested layout, assigns counts of `FeltSize` values, consuming the
+/// `felt_by_size` slice in order.
+// TODO(AvivG): Implement this.
+#[allow(unused)]
+pub(crate) fn create_bytecode_segment_felt_sizes(
+    // A nested layout describing the structure of bytecode segments.
+    _bytecode_segment_lengths: &NestedIntList,
+    // A flat list of felt sizes, ordered sequentially as they appear in the.
+    _felt_by_size: &[FeltSize],
+    // The total number of felts expected in the structure (used for validation)
+    _bytecode_length: usize,
+) -> NestedMultipleIntList {
+    unimplemented!()
 }
