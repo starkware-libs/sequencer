@@ -6,7 +6,7 @@ use std::time::Duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
-use hyper::body::to_bytes;
+use hyper::body::{to_bytes, Bytes};
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
 use serde::de::DeserializeOwned;
@@ -192,7 +192,7 @@ where
         Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
     }
 
-    fn construct_http_request(&self, serialized_request: Vec<u8>) -> HyperRequest<Body> {
+    fn construct_http_request(&self, serialized_request: Bytes) -> HyperRequest<Body> {
         trace!("Constructing remote request");
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
@@ -242,6 +242,12 @@ where
         let serialized_request = SerdeWrapper::new(component_request)
             .wrapper_serialize()
             .expect("Request serialization should succeed");
+        // Convert the serialized request into `Bytes`, a zero-copy, reference-counted buffer used
+        // by Hyper. Constructing a Hyper request consumes the body, so we need a way to
+        // reuse the request payload across multiple retries without reallocating memory. By
+        // using `Bytes` and cloning it per attempt, we preserve the original data
+        // efficiently and avoid unnecessary memory copies.
+        let serialized_request_bytes: Bytes = serialized_request.into();
 
         // Construct the request, and send it up to 'max_retries + 1' times. Return if received a
         // successful response, or the last response if all attempts failed.
@@ -249,7 +255,7 @@ where
         trace!("Starting retry loop: max_attempts = {max_attempts}");
         for attempt in 1..max_attempts + 1 {
             trace!("Request {log_message} attempt {attempt} of {max_attempts}");
-            let http_request = self.construct_http_request(serialized_request.clone());
+            let http_request = self.construct_http_request(serialized_request_bytes.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
                 trace!("Request {log_message} successful on attempt {attempt}/{max_attempts}");
