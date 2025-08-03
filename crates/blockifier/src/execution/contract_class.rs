@@ -61,7 +61,7 @@ pub trait HasSelector {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub(crate) struct FeltSizeGroups {
+pub struct FeltSizeGroups {
     // Number of felts below 2^63.
     pub small: usize,
     // Number of felts above or equal to 2^63.
@@ -70,7 +70,7 @@ pub(crate) struct FeltSizeGroups {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
-pub(crate) enum NestedMultipleIntList {
+pub enum NestedMultipleIntList {
     Leaf(usize, FeltSizeGroups), // (leaf length, felt size groups)
     Node(Vec<NestedMultipleIntList>),
 }
@@ -355,9 +355,7 @@ impl CompiledClassV1 {
         versioned_constants: &VersionedConstants,
     ) -> (GasAmount, BuiltinCounterMap) {
         let blake_hash_gas = estimate_casm_blake_hash_computation_resources(
-            // TODO(AvivG): Pass `NestedMultipleInt` directly to avoid redundant `NestedIntList`
-            // conversion.
-            &self.bytecode_segment_lengths(),
+            &self.bytecode_segment_felt_sizes,
             versioned_constants,
         );
 
@@ -475,13 +473,23 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
 }
 
 /// Cost to hash a single flat segment of `len` felts.
-fn leaf_cost(len: usize, versioned_constants: &VersionedConstants) -> GasAmount {
+fn leaf_cost(
+    felt_size_groups: &FeltSizeGroups,
+    versioned_constants: &VersionedConstants,
+) -> GasAmount {
     // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    cost_of_encode_felt252_data_and_calc_blake_hash(len, 0, versioned_constants)
+    cost_of_encode_felt252_data_and_calc_blake_hash(
+        felt_size_groups.large,
+        felt_size_groups.small,
+        versioned_constants,
+    )
 }
 
 /// Cost to hash a multi-segment contract:
-fn node_cost(segs: &[NestedIntList], versioned_constants: &VersionedConstants) -> GasAmount {
+fn node_cost(
+    segs: &[NestedMultipleIntList],
+    versioned_constants: &VersionedConstants,
+) -> GasAmount {
     // TODO(AvivG): Add base estimation for node.
     let mut gas = GasAmount::ZERO;
 
@@ -491,9 +499,12 @@ fn node_cost(segs: &[NestedIntList], versioned_constants: &VersionedConstants) -
     // For each segment, hash its felts.
     for seg in segs {
         match seg {
-            NestedIntList::Leaf(len) => {
+            NestedMultipleIntList::Leaf(_, felt_size_groups) => {
                 gas = gas.checked_add_panic_on_overflow(segment_overhead);
-                gas = gas.checked_add_panic_on_overflow(leaf_cost(*len, versioned_constants));
+                gas = gas.checked_add_panic_on_overflow(leaf_cost(
+                    felt_size_groups,
+                    versioned_constants,
+                ));
             }
             _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
         }
@@ -512,10 +523,8 @@ fn node_cost(segs: &[NestedIntList], versioned_constants: &VersionedConstants) -
 
 /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
 /// - Uses only bytecode size (treats all felts as “big”, ignores the small-felt optimization).
-// TODO(AvivG): use bytecode_segment_felt_sizes in estimation to account for small-big felt
-// optimization.
 pub fn estimate_casm_blake_hash_computation_resources(
-    bytecode_segment_lengths: &NestedIntList,
+    bytecode_segment_lengths: &NestedMultipleIntList,
     versioned_constants: &VersionedConstants,
 ) -> GasAmount {
     // TODO(AvivG): Currently ignores entry-point hashing costs.
@@ -532,10 +541,12 @@ pub fn estimate_casm_blake_hash_computation_resources(
     let gas = vm_resources_to_sierra_gas(&resources, versioned_constants);
 
     // Add leaf vs node cost
-    let added_gas = match bytecode_segment_lengths {
+    let added_gas = match &bytecode_segment_lengths {
         // Single-segment contract (e.g., older Sierra contracts).
-        NestedIntList::Leaf(len) => leaf_cost(*len, versioned_constants),
-        NestedIntList::Node(segs) => node_cost(segs, versioned_constants),
+        NestedMultipleIntList::Leaf(_, felt_size_groups) => {
+            leaf_cost(felt_size_groups, versioned_constants)
+        }
+        NestedMultipleIntList::Node(segs) => node_cost(segs, versioned_constants),
     };
 
     gas.checked_add_panic_on_overflow(added_gas)
