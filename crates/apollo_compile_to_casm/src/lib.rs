@@ -5,8 +5,8 @@ use apollo_compile_to_casm_types::{RawClass, RawExecutableClass, RawExecutableHa
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ContractClass, SierraVersion};
-use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
@@ -66,9 +66,8 @@ impl SierraCompiler {
 
         // TODO(Elin): handle resources (whether here or an infra. layer load-balancing).
         let executable_class = self.compiler.compile(class)?;
-        // TODO(Elin): consider spawning a worker for hash calculatioln.
-        // TODO(Aviv): Get the compiled_class_hash_v2.
-        let executable_class_hash = CompiledClassHash(executable_class.compiled_class_hash());
+        // TODO(Elin): consider spawning a worker for hash calculation.
+        let executable_class_hash = executable_class.hash(&HashVersion::V2);
         let executable_class = ContractClass::V1((executable_class, sierra_version));
         let executable_class = RawExecutableClass::try_from(executable_class)?;
 

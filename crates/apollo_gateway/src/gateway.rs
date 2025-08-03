@@ -251,18 +251,11 @@ impl ProcessTxBlockingTask {
 }
 
 fn convert_compiled_class_hash_error(error: ValidateCompiledClassHashError) -> StarknetError {
-    let ValidateCompiledClassHashError::CompiledClassHashMismatch {
-        computed_class_hash,
-        supplied_class_hash,
-    } = error;
     StarknetError {
         code: StarknetErrorCode::UnknownErrorCode(
             "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
         ),
-        message: format!(
-            "Computed compiled class hash: {computed_class_hash} does not match the given value: \
-             {supplied_class_hash}.",
-        ),
+        message: error.to_string(),
     }
 }
 

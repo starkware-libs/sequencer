@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-
 use serde::{Serialize, Serializer};
 use starknet_types_core::felt::Felt;
+
+use crate::map_storage::MapStorage;
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
@@ -11,7 +11,7 @@ pub struct DbKey(pub Vec<u8>);
 #[cfg_attr(any(test, feature = "testing"), derive(Clone))]
 pub struct DbValue(pub Vec<u8>);
 
-pub trait Storage: From<HashMap<DbKey, DbValue>> {
+pub trait Storage {
     /// Returns value from storage, if it exists.
     fn get(&self, key: &DbKey) -> Option<&DbValue>;
 
@@ -24,7 +24,7 @@ pub trait Storage: From<HashMap<DbKey, DbValue>> {
     fn mget(&self, keys: &[DbKey]) -> Vec<Option<&DbValue>>;
 
     /// Sets values in storage.
-    fn mset(&mut self, key_to_value: HashMap<DbKey, DbValue>);
+    fn mset(&mut self, key_to_value: MapStorage);
 
     /// Deletes value from storage and returns its value if it exists. Returns None if not.
     fn delete(&mut self, key: &DbKey) -> Option<DbValue>;

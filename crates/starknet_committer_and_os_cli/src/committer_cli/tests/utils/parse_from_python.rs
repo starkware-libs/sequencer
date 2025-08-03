@@ -56,10 +56,8 @@ pub fn parse_input_single_storage_tree_flow_test(input: &HashMap<String, String>
         add_unique(&mut storage, "storage", DbKey(entry.key), DbValue(entry.value)).unwrap();
     }
 
-    let map_storage = MapStorage { storage };
-
     // Fetch root_hash.
     let root_hash = HashOutput(Felt::from_hex(input.get("root_hash").unwrap()).unwrap());
 
-    TreeFlowInput { leaf_modifications, storage: map_storage, root_hash }
+    TreeFlowInput { leaf_modifications, storage, root_hash }
 }

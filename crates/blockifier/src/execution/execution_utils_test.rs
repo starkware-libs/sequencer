@@ -6,7 +6,7 @@ use starknet_types_core::felt::Felt;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::execution_utils::blake_encoding::{N_U32S_BIG_FELT, N_U32S_SMALL_FELT};
-use crate::execution::execution_utils::blake_estimation::BASE_STEPS_FULL_MSG;
+use crate::execution::execution_utils::blake_estimation::STEPS_EMPTY_INPUT;
 use crate::execution::execution_utils::{
     compute_blake_hash_steps,
     cost_of_encode_felt252_data_and_calc_blake_hash,
@@ -31,10 +31,9 @@ fn test_u32_constants() {
 /// Test the edge case of hashing an empty array of felt values.
 #[test]
 fn test_zero_inputs() {
-    // TODO(AvivG): Re-check this case in VM — input 0 was previously invalid when this estimation
     // logic was written.
     let steps = compute_blake_hash_steps(0, 0);
-    assert_eq!(steps, BASE_STEPS_FULL_MSG, "Unexpected base step cost for zero inputs");
+    assert_eq!(steps, STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
 
     // No opcodes should be emitted.
     let opcodes = count_blake_opcode(0, 0);
@@ -47,7 +46,7 @@ fn test_zero_inputs() {
         VersionedConstants::latest_constants(),
     );
     let expected_gas = {
-        let resources = ExecutionResources { n_steps: BASE_STEPS_FULL_MSG, ..Default::default() };
+        let resources = ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
         vm_resources_to_sierra_gas(&resources, VersionedConstants::latest_constants())
     };
     assert_eq!(gas, expected_gas, "Unexpected gas value for zero-input hash");

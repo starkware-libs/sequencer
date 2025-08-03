@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -64,8 +65,8 @@ impl HashableCompiledClass<EntryPointV1> for NativeCompiledClassV1 {
         self.casm.get_bytecode()
     }
 
-    fn get_bytecode_segment_lengths(&self) -> &NestedIntList {
-        self.casm.bytecode_segment_lengths()
+    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
+        Cow::Borrowed(self.casm.bytecode_segment_lengths())
     }
 }
 

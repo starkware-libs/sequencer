@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::sync::LazyLock;
 
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
@@ -100,7 +101,7 @@ pub trait HashableCompiledClass<EH: EntryPointHashable>: Sized {
     fn get_hashable_external_entry_points(&self) -> &[EH];
     fn get_hashable_constructor_entry_points(&self) -> &[EH];
     fn get_bytecode(&self) -> Vec<Felt>;
-    fn get_bytecode_segment_lengths(&self) -> &NestedIntList;
+    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList>;
 
     /// Returns the compiled class hash using the specified hash version.
     fn hash(&self, hash_version: &HashVersion) -> CompiledClassHash {
@@ -123,7 +124,7 @@ fn hash_inner<H: StarkHash, EH: EntryPointHashable>(
 
     let bytecode_hash = bytecode_hash::<H>(
         &hashable_class.get_bytecode(),
-        hashable_class.get_bytecode_segment_lengths(),
+        &hashable_class.get_bytecode_segment_lengths(),
     );
 
     // Compute total hash by hashing each component on top of the previous one.
@@ -153,9 +154,12 @@ impl HashableCompiledClass<CasmContractEntryPoint> for CasmContractClass {
         self.bytecode.iter().map(|big_uint| Felt::from(&big_uint.value)).collect()
     }
 
-    fn get_bytecode_segment_lengths(&self) -> &NestedIntList {
-        self.bytecode_segment_lengths
-            .as_ref()
-            .expect("Failed to compute compiled class hash due to missing bytecode segment lengths")
+    /// Returns the lengths of the bytecode segments.
+    /// If the length field is missing, the entire bytecode is considered a single segment.
+    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
+        match &self.bytecode_segment_lengths {
+            Some(bytecode_segment_lengths) => Cow::Borrowed(bytecode_segment_lengths),
+            None => Cow::Owned(NestedIntList::Leaf(self.bytecode.len())),
+        }
     }
 }

@@ -12278,6 +12278,7 @@ dependencies = [
  "ark-secp256k1 0.4.0",
  "ark-secp256r1 0.4.0",
  "assert_matches",
+ "blake2s",
  "blockifier",
  "blockifier_test_utils",
  "c-kzg",
@@ -12312,6 +12313,17 @@ dependencies = [
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
+]
+
+[[package]]
+name = "starknet_os_flow_tests"
+version = "0.0.0"
+dependencies = [
+ "blockifier",
+ "blockifier_test_utils",
+ "starknet_committer",
+ "starknet_patricia",
+ "starknet_patricia_storage",
 ]
 
 [[package]]

@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
 use tracing::{info, warn};
 
 use crate::block_committer::errors::BlockCommitmentError;
@@ -22,7 +22,10 @@ use crate::patricia_merkle_tree::types::class_hash_into_node_index;
 
 type BlockCommitmentResult<T> = Result<T, BlockCommitmentError>;
 
-pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<FilledForest> {
+pub async fn commit_block(
+    input: Input<ConfigImpl>,
+    storage: &mut MapStorage,
+) -> BlockCommitmentResult<FilledForest> {
     let (mut storage_tries_indices, mut contracts_trie_indices, mut classes_trie_indices) =
         get_all_modified_indices(&input.state_diff);
     let forest_sorted_indices = ForestSortedIndices {
@@ -36,7 +39,7 @@ pub async fn commit_block(input: Input<ConfigImpl>) -> BlockCommitmentResult<Fil
     let actual_storage_updates = input.state_diff.actual_storage_updates();
     let actual_classes_updates = input.state_diff.actual_classes_updates();
     let (mut original_forest, original_contracts_trie_leaves) = OriginalSkeletonForest::create(
-        MapStorage::from(input.storage),
+        BorrowedMapStorage { storage },
         input.contracts_trie_root_hash,
         input.classes_trie_root_hash,
         &actual_storage_updates,

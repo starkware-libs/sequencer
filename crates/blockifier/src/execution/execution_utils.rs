@@ -395,6 +395,10 @@ mod blake_estimation {
     pub const BASE_STEPS_PARTIAL_MSG: usize = 195;
     // Extra steps per 2-u32 remainder in partial messages.
     pub const STEPS_PER_2_U32_REMINDER: usize = 3;
+    // Overhead when input for `encode_felt252_data_and_calc_blake_hash` is non-empty.
+    pub const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
+    // Empty input steps.
+    pub const STEPS_EMPTY_INPUT: usize = 170;
 
     // BLAKE opcode gas cost in Stwo.
     // TODO(AvivG): Replace with actual cost when known.
@@ -440,6 +444,11 @@ fn felts_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
 /// Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
 fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
     let total_u32s = total_u32s_from_felts(n_big_felts, n_small_felts);
+    if total_u32s == 0 {
+        // The empty input case is a special case.
+        return blake_estimation::STEPS_EMPTY_INPUT;
+    }
+
     let base_steps = base_steps_for_blake_hash(total_u32s);
     let felt_steps = felts_steps(n_big_felts, n_small_felts);
 
@@ -462,27 +471,39 @@ pub fn encode_and_blake_hash_execution_resources(
     let n_felts =
         n_big_felts.checked_add(n_small_felts).expect("Overflow computing total number of felts");
 
-    // One `range_check` per input felt to validate its size.
-    let builtins = HashMap::from([(BuiltinName::range_check, n_felts)]);
+    let builtin_instance_counter = match n_felts {
+        // The empty case does not use builtins at all.
+        0 => HashMap::new(),
+        // One `range_check` per input felt to validate its size + Overhead for the non empty case.
+        _ => HashMap::from([(
+            BuiltinName::range_check,
+            n_felts + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
+        )]),
+    };
 
-    ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter: builtins }
+    ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter }
 }
 
 /// Estimates the L2 gas for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
+///
 /// This includes:
-/// - ExecutionResources gas.
-/// - Blake opcode gas.
+/// - Gas derived from `ExecutionResources`
+/// - Additional gas for Blake opcodes (which is **not** part of `ExecutionResources`)
 ///
 /// # Encoding Details
 /// - Small felts → 2 `u32`s each; Big felts → 8 `u32`s each.
 /// - Each felt requires one `range_check` operation.
 ///
 /// # Compatibility Assumptions
-/// This function is used for both Stwo ("proving_gas") and Stone ("sierra_gas") gas estimation.
-/// This unified logic is valid here because the only builtin involved is `range_check`, which has
-/// the same cost in both provers (see use in `bouncer.get_tx_weights`).
-// TODO(AvivG): Consider separating `encode_felt252_to_u32s` and `blake_with_opcode` costs
-// for improved granularity and testability.
+/// This function is used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations.
+/// This unified logic is valid because the only builtin involved is `range_check`, which has
+/// the same cost in both provers (see usage in `bouncer.get_tx_weights`).
+///
+/// # Notes
+/// The Blake opcode gas is separated because it is not reported via `ExecutionResources`,
+/// and must be accounted for explicitly.
+// TODO(AvivG): Consider separating `encode_felt252_to_u32s` and `blake_with_opcode` costs for
+// improved granularity and testability.
 pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
     n_big_felts: usize,
     n_small_felts: usize,
@@ -491,9 +512,9 @@ pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
     let vm_resources = encode_and_blake_hash_execution_resources(n_big_felts, n_small_felts);
 
     assert!(
-        vm_resources.builtin_instance_counter.keys().eq([BuiltinName::range_check].iter()),
-        "Expected only `range_check` builtin, got: {:?}. This breaks the assumption that builtin \
-         costs are identical between provers.",
+        vm_resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
+        "Expected either empty builtins or only `range_check` builtin, got: {:?}. This breaks the \
+         assumption that builtin costs are identical between provers.",
         vm_resources.builtin_instance_counter.keys().collect::<Vec<_>>()
     );
 

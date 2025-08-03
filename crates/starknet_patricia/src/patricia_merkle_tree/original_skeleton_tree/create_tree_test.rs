@@ -4,7 +4,7 @@ use ethnum::U256;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_patricia_storage::db_object::DBObject;
-use starknet_patricia_storage::map_storage::MapStorage;
+use starknet_patricia_storage::map_storage::{BorrowedMapStorage, MapStorage};
 use starknet_patricia_storage::storage_trait::{DbKey, DbValue};
 use starknet_types_core::felt::Felt;
 
@@ -67,7 +67,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
     create_mock_leaf_entry(9),
     create_mock_leaf_entry(11),
     create_mock_leaf_entry(15)
-    ]).into(),
+    ]),
     create_mock_leaf_modifications(vec![(8, 8), (10, 3), (13, 2)]),
     HashOutput(Felt::from(50_u128 + 248_u128)),
     create_expected_skeleton_nodes(
@@ -121,7 +121,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
     create_mock_leaf_entry(3),
     create_mock_leaf_entry(4),
     create_mock_leaf_entry(7)
-    ]).into(),
+    ]),
     create_mock_leaf_modifications(vec![(8, 5), (11, 1), (13, 3)]),
     HashOutput(Felt::from(29_u128 + 248_u128)),
     create_expected_skeleton_nodes(
@@ -180,7 +180,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
     create_mock_leaf_entry(5),
     create_mock_leaf_entry(19),
     create_mock_leaf_entry(40),
-    ]).into(),
+    ]),
     create_mock_leaf_modifications(vec![(18, 5), (25, 1), (29, 15), (30, 19)]),
     HashOutput(Felt::from(116_u128 + 247_u128)),
     create_expected_skeleton_nodes(
@@ -202,7 +202,7 @@ use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHe
     SubTreeHeight::new(4),
 )]
 fn test_create_tree(
-    #[case] storage: MapStorage,
+    #[case] mut storage: MapStorage,
     #[case] leaf_modifications: LeafModifications<MockLeaf>,
     #[case] root_hash: HashOutput,
     #[case] expected_skeleton_nodes: HashMap<NodeIndex, OriginalSkeletonNode>,
@@ -216,8 +216,9 @@ fn test_create_tree(
     let config = OriginalSkeletonMockTrieConfig::new(compare_modified_leaves);
     let mut sorted_leaf_indices: Vec<NodeIndex> = leaf_modifications.keys().copied().collect();
     let sorted_leaf_indices = SortedLeafIndices::new(&mut sorted_leaf_indices);
+    let map_storage = BorrowedMapStorage { storage: &mut storage };
     let skeleton_tree = OriginalSkeletonTreeImpl::create::<MockLeaf>(
-        &storage,
+        &map_storage,
         root_hash,
         sorted_leaf_indices,
         &config,
