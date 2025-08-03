@@ -558,7 +558,7 @@ impl Bouncer {
             &marginal_state_changes_keys,
             versioned_constants,
             tx_builtin_counters,
-            &self.bouncer_config.builtin_weights,
+            &self.bouncer_config,
         )?;
 
         let tx_bouncer_weights = tx_weights.bouncer_weights;
@@ -754,7 +754,7 @@ pub fn get_tx_weights<S: StateReader>(
     state_changes_keys: &StateChangesKeys,
     versioned_constants: &VersionedConstants,
     tx_builtin_counters: &BuiltinCounterMap,
-    builtin_weights: &BuiltinWeights,
+    bouncer_config: &BouncerConfig,
 ) -> TransactionExecutionResult<TxWeights> {
     let message_resources = &tx_resources.starknet_resources.messages;
     let message_starknet_l1gas = usize_from_u64(message_resources.get_starknet_gas_cost().l1_gas.0)
@@ -773,7 +773,12 @@ pub fn get_tx_weights<S: StateReader>(
     let sierra_gas = tx_resources.computation.sierra_gas;
     let (class_hashes_to_migrate, migration_gas, migration_poseidon_builtin_counter) =
         if versioned_constants.enable_casm_hash_migration {
-            get_migration_data(state_reader, executed_class_hashes, versioned_constants)
+            get_migration_data(
+                state_reader,
+                executed_class_hashes,
+                versioned_constants,
+                bouncer_config.blake_weight,
+            )
         } else {
             (HashSet::new(), GasAmount::ZERO, HashMap::new())
         };
@@ -808,7 +813,7 @@ pub fn get_tx_weights<S: StateReader>(
     let proving_gas_without_casm_hash_computation = proving_gas_from_builtins_and_sierra_gas(
         &builtin_counters_without_casm_hash_computation,
         sierra_gas_without_casm_hash_computation,
-        builtin_weights,
+        &bouncer_config.builtin_weights,
         versioned_constants,
     );
 
@@ -816,7 +821,13 @@ pub fn get_tx_weights<S: StateReader>(
     let casm_hash_computation_data_proving_gas = CasmHashComputationData::from_resources(
         &class_hash_to_casm_hash_computation_resources,
         proving_gas_without_casm_hash_computation,
-        |resources| vm_resources_to_proving_gas(resources, builtin_weights, versioned_constants),
+        |resources| {
+            vm_resources_to_proving_gas(
+                resources,
+                &bouncer_config.builtin_weights,
+                versioned_constants,
+            )
+        },
     );
     let total_proving_gas = casm_hash_computation_data_proving_gas.total_gas();
 
@@ -888,7 +899,7 @@ pub fn verify_tx_weights_within_max_capacity<S: StateReader>(
         tx_state_changes_keys,
         versioned_constants,
         tx_builtin_counters,
-        &bouncer_config.builtin_weights,
+        bouncer_config,
     )?
     .bouncer_weights;
 
@@ -899,6 +910,7 @@ fn get_migration_data<S: StateReader>(
     state_reader: &S,
     executed_class_hashes: &HashSet<ClassHash>,
     versioned_constants: &VersionedConstants,
+    blake_weight: usize,
 ) -> (HashSet<ClassHash>, GasAmount, BuiltinCounterMap) {
     executed_class_hashes
         .iter()
@@ -907,7 +919,10 @@ fn get_migration_data<S: StateReader>(
             let class = state_reader.get_compiled_class(*class_hash).expect("Failed to get class");
             (
                 *class_hash,
-                class.estimate_compiled_class_hash_migration_resources(versioned_constants),
+                class.estimate_compiled_class_hash_migration_resources(
+                    versioned_constants,
+                    blake_weight,
+                ),
             )
         })
         .fold(
