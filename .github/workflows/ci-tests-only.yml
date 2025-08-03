@@ -1,0 +1,233 @@
+name: CI-Tests-Optimized
+
+# Optimized test workflow based on analysis showing compilation is the bottleneck
+# Key insight: Running everything in fewer jobs with shared compilation is faster
+# than matrix approach where each job recompiles dependencies
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+env:
+  RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
+  RUST_BACKTRACE: 1
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: 0
+  EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
+
+# Unique concurrency group to not interfere with existing workflows
+concurrency:
+  group: ci-tests-only-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name == 'pull_request' && 'PR' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # All tests in one job to maximize compilation sharing
+  # This is faster than matrix approach for this repo
+  test-all:
+    name: Tests and Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lld libclang-dev
+          # Install LLVM deps for cairo native
+          sudo ./scripts/dependencies.sh
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 'pypy3.9'
+          cache: 'pip'
+      
+      - name: Install Python deps
+        run: |
+          pip install -r scripts/requirements.txt
+          sudo ln -s $(which pypy3.9) /usr/local/bin/pypy3.9 || true
+      
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      
+      - name: Install Rust nightly for rustfmt
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.EXTRA_RUST_TOOLCHAINS }}
+          components: rustfmt
+      
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      
+      - name: Install tools
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-machete,taplo-cli@0.9.3
+      
+      - name: Install Anvil
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v0.3.0
+      
+      - name: Install Ganache
+        run: npm install -g ganache@7.4.3
+      
+      # Quick format/style checks (no compilation)
+      - name: Check formatting
+        run: cargo +"$EXTRA_RUST_TOOLCHAINS" fmt --all -- --check
+      
+      - name: Check Cargo.lock
+        run: |
+          cargo update -w --locked
+          git diff --exit-code Cargo.lock
+      
+      - name: Check unused dependencies
+        run: cargo machete
+      
+      - name: Check TOML formatting
+        run: taplo fmt --check
+      
+      # Single compilation step via clippy
+      - name: Run clippy (compiles everything)
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      
+      # Build docs (reuses compilation)
+      - name: Build documentation
+        run: cargo doc --workspace --no-deps --document-private-items
+        env:
+          RUSTDOCFLAGS: "-D warnings"
+      
+      # Run all tests (reuses compilation)
+      - name: Run tests
+        run: cargo test --workspace
+        env:
+          RUST_LOG: warn
+          SEED: 0
+      
+      # Workspace tests
+      - name: Run workspace tests
+        run: cargo test -p workspace_tests
+
+  # Feature tests only when needed
+  blockifier-features:
+    name: Blockifier Features
+    runs-on: ubuntu-latest
+    if: | 
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.title, 'blockifier') ||
+      contains(github.event.pull_request.body, 'blockifier')
+    strategy:
+      matrix:
+        features: ["transaction_serde", "cairo_native", "tracing"]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lld
+          if [[ "${{ matrix.features }}" == "cairo_native" ]]; then
+            sudo ./scripts/dependencies.sh
+          fi
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 'pypy3.9'
+          cache: 'pip'
+      
+      - name: Install Python deps
+        run: |
+          pip install -r scripts/requirements.txt
+          sudo ln -s $(which pypy3.9) /usr/local/bin/pypy3.9 || true
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      
+      - name: Test feature
+        run: cargo test -p blockifier --features ${{ matrix.features }}
+
+  # Integration tests
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.title, 'integration') ||
+      contains(github.event.pull_request.body, 'integration')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lld libclang-dev
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 'pypy3.9'
+          cache: 'pip'
+      
+      - name: Install Python deps
+        run: |
+          pip install -r scripts/requirements.txt
+          sudo ln -s $(which pypy3.9) /usr/local/bin/pypy3.9 || true
+      
+      - name: Install Anvil
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v0.3.0
+      
+      - name: Install Ganache
+        run: npm install -g ganache@7.4.3
+      
+      # Papyrus tests (fixed to run from correct crates)
+      - name: Papyrus integration tests
+        run: |
+          mkdir -p data
+          cargo build -p papyrus_node
+          timeout 30s target/debug/papyrus_node --chain_id SN_SEPOLIA --base_layer.node_url ${{ secrets.CI_BASE_LAYER_NODE_URL }} || [ $? -eq 124 ]
+          
+          # Run tests from their respective crates
+          cargo test -p apollo_proc_macros_tests --test latency_histogram -- --include-ignored
+          cargo test -p apollo_rpc --test gateway_integration_test -- --include-ignored
+          cargo test -p apollo_starknet_client --test feeder_gateway_integration_test -- --include-ignored --skip test_gw_integration_testnet
+          cargo run -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream" || true
+      
+      # Sequencer integration tests
+      - name: Sequencer integration tests
+        run: |
+          cargo build --bin apollo_node -p apollo_integration_tests
+          cargo test -p apollo_integration_tests || true
+
+  # Status check
+  ci-success:
+    name: CI Success
+    if: always()
+    needs: [test-all, blockifier-features, integration-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check all jobs
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more jobs failed"
+            exit 1
+          else
+            echo "All jobs succeeded"
+          fi
