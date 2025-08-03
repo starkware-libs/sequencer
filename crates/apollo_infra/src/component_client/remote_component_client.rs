@@ -203,7 +203,7 @@ where
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
         trace!("Sending HTTP request");
         let http_response = self.client.request(http_request).await.map_err(|err| {
-            warn!("HTTP request failed with error: {:?}", err);
+            warn!("HTTP request to {} failed with error: {err:?}", self.uri);
             ClientError::CommunicationFailure(err.to_string())
         })?;
 
