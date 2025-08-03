@@ -66,9 +66,8 @@ impl SierraCompiler {
 
         // TODO(Elin): handle resources (whether here or an infra. layer load-balancing).
         let executable_class = self.compiler.compile(class)?;
-        // TODO(Elin): consider spawning a worker for hash calculatioln.
-        // TODO(Aviv): Get the compiled_class_hash_v2.
-        let executable_class_hash = executable_class.hash(&HashVersion::V1);
+        // TODO(Elin): consider spawning a worker for hash calculation.
+        let executable_class_hash = executable_class.hash(&HashVersion::V2);
         let executable_class = ContractClass::V1((executable_class, sierra_version));
         let executable_class = RawExecutableClass::try_from(executable_class)?;
 
