@@ -10,7 +10,8 @@ use cairo_vm::types::program::Program;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::errors::hint_errors::HintError;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
-use cairo_vm::vm::errors::vm_exception::{get_error_attr_value, get_location};
+use cairo_vm::vm::errors::vm_errors::VirtualMachineError;
+use cairo_vm::vm::errors::vm_exception::{get_error_attr_value, get_location, VmException};
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use starknet_api::StarknetApiError;
@@ -325,4 +326,13 @@ pub(crate) fn get_code_snippet(location: Location) -> String {
     let mut snippet = String::new();
     snippet.push_str(&format!("{}\n", location.get_location_marks(file_bytes)));
     snippet
+}
+
+pub(crate) fn vm_error_with_code_snippet(
+    runner: &CairoRunner,
+    error: VirtualMachineError,
+) -> VmException {
+    let mut vm_exception = VmException::from_vm_error(runner, error);
+    vm_exception.traceback = get_traceback_with_code_snippet(runner);
+    vm_exception
 }

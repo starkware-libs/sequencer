@@ -4,7 +4,6 @@ use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::program::Program;
-use cairo_vm::vm::errors::vm_exception::VmException;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 #[cfg(feature = "include_program_output")]
@@ -18,6 +17,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::io::os_input::{OsHints, StarknetOsInput};
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::OsMetrics;
+use crate::vm_utils::vm_error_with_code_snippet;
 
 pub struct RunnerReturnObject {
     #[cfg(feature = "include_program_output")]
@@ -54,7 +54,7 @@ fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
     // Run the Cairo VM.
     cairo_runner
         .run_until_pc(end, hint_processor)
-        .map_err(|err| Box::new(VmException::from_vm_error(&cairo_runner, err)))?;
+        .map_err(|err| Box::new(vm_error_with_code_snippet(&cairo_runner, err)))?;
 
     // End the Cairo VM run.
     let disable_finalize_all = false;
