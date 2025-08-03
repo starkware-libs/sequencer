@@ -14,6 +14,8 @@ use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMap
 use blockifier::test_utils::maybe_dummy_block_hash_and_number;
 use blockifier::transaction::transaction_execution::Transaction;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_vm::types::layout_name::LayoutName;
+use starknet_api::block::BlockHash;
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
     ClassHash,
@@ -38,7 +40,17 @@ use starknet_committer::block_committer::input::{
 };
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
-use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
+use starknet_os::io::os_input::{
+    CachedStateInput,
+    CommitmentInfo,
+    OsBlockInput,
+    OsChainInfo,
+    OsHints,
+    OsHintsConfig,
+    StarknetOsInput,
+};
+use starknet_os::io::os_output::StarknetOsRunnerOutput;
+use starknet_os::runner::run_os_stateless;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
@@ -46,8 +58,9 @@ use starknet_patricia::test_utils::filter_inner_nodes_from_commitments;
 use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_types_core::felt::Felt;
 
-use crate::initial_state::OsExecutionContracts;
+use crate::initial_state::{InitialStateData, OsExecutionContracts};
 use crate::state_trait::FlowTestState;
+use crate::test_manager::STRK_FEE_TOKEN_ADDRESS;
 
 pub(crate) struct ExecutionOutput<S: FlowTestState> {
     pub(crate) execution_outputs: Vec<TransactionExecutionOutput>,
@@ -318,4 +331,105 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
         })
         .collect();
     (previous_contract_states, new_contract_roots)
+}
+
+pub(crate) async fn flow_test_body<S: FlowTestState>(
+    mut initial_state_data: InitialStateData<S>,
+    per_block_txs: Vec<Vec<Transaction>>,
+    block_contexts: Vec<BlockContext>,
+) -> StarknetOsRunnerOutput {
+    let mut os_block_inputs = vec![];
+    let mut cached_state_inputs = vec![];
+    let mut state = initial_state_data.initial_state.updatable_state;
+    assert_eq!(per_block_txs.len(), block_contexts.len());
+    // Commitment output is updated after each block.
+    let mut previous_commitment = CommitmentOutput {
+        contracts_trie_root_hash: initial_state_data.initial_state.contracts_trie_root_hash,
+        classes_trie_root_hash: initial_state_data.initial_state.classes_trie_root_hash,
+    };
+    let mut map_storage =
+        BorrowedMapStorage { storage: &mut initial_state_data.initial_state.commitment_storage };
+    for (block_txs, block_context) in per_block_txs.into_iter().zip(block_contexts.into_iter()) {
+        // Clone the block info for later use.
+        let block_info = block_context.block_info().clone();
+        // Execute the transactions.
+        let ExecutionOutput { execution_outputs, block_summary, mut final_state } =
+            execute_transactions(state, &block_txs, block_context);
+        let extended_state_diff = final_state.cache.borrow().extended_state_diff();
+        // Update the wrapped state.
+        let state_diff = final_state.to_state_diff().unwrap();
+        state = final_state.state;
+        state.apply_writes(&state_diff.state_maps, &final_state.class_hash_to_class.borrow());
+        // Commit the state diff.
+        let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
+        let new_commitment = commit_state_diff(
+            &mut map_storage,
+            previous_commitment.contracts_trie_root_hash,
+            previous_commitment.classes_trie_root_hash,
+            committer_state_diff,
+        )
+        .await;
+
+        // Prepare the OS input.
+        let (cached_state_input, commitment_infos) = create_cached_state_input_and_commitment_infos(
+            &previous_commitment,
+            &new_commitment,
+            &mut map_storage,
+            &extended_state_diff,
+        );
+        let tx_execution_infos = execution_outputs
+            .into_iter()
+            .map(|(execution_info, _)| execution_info.into())
+            .collect();
+        let block_txs = block_txs.into_iter().map(Into::into).collect();
+        let old_block_number_and_hash =
+            maybe_dummy_block_hash_and_number(block_info.block_number).map(|v| (v.number, v.hash));
+
+        let class_hashes_to_migrate = HashMap::new();
+        let os_block_input = OsBlockInput {
+            contract_state_commitment_info: commitment_infos.contracts_trie_commitment_info,
+            contract_class_commitment_info: commitment_infos.classes_trie_commitment_info,
+            address_to_storage_commitment_info: commitment_infos.storage_tries_commitment_infos,
+            transactions: block_txs,
+            tx_execution_infos,
+            declared_class_hash_to_component_hashes: initial_state_data
+                .execution_contracts
+                .declared_class_hash_to_component_hashes
+                .clone(),
+            block_info,
+            // Dummy block hashes.
+            prev_block_hash: BlockHash(Felt::ONE),
+            new_block_hash: BlockHash(Felt::ONE),
+            old_block_number_and_hash,
+            class_hashes_to_migrate,
+        };
+        os_block_inputs.push(os_block_input);
+        cached_state_inputs.push(cached_state_input);
+        previous_commitment = new_commitment;
+    }
+    let starknet_os_input = StarknetOsInput {
+        os_block_inputs,
+        cached_state_inputs,
+        deprecated_compiled_classes: initial_state_data
+            .execution_contracts
+            .executed_contracts
+            .deprecated_contracts
+            .into_iter()
+            .collect(),
+        compiled_classes: initial_state_data
+            .execution_contracts
+            .executed_contracts
+            .contracts
+            .into_iter()
+            .collect(),
+    };
+    let chain_info = OsChainInfo {
+        chain_id: CHAIN_ID_FOR_TESTS.clone(),
+        strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
+    };
+    let os_hints_config = OsHintsConfig { chain_info, ..Default::default() };
+    let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
+    let layout = LayoutName::all_cairo;
+
+    run_os_stateless(layout, os_hints).unwrap()
 }

@@ -6,6 +6,7 @@ use starknet_api::executable_transaction::{
     DeployAccountTransaction,
     InvokeTransaction,
     L1HandlerTransaction,
+    Transaction as StarknetApiExecutableTransaction,
 };
 use starknet_api::transaction::fields::Fee;
 use starknet_api::transaction::{
@@ -115,6 +116,19 @@ impl Transaction {
             _ => unimplemented!(),
         };
         Ok(AccountTransaction { tx: executable_tx, execution_flags }.into())
+    }
+}
+
+impl From<Transaction> for StarknetApiExecutableTransaction {
+    fn from(tx: Transaction) -> Self {
+        match tx {
+            Transaction::Account(account_tx) => {
+                StarknetApiExecutableTransaction::Account(account_tx.tx)
+            }
+            Transaction::L1Handler(l1_handler_tx) => {
+                StarknetApiExecutableTransaction::L1Handler(l1_handler_tx)
+            }
+        }
     }
 }
 
