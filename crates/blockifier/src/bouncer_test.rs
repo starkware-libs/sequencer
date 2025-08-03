@@ -412,7 +412,7 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
         &StateMaps::default().keys(),
         &block_context.versioned_constants,
         &BuiltinCounterMap::default(),
-        &BuiltinWeights::default(),
+        &block_context.bouncer_config,
     );
 
     let tx_weights = result.unwrap();
@@ -572,7 +572,7 @@ fn test_proving_gas_minus_sierra_gas_equals_builtin_gas(
         &StateMaps::default().keys(), // state changes keys
         &block_context.versioned_constants,
         &tx_builtin_counters,
-        &block_context.bouncer_config.builtin_weights,
+        &block_context.bouncer_config,
     )
     .unwrap();
 
