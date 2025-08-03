@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 
+use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier::config::TransactionExecutorConfig;
 use blockifier::blockifier::transaction_executor::{
     BlockExecutionSummary,
@@ -11,9 +12,9 @@ use blockifier::blockifier::transaction_executor::{
 };
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
-use blockifier::test_utils::maybe_dummy_block_hash_and_number;
 use blockifier::transaction::transaction_execution::Transaction;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
 use starknet_api::core::{
     ClassHash,
@@ -73,7 +74,7 @@ pub(crate) fn execute_transactions<S: FlowTestState>(
     let mut executor = TransactionExecutor::pre_process_and_create(
         initial_state,
         block_context,
-        block_number_hash_pair,
+        block_number_hash_pair.map(|(number, hash)| BlockHashAndNumber { hash, number }),
         config,
     )
     .expect("Failed to create transaction executor.");
@@ -318,4 +319,15 @@ pub(crate) fn get_previous_states_and_new_storage_roots<I: Iterator<Item = Contr
         })
         .collect();
     (previous_contract_states, new_contract_roots)
+}
+
+pub(crate) fn maybe_dummy_block_hash_and_number(
+    block_number: BlockNumber,
+) -> Option<(BlockNumber, BlockHash)> {
+    if block_number.0 < STORED_BLOCK_HASH_BUFFER {
+        return None;
+    }
+    let block_hash = BlockHash(Felt::from(block_number.0));
+    let block_number = BlockNumber(block_number.0 - STORED_BLOCK_HASH_BUFFER);
+    Some((block_number, block_hash))
 }
