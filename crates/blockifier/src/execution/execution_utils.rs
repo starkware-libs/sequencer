@@ -399,10 +399,6 @@ mod blake_estimation {
     pub const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
     // Empty input steps.
     pub const STEPS_EMPTY_INPUT: usize = 170;
-
-    // BLAKE opcode gas cost in Stwo.
-    // TODO(AvivG): Remove this and use bouncer's blake_weight.
-    pub const BLAKE_OPCODE_GAS: usize = 0;
 }
 
 /// Calculates the total number of u32s required to encode the given number of big and small felts.
@@ -508,6 +504,7 @@ pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
     n_big_felts: usize,
     n_small_felts: usize,
     versioned_constants: &VersionedConstants,
+    blake_opcode_gas: usize,
 ) -> GasAmount {
     let vm_resources = encode_and_blake_hash_execution_resources(n_big_felts, n_small_felts);
 
@@ -522,7 +519,7 @@ pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
 
     let blake_opcode_count = count_blake_opcode(n_big_felts, n_small_felts);
     let blake_opcode_gas = blake_opcode_count
-        .checked_mul(blake_estimation::BLAKE_OPCODE_GAS)
+        .checked_mul(blake_opcode_gas)
         .map(u64_from_usize)
         .map(GasAmount)
         .expect("Overflow computing Blake opcode gas.");
