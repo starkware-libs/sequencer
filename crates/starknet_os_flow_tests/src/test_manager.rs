@@ -37,11 +37,6 @@ use crate::initial_state::{
 use crate::state_trait::FlowTestState;
 
 /// The STRK fee token address that was deployed when initializing the default initial state.
-// pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
-//     Felt::from_hex_unchecked("0x62e53a7433f75e43325bc44c88e661f894a93e8ca7e608c7085e08df435bd5a")
-//         .try_into()
-//         .unwrap()
-// });
 pub(crate) static STRK_FEE_TOKEN_ADDRESS: LazyLock<ContractAddress> = LazyLock::new(|| {
     calculate_contract_address(
         CONTRACT_ADDRESS_SALT,
