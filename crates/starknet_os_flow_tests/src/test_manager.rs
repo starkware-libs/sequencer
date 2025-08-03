@@ -1,9 +1,9 @@
 #![allow(dead_code)]
-
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::transaction::transaction_execution::Transaction;
+use once_cell::sync::Lazy;
 use starknet_api::block::{BlockInfo, BlockNumber};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{CompiledClassHash, ContractAddress};
@@ -25,13 +25,22 @@ use crate::initial_state::{
 };
 use crate::state_trait::FlowTestState;
 
-// TODO(Nimrod): Replace with actual values.
 /// The STRK fee token address that was deployed when initializing the default initial state.
-pub(crate) const STRK_FEE_TOKEN_ADDRESS: u128 = 11;
+pub(crate) static STRK_FEE_TOKEN_ADDRESS: Lazy<ContractAddress> = Lazy::new(|| {
+    Felt::from_hex("0x79ed687437b0bcd85e5704225b2236d5cc01b24e13484421de671713cbfbe9d")
+        .unwrap()
+        .try_into()
+        .unwrap()
+});
 
 /// The address of a funded account that is able to pay fees for transactions.
 /// This address was initialized when creating the default initial state.
-pub(crate) const FUNDED_ACCOUNT_ADDRESS: u128 = 12;
+pub(crate) static FUNDED_ACCOUNT_ADDRESS: Lazy<ContractAddress> = Lazy::new(|| {
+    Felt::from_hex("0x54ffd287b9d0e218a239af5b7ddbc53a1403827d4b34b3eae89f060549080db")
+        .unwrap()
+        .try_into()
+        .unwrap()
+});
 
 /// Manages the execution of flow tests by maintaining the initial state and transactions.
 pub(crate) struct TestManager<S: FlowTestState> {
@@ -183,7 +192,7 @@ impl<S: FlowTestState> TestManager<S> {
 /// was set in the default initial state.
 pub fn block_context_for_flow_tests(block_number: BlockNumber) -> BlockContext {
     let fee_token_addresses = FeeTokenAddresses {
-        strk_fee_token_address: STRK_FEE_TOKEN_ADDRESS.into(),
+        strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
         eth_fee_token_address: ContractAddress::default(),
     };
     BlockContext::new(
