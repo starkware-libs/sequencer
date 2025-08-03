@@ -3,6 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::ops::{Deref, Index};
 use std::sync::Arc;
 
+use blake2s::SMALL_THRESHOLD;
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
@@ -801,8 +802,6 @@ fn build_bytecode_seg_leaf<I>(iter: &mut I, len: usize) -> (NestedMultipleIntLis
 where
     I: Iterator<Item = Felt>,
 {
-    // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
-    const SMALL_THRESHOLD: Felt = Felt::from(1 << 63);
     let (small, large) = iter
         .take(len)
         .fold((0, 0), |(s, l), felt| if felt < SMALL_THRESHOLD { (s + 1, l) } else { (s, l + 1) });
