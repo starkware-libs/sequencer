@@ -431,6 +431,12 @@ impl StateCache {
         merged_state_changes
     }
 
+    pub fn extended_state_diff(&self) -> StateMaps {
+        let mut reads = self.initial_reads.clone();
+        reads.extend(&self.writes);
+        reads
+    }
+
     fn declare_contract(&mut self, class_hash: ClassHash) {
         self.writes.declared_contracts.insert(class_hash, true);
     }
