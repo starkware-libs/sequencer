@@ -47,6 +47,8 @@ use crate::utils::{
     StreamSender,
 };
 
+// Minimal wait time that avoids an immediate timeout.
+const MIN_WAIT_DURATION: Duration = Duration::from_millis(1);
 pub(crate) struct ProposalBuildArguments {
     pub deps: SequencerConsensusContextDeps,
     pub batcher_timeout: Duration,
@@ -251,7 +253,7 @@ async fn get_proposal_content(
                 let remaining = (batcher_deadline - clock.now())
                     .to_std()
                     .unwrap_or_default()
-                    .max(Duration::from_millis(1)); // Ensure we wait at least 1 ms to avoid immediate timeout. 
+                    .max(MIN_WAIT_DURATION); // Ensure we wait at least 1 ms to avoid immediate timeout. 
                 match tokio::time::timeout(remaining, cende_write_success).await {
                     Err(_) => {
                         return Err(BuildProposalError::CendeWriteError(
