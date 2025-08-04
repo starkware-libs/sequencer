@@ -2,6 +2,7 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
+use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
 use libp2p::swarm::{
     dummy,
@@ -43,6 +44,7 @@ impl NetworkBehaviour for KadRequestingBehaviour {
         _peer: PeerId,
         _addr: &Multiaddr,
         _role_override: Endpoint,
+        _port_use: PortUse,
     ) -> Result<Self::ConnectionHandler, ConnectionDenied> {
         Ok(dummy::ConnectionHandler)
     }

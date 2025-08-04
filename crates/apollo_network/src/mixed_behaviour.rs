@@ -69,11 +69,10 @@ impl MixedBehaviour {
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
-        let mut kademlia_config = kad::Config::default();
-        kademlia_config.set_protocol_names(vec![
-            StreamProtocol::try_from_owned(format!("/starknet/kad/{}/1.0.0", chain_id))
-                .expect("Failed to create StreamProtocol from a string that starts with /"),
-        ]);
+        let protocol_name =
+            StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
+                .expect("Failed to create StreamProtocol from a string that starts with /");
+        let kademlia_config = kad::Config::new(protocol_name);
         let mut gossipsub = gossipsub::Behaviour::new(
             gossipsub::MessageAuthenticity::Signed(keypair),
             gossipsub::ConfigBuilder::default()
