@@ -3,6 +3,7 @@ use std::task::{Context, Poll};
 
 use futures::future::BoxFuture;
 use futures::{AsyncRead, AsyncWrite, FutureExt};
+use libp2p::core::transport::PortUse;
 use libp2p::core::upgrade::{InboundUpgrade, OutboundUpgrade, UpgradeInfo};
 use libp2p::core::Endpoint;
 use libp2p::swarm::handler::{ConnectionEvent, FullyNegotiatedInbound, FullyNegotiatedOutbound};
@@ -44,6 +45,7 @@ impl NetworkBehaviour for Behaviour {
         _peer: PeerId,
         _addr: &Multiaddr,
         _role_override: Endpoint,
+        _port_use: PortUse,
     ) -> Result<Self::ConnectionHandler, ConnectionDenied> {
         Ok(Handler { request_outbound_session: true, stream: None })
     }
