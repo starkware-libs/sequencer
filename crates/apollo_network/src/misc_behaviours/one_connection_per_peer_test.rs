@@ -108,6 +108,7 @@ fn attempt_connection(
             peer_id,
             &addr,
             Endpoint::Dialer,
+            libp2p::core::transport::PortUse::Reuse,
         ),
     }
 }
@@ -125,9 +126,11 @@ fn simulate_connection_established(
         ConnectionType::Inbound => {
             ConnectedPoint::Listener { local_addr: addr.clone(), send_back_addr: addr.clone() }
         }
-        ConnectionType::Outbound => {
-            ConnectedPoint::Dialer { address: addr.clone(), role_override: Endpoint::Dialer }
-        }
+        ConnectionType::Outbound => ConnectedPoint::Dialer {
+            address: addr.clone(),
+            role_override: Endpoint::Dialer,
+            port_use: libp2p::core::transport::PortUse::Reuse,
+        },
     };
 
     behaviour.on_swarm_event(FromSwarm::ConnectionEstablished(ConnectionEstablished {
@@ -173,8 +176,13 @@ fn close_connection(
     behaviour.on_swarm_event(FromSwarm::ConnectionClosed(ConnectionClosed {
         peer_id,
         connection_id,
-        endpoint: &ConnectedPoint::Dialer { address: addr, role_override: Endpoint::Dialer },
+        endpoint: &ConnectedPoint::Dialer {
+            address: addr,
+            role_override: Endpoint::Dialer,
+            port_use: libp2p::core::transport::PortUse::Reuse,
+        },
         remaining_established,
+        cause: Some(&libp2p::swarm::ConnectionError::KeepAliveTimeout),
     }));
 }
 
@@ -205,6 +213,7 @@ fn fail_connection(
                 send_back_addr: &send_back_addr,
                 error: &libp2p::swarm::ListenError::Aborted,
                 connection_id,
+                peer_id,
             }));
         }
     }
@@ -272,6 +281,7 @@ mod basic_functionality {
                 peer_id,
                 &addr,
                 Endpoint::Dialer,
+                libp2p::core::transport::PortUse::Reuse,
             ),
         };
 

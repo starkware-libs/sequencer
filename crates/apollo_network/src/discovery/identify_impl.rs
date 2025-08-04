@@ -14,7 +14,7 @@ pub enum IdentifyToOtherBehaviourEvent {
 impl From<identify::Event> for mixed_behaviour::Event {
     fn from(event: identify::Event) -> Self {
         match event {
-            identify::Event::Received { peer_id, info } => {
+            identify::Event::Received { peer_id, info, connection_id: _ } => {
                 // Filtering out localhost since it might collide with our own listen address if we
                 // use the same port.
                 // No need to filter out in discovery since there the address comes from the

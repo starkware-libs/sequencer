@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
 
+use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
 use libp2p::swarm::{
     ConnectionClosed,
@@ -249,6 +250,7 @@ impl NetworkBehaviour for Behaviour {
         peer_id: PeerId,
         _addr: &Multiaddr,
         _role_override: Endpoint,
+        _port_use: PortUse,
     ) -> Result<Self::ConnectionHandler, ConnectionDenied> {
         Ok(Handler::new(
             self.config.clone(),
