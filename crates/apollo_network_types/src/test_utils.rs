@@ -7,20 +7,17 @@ use crate::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 
 lazy_static! {
     pub static ref DUMMY_PEER_ID: PeerId = {
-        let key = [0u8; 32];
-        let keypair = identity::Keypair::ed25519_from_bytes(key).unwrap();
+        let keypair = get_keypair(0);
         PeerId::from_public_key(&keypair.public())
     };
     pub static ref DUMMY_MULTI_ADDRESS: Multiaddr =
         Multiaddr::empty().with(multiaddr::Protocol::P2p(*DUMMY_PEER_ID));
+    pub static ref DUMMY_KEYPAIR: identity::Keypair = get_keypair(0);
 }
 
 /// Returns a `PeerId`` used to testing. Different indices will yield different `PeerId`s.
 pub fn get_peer_id(index: u8) -> PeerId {
-    // Generate a PeerId based on the index
-    let key = [index; 32];
-    let keypair = libp2p::identity::Keypair::ed25519_from_bytes(key).unwrap();
-    PeerId::from_public_key(&keypair.public())
+    PeerId::from_public_key(&get_keypair(index).public())
 }
 
 impl GetTestInstance for OpaquePeerId {
@@ -35,4 +32,9 @@ auto_impl_get_test_instance! {
         pub originator_id: OpaquePeerId,
         pub encoded_message_length: usize,
     }
+}
+
+pub fn get_keypair(i: u8) -> identity::Keypair {
+    let key = [i; 32];
+    identity::Keypair::ed25519_from_bytes(key).unwrap()
 }

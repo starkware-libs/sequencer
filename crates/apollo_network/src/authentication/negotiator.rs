@@ -1,8 +1,9 @@
 use std::io::Error as IoError;
 
 use async_trait::async_trait;
-use futures::{Sink, Stream};
 use libp2p::PeerId;
+#[cfg(any(feature = "testing", test))]
+use mockall::automock;
 
 pub enum NegotiatorOutput {
     None,
@@ -11,17 +12,11 @@ pub enum NegotiatorOutput {
     DuplicatePeer(PeerId),
 }
 
-#[derive(Debug, thiserror::Error)]
-#[non_exhaustive]
-pub enum NegotiatorError {
-    #[error(transparent)]
-    Io(#[from] std::io::Error),
-    #[error("Authentication failed")]
-    AuthenticationFailed,
-}
-
 #[async_trait]
+#[cfg_attr(any(feature = "testing", test), automock(type Error = std::io::Error;))]
 pub trait Negotiator: Send + Clone {
+    type Error: std::error::Error + Send + Sync;
+
     /// Performs the handshake protocol when we are the incoming connection side.
     /// `connection` is the channel that can be used to communicate with the other peer.
     async fn negotiate_incoming_connection(
@@ -29,7 +24,7 @@ pub trait Negotiator: Send + Clone {
         my_peer_id: PeerId,
         other_peer_id: PeerId,
         connection: &mut dyn ConnectionEndpoint,
-    ) -> Result<NegotiatorOutput, NegotiatorError>;
+    ) -> Result<NegotiatorOutput, Self::Error>;
 
     /// Performs the handshake protocol when we are the outgoing connection side.
     /// `connection` is the channel that can be used to communicate with the other peer.
@@ -38,7 +33,7 @@ pub trait Negotiator: Send + Clone {
         my_peer_id: PeerId,
         other_peer_id: PeerId,
         connection: &mut dyn ConnectionEndpoint,
-    ) -> Result<NegotiatorOutput, NegotiatorError>;
+    ) -> Result<NegotiatorOutput, Self::Error>;
 
     /// A unique identified for your authentication protocol. For example: "strk_id" or
     /// "strk_id_v2".
@@ -53,4 +48,12 @@ pub trait ConnectionEndpoint: Unpin + Send {
 
     /// Receives data from the connection.
     async fn receive(&mut self) -> Result<Vec<u8>, IoError>;
+}
+
+// Automock does not implement Clone, so we need to do it manually.
+#[cfg(any(feature = "testing", test))]
+impl Clone for MockNegotiator {
+    fn clone(&self) -> Self {
+        MockNegotiator::default()
+    }
 }
