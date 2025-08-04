@@ -31,6 +31,8 @@ use crate::hints::hint_implementation::block_context::{
     chain_id,
     fee_token_address,
     get_block_mapping,
+    public_key_x,
+    public_key_y,
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
@@ -957,6 +959,16 @@ define_common_hint_enum!(
             # and use them to construct the root of the fact tree.
             2,
         ])"#}
+    ),
+    (
+        PublicKeyX,
+        public_key_x,
+        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.public_key.x)"
+    ),
+    (
+        PublicKeyY,
+        public_key_y,
+        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.public_key.y)"
     ),
     (
         GuessContractAddrStoragePtr,

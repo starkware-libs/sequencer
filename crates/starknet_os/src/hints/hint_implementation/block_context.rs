@@ -3,6 +3,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::insert_value_i
 use starknet_api::core::ascii_as_felt;
 use starknet_types_core::felt::Felt;
 
+use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
@@ -76,4 +77,22 @@ pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
         AllHints::OsHint(OsHint::WriteUseKzgDaToMemory),
         Felt::from(use_kzg_da),
     )
+}
+
+pub(crate) fn public_key_x<'program, CHP: CommonHintProcessor<'program>>(
+    _hint_processor: &mut CHP,
+    HintArgs { .. }: HintArgs<'_>,
+) -> OsHintResult {
+    // The Python hint code handles the actual implementation:
+    // "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.public_key.x)"
+    Ok(())
+}
+
+pub(crate) fn public_key_y<'program, CHP: CommonHintProcessor<'program>>(
+    _hint_processor: &mut CHP,
+    HintArgs { .. }: HintArgs<'_>,
+) -> OsHintResult {
+    // The Python hint code handles the actual implementation:
+    // "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.public_key.y)"
+    Ok(())
 }

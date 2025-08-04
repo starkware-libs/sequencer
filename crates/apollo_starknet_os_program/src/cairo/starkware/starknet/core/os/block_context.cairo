@@ -12,6 +12,7 @@ from starkware.starknet.core.os.contract_class.deprecated_compiled_class import 
     DeprecatedCompiledClassFact,
 )
 from starkware.starknet.core.os.os_config.os_config import StarknetOsConfig
+from starkware.cairo.common.ec_point import EcPoint
 
 // Struct to group compiled class facts parameters.
 struct CompiledClassFactsBundle {
@@ -87,6 +88,10 @@ func get_block_context{range_check_ptr}(
         starknet_os_config=StarknetOsConfig(
             chain_id=nondet %{ os_hints_config.starknet_os_config.chain_id %},
             fee_token_address=nondet %{ os_hints_config.starknet_os_config.fee_token_address %},
+            public_key=new EcPoint(
+                x=nondet %{ os_hints_config.starknet_os_config.public_key.x %},
+                y=nondet %{ os_hints_config.starknet_os_config.public_key.y %},
+            ),
         ),
         execute_syscalls_ptr=execute_syscalls_ptr,
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
