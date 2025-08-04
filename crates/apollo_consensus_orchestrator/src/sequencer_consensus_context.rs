@@ -761,6 +761,10 @@ impl SequencerConsensusContext {
     }
 
     async fn batcher_add_sync_block(&mut self, sync_block: SyncBlock) {
+        info!(
+            "Adding sync block to Batcher for height {}",
+            sync_block.block_header_without_hash.block_number,
+        );
         loop {
             match self.deps.batcher.add_sync_block(sync_block.clone()).await {
                 Ok(_) => break,
