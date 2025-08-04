@@ -73,6 +73,10 @@ pub trait ClassManagerClient: Send + Sync {
         executable_class_id: ExecutableClassHash,
         executable_class: ExecutableClass,
     ) -> ClassManagerClientResult<()>;
+
+    // Adds the class without the executable. You will not be able to call `get_executable` or
+    // `get_sierra` until the executable is added via `add_missing_executable`.
+    // async fn add_class_without_executable
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq, Serialize, Deserialize)]
