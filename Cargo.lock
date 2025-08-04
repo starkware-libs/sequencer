@@ -12322,6 +12322,7 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
+ "cairo-vm",
  "starknet_api",
  "starknet_committer",
  "starknet_patricia",

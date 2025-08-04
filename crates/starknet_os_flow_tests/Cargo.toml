@@ -10,6 +10,7 @@ license-file.workspace = true
 blockifier.workspace = true
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
+cairo-vm.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
 starknet_patricia.workspace = true
