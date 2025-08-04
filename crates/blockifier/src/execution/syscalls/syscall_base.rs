@@ -54,6 +54,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     exceeds_event_size_limit,
     SyscallBaseResult,
     SyscallExecutorBaseError,
+    SyscallSelector,
     SyscallUsageMap,
     TryExtractRevert,
 };
@@ -118,6 +119,19 @@ impl<'state> SyscallHandlerBase<'state> {
             syscalls_usage: SyscallUsageMap::new(),
             revert_info_idx,
         }
+    }
+
+    pub fn increment_syscall_count_by(&mut self, selector: SyscallSelector, n: usize) {
+        let syscall_usage = self.syscalls_usage.entry(selector).or_default();
+        syscall_usage.call_count += n;
+    }
+
+    pub fn increment_syscall_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
+        let syscall_usage = self
+            .syscalls_usage
+            .get_mut(selector)
+            .expect("syscalls_usage entry must be initialized before incrementing linear factor");
+        syscall_usage.linear_factor += n;
     }
 
     #[allow(clippy::result_large_err)]
@@ -269,6 +283,7 @@ impl<'state> SyscallHandlerBase<'state> {
         signature: TransactionSignature,
         remaining_gas: &mut u64,
     ) -> SyscallResult<Vec<Felt>> {
+        self.increment_syscall_linear_factor_by(&SyscallSelector::MetaTxV0, calldata.0.len());
         if self.context.execution_mode == ExecutionMode::Validate {
             self.reject_syscall_in_validate_mode("meta_tx_v0")?;
         }
@@ -366,6 +381,10 @@ impl<'state> SyscallHandlerBase<'state> {
         deploy_from_zero: bool,
         remaining_gas: &mut u64,
     ) -> SyscallResult<(ContractAddress, CallInfo)> {
+        self.increment_syscall_linear_factor_by(
+            &SyscallSelector::Deploy,
+            constructor_calldata.0.len(),
+        );
         let versioned_constants = &self.context.tx_context.block_context.versioned_constants;
         if should_reject_deploy(
             versioned_constants.disable_deploy_in_validation_mode,
