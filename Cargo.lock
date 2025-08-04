@@ -12044,7 +12044,7 @@ dependencies = [
  "blockifier",
  "blockifier_test_utils",
  "cairo-lang-starknet-classes",
- "starknet-types-core",
+ "cairo-vm",
  "starknet_api",
  "starknet_committer",
  "starknet_os",

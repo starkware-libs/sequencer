@@ -1,0 +1,728 @@
+[2m2025-06-09T09:21:13.706Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/trace_util.rs[0m[2m:[0m[2m51[0m[2m:[0m Tracing has been successfully initialized.
+[2m2025-06-09T09:21:13.766Z[0m [32m INFO[0m [2mcrates/apollo_config/src/loading.rs[0m[2m:[0m[2m69[0m[2m:[0m Ignoring default values by overriding with an empty map.
+[2m2025-06-09T09:21:13.769Z[0m [32m INFO[0m [2mcrates/apollo_config/src/loading.rs[0m[2m:[0m[2m136[0m[2m:[0m Loading custom config file: "/config/node_config.json"
+[2m2025-06-09T09:21:13.802Z[0m [32m INFO[0m [2mcrates/apollo_node/src/utils.rs[0m[2m:[0m[2m33[0m[2m:[0m Finished loading configuration.
+[2m2025-06-09T09:21:13.809Z[0m [32m INFO[0m [2mcrates/apollo_node/src/utils.rs[0m[2m:[0m[2m40[0m[2m:[0m Finished validating configuration.
+[2m2025-06-09T09:21:13.809Z[0m [32m INFO[0m [2mcrates/apollo_node/src/utils.rs[0m[2m:[0m[2m42[0m[2m:[0m Config map:
+[2m2025-06-09T09:21:13.849Z[0m [32m INFO[0m [2mcrates/apollo_node/src/utils.rs[0m[2m:[0m[2m43[0m[2m:[0m Object {
+    "base_layer_config": Object {
+        "prague_blob_gas_calc": Bool(true),
+        "starknet_contract_address": String("0x5fbdb2315678afecb367f032d93f642f64180aa3"),
+        "timeout_millis": Object {
+            "nanos": Number(0),
+            "secs": Number(1),
+        },
+    },
+    "batcher_config": Object {
+        "block_builder_config": Object {
+            "bouncer_config": Object {
+                "block_max_capacity": Object {
+                    "l1_gas": Number(2500000),
+                    "message_segment_length": Number(3700),
+                    "n_events": Number(5000),
+                    "n_txs": Number(600),
+                    "sierra_gas": Number(30000000),
+                    "state_diff_size": Number(4000),
+                },
+            },
+            "chain_info": Object {
+                "chain_id": String("CHAIN_ID_SUBDIR"),
+                "fee_token_addresses": Object {
+                    "eth_fee_token_address": String("0x1001"),
+                    "strk_fee_token_address": String("0x1002"),
+                },
+            },
+            "execute_config": Object {
+                "n_workers": Number(4),
+                "stack_size": Number(62914560),
+            },
+            "tx_chunk_size": Number(3),
+            "tx_polling_interval_millis": Number(100),
+            "versioned_constants_overrides": Object {
+                "invoke_tx_max_n_steps": Number(6000000),
+                "max_n_events": Number(1000),
+                "max_recursion_depth": Number(50),
+                "validate_max_n_steps": Number(1000000),
+            },
+        },
+        "contract_class_manager_config": Object {
+            "cairo_native_run_config": Object {
+                "channel_size": Number(2000),
+                "native_classes_whitelist": String("All"),
+                "panic_on_compilation_failure": Bool(true),
+                "run_cairo_native": Bool(true),
+                "wait_on_native_compilation": Bool(true),
+            },
+            "contract_cache_size": Number(600),
+            "native_compiler_config": Object {
+                "compiler_binary_path": Null,
+                "max_cpu_time": Number(20),
+                "max_file_size": Number(15728640),
+                "max_memory_usage": Number(5368709120),
+                "optimization_level": Number(2),
+            },
+        },
+        "input_stream_content_buffer_size": Number(400),
+        "max_l1_handler_txs_per_block_proposal": Number(3),
+        "outstream_content_buffer_size": Number(100),
+        "pre_confirmed_block_writer_channel_capacity": Number(1000),
+        "pre_confirmed_cende_config": Object {},
+        "storage": Object {
+            "db_config": Object {
+                "chain_id": String("CHAIN_ID_SUBDIR"),
+                "enforce_file_exists": Bool(false),
+                "growth_step": Number(67108864),
+                "max_size": Number(34359738368),
+                "min_size": Number(1048576),
+                "path_prefix": String("/data/node_0/executable_0/batcher"),
+            },
+            "mmap_file_config": Object {
+                "growth_step": Number(1048576),
+                "max_object_size": Number(65536),
+                "max_size": Number(16777216),
+            },
+            "scope": String("StateOnly"),
+        },
+    },
+    "class_manager_config": Object {
+        "class_manager_config": Object {
+            "cached_class_storage_config": Object {
+                "class_cache_size": Number(100),
+                "deprecated_class_cache_size": Number(100),
+            },
+            "max_compiled_contract_class_object_size": Number(4089446),
+        },
+        "class_storage_config": Object {
+            "class_hash_storage_config": Object {
+                "class_hash_db_config": Object {
+                    "enforce_file_exists": Bool(false),
+                    "growth_step": Number(67108864),
+                    "max_size": Number(1073741824),
+                    "min_size": Number(1024),
+                    "path_prefix": String("/data/node_0/executable_0/class_manager/class_hash_storage"),
+                },
+                "mmap_file_config": Object {
+                    "growth_step": Number(1048576),
+                    "max_object_size": Number(1024),
+                    "max_size": Number(1073741824),
+                },
+                "scope": String("StateOnly"),
+            },
+            "persistent_root": String("/data/node_0/executable_0/class_manager/classes"),
+        },
+    },
+    "compiler_config": Object {
+        "max_bytecode_size": Number(81920),
+        "max_memory_usage": Number(5368709120),
+    },
+    "components": Object {
+        "batcher": Object {
+            "execution_mode": String("LocalExecutionWithRemoteDisabled"),
+            "ip": String("0.0.0.0"),
+            "local_server_config": Object {
+                "channel_buffer_size": Number(32),
+            },
+            "max_concurrency": Number(10),
+            "port": Number(0),
+            "remote_client_config": Object {
+                "idle_connections": Number(18446744073709551615),
+                "idle_timeout": Number(90),
+                "retries": Number(50),
+                "retry_interval": Number(3),
+            },
+            "url": String("localhost"),
+        },
+        "class_manager": Object {
+            "execution_mode": String("LocalExecutionWithRemoteDisabled"),
+            "ip": String("0.0.0.0"),
+            "local_server_config": Object {
+                "channel_buffer_size": Number(32),
+            },
+            "max_concurrency": Number(10),
+            "port": Number(0),
+            "remote_client_config": Object {
+                "idle_connections": Number(18446744073709551615),
+                "idle_timeout": Number(90),
+                "retries": Number(50),
+                "retry_interval": Number(3),
+            },
+            "url": String("localhost"),
+        },
+        "consensus_manager": Object {
+            "execution_mode": String("Enabled"),
+        },
+        "gateway": Object {
+            "execution_mode": String("LocalExecutionWithRemoteDisabled"),
+            "ip": String("0.0.0.0"),
+            "local_server_config": Object {
+                "channel_buffer_size": Number(32),
+            },
+            "max_concurrency": Number(10),
+            "port": Number(0),
+            "remote_client_config": Object {
+                "idle_connections": Number(18446744073709551615),
+                "idle_timeout": Number(90),
+                "retries": Number(50),
+                "retry_interval": Number(3),
+            },
+            "url": String("localhost"),
+        },
+        "http_server": Object {
+            "execution_mode": String("Enabled"),
+        },
+        "l1_gas_price_provider": Object {
+            "execution_mode": String("LocalExecutionWithRemoteDisabled"),
+            "ip": String("0.0.0.0"),
+            "local_server_config": Object {
+                "channel_buffer_size": Number(32),
+            },
+            "max_concurrency": Number(10),
+            "port": Number(0),
+            "remote_client_config": Object {
+                "idle_connections": Number(18446744073709551615),
+                "idle_timeout": Number(90),
+                "retries": Number(50),
+                "retry_interval": Number(3),
+            },
+            "url": String("localhost"),
+        },
+        "l1_gas_price_scraper": Object {
+            "execution_mode": String("Disabled"),
+        },
+        "l1_provider": Object {
+            "execution_mode": String("LocalExecutionWithRemoteDisabled"),
+            "ip": String("0.0.0.0"),
+            "local_server_config": Object {
+                "channel_buffer_size": Number(32),
+            },
+            "max_concurrency": Number(10),
+            "port": Number(0),
+            "remote_client_config": Object {
+                "idle_connections": Number(18446744073709551615),
+                "idle_timeout": Number(90),
+                "retries": Number(50),
+                "retry_interval": Number(3),
+            },
+            "url": String("localhost"),
+        },
+        "l1_scraper": Object {
+            "execution_mode": String("Disabled"),
+        },
+        "mempool": Object {
+            "execution_mode": String("LocalExecutionWithRemoteDisabled"),
+            "ip": String("0.0.0.0"),
+            "local_server_config": Object {
+                "channel_buffer_size": Number(32),
+            },
+            "max_concurrency": Number(10),
+            "port": Number(0),
+            "remote_client_config": Object {
+                "idle_connections": Number(18446744073709551615),
+                "idle_timeout": Number(90),
+                "retries": Number(50),
+                "retry_interval": Number(3),
+            },
+            "url": String("localhost"),
+        },
+        "mempool_p2p": Object {
+            "execution_mode": String("LocalExecutionWithRemoteDisabled"),
+            "ip": String("0.0.0.0"),
+            "local_server_config": Object {
+                "channel_buffer_size": Number(32),
+            },
+            "max_concurrency": Number(10),
+            "port": Number(0),
+            "remote_client_config": Object {
+                "idle_connections": Number(18446744073709551615),
+                "idle_timeout": Number(90),
+                "retries": Number(50),
+                "retry_interval": Number(3),
+            },
+            "url": String("localhost"),
+        },
+        "monitoring_endpoint": Object {
+            "execution_mode": String("Enabled"),
+        },
+        "sierra_compiler": Object {
+            "execution_mode": String("LocalExecutionWithRemoteDisabled"),
+            "ip": String("0.0.0.0"),
+            "local_server_config": Object {
+                "channel_buffer_size": Number(32),
+            },
+            "max_concurrency": Number(10),
+            "port": Number(0),
+            "remote_client_config": Object {
+                "idle_connections": Number(18446744073709551615),
+                "idle_timeout": Number(90),
+                "retries": Number(50),
+                "retry_interval": Number(3),
+            },
+            "url": String("localhost"),
+        },
+        "state_sync": Object {
+            "execution_mode": String("LocalExecutionWithRemoteDisabled"),
+            "ip": String("0.0.0.0"),
+            "local_server_config": Object {
+                "channel_buffer_size": Number(32),
+            },
+            "max_concurrency": Number(10),
+            "port": Number(0),
+            "remote_client_config": Object {
+                "idle_connections": Number(18446744073709551615),
+                "idle_timeout": Number(90),
+                "retries": Number(50),
+                "retry_interval": Number(3),
+            },
+            "url": String("localhost"),
+        },
+    },
+    "consensus_manager_config": Object {
+        "broadcast_buffer_size": Number(10000),
+        "cende_config": Object {},
+        "consensus_config": Object {
+            "future_height_limit": Number(10),
+            "future_height_round_limit": Number(1),
+            "future_round_limit": Number(10),
+            "startup_delay": Object {
+                "nanos": Number(0),
+                "secs": Number(15),
+            },
+            "sync_retry_interval": Object {
+                "nanos": Number(0),
+                "secs": Number(1),
+            },
+            "timeouts": Object {
+                "precommit_timeout": Object {
+                    "nanos": Number(0),
+                    "secs": Number(3),
+                },
+                "prevote_timeout": Object {
+                    "nanos": Number(0),
+                    "secs": Number(3),
+                },
+                "proposal_timeout": Object {
+                    "nanos": Number(0),
+                    "secs": Number(9),
+                },
+            },
+            "validator_id": String("0x64"),
+        },
+        "context_config": Object {
+            "block_timestamp_window_seconds": Number(1),
+            "build_proposal_margin_millis": Object {
+                "nanos": Number(0),
+                "secs": Number(1),
+            },
+            "builder_address": String("0x4"),
+            "chain_id": String("CHAIN_ID_SUBDIR"),
+            "l1_da_mode": Bool(true),
+            "l1_data_gas_price_multiplier_ppt": Number(135),
+            "l1_gas_tip_wei": Number(1000000000),
+            "max_l1_data_gas_price_wei": Number(1000000000000000000),
+            "max_l1_gas_price_wei": Number(200000000000),
+            "min_l1_data_gas_price_wei": Number(1),
+            "min_l1_gas_price_wei": Number(1000000000),
+            "num_validators": Number(1),
+            "proposal_buffer_size": Number(100),
+            "validate_proposal_margin_millis": Object {
+                "nanos": Number(0),
+                "secs": Number(10),
+            },
+        },
+        "eth_to_strk_oracle_config": Object {},
+        "immediate_active_height": Number(1),
+        "network_config": Object {
+            "advertised_multiaddr": Null,
+            "bootstrap_peer_multiaddr": Null,
+            "broadcasted_message_metadata_buffer_size": Number(100000),
+            "chain_id": String("CHAIN_ID_SUBDIR"),
+            "discovery_config": Object {
+                "bootstrap_dial_retry_config": Object {
+                    "base_delay_millis": Number(2),
+                    "factor": Number(5),
+                    "max_delay_seconds": Object {
+                        "nanos": Number(0),
+                        "secs": Number(5),
+                    },
+                },
+                "heartbeat_interval": Object {
+                    "nanos": Number(100000000),
+                    "secs": Number(0),
+                },
+            },
+            "idle_connection_timeout": Object {
+                "nanos": Number(0),
+                "secs": Number(120),
+            },
+            "peer_manager_config": Object {
+                "malicious_timeout_seconds": Object {
+                    "nanos": Number(0),
+                    "secs": Number(1),
+                },
+                "unstable_timeout_millis": Object {
+                    "nanos": Number(0),
+                    "secs": Number(1),
+                },
+            },
+            "port": Number(17720),
+            "reported_peer_ids_buffer_size": Number(100000),
+            "session_timeout": Object {
+                "nanos": Number(0),
+                "secs": Number(120),
+            },
+        },
+        "proposals_topic": String("consensus_proposals"),
+        "revert_config": Object {
+            "revert_up_to_and_including": Number(18446744073709551615),
+            "should_revert": Bool(false),
+        },
+        "stream_handler_config": Object {
+            "channel_buffer_capacity": Number(1000),
+            "max_streams": Number(100),
+        },
+        "votes_topic": String("consensus_votes"),
+    },
+    "gateway_config": Object {
+        "block_declare": Bool(false),
+        "chain_info": Object {
+            "chain_id": String("CHAIN_ID_SUBDIR"),
+            "fee_token_addresses": Object {
+                "eth_fee_token_address": String("0x1001"),
+                "strk_fee_token_address": String("0x1002"),
+            },
+        },
+        "stateful_tx_validator_config": Object {
+            "max_allowed_nonce_gap": Number(1000),
+            "max_nonce_for_validation_skip": String("0x1"),
+            "reject_future_declare_txs": Bool(true),
+            "versioned_constants_overrides": Object {
+                "invoke_tx_max_n_steps": Number(6000000),
+                "max_n_events": Number(1000),
+                "max_recursion_depth": Number(50),
+                "validate_max_n_steps": Number(1000000),
+            },
+        },
+        "stateless_tx_validator_config": Object {
+            "max_calldata_length": Number(10),
+            "max_contract_bytecode_size": Number(81920),
+            "max_contract_class_object_size": Number(4089446),
+            "max_sierra_version": Object {
+                "major": Number(1),
+                "minor": Number(5),
+                "patch": Number(18446744073709551615),
+            },
+            "max_signature_length": Number(2),
+            "min_sierra_version": Object {
+                "major": Number(1),
+                "minor": Number(1),
+                "patch": Number(0),
+            },
+            "validate_non_zero_resource_bounds": Bool(true),
+        },
+    },
+    "http_server_config": Object {
+        "ip": String("0.0.0.0"),
+        "port": Number(8081),
+    },
+    "l1_gas_price_provider_config": Object {
+        "lag_margin_seconds": Number(0),
+        "number_of_blocks_for_mean": Number(300),
+        "storage_limit": Number(3000),
+    },
+    "l1_gas_price_scraper_config": Object {
+        "chain_id": String("CHAIN_ID_SUBDIR"),
+        "finality": Number(0),
+        "number_of_blocks_for_mean": Number(300),
+        "polling_interval": Object {
+            "nanos": Number(0),
+            "secs": Number(1),
+        },
+        "starting_block": Null,
+        "startup_num_blocks_multiplier": Number(2),
+    },
+    "l1_provider_config": Object {
+        "bootstrap_catch_up_height_override": Null,
+        "provider_startup_height_override": Null,
+        "startup_sync_sleep_retry_interval_seconds": Object {
+            "nanos": Number(0),
+            "secs": Number(0),
+        },
+    },
+    "l1_scraper_config": Object {
+        "chain_id": String("CHAIN_ID_SUBDIR"),
+        "finality": Number(0),
+        "polling_interval_seconds": Object {
+            "nanos": Number(0),
+            "secs": Number(1),
+        },
+        "startup_rewind_time_seconds": Object {
+            "nanos": Number(0),
+            "secs": Number(0),
+        },
+    },
+    "mempool_config": Object {
+        "capacity_in_bytes": Number(1073741824),
+        "committed_nonce_retention_block_count": Number(100),
+        "declare_delay": Object {
+            "nanos": Number(0),
+            "secs": Number(1),
+        },
+        "enable_fee_escalation": Bool(true),
+        "fee_escalation_percentage": Number(10),
+        "override_gas_price_threshold_check": Bool(false),
+        "transaction_ttl": Object {
+            "nanos": Number(0),
+            "secs": Number(300),
+        },
+    },
+    "mempool_p2p_config": Object {
+        "max_transaction_batch_size": Number(1),
+        "network_buffer_size": Number(10000),
+        "network_config": Object {
+            "advertised_multiaddr": Null,
+            "bootstrap_peer_multiaddr": Null,
+            "broadcasted_message_metadata_buffer_size": Number(100000),
+            "chain_id": String("CHAIN_ID_SUBDIR"),
+            "discovery_config": Object {
+                "bootstrap_dial_retry_config": Object {
+                    "base_delay_millis": Number(2),
+                    "factor": Number(5),
+                    "max_delay_seconds": Object {
+                        "nanos": Number(0),
+                        "secs": Number(5),
+                    },
+                },
+                "heartbeat_interval": Object {
+                    "nanos": Number(100000000),
+                    "secs": Number(0),
+                },
+            },
+            "idle_connection_timeout": Object {
+                "nanos": Number(0),
+                "secs": Number(120),
+            },
+            "peer_manager_config": Object {
+                "malicious_timeout_seconds": Object {
+                    "nanos": Number(0),
+                    "secs": Number(1),
+                },
+                "unstable_timeout_millis": Object {
+                    "nanos": Number(0),
+                    "secs": Number(1),
+                },
+            },
+            "port": Number(17840),
+            "reported_peer_ids_buffer_size": Number(100000),
+            "session_timeout": Object {
+                "nanos": Number(0),
+                "secs": Number(120),
+            },
+        },
+        "transaction_batch_rate_millis": Object {
+            "nanos": Number(0),
+            "secs": Number(1),
+        },
+    },
+    "monitoring_config": Object {
+        "collect_metrics": Bool(true),
+        "collect_profiling_metrics": Bool(true),
+    },
+    "monitoring_endpoint_config": Object {
+        "collect_metrics": Bool(true),
+        "collect_profiling_metrics": Bool(true),
+        "ip": String("0.0.0.0"),
+        "port": Number(8082),
+    },
+    "state_sync_config": Object {
+        "central_sync_client_config": Null,
+        "network_config": Object {
+            "advertised_multiaddr": Null,
+            "bootstrap_peer_multiaddr": Null,
+            "broadcasted_message_metadata_buffer_size": Number(100000),
+            "chain_id": String("CHAIN_ID_SUBDIR"),
+            "discovery_config": Object {
+                "bootstrap_dial_retry_config": Object {
+                    "base_delay_millis": Number(2),
+                    "factor": Number(5),
+                    "max_delay_seconds": Object {
+                        "nanos": Number(0),
+                        "secs": Number(5),
+                    },
+                },
+                "heartbeat_interval": Object {
+                    "nanos": Number(100000000),
+                    "secs": Number(0),
+                },
+            },
+            "idle_connection_timeout": Object {
+                "nanos": Number(0),
+                "secs": Number(120),
+            },
+            "peer_manager_config": Object {
+                "malicious_timeout_seconds": Object {
+                    "nanos": Number(0),
+                    "secs": Number(1),
+                },
+                "unstable_timeout_millis": Object {
+                    "nanos": Number(0),
+                    "secs": Number(1),
+                },
+            },
+            "port": Number(17780),
+            "reported_peer_ids_buffer_size": Number(100000),
+            "session_timeout": Object {
+                "nanos": Number(0),
+                "secs": Number(120),
+            },
+        },
+        "p2p_sync_client_config": Object {
+            "buffer_size": Number(100000),
+            "num_block_classes_per_query": Number(100),
+            "num_block_state_diffs_per_query": Number(100),
+            "num_block_transactions_per_query": Number(100),
+            "num_headers_per_query": Number(10000),
+            "wait_period_for_new_data": Object {
+                "nanos": Number(50000000),
+                "secs": Number(0),
+            },
+            "wait_period_for_other_protocol": Object {
+                "nanos": Number(50000000),
+                "secs": Number(0),
+            },
+        },
+        "revert_config": Object {
+            "revert_up_to_and_including": Number(18446744073709551615),
+            "should_revert": Bool(false),
+        },
+        "rpc_config": Object {
+            "apollo_gateway_retry_config": Object {
+                "max_retries": Number(5),
+                "retry_base_millis": Number(50),
+                "retry_max_delay_millis": Number(1000),
+            },
+            "chain_id": String("CHAIN_ID_SUBDIR"),
+            "collect_metrics": Bool(false),
+            "execution_config": Object {
+                "default_initial_gas_cost": Number(10000000000),
+                "eth_fee_contract_address": String("0x1001"),
+                "strk_fee_contract_address": String("0x1002"),
+            },
+            "ip": String("127.0.0.1"),
+            "max_events_chunk_size": Number(1000),
+            "max_events_keys": Number(100),
+            "port": Number(17781),
+            "starknet_url": String("https://alpha-mainnet.starknet.io/"),
+        },
+        "storage_config": Object {
+            "db_config": Object {
+                "chain_id": String("CHAIN_ID_SUBDIR"),
+                "enforce_file_exists": Bool(false),
+                "growth_step": Number(67108864),
+                "max_size": Number(34359738368),
+                "min_size": Number(1048576),
+                "path_prefix": String("/data/node_0/executable_0/state_sync"),
+            },
+            "mmap_file_config": Object {
+                "growth_step": Number(1048576),
+                "max_object_size": Number(65536),
+                "max_size": Number(16777216),
+            },
+            "scope": String("FullArchive"),
+        },
+    },
+}
+[2m2025-06-09T09:21:13.850Z[0m [32m INFO[0m [2mcrates/apollo_node/src/utils.rs[0m[2m:[0m[2m48[0m[2m:[0m Finished dumping configuration.
+[2m2025-06-09T09:21:13.850Z[0m [32m INFO[0m [2mcrates/apollo_node/src/utils.rs[0m[2m:[0m[2m17[0m[2m:[0m Creating node modules.
+[2m2025-06-09T09:21:13.850Z[0m [32m INFO[0m [2mcrates/apollo_node/src/communication.rs[0m[2m:[0m[2m104[0m[2m:[0m Creating node channels.
+[2m2025-06-09T09:21:13.850Z[0m [32m INFO[0m [2mcrates/apollo_node/src/clients.rs[0m[2m:[0m[2m276[0m[2m:[0m Creating node clients.
+[2m2025-06-09T09:21:13.850Z[0m [32m INFO[0m [2mcrates/apollo_node/src/components.rs[0m[2m:[0m[2m59[0m[2m:[0m Creating node components.
+[2m2025-06-09T09:21:13.881Z[0m [32m INFO[0m [2mcrates/apollo_storage/src/lib.rs[0m[2m:[0m[2m168[0m[2m:[0m Opening storage: /data/node_0/executable_0/batcher
+[2m2025-06-09T09:21:13.889Z[0m [32m INFO[0m [2mcrates/apollo_storage/src/lib.rs[0m[2m:[0m[2m168[0m[2m:[0m Opening storage: /data/node_0/executable_0/class_manager/class_hash_storage
+[2m2025-06-09T09:21:13.912Z[0m [32m INFO[0m [2m/var/tmp/rust/registry/src/index.crates.io-1949cf8c6b5b557f/libp2p-swarm-0.44.2/src/lib.rs[0m[2m:[0m[2m367[0m[2m:[0m [3mlocal_peer_id[0m[2m=[0m12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5
+[2m2025-06-09T09:21:13.920Z[0m [32m INFO[0m [2mcrates/apollo_storage/src/lib.rs[0m[2m:[0m[2m168[0m[2m:[0m Opening storage: /data/node_0/executable_0/state_sync
+[2m2025-06-09T09:21:13.931Z[0m [32m INFO[0m [2m/var/tmp/rust/registry/src/index.crates.io-1949cf8c6b5b557f/libp2p-swarm-0.44.2/src/lib.rs[0m[2m:[0m[2m367[0m[2m:[0m [3mlocal_peer_id[0m[2m=[0m12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5
+[2m2025-06-09T09:21:13.936Z[0m [33m WARN[0m [2mcrates/apollo_node/src/components.rs[0m[2m:[0m[2m295[0m[2m:[0m L1 Scraper is disabled, initialize L1 provider in dummy mode
+[2m2025-06-09T09:21:13.936Z[0m [32m INFO[0m [2mcrates/apollo_node/src/components.rs[0m[2m:[0m[2m306[0m[2m:[0m L1 provider dummy mode startup height set at batcher height: 1
+[2m2025-06-09T09:21:13.937Z[0m [32m INFO[0m [2mcrates/apollo_compile_to_casm/src/compiler.rs[0m[2m:[0m[2m23[0m[2m:[0m Using Sierra compiler binary at: "/app/target/debug/shared_executables/starknet-sierra-compile"
+[2m2025-06-09T09:21:13.937Z[0m [32m INFO[0m [2mcrates/apollo_node/src/servers.rs[0m[2m:[0m[2m718[0m[2m:[0m Creating node servers.
+[2m2025-06-09T09:21:13.937Z[0m [32m INFO[0m [2mcrates/apollo_node/src/main.rs[0m[2m:[0m[2m32[0m[2m:[0m START_UP: Starting components!
+[2m2025-06-09T09:21:13.938Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m116[0m[2m:[0m Starting LocalComponentServer for StateSync.
+[2m2025-06-09T09:21:13.938Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_definitions.rs[0m[2m:[0m[2m31[0m[2m:[0m Starting component StateSync with the default starter.
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m132[0m[2m:[0m Starting server for component StateSync
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m226[0m[2m:[0m Starting ConcurrentLocalComponentServer for SierraCompiler.
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_definitions.rs[0m[2m:[0m[2m31[0m[2m:[0m Starting component SierraCompiler with the default starter.
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m250[0m[2m:[0m Starting concurrent server for component SierraCompiler
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m116[0m[2m:[0m Starting LocalComponentServer for MempoolP2pPropagator.
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_definitions.rs[0m[2m:[0m[2m31[0m[2m:[0m Starting component MempoolP2pPropagator with the default starter.
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m132[0m[2m:[0m Starting server for component MempoolP2pPropagator
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m116[0m[2m:[0m Starting LocalComponentServer for MempoolCommunicationWrapper.
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m132[0m[2m:[0m Starting server for component MempoolCommunicationWrapper
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m116[0m[2m:[0m Starting LocalComponentServer for L1GasPriceProvider.
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_l1_gas_price/src/l1_gas_price_provider.rs[0m[2m:[0m[2m175[0m[2m:[0m Starting component apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProvider.
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m132[0m[2m:[0m Starting server for component L1GasPriceProvider
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m116[0m[2m:[0m Starting LocalComponentServer for L1Provider.
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_definitions.rs[0m[2m:[0m[2m31[0m[2m:[0m Starting component L1Provider with the default starter.
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m132[0m[2m:[0m Starting server for component L1Provider
+[2m2025-06-09T09:21:13.939Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m116[0m[2m:[0m Starting LocalComponentServer for Gateway.
+[2m2025-06-09T09:21:13.940Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m132[0m[2m:[0m Starting server for component Gateway
+[2m2025-06-09T09:21:13.940Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m226[0m[2m:[0m Starting ConcurrentLocalComponentServer for FsClassManager.
+[2m2025-06-09T09:21:13.940Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_definitions.rs[0m[2m:[0m[2m31[0m[2m:[0m Starting component FsClassManager with the default starter.
+[2m2025-06-09T09:21:13.940Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m250[0m[2m:[0m Starting concurrent server for component FsClassManager
+[2m2025-06-09T09:21:13.940Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m116[0m[2m:[0m Starting LocalComponentServer for Batcher.
+[2m2025-06-09T09:21:13.940Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_definitions.rs[0m[2m:[0m[2m31[0m[2m:[0m Starting component Batcher with the default starter.
+[2m2025-06-09T09:21:13.940Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/local_component_server.rs[0m[2m:[0m[2m132[0m[2m:[0m Starting server for component Batcher
+[2m2025-06-09T09:21:13.940Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/empty_component_server.rs[0m[2m:[0m[2m21[0m[2m:[0m Starting WrapperServer for StateSyncRunner.
+[2m2025-06-09T09:21:13.943Z[0m [32m INFO[0m [2mcrates/apollo_p2p_sync/src/client/mod.rs[0m[2m:[0m[2m255[0m[2m:[0m Starting p2p sync client
+[2m2025-06-09T09:21:13.973Z[0m [32m INFO[0m [2mcrates/apollo_rpc/src/lib.rs[0m[2m:[0m[2m259[0m[2m:[0m JSON-RPC is running. [3mlocal_address[0m[2m=[0m127.0.0.1:17781
+[2m2025-06-09T09:21:13.974Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/empty_component_server.rs[0m[2m:[0m[2m21[0m[2m:[0m Starting WrapperServer for MempoolP2pRunner.
+[2m2025-06-09T09:21:13.974Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/empty_component_server.rs[0m[2m:[0m[2m21[0m[2m:[0m Starting WrapperServer for MonitoringEndpoint.
+[2m2025-06-09T09:21:13.974Z[0m [32m INFO[0m [2mcrates/apollo_monitoring_endpoint/src/monitoring_endpoint.rs[0m[2m:[0m[2m134[0m[2m:[0m Starting component MonitoringEndpoint.
+[2m2025-06-09T09:21:13.976Z[0m [32m INFO[0m [2mcrates/apollo_monitoring_endpoint/src/monitoring_endpoint.rs[0m[2m:[0m[2m83[0m[2m:[0m MonitoringEndpoint running using socket: 0.0.0.0:8082
+[2m2025-06-09T09:21:13.976Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/empty_component_server.rs[0m[2m:[0m[2m21[0m[2m:[0m Starting WrapperServer for HttpServer.
+[2m2025-06-09T09:21:13.977Z[0m [32m INFO[0m [2mcrates/apollo_http_server/src/http_server.rs[0m[2m:[0m[2m206[0m[2m:[0m Starting component HttpServer.
+[2m2025-06-09T09:21:13.977Z[0m [32m INFO[0m [2mcrates/apollo_http_server/src/metrics.rs[0m[2m:[0m[2m18[0m[2m:[0m Initializing HTTP Server metrics
+[2m2025-06-09T09:21:13.978Z[0m [32m INFO[0m [2mcrates/apollo_http_server/src/http_server.rs[0m[2m:[0m[2m69[0m[2m:[0m HttpServer running using socket: 0.0.0.0:8081
+[2m2025-06-09T09:21:13.978Z[0m [32m INFO[0m [2mcrates/apollo_infra/src/component_server/empty_component_server.rs[0m[2m:[0m[2m21[0m[2m:[0m Starting WrapperServer for ConsensusManager.
+[2m2025-06-09T09:21:13.979Z[0m [32m INFO[0m [2mcrates/apollo_consensus_manager/src/consensus_manager.rs[0m[2m:[0m[2m248[0m[2m:[0m Starting component ConsensusManager.
+[2m2025-06-09T09:21:13.982Z[0m [32m INFO[0m [2m/var/tmp/rust/registry/src/index.crates.io-1949cf8c6b5b557f/libp2p-swarm-0.44.2/src/lib.rs[0m[2m:[0m[2m367[0m[2m:[0m [3mlocal_peer_id[0m[2m=[0m12D3KooWK99VoVxNE7XzyBwXEzW7xhK7Gpv85r9F3V3fyKSUKPH5
+[2m2025-06-09T09:21:13.984Z[0m [32m INFO[0m [1m[Sync network][0m: [2mcrates/apollo_network/src/peer_manager/mod.rs[0m[2m:[0m[2m138[0m[2m:[0m No peers. Waiting for a new peer to be connected for OutboundSessionId { value: 0 }
+[2m2025-06-09T09:21:13.985Z[0m [32m INFO[0m [1m[Sync network][0m: [2mcrates/apollo_network/src/network_manager/swarm_trait.rs[0m[2m:[0m[2m93[0m[2m:[0m Found new external address of this node: /ip4/172.18.0.2/tcp/17780
+[2m2025-06-09T09:21:13.985Z[0m [32m INFO[0m [1m[Sync network][0m: [2mcrates/apollo_network/src/peer_manager/mod.rs[0m[2m:[0m[2m138[0m[2m:[0m No peers. Waiting for a new peer to be connected for OutboundSessionId { value: 1 }
+[2m2025-06-09T09:21:13.986Z[0m [32m INFO[0m [1m[Mempool network][0m: [2mcrates/apollo_network/src/network_manager/swarm_trait.rs[0m[2m:[0m[2m93[0m[2m:[0m Found new external address of this node: /ip4/172.18.0.2/tcp/17840
+[2m2025-06-09T09:21:14.020Z[0m [32m INFO[0m [2mcrates/apollo_l1_gas_price/src/eth_to_strk_oracle.rs[0m[2m:[0m[2m124[0m[2m:[0m Creating EthToStrkOracleClient with: base_url=http://dummy_eth_to_strk_oracle:9000/eth_to_strk_oracle headers=None lag_interval_seconds=1
+[2m2025-06-09T09:21:14.052Z[0m [32m INFO[0m [1mrun_consensus[0m: [2mcrates/apollo_consensus/src/manager.rs[0m[2m:[0m[2m78[0m[2m:[0m Running consensus, start_active_height=1, start_observe_height=1, consensus_delay=15, timeouts=TimeoutsConfig { proposal_timeout: 9s, prevote_timeout: 3s, precommit_timeout: 3s } [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m
+[2m2025-06-09T09:21:14.053Z[0m [32m INFO[0m [1m[Consensus network][0m: [2mcrates/apollo_network/src/network_manager/swarm_trait.rs[0m[2m:[0m[2m93[0m[2m:[0m Found new external address of this node: /ip4/172.18.0.2/tcp/17720
+[2m2025-06-09T09:21:14.138Z[0m [32m INFO[0m [1madd_tx[0m: [2mcrates/apollo_mempool/src/mempool.rs[0m[2m:[0m[2m357[0m[2m:[0m Adding transaction to mempool. [2m[3mtx_nonce[0m[2m=[0m0 [3mtx_hash[0m[2m=[0m0x2b0a672e3b5bda89cafd3d0c2b7a6ea25ecd9c3c5034f7912d2a01d6e198f5f [3mtx_tip[0m[2m=[0m0 [3mtx_max_l2_gas_price[0m[2m=[0m100000000000000 [3maccount_state[0m[2m=[0mAccountState { address: 0x0560a3c9b0d5762842454e5b68098afbf8e9bff9052b8e015ac43a50a75d98ca, nonce: 0 }[0m
+[2m2025-06-09T09:21:14.138Z[0m [32m INFO[0m [2mcrates/apollo_mempool_p2p/src/propagator/mod.rs[0m[2m:[0m[2m79[0m[2m:[0m Received a new transaction to broadcast to other mempool peers
+[2m2025-06-09T09:21:14.138Z[0m [32m INFO[0m [2mcrates/apollo_mempool_p2p/src/propagator/mod.rs[0m[2m:[0m[2m93[0m[2m:[0m Transaction batch is full. Broadcasting the transaction batch
+[2m2025-06-09T09:21:14.140Z[0m [33m WARN[0m [1m[Mempool network][0m: [2mcrates/apollo_network/src/network_manager/swarm_trait.rs[0m[2m:[0m[2m106[0m[2m:[0m Error occured while broadcasting a message to the topic with hash TopicHash { hash: "XszpL3vBCQxGCXDf6K6xD6vL+o+SHc3GLJB3sUMuda4=" }: InsufficientPeers
+[2m2025-06-09T09:21:14.140Z[0m [32m INFO[0m [1madd_tx[0m: [2mcrates/apollo_gateway/src/gateway.rs[0m[2m:[0m[2m80[0m[2m:[0m [3mreturn[0m[2m=[0mOk(DeployAccount(DeployAccountGatewayOutput { transaction_hash: TransactionHash(0x2b0a672e3b5bda89cafd3d0c2b7a6ea25ecd9c3c5034f7912d2a01d6e198f5f), address: ContractAddress(PatriciaKey(0x560a3c9b0d5762842454e5b68098afbf8e9bff9052b8e015ac43a50a75d98ca)), code: "TRANSACTION_RECEIVED" })) [2m[3mis_p2p[0m[2m=[0mfalse[0m
+[2m2025-06-09T09:21:14.140Z[0m [32m INFO[0m [1madd_rpc_tx[0m: [2mcrates/apollo_http_server/src/http_server.rs[0m[2m:[0m[2m185[0m[2m:[0m Recorded transaction [3mtransaction_hash[0m[2m=[0m0x2b0a672e3b5bda89cafd3d0c2b7a6ea25ecd9c3c5034f7912d2a01d6e198f5f [3mregion[0m[2m=[0mN/A [2m[3mheaders[0m[2m=[0m{"content-type": "application/json", "accept": "*/*", "accept-encoding": "gzip", "host": "172.18.0.2:8081", "content-length": "500"} [3mtx[0m[2m=[0mDeployAccount(V3(RpcDeployAccountTransactionV3 { signature: TransactionSignature([]), nonce: Nonce(0x0), class_hash: ClassHash(0x80020000), contract_address_salt: ContractAddressSalt(0x0), constructor_calldata: Calldata([]), resource_bounds: AllResourceBounds { l1_gas: ResourceBounds { max_amount: GasAmount(203484), max_price_per_unit: GasPrice(100000000000000) }, l2_gas: ResourceBounds { max_amount: GasAmount(100000000000), max_price_per_unit: GasPrice(100000000000000) }, l1_data_gas: ResourceBounds { max_amount: GasAmount(203484), max_price_per_unit: GasPrice(100000000000000) } }, tip: Tip(0), paymaster_data: PaymasterData([]), nonce_data_availability_mode: L1, fee_data_availability_mode: L1 }))[0m
+[2m2025-06-09T09:21:14.483Z[0m [32m INFO[0m [1madd_tx[0m: [2mcrates/apollo_mempool/src/mempool.rs[0m[2m:[0m[2m357[0m[2m:[0m Adding transaction to mempool. [2m[3mtx_nonce[0m[2m=[0m1 [3mtx_hash[0m[2m=[0m0x33053e5c828e0af49ed24861c07f6807feaf8d1dfae882a5c17c1dac8cb1955 [3mtx_tip[0m[2m=[0m1 [3mtx_max_l2_gas_price[0m[2m=[0m100000000000000 [3maccount_state[0m[2m=[0mAccountState { address: 0x0560a3c9b0d5762842454e5b68098afbf8e9bff9052b8e015ac43a50a75d98ca, nonce: 0 }[0m
+[2m2025-06-09T09:21:14.483Z[0m [32m INFO[0m [2mcrates/apollo_mempool_p2p/src/propagator/mod.rs[0m[2m:[0m[2m79[0m[2m:[0m Received a new transaction to broadcast to other mempool peers
+[2m2025-06-09T09:21:14.483Z[0m [32m INFO[0m [2mcrates/apollo_mempool_p2p/src/propagator/mod.rs[0m[2m:[0m[2m93[0m[2m:[0m Transaction batch is full. Broadcasting the transaction batch
+[2m2025-06-09T09:21:14.484Z[0m [33m WARN[0m [1m[Mempool network][0m: [2mcrates/apollo_network/src/network_manager/swarm_trait.rs[0m[2m:[0m[2m106[0m[2m:[0m Error occured while broadcasting a message to the topic with hash TopicHash { hash: "XszpL3vBCQxGCXDf6K6xD6vL+o+SHc3GLJB3sUMuda4=" }: InsufficientPeers
+[2m2025-06-09T09:21:14.484Z[0m [32m INFO[0m [1madd_tx[0m: [2mcrates/apollo_gateway/src/gateway.rs[0m[2m:[0m[2m80[0m[2m:[0m [3mreturn[0m[2m=[0mOk(Invoke(InvokeGatewayOutput { transaction_hash: TransactionHash(0x33053e5c828e0af49ed24861c07f6807feaf8d1dfae882a5c17c1dac8cb1955), code: "TRANSACTION_RECEIVED" })) [2m[3mis_p2p[0m[2m=[0mfalse[0m
+[2m2025-06-09T09:21:14.484Z[0m [32m INFO[0m [1madd_rpc_tx[0m: [2mcrates/apollo_http_server/src/http_server.rs[0m[2m:[0m[2m185[0m[2m:[0m Recorded transaction [3mtransaction_hash[0m[2m=[0m0x33053e5c828e0af49ed24861c07f6807feaf8d1dfae882a5c17c1dac8cb1955 [3mregion[0m[2m=[0mN/A [2m[3mheaders[0m[2m=[0m{"content-type": "application/json", "accept": "*/*", "accept-encoding": "gzip", "host": "172.18.0.2:8081", "content-length": "685"} [3mtx[0m[2m=[0mInvoke(V3(RpcInvokeTransactionV3 { sender_address: ContractAddress(PatriciaKey(0x560a3c9b0d5762842454e5b68098afbf8e9bff9052b8e015ac43a50a75d98ca)), calldata: Calldata([0x560a3c9b0d5762842454e5b68098afbf8e9bff9052b8e015ac43a50a75d98ca, 0x39a1491f76903a16feed0a6433bec78de4c73194944e1118e226820ad479701, 0x1, 0x2]), signature: TransactionSignature([]), nonce: Nonce(0x1), resource_bounds: AllResourceBounds { l1_gas: ResourceBounds { max_amount: GasAmount(203484), max_price_per_unit: GasPrice(100000000000000) }, l2_gas: ResourceBounds { max_amount: GasAmount(100000000000), max_price_per_unit: GasPrice(100000000000000) }, l1_data_gas: ResourceBounds { max_amount: GasAmount(203484), max_price_per_unit: GasPrice(100000000000000) } }, tip: Tip(1), paymaster_data: PaymasterData([]), account_deployment_data: AccountDeploymentData([]), nonce_data_availability_mode: L1, fee_data_availability_mode: L1 }))[0m
+[2m2025-06-09T09:21:29.065Z[0m [32m INFO[0m [1mrun_consensus[0m:[1mrun_height[0m: [2mcrates/apollo_consensus/src/manager.rs[0m[2m:[0m[2m239[0m[2m:[0m START_HEIGHT: running consensus for height BlockNumber(1). is_observer: false, validators: [ContractAddress(PatriciaKey(0x64))] [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m [2m[3mheight[0m[2m=[0m1[0m
+[2m2025-06-09T09:21:29.067Z[0m [32m INFO[0m [1mstart_height[0m: [2mcrates/apollo_batcher/src/batcher.rs[0m[2m:[0m[2m175[0m[2m:[0m Starting to work on height 1. [2m[3minput[0m[2m=[0mStartHeightInput { height: BlockNumber(1) }[0m
+[2m2025-06-09T09:21:29.067Z[0m [32m INFO[0m [1mrun_consensus[0m:[1mrun_height[0m:[1mstart[0m: [2mcrates/apollo_consensus/src/state_machine.rs[0m[2m:[0m[2m363[0m[2m:[0m START_ROUND_PROPOSER: Starting round 0 as Proposer [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m [2m[3mheight[0m[2m=[0m1[0m
+[2m2025-06-09T09:21:29.069Z[0m [32m INFO[0m [1mrun_consensus[0m:[1mrun_height[0m:[1mstart[0m:[1mbuild_proposal[0m: [2mcrates/apollo_consensus_orchestrator/src/cende/mod.rs[0m[2m:[0m[2m169[0m[2m:[0m Start writing to Aerospike previous height blob for height 1. [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m [2m[3mheight[0m[2m=[0m1[0m
+[2m2025-06-09T09:21:29.069Z[0m [32m INFO[0m [1mrun_consensus[0m:[1mrun_height[0m:[1mstart[0m:[1mbuild_proposal[0m: [2mcrates/apollo_consensus_orchestrator/src/cende/mod.rs[0m[2m:[0m[2m173[0m[2m:[0m Height 1 is configured as the `skip_write_height`, meaning consensus can send a proposal without writing to Aerospike. The blob that should have been written here in a normal flow, should already be written to Aerospike. Not writing to Aerospike previous height blob!!!. [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m [2m[3mheight[0m[2m=[0m1[0m
+[2m2025-06-09T09:21:29.069Z[0m [32m INFO[0m [1mrun_consensus[0m:[1mrun_height[0m:[1mstart[0m:[1mbuild_proposal[0m: [2mcrates/apollo_consensus_orchestrator/src/sequencer_consensus_context.rs[0m[2m:[0m[2m343[0m[2m:[0m Building proposal [3mproposal_init[0m[2m=[0mProposalInit { height: BlockNumber(1), round: 0, valid_round: None, proposer: ContractAddress(PatriciaKey(0x64)) } [3mtimeout[0m[2m=[0m9s [3mproposal_id[0m[2m=[0m0 [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m [2m[3mheight[0m[2m=[0m1[0m
+[2m2025-06-09T09:21:29.070Z[0m [32m INFO[0m [2mcrates/apollo_consensus/src/stream_handler.rs[0m[2m:[0m[2m231[0m[2m:[0m Outbound stream started. [3mstream_id[0m[2m=[0m(height: 1, round: 0)
+[2m2025-06-09T09:21:29.071Z[0m [33m WARN[0m [1mrun_consensus[0m:[1mrun_height[0m:[1mstart[0m:[1mbuild_proposal[0m:[1mconsensus_build_proposal[0m:[1meth_to_fri_rate[0m: [2mcrates/apollo_l1_gas_price/src/eth_to_strk_oracle.rs[0m[2m:[0m[2m227[0m[2m:[0m Query not yet resolved: timestamp=1749460889 [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m [2m[3mheight[0m[2m=[0m1[0m [2m[3mproposal_id[0m[2m=[0m0 [3mround[0m[2m=[0m0[0m [2m[3mtimestamp[0m[2m=[0m1749460889[0m
+[2m2025-06-09T09:21:29.073Z[0m [33m WARN[0m [1mrun_consensus[0m:[1mrun_height[0m:[1mstart[0m:[1mbuild_proposal[0m:[1mconsensus_build_proposal[0m: [2mcrates/apollo_consensus_orchestrator/src/utils.rs[0m[2m:[0m[2m48[0m[2m:[0m Failed to get oracle prices from l1 gas price provider or eth to strk oracle. Using values from previous block info. (Err(QueryNotReadyError(1749460889)), Err(L1GasPriceProviderError(MissingDataError { timestamp: 1749460889, lag: 0 }))) [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m [2m[3mheight[0m[2m=[0m1[0m [2m[3mproposal_id[0m[2m=[0m0 [3mround[0m[2m=[0m0[0m
+[2m2025-06-09T09:21:29.073Z[0m [33m WARN[0m [1mrun_consensus[0m:[1mrun_height[0m:[1mstart[0m:[1mbuild_proposal[0m:[1mconsensus_build_proposal[0m: [2mcrates/apollo_consensus_orchestrator/src/utils.rs[0m[2m:[0m[2m70[0m[2m:[0m No previous block info available, using default values [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m [2m[3mheight[0m[2m=[0m1[0m [2m[3mproposal_id[0m[2m=[0m0 [3mround[0m[2m=[0m0[0m
+[2m2025-06-09T09:21:29.073Z[0m [33m WARN[0m [1mrun_consensus[0m:[1mrun_height[0m:[1mstart[0m:[1mbuild_proposal[0m:[1mconsensus_build_proposal[0m: [2mcrates/apollo_consensus_orchestrator/src/utils.rs[0m[2m:[0m[2m71[0m[2m:[0m default eth_to_strk_rate: 1000000000000000000000, default (min) l1 gas price: GasPrice(1000000000), default (min) l1 data gas price: GasPrice(1) [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m [2m[3mheight[0m[2m=[0m1[0m [2m[3mproposal_id[0m[2m=[0m0 [3mround[0m[2m=[0m0[0m
+[2m2025-06-09T09:21:29.073Z[0m [32m INFO[0m [1mrun_consensus[0m:[1mrun_height[0m:[1mstart[0m:[1mbuild_proposal[0m:[1mconsensus_build_proposal[0m: [2mcrates/apollo_consensus_orchestrator/src/sequencer_consensus_context.rs[0m[2m:[0m[2m1384[0m[2m:[0m Retrospective block number is less than 10, setting None as expected. [2m[3mvalidator_id[0m[2m=[0m0x0000000000000000000000000000000000000000000000000000000000000064[0m [2m[3mheight[0m[2m=[0m1[0m [2m[3mproposal_id[0m[2m=[0m0 [3mround[0m[2m=[0m0[0m
+[2m2025-06-09T09:21:29.075Z[0m [32m INFO[0m [1mpropose_block[0m: [2mcrates/apollo_batcher/src/batcher.rs[0m[2m:[0m[2m687[0m[2m:[0m Starting generation of a new proposal with id 0. [2m[3mpropose_block_input[0m[2m=[0mProposeBlockInput { proposal_id: ProposalId(0), deadline: 2025-06-09T09:21:37.073770167Z, retrospective_block_hash: None, block_info: BlockInfo { block_number: BlockNumber(1), block_timestamp: BlockTimestamp(1749460889), sequencer_address: ContractAddress(PatriciaKey(0x4)), gas_prices: GasPrices { eth_gas_prices: GasPriceVector { l1_gas_price: NonzeroGasPrice(GasPrice(1000000000)), l1_data_gas_price: NonzeroGasPrice(GasPrice(1)), l2_gas_price: NonzeroGasPrice(GasPrice(100)) }, strk_gas_prices: GasPriceVector { l1_gas_price: NonzeroGasPrice(GasPrice(1000000000000)), l1_data_gas_price: NonzeroGasPrice(GasPrice(1000)), l2_gas_price: NonzeroGasPrice(GasPrice(100000)) } }, use_kzg_da: true }, proposal_round: 0 }[0m
+[2m2025-06-09T09:21:29.075Z[0m [32m INFO[0m [2mcrates/apollo_batcher/src/pre_confirmed_cende_client.rs[0m[2m:[0m[2m100[0m[2m:[0m Sending start_new_round request to Cende recorder. block_number: 1, round: 0
+[2m2025-06-09T09:21:29.076Z[0m [32m INFO[0m [1mhandle_request[0m:[1mget_txs[0m: [2mcrates/apollo_l1_provider/src/l1_provider.rs[0m[2m:[0m[2m81[0m[2m:[0m Returned 0 out of 3 transactions, ready for sequencing. [2m[3mrequest[0m[2m=[0mL1ProviderRequest::GetTransactions[0m [2m[3mn_txs[0m[2m=[0m3 [3mheight[0m[2m=[0mBlockNumber(1)[0m
+[2m2025-06-09T09:21:29.076Z[0m [32m INFO[0m [1mget_txs[0m: [2mcrates/apollo_mempool/src/mempool.rs[0m[2m:[0m[2m286[0m[2m:[0m Returned 2 out of 3 transactions, ready for sequencing. [2m[3mn_txs[0m[2m=[0m3[0m
+[2m2025-06-09T09:21:29.077Z[0m [33m WARN[0m [1m[Consensus network][0m: [2mcrates/apollo_network/src/network_manager/swarm_trait.rs[0m[2m:[0m[2m106[0m[2m:[0m Error occured while broadcasting a message to the topic with hash TopicHash { hash: "TM6Mc3RnTor2Q9CnAaxn6lIwyF5SXpQyif/9giX6u1M=" }: InsufficientPeers
+[2m2025-06-09T09:21:29.077Z[0m [32m INFO[0m [1mpropose_block[0m: [2mcrates/apollo_batcher/src/block_builder.rs[0m[2m:[0m[2m346[0m[2m:[0m Attempting to send a pre confirmed transaction chunk with 2 transactions to the PreConfirmedBlockWriter. [2m[3mpropose_block_input[0m[2m=[0mProposeBlockInput { proposal_id: ProposalId(0), deadline: 2025-06-09T09:21:37.073770167Z, retrospective_block_hash: None, block_info: BlockInfo { block_number: BlockNumber(1), block_timestamp: BlockTimestamp(1749460889), sequencer_address: ContractAddress(PatriciaKey(0x4)), gas_prices: GasPrices { eth_gas_prices: GasPriceVector { l1_gas_price: NonzeroGasPrice(GasPrice(1000000000)), l1_data_gas_price: NonzeroGasPrice(GasPrice(1)), l2_gas_price: NonzeroGasPrice(GasPrice(100)) }, strk_gas_prices: GasPriceVector { l1_gas_price: NonzeroGasPrice(GasPrice(1000000000000)), l1_data_gas_price: NonzeroGasPrice(GasPrice(1000)), l2_gas_price: NonzeroGasPrice(GasPrice(100000)) } }, use_kzg_da: true }, proposal_round: 0 }[0m
+[2m2025-06-09T09:21:29.077Z[0m [32m INFO[0m [1mpropose_block[0m: [2mcrates/apollo_batcher/src/block_builder.rs[0m[2m:[0m[2m353[0m[2m:[0m Successfully sent a pre confirmed transaction chunk with 2 transactions to the PreConfirmedBlockWriter. [2m[3mpropose_block_input[0m[2m=[0mProposeBlockInput { proposal_id: ProposalId(0), deadline: 2025-06-09T09:21:37.073770167Z, retrospective_block_hash: None, block_info: BlockInfo { block_number: BlockNumber(1), block_timestamp: BlockTimestamp(1749460889), sequencer_address: ContractAddress(PatriciaKey(0x4)), gas_prices: GasPrices { eth_gas_prices: GasPriceVector { l1_gas_price: NonzeroGasPrice(GasPrice(1000000000)), l1_data_gas_price: NonzeroGasPrice(GasPrice(1)), l2_gas_price: NonzeroGasPrice(GasPrice(100)) }, strk_gas_prices: GasPriceVector { l1_gas_price: NonzeroGasPrice(GasPrice(1000000000000)), l1_data_gas_price: NonzeroGasPrice(GasPrice(1000)), l2_gas_price: NonzeroGasPrice(GasPrice(100000)) } }, use_kzg_da: true }, proposal_round: 0 }[0m
+[2m2025-06-09T09:21:29.077Z[0m [33m WARN[0m [1m[Consensus network][0m: [2mcrates/apollo_network/src/network_manager/swarm_trait.rs[0m[2m:[0m[2m106[0m[2m:[0m Error occured while broadcasting a message to the topic with hash TopicHash { hash: "TM6Mc3RnTor2Q9CnAaxn6lIwyF5SXpQyif/9giX6u1M=" }: InsufficientPeers
+[2m2025-06-09T09:21:29.079Z[0m [33m WARN[0m [2mcrates/apollo_batcher/src/pre_confirmed_cende_client.rs[0m[2m:[0m[2m119[0m[2m:[0m start_new_round request failed. block_number: 1, round: 0, status: 404 Not Found
+[2m2025-06-09T09:21:29.115Z[0m [31mERROR[0m [2mcrates/blockifier/src/state/native_class_manager.rs[0m[2m:[0m[2m294[0m[2m:[0m Compilation failed for class hash: 2147614720. Error: Unexpected compilation error: No such file or directory (os error 2)    
