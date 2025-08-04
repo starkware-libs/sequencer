@@ -19,8 +19,8 @@ use crate::utils::StreamMap;
 /// that will perform the sends between the streams (this thread will run forever so it shouldn't
 /// be joined).
 pub(crate) async fn get_connected_streams() -> (Stream, Stream, JoinHandle<()>) {
-    let mut swarm1 = Swarm::new_ephemeral(|_| get_stream::Behaviour::default());
-    let mut swarm2 = Swarm::new_ephemeral(|_| get_stream::Behaviour::default());
+    let mut swarm1 = Swarm::new_ephemeral_tokio(|_| get_stream::Behaviour::default());
+    let mut swarm2 = Swarm::new_ephemeral_tokio(|_| get_stream::Behaviour::default());
     swarm1.listen().with_memory_addr_external().await;
     swarm2.listen().with_memory_addr_external().await;
 
@@ -64,8 +64,9 @@ pub(crate) async fn create_fully_connected_swarms_stream<TBehaviour: NetworkBeha
 where
     <TBehaviour as NetworkBehaviour>::ToSwarm: Debug,
 {
-    let mut swarms =
-        (0..num_swarms).map(|_| Swarm::new_ephemeral(|_| behaviour_gen())).collect::<Vec<_>>();
+    let mut swarms = (0..num_swarms)
+        .map(|_| Swarm::new_ephemeral_tokio(|_| behaviour_gen()))
+        .collect::<Vec<_>>();
 
     for swarm in &mut swarms {
         swarm.listen().with_memory_addr_external().await;

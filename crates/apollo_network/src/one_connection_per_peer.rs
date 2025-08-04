@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 use std::task::{Context, Poll};
 
+use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
 use libp2p::swarm::behaviour::ConnectionEstablished;
 use libp2p::swarm::{
@@ -45,6 +46,7 @@ impl NetworkBehaviour for OneConnectionPerPeerBehaviour {
         peer: PeerId,
         _addr: &Multiaddr,
         _role_override: Endpoint,
+        _port_use: PortUse,
     ) -> Result<Self::ConnectionHandler, ConnectionDenied> {
         if self.connected_peers.contains(&peer) {
             return Err(ConnectionDenied::new("Peer already has an established connection"));
@@ -78,11 +80,12 @@ impl NetworkBehaviour for OneConnectionPerPeerBehaviour {
                 remaining_established,
                 connection_id,
                 endpoint,
+                cause,
             }) => {
                 tracing::info!(
                     "Connection closed with peer: {peer_id}, remaining connections: \
                      {remaining_established}, connection_id: {connection_id:?}, endpoint: \
-                     {endpoint:?}",
+                     {endpoint:?}, cause: {cause:?}",
                 );
                 assert_eq!(
                     remaining_established, 0,
