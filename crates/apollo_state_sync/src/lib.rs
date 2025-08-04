@@ -8,6 +8,7 @@ use std::cmp::min;
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::{StateSyncResult, SyncBlock};
@@ -36,13 +37,39 @@ pub fn create_state_sync_and_runner(
 ) -> (StateSync, StateSyncRunner) {
     let (new_block_sender, new_block_receiver) = channel(BUFFER_SIZE);
     let (state_sync_runner, storage_reader) =
-        StateSyncRunner::new(config, new_block_receiver, class_manager_client);
-    (StateSync { storage_reader, new_block_sender }, state_sync_runner)
+        StateSyncRunner::new(config.clone(), new_block_receiver, class_manager_client);
+    (StateSync::new(storage_reader, new_block_sender, config), state_sync_runner)
 }
 
 pub struct StateSync {
     storage_reader: StorageReader,
     new_block_sender: Sender<SyncBlock>,
+    _starknet_client: Option<Box<dyn StarknetReader + Send>>,
+}
+
+impl StateSync {
+    pub fn new(
+        storage_reader: StorageReader,
+        new_block_sender: Sender<SyncBlock>,
+        config: StateSyncConfig,
+    ) -> Self {
+        let starknet_client = config.central_sync_client_config.map(|config| {
+            let config = config.central_source_config;
+            let starknet_client: Box<dyn StarknetReader + Send> = Box::new(
+                StarknetFeederGatewayClient::new(
+                    config.starknet_url.as_ref(),
+                    config.http_headers,
+                    // TODO(shahak): fill with a proper version, or allow not specifying the
+                    // node version.
+                    "",
+                    config.retry_config,
+                )
+                .expect("Failed creating feeder gateway client"),
+            );
+            starknet_client
+        });
+        Self { storage_reader, new_block_sender, _starknet_client: starknet_client }
+    }
 }
 
 // TODO(shahak): Have StateSyncRunner call StateSync instead of the opposite once we stop supporting
