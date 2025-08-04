@@ -16,7 +16,6 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::state::SierraContractClass;
 use starknet_os::io::os_output::StarknetOsRunnerOutput;
-use starknet_types_core::felt::Felt;
 
 use crate::initial_state::{
     create_default_initial_state_data,
@@ -82,15 +81,10 @@ impl<S: FlowTestState> TestManager<S> {
         self.last_block_txs_mut().push(BlockifierTransaction::new_for_sequencing(
             StarknetApiTransaction::Account(AccountTransaction::Declare(tx)),
         ));
-        // TODO(Nimrod): Use the class hash computation without this once merged.
-        let mut contract_class_version = "CONTRACT_CLASS_V".to_string();
-        contract_class_version.push_str(&sierra.contract_class_version);
-        let contract_class_version = Felt::from_bytes_be_slice(contract_class_version.as_bytes());
 
-        self.execution_contracts.declared_class_hash_to_component_hashes.insert(
-            sierra.calculate_class_hash(),
-            sierra.get_component_hashes(contract_class_version),
-        );
+        self.execution_contracts
+            .declared_class_hash_to_component_hashes
+            .insert(sierra.calculate_class_hash(), sierra.get_component_hashes());
         let compiled_class_hash = CompiledClassHash(casm.compiled_class_hash());
         self.execution_contracts
             .executed_contracts
