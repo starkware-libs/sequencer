@@ -147,6 +147,16 @@ impl StateSyncRunner {
 
         let register_metrics_fn = Self::create_register_metrics_fn(storage_reader.clone());
 
+        // Creating the JSON-RPC server future
+        let rpc_server_future = spawn_rpc_server(
+            &rpc_config,
+            shared_highest_block.clone(),
+            pending_data.clone(),
+            pending_classes.clone(),
+            storage_reader.clone(),
+            Some(class_manager_client.clone()),
+        );
+
         if revert_config.should_revert {
             let revert_up_to_and_including = revert_config.revert_up_to_and_including;
             // We assume that sync always writes the headers before any other block data.
@@ -283,15 +293,6 @@ impl StateSyncRunner {
                 (p2p_sync_server_future, network_future)
             }
         };
-        // Creating the JSON-RPC server future
-        let rpc_server_future = spawn_rpc_server(
-            &rpc_config,
-            shared_highest_block.clone(),
-            pending_data.clone(),
-            pending_classes.clone(),
-            storage_reader.clone(),
-            Some(class_manager_client.clone()),
-        );
 
         (
             Self {
