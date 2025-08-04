@@ -17,6 +17,7 @@ pub static COMPILED_CLASS_V1: LazyLock<Felt> =
     LazyLock::new(|| Felt::from_bytes_be_slice(b"COMPILED_CLASS_V1"));
 
 /// The version of the hash function used to compute the compiled class hash.
+#[derive(PartialEq)]
 pub enum HashVersion {
     /// Poseidon hash.
     V1,
