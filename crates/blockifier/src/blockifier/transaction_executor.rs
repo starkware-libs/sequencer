@@ -234,7 +234,11 @@ pub(crate) fn finalize_block<S: StateReader>(
     block_state: &mut CachedState<S>,
     block_context: &BlockContext,
 ) -> TransactionExecutorResult<BlockExecutionSummary> {
-    log::debug!("Final block weights: {:?}.", lock_bouncer(bouncer).get_accumulated_weights());
+    log::info!(
+        "Block {} final weights: {:?}.",
+        block_context.block_info.block_number,
+        lock_bouncer(bouncer).get_accumulated_weights()
+    );
     let alias_contract_address = block_context
         .versioned_constants
         .os_constants
