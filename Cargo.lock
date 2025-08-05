@@ -12184,6 +12184,7 @@ dependencies = [
  "assert_matches",
  "base64 0.13.1",
  "bitvec",
+ "blake2s",
  "cached",
  "cairo-lang-runner",
  "cairo-lang-starknet-classes",
