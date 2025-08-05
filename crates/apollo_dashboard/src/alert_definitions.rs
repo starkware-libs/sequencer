@@ -24,13 +24,13 @@ use blockifier::metrics::NATIVE_COMPILATION_ERROR;
 use crate::alert_scenarios::block_production_delay::{
     get_cende_write_blob_failure_alert_vec,
     get_cende_write_blob_failure_once_alert,
+    get_consensus_block_number_progress_is_slow_vec,
     get_consensus_p2p_peer_down_vec,
     get_consensus_round_above_zero_multiple_times_vec,
     get_consensus_round_above_zero_vec,
 };
 use crate::alert_scenarios::block_production_halt::{
     get_batched_transactions_stuck_vec,
-    get_consensus_block_number_progress_is_slow_vec,
     get_consensus_block_number_stuck_vec,
     get_consensus_p2p_not_enough_peers_for_quorum_vec,
     get_consensus_round_high_vec,

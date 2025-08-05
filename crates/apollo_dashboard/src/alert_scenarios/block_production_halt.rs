@@ -171,44 +171,6 @@ pub(crate) fn get_consensus_p2p_not_enough_peers_for_quorum_vec() -> Vec<Alert> 
     ]
 }
 
-/// Block number progressed slowly (< 10) in the last 5 minutes.
-fn get_consensus_block_number_progress_is_slow(
-    alert_env_filtering: AlertEnvFiltering,
-    alert_severity: AlertSeverity,
-) -> Alert {
-    Alert::new(
-        "get_consensus_block_number_progress_is_slow",
-        "Consensus block number progress is slow",
-        AlertGroup::Consensus,
-        format!(
-            "sum(increase({}[2m])) or vector(0)",
-            CONSENSUS_BLOCK_NUMBER.get_name_with_filter()
-        ),
-        vec![AlertCondition {
-            comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 25.0,
-            logical_op: AlertLogicalOp::And,
-        }],
-        PENDING_DURATION_DEFAULT,
-        EVALUATION_INTERVAL_SEC_DEFAULT,
-        alert_severity,
-        alert_env_filtering,
-    )
-}
-
-pub(crate) fn get_consensus_block_number_progress_is_slow_vec() -> Vec<Alert> {
-    vec![
-        get_consensus_block_number_progress_is_slow(
-            AlertEnvFiltering::MainnetStyleAlerts,
-            AlertSeverity::Sos,
-        ),
-        get_consensus_block_number_progress_is_slow(
-            AlertEnvFiltering::TestnetStyleAlerts,
-            AlertSeverity::WorkingHours,
-        ),
-    ]
-}
-
 fn get_consensus_round_high(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
