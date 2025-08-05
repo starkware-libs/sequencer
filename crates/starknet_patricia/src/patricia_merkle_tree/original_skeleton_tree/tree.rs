@@ -4,7 +4,10 @@ use starknet_patricia_storage::storage_trait::Storage;
 
 use crate::hash::hash_trait::HashOutput;
 use crate::patricia_merkle_tree::node_data::leaf::{Leaf, LeafModifications};
-use crate::patricia_merkle_tree::original_skeleton_tree::config::OriginalSkeletonTreeConfig;
+use crate::patricia_merkle_tree::original_skeleton_tree::config::{
+    NoCompareOriginalSkeletonTrieConfig,
+    OriginalSkeletonTreeConfig,
+};
 use crate::patricia_merkle_tree::original_skeleton_tree::errors::OriginalSkeletonTreeError;
 use crate::patricia_merkle_tree::original_skeleton_tree::node::OriginalSkeletonNode;
 use crate::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices};
@@ -85,5 +88,24 @@ impl<'a> OriginalSkeletonTree<'a> for OriginalSkeletonTreeImpl<'a> {
 
     fn get_sorted_leaf_indices(&self) -> SortedLeafIndices<'a> {
         self.sorted_leaf_indices
+    }
+}
+
+impl<'a> OriginalSkeletonTreeImpl<'a> {
+    pub fn get_leaves<L: Leaf>(
+        storage: &impl Storage,
+        root_hash: HashOutput,
+        sorted_leaf_indices: SortedLeafIndices<'a>,
+    ) -> OriginalSkeletonTreeResult<HashMap<NodeIndex, L>> {
+        let config = NoCompareOriginalSkeletonTrieConfig::default();
+        let leaf_modifications = LeafModifications::new();
+        let (_, previous_leaves) = Self::create_and_get_previous_leaves_impl(
+            storage,
+            root_hash,
+            sorted_leaf_indices,
+            &leaf_modifications,
+            &config,
+        )?;
+        Ok(previous_leaves)
     }
 }
