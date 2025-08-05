@@ -2078,6 +2078,7 @@ version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra",
  "apollo_proc_macros",
+ "apollo_starknet_client",
  "apollo_storage",
  "async-trait",
  "futures",
