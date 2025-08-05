@@ -190,18 +190,26 @@ pub(crate) async fn retrospective_block_hash(
     let retrospective_block_hash = match retrospective_block_number {
         Some(block_number) => {
             let block_number = BlockNumber(block_number);
-            let block = state_sync_client
-                // Getting the next block hash because the Sync block only contains parent hash.
-                .get_block(block_number.unchecked_next())
-                .await
-                .map_err(StateSyncError::ClientError)?
-                .ok_or(StateSyncError::NotReady(format!(
-                "Failed to get retrospective block number {block_number}"
-            )))?;
-            Some(BlockHashAndNumber {
-                number: block_number,
-                hash: block.block_header_without_hash.parent_hash,
-            })
+            let block_result = state_sync_client
+                    // Getting the next block hash because the Sync block only contains parent hash.
+                    .get_block(block_number.unchecked_next())
+                    .await;
+            match block_result {
+                Ok(Some(block)) => Some(BlockHashAndNumber {
+                    number: block_number,
+                    hash: block.block_header_without_hash.parent_hash,
+                }),
+                Ok(None) => {
+                    return Err(StateSyncError::NotReady(format!(
+                        "Failed to get retrospective block number {block_number}: block not found"
+                    )));
+                }
+                Err(e) => {
+                    return Err(StateSyncError::NotReady(format!(
+                        "Failed to get retrospective block number {block_number}: {e:?}"
+                    )));
+                }
+            }
         }
         None => {
             info!(
