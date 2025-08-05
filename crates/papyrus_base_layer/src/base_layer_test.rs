@@ -11,6 +11,7 @@ use starknet_api::transaction::L1HandlerTransaction;
 use starknet_api::{calldata, contract_address, felt};
 use url::Url;
 
+use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::constants::{EventIdentifier, LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER};
 use crate::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
@@ -19,11 +20,7 @@ use crate::ethereum_base_layer_contract::{
     L1ToL2MessageArgs,
     Starknet,
 };
-use crate::test_utils::{
-    anvil_instance_from_url,
-    ethereum_base_layer_config_for_anvil,
-    DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS,
-};
+use crate::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use crate::{BaseLayerContract, L1Event};
 
 // TODO(Gilad): Use everywhere instead of relying on the confusing `#[ignore]` api to mark slow
@@ -127,6 +124,8 @@ async fn get_gas_price_and_timestamps() {
     assert_eq!(header.blob_fee, expected_original_blob_calc);
 }
 
+// Ensure that the base layer instance filters out events from other deployments of the core
+// contract.
 #[tokio::test]
 async fn events_from_other_contract() {
     if !in_ci() {
@@ -134,19 +133,18 @@ async fn events_from_other_contract() {
     }
     const EVENT_IDENTIFIERS: &[EventIdentifier] = &[LOG_MESSAGE_TO_L2_EVENT_IDENTIFIER];
 
-    let (this_config, this_url) = ethereum_base_layer_config_for_anvil(None);
-    let _anvil = anvil_instance_from_url(&this_url);
-    let this_contract = EthereumBaseLayerContract::new(this_config.clone(), this_url.clone());
+    let anvil_base_layer = AnvilBaseLayer::new().await;
+    // Anvil base layer already auto-deployed a starknet contract.
+    let this_contract = &anvil_base_layer.ethereum_base_layer.contract;
 
-    // Test: Get events from L1 contract and other instances of this L1 contract.
     // Setup.
 
-    // Deploy the contract to the anvil instance.
-    Starknet::deploy(this_contract.contract.provider().clone()).await.unwrap();
     // Deploy another instance of the contract to the same anvil instance.
-    let other_contract = Starknet::deploy(this_contract.contract.provider().clone()).await.unwrap();
+    let provider = this_contract.provider().clone();
+    let other_contract = Starknet::deploy(provider).await.unwrap();
+
     assert_ne!(
-        this_contract.contract.address(),
+        this_contract.address(),
         other_contract.address(),
         "The two contracts should be different."
     );
@@ -158,7 +156,6 @@ async fn events_from_other_contract() {
         ..Default::default()
     };
     let this_receipt = this_contract
-        .contract
         .send_message_to_l2(&L1ToL2MessageArgs { tx: this_l1_handler.clone(), l1_tx_nonce: 2 })
         .await;
     assert!(this_receipt.status());
@@ -180,8 +177,11 @@ async fn events_from_other_contract() {
     let max_block_number = this_block_number.max(other_block_number).saturating_add(1);
 
     // Test the events.
-    let mut events =
-        this_contract.events(min_block_number..=max_block_number, EVENT_IDENTIFIERS).await.unwrap();
+    let mut events = anvil_base_layer
+        .ethereum_base_layer
+        .events(min_block_number..=max_block_number, EVENT_IDENTIFIERS)
+        .await
+        .unwrap();
 
     assert_eq!(events.len(), 1, "Expected only events from this contract.");
     assert_matches!(events.remove(0), L1Event::LogMessageToL2 { tx, .. } if tx == this_l1_handler);
