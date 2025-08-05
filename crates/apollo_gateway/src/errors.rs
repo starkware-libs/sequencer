@@ -373,5 +373,6 @@ fn convert_class_manager_error(err: ClassManagerError) -> StarknetError {
         ClassManagerError::ContractClassObjectSizeTooLarge { .. } => {
             StarknetError::internal(&message)
         }
+        ClassManagerError::UnsupportedContractClassVersion(_) => StarknetError::internal(&message),
     }
 }

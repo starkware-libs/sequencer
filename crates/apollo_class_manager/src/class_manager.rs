@@ -13,7 +13,7 @@ use apollo_compile_to_casm_types::{
 };
 use apollo_infra::component_definitions::{default_component_start_fn, ComponentStarter};
 use async_trait::async_trait;
-use starknet_api::state::SierraContractClass;
+use starknet_api::state::{SierraContractClass, CONTRACT_CLASS_VERSION};
 use tracing::instrument;
 
 use crate::class_storage::{CachedClassStorage, ClassStorage, FsClassStorage};
@@ -67,7 +67,7 @@ impl<S: ClassStorage> ClassManager<S> {
             })?;
 
         self.validate_class_length(&raw_executable_class)?;
-
+        Self::validate_class_version(&sierra_class)?;
         self.classes.set_class(class_hash, class, executable_class_hash, raw_executable_class)?;
 
         let class_hashes = ClassHashes { class_hash, executable_class_hash };
@@ -123,6 +123,16 @@ impl<S: ClassStorage> ClassManager<S> {
             });
         }
 
+        Ok(())
+    }
+
+    /// Validates the version of the class.
+    fn validate_class_version(sierra: &SierraContractClass) -> ClassManagerResult<()> {
+        if sierra.contract_class_version != CONTRACT_CLASS_VERSION {
+            return Err(ClassManagerError::UnsupportedContractClassVersion(
+                sierra.contract_class_version.to_string(),
+            ));
+        }
         Ok(())
     }
 }
