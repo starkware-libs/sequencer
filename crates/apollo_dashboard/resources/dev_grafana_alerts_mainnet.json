@@ -684,7 +684,7 @@
         {
           "evaluator": {
             "params": [
-              25.0
+              10.0
             ],
             "type": "lt"
           },
