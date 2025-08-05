@@ -9,6 +9,7 @@ use apollo_time::time::{Clock, DateTime};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
+use tracing::info;
 
 use crate::mempool::TransactionReference;
 use crate::metrics::TRANSACTION_TIME_SPENT_IN_MEMPOOL;
@@ -84,9 +85,10 @@ impl TransactionPool {
                 mapping",
             )
         };
-
         self.size.add(tx_size);
 
+        let hashes: Vec<_> = self.tx_pool.keys().collect();
+        info!("tx_pool now has {} txs: {:?}", hashes.len(), hashes);
         Ok(())
     }
 

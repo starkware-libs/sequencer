@@ -6,6 +6,7 @@ use starknet_api::block::GasPrice;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::transaction::fields::Tip;
 use starknet_api::transaction::TransactionHash;
+use tracing::info;
 
 use crate::mempool::TransactionReference;
 
@@ -55,6 +56,10 @@ impl TransactionQueue {
             new_tx_successfully_inserted,
             "Keys should be unique; duplicates are checked prior."
         );
+        let hashes: Vec<_> = self.priority_queue.iter().map(|p| &p.tx_hash).collect();
+        info!("priority_queue now has {} txs: {:?}", hashes.len(), hashes);
+        let hashes: Vec<_> = self.pending_queue.iter().map(|p| &p.tx_hash).collect();
+        info!("pending_queue now has {} txs: {:?}", hashes.len(), hashes);
     }
 
     pub fn priority_queue_len(&self) -> usize {
@@ -145,6 +150,7 @@ impl TransactionQueue {
     }
 
     fn demote_txs_to_pending(&mut self, threshold: GasPrice) {
+        info!("demote_txs_to_pending: threshold = {:?}", threshold);
         let mut txs_to_remove = Vec::new();
 
         // Remove all transactions from the priority queue that are below the threshold.
@@ -154,6 +160,12 @@ impl TransactionQueue {
             }
         }
 
+        let demoted_hashes: Vec<_> = txs_to_remove.iter().map(|tx| &tx.0.tx_hash).collect();
+        info!(
+            "Demoting {} tx(s) from priority -> pending: {:?}",
+            demoted_hashes.len(),
+            demoted_hashes
+        );
         for tx in &txs_to_remove {
             self.priority_queue.remove(tx);
         }

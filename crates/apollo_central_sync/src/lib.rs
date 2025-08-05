@@ -564,7 +564,9 @@ impl<
                 }
             }
 
-            for (class_hash, deprecated_class) in &deprecated_classes {
+            for (class_hash, deprecated_class) in
+                deprecated_classes.iter().chain(deployed_contract_class_definitions.iter())
+            {
                 class_manager_client
                     .add_deprecated_class(*class_hash, deprecated_class.clone())
                     .await?;
