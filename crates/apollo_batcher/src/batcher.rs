@@ -45,6 +45,7 @@ use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use tokio::sync::Mutex;
+use tokio::time::timeout_at;
 use tracing::{debug, error, info, instrument, trace, Instrument};
 
 use crate::block_builder::{
@@ -185,6 +186,7 @@ impl Batcher {
         &mut self,
         propose_block_input: ProposeBlockInput,
     ) -> BatcherResult<()> {
+        let deadline = deadline_as_instant(propose_block_input.deadline)?;
         let block_number = propose_block_input.block_info.block_number;
         let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
@@ -195,32 +197,52 @@ impl Batcher {
         )?;
 
         // TODO(yair): extract function for the following calls, use join_all.
-        self.mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
-            error!(
-                "Mempool is not ready to start proposal {}: {}.",
-                propose_block_input.proposal_id, err
-            );
-            BatcherError::NotReady
-        })?;
-        self.mempool_client
-            .update_gas_price(
-                propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
-            )
+        timeout_at(deadline, self.mempool_client.commit_block(CommitBlockArgs::default()))
             .await
-            .map_err(|err| {
-                error!("Failed to update gas price in mempool: {}", err);
+            .map_err(|_err| {
+                error!("BATCHER_ERROR_PROPOSER: Timeout on mempool request to commit block");
                 BatcherError::InternalError
-            })?;
-        self.l1_provider_client
-            .start_block(SessionState::Propose, propose_block_input.block_info.block_number)
-            .await
+            })?
             .map_err(|err| {
                 error!(
-                    "L1 provider is not ready to start proposing block {}: {}. ",
-                    propose_block_input.block_info.block_number, err
+                    "BATCHER_ERROR_PROPOSER: Mempool is not ready to start proposal {}: {}.",
+                    propose_block_input.proposal_id, err
                 );
                 BatcherError::NotReady
             })?;
+        timeout_at(
+            deadline,
+            self.mempool_client.update_gas_price(
+                propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
+            ),
+        )
+        .await
+        .map_err(|_err| {
+            error!("BATCHER_ERROR_PROPOSER: Timeout on mempool request to update gas price");
+            BatcherError::InternalError
+        })?
+        .map_err(|err| {
+            error!("BATCHER_ERROR_PROPOSER: Failed to update gas price in mempool: {}", err);
+            BatcherError::InternalError
+        })?;
+        timeout_at(
+            deadline,
+            self.l1_provider_client
+                .start_block(SessionState::Propose, propose_block_input.block_info.block_number),
+        )
+        .await
+        .map_err(|_err| {
+            error!("BATCHER_ERROR_PROPOSER: Timeout on l1 provider request to start block");
+            BatcherError::InternalError
+        })?
+        .map_err(|err| {
+            error!(
+                "BATCHER_ERROR_PROPOSER: L1 provider is not ready to start proposing block {}: \
+                 {}. ",
+                propose_block_input.block_info.block_number, err
+            );
+            BatcherError::NotReady
+        })?;
 
         let tx_provider = ProposeTransactionProvider::new(
             self.mempool_client.clone(),
@@ -247,10 +269,7 @@ impl Batcher {
                     block_info: propose_block_input.block_info,
                     retrospective_block_hash: propose_block_input.retrospective_block_hash,
                 },
-                BlockBuilderExecutionParams {
-                    deadline: deadline_as_instant(propose_block_input.deadline)?,
-                    is_validator: false,
-                },
+                BlockBuilderExecutionParams { deadline, is_validator: false },
                 Box::new(tx_provider),
                 Some(output_tx_sender),
                 Some(candidate_tx_sender),
@@ -288,6 +307,7 @@ impl Batcher {
         &mut self,
         validate_block_input: ValidateBlockInput,
     ) -> BatcherResult<()> {
+        let deadline = deadline_as_instant(validate_block_input.deadline)?;
         let proposal_metrics_handle = ProposalMetricsHandle::new();
         let active_height = self.active_height.ok_or(BatcherError::NoActiveHeight)?;
         verify_block_input(
@@ -296,16 +316,24 @@ impl Batcher {
             validate_block_input.retrospective_block_hash,
         )?;
 
-        self.l1_provider_client
-            .start_block(SessionState::Validate, validate_block_input.block_info.block_number)
-            .await
-            .map_err(|err| {
-                error!(
-                    "L1 provider is not ready to start validating block {}: {}. ",
-                    validate_block_input.block_info.block_number, err
-                );
-                BatcherError::NotReady
-            })?;
+        timeout_at(
+            deadline,
+            self.l1_provider_client
+                .start_block(SessionState::Validate, validate_block_input.block_info.block_number),
+        )
+        .await
+        .map_err(|_err| {
+            error!("BATCHER_ERROR_VALIDATOR: Timeout on mempool request to commit block");
+            BatcherError::InternalError
+        })?
+        .map_err(|err| {
+            error!(
+                "BATCHER_ERROR_VALIDATOR: L1 provider is not ready to start validating block {}: \
+                 {}. ",
+                validate_block_input.block_info.block_number, err
+            );
+            BatcherError::NotReady
+        })?;
 
         // A channel to send the transactions to include in the block being validated.
         let (input_tx_sender, input_tx_receiver) =
@@ -327,10 +355,7 @@ impl Batcher {
                     block_info: validate_block_input.block_info,
                     retrospective_block_hash: validate_block_input.retrospective_block_hash,
                 },
-                BlockBuilderExecutionParams {
-                    deadline: deadline_as_instant(validate_block_input.deadline)?,
-                    is_validator: true,
-                },
+                BlockBuilderExecutionParams { deadline, is_validator: true },
                 Box::new(tx_provider),
                 None,
                 None,
