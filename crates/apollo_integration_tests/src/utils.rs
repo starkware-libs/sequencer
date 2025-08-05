@@ -38,6 +38,7 @@ use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
 use apollo_node::config::component_config::ComponentConfig;
+use apollo_node::config::component_execution_config::ExpectedComponentConfig;
 use apollo_node::config::definitions::ConfigPointersMap;
 use apollo_node::config::monitoring::MonitoringConfig;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
@@ -255,23 +256,43 @@ pub fn create_node_config(
         to_value(starknet_url).expect("Failed to serialize starknet_url"),
     );
 
+    // A helper macro that wraps the config in `Some(...)` if `components.<field>` expects it;
+    // otherwise returns `None`. Assumes `components` is in scope.
+    macro_rules! wrap_if_component_config_expected {
+        ($component_field:ident, $config_field:expr) => {{
+            if components.$component_field.is_component_config_expected() {
+                Some($config_field)
+            } else {
+                None
+            }
+        }};
+    }
+
+    // Retain only the required configs.
     let base_layer_config = Some(base_layer_config);
-    let batcher_config = Some(batcher_config);
-    let class_manager_config = Some(class_manager_config);
-    let consensus_manager_config = Some(consensus_manager_config);
-    let gateway_config = Some(gateway_config);
-    let http_server_config = Some(http_server_config);
-    let l1_endpoint_monitor_config = Some(l1_endpoint_monitor_config);
-    let l1_gas_price_provider_config = Some(l1_gas_price_provider_config);
-    let l1_gas_price_scraper_config = Some(l1_gas_price_scraper_config);
-    let l1_provider_config = Some(l1_provider_config);
-    let l1_scraper_config = Some(l1_scraper_config);
-    let mempool_config = Some(mempool_config);
-    let mempool_p2p_config = Some(mempool_p2p_config);
-    let monitoring_endpoint_config = Some(monitoring_endpoint_config);
+    let batcher_config = wrap_if_component_config_expected!(batcher, batcher_config);
+    let class_manager_config =
+        wrap_if_component_config_expected!(class_manager, class_manager_config);
+    let consensus_manager_config =
+        wrap_if_component_config_expected!(consensus_manager, consensus_manager_config);
+    let gateway_config = wrap_if_component_config_expected!(gateway, gateway_config);
+    let http_server_config = wrap_if_component_config_expected!(http_server, http_server_config);
+    let l1_endpoint_monitor_config =
+        wrap_if_component_config_expected!(l1_endpoint_monitor, l1_endpoint_monitor_config);
+    let l1_gas_price_provider_config =
+        wrap_if_component_config_expected!(l1_gas_price_provider, l1_gas_price_provider_config);
+    let l1_gas_price_scraper_config =
+        wrap_if_component_config_expected!(l1_gas_price_scraper, l1_gas_price_scraper_config);
+    let l1_provider_config = wrap_if_component_config_expected!(l1_provider, l1_provider_config);
+    let l1_scraper_config = wrap_if_component_config_expected!(l1_scraper, l1_scraper_config);
+    let mempool_config = wrap_if_component_config_expected!(mempool, mempool_config);
+    let mempool_p2p_config = wrap_if_component_config_expected!(mempool_p2p, mempool_p2p_config);
+    let monitoring_endpoint_config =
+        wrap_if_component_config_expected!(monitoring_endpoint, monitoring_endpoint_config);
     let monitoring_config = MonitoringConfig::default();
-    let sierra_compiler_config = Some(sierra_compiler_config);
-    let state_sync_config = Some(state_sync_config);
+    let sierra_compiler_config =
+        wrap_if_component_config_expected!(sierra_compiler, sierra_compiler_config);
+    let state_sync_config = wrap_if_component_config_expected!(state_sync, state_sync_config);
 
     let sequencer_node_config = SequencerNodeConfig {
         base_layer_config,
@@ -328,7 +349,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 builder_address: ContractAddress::from(4_u128),
                 ..Default::default()
             },
-            cende_config: CendeConfig{
+            cende_config: CendeConfig {
                 skip_write_height: Some(BlockNumber(1)),
                 ..Default::default()
             },
