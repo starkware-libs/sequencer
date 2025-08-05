@@ -56,17 +56,25 @@ impl AnvilBaseLayer {
 
         Starknet::deploy(anvil_client.clone()).await.unwrap();
 
-        let url: Url = format!("http://127.0.0.1:{}", Self::DEFAULT_ANVIL_PORT).parse().unwrap();
-        let config = EthereumBaseLayerConfig {
-            starknet_contract_address: Self::DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
-            ..Default::default()
-        };
+        let config = Self::config();
+        let url = Self::url();
         let root_client = anvil_client.root().clone();
         let contract = Starknet::new(config.starknet_contract_address, root_client);
 
         Self {
             anvil_provider: anvil_client.erased(),
             ethereum_base_layer: EthereumBaseLayerContract { config, contract, url },
+        }
+    }
+
+    pub fn url() -> Url {
+        format!("http://127.0.0.1:{}", Self::DEFAULT_ANVIL_PORT).parse().unwrap()
+    }
+
+    pub fn config() -> EthereumBaseLayerConfig {
+        EthereumBaseLayerConfig {
+            starknet_contract_address: Self::DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
+            ..Default::default()
         }
     }
 }
