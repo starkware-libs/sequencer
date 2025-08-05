@@ -2,6 +2,7 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::block::FeeType;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::ContractAddress;
 use starknet_api::felt;
 use starknet_api::transaction::fields::Fee;
@@ -50,7 +51,7 @@ pub fn setup_test_state(
     // Declare and deploy account and ERC20 contracts.
     let erc20 = FeatureContract::ERC20(erc20_contract_version);
     let erc20_class_hash = erc20.get_class_hash();
-    state_reader.add_class(&FeatureContractData::from(erc20));
+    state_reader.add_class(&FeatureContractData::from(erc20), &HashVersion::V2);
     state_reader
         .address_to_class_hash
         .insert(chain_info.fee_token_address(&FeeType::Eth), erc20_class_hash);
@@ -61,7 +62,7 @@ pub fn setup_test_state(
     // Set up the rest of the requested contracts.
     for (contract, n_instances) in contract_instances.iter() {
         let class_hash = contract.class_hash;
-        state_reader.add_class(contract);
+        state_reader.add_class(contract, &HashVersion::V2);
         for instance in 0..*n_instances {
             let instance_address = contract.get_instance_address(instance);
             state_reader.address_to_class_hash.insert(instance_address, class_hash);
