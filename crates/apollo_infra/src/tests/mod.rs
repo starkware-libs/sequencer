@@ -4,6 +4,7 @@ mod remote_component_client_server_test;
 mod server_metrics_test;
 
 use std::sync::Arc;
+use std::time::Duration;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
 use apollo_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram, MetricScope};
@@ -101,6 +102,7 @@ pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
 #[derive(Serialize, Deserialize, Debug, AsRefStr)]
 pub enum ComponentARequest {
     AGetValue,
+    AGetValueWithDelay,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -141,6 +143,11 @@ impl ComponentA {
     }
 
     pub async fn a_get_value(&self) -> ValueA {
+        self.b.b_get_value().await.unwrap()
+    }
+
+    pub async fn a_get_value_with_delay(&self) -> ValueA {
+        tokio::time::sleep(Duration::from_secs(1)).await;
         self.b.b_get_value().await.unwrap()
     }
 }
@@ -188,6 +195,9 @@ impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for Componen
     async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
         match request {
             ComponentARequest::AGetValue => ComponentAResponse::AGetValue(self.a_get_value().await),
+            ComponentARequest::AGetValueWithDelay => {
+                ComponentAResponse::AGetValue(self.a_get_value_with_delay().await)
+            }
         }
     }
 }

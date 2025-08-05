@@ -1,7 +1,9 @@
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::time::Duration;
 
+use apollo_metrics::metrics::{MetricHistogram, MetricScope};
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
@@ -12,8 +14,9 @@ use serde::de::DeserializeOwned;
 use serde::Serialize;
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 use tokio::task;
+use tokio::time::timeout;
 
 use crate::component_client::{
     ClientError,
@@ -33,6 +36,7 @@ use crate::component_server::{
     LocalComponentServer,
     RemoteComponentServer,
 };
+use crate::metrics::RemoteClientMetrics;
 use crate::serde_utils::SerdeWrapper;
 use crate::tests::{
     test_a_b_functionality,
@@ -64,6 +68,7 @@ const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client reques
 // ClientError::ResponseDeserializationFailure error message.
 const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
 const VALID_VALUE_A: ValueA = Felt::ONE;
+const MAX_CONCURRENCY: usize = 10;
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
@@ -152,7 +157,82 @@ where
     )
 }
 
-async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: SocketAddr) {
+#[tokio::test]
+async fn connection_limit() {
+    let setup_value: ValueB = Felt::from(90);
+    let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+
+    setup_for_tests(setup_value, a_socket, b_socket, 2).await;
+
+    let config = RemoteClientConfig {
+        idle_connections: 0,
+        idle_timeout_ms: 0,
+        retries: 0,
+        retry_interval_ms: 0,
+    };
+
+    static METRIC: MetricHistogram = MetricHistogram::new(
+        MetricScope::Infra,
+        "test_histogram",
+        "filter1",
+        "sum_filter",
+        "count_filter",
+        "description",
+    );
+    let metrics = RemoteClientMetrics::new(&METRIC);
+
+    let client1 = RemoteComponentClient::<ComponentARequest, ComponentAResponse>::new(
+        config.clone(),
+        "127.0.0.1",
+        a_socket.port(),
+        metrics.clone(),
+    );
+    let client2 = client1.clone();
+    let client3 = client1.clone();
+    let client4 = client1.clone();
+
+    let semaphore = Arc::new(Semaphore::new(0));
+
+    let sem1 = semaphore.clone();
+    let fut1 = tokio::spawn(async move {
+        let _permit = sem1.acquire().await.unwrap();
+        client1.send(ComponentARequest::AGetValueWithDelay).await.unwrap()
+    });
+
+    let sem2 = semaphore.clone();
+    let _fut2 = tokio::spawn(async move {
+        let _permit = sem2.acquire().await.unwrap();
+        client2.send(ComponentARequest::AGetValueWithDelay).await.unwrap()
+    });
+
+    // Ensure the tasks are queued
+    tokio::time::sleep(Duration::from_millis(50)).await;
+
+    semaphore.add_permits(2);
+
+    let result3 =
+        timeout(Duration::from_millis(500), client3.send(ComponentARequest::AGetValueWithDelay))
+            .await;
+
+    assert!(
+        result3.is_err(),
+        "Expected client3 to time out due to connection cap, but got: {:?}",
+        result3
+    );
+
+    let _ = fut1.await.unwrap();
+
+    let result4 = client4.send(ComponentARequest::AGetValueWithDelay).await;
+    assert!(result4.is_ok(), "Expected client4 to succeed after one slot was freed");
+}
+
+async fn setup_for_tests(
+    setup_value: ValueB,
+    a_socket: SocketAddr,
+    b_socket: SocketAddr,
+    max_concurrency: usize,
+) {
     let a_config = RemoteClientConfig::default();
     let b_config = RemoteClientConfig::default();
 
@@ -185,7 +265,6 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
     let mut component_b_local_server =
         LocalComponentServer::new(component_b, rx_b, TEST_LOCAL_SERVER_METRICS);
 
-    let max_concurrency = 10;
     let mut component_a_remote_server = RemoteComponentServer::new(
         a_local_client,
         a_socket.ip(),
@@ -226,7 +305,7 @@ async fn proper_setup() {
     let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
 
-    setup_for_tests(setup_value, a_socket, b_socket).await;
+    setup_for_tests(setup_value, a_socket, b_socket, MAX_CONCURRENCY).await;
     let a_client_config = RemoteClientConfig::default();
     let b_client_config = RemoteClientConfig::default();
 
@@ -252,7 +331,7 @@ async fn faulty_client_setup() {
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     // Todo(uriel): Find a better way to pass expected value to the setup
     // 123 is some arbitrary value, we don't check it anyway.
-    setup_for_tests(Felt::from(123), a_socket, b_socket).await;
+    setup_for_tests(Felt::from(123), a_socket, b_socket, MAX_CONCURRENCY).await;
 
     struct FaultyAClient {
         socket: SocketAddr,
