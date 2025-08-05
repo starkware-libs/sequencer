@@ -5,7 +5,6 @@ use std::panic;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use alloy::node_bindings::AnvilInstance;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_http_server_config::config::HttpServerConfig;
 use apollo_infra_utils::dumping::serialize_to_file;
@@ -29,17 +28,13 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    StarknetL1Contract,
-};
+use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
 use papyrus_base_layer::test_utils::{
-    ethereum_base_layer_config_for_anvil,
     make_block_history_on_anvil,
-    spawn_anvil_and_deploy_starknet_l1_contract,
     ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
     OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
+use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
 use starknet_api::execution_resources::GasAmount;
@@ -49,7 +44,6 @@ use starknet_api::transaction::TransactionHash;
 use tokio::join;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
-use url::Url;
 
 use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils::{
@@ -256,10 +250,9 @@ pub struct IntegrationTestManager {
     idle_nodes: HashMap<usize, NodeSetup>,
     running_nodes: HashMap<usize, RunningNode>,
     tx_generator: MultiAccountTransactionGenerator,
-    // Handle for L1 server: the server is dropped when handle is dropped.
-    #[allow(dead_code)]
-    l1_handle: AnvilInstance,
-    starknet_l1_contract: StarknetL1Contract,
+    // Ethereum base layer coupled with an Anvil server instance, the server is dropped when the
+    // instance is dropped.
+    anvil_base_layer: AnvilBaseLayer,
 }
 
 impl IntegrationTestManager {
@@ -280,27 +273,6 @@ impl IntegrationTestManager {
         )
         .await;
 
-        fn get_base_layer_config(sequencers_setup: &NodeSetup) -> (EthereumBaseLayerConfig, Url) {
-            // TODO(Tsabary): the pattern of iterating over executables to find the relevant config
-            // should be unified and improved, throughout.
-            for executable_setup in &sequencers_setup.executables {
-                // Must find both base layer config and url in the same executable, then return
-                // them.
-                if let Some(config) = &executable_setup.get_config().base_layer_config {
-                    let base_layer_config = config;
-                    if let Some(l1_monitor_config) =
-                        &executable_setup.get_config().l1_endpoint_monitor_config
-                    {
-                        let base_layer_url = l1_monitor_config.ordered_l1_endpoint_urls[0].clone();
-                        return (base_layer_config.clone(), base_layer_url);
-                    }
-                }
-            }
-            unreachable!("No executable with a set base layer config.")
-        }
-        let (base_layer_config, base_layer_url) =
-            get_base_layer_config(sequencers_setup.first().unwrap());
-
         // TODO(Tsabary): these should be functions of `NodeSetup`.
         fn get_l1_gas_price_scraper_config(
             sequencers_setup: &NodeSetup,
@@ -318,8 +290,7 @@ impl IntegrationTestManager {
         let l1_gas_price_scraper_config =
             get_l1_gas_price_scraper_config(sequencers_setup.first().unwrap());
 
-        let (anvil, starknet_l1_contract) =
-            spawn_anvil_and_deploy_starknet_l1_contract(&base_layer_config, &base_layer_url).await;
+        let anvil_base_layer = AnvilBaseLayer::new().await;
         // Send some transactions to L1 so it has a history of blocks to scrape gas prices from.
         let num_blocks_needed_on_l1 = (l1_gas_price_scraper_config.number_of_blocks_for_mean
             + l1_gas_price_scraper_config.finality)
@@ -331,8 +302,8 @@ impl IntegrationTestManager {
         make_block_history_on_anvil(
             sender_address,
             receiver_address,
-            base_layer_config.clone(),
-            &base_layer_url,
+            anvil_base_layer.ethereum_base_layer.config.clone(),
+            &anvil_base_layer.get_url().await.expect("Failed to get anvil url."),
             num_blocks_needed_on_l1,
         )
         .await;
@@ -340,14 +311,7 @@ impl IntegrationTestManager {
         let idle_nodes = create_map(sequencers_setup, |node| node.get_node_index());
         let running_nodes = HashMap::new();
 
-        Self {
-            node_indices,
-            idle_nodes,
-            running_nodes,
-            tx_generator,
-            l1_handle: anvil,
-            starknet_l1_contract,
-        }
+        Self { node_indices, idle_nodes, running_nodes, tx_generator, anvil_base_layer }
     }
 
     pub fn get_idle_nodes(&self) -> &HashMap<usize, NodeSetup> {
@@ -705,7 +669,7 @@ impl IntegrationTestManager {
         let send_l1_handler_tx_fn = &mut |l1_handler_tx| {
             send_message_to_l2_and_calculate_tx_hash(
                 l1_handler_tx,
-                &self.starknet_l1_contract,
+                &self.anvil_base_layer.ethereum_base_layer.contract,
                 &chain_id,
             )
         };
@@ -922,8 +886,8 @@ async fn get_sequencer_setup_configs(
     let mut base_layer_ports = available_ports_generator
         .next()
         .expect("Failed to get an AvailablePorts instance for base layer config");
-    let (base_layer_config, base_layer_url) =
-        ethereum_base_layer_config_for_anvil(Some(base_layer_ports.get_next_port()));
+    let base_layer_config = AnvilBaseLayer::config();
+    let base_layer_url = AnvilBaseLayer::url();
 
     let mut nodes = Vec::new();
 
