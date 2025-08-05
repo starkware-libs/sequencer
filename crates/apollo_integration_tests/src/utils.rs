@@ -11,6 +11,7 @@ use apollo_class_manager::config::{
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
+use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::converters::UrlAndHeaders;
 use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use apollo_consensus::types::ValidatorId;
@@ -27,6 +28,7 @@ use apollo_infra_utils::test_utils::AvailablePorts;
 use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::eth_to_strk_oracle::{EthToStrkOracleConfig, ETH_TO_STRK_QUANTIZATION};
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
+use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
@@ -37,6 +39,7 @@ use apollo_network::network_manager::test_utils::create_connected_network_config
 use apollo_network::NetworkConfig;
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::definitions::ConfigPointersMap;
+use apollo_node::config::monitoring::MonitoringConfig;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use apollo_rpc::RpcConfig;
 use apollo_state_sync::config::StateSyncConfig;
@@ -160,7 +163,7 @@ impl TestScenario for DeployAndInvokeTxs {
     }
 }
 
-// TODO(Tsabary/Shahak/Yair/AlonH): this function needs a proper cleaning.
+// TODO(Tsabary): clean the passed args.
 #[allow(clippy::too_many_arguments)]
 pub fn create_node_config(
     available_ports: &mut AvailablePorts,
@@ -170,7 +173,7 @@ pub fn create_node_config(
     consensus_manager_config: ConsensusManagerConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
-    component_config: ComponentConfig,
+    components: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
     block_max_capacity_sierra_gas: GasAmount,
     validator_id: ValidatorId,
@@ -220,6 +223,9 @@ pub fn create_node_config(
     state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
     let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
 
+    let l1_gas_price_scraper_config = L1GasPriceScraperConfig::default();
+    let sierra_compiler_config = SierraCompilationConfig::default();
+
     // Update config pointer values.
     let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
     config_pointers_map.change_target_value(
@@ -248,27 +254,47 @@ pub fn create_node_config(
         "starknet_url",
         to_value(starknet_url).expect("Failed to serialize starknet_url"),
     );
-    (
-        SequencerNodeConfig {
-            base_layer_config: Some(base_layer_config),
-            batcher_config: Some(batcher_config),
-            class_manager_config: Some(class_manager_config),
-            consensus_manager_config: Some(consensus_manager_config),
-            gateway_config: Some(gateway_config),
-            http_server_config: Some(http_server_config),
-            mempool_config: Some(mempool_config),
-            mempool_p2p_config: Some(mempool_p2p_config),
-            monitoring_endpoint_config: Some(monitoring_endpoint_config),
-            state_sync_config: Some(state_sync_config),
-            components: component_config,
-            l1_scraper_config: Some(l1_scraper_config),
-            l1_provider_config: Some(l1_provider_config),
-            l1_endpoint_monitor_config: Some(l1_endpoint_monitor_config),
-            l1_gas_price_provider_config: Some(l1_gas_price_provider_config),
-            ..Default::default()
-        },
-        config_pointers_map,
-    )
+
+    let base_layer_config = Some(base_layer_config);
+    let batcher_config = Some(batcher_config);
+    let class_manager_config = Some(class_manager_config);
+    let consensus_manager_config = Some(consensus_manager_config);
+    let gateway_config = Some(gateway_config);
+    let http_server_config = Some(http_server_config);
+    let l1_endpoint_monitor_config = Some(l1_endpoint_monitor_config);
+    let l1_gas_price_provider_config = Some(l1_gas_price_provider_config);
+    let l1_gas_price_scraper_config = Some(l1_gas_price_scraper_config);
+    let l1_provider_config = Some(l1_provider_config);
+    let l1_scraper_config = Some(l1_scraper_config);
+    let mempool_config = Some(mempool_config);
+    let mempool_p2p_config = Some(mempool_p2p_config);
+    let monitoring_endpoint_config = Some(monitoring_endpoint_config);
+    let monitoring_config = MonitoringConfig::default();
+    let sierra_compiler_config = Some(sierra_compiler_config);
+    let state_sync_config = Some(state_sync_config);
+
+    let sequencer_node_config = SequencerNodeConfig {
+        base_layer_config,
+        batcher_config,
+        class_manager_config,
+        components,
+        consensus_manager_config,
+        gateway_config,
+        http_server_config,
+        l1_endpoint_monitor_config,
+        l1_gas_price_provider_config,
+        l1_gas_price_scraper_config,
+        l1_provider_config,
+        l1_scraper_config,
+        mempool_config,
+        mempool_p2p_config,
+        monitoring_endpoint_config,
+        monitoring_config,
+        sierra_compiler_config,
+        state_sync_config,
+    };
+
+    (sequencer_node_config, config_pointers_map)
 }
 
 pub(crate) fn create_consensus_manager_configs_from_network_configs(
