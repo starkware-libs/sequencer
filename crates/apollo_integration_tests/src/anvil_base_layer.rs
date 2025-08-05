@@ -6,19 +6,24 @@ use alloy::providers::{DynProvider, Provider, ProviderBuilder};
 use alloy::rpc::types::TransactionReceipt;
 use async_trait::async_trait;
 use colored::*;
-use starknet_api::block::BlockHashAndNumber;
-use starknet_api::hash::StarkHash;
-use starknet_api::transaction::L1HandlerTransaction;
-use url::Url;
-
-use crate::ethereum_base_layer_contract::{
+use papyrus_base_layer::ethereum_base_layer_contract::{
     EthereumBaseLayerConfig,
     EthereumBaseLayerContract,
     EthereumBaseLayerError,
     Starknet,
     StarknetL1Contract,
 };
-use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
+use papyrus_base_layer::{
+    BaseLayerContract,
+    L1BlockHeader,
+    L1BlockNumber,
+    L1BlockReference,
+    L1Event,
+};
+use starknet_api::block::BlockHashAndNumber;
+use starknet_api::hash::StarkHash;
+use starknet_api::transaction::L1HandlerTransaction;
+use url::Url;
 
 /// Initialize an anvil instance under the default port and deploy the Starknet contract.
 ///
