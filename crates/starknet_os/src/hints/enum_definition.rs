@@ -1,3 +1,4 @@
+use blake2s::Blake2Felt252;
 use blockifier::state::state_api::StateReader;
 use indoc::indoc;
 #[cfg(any(test, feature = "testing"))]
@@ -513,6 +514,13 @@ define_stateless_hint_enum!(
         set_ap_to_segment_hash::<Poseidon>,
         indoc! {r#"
             memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash())"#
+        }
+    ),
+    (
+        SetApToSegmentHashBlake,
+        set_ap_to_segment_hash::<Blake2Felt252>,
+        indoc! {r#"
+        memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.hash_blake())"#
         }
     ),
     (

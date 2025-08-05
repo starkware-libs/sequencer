@@ -40,6 +40,7 @@ static BLAKE2_HINTS_WHITELIST: LazyLock<HashSet<AllHints>> = LazyLock::new(|| {
         // TODO(Aviv): Remove these hints once we have used them in the OS.
         AllHints::StatelessHint(StatelessHint::CheckPackedValuesEndAndSize),
         AllHints::StatelessHint(StatelessHint::UnpackFeltsToU32s),
+        AllHints::StatelessHint(StatelessHint::SetApToSegmentHashBlake),
     ])
 });
 
