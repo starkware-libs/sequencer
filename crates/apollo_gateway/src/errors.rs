@@ -365,13 +365,14 @@ fn convert_class_manager_error(err: ClassManagerError) -> StarknetError {
             code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::CompilationFailed),
             message,
         },
-        // TODO(noamsp): Handle ClassSerde, ClassStorage, Client, and
-        // ContractClassObjectSizeTooLarge cases better.
-        ClassManagerError::ClassSerde(_) => StarknetError::internal(&message),
-        ClassManagerError::ClassStorage(_) => StarknetError::internal(&message),
-        ClassManagerError::Client(_) => StarknetError::internal(&message),
-        ClassManagerError::ContractClassObjectSizeTooLarge { .. } => {
-            StarknetError::internal(&message)
-        }
+        ClassManagerError::ContractClassObjectSizeTooLarge { .. } => StarknetError {
+            code: StarknetErrorCode::KnownErrorCode(
+                KnownStarknetErrorCode::ContractClassObjectSizeTooLarge,
+            ),
+            message,
+        },
+        ClassManagerError::ClassSerde(_)
+        | ClassManagerError::ClassStorage(_)
+        | ClassManagerError::Client(_) => StarknetError::internal(&message),
     }
 }
