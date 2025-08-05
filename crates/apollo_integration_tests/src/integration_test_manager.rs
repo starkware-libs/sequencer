@@ -38,7 +38,8 @@ use papyrus_base_layer::test_utils::{
     ethereum_base_layer_config_for_anvil,
     make_block_history_on_anvil,
     spawn_anvil_and_deploy_starknet_l1_contract,
-    DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX,
+    ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
+    OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
 };
 use starknet_api::block::BlockNumber;
 use starknet_api::core::{ChainId, Nonce};
@@ -306,8 +307,8 @@ impl IntegrationTestManager {
             + l1_gas_price_scraper_config.finality)
             .try_into()
             .unwrap();
-        let sender_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX];
-        let receiver_address = anvil.addresses()[DEFAULT_ANVIL_ADDITIONAL_ADDRESS_INDEX + 1];
+        let sender_address = ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
+        let receiver_address = OTHER_ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS;
 
         make_block_history_on_anvil(
             sender_address,
