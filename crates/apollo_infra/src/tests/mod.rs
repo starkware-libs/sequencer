@@ -17,6 +17,7 @@ use tokio::sync::Mutex;
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter};
 use crate::metrics::{LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics};
+use crate::tests::remote_component_client_server_test::TEST_SEMAPHORE;
 
 pub(crate) type ValueA = Felt;
 pub(crate) type ValueB = Felt;
@@ -101,6 +102,7 @@ pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
 #[derive(Serialize, Deserialize, Debug, AsRefStr)]
 pub enum ComponentARequest {
     AGetValue,
+    AGetValueWithDelay,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -188,6 +190,11 @@ impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for Componen
     async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
         match request {
             ComponentARequest::AGetValue => ComponentAResponse::AGetValue(self.a_get_value().await),
+            ComponentARequest::AGetValueWithDelay => {
+                let sem = TEST_SEMAPHORE.get().expect("TEST_SEMAPHORE not initialized in test");
+                let _permit = sem.acquire().await.unwrap();
+                ComponentAResponse::AGetValue(self.a_get_value().await)
+            }
         }
     }
 }
