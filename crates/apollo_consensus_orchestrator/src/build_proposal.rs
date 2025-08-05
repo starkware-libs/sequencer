@@ -25,9 +25,8 @@ use apollo_protobuf::consensus::{
     ProposalPart,
     TransactionBatch,
 };
-use apollo_state_sync_types::communication::StateSyncClientError;
 use apollo_time::time::{Clock, DateTime};
-use starknet_api::block::{BlockHash, GasPrice};
+use starknet_api::block::{BlockHash, BlockNumber, GasPrice};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::ContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
@@ -73,9 +72,9 @@ pub(crate) enum BuildProposalError {
     #[error("Batcher error: {0}")]
     Batcher(String, BatcherClientError),
     #[error("State sync client error: {0}")]
-    StateSyncClientError(#[from] StateSyncClientError),
-    #[error("State sync is not ready: {0}")]
-    StateSyncNotReady(String),
+    StateSyncClientError(String),
+    #[error("State sync is not ready: block number {0} not found")]
+    StateSyncNotReady(BlockNumber),
     // Consensus may exit early (e.g. sync).
     #[error("Failed to send commitment to consensus: {0}")]
     SendError(ProposalCommitment),
@@ -161,7 +160,9 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
     };
 
     let retrospective_block_hash =
-        retrospective_block_hash(args.deps.state_sync_client.clone(), &block_info).await?;
+        retrospective_block_hash(args.deps.state_sync_client.clone(), &block_info)
+            .await
+            .map_err(BuildProposalError::from)?;
     let build_proposal_input = ProposeBlockInput {
         proposal_id: args.proposal_id,
         deadline: args.deps.clock.now() + batcher_timeout,
