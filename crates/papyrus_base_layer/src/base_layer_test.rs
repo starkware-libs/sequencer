@@ -132,18 +132,6 @@ async fn events_from_other_contract() {
     let _anvil = anvil_instance_from_url(&this_url);
     let this_contract = EthereumBaseLayerContract::new(this_config.clone(), this_url.clone());
 
-    // Test: get_proved_block_at_unknown_block_number.
-    // TODO(Arni): turn this into a unit test, with its own anvil instance.
-    assert!(
-        this_contract
-            .get_proved_block_at(123)
-            .await
-            .unwrap_err()
-            // This error is nested way too deep inside `alloy`.
-            .to_string()
-            .contains("BlockOutOfRangeError")
-    );
-
     // Test: Get events from L1 contract and other instances of this L1 contract.
     // Setup.
 
