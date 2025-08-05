@@ -3,8 +3,9 @@ use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::{ContractClass, EntryPointType};
-use starknet_api::core::{ClassHash, ContractAddress, EntryPointSelector};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, EntryPointSelector};
 use starknet_api::deprecated_contract_class::{
     ContractClass as DeprecatedContractClass,
     EntryPointOffset,
@@ -68,6 +69,15 @@ pub trait FeatureContractTrait {
         let selector =
             entry_point_selector.unwrap_or(selector_from_name(CONSTRUCTOR_ENTRY_POINT_NAME));
         self.get_offset(selector, EntryPointType::Constructor)
+    }
+
+    fn get_compiled_class_hash_v2(&self) -> CompiledClassHash {
+        match self.get_runnable_class() {
+            RunnableCompiledClass::V0(_) => CompiledClassHash::default(),
+            RunnableCompiledClass::V1(class) => class.hash(&HashVersion::V2),
+            #[cfg(feature = "cairo_native")]
+            RunnableCompiledClass::V1Native(class) => class.hash(&HashVersion::V2),
+        }
     }
 }
 
