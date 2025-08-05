@@ -74,7 +74,7 @@ fn get_http_server_low_successful_transaction_rate(
         "http server low successful transaction rate",
         AlertGroup::HttpServer,
         format!(
-            "increase({}[10m]) or vector(0)",
+            "sum(increase({}[10m])) or vector(0)",
             ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()
         ),
         vec![AlertCondition {
