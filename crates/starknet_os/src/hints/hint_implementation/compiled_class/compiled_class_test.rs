@@ -4,10 +4,12 @@ use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::any_box;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use expect_test::{expect, Expect};
 use log::info;
 use rstest::rstest;
@@ -137,11 +139,14 @@ impl HashVersionTestSpec for HashVersion {
     }
 }
 
-#[rstest]
-fn test_compiled_class_hash(
-    #[values(true, false)] load_full_contract: bool,
-    #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
-) {
+/// Runs the compiled class hash entry point for the given contract class,
+/// with the specified load_full_contract flag and hash version.
+/// Returns the execution resources and the computed hash.
+fn run_compiled_class_hash_entry_point(
+    contract_class: &CasmContractClass,
+    load_full_contract: bool,
+    hash_version: &HashVersion,
+) -> (ExecutionResources, Felt) {
     // Set up the entry point runner configuration.
     let runner_config = EntryPointRunnerConfig {
         layout: LayoutName::all_cairo,
@@ -158,13 +163,6 @@ fn test_compiled_class_hash(
         Felt::from_dec_str(hash_version.expected_hash().data())
             .expect("Failed to parse expected hash"),
     )];
-    // Get the test contract class.
-    let feature_contract =
-        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let contract_class = match feature_contract.get_class() {
-        ContractClass::V1((casm, _sierra_version)) => casm,
-        _ => panic!("Expected ContractClass::V1"),
-    };
 
     // Set up hint locals for the Cairo runner.
     // This creates a bytecode segment structure from the contract's bytecode and stores it
@@ -221,6 +219,32 @@ fn test_compiled_class_hash(
     // Get the actual execution resources, and compare with expected values.
     let actual_execution_resources = runner.get_execution_resources().unwrap();
 
+    // Get the hash result from the explicit return values.
+    let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(hash_computed_by_the_os))) =
+        explicit_return_values[0]
+    else {
+        panic!("Expected a single felt return value");
+    };
+
+    (actual_execution_resources, hash_computed_by_the_os)
+}
+
+#[rstest]
+fn test_compiled_class_hash(
+    #[values(true, false)] load_full_contract: bool,
+    #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
+) {
+    // Get the test contract class.
+    let feature_contract =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let contract_class = match feature_contract.get_class() {
+        ContractClass::V1((casm, _sierra_version)) => casm,
+        _ => panic!("Expected ContractClass::V1"),
+    };
+    // Run the compiled class hash entry point.
+    let (actual_execution_resources, hash_computed_by_the_os) =
+        run_compiled_class_hash_entry_point(&contract_class, load_full_contract, &hash_version);
+
     // Format builtin usage statistics for comparison with expected values.
     // Filter out unused builtins (count = 0), format as "name: count", sort alphabetically,
     // and join with commas for consistent test output.
@@ -249,13 +273,6 @@ fn test_compiled_class_hash(
     expected_builtin_usage.assert_eq(&actual_builtin_usage);
     expected_n_steps.assert_eq(&actual_execution_resources.n_steps.to_string());
 
-    // The explicit return value should be a felt (the computed hash).
-    let EndpointArg::Value(ValueArg::Single(MaybeRelocatable::Int(hash_computed_by_the_os))) =
-        &explicit_return_values[0]
-    else {
-        panic!("Expected a single felt return value");
-    };
-
     info!("Computed compiled class hash: {hash_computed_by_the_os}");
     // Verify the hash is not zero (a basic sanity check).
     // Use expect! macro for easy test maintenance.
@@ -263,5 +280,5 @@ fn test_compiled_class_hash(
 
     // Compare with the hash computed by the starknet_api.
     let hash_computed_by_starknet_api = contract_class.hash(&hash_version);
-    assert_eq!(*hash_computed_by_the_os, hash_computed_by_starknet_api.0);
+    assert_eq!(hash_computed_by_the_os, hash_computed_by_starknet_api.0);
 }
