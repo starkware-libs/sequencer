@@ -1,11 +1,14 @@
 use std::borrow::Cow;
 use std::sync::LazyLock;
 
+// TODO(Aviv): Remove this when starknet-types-core is updated to use the new blake
+// implementation.
+use blake2s::Blake2Felt252;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
 use itertools::Itertools;
 use starknet_types_core::felt::Felt;
-use starknet_types_core::hash::{Blake2Felt252, Poseidon, StarkHash};
+use starknet_types_core::hash::{Poseidon, StarkHash};
 
 use crate::core::CompiledClassHash;
 
