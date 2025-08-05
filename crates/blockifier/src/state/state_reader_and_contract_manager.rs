@@ -1,4 +1,4 @@
-use starknet_api::core::ClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::RunnableCompiledClass;
@@ -7,7 +7,6 @@ use crate::state::contract_class_manager::ContractClassManager;
 use crate::state::errors::StateError;
 use crate::state::global_cache::CompiledClasses;
 use crate::state::state_api::{StateReader, StateResult};
-
 #[cfg(test)]
 #[path = "state_reader_and_contract_manager_test.rs"]
 pub mod state_reader_and_contract_manager_test;
@@ -98,10 +97,11 @@ impl<S: FetchCompiledClasses> StateReader for StateReaderAndContractManager<S> {
         self.get_compiled_from_class_manager(class_hash)
     }
 
-    fn get_compiled_class_hash(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<starknet_api::core::CompiledClassHash> {
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
         self.state_reader.get_compiled_class_hash(class_hash)
+    }
+
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        self.state_reader.get_compiled_class_hash_v2(class_hash)
     }
 }
