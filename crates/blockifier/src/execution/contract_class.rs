@@ -59,6 +59,25 @@ pub trait HasSelector {
     fn selector(&self) -> &EntryPointSelector;
 }
 
+pub(crate) enum FeltSize {
+    Small,
+    Large,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct FeltSizeGroups {
+    // Number of felts below 2^63.
+    pub small: usize,
+    // Number of felts above or equal to 2^63.
+    pub large: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum NestedMultipleIntList {
+    Leaf(usize, FeltSizeGroups), // (leaf length, felt size groups)
+    Node(Vec<NestedMultipleIntList>),
+}
+
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
@@ -133,6 +152,44 @@ impl RunnableCompiledClass {
         }
     }
 
+    pub fn estimate_blake_hash_resources(
+        &self,
+        versioned_constants: &VersionedConstants,
+    ) -> ExecutionResources {
+        match self {
+            Self::V0(_) => panic!(
+                "v0 contracts do not have a Compiled Class Hash and therefore shouldn't be \
+                 counted for migration."
+            ),
+            Self::V1(class) => {
+                class.estimate_casm_blake_hash_computation_resources(versioned_constants)
+            }
+            #[cfg(feature = "cairo_native")]
+            Self::V1Native(class) => {
+                class.casm().estimate_casm_blake_hash_computation_resources(versioned_constants)
+            }
+        }
+    }
+
+    pub fn estimate_blake_hash_resources(
+        &self,
+        versioned_constants: &VersionedConstants,
+    ) -> ExecutionResources {
+        match self {
+            Self::V0(_) => panic!(
+                "v0 contracts do not have a Compiled Class Hash and therefore shouldn't be \
+                 counted for migration."
+            ),
+            Self::V1(class) => {
+                class.estimate_casm_blake_hash_computation_resources(versioned_constants)
+            }
+            #[cfg(feature = "cairo_native")]
+            Self::V1Native(class) => {
+                class.casm().estimate_casm_blake_hash_computation_resources(versioned_constants)
+            }
+        }
+    }
+
     pub fn get_visited_segments(
         &self,
         visited_pcs: &HashSet<usize>,
@@ -179,6 +236,15 @@ impl RunnableCompiledClass {
             &context.versioned_constants().min_sierra_version_for_sierra_gas,
             context.tracked_resource_stack.last(),
         )
+    }
+
+    pub fn get_bytecode_lengths(&self) -> usize {
+        match self {
+            Self::V0(_) => panic!("V0 contracts don't have bytecode segment lengths."),
+            Self::V1(class) => class.bytecode_length(),
+            #[cfg(feature = "cairo_native")]
+            Self::V1Native(class) => class.casm().bytecode_length(),
+        }
     }
 }
 
@@ -310,6 +376,17 @@ impl CompiledClassV1 {
         estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths)
     }
 
+    fn estimate_casm_blake_hash_computation_resources(
+        &self,
+        versioned_constants: &VersionedConstants,
+    ) -> ExecutionResources {
+        estimate_casm_blake_hash_computation_resources(
+            &self.bytecode_segment_felt_sizes,
+            versioned_constants,
+            &self.entry_points_by_type,
+        )
+    }
+
     /// Estimate the VM gas required to perform a CompiledClassHash migration.
     ///
     /// During the migration, both the blake hash, and the poseidon hash of the CASM are
@@ -326,11 +403,13 @@ impl CompiledClassV1 {
         versioned_constants: &VersionedConstants,
         blake_weight: usize,
     ) -> (GasAmount, BuiltinCounterMap) {
-        let blake_hash_gas = estimate_casm_blake_hash_computation_resources(
-            &self.bytecode_segment_lengths,
+        let blake_hash_resources = estimate_casm_blake_hash_computation_resources(
+            &self.bytecode_segment_felt_sizes,
             versioned_constants,
+            &self.entry_points_by_type,
             blake_weight,
         );
+        let blake_hash_gas = vm_resources_to_sierra_gas(&blake_hash_resources, versioned_constants);
 
         let poseidon_hash_resources =
             estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths);
@@ -442,17 +521,25 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
 
 /// Cost to hash a single flat segment of `len` felts.
 fn leaf_cost(
-    len: usize,
+
+    felt_size_groups: &FeltSizeGroups,
+
     versioned_constants: &VersionedConstants,
+,
     blake_opcode_gas: usize,
-) -> GasAmount {
+) -> ExecutionResources {
     // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    cost_of_encode_felt252_data_and_calc_blake_hash(len, 0, versioned_constants, blake_opcode_gas)
+    cost_of_encode_felt252_data_and_calc_blake_hash(
+        felt_size_groups.large,
+        felt_size_groups.small,
+        versioned_constants,
+        blake_opcode_gas,
+    )
 }
 
 /// Cost to hash a multi-segment contract:
 fn node_cost(
-    segs: &[NestedIntList],
+    segs: &[NestedMultipleIntList],
     versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
 ) -> GasAmount {
@@ -465,10 +552,10 @@ fn node_cost(
     // For each segment, hash its felts.
     for seg in segs {
         match seg {
-            NestedIntList::Leaf(len) => {
+            NestedMultipleIntList::Leaf(len, felt_size_groups) => {
                 gas = gas.checked_add_panic_on_overflow(segment_overhead);
                 gas = gas.checked_add_panic_on_overflow(leaf_cost(
-                    *len,
+                    felt_size_groups,
                     versioned_constants,
                     blake_opcode_gas,
                 ));
@@ -491,34 +578,151 @@ fn node_cost(
 
 /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
 /// - Uses only bytecode size (treats all felts as “big”, ignores the small-felt optimization).
+// estimate cost of `blake_compiled_class_hash.compiled_class_hash`
 pub fn estimate_casm_blake_hash_computation_resources(
-    bytecode_segment_lengths: &NestedIntList,
+    bytecode_segment_lengths: &NestedMultipleIntList,
     versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
-) -> GasAmount {
-    // TODO(AvivG): Currently ignores entry-point hashing costs.
-    // TODO(AvivG): Missing base overhead estimation for compiled_class_hash.
-
-    // Basic frame overhead.
-    // TODO(AvivG): Once compiled_class_hash estimation is complete,
-    // revisit whether this should be moved into cost_of_encode_felt252_data_and_calc_blake_hash.
-    let resources = ExecutionResources {
-        n_steps: 0,
-        n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
-    };
-    let gas = vm_resources_to_sierra_gas(&resources, versioned_constants);
-
-    // Add leaf vs node cost
-    let added_gas = match bytecode_segment_lengths {
-        // Single-segment contract (e.g., older Sierra contracts).
-        NestedIntList::Leaf(len) => leaf_cost(*len, versioned_constants, blake_opcode_gas),
-        NestedIntList::Node(segs) => node_cost(segs, versioned_constants, blake_opcode_gas),
+    entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+) -> ExecutionResources {
+    let base_compiled_class_hash_steps = EMPTY_ENTRY_POINTS_STEPS
+        + ALLOC_LOCAL_STEPS
+        + ASSERT_STEPS
+        + HASH_INIT_STEPS
+        + HASH_UPDATE_SINGLE_STEPS*2
+        + HASH_FINALIZE_BASE_STEPS
+        + RETURN_STEPS;
+    let hash_finalize_data_len = 5;
+    let mut resources = ExecutionResources {
+        n_steps: base_compiled_class_hash_steps,
+        n_memory_holes: 149, // TODO - where from?
+        builtin_instance_counter: HashMap::new(),
     };
 
-    gas.checked_add_panic_on_overflow(added_gas)
+    // the elements are: compiled_class_version, the hashes of the 3 entrypoints types and the
+    // bytecode hash.
+    let hash_finalize_resources = cost_of_encode_felt252_data_and_calc_blake_hash(
+        hash_finalize_data_len,
+        0,
+        versioned_constants,
+    );
+
+    resources += &hash_finalize_resources;
+    resources += &cost_of_bytecode_hash_node(bytecode_segment_lengths, versioned_constants);
+    resources += &cost_of_hash_entry_points(&entry_points_by_type.external, versioned_constants);
+    resources += &cost_of_hash_entry_points(&entry_points_by_type.constructor, versioned_constants);
+    resources += &cost_of_hash_entry_points(&entry_points_by_type.l1_handler, versioned_constants);
+    resources
 }
 
+pub fn cost_of_hash_entry_points(
+    entry_points: &[EntryPointV1],
+    versioned_constants: &VersionedConstants,
+) -> ExecutionResources {
+    let base_hash_entry_points_steps = CALL_HASH_ENTRY_POINTS_STEPS
+        + HASH_INIT_STEPS
+        + HASH_UPDATE_SINGLE_STEPS
+        + HASH_FINALIZE_BASE_STEPS
+        + RETURN_STEPS
+        +CALL_HASH_ENTRY_POINTS_INNER_STEPS; //always one empty call
+    let mut resources = ExecutionResources {
+        n_steps: base_hash_entry_points_steps,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::new(),
+    };
+    // compute cost of `hash_finalize`
+    // for each entry point we add to the hash selector(big felt) and offset(small felt)
+    resources += &cost_of_encode_felt252_data_and_calc_blake_hash(
+        entry_points.len() + entry_points.len(), // +1 is for builtins per entry point hash
+        entry_points.len(),
+        versioned_constants,
+    );
+    // compute cost of `hash_entry_points_inner`
+    for entry_point in entry_points {
+        resources += &cost_of_hash_entry_points_inner(entry_point, versioned_constants);
+    }
+    resources
+}
+
+pub fn cost_of_hash_entry_points_inner(
+    entry_point: &EntryPointV1,
+    versioned_constants: &VersionedConstants,
+) -> ExecutionResources {
+    let base_hash_entry_points_inner_steps =
+        CALL_HASH_ENTRY_POINTS_INNER_STEPS+ 1 + IF_STEPS + RETURN_STEPS + HASH_UPDATE_SINGLE_STEPS * 2;
+    let mut resources = ExecutionResources {
+        n_steps: base_hash_entry_points_inner_steps,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::new(),
+    };
+
+    // compute cost of `hash_update_with_nested_hash`
+    resources +=
+        &cost_of_hash_update_with_nested_hash(entry_point.builtins.len(), versioned_constants);
+
+    resources
+}
+
+pub fn cost_of_hash_update_with_nested_hash(
+    builtins_list_len: usize,
+    versioned_constants: &VersionedConstants,
+) -> ExecutionResources {
+    let base_hash_update_with_nested_hash_steps =
+        CALL_HASH_UPDATE_WITH_NESTED_HASH_STEPS + HASH_UPDATE_SINGLE_STEPS + RETURN_STEPS;
+    let mut resources = ExecutionResources {
+        n_steps: base_hash_update_with_nested_hash_steps,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::new(),
+    };
+    // assumig builtins are small felts
+    resources +=
+        &cost_of_encode_felt252_data_and_calc_blake_hash(0, builtins_list_len, versioned_constants);
+    resources
+}
+
+pub fn cost_of_bytecode_hash_node(
+    bytecode_segment_lengths: &NestedMultipleIntList,
+    versioned_constants: &VersionedConstants,
+) -> ExecutionResources {
+    let base_bytecode_hash_node_steps =
+        CALL_BYTECODE_HASH_NODE_STEPS + ALLOC_LOCAL_STEPS + IF_STEPS + RETURN_STEPS;
+    let mut resources = ExecutionResources {
+        n_steps: base_bytecode_hash_node_steps,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::new(),
+    };
+    // let gas = vm_resources_to_sierra_gas(&resources, versioned_constants);
+
+    // Add leaf vs node cost
+    let added_resources = match &bytecode_segment_lengths {
+        // Single-segment contract (e.g., older Sierra contracts).
+        NestedMultipleIntList::Leaf(_, felt_size_groups) => {
+            leaf_cost(felt_size_groups, versioned_constants, blake_opcode_gas)
+        }
+        NestedMultipleIntList::Node(segs) => {
+            let n_steps =
+                HASH_INIT_STEPS + HASH_FINALIZE_BASE_STEPS + CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS;
+            let mut node_resources = ExecutionResources {
+                n_steps,
+                n_memory_holes: 0,
+                builtin_instance_counter: HashMap::new(),
+            };
+            node_resources += &bytecode_hash_internal_node_cost(segs, versioned_constants, blake_opcode_gas);
+            // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
+            // and one segment length (“small” felt) per segment.
+            // compute cost of `hash_finalize`
+            node_resources += &cost_of_encode_felt252_data_and_calc_blake_hash(
+                segs.len(),
+                segs.len(),
+                versioned_constants,
+            );
+            node_resources
+        }
+    };
+
+    resources += &added_resources;
+    resources
+}
 // Returns the set of segments that were visited according to the given visited PCs and segment
 // lengths.
 // Each visited segment must have its starting PC visited, and is represented by it.
@@ -573,6 +777,7 @@ pub struct ContractClassV1Inner {
     pub hints: HashMap<String, Hint>,
     pub sierra_version: SierraVersion,
     bytecode_segment_lengths: NestedIntList,
+    bytecode_segment_felt_sizes: NestedMultipleIntList,
 }
 
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
@@ -613,8 +818,16 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
     type Error = ProgramError;
 
     fn try_from((class, sierra_version): VersionedCasm) -> Result<Self, Self::Error> {
-        let data: Vec<MaybeRelocatable> =
-            class.bytecode.iter().map(|x| MaybeRelocatable::from(Felt::from(&x.value))).collect();
+        let (data, felt_by_size): (Vec<MaybeRelocatable>, Vec<FeltSize>) = class
+            .bytecode
+            .iter()
+            .map(|x| {
+                let felt = Felt::from(&x.value);
+                let felt_size =
+                    if felt < Felt::from(1u64 << 63) { FeltSize::Small } else { FeltSize::Large };
+                (MaybeRelocatable::from(felt), felt_size)
+            })
+            .unzip();
 
         let mut hints: HashMap<usize, Vec<HintParams>> = HashMap::new();
         for (i, hint_list) in class.hints.iter() {
@@ -658,12 +871,21 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
+
+        let bytecode_segment_felt_sizes = create_bytecode_segment_felt_sizes(
+            &bytecode_segment_lengths,
+            &felt_by_size,
+            program.data_len(),
+        );
+
         Ok(CompiledClassV1(Arc::new(ContractClassV1Inner {
             program,
             entry_points_by_type,
             hints: string_to_hint,
             sierra_version,
+            // TODO(AvivG): Consider removing bytecode_segment_lengths.
             bytecode_segment_lengths,
+            bytecode_segment_felt_sizes,
         })))
     }
 }
@@ -751,4 +973,84 @@ impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
             EntryPointType::L1Handler => &self.l1_handler,
         }
     }
+}
+
+/// Creates a `NestedMultipleIntList` structure that mirrors the layout of
+/// `bytecode_segment_lengths`.
+///
+/// For each segment in the nested layout, assigns counts of `FeltSize` values, consuming the
+/// `felt_by_size` slice in order.
+#[allow(unused)]
+pub(crate) fn create_bytecode_segment_felt_sizes(
+    // A nested layout describing the structure of bytecode segments.
+    bytecode_segment_lengths: &NestedIntList,
+    // A flat list of felt sizes, ordered sequentially as they appear in the.
+    felt_by_size: &[FeltSize],
+    // The total number of felts expected in the structure (used for validation).
+    bytecode_length: usize,
+) -> NestedMultipleIntList {
+    let (bytecode_segment_felt_sizes, total_segments_len) =
+        create_bytecode_segment_felt_sizes_inner(bytecode_segment_lengths, felt_by_size, 0);
+
+    // Sanity check.
+    assert_eq!(total_segments_len, bytecode_length);
+
+    bytecode_segment_felt_sizes
+}
+
+/// Helper function for `create_bytecode_segment_felt_sizes`.
+/// Recursively constructs NestedMultipleIntList with (length, felt_by_size) per segment.
+fn create_bytecode_segment_felt_sizes_inner(
+    bytecode_segment_lengths: &NestedIntList,
+    felt_by_size: &[FeltSize],
+    bytecode_offset: usize,
+) -> (NestedMultipleIntList, usize) {
+    match bytecode_segment_lengths {
+        NestedIntList::Leaf(length) => {
+            create_bytecode_segment_felt_sizes_leaf(felt_by_size, bytecode_offset, *length)
+        }
+        NestedIntList::Node(lengths) => {
+            let mut total_len = 0;
+            let mut current_offset = bytecode_offset;
+            let mut combined = Vec::with_capacity(lengths.len());
+
+            for length in lengths {
+                let (combined_segment, segment_len) =
+                    create_bytecode_segment_felt_sizes_inner(length, felt_by_size, current_offset);
+                current_offset += segment_len;
+                total_len += segment_len;
+                combined.push(combined_segment);
+            }
+
+            (NestedMultipleIntList::Node(combined), total_len)
+        }
+    }
+}
+
+/// Builds a `NestedMultipleIntList::Leaf` from a slice segment of `felt_by_size`.
+///
+/// Counts `Small` and `Large` values in `felt_by_size[offset..offset + length]`,
+/// returning the leaf and the number of processed elements (`length`).
+fn create_bytecode_segment_felt_sizes_leaf(
+    felt_by_size: &[FeltSize],
+    offset: usize,
+    length: usize,
+) -> (NestedMultipleIntList, usize) {
+    let (small_count, large_count) = felt_by_size[offset..offset + length].iter().fold(
+        (0, 0),
+        |(small_count, large_count), felt_size| match felt_size {
+            FeltSize::Small => (small_count + 1, large_count),
+            FeltSize::Large => (small_count, large_count + 1),
+        },
+    );
+    let total_felt_count = small_count + large_count;
+    assert_eq!(total_felt_count, length);
+
+    (
+        NestedMultipleIntList::Leaf(
+            length,
+            FeltSizeGroups { small: small_count, large: large_count },
+        ),
+        length,
+    )
 }

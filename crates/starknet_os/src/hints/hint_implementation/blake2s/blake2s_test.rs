@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
 use blake2s::encode_felt252_data_and_calc_blake_hash;
 use blockifier::execution::execution_utils::encode_and_blake_hash_execution_resources;
+use blockifier_test_utils::cairo_versions::CairoVersion;
+use cairo_vm::any_box;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -10,8 +12,12 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
+use crate::hints::hint_implementation::compiled_class::utils::create_bytecode_segment_structure;
+use crate::hints::vars::Const;
 use crate::test_utils::cairo_runner::{
     initialize_and_run_cairo_0_entry_point,
+    initialize_cairo_runner,
+    run_cairo_0_entrypoint,
     EndpointArg,
     EntryPointRunnerConfig,
     ImplicitArg,
@@ -27,6 +33,57 @@ fn data_to_felt_count(data: &[Felt]) -> (usize, usize) {
     data.iter().fold((0, 0), |(small, big), felt| {
         if *felt >= SMALL_THRESHOLD { (small, big + 1) } else { (small + 1, big) }
     })
+}
+
+/// Analyze bytecode.json file and count values below and above/equal to 2^63
+#[test]
+fn test_bytecode_value_distribution() {
+    use std::fs;
+
+    use serde_json::Value;
+
+    // Read the bytecode.json file
+    let json_path = "/home/aviv/workspace/sequencer/crates/starknet_os/src/hints/hint_implementation/blake2s/bytecode.json";
+    let json_content = fs::read_to_string(json_path).expect("Failed to read bytecode.json file");
+
+    // Parse JSON
+    let json: Value = serde_json::from_str(&json_content).expect("Failed to parse JSON");
+
+    // Extract bytecode array
+    let bytecode = json["bytecode"].as_array().expect("Failed to get bytecode array from JSON");
+
+    // Convert hex strings to Felt values
+    let felt_values: Vec<Felt> = bytecode
+        .iter()
+        .filter_map(|v| {
+            if let Some(hex_str) = v.as_str() {
+                // Remove "0x" prefix if present and parse as Felt
+                let clean_hex = hex_str.strip_prefix("0x").unwrap_or(hex_str);
+                Felt::from_hex(clean_hex).ok()
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    // Count values below and above/equal to 2^63
+    let (below_2_63, above_or_equal_2_63) = data_to_felt_count(&felt_values);
+
+    println!("Bytecode value analysis:");
+    println!("Total values: {}", felt_values.len());
+    println!("Values below 2^63: {}", below_2_63);
+    println!("Values above or equal to 2^63: {}", above_or_equal_2_63);
+    println!(
+        "Percentage below 2^63: {:.2}%",
+        (below_2_63 as f64 / felt_values.len() as f64) * 100.0
+    );
+    println!(
+        "Percentage above/equal 2^63: {:.2}%",
+        (above_or_equal_2_63 as f64 / felt_values.len() as f64) * 100.0
+    );
+
+    // Verify our counts add up to total
+    assert_eq!(below_2_63 + above_or_equal_2_63, felt_values.len());
 }
 
 /// Return the estimated execution resources for Blake2s hashing.

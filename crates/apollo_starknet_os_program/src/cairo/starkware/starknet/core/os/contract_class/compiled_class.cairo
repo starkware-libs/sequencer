@@ -26,7 +26,7 @@ from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     CompiledClassEntryPoint,
     CompiledClassFact,
 )
-from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
+from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
     compiled_class_hash,
 )
 

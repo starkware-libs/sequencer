@@ -477,6 +477,7 @@ pub fn encode_and_blake_hash_execution_resources(
         )]),
     };
 
+    // println!("{:?}", builtin_instance_counter.get(&BuiltinName::range_check).unwrap());
     ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter }
 }
 
@@ -503,10 +504,11 @@ pub fn encode_and_blake_hash_execution_resources(
 pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
     n_big_felts: usize,
     n_small_felts: usize,
-    versioned_constants: &VersionedConstants,
+    _versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
-) -> GasAmount {
+) -> ExecutionResources {
     let vm_resources = encode_and_blake_hash_execution_resources(n_big_felts, n_small_felts);
+
 
     assert!(
         vm_resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
@@ -514,15 +516,16 @@ pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
          assumption that builtin costs are identical between provers.",
         vm_resources.builtin_instance_counter.keys().collect::<Vec<_>>()
     );
+    vm_resources
+    // let vm_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
 
-    let vm_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
+    // vm_gas
+    // let blake_opcode_count = count_blake_opcode(n_big_felts, n_small_felts);
+    // let blake_opcode_gas = blake_opcode_count
+    //     .checked_mul(blake_opcode_gas)
+    //     .map(u64_from_usize)
+    //     .map(GasAmount)
+    //     .expect("Overflow computing Blake opcode gas.");
 
-    let blake_opcode_count = count_blake_opcode(n_big_felts, n_small_felts);
-    let blake_opcode_gas = blake_opcode_count
-        .checked_mul(blake_opcode_gas)
-        .map(u64_from_usize)
-        .map(GasAmount)
-        .expect("Overflow computing Blake opcode gas.");
-
-    vm_gas.checked_add_panic_on_overflow(blake_opcode_gas)
+    // vm_gas.checked_add_panic_on_overflow(blake_opcode_gas)
 }

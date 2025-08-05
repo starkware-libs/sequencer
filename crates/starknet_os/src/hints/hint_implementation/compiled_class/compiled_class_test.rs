@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use blockifier::blockifier_versioned_constants::VersionedConstants;
+use blockifier::bouncer::vm_resources_to_sierra_gas;
 use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
 use blockifier::execution::contract_class::estimate_casm_poseidon_hash_computation_resources;
 use blockifier::test_utils::contracts::FeatureContractTrait;
@@ -207,7 +209,8 @@ fn run_compiled_class_hash_entry_point(
     let state_reader = None;
     // Validations are not supported since we loaded the contract class by ourselves.
     let skip_parameter_validations = true;
-    let (_implicit_return_values, explicit_return_values) = run_cairo_0_entrypoint(
+
+    let (_implicit_return_values, _explicit_return_values) = run_cairo_0_entrypoint(
         entrypoint,
         &explicit_args,
         &implicit_args,
@@ -338,4 +341,11 @@ fn test_compiled_class_hash_resources_estimation() {
         execution_resources_estimation.builtin_instance_counter,
         actual_execution_resources.filter_unused_builtins().builtin_instance_counter
     );
+    let actual_resources = runner.get_execution_resources().unwrap();
+    println!("actual_resources: {:?}", actual_resources);
+    let actual_gas = vm_resources_to_sierra_gas(&actual_resources, VersionedConstants::latest_constants());
+    println!("blake actual gas: {:?}", actual_gas);
+    let runnable_class = feature_contract.get_runnable_class();
+    let estimated_resources = runnable_class.estimate_blake_hash_resources(VersionedConstants::latest_constants());
+    println!("blake estimated resources: {:?}", estimated_resources);
 }
