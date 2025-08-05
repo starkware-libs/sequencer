@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{SierraContractClass, StorageKey};
 use starknet_types_core::felt::Felt;
@@ -22,27 +23,32 @@ pub struct DictStateReader {
     pub class_hash_to_class: HashMap<ClassHash, RunnableCompiledClass>,
     pub class_hash_to_sierra: HashMap<ClassHash, SierraContractClass>,
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+    pub class_hash_to_compiled_class_hash_v2: HashMap<ClassHash, CompiledClassHash>,
 }
 
 impl DictStateReader {
     pub fn add_class(&mut self, contract: &FeatureContractData) {
         self.class_hash_to_class.insert(contract.class_hash, contract.runnable_class.clone());
 
-        match contract.runnable_class {
+        match &contract.runnable_class {
             RunnableCompiledClass::V0(_) => {
                 assert!(
                     contract.sierra.is_none(),
                     "Sierra class should not be provided for Cairo0"
                 );
             }
-            RunnableCompiledClass::V1(_) => {
+            RunnableCompiledClass::V1(compiled_class) => {
                 assert!(contract.sierra.is_some(), "Sierra class is required for Cairo1");
                 self.class_hash_to_sierra
                     .insert(contract.class_hash, contract.sierra.clone().unwrap());
+                self.class_hash_to_compiled_class_hash_v2
+                    .insert(contract.class_hash, compiled_class.hash(&HashVersion::V2));
             }
             #[cfg(feature = "cairo_native")]
-            RunnableCompiledClass::V1Native(_) => {
-                // Do nothing, Sierra class is not required for native classes.
+            RunnableCompiledClass::V1Native(native_compiled_class) => {
+                // Sierra class is not required for native classes.
+                self.class_hash_to_compiled_class_hash_v2
+                    .insert(contract.class_hash, native_compiled_class.hash(&HashVersion::V2));
             }
         }
     }
@@ -78,12 +84,24 @@ impl StateReader for DictStateReader {
         Ok(class_hash)
     }
 
-    fn get_compiled_class_hash(
-        &self,
-        class_hash: ClassHash,
-    ) -> StateResult<starknet_api::core::CompiledClassHash> {
+    fn get_compiled_class_hash(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        // Try to get the v2 compiled class hash first.
+        if let Some(hash_v2) = self.class_hash_to_compiled_class_hash_v2.get(&class_hash).copied() {
+            // Check that it's not the default value.
+            if hash_v2 != CompiledClassHash::default() {
+                return Ok(hash_v2);
+            }
+        }
+
+        // Fallback.
         let compiled_class_hash =
             self.class_hash_to_compiled_class_hash.get(&class_hash).copied().unwrap_or_default();
+        Ok(compiled_class_hash)
+    }
+
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        let compiled_class_hash =
+            self.class_hash_to_compiled_class_hash_v2.get(&class_hash).copied().unwrap_or_default();
         Ok(compiled_class_hash)
     }
 }
