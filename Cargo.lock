@@ -2071,6 +2071,7 @@ dependencies = [
  "apollo_metrics",
  "apollo_storage",
  "starknet_api",
+ "tracing",
 ]
 
 [[package]]
