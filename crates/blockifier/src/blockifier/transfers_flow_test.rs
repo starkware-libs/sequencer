@@ -40,14 +40,14 @@ pub fn transfers_flow_test(
             for execution_info in &mut result.0 {
                 execution_info.clear_call_infos_nonessential_fields_for_comparison();
             }
-            let Some((expected_tx_execution_infos, mut expected_block_summary)) =
+            let Some((expected_tx_execution_infos, expected_block_summary)) =
                 expected_result.take()
             else {
                 expected_result = Some(result);
                 continue;
             };
 
-            let (tx_execution_infos, mut block_summary) = result;
+            let (tx_execution_infos, block_summary) = result;
 
             assert_eq!(
                 &tx_execution_infos, &expected_tx_execution_infos,
@@ -55,8 +55,6 @@ pub fn transfers_flow_test(
                 concurrency_enabled, cairo1_version
             );
 
-            block_summary.clear_nonessential_fields_for_comparison();
-            expected_block_summary.clear_nonessential_fields_for_comparison();
             assert_eq!(
                 &block_summary, &expected_block_summary,
                 "Block Results differ for concurrency_enabled: {}; cairo1_version: {:?}",
