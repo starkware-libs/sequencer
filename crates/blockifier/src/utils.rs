@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{ClassHash, CompiledClassHash};
 
 use crate::blockifier_versioned_constants::{BaseGasCosts, BuiltinGasCosts};
+use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::state_api::{StateReader, StateResult};
 use crate::transaction::errors::NumericConversionError;
 
@@ -109,15 +111,33 @@ where
 }
 
 // TODO(Meshi): Delete this function.
-pub fn should_migrate(_state_reader: &impl StateReader, _class_hash: ClassHash) -> bool {
-    false
+pub fn should_migrate(state_reader: &impl StateReader, class_hash: ClassHash) -> bool {
+    let compiled_class = state_reader.get_compiled_class(class_hash).expect("Failed to get class");
+    let res = !matches!(compiled_class, RunnableCompiledClass::V0(_));
+    println!("should_migrate: class_hash: {class_hash:?}, res: {res}");
+    let compiled_class_hash =
+        state_reader.get_compiled_class_hash(class_hash).expect("Failed to get class hash");
+    println!("should_migrate: compiled_class_hash: {compiled_class_hash:?}");
+    let compiled_class_hash_v2 =
+        get_compiled_class_hash_v2(state_reader, class_hash).expect("Failed to get class hash v2");
+    println!("should_migrate: compiled_class_hash_v2: {compiled_class_hash_v2:?}");
+    res && compiled_class_hash != compiled_class_hash_v2
 }
 
 // TODO(Meshi): Remove default implementation.
 // Returns the compiled class hash v2 of the given class hash.
 pub fn get_compiled_class_hash_v2(
-    _state_reader: &impl StateReader,
-    _class_hash: ClassHash,
+    state_reader: &impl StateReader,
+    class_hash: ClassHash,
 ) -> StateResult<CompiledClassHash> {
-    Ok(CompiledClassHash::default())
+    let class = state_reader.get_compiled_class(class_hash).expect("Failed to get class");
+    match class {
+        RunnableCompiledClass::V0(_) => {
+            // V0 classes do not have a compiled class hash v2.
+            Ok(CompiledClassHash::default())
+        }
+        RunnableCompiledClass::V1(compiled_class_v1) => Ok(compiled_class_v1.hash(&HashVersion::V2)),
+        #[cfg(feature = "cairo_native")]
+        RunnableCompiledClass::V1Native(compiled_class) => Ok(compiled_class.hash(&HashVersion::V2)),
+    }
 }
