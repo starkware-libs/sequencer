@@ -744,10 +744,13 @@ fn get_http_server_low_successful_transaction_rate(
         "http_server_low_successful_transaction_rate",
         "http server low successful transaction rate",
         AlertGroup::HttpServer,
-        format!("rate({}[5m]) or vector(0)", ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()),
+        format!(
+            "increase({}[10m]) or vector(0)",
+            ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()
+        ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
-            comparison_value: 0.01,
+            comparison_value: 5.0,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
