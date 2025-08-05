@@ -6,9 +6,11 @@ mod test;
 pub mod test_utils;
 
 use std::collections::{BTreeMap, HashMap};
+use std::future::Future;
 use std::pin::Pin;
 use std::str::FromStr;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use apollo_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use async_trait::async_trait;
@@ -18,12 +20,14 @@ use futures::future::{ready, BoxFuture, Ready};
 use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
-use libp2p::gossipsub::{SubscriptionError, TopicHash};
+use libp2p::gossipsub::{MessageId, PublishError, SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
 use sqmr::Bytes;
+use tokio::time::{sleep_until, Instant};
+use tokio_retry::strategy::ExponentialBackoff;
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
@@ -42,6 +46,21 @@ pub enum NetworkError {
     #[error("Channels for broadcast topic with hash {topic_hash:?} were dropped.")]
     BroadcastChannelsDropped { topic_hash: TopicHash },
 }
+
+// TODO(AndrewL): Consider making this a per topic object such that each topic is independent
+struct BroadcastDetails {
+    /// Instant of next broadcast
+    time: Instant,
+    /// The number of broadcast tries preformed
+    count: u64,
+    /// The message to broadcast
+    message: Bytes,
+    /// The topic to broadcast on
+    topic: TopicHash,
+    /// exponential backoff strategy for broadcasting the next message.
+    broadcast_retry_strategy: ExponentialBackoff,
+}
+
 pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     swarm: SwarmT,
     inbound_protocol_to_buffer_size: HashMap<StreamProtocol, usize>,
@@ -62,6 +81,8 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
     metrics: Option<NetworkMetrics>,
+    /// Next message to broadcast
+    next_broadcast: Option<BroadcastDetails>,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -69,6 +90,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         if let Some(metrics) = self.metrics.as_ref() {
             metrics.register();
         }
+
         loop {
             tokio::select! {
                 Some(event) = self.swarm.next() => self.handle_swarm_event(event)?,
@@ -77,14 +99,9 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     let protocol = StreamProtocol::try_from_owned(protocol).expect("Invalid protocol should not appear");
                     self.handle_local_sqmr_payload(protocol, client_payload.expect("An SQMR client channel should not be terminated."))
                 }
-                Some((topic_hash, message)) = self.messages_to_broadcast_receivers.next() => {
-                    self.broadcast_message(
-                        message.ok_or(NetworkError::BroadcastChannelsDropped {
-                            topic_hash: topic_hash.clone()
-                        })?,
-                        topic_hash,
-                    );
-                }
+                Ok(message) = Self::get_next_message_to_broadcast(self.next_broadcast.take(), || self.messages_to_broadcast_receivers.next()) => {
+                    self.do_broadcast(message);
+                },
                 Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id, MisconductScore::MALICIOUS),
                 Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id, MisconductScore::MALICIOUS),
                 Some(broadcasted_message_metadata) = self.continue_propagation_receiver.next() => {
@@ -129,6 +146,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             continue_propagation_sender,
             continue_propagation_receiver,
             metrics,
+            next_broadcast: None,
         }
     }
 
@@ -262,6 +280,68 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 continue_propagation_sender,
             ),
         })
+    }
+
+    async fn get_next_message_to_broadcast<F, Fut>(
+        existing_broadcast: Option<BroadcastDetails>,
+        next_message_receiver: F,
+    ) -> Result<BroadcastDetails, NetworkError>
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = Option<(TopicHash, Option<Bytes>)>>,
+    {
+        if let Some(message) = existing_broadcast {
+            sleep_until(message.time).await;
+            return Ok(message);
+        }
+
+        let (topic_hash, next_message) = next_message_receiver().await.expect(
+            "Messages to broadcast receiver should not be None. If it is, the channel was closed \
+             and we should not be here.",
+        );
+
+        let message = next_message
+            .ok_or(NetworkError::BroadcastChannelsDropped { topic_hash: topic_hash.clone() })?;
+        Ok(BroadcastDetails {
+            time: Instant::now(),
+            count: 0,
+            message,
+            topic: topic_hash,
+            broadcast_retry_strategy: ExponentialBackoff::from_millis(2)
+                .max_delay(Duration::from_secs(1)),
+        })
+    }
+
+    fn do_broadcast(&mut self, mut message: BroadcastDetails) {
+        message.count += 1;
+        match self.broadcast_message(message.message.clone(), message.topic.clone()) {
+            Ok(_) => {}
+            Err(e) => match &e {
+                PublishError::Duplicate
+                | PublishError::SigningError(_)
+                | PublishError::MessageTooLarge => {
+                    error!(
+                        "Failed to broadcast message: `{e:?}` after {} tries Dropping message.",
+                        message.count
+                    );
+                }
+                PublishError::InsufficientPeers | PublishError::TransformFailed(_) => {
+                    let wait_duration = message.broadcast_retry_strategy.next().expect(
+                        "Broadcast retry strategy ended even though it's an infinite iterator.",
+                    );
+                    warn!(
+                        "Failed to broadcast message: `{e:?}` after {} tries. Trying again in {} \
+                         milliseconds. Not reading more messages until then (Applying \
+                         backpressure).",
+                        message.count,
+                        wait_duration.as_millis()
+                    );
+
+                    message.time = Instant::now() + wait_duration;
+                    self.next_broadcast = Some(message)
+                }
+            },
+        }
     }
 
     fn handle_swarm_event(
@@ -615,7 +695,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .insert(outbound_session_id, report_receiver);
     }
 
-    fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+    fn broadcast_message(
+        &mut self,
+        message: Bytes,
+        topic_hash: TopicHash,
+    ) -> Result<MessageId, PublishError> {
         if let Some(broadcast_metrics_by_topic) =
             self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics_by_topic.as_ref())
         {
@@ -627,7 +711,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             }
         }
         trace!("Sending broadcast message with topic hash: {topic_hash:?}");
-        self.swarm.broadcast_message(message, topic_hash);
+        self.swarm.broadcast_message(message, topic_hash)
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
