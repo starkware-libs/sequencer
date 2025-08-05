@@ -8,9 +8,8 @@ use apollo_integration_tests::utils::{
 };
 use blockifier::bouncer::BouncerWeights;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
-use papyrus_base_layer::ethereum_base_layer_contract::L1ToL2MessageArgs;
 use starknet_api::rpc_transaction::RpcTransaction;
-use starknet_api::transaction::TransactionHash;
+use starknet_api::transaction::{L1HandlerTransaction, TransactionHash};
 
 use crate::common::{end_to_end_flow, test_single_tx, TestScenario};
 
@@ -64,7 +63,7 @@ pub fn create_test_scenarios() -> Vec<TestScenario> {
 
 fn create_l1_to_l2_message_args(
     tx_generator: &mut MultiAccountTransactionGenerator,
-) -> Vec<L1ToL2MessageArgs> {
+) -> Vec<L1HandlerTransaction> {
     const N_TXS: usize = 1;
     create_l1_to_l2_messages_args(tx_generator, N_TXS)
 }
