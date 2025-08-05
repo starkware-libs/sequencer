@@ -40,7 +40,7 @@ macro_rules! define_hint_enum_helper {
     (
         $enum_name:ident,
         $hp_arg:ident,
-        $(($hint_name:ident, $implementation:ident, $hint_str:expr $(, $passed_arg:ident)?)),+ $(,)?
+        $(($hint_name:ident, $implementation:ident $(::<$generic_type:path>)?, $hint_str:expr $(, $passed_arg:ident)?)),+ $(,)?
     ) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
@@ -55,7 +55,7 @@ macro_rules! define_hint_enum_helper {
                     $(Self::$hint_name => {
                         #[cfg(any(test, feature = "testing"))]
                         $hp_arg.get_mut_unused_hints().remove(&Self::$hint_name.into());
-                        $crate::log_time!($implementation($($passed_arg, )? hint_args), Self::$hint_name)
+                        $crate::log_time!($implementation $(::<$generic_type>)?($($passed_arg, )? hint_args), Self::$hint_name)
                     })+
                 }
             }
@@ -65,11 +65,11 @@ macro_rules! define_hint_enum_helper {
 
 #[macro_export]
 macro_rules! define_stateless_hint_enum {
-    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+    ($enum_name:ident, $(($hint_name:ident, $implementation:ident $(::<$generic_type:path>)?, $hint_str:expr)),+ $(,)?) => {
         $crate::define_hint_enum_helper!(
             $enum_name,
             _hint_processor,
-            $(($hint_name, $implementation, $hint_str)),+
+            $(($hint_name, $implementation $(::<$generic_type>)?, $hint_str)),+
         );
     };
 }
