@@ -1111,7 +1111,7 @@
       "name": "http_server_low_successful_transaction_rate",
       "title": "http server low successful transaction rate",
       "ruleGroup": "http_server",
-      "expr": "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) or vector(0)",
+      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
