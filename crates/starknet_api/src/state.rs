@@ -31,8 +31,11 @@ use crate::{impl_from_through_intermediate, StarknetApiError};
 pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
 pub type DeprecatedDeclaredClasses = IndexMap<ClassHash, DeprecatedContractClass>;
 
-static API_VERSION: LazyLock<Felt> =
-    LazyLock::new(|| Felt::from_bytes_be_slice(b"CONTRACT_CLASS_V0.1.0"));
+pub const CONTRACT_CLASS_VERSION: &str = "0.1.0";
+
+static API_VERSION: LazyLock<Felt> = LazyLock::new(|| {
+    Felt::from_bytes_be_slice(format!("CONTRACT_CLASS_V{}", CONTRACT_CLASS_VERSION).as_bytes())
+});
 
 /// The differences between two states before and after a block with hash block_hash
 /// and their respective roots.
