@@ -1192,12 +1192,12 @@
       "name": "http_server_low_successful_transaction_rate",
       "title": "http server low successful transaction rate",
       "ruleGroup": "http_server",
-      "expr": "rate(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m]) or vector(0)",
+      "expr": "increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
             "params": [
-              0.01
+              5.0
             ],
             "type": "lt"
           },
