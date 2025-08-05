@@ -185,13 +185,8 @@ impl StateSyncRunner {
                     p2p_sync_server_future: pending().boxed(),
                     central_sync_client_future: pending().boxed(),
                     new_block_dev_null_future: pending().boxed(),
-<<<<<<< HEAD
                     rpc_server_future: pending().boxed(),
-                    register_metrics_fn,
-=======
-                    rpc_server_future,
                     register_metrics_future,
->>>>>>> 63df4fb6f (apollo_state_sync: spawn blocking for processed txs metric reconstruction)
                 },
                 storage_reader,
             );
