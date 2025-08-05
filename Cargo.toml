@@ -170,7 +170,7 @@ bincode = "1.3.3"
 bisection = "0.1.0"
 bitvec = "1.0.1"
 blake2 = "0.10.6"
-blake2s.path = "crates/blake2s"
+blake2s = { path = "crates/blake2s", version = "0.0.0" }
 blockifier = { path = "crates/blockifier", version = "0.0.0" }
 blockifier_reexecution.path = "crates/blockifier_reexecution"
 blockifier_test_utils = { path = "crates/blockifier_test_utils", version = "0.0.0" }
