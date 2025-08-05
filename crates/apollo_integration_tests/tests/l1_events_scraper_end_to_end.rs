@@ -2,12 +2,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use alloy::primitives::U256;
+use apollo_integration_tests::anvil_base_layer::AnvilBaseLayer;
 use apollo_l1_provider::event_identifiers_to_track;
 use apollo_l1_provider::l1_scraper::{fetch_start_block, L1Scraper, L1ScraperConfig};
 use apollo_l1_provider_types::{Event, MockL1ProviderClient};
 use mockall::predicate::eq;
 use mockall::Sequence;
-use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
 use papyrus_base_layer::test_utils::DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS;
 use papyrus_base_layer::BaseLayerContract;
 use starknet_api::block::BlockTimestamp;
