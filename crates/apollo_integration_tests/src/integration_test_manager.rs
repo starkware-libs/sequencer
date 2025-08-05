@@ -738,6 +738,14 @@ impl IntegrationTestManager {
         .await;
     }
 
+    pub async fn get_consensus_manager_monitoring_client_for_running_node(
+        &self,
+        node_idx: usize,
+    ) -> &MonitoringClient {
+        let running_node = self.running_nodes.get(&node_idx).expect("Running node should exist");
+        &running_node.node_setup.consensus_manager_monitoring_client()
+    }
+
     pub async fn await_sync_block_on_all_running_nodes(
         &mut self,
         expected_block_number: BlockNumber,
