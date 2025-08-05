@@ -3,6 +3,7 @@ mod local_component_client_server_test;
 mod remote_component_client_server_test;
 mod server_metrics_test;
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
@@ -83,6 +84,8 @@ const EXAMPLE_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
     "Example histogram metrics",
 );
 
+pub static IS_TEST_MODE: Lazy<AtomicBool> = Lazy::new(|| AtomicBool::new(false));
+
 pub(crate) const TEST_REMOTE_SERVER_METRICS: RemoteServerMetrics = RemoteServerMetrics::new(
     &REMOTE_TEST_MSGS_RECEIVED,
     &REMOTE_VALID_TEST_MSGS_RECEIVED,
@@ -141,6 +144,10 @@ impl ComponentA {
     }
 
     pub async fn a_get_value(&self) -> ValueA {
+        if IS_TEST_MODE.load(Ordering::Relaxed) {
+            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+        }
+
         self.b.b_get_value().await.unwrap()
     }
 }

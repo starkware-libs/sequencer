@@ -1,9 +1,12 @@
 use std::fmt::Debug;
 use std::net::SocketAddr;
+use std::sync::atomic::Ordering;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use hyper::body::to_bytes;
+use hyper::client::HttpConnector;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
@@ -14,6 +17,7 @@ use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
 use tokio::sync::Mutex;
 use tokio::task;
+use tokio::time::sleep;
 
 use crate::component_client::{
     ClientError,
@@ -49,6 +53,7 @@ use crate::tests::{
     ValueA,
     ValueB,
     AVAILABLE_PORTS,
+    IS_TEST_MODE,
     TEST_LOCAL_SERVER_METRICS,
     TEST_REMOTE_CLIENT_METRICS,
     TEST_REMOTE_SERVER_METRICS,
@@ -64,6 +69,7 @@ const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client reques
 // ClientError::ResponseDeserializationFailure error message.
 const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
 const VALID_VALUE_A: ValueA = Felt::ONE;
+const MAX_CONCURRENCY: usize = 10;
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
@@ -152,7 +158,90 @@ where
     )
 }
 
-async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: SocketAddr) {
+async fn send_component_a_get_value(socket: SocketAddr) -> Result<ValueA, String> {
+    let mut connector = HttpConnector::new();
+    connector.set_reuse_address(false);
+    connector.set_keepalive(None);
+
+    let client = Client::builder().pool_max_idle_per_host(0).build(connector);
+
+    let ip = match socket.ip() {
+        std::net::IpAddr::V4(v4) => v4.to_string(),
+        std::net::IpAddr::V6(v6) => format!("[{}]", v6),
+    };
+    let uri_str = format!("http://{}:{}/", ip, socket.port());
+    let uri: hyper::Uri = uri_str.parse().expect("valid URI");
+
+    let request_body = SerdeWrapper::new(ComponentARequest::AGetValue)
+        .wrapper_serialize()
+        .map_err(|e| format!("Serialization error: {:?}", e))?;
+
+    let req = Request::post(uri)
+        .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+        .body(Body::from(request_body))
+        .map_err(|e| format!("Request build error: {:?}", e))?;
+
+    // Send request
+    let res = client.request(req).await.map_err(|e| format!("HTTP error: {:?}", e))?;
+
+    if res.status() != StatusCode::OK {
+        return Err(format!("Server returned error status: {}", res.status()));
+    }
+
+    let body_bytes = hyper::body::to_bytes(res.into_body())
+        .await
+        .map_err(|e| format!("Body read error: {:?}", e))?;
+
+    let response: ComponentAResponse = SerdeWrapper::wrapper_deserialize(&body_bytes)
+        .map_err(|e| format!("Response deserialization error: {:?}", e))?;
+
+    let ComponentAResponse::AGetValue(value) = response;
+    Ok(value)
+}
+
+#[tokio::test]
+async fn connection_limit() {
+    IS_TEST_MODE.store(true, Ordering::Relaxed);
+    let setup_value: ValueB = Felt::from(90);
+    let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+
+    // Start server with 2 max concurrent connections
+    setup_for_tests(setup_value, a_socket, b_socket, 2).await;
+
+    // Start two blocking requests to consume both connection slots
+    let fut1 = tokio::spawn(send_component_a_get_value(a_socket));
+    let _fut2 = tokio::spawn(send_component_a_get_value(a_socket));
+
+    // Wait to ensure connections are established and held open
+    sleep(Duration::from_millis(100)).await;
+
+    // Attempt a third connection - it should be rejected or hang until a slot is freed
+    let result3 =
+        tokio::time::timeout(Duration::from_millis(500), send_component_a_get_value(a_socket))
+            .await;
+
+    assert!(
+        result3.is_err(),
+        "Expected client3 to time out due to connection cap, but got: {:?}",
+        result3
+    );
+
+    // Let one of the previous requests finish
+    let _ = fut1.await.unwrap();
+
+    // Now the 4th connection should succeed
+    let result4 = send_component_a_get_value(a_socket).await;
+    assert!(result4.is_ok(), "Expected client4 to succeed after one slot was freed");
+    IS_TEST_MODE.store(false, Ordering::Relaxed);
+}
+
+async fn setup_for_tests(
+    setup_value: ValueB,
+    a_socket: SocketAddr,
+    b_socket: SocketAddr,
+    max_concurrency: usize,
+) {
     let a_config = RemoteClientConfig::default();
     let b_config = RemoteClientConfig::default();
 
@@ -185,7 +274,6 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
     let mut component_b_local_server =
         LocalComponentServer::new(component_b, rx_b, TEST_LOCAL_SERVER_METRICS);
 
-    let max_concurrency = 10;
     let mut component_a_remote_server = RemoteComponentServer::new(
         a_local_client,
         a_socket.ip(),
@@ -226,7 +314,7 @@ async fn proper_setup() {
     let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
 
-    setup_for_tests(setup_value, a_socket, b_socket).await;
+    setup_for_tests(setup_value, a_socket, b_socket, MAX_CONCURRENCY).await;
     let a_client_config = RemoteClientConfig::default();
     let b_client_config = RemoteClientConfig::default();
 
@@ -252,7 +340,7 @@ async fn faulty_client_setup() {
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     // Todo(uriel): Find a better way to pass expected value to the setup
     // 123 is some arbitrary value, we don't check it anyway.
-    setup_for_tests(Felt::from(123), a_socket, b_socket).await;
+    setup_for_tests(Felt::from(123), a_socket, b_socket, MAX_CONCURRENCY).await;
 
     struct FaultyAClient {
         socket: SocketAddr,
