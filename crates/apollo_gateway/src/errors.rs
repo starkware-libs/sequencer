@@ -353,7 +353,6 @@ fn convert_compiled_class_hash_error(err: ValidateCompiledClassHashError) -> Sta
 fn convert_class_manager_client_error(err: ClassManagerClientError) -> StarknetError {
     match err {
         ClassManagerClientError::ClassManagerError(err) => convert_class_manager_error(err),
-        // TODO(noamsp): Handle ClientError case better.
         ClassManagerClientError::ClientError(_) => StarknetError::internal(&err.to_string()),
     }
 }
