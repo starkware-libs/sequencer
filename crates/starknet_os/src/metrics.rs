@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct OsRunInfo {
     pub pc: MaybeRelocatable,
     pub ap: MaybeRelocatable,
@@ -26,7 +26,7 @@ impl OsRunInfo {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct OsMetrics {
     pub syscall_usages: Vec<SyscallUsageMap>,
     pub deprecated_syscall_usages: Vec<SyscallUsageMap>,
