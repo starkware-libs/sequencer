@@ -10,6 +10,7 @@ use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::state::StateStorageWriter;
 use apollo_storage::StorageWriter;
 use futures::future::pending;
+use futures::never::Never;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::BlockNumber;
 use tracing::info;
@@ -58,7 +59,8 @@ pub async fn revert_blocks_and_eternal_pending<Fut>(
     revert_up_to_and_including: BlockNumber,
     mut revert_block_fn: impl FnMut(BlockNumber) -> Fut,
     component_name: &str,
-) where
+) -> Never
+where
     Fut: Future<Output = ()>,
 {
     // If we revert all blocks up to height X (including), the new height marker will be X.
@@ -96,9 +98,8 @@ pub async fn revert_blocks_and_eternal_pending<Fut>(
         None => info!("There aren't any blocks saved in {component_name}'s storage!"),
     };
     info!("Starting eternal pending.");
-    if component_name == "State Sync" {
-        pending().await
-    }
+
+    pending().await
 }
 
 /// Reverts everything related to the block, will succeed even if there is partial information for
