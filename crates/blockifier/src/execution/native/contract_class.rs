@@ -66,7 +66,8 @@ impl HashableCompiledClass<EntryPointV1> for NativeCompiledClassV1 {
     }
 
     fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
-        Cow::Borrowed(self.casm.bytecode_segment_lengths())
+        // TODO(AvivG): consider making trait generic, accept NestedMultipleInt.
+        Cow::Owned(self.casm.bytecode_segment_lengths())
     }
 }
 
