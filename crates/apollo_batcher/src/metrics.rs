@@ -42,7 +42,7 @@ pub fn register_metrics(storage_height: BlockNumber) {
     REJECTED_TRANSACTIONS.register();
     REVERTED_TRANSACTIONS.register();
     SYNCED_TRANSACTIONS.register();
-
+    
     FULL_BLOCKS.register();
     PRECONFIRMED_BLOCK_WRITTEN.register();
 }
