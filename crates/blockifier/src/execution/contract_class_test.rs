@@ -4,14 +4,18 @@ use std::sync::Arc;
 use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
-use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_starknet_classes::NestedIntList as IntList;
 use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
+use starknet_types_core::felt::Felt;
 
 use crate::execution::contract_class::{
+    create_bytecode_segment_felt_sizes,
     CompiledClassV1,
     ContractClassV1Inner,
+    FeltSizeGroups,
+    NestedMultipleIntList as MultiList,
     RunnableCompiledClass,
 };
 use crate::test_utils::contracts::FeatureContractTrait;
@@ -24,17 +28,17 @@ fn test_get_visited_segments() {
         entry_points_by_type: Default::default(),
         hints: Default::default(),
         sierra_version: Default::default(),
-        bytecode_segment_lengths: NestedIntList::Node(vec![
-            NestedIntList::Leaf(151),
-            NestedIntList::Leaf(104),
-            NestedIntList::Node(vec![NestedIntList::Leaf(170), NestedIntList::Leaf(225)]),
-            NestedIntList::Leaf(157),
-            NestedIntList::Node(vec![NestedIntList::Node(vec![
-                NestedIntList::Node(vec![NestedIntList::Leaf(101)]),
-                NestedIntList::Leaf(195),
-                NestedIntList::Leaf(125),
+        bytecode_segment_lengths: IntList::Node(vec![
+            IntList::Leaf(151),
+            IntList::Leaf(104),
+            IntList::Node(vec![IntList::Leaf(170), IntList::Leaf(225)]),
+            IntList::Leaf(157),
+            IntList::Node(vec![IntList::Node(vec![
+                IntList::Node(vec![IntList::Leaf(101)]),
+                IntList::Leaf(195),
+                IntList::Leaf(125),
             ])]),
-            NestedIntList::Leaf(162),
+            IntList::Leaf(162),
         ]),
     }));
 
@@ -87,4 +91,40 @@ fn test_compiled_class_hash(
         _ => panic!("RunnableCompiledClass::V0 does not support hash"),
     };
     assert_eq!(casm_hash, runnable_contact_class_hash);
+}
+
+#[rstest]
+#[case::empty(
+    IntList::Node(vec![]),
+    vec![],
+    MultiList::Node(vec![])
+)]
+#[case::leaf(
+    IntList::Leaf(3),
+    vec![Felt::from(1u64), Felt::from(1u64 << 63), Felt::from(1u64 << 63)],
+    MultiList::Leaf(3, FeltSizeGroups { small: 1, large: 2 })
+)]
+#[case::node(
+    IntList::Node(vec![
+        IntList::Leaf(1),
+        IntList::Leaf(2),
+    ]),
+    vec![Felt::from(1u64), Felt::from(1u64 << 63), Felt::from(1u64)],
+    MultiList::Node(vec![
+        MultiList::Leaf(1, FeltSizeGroups { small: 1, large: 0 }),
+        MultiList::Leaf(2, FeltSizeGroups { small: 1, large: 1 }),
+    ])
+)]
+fn test_create_bytecode_segment_felt_sizes(
+    #[case] bytecode_segment_lengths: IntList,
+    #[case] bytecode: Vec<Felt>,
+    #[case] expected_structure: MultiList,
+) {
+    let total_len = bytecode.len();
+    let result = create_bytecode_segment_felt_sizes(
+        &bytecode_segment_lengths,
+        bytecode.iter().copied(),
+        total_len,
+    );
+    assert_eq!(result, expected_structure);
 }
