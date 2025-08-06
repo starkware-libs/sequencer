@@ -29,3 +29,13 @@ macro_rules! generate_trie_config {
         }
     };
 }
+
+#[derive(Default)]
+/// Generic config that doesn't compare the modified leaves.
+pub struct NoCompareOriginalSkeletonTrieConfig<L: Leaf>(std::marker::PhantomData<L>);
+
+impl<L: Leaf> OriginalSkeletonTreeConfig<L> for NoCompareOriginalSkeletonTrieConfig<L> {
+    fn compare_modified_leaves(&self) -> bool {
+        false
+    }
+}
