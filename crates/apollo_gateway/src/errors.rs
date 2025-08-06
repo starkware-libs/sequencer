@@ -326,10 +326,11 @@ pub fn transaction_converter_err_to_deprecated_gw_err(
         TransactionConverterError::ClassManagerClientError(err) => {
             convert_class_manager_client_error(err)
         }
-        // TODO(noamsp): Handle ClassNotFound and StarknetApiError cases better.
+        // Internal error because the class manager should have the class in its storage.
         TransactionConverterError::ClassNotFound { .. } => {
             StarknetError::internal(&err.to_string())
         }
+        // TODO(noamsp): Handle this better.
         TransactionConverterError::StarknetApiError(err) => {
             StarknetError::internal(&err.to_string())
         }
