@@ -1,9 +1,11 @@
 use std::ops::RangeInclusive;
 
 use alloy::node_bindings::NodeError as AnvilError;
-use alloy::primitives::U256;
+use alloy::primitives::{I256, U256};
 use alloy::providers::{DynProvider, Provider, ProviderBuilder};
 use alloy::rpc::types::TransactionReceipt;
+use alloy::sol;
+use alloy::sol_types::SolValue;
 use async_trait::async_trait;
 use colored::*;
 use papyrus_base_layer::ethereum_base_layer_contract::{
@@ -81,10 +83,13 @@ impl AnvilBaseLayer {
         let root_client = anvil_client.root().clone();
         let contract = Starknet::new(config.starknet_contract_address, root_client);
 
-        Self {
+        let anvil_base_layer = Self {
             anvil_provider: anvil_client.erased(),
             ethereum_base_layer: EthereumBaseLayerContract { config, contract },
-        }
+        };
+        anvil_base_layer.initialize_mocked_starknet_contract().await;
+
+        anvil_base_layer
     }
 
     pub async fn send_message_to_l2(
@@ -102,6 +107,66 @@ impl AnvilBaseLayer {
             starknet_contract_address: Self::DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS.parse().unwrap(),
             ..Default::default()
         }
+    }
+
+    pub async fn update_mocked_starknet_contract_state(
+        &self,
+        update: MockedStateUpdate,
+    ) -> Result<(), EthereumBaseLayerError> {
+        // Size out output in the starknet contract, most of these aren't checked in the mock.
+        let mut output = vec![U256::from(0); starknet_output::HEADER_SIZE + 2];
+
+        output[starknet_output::PREV_BLOCK_NUMBER_OFFSET] = U256::from(update.new_block_number - 1);
+        output[starknet_output::NEW_BLOCK_NUMBER_OFFSET] = U256::from(update.new_block_number);
+        output[starknet_output::PREV_BLOCK_HASH_OFFSET] = U256::from(update.prev_block_hash);
+        output[starknet_output::NEW_BLOCK_HASH_OFFSET] = U256::from(update.new_block_hash);
+
+        // Run eth_call first, which simulates the tx and returns errors, unlike eth_send which
+        // executes without returning errors or output from the contract.
+        // Note: if this fails and this is the first state update, make sure to set the previous
+        // block number as 1 and the previous block hash as 0, as documented in the contract
+        // initializer.
+        self.ethereum_base_layer
+            .contract
+            .updateState(output.clone(), Default::default())
+            .call()
+            .await?;
+
+        self.ethereum_base_layer
+            .contract
+            .updateState(output, Default::default())
+            .send()
+            .await
+            .unwrap()
+            .get_receipt()
+            .await
+            .unwrap();
+
+        Ok(())
+    }
+
+    /// Initialize the mocked Starknet contract with default test values and first block number and
+    /// hash as 1.
+    ///
+    /// Other values are boilerplate to match the offsets in the Starknet solidity contract, a
+    /// better mock can remove those as well.
+    /// NOTE: right now this is coupled with the conditionally compiled mocked starknet account at
+    /// EthereumBaseLayer; It'd be best if it could be included here instead, but this seems
+    /// nontrivial without duplicating EthereumBaseLayer, which is self-defeating for a test.
+    async fn initialize_mocked_starknet_contract(&self) {
+        let init_data = InitializeData {
+            programHash: U256::from(1),
+            configHash: U256::from(1),
+            initialState: StateUpdate {
+                blockNumber: I256::from_dec_str("1").unwrap(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        let encoded_data = init_data.abi_encode();
+        let builder = self.ethereum_base_layer.contract.initializeMock(encoded_data.into());
+        builder.send().await.unwrap().get_receipt().await.unwrap();
     }
 }
 
@@ -191,4 +256,48 @@ pub async fn send_message_to_l2(
         .send().await.expect("Transaction submission to Starknet L1 contract failed.")
         // Waits until the transaction is received on L1 and then fetches its receipt.
         .get_receipt().await.expect("Transaction was not received on L1 or receipt retrieval failed.")
+}
+
+pub struct MockedStateUpdate {
+    pub new_block_number: u64,
+    pub new_block_hash: u64,
+    // Consider caching and auto-filling this for better UX.
+    pub prev_block_hash: u64,
+}
+
+// The following structures are used with a mocked version of the Starknet L1 contract.
+// This mocked contract (starknet_for_testing.json) differs from the production contract:
+// - Includes an `initializeMock` function that bypasses governance requirements.
+// - The `updateState` function doesn't require special permissions.
+// - Removed a bunch of checks and functionality not necessary and that was difficult to mock,and
+//   that are not called from the sequencer at this time.
+// - Used exclusively for integration testing with Anvil.
+sol! {
+    #[derive(Debug, Default)]
+    struct StateUpdate {
+        uint256 globalRoot;
+        int256 blockNumber;
+        uint256 blockHash;
+    }
+
+    #[derive(Debug, Default)]
+    struct InitializeData {
+        uint256 programHash;
+        uint256 aggregatorProgramHash;
+        address verifier;
+        uint256 configHash;
+        StateUpdate initialState;
+    }
+}
+
+/// Output offsets from the Starknet solidity contract. These correspond to `StarknetOutput`,
+/// defined in the public `Output.sol` contract. These are the only offsets for values currently
+/// used in the starknet contract mock, if more are needed, which isn't likely, grab the offsets
+/// from Output.sol.
+mod starknet_output {
+    pub const PREV_BLOCK_NUMBER_OFFSET: usize = 2;
+    pub const NEW_BLOCK_NUMBER_OFFSET: usize = 3;
+    pub const PREV_BLOCK_HASH_OFFSET: usize = 4;
+    pub const NEW_BLOCK_HASH_OFFSET: usize = 5;
+    pub const HEADER_SIZE: usize = 10;
 }
