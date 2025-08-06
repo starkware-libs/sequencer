@@ -79,6 +79,7 @@ impl<S: FlowTestState> TestManager<S> {
     }
 
     /// Creates a new `TestManager` with the default initial state.
+    /// Returns the manager and a nonce manager to help keep track of nonces.
     pub(crate) async fn new_with_default_initial_state() -> (Self, NonceManager) {
         let (default_initial_state_data, nonce_manager) =
             create_default_initial_state_data::<S>().await;
@@ -289,7 +290,7 @@ impl<S: FlowTestState> TestManager<S> {
             chain_id: CHAIN_ID_FOR_TESTS.clone(),
             strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
         };
-        let os_hints_config = OsHintsConfig { chain_info, ..Default::default() };
+        let os_hints_config = OsHintsConfig { full_output: true, chain_info, ..Default::default() };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         run_os_stateless(layout, os_hints).unwrap()
