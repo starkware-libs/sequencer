@@ -1715,6 +1715,8 @@ dependencies = [
  "metrics-exporter-prometheus",
  "mockall",
  "pretty_assertions",
+ "prometheus-client",
+ "prometheus-parse",
  "replace_with",
  "rstest",
  "serde",
