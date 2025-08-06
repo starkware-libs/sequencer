@@ -102,7 +102,7 @@ fn test_compiled_class_hash(
 #[case::empty(
     NestedIntList::Leaf(0),
     vec![],
-    NestedFeltCounts::Leaf(0, FeltSizeCount { small: 0, large: 0 })
+    NestedFeltCounts::Leaf(0, FeltSizeCount::default())
 )]
 #[case::leaf(
     NestedIntList::Leaf(3),
