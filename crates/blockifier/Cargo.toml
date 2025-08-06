@@ -27,6 +27,7 @@ transaction_serde = []
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+starknet_os_flow_tests.workspace = true
 anyhow.workspace = true
 apollo_compilation_utils = { workspace = true, optional = true }
 apollo_compile_to_native = { workspace = true, optional = true }

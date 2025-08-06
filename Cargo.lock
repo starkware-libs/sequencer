@@ -3244,6 +3244,7 @@ dependencies = [
  "sha2",
  "starknet-types-core",
  "starknet_api",
+ "starknet_os_flow_tests",
  "strum 0.25.0",
  "strum_macros 0.25.3",
  "test-case",
