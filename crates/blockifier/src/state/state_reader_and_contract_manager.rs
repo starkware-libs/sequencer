@@ -101,7 +101,31 @@ impl<S: FetchCompiledClasses> StateReader for StateReaderAndContractManager<S> {
         self.state_reader.get_compiled_class_hash(class_hash)
     }
 
+    /// Returns the compiled class hash v2 for the given class hash.
+    /// The function assumes that the class hash is already declared,
+    /// and of cairo1 contract class.
     fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
-        self.state_reader.get_compiled_class_hash_v2(class_hash)
+        // First, try getting from class manager cache.
+        match self.contract_class_manager.get_compiled_class_hash_v2(&class_hash) {
+            Some(compiled_class_hash) => Ok(compiled_class_hash),
+            None => {
+                // Not in cache → fetch from state reader.
+                let compiled_class_hash =
+                    self.state_reader.get_compiled_class_hash_v2(class_hash)?;
+                // Verify that the returned compiled_class_hash_v2 is not the default value.
+                // default value is used to mark classes that are not declared or cairo0 classes.
+                assert_ne!(
+                    compiled_class_hash,
+                    CompiledClassHash::default(),
+                    "Default compiled class hash is for marking classes that are not declared or \
+                     cairo0 classes."
+                );
+                // Store in cache.
+                self.contract_class_manager
+                    .set_compiled_class_hash_v2(class_hash, compiled_class_hash);
+
+                Ok(compiled_class_hash)
+            }
+        }
     }
 }

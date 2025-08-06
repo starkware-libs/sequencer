@@ -8,6 +8,7 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
+use starknet_api::class_cache::GlobalContractCache;
 use starknet_api::core::ClassHash;
 
 use crate::blockifier::config::{CairoNativeRunConfig, NativeClassesWhitelist};
@@ -161,6 +162,7 @@ fn test_send_compilation_request_channel_disconnected() {
     let manager = NativeClassManager {
         cairo_native_run_config: native_config,
         class_cache: RawClassCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+        compiled_class_hash_v2_cache: GlobalContractCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
         sender: Some(sender),
         compiler: None,
     };
