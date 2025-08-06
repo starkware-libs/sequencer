@@ -44,6 +44,7 @@ use crate::utils::{
     commit_state_diff,
     create_cached_state_input_and_commitment_infos,
     create_committer_state_diff,
+    divide_vec_into_n_parts,
     execute_transactions,
     maybe_dummy_block_hash_and_number,
     CommitmentOutput,
@@ -178,32 +179,16 @@ impl<S: FlowTestState> TestManager<S> {
         self.execute_flow_test(block_contexts).await
     }
 
-    // TODO(Nimrod): Add unit tests for the division.
     /// Divides the current transactions into the specified number of blocks.
     /// Panics if there is not exactly one block to divide.
     pub(crate) fn divide_transactions_into_n_blocks(&mut self, n_blocks: usize) {
-        assert!(n_blocks > 0, "Nonzero number of blocks expected.");
         assert_eq!(
             self.per_block_transactions.len(),
             1,
             "There should be only one block of transactions to divide."
         );
-        let txs = self.per_block_transactions.pop().unwrap();
-        let minimal_txs_per_block = txs.len() / n_blocks;
-        let remainder = txs.len() % n_blocks;
-        let mut txs_per_block = Vec::with_capacity(n_blocks);
-        let mut start = 0;
-        let mut end = minimal_txs_per_block;
-        for i in 0..n_blocks {
-            if i < remainder {
-                end += 1;
-            }
-            txs_per_block.push(txs[start..end].to_vec());
-            start = end;
-            end += minimal_txs_per_block;
-        }
-        self.per_block_transactions = txs_per_block;
-        assert_eq!(self.per_block_transactions.len(), n_blocks);
+        self.per_block_transactions =
+            divide_vec_into_n_parts(self.per_block_transactions.pop().unwrap(), n_blocks);
     }
 
     // Private method which executes the flow test.
