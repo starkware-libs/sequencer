@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
+use blockifier::execution::contract_class::estimate_casm_poseidon_hash_computation_resources;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -45,6 +46,9 @@ const EXPECTED_N_STEPS_FULL_CONTRACT_V1_HASH: Expect = expect!["122264"];
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
     expect!["poseidon_builtin: 300, range_check_builtin: 149"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["8951"];
+// Allowed margin between estimated and actual execution resources.
+const ALLOWED_MARGIN_N_STEPS: usize = 169;
+const ALLOWED_MARGIN_POSEIDON_BUILTIN: usize = 4;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
@@ -281,4 +285,57 @@ fn test_compiled_class_hash(
     // Compare with the hash computed by the starknet_api.
     let hash_computed_by_starknet_api = contract_class.hash(&hash_version);
     assert_eq!(hash_computed_by_cairo, hash_computed_by_starknet_api.0);
+}
+
+/// Test that execution resources estimation for the compiled class hash
+/// matches the actual execution resources when running the entry point.
+#[rstest]
+fn test_compiled_class_hash_resources_estimation() {
+    // TODO(Aviv): Parameterize this test to run for both V1 and V2.
+    let hash_version = HashVersion::V1;
+    let feature_contract =
+        FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
+    let mut contract_class = match feature_contract.get_class() {
+        ContractClass::V1((casm, _sierra_version)) => casm,
+        _ => panic!("Expected ContractClass::V1"),
+    };
+
+    // TODO(Aviv): Remove this once we estimate correctly compiled class hash with entry-points.
+    contract_class.entry_points_by_type = Default::default();
+
+    // Run the compiled class hash entry point with full contract loading.
+    let (mut actual_execution_resources, _hash_computed_by_cairo) =
+        run_compiled_class_hash_entry_point(&contract_class, true, &hash_version);
+
+    // Compare the actual execution resources with the estimation with some allowed margin.
+    let mut execution_resources_estimation = estimate_casm_poseidon_hash_computation_resources(
+        &contract_class.get_bytecode_segment_lengths(),
+    );
+    let margin_n_steps =
+        execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
+    assert!(
+        margin_n_steps <= ALLOWED_MARGIN_N_STEPS,
+        "Estimated n_steps and actual n_steps differ by more than {ALLOWED_MARGIN_N_STEPS}.\n \
+         Margin N Steps: {margin_n_steps}"
+    );
+    let margin_poseidon_builtin = execution_resources_estimation
+        .builtin_instance_counter
+        .remove(&BuiltinName::poseidon)
+        .unwrap()
+        .abs_diff(
+            actual_execution_resources
+                .builtin_instance_counter
+                .remove(&BuiltinName::poseidon)
+                .unwrap(),
+        );
+    assert!(
+        margin_poseidon_builtin <= ALLOWED_MARGIN_POSEIDON_BUILTIN,
+        "Estimated poseidon_builtin and actual poseidon_builtin differ by more than \
+         {ALLOWED_MARGIN_POSEIDON_BUILTIN}.\n Margin Poseidon Builtin: {margin_poseidon_builtin}"
+    );
+    // Assert that all other builtins have exactly the same values.
+    assert_eq!(
+        execution_resources_estimation.builtin_instance_counter,
+        actual_execution_resources.filter_unused_builtins().builtin_instance_counter
+    );
 }
