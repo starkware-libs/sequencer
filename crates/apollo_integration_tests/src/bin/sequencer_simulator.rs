@@ -13,9 +13,12 @@ use apollo_integration_tests::utils::{
 };
 use clap::Parser;
 use mempool_test_utils::starknet_api_test_utils::MultiAccountTransactionGenerator;
-use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    Starknet,
+};
 use papyrus_base_layer::test_utils::{
-    deploy_starknet_l1_contract,
     make_block_history_on_anvil,
     DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS,
 };
@@ -135,7 +138,8 @@ async fn initialize_anvil_state(sender_address: Address, receiver_address: Addre
 
     let base_layer_config = build_base_layer_config_for_testing();
 
-    deploy_starknet_l1_contract(base_layer_config.clone()).await;
+    let ethereum_base_layer_contract = EthereumBaseLayerContract::new(base_layer_config.clone());
+    Starknet::deploy(ethereum_base_layer_contract.contract.provider().clone()).await.unwrap();
 
     make_block_history_on_anvil(
         sender_address,
