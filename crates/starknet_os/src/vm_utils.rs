@@ -48,6 +48,7 @@ pub type VmUtilsResult<T> = Result<T, VmUtilsError>;
 
 pub(crate) trait LoadCairoObject<IG: IdentifierGetter> {
     /// Inserts the cairo 0 representation of `self` into the VM at the given address.
+    /// Supports assigning a cairo ptr to the loaded object.
     /// Returns the next address after the inserted object.
     fn load_into(
         &self,
@@ -55,6 +56,16 @@ pub(crate) trait LoadCairoObject<IG: IdentifierGetter> {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
+    ) -> VmUtilsResult<Relocatable>;
+}
+
+pub(crate) trait LoadIntoVmMemory {
+    /// Inserts the cairo 0 representation of `self` into the VM at the given address.
+    /// Returns the next address after the inserted object.
+    fn load_into_vm_memory(
+        &self,
+        vm: &mut VirtualMachine,
+        address: Relocatable,
     ) -> VmUtilsResult<Relocatable>;
 }
 
@@ -237,6 +248,20 @@ impl<IG: IdentifierGetter, T: LoadCairoObject<IG>> LoadCairoObject<IG> for Vec<T
         let mut next_address = address;
         for t in self.iter() {
             next_address = t.load_into(vm, identifier_getter, next_address, constants)?;
+        }
+        Ok(next_address)
+    }
+}
+
+impl<T: LoadIntoVmMemory> LoadIntoVmMemory for Vec<T> {
+    fn load_into_vm_memory(
+        &self,
+        vm: &mut VirtualMachine,
+        address: Relocatable,
+    ) -> VmUtilsResult<Relocatable> {
+        let mut next_address = address;
+        for t in self.iter() {
+            next_address = t.load_into_vm_memory(vm, next_address)?;
         }
         Ok(next_address)
     }
