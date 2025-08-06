@@ -8,7 +8,8 @@ use apollo_compile_to_native::compiler::SierraToNativeCompiler;
 #[cfg(any(feature = "testing", test))]
 use cached::Cached;
 use log;
-use starknet_api::core::ClassHash;
+use starknet_api::class_cache::GlobalContractCache;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::state::SierraContractClass;
 use thiserror::Error;
 
@@ -49,6 +50,8 @@ pub struct NativeClassManager {
     cairo_native_run_config: CairoNativeRunConfig,
     /// The global cache of raw contract classes.
     class_cache: RawClassCache,
+    /// The global cache of compiled class hashes v2.
+    compiled_class_hash_v2_cache: GlobalContractCache<CompiledClassHash>,
     /// The sending half of the compilation request channel. Set to `None` if native compilation is
     /// disabled.
     sender: Option<SyncSender<CompilationRequest>>,
@@ -67,12 +70,14 @@ impl NativeClassManager {
     pub fn start(config: ContractClassManagerConfig) -> NativeClassManager {
         // TODO(Avi, 15/12/2024): Add the size of the channel to the config.
         let class_cache = RawClassCache::new(config.contract_cache_size);
+        let compiled_class_hash_v2_cache = GlobalContractCache::new(config.contract_cache_size);
         let cairo_native_run_config = config.cairo_native_run_config;
         if !cairo_native_run_config.run_cairo_native {
             // Native compilation is disabled - no need to start the compilation worker.
             return NativeClassManager {
                 cairo_native_run_config,
                 class_cache,
+                compiled_class_hash_v2_cache,
                 sender: None,
                 compiler: None,
             };
@@ -85,6 +90,7 @@ impl NativeClassManager {
             return NativeClassManager {
                 cairo_native_run_config,
                 class_cache,
+                compiled_class_hash_v2_cache,
                 sender: None,
                 compiler: Some(compiler),
             };
@@ -108,6 +114,7 @@ impl NativeClassManager {
         NativeClassManager {
             cairo_native_run_config,
             class_cache,
+            compiled_class_hash_v2_cache,
             sender: Some(sender),
             compiler: None,
         }
@@ -227,6 +234,18 @@ impl NativeClassManager {
     /// Clears the contract class_cache.
     pub fn clear(&mut self) {
         self.class_cache.clear();
+    }
+
+    pub fn get_compiled_class_hash_v2(&self, class_hash: &ClassHash) -> Option<CompiledClassHash> {
+        self.compiled_class_hash_v2_cache.get(class_hash)
+    }
+
+    pub fn set_compiled_class_hash_v2(
+        &self,
+        class_hash: ClassHash,
+        compiled_class_hash_v2: CompiledClassHash,
+    ) {
+        self.compiled_class_hash_v2_cache.set(class_hash, compiled_class_hash_v2);
     }
 
     #[cfg(any(feature = "testing", test))]
