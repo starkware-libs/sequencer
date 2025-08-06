@@ -61,8 +61,8 @@ pub trait HasSelector {
     fn selector(&self) -> &EntryPointSelector;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct FeltSizeCount {
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct FeltSizeCount {
     // Number of felts below 2^63.
     pub small: usize,
     // Number of felts above or equal to 2^63.
@@ -85,7 +85,7 @@ impl From<&[BigUintAsHex]> for FeltSizeCount {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum NestedFeltCounts {
+pub enum NestedFeltCounts {
     Leaf(usize, FeltSizeCount), // (leaf length, felt size groups)
     Node(Vec<NestedFeltCounts>),
 }
@@ -352,9 +352,7 @@ impl CompiledClassV1 {
     /// This is an empiric measurement of several bytecode lengths, which constitutes as the
     /// dominant factor in it.
     fn estimate_casm_hash_computation_resources(&self) -> ExecutionResources {
-        // TODO(AvivG): Pass `NestedMultipleInt` directly to avoid redundant `NestedIntList`
-        // conversion.
-        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths())
+        estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes)
     }
 
     /// Estimate the VM gas required to perform a CompiledClassHash migration.
@@ -382,8 +380,7 @@ impl CompiledClassV1 {
         );
 
         let poseidon_hash_resources =
-            // TODO(AvivG): Pass `NestedMultipleInt` directly to avoid redundant `NestedIntList` conversion.
-            estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_lengths());
+            estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes);
         let poseidon_hash_gas =
             vm_resources_to_sierra_gas(&poseidon_hash_resources, versioned_constants);
 
@@ -400,9 +397,7 @@ impl CompiledClassV1 {
         visited_pcs: &HashSet<usize>,
     ) -> Result<Vec<usize>, TransactionExecutionError> {
         let mut reversed_visited_pcs: Vec<_> = visited_pcs.iter().cloned().sorted().rev().collect();
-        // TODO(AvivG): Pass `NestedMultipleInt` directly to avoid redundant `NestedIntList`
-        // conversion.
-        get_visited_segments(&self.bytecode_segment_lengths(), &mut reversed_visited_pcs, &mut 0)
+        get_visited_segments(&self.bytecode_segment_felt_sizes, &mut reversed_visited_pcs, &mut 0)
     }
 
     pub fn try_from_json_string(
@@ -455,12 +450,12 @@ impl HashableCompiledClass<EntryPointV1> for CompiledClassV1 {
 /// class entry points.
 /// Also, this function is not backward compatible.
 pub fn estimate_casm_poseidon_hash_computation_resources(
-    bytecode_segment_lengths: &NestedIntList,
+    bytecode_segment_lengths: &NestedFeltCounts,
 ) -> ExecutionResources {
     // The constants in this function were computed by running the Casm code on a few values
     // of `bytecode_segment_lengths`.
     match bytecode_segment_lengths {
-        NestedIntList::Leaf(length) => {
+        NestedFeltCounts::Leaf(length, _) => {
             // The entire contract is a single segment (old Sierra contracts).
             &ExecutionResources {
                 n_steps: 464,
@@ -468,7 +463,7 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
             } + &poseidon_hash_many_cost(*length)
         }
-        NestedIntList::Node(segments) => {
+        NestedFeltCounts::Node(segments) => {
             // The contract code is segmented by its functions.
             let mut execution_resources = ExecutionResources {
                 n_steps: 482,
@@ -481,7 +476,7 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 1)]),
             };
             for segment in segments {
-                let NestedIntList::Leaf(length) = segment else {
+                let NestedFeltCounts::Leaf(length, _) = segment else {
                     panic!(
                         "Estimating hash cost is only supported for segmentation depth at most 1."
                     );
@@ -580,14 +575,14 @@ pub fn estimate_casm_blake_hash_computation_resources(
 // Each visited segment must have its starting PC visited, and is represented by it.
 // visited_pcs should be given in reversed order, and is consumed by the function.
 fn get_visited_segments(
-    segment_lengths: &NestedIntList,
+    segment_lengths: &NestedFeltCounts,
     visited_pcs: &mut Vec<usize>,
     bytecode_offset: &mut usize,
 ) -> Result<Vec<usize>, TransactionExecutionError> {
     let mut res = Vec::new();
 
     match segment_lengths {
-        NestedIntList::Leaf(length) => {
+        NestedFeltCounts::Leaf(length, _) => {
             let segment = *bytecode_offset..*bytecode_offset + length;
             if visited_pcs.last().is_some_and(|pc| segment.contains(pc)) {
                 res.push(segment.start);
@@ -598,7 +593,7 @@ fn get_visited_segments(
             }
             *bytecode_offset += length;
         }
-        NestedIntList::Node(segments) => {
+        NestedFeltCounts::Node(segments) => {
             for segment in segments {
                 let segment_start = *bytecode_offset;
                 let next_visited_pc = visited_pcs.last().copied();
