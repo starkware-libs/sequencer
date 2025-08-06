@@ -12050,6 +12050,7 @@ dependencies = [
  "starknet_os",
  "starknet_patricia",
  "starknet_patricia_storage",
+ "tokio",
 ]
 
 [[package]]
