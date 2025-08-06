@@ -57,18 +57,53 @@ impl EntryPointHashable for CasmContractEntryPoint {
     }
 }
 
-/// Computes the hash of the bytecode according to the provided segment structure
-/// (`bytecode_segment_lengths`). The function iterates over the bytecode, partitioning it into
-/// segments as described by the `NestedIntList`. For each segment, it recursively computes a hash
+/// Trait for nested integer list types that can be used in bytecode segment hashing.
+/// This allows different implementations of nested list structures while maintaining
+/// the same segment behavior.
+pub trait HashableNestedIntList: Clone {
+    /// Returns true if this is a leaf node, false if it's a node with children.
+    fn is_leaf(&self) -> bool;
+
+    /// Returns the length if this is a leaf, panics if called on a non-leaf.
+    fn leaf_length(&self) -> usize;
+
+    /// Returns an iterator over child nodes if this is a node, panics if called on a leaf.
+    fn iter_children(&self) -> impl Iterator<Item = &Self>;
+}
+
+impl HashableNestedIntList for NestedIntList {
+    fn is_leaf(&self) -> bool {
+        matches!(self, NestedIntList::Leaf(_))
+    }
+
+    fn leaf_length(&self) -> usize {
+        match self {
+            NestedIntList::Leaf(len) => *len,
+            NestedIntList::Node(_) => panic!("Called leaf_length on a Node"),
+        }
+    }
+
+    fn iter_children(&self) -> impl Iterator<Item = &Self> {
+        match self {
+            NestedIntList::Leaf(_) => panic!("Called iter_children on a Leaf"),
+            NestedIntList::Node(children) => children.iter(),
+        }
+    }
+}
+
+/// Computes the hash of the bytecode according to the provided segment structure.
+/// The function iterates over the bytecode, partitioning it into segments as described
+/// by the `HashableNestedIntList`. For each segment, it recursively computes a hash
 /// using the provided `StarkHash` implementation. The final result is a hash representing the
 /// entire bytecode structure, as required by Starknet's contract class hash computation.
-fn bytecode_hash<H>(bytecode: &[Felt], bytecode_segment_lengths: &NestedIntList) -> Felt
+fn bytecode_hash<H, NL>(bytecode: &[Felt], bytecode_segment_lengths: &NL) -> Felt
 where
     H: StarkHash,
+    NL: HashableNestedIntList,
 {
     let mut bytecode_iter = bytecode.iter().copied();
     let (len, bytecode_hash) =
-        bytecode_hash_node::<H>(&mut bytecode_iter, bytecode_segment_lengths);
+        bytecode_hash_node::<H, NL>(&mut bytecode_iter, bytecode_segment_lengths);
     assert_eq!(len, bytecode.len());
     bytecode_hash
 }
@@ -76,59 +111,61 @@ where
 /// Computes the hash of a bytecode segment. See the documentation of `bytecode_hash_node` in
 /// the Starknet OS.
 /// Returns the length of the processed segment and its hash.
-fn bytecode_hash_node<H: StarkHash>(
-    iter: &mut impl Iterator<Item = Felt>,
-    node: &NestedIntList,
-) -> (usize, Felt) {
-    match node {
-        NestedIntList::Leaf(len) => {
-            let data = iter.take(*len).collect_vec();
-            assert_eq!(data.len(), *len);
-            (*len, H::hash_array(&data))
-        }
-        NestedIntList::Node(nodes) => {
-            // Compute `1 + poseidon(len0, hash0, len1, hash1, ...)`.
-            let inner_nodes =
-                nodes.iter().map(|node| bytecode_hash_node::<H>(iter, node)).collect_vec();
-            let hash = H::hash_array(
-                &inner_nodes.iter().flat_map(|(len, hash)| [Felt::from(*len), *hash]).collect_vec(),
-            ) + Felt::ONE;
-            (inner_nodes.iter().map(|(len, _)| len).sum(), hash)
-        }
+fn bytecode_hash_node<H, NL>(iter: &mut impl Iterator<Item = Felt>, node: &NL) -> (usize, Felt)
+where
+    H: StarkHash,
+    NL: HashableNestedIntList,
+{
+    if node.is_leaf() {
+        let len = node.leaf_length();
+        let data = iter.take(len).collect_vec();
+        assert_eq!(data.len(), len);
+        (len, H::hash_array(&data))
+    } else {
+        // Compute `1 + poseidon(len0, hash0, len1, hash1, ...)`.
+        let inner_nodes =
+            node.iter_children().map(|child| bytecode_hash_node::<H, NL>(iter, child)).collect_vec();
+        let hash = H::hash_array(
+            &inner_nodes.iter().flat_map(|(len, hash)| [Felt::from(*len), *hash]).collect_vec(),
+        ) + Felt::ONE;
+        (inner_nodes.iter().map(|(len, _)| len).sum(), hash)
     }
 }
 
 /// Trait for types that can be hashed as a Starknet compiled class.
 /// Used to abstract over different contract class representations.
-pub trait HashableCompiledClass<EH: EntryPointHashable>: Sized {
+pub trait HashableCompiledClass<EH: EntryPointHashable, NL: HashableNestedIntList>: Sized {
     fn get_hashable_l1_entry_points(&self) -> &[EH];
     fn get_hashable_external_entry_points(&self) -> &[EH];
     fn get_hashable_constructor_entry_points(&self) -> &[EH];
     fn get_bytecode(&self) -> Vec<Felt>;
-    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList>;
+    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NL>;
 
     /// Returns the compiled class hash using the specified hash version.
     fn hash(&self, hash_version: &HashVersion) -> CompiledClassHash {
         match hash_version {
-            HashVersion::V1 => hash_inner::<Poseidon, EH>(self),
-            HashVersion::V2 => hash_inner::<Blake2Felt252, EH>(self),
+            HashVersion::V1 => hash_inner::<Poseidon, EH, NL>(self),
+            HashVersion::V2 => hash_inner::<Blake2Felt252, EH, NL>(self),
         }
     }
 }
 
 /// Computes the compiled class hash for a given hashable class using the specified hash algorithm.
-fn hash_inner<H: StarkHash, EH: EntryPointHashable>(
-    hashable_class: &impl HashableCompiledClass<EH>,
-) -> CompiledClassHash {
+fn hash_inner<H, EH, NL>(hashable_class: &impl HashableCompiledClass<EH, NL>) -> CompiledClassHash
+where
+    H: StarkHash,
+    EH: EntryPointHashable,
+    NL: HashableNestedIntList,
+{
     let external_funcs_hash =
         entry_point_hash::<H, EH>(hashable_class.get_hashable_external_entry_points());
     let l1_handlers_hash = entry_point_hash::<H, EH>(hashable_class.get_hashable_l1_entry_points());
     let constructors_hash =
         entry_point_hash::<H, EH>(hashable_class.get_hashable_constructor_entry_points());
 
-    let bytecode_hash = bytecode_hash::<H>(
+    let bytecode_hash = bytecode_hash::<H, NL>(
         &hashable_class.get_bytecode(),
-        &hashable_class.get_bytecode_segment_lengths(),
+        &*hashable_class.get_bytecode_segment_lengths(),
     );
 
     // Compute total hash by hashing each component on top of the previous one.
@@ -141,7 +178,7 @@ fn hash_inner<H: StarkHash, EH: EntryPointHashable>(
     ]))
 }
 
-impl HashableCompiledClass<CasmContractEntryPoint> for CasmContractClass {
+impl HashableCompiledClass<CasmContractEntryPoint, NestedIntList> for CasmContractClass {
     fn get_hashable_l1_entry_points(&self) -> &[CasmContractEntryPoint] {
         &self.entry_points_by_type.l1_handler
     }
