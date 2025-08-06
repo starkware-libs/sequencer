@@ -415,7 +415,7 @@ impl CompiledClassV1 {
     }
 }
 
-impl HashableCompiledClass<EntryPointV1> for CompiledClassV1 {
+impl HashableCompiledClass<EntryPointV1, NestedIntList> for CompiledClassV1 {
     fn get_hashable_l1_entry_points(&self) -> &[EntryPointV1] {
         &self.entry_points_by_type.l1_handler
     }
