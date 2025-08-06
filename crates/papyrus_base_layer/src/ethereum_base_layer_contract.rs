@@ -33,6 +33,14 @@ pub type EthereumContractAddress = Address;
 
 // Wraps the Starknet contract with a type that implements its interface, and is aware of its
 // events.
+
+#[cfg(any(test, feature = "testing"))]
+sol!(
+    #[sol(rpc)]
+    Starknet,
+    "resources/StarknetForSequencerTesting.json"
+);
+#[cfg(not(any(test, feature = "testing")))]
 sol!(
     #[sol(rpc)]
     Starknet,
