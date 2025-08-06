@@ -285,6 +285,12 @@ async fn print_write_blob_response(response: Response) {
     }
 }
 
+#[derive(Debug)]
+pub struct InternalTransactionWithReceipt {
+    pub transaction: InternalConsensusTransaction,
+    pub execution_info: TransactionExecutionInfo,
+}
+
 #[derive(Debug, Default)]
 pub struct BlobParameters {
     pub(crate) block_info: BlockInfo,
@@ -292,12 +298,15 @@ pub struct BlobParameters {
     pub(crate) compressed_state_diff: Option<CommitmentStateDiff>,
     pub(crate) bouncer_weights: BouncerWeights,
     pub(crate) fee_market_info: FeeMarketInfo,
-    pub(crate) transactions: Vec<InternalConsensusTransaction>,
+    pub(crate) transactions_with_execution_infos: Vec<InternalTransactionWithReceipt>,
     pub(crate) casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub(crate) casm_hash_computation_data_proving_gas: CasmHashComputationData,
     // TODO(dvir): consider passing the execution_infos from the batcher as a string that
     // serialized in the correct format from the batcher.
+<<<<<<< HEAD
     pub(crate) execution_infos: Vec<TransactionExecutionInfo>,
+=======
+>>>>>>> 4af7ab235 (apollo_consensus_orchestrator: couple transaction with receipt for cende)
 }
 
 impl AerospikeBlob {
@@ -316,15 +325,22 @@ impl AerospikeBlob {
                 CentralStateDiff::from((compressed_state_diff, block_info))
             });
 
-        let (central_transactions, contract_classes, compiled_classes) =
-            process_transactions(class_manager, blob_parameters.transactions, block_timestamp)
-                .await?;
-
-        let execution_infos = blob_parameters
-            .execution_infos
+        let (blob_transactions, blob_exec_infos): (
+            Vec<InternalConsensusTransaction>,
+            Vec<TransactionExecutionInfo>,
+        ) = blob_parameters
+            .transactions_with_execution_infos
             .into_iter()
-            .map(CentralTransactionExecutionInfo::from)
-            .collect();
+            .map(|tx_with_exec_info| {
+                (tx_with_exec_info.transaction, tx_with_exec_info.execution_info)
+            })
+            .unzip();
+
+        let (central_transactions, contract_classes, compiled_classes) =
+            process_transactions(class_manager, blob_transactions, block_timestamp).await?;
+
+        let execution_infos =
+            blob_exec_infos.into_iter().map(CentralTransactionExecutionInfo::from).collect();
 
         Ok(AerospikeBlob {
             block_number,
