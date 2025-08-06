@@ -565,7 +565,7 @@
       ],
       "for": "30s",
       "intervalSec": 30,
-      "severity": "p5"
+      "severity": "p1"
     },
     {
       "name": "mempool_add_tx_idle_all_sources",
