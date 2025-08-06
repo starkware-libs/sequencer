@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
-use blockifier::execution::contract_class::estimate_casm_poseidon_hash_computation_resources;
+use blockifier::execution::contract_class::{
+    estimate_casm_poseidon_hash_computation_resources,
+    NestedFeltCounts,
+};
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -308,9 +311,11 @@ fn test_compiled_class_hash_resources_estimation() {
         run_compiled_class_hash_entry_point(&contract_class, true, &hash_version);
 
     // Compare the actual execution resources with the estimation with some allowed margin.
-    let mut execution_resources_estimation = estimate_casm_poseidon_hash_computation_resources(
-        &contract_class.get_bytecode_segment_lengths(),
-    );
+    let mut execution_resources_estimation =
+        estimate_casm_poseidon_hash_computation_resources(&NestedFeltCounts::new(
+            &contract_class.get_bytecode_segment_lengths(),
+            &contract_class.bytecode,
+        ));
     let margin_n_steps =
         execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
     assert!(
