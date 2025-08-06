@@ -795,11 +795,41 @@ where
 /// Recursively constructs `NestedMultipleIntList` with (length, felt size groups) per segment.
 // TODO(AvivG): Implement this.
 fn create_bytecode_seg_inner<I>(
-    _layout: &NestedIntList,
-    _iter: &mut I,
+    layout: &NestedIntList,
+    iter: &mut I,
 ) -> (NestedMultipleIntList, usize)
 where
     I: Iterator<Item = Felt>,
 {
-    unimplemented!()
+    match layout {
+        NestedIntList::Leaf(len) => build_bytecode_seg_leaf(iter, *len),
+        NestedIntList::Node(children) => {
+            let mut total_felts = 0;
+            let segments = children
+                .iter()
+                .map(|child| {
+                    let (segment, count) = create_bytecode_seg_inner(child, iter);
+                    total_felts += count;
+                    segment
+                })
+                .collect();
+            (NestedMultipleIntList::Node(segments), total_felts)
+        }
+    }
+}
+
+/// Builds a `NestedMultipleIntList::Leaf` and counts small/large felts.
+fn build_bytecode_seg_leaf<I>(iter: &mut I, len: usize) -> (NestedMultipleIntList, usize)
+where
+    I: Iterator<Item = Felt>,
+{
+    // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
+    const SMALL_THRESHOLD: Felt = Felt::from(1 << 63);
+    let (small, large) = iter
+        .take(len)
+        .fold((0, 0), |(s, l), felt| if felt < SMALL_THRESHOLD { (s + 1, l) } else { (s, l + 1) });
+
+    assert_eq!(small + large, len);
+
+    (NestedMultipleIntList::Leaf(len, FeltSizeGroups { small, large }), len)
 }
