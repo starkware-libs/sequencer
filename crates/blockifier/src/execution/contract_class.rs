@@ -60,8 +60,7 @@ pub trait HasSelector {
     fn selector(&self) -> &EntryPointSelector;
 }
 
-// TODO(AvivG): Remove `allow(unused)`.
-#[allow(unused)]
+#[derive(Debug, PartialEq)]
 pub(crate) struct FeltSizeGroups {
     // Number of felts below 2^63.
     pub small: usize,
@@ -69,8 +68,25 @@ pub(crate) struct FeltSizeGroups {
     pub large: usize,
 }
 
-// TODO(AvivG): Remove `allow(unused)`.
-#[allow(unused)]
+/// Counts felts in bytecode by size (small < 2^63, large >= 2^63).
+impl From<&[BigUintAsHex]> for FeltSizeGroups {
+    fn from(bytecode: &[BigUintAsHex]) -> Self {
+        // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
+        const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
+
+        let (small, large) = bytecode.iter().fold((0, 0), |(small_count, large_count), x| {
+            if Felt::from(&x.value) < SMALL_THRESHOLD {
+                (small_count + 1, large_count)
+            } else {
+                (small_count, large_count + 1)
+            }
+        });
+
+        FeltSizeGroups { small, large }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub(crate) enum NestedMultipleIntList {
     Leaf(usize, FeltSizeGroups), // (leaf length, felt size groups)
     Node(Vec<NestedMultipleIntList>),
@@ -787,7 +803,27 @@ impl NestedMultipleIntList {
     }
 
     /// Recursively builds the nested structure and returns it with the number of items consumed.
-    fn new_inner(_layout: &NestedIntList, _bytecode: &[BigUintAsHex]) -> (Self, usize) {
-        unimplemented!()
+    fn new_inner(layout: &NestedIntList, bytecode: &[BigUintAsHex]) -> (Self, usize) {
+        match layout {
+            NestedIntList::Leaf(len) => {
+                let felt_size_groups = FeltSizeGroups::from(&bytecode[..*len]);
+                (NestedMultipleIntList::Leaf(*len, felt_size_groups), *len)
+            }
+            NestedIntList::Node(segments_vec) => {
+                let mut total_felt_count = 0;
+                let mut segments = Vec::with_capacity(segments_vec.len());
+
+                for segment in segments_vec {
+                    // Recurse into the segment layout.
+                    let (segment, felt_count) =
+                        Self::new_inner(segment, &bytecode[total_felt_count..]);
+                    // Accumulate the count from the segment`s subtree.
+                    total_felt_count += felt_count;
+                    segments.push(segment);
+                }
+
+                (NestedMultipleIntList::Node(segments), total_felt_count)
+            }
+        }
     }
 }
