@@ -331,3 +331,21 @@ pub(crate) fn maybe_dummy_block_hash_and_number(
     let block_number = BlockNumber(block_number.0 - STORED_BLOCK_HASH_BUFFER);
     Some((block_number, block_hash))
 }
+
+pub(crate) fn divide_vec_into_n_parts<T: Clone>(vec: Vec<T>, n: usize) -> Vec<Vec<T>> {
+    assert!(n > 0, "Number of parts must be positive");
+    let minimal_items_per_part = vec.len() / n;
+    let remainder = vec.len() % n;
+    let mut txs_per_block = Vec::with_capacity(n);
+    let mut start = 0;
+    let mut end = minimal_items_per_part;
+    for i in 0..n {
+        if i < remainder {
+            end += 1;
+        }
+        txs_per_block.push(vec[start..end].to_vec());
+        start = end;
+        end += minimal_items_per_part;
+    }
+    txs_per_block
+}
