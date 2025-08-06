@@ -1,5 +1,7 @@
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
+use log::warn;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::block::GasPriceVector;
 use starknet_api::calldata;
@@ -904,6 +906,8 @@ impl ValidatableTransaction for AccountTransaction {
         tx_context: Arc<TransactionContext>,
         remaining_gas: &mut GasCounter,
     ) -> TransactionExecutionResult<Option<CallInfo>> {
+        let mut checkpoints = Vec::new();
+        checkpoints.push(("start", Instant::now()));
         if !self.execution_flags.validate {
             return Ok(None);
         }
@@ -921,8 +925,10 @@ impl ValidatableTransaction for AccountTransaction {
             return Ok(None);
         }
 
+        checkpoints.push(("validate setup", Instant::now()));
         let storage_address = tx_info.sender_address();
         let class_hash = state.get_class_hash_at(storage_address)?;
+        checkpoints.push(("get class hash", Instant::now()));
         let validate_selector = self.validate_entry_point_selector();
         let validate_call = CallEntryPoint {
             entry_point_type: EntryPointType::External,
@@ -935,7 +941,7 @@ impl ValidatableTransaction for AccountTransaction {
             call_type: CallType::Call,
             initial_gas: *remaining_validation_gas,
         };
-
+        checkpoints.push(("generate CallEntryPoint", Instant::now()));
         // Note that we allow a revert here and we handle it bellow to get a better error message.
         let validate_call_info = validate_call
             .execute(state, &mut context, remaining_validation_gas)
@@ -945,9 +951,11 @@ impl ValidatableTransaction for AccountTransaction {
                 storage_address,
                 selector: validate_selector,
             })?;
+        checkpoints.push(("execute validate call", Instant::now()));
 
         // Validate return data.
         let compiled_class = state.get_compiled_class(class_hash)?;
+        checkpoints.push(("get compiled class", Instant::now()));
         if is_cairo1(&compiled_class) {
             // The account contract class is a Cairo 1.0 contract; the `validate` entry point should
             // return `VALID`.
@@ -969,6 +977,21 @@ impl ValidatableTransaction for AccountTransaction {
             }
         }
         remaining_gas.subtract_used_gas(&validate_call_info);
+
+        checkpoints.push(("validate end", Instant::now()));
+        let total_duration =
+            checkpoints.last().unwrap().1.duration_since(checkpoints.first().unwrap().1);
+        if total_duration > Duration::from_secs(1) {
+            let mut diffs = String::new();
+            for pair in checkpoints.windows(2) {
+                diffs.push_str(&format!(
+                    "{}: {:?}, ",
+                    pair[0].0,
+                    pair[1].1.duration_since(pair[0].1)
+                ));
+            }
+            warn!("High latency in validate_tx: {:?}. total: {:?}", diffs, total_duration);
+        }
         Ok(Some(validate_call_info))
     }
 }

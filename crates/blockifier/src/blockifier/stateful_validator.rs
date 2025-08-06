@@ -1,5 +1,7 @@
 use std::sync::Arc;
+use std::time::{Duration, Instant};
 
+use log::warn;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::executable_transaction::AccountTransaction as ApiTransaction;
 use starknet_api::execution_resources::GasAmount;
@@ -55,6 +57,9 @@ impl<S: StateReader> StatefulValidator<S> {
 
     #[allow(clippy::result_large_err)]
     pub fn perform_validations(&mut self, tx: AccountTransaction) -> StatefulValidatorResult<()> {
+        let mut checkpoints = Vec::new();
+        checkpoints.push(("start", Instant::now()));
+
         // Deploy account transaction should be fully executed, since the constructor must run
         // before `__validate_deploy__`. The execution already includes all necessary validations,
         // so they are skipped here.
@@ -66,6 +71,8 @@ impl<S: StateReader> StatefulValidator<S> {
 
         let tx_context = Arc::new(self.tx_executor.block_context.to_tx_context(&tx));
         tx.perform_pre_validation_stage(self.state(), &tx_context)?;
+
+        checkpoints.push(("pre_validate", Instant::now()));
         if !tx.execution_flags.validate {
             return Ok(());
         }
@@ -73,8 +80,27 @@ impl<S: StateReader> StatefulValidator<S> {
         // `__validate__` call.
         let (_optional_call_info, actual_cost) = self.validate(&tx, tx_context.clone())?;
 
+        checkpoints.push(("tx_validate", Instant::now()));
+
         // Post validations.
         PostValidationReport::verify(&tx_context, &actual_cost, tx.execution_flags.charge_fee)?;
+
+        checkpoints.push(("post_validate", Instant::now()));
+
+        let total_duration =
+            checkpoints.last().unwrap().1.duration_since(checkpoints.first().unwrap().1);
+        if total_duration > Duration::from_secs(1) {
+            // print the checkpoint diffs from prev checkpoint in a single warn!
+            let mut diffs = String::new();
+            for pair in checkpoints.windows(2) {
+                diffs.push_str(&format!(
+                    "{}: {:?}, ",
+                    pair[0].0,
+                    pair[1].1.duration_since(pair[0].1)
+                ));
+            }
+            warn!("High latency in stateful validator: {:?}. total: {:?}", diffs, total_duration);
+        }
 
         Ok(())
     }
