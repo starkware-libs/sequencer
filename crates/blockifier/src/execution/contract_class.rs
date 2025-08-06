@@ -25,6 +25,7 @@ use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::contract_class::compiled_class_hash::{
     EntryPointHashable,
     HashableCompiledClass,
+    HashableNestedIntList,
 };
 use starknet_api::contract_class::{ContractClass, EntryPointType, SierraVersion, VersionedCasm};
 use starknet_api::core::EntryPointSelector;
@@ -92,6 +93,27 @@ pub enum NestedFeltCounts {
     Node(Vec<NestedFeltCounts>),
 }
 
+impl HashableNestedIntList for NestedFeltCounts {
+    fn is_leaf(&self) -> bool {
+        matches!(self, NestedFeltCounts::Leaf(_, _))
+    }
+
+    fn get_segment_length(&self) -> usize {
+        match self {
+            NestedFeltCounts::Leaf(segment_len, _) => *segment_len,
+            NestedFeltCounts::Node(_) => panic!("Called get_segment_length on a Node"),
+        }
+    }
+
+    fn iter_children(&self) -> impl Iterator<Item = &Self> {
+        match self {
+            NestedFeltCounts::Leaf(..) => panic!("Called iter_children on a Leaf"),
+            NestedFeltCounts::Node(children) => children.iter(),
+        }
+    }
+}
+
+// TODO(AvivG): Remove this once bytecode_segment_lengths is no longer used.
 impl From<&NestedFeltCounts> for NestedIntList {
     /// Converts a `NestedFeltCounts` to a `NestedIntList` by extracting only the segment
     /// lengths. This discards the felt size group information and keeps just the structure and
@@ -374,8 +396,13 @@ impl CompiledClassV1 {
         self.program.data_len()
     }
 
+    // TODO(AvivG): Remove this once bytecode_segment_lengths is no longer used.
     pub fn bytecode_segment_lengths(&self) -> NestedIntList {
         NestedIntList::from(&self.bytecode_segment_felt_sizes)
+    }
+
+    pub fn bytecode_segment_felt_sizes(&self) -> &NestedFeltCounts {
+        &self.bytecode_segment_felt_sizes
     }
 
     pub fn get_entry_point(
@@ -454,7 +481,7 @@ impl CompiledClassV1 {
     }
 }
 
-impl HashableCompiledClass<EntryPointV1, NestedIntList> for CompiledClassV1 {
+impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for CompiledClassV1 {
     fn get_hashable_l1_entry_points(&self) -> &[EntryPointV1] {
         &self.entry_points_by_type.l1_handler
     }
@@ -481,10 +508,8 @@ impl HashableCompiledClass<EntryPointV1, NestedIntList> for CompiledClassV1 {
             .collect()
     }
 
-    // TODO(AvivG): Avoid unnecessary `NestedIntList` creation by having `HashableCompiledClass`
-    // accept `NestedMultipleInt` via a shared trait.
-    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
-        Cow::Owned(self.bytecode_segment_lengths())
+    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedFeltCounts> {
+        Cow::Borrowed(&self.bytecode_segment_felt_sizes)
     }
 }
 
