@@ -8,7 +8,7 @@ use starknet_api::contract_class::compiled_class_hash::HashableCompiledClass;
 use starknet_api::core::EntryPointSelector;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::contract_class::{CompiledClassV1, EntryPointV1};
+use crate::execution::contract_class::{CompiledClassV1, EntryPointV1, NestedMultipleIntList};
 use crate::execution::entry_point::EntryPointTypeAndSelector;
 use crate::execution::errors::PreExecutionError;
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -48,7 +48,7 @@ impl NativeCompiledClassV1 {
     }
 }
 
-impl HashableCompiledClass<EntryPointV1, NestedIntList> for NativeCompiledClassV1 {
+impl HashableCompiledClass<EntryPointV1, NestedMultipleIntList> for NativeCompiledClassV1 {
     fn get_hashable_l1_entry_points(&self) -> &[EntryPointV1] {
         &self.casm.entry_points_by_type.l1_handler
     }
@@ -67,8 +67,8 @@ impl HashableCompiledClass<EntryPointV1, NestedIntList> for NativeCompiledClassV
 
     // TODO(AvivG): Avoid unnecessary `NestedIntList` creation by having `HashableCompiledClass`
     // accept `NestedMultipleInt` via a shared trait.
-    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedIntList> {
-        Cow::Owned(self.casm.bytecode_segment_lengths())
+    fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedMultipleIntList> {
+        Cow::Borrowed(&self.casm.bytecode_segment_felt_sizes)
     }
 }
 
