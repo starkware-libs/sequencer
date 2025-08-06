@@ -79,6 +79,7 @@ impl<S: FlowTestState> TestManager<S> {
     }
 
     /// Creates a new `TestManager` with the default initial state.
+    /// Returns the manager and a nonce manager to help keep track of nonces.
     pub(crate) async fn new_with_default_initial_state() -> (Self, NonceManager) {
         let (default_initial_state_data, nonce_manager) =
             create_default_initial_state_data::<S>().await;
