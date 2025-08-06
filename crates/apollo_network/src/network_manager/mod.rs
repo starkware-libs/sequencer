@@ -19,7 +19,7 @@ use futures::future::{ready, BoxFuture, Ready};
 use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
-use libp2p::gossipsub::{SubscriptionError, TopicHash};
+use libp2p::gossipsub::{MessageId, PublishError, SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::metrics::{Metrics, Recorder, Registry};
 use libp2p::swarm::SwarmEvent;
@@ -72,7 +72,19 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         if let Some(metrics) = self.metrics.as_ref() {
             metrics.register();
         }
+
+        let mut message_to_send: Option<(Bytes, TopicHash)> = None;
         loop {
+            if let Some((message, topic_hash)) = message_to_send.as_ref() {
+                match self.broadcast_message(message.clone(), topic_hash.clone()) {
+                    Ok(_) => {
+                        message_to_send = None;
+                    }
+                    Err(e) => {
+                        warn!("Failed to broadcast message: `{e:?}`  Applying Backpressure.");
+                    }
+                };
+            }
             tokio::select! {
                 Some(event) = self.swarm.next() => self.handle_swarm_event(event)?,
                 Some(res) = self.sqmr_inbound_response_receivers.next() => self.handle_response_for_inbound_query(res),
@@ -80,13 +92,10 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                     let protocol = StreamProtocol::try_from_owned(protocol).expect("Invalid protocol should not appear");
                     self.handle_local_sqmr_payload(protocol, client_payload.expect("An SQMR client channel should not be terminated."))
                 }
-                Some((topic_hash, message)) = self.messages_to_broadcast_receivers.next() => {
-                    self.broadcast_message(
-                        message.ok_or(NetworkError::BroadcastChannelsDropped {
-                            topic_hash: topic_hash.clone()
-                        })?,
-                        topic_hash,
-                    );
+                Some((topic_hash, message)) = self.messages_to_broadcast_receivers.next(), if message_to_send.is_none() => {
+                    message_to_send = Some((message.ok_or(NetworkError::BroadcastChannelsDropped {
+                        topic_hash: topic_hash.clone(),
+                    })?, topic_hash));
                 }
                 Some(Some(peer_id)) = self.reported_peer_receivers.next() => self.swarm.report_peer_as_malicious(peer_id, MisconductScore::MALICIOUS),
                 Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id, MisconductScore::MALICIOUS),
@@ -642,7 +651,11 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             .insert(outbound_session_id, report_receiver);
     }
 
-    fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+    fn broadcast_message(
+        &mut self,
+        message: Bytes,
+        topic_hash: TopicHash,
+    ) -> Result<MessageId, PublishError> {
         if let Some(broadcast_metrics_by_topic) =
             self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics_by_topic.as_ref())
         {
@@ -654,7 +667,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             }
         }
         trace!("Sending broadcast message with topic hash: {topic_hash:?}");
-        self.swarm.broadcast_message(message, topic_hash);
+        self.swarm.broadcast_message(message, topic_hash)
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
