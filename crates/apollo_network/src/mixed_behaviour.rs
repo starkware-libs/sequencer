@@ -1,5 +1,7 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
+use std::time::Duration;
+
 use libp2p::identity::Keypair;
 use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
@@ -114,7 +116,7 @@ impl MixedBehaviour {
                 gossipsub::MessageAuthenticity::Signed(keypair),
                 gossipsub::ConfigBuilder::default()
                     // TODO(shahak): try to reduce this bound.
-                    .max_transmit_size(1 << 34).flood_publish(false).gossip_factor(0.0)
+                    .max_transmit_size(1 << 34).flood_publish(false).gossip_factor(0.0).duplicate_cache_time(Duration::from_secs(5))
                     .build()
                     .expect("Failed to build gossipsub config"),
             )
