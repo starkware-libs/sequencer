@@ -325,6 +325,7 @@ impl OsOutput {
     }
 }
 
+#[derive(Debug)]
 pub struct StarknetOsRunnerOutput {
     #[cfg(feature = "include_program_output")]
     pub os_output: OsOutput,
