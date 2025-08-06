@@ -60,8 +60,7 @@ pub trait HasSelector {
     fn selector(&self) -> &EntryPointSelector;
 }
 
-// TODO(AvivG): Remove `allow(unused)`.
-#[allow(unused)]
+#[derive(Debug, PartialEq)]
 pub(crate) struct FeltSizeCount {
     // Number of felts below 2^63.
     pub small: usize,
@@ -69,8 +68,25 @@ pub(crate) struct FeltSizeCount {
     pub large: usize,
 }
 
-// TODO(AvivG): Remove `allow(unused)`.
-#[allow(unused)]
+/// Counts felts in bytecode by size (small < 2^63, large >= 2^63).
+impl From<&[BigUintAsHex]> for FeltSizeCount {
+    fn from(bytecode: &[BigUintAsHex]) -> Self {
+        // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
+        const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
+
+        let (small, large) = bytecode.iter().fold((0, 0), |(small_count, large_count), x| {
+            if Felt::from(&x.value) < SMALL_THRESHOLD {
+                (small_count + 1, large_count)
+            } else {
+                (small_count, large_count + 1)
+            }
+        });
+
+        FeltSizeCount { small, large }
+    }
+}
+
+#[derive(Debug, PartialEq)]
 pub(crate) enum NestedFeltCounts {
     Leaf(usize, FeltSizeCount), // (leaf length, felt size groups)
     Node(Vec<NestedFeltCounts>),
@@ -776,18 +792,43 @@ impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
 impl NestedFeltCounts {
     /// Builds a nested structure matching `layout`, consuming values from `bytecode`.
     #[allow(unused)]
-    pub(crate) fn new(
-        layout: &NestedIntList,
-        bytecode: &[BigUintAsHex],
-        bytecode_len: usize,
-    ) -> Self {
-        let (base_node, consumed_felts) = Self::new_inner(layout, bytecode);
-        assert_eq!(consumed_felts, bytecode_len);
+    pub(crate) fn new(layout: &NestedIntList, bytecode: &[BigUintAsHex]) -> Self {
+        let (base_node, consumed_felts) = Self::new_inner(layout, bytecode, 0);
+        assert_eq!(consumed_felts, bytecode.len());
         base_node
     }
 
     /// Recursively builds the nested structure and returns it with the number of items consumed.
-    fn new_inner(_layout: &NestedIntList, _bytecode: &[BigUintAsHex]) -> (Self, usize) {
-        unimplemented!()
+    fn new_inner(
+        layout: &NestedIntList,
+        bytecode: &[BigUintAsHex],
+        segmentation_depth: usize,
+    ) -> (Self, usize) {
+        assert!(segmentation_depth <= 1, "Only supported for segmentation depth at most 1.");
+
+        match layout {
+            NestedIntList::Leaf(len) => {
+                let felt_size_groups = FeltSizeCount::from(&bytecode[..*len]);
+                (NestedFeltCounts::Leaf(*len, felt_size_groups), *len)
+            }
+            NestedIntList::Node(segments_vec) => {
+                let mut total_felt_count = 0;
+                let mut segments = Vec::with_capacity(segments_vec.len());
+
+                for segment in segments_vec {
+                    // Recurse into the segment layout.
+                    let (segment, felt_count) = Self::new_inner(
+                        segment,
+                        &bytecode[total_felt_count..],
+                        segmentation_depth + 1,
+                    );
+                    // Accumulate the count from the segment`s subtree.
+                    total_felt_count += felt_count;
+                    segments.push(segment);
+                }
+
+                (NestedFeltCounts::Node(segments), total_felt_count)
+            }
+        }
     }
 }
