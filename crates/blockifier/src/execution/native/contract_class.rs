@@ -48,7 +48,7 @@ impl NativeCompiledClassV1 {
     }
 }
 
-impl HashableCompiledClass<EntryPointV1> for NativeCompiledClassV1 {
+impl HashableCompiledClass<EntryPointV1, NestedIntList> for NativeCompiledClassV1 {
     fn get_hashable_l1_entry_points(&self) -> &[EntryPointV1] {
         &self.casm.entry_points_by_type.l1_handler
     }
