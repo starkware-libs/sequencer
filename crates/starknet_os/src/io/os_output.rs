@@ -250,7 +250,7 @@ pub struct CommonOsOutput {
 #[derive(Debug)]
 /// A specific structured os output (with FullOsStateDiff).
 /// The aggregator inputs are expected to be in this format.
-pub struct FullOsOutput {
+pub(crate) struct FullOsOutput {
     pub common_os_output: CommonOsOutput,
     pub state_diff: FullOsStateDiff,
 }
@@ -270,11 +270,11 @@ impl TryFrom<OsOutput> for FullOsOutput {
 }
 
 impl FullOsOutput {
-    pub fn use_kzg_da(&self) -> bool {
+    pub fn _use_kzg_da(&self) -> bool {
         false
     }
 
-    pub fn full_output(&self) -> bool {
+    pub fn _full_output(&self) -> bool {
         true
     }
 }
@@ -287,8 +287,6 @@ pub struct OsOutput {
     pub state_diff: OsStateDiff,
 }
 
-// Tzahi: Remove once used in the aggregator
-#[allow(dead_code)]
 impl TryFromOutputIter for OsOutput {
     fn try_from_output_iter<It: Iterator<Item = Felt>>(
         output_iter: &mut It,
