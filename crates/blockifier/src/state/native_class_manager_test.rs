@@ -118,23 +118,23 @@ fn test_set_and_compile(
 
     manager.set_and_compile(class_hash, compiled_class);
     if !run_cairo_native {
-        assert_matches!(manager.cache.get(&class_hash).unwrap(), CompiledClasses::V1(_, _));
+        assert_matches!(manager.class_cache.get(&class_hash).unwrap(), CompiledClasses::V1(_, _));
         return;
     }
 
     if !wait_on_native_compilation {
-        assert_matches!(manager.cache.get(&class_hash).unwrap(), CompiledClasses::V1(_, _));
+        assert_matches!(manager.class_cache.get(&class_hash).unwrap(), CompiledClasses::V1(_, _));
         let seconds_to_sleep = 2;
         let max_n_retries = DEFAULT_MAX_CPU_TIME / seconds_to_sleep + 1;
         for _ in 0..max_n_retries {
             sleep(std::time::Duration::from_secs(seconds_to_sleep));
-            if matches!(manager.cache.get(&class_hash), Some(CompiledClasses::V1Native(_))) {
+            if matches!(manager.class_cache.get(&class_hash), Some(CompiledClasses::V1Native(_))) {
                 break;
             }
         }
     }
 
-    match manager.cache.get(&class_hash).unwrap() {
+    match manager.class_cache.get(&class_hash).unwrap() {
         CompiledClasses::V1Native(CachedCairoNative::Compiled(_)) => {
             assert!(should_pass, "Compilation should have passed.");
         }
@@ -160,7 +160,7 @@ fn test_send_compilation_request_channel_disconnected() {
     let (sender, receiver) = sync_channel(native_config.channel_size);
     let manager = NativeClassManager {
         cairo_native_run_config: native_config,
-        cache: RawClassCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
+        class_cache: RawClassCache::new(GLOBAL_CONTRACT_CACHE_SIZE_FOR_TEST),
         sender: Some(sender),
         compiler: None,
     };
@@ -211,7 +211,7 @@ fn test_process_compilation_request(
         ..CairoNativeRunConfig::default()
     });
     let res = process_compilation_request(
-        manager.clone().cache,
+        manager.clone().class_cache,
         manager.clone().compiler.unwrap(),
         request.clone(),
         manager.cairo_native_run_config.panic_on_compilation_failure,
@@ -224,13 +224,13 @@ fn test_process_compilation_request(
             res.unwrap_err()
         );
         assert_matches!(
-            manager.cache.get(&request.0).unwrap(),
+            manager.class_cache.get(&request.0).unwrap(),
             CompiledClasses::V1Native(CachedCairoNative::Compiled(_))
         );
     } else {
         assert_matches!(res.unwrap_err(), CompilationUtilError::CompilationError(_));
         assert_matches!(
-            manager.cache.get(&request.0).unwrap(),
+            manager.class_cache.get(&request.0).unwrap(),
             CompiledClasses::V1Native(CachedCairoNative::CompilationFailed(_))
         );
     }

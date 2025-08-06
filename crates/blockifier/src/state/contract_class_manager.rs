@@ -15,7 +15,7 @@ pub mod trivial_class_manager {
 
     #[derive(Clone)]
     pub struct TrivialClassManager {
-        cache: RawClassCache,
+        class_cache: RawClassCache,
     }
 
     // Trivial implementation of the class manager for Native-less projects.
@@ -25,24 +25,24 @@ pub mod trivial_class_manager {
                 !config.cairo_native_run_config.run_cairo_native,
                 "Cairo Native feature is off."
             );
-            Self { cache: RawClassCache::new(config.contract_cache_size) }
+            Self { class_cache: RawClassCache::new(config.contract_cache_size) }
         }
 
         pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
-            Some(self.cache.get(class_hash)?.to_runnable())
+            Some(self.class_cache.get(class_hash)?.to_runnable())
         }
 
         pub fn set_and_compile(&self, class_hash: ClassHash, compiled_class: CompiledClasses) {
-            self.cache.set(class_hash, compiled_class);
+            self.class_cache.set(class_hash, compiled_class);
         }
 
         pub fn clear(&mut self) {
-            self.cache.clear();
+            self.class_cache.clear();
         }
 
         #[cfg(any(feature = "testing", test))]
         pub fn get_cache_size(&self) -> usize {
-            self.cache.lock().cache_size()
+            self.class_cache.lock().cache_size()
         }
     }
 }
