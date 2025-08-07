@@ -44,10 +44,19 @@ impl AnvilBaseLayer {
     const DEFAULT_ANVIL_PORT: u16 = 8545;
     const DEFAULT_ANVIL_L1_DEPLOYED_ADDRESS: &str = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
 
-    /// Note: if you have port conflicts, this is because you are running anvil in unit tests, see
-    /// usage docstring of the struct. Alternatively, you might have a zombie anvil instance
-    /// running, but that should be impossible if using this service.
+    /// Note: if you have port conflicts, you might have a zombie anvil instance
+    /// running, but that should be impossible if using through this service, you probably have a
+    /// manually triggered Anvil instance somewhere in your shell.
     pub async fn new() -> Self {
+        let is_unit_test = cfg!(test);
+        if is_unit_test {
+            panic!(
+                "Don't use Anvil in unit tests, only in integration tests defined in the \
+                 integration tests crate. For unit tests, mock l1 using `alloy`'s mocked_provider \
+                 interface."
+            );
+        }
+
         let anvil_client = ProviderBuilder::new()
             .on_anvil_with_wallet_and_config(|anvil| anvil.port(Self::DEFAULT_ANVIL_PORT))
             .unwrap_or_else(|error| match error {
