@@ -113,6 +113,10 @@ impl MempoolP2pPropagator {
         if queued_transactions.is_empty() {
             return Ok(());
         }
+        info!(
+            "Broadcasting a batch of {} transactions to other mempools",
+            queued_transactions.len()
+        );
         let number_of_transactions_in_batch = queued_transactions.len().into_f64();
         let result = self
             .broadcast_topic_client
