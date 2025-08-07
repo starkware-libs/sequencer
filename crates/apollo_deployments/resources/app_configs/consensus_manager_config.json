@@ -2,7 +2,7 @@
   "consensus_manager_config.broadcast_buffer_size": 10000,
   "consensus_manager_config.cende_config.skip_write_height": 1,
   "consensus_manager_config.cende_config.skip_write_height.#is_none": false,
-  "consensus_manager_config.consensus_manager_config.future_height_limit": 20,
+  "consensus_manager_config.consensus_manager_config.future_height_limit": 100,
   "consensus_manager_config.consensus_manager_config.future_height_round_limit": 5,
   "consensus_manager_config.consensus_manager_config.future_round_limit": 20,
   "consensus_manager_config.consensus_manager_config.startup_delay": 15,
