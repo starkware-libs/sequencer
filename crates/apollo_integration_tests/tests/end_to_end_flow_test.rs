@@ -73,11 +73,11 @@ fn create_multiple_account_txs(
 ) -> Vec<RpcTransaction> {
     // Create RPC transactions.
     let account0_invoke_nonce1 =
-        tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_invoke_with_tip(2);
+        tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_trivial_rpc_invoke_tx(2);
     let account0_invoke_nonce2 =
-        tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_invoke_with_tip(3);
+        tx_generator.account_with_id_mut(ACCOUNT_ID_0).generate_trivial_rpc_invoke_tx(3);
     let account1_invoke_nonce1 =
-        tx_generator.account_with_id_mut(ACCOUNT_ID_1).generate_invoke_with_tip(4);
+        tx_generator.account_with_id_mut(ACCOUNT_ID_1).generate_trivial_rpc_invoke_tx(4);
 
     vec![account0_invoke_nonce1, account0_invoke_nonce2, account1_invoke_nonce1]
 }
