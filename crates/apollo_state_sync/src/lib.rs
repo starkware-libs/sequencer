@@ -4,6 +4,7 @@ pub mod runner;
 mod test;
 
 use std::cmp::min;
+use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
@@ -41,10 +42,11 @@ pub fn create_state_sync_and_runner(
     (StateSync::new(storage_reader, new_block_sender, config), state_sync_runner)
 }
 
+#[derive(Clone)]
 pub struct StateSync {
     storage_reader: StorageReader,
     new_block_sender: Sender<SyncBlock>,
-    starknet_client: Option<Box<dyn StarknetReader + Send + Sync>>,
+    starknet_client: Option<Arc<dyn StarknetReader + Send + Sync>>,
 }
 
 impl StateSync {
@@ -55,7 +57,7 @@ impl StateSync {
     ) -> Self {
         let starknet_client = config.central_sync_client_config.map(|config| {
             let config = config.central_source_config;
-            let starknet_client: Box<dyn StarknetReader + Send + Sync> = Box::new(
+            let starknet_client: Arc<dyn StarknetReader + Send + Sync> = Arc::new(
                 StarknetFeederGatewayClient::new(
                     config.starknet_url.as_ref(),
                     config.http_headers,
