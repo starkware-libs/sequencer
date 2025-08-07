@@ -30,7 +30,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountTransactionGenerator,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use papyrus_base_layer::test_utils::{
     make_block_history_on_anvil,
@@ -53,6 +52,7 @@ use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};
 use url::Url;
 
+use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::state_reader::{StorageTestHandles, StorageTestSetup};
 use crate::utils::{
     create_consensus_manager_configs_from_network_configs,

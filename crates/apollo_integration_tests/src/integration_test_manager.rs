@@ -29,7 +29,6 @@ use mempool_test_utils::starknet_api_test_utils::{
     AccountId,
     MultiAccountTransactionGenerator,
 };
-use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
 use papyrus_base_layer::test_utils::{
     make_block_history_on_anvil,
     ARBITRARY_ANVIL_L1_ACCOUNT_ADDRESS,
@@ -45,6 +44,7 @@ use tokio::join;
 use tokio_util::task::AbortOnDropHandle;
 use tracing::{info, instrument};
 
+use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::executable_setup::{ExecutableSetup, NodeExecutionId};
 use crate::monitoring_utils::{
     await_batcher_block,
