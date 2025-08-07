@@ -52,6 +52,15 @@ use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::utils::u64_from_usize;
 
+// TODO(AvivG): modify values to match the actual values.
+const CALL_BYTECODE_HASH_NODE_STEPS: usize = 7;
+const ALLOC_LOCAL_STEPS: usize = 1;
+const IF_STEPS: usize = 2;
+const RETURN_STEPS: usize = 1;
+const HASH_INIT_STEPS: usize = 1;
+const HASH_FINALIZE_BASE_STEPS: usize = 1;
+const CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS: usize = 1;
+
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
 pub mod test;
@@ -443,11 +452,17 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
 
 /// Cost to hash a single flat segment of `len` felts.
 fn leaf_cost(len: usize, resources: &mut ExecutionResources, total_blake_opcode_count: &mut usize) {
-    // All `len` inputs treated as “big” felts; no small-felt optimization here.
+    // All `len` inputs treated as "big" felts; no small-felt optimization here.
     let (added_resources, added_blake_opcode_count) =
         cost_of_encode_felt252_data_and_calc_blake_hash(len, 0);
+
     *resources += &added_resources;
     *total_blake_opcode_count += added_blake_opcode_count;
+
+    // Add base overhead for each segment.
+    resources.n_steps += ALLOC_LOCAL_STEPS;
+    resources.n_steps += IF_STEPS;
+    resources.n_steps += RETURN_STEPS;
 }
 
 /// Cost to hash a multi-segment contract:
@@ -456,28 +471,28 @@ fn node_cost(
     resources: &mut ExecutionResources,
     total_blake_opcode_count: &mut usize,
 ) {
-    // TODO(AvivG): Add base estimation for node.
-
-    // TODO(AvivG): Add base estimation of each segment. Could this be part of 'leaf_cost'?
-    let segment_overhead = ExecutionResources::default();
+    resources.n_steps += HASH_INIT_STEPS;
+    resources.n_steps += HASH_FINALIZE_BASE_STEPS;
+    resources.n_steps += CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS;
 
     // For each segment, hash its felts.
     for seg in segs {
         match seg {
             NestedIntList::Leaf(len) => {
                 leaf_cost(*len, resources, total_blake_opcode_count);
-                *resources += &segment_overhead;
             }
             _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
         }
     }
 
-    // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
-    // and one segment length (“small” felt) per segment.
-    let (node_hash_resources, node_blake_opcode_count) =
+    // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash ("big" felt))
+    // and one segment length ("small" felt) per segment.
+    // compute cost of `hash_finalize`
+    let (hash_finalize_resources, hash_finalize_blake_opcode_count) =
         cost_of_encode_felt252_data_and_calc_blake_hash(segs.len(), segs.len());
-    *resources += &node_hash_resources;
-    *total_blake_opcode_count += node_blake_opcode_count;
+
+    *resources += &hash_finalize_resources;
+    *total_blake_opcode_count += hash_finalize_blake_opcode_count;
 }
 
 /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract.
@@ -527,6 +542,27 @@ pub fn estimate_casm_blake_hash_computation_resources_inner(
         n_steps: 0,
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
+    };
+    let mut total_blake_opcode_count = 0;
+
+    let (bytecode_resources, bytecode_blake_opcode_count) =
+        cost_of_bytecode_hash_node(bytecode_segment_lengths);
+
+    resources += &bytecode_resources;
+    total_blake_opcode_count += bytecode_blake_opcode_count;
+
+    (resources, total_blake_opcode_count)
+}
+
+pub fn cost_of_bytecode_hash_node(
+    bytecode_segment_lengths: &NestedIntList,
+) -> (ExecutionResources, usize) {
+    let base_bytecode_hash_node_steps =
+        CALL_BYTECODE_HASH_NODE_STEPS + ALLOC_LOCAL_STEPS + IF_STEPS + RETURN_STEPS;
+    let mut resources = ExecutionResources {
+        n_steps: base_bytecode_hash_node_steps,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::new(),
     };
     let mut total_blake_opcode_count = 0;
 
