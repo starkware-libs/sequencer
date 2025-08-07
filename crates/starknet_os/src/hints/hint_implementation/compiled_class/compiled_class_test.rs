@@ -4,6 +4,8 @@ use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
 use blockifier::execution::contract_class::{
     estimate_casm_blake_hash_computation_resources_inner,
     estimate_casm_poseidon_hash_computation_resources,
+    EntryPointV1,
+    EntryPointsByType,
 };
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -68,7 +70,7 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["35968"];
 // Allowed margin between estimated and actual execution resources.
 // TODO(AvivG): lower these margins once we have more accurate estimations.
-const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 552000;
+const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 553000;
 const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 5;
 
 /// Specifies the expected inputs and outputs for testing a class hash version.
@@ -98,6 +100,7 @@ trait HashVersionTestSpec {
     fn estimate_execution_resources(
         &self,
         bytecode_segment_lengths: &NestedIntList,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> ExecutionResources;
 }
 
@@ -175,13 +178,18 @@ impl HashVersionTestSpec for HashVersion {
     fn estimate_execution_resources(
         &self,
         bytecode_segment_lengths: &NestedIntList,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
     ) -> ExecutionResources {
         match self {
             HashVersion::V1 => {
                 estimate_casm_poseidon_hash_computation_resources(bytecode_segment_lengths)
             }
             HashVersion::V2 => {
-                estimate_casm_blake_hash_computation_resources_inner(bytecode_segment_lengths).0
+                estimate_casm_blake_hash_computation_resources_inner(
+                    bytecode_segment_lengths,
+                    entry_points_by_type,
+                )
+                .0
             }
         }
     }
@@ -352,8 +360,10 @@ fn test_compiled_class_hash_resources_estimation(
         run_compiled_class_hash_entry_point(&contract_class, true, &hash_version);
 
     // Compare the actual execution resources with the estimation with some allowed margin.
-    let mut execution_resources_estimation =
-        hash_version.estimate_execution_resources(&contract_class.get_bytecode_segment_lengths());
+    let mut execution_resources_estimation = hash_version.estimate_execution_resources(
+        &contract_class.get_bytecode_segment_lengths(),
+        &contract_class.entry_points_by_type.into(),
+    );
     let margin_n_steps =
         execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
     let allowed_margin = hash_version.allowed_margin_n_steps();

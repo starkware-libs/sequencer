@@ -59,15 +59,18 @@ use crate::utils::u64_from_usize;
 // TODO(AvivG): modify values to match the actual values.
 const CALL_BYTECODE_HASH_NODE_STEPS: usize = 7;
 const ALLOC_LOCAL_STEPS: usize = 1;
-const IF_STEPS: usize = 2;
+const IF_STEPS: usize = 1;
 const RETURN_STEPS: usize = 1;
 const HASH_INIT_STEPS: usize = 1;
 const HASH_FINALIZE_BASE_STEPS: usize = 1;
 const CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS: usize = 1;
 const ASSERT_STEPS: usize = 1;
-const TEMPVAR_STEPS: usize = 1;
 const HASH_UPDATE_SINGLE_STEPS: usize = 1;
+const TEMPVAR_STEPS: usize = 1;
 const EMPTY_ENTRY_POINTS_STEPS: usize = 1;
+const CALL_HASH_ENTRY_POINTS_STEPS: usize = 1;
+const CALL_HASH_ENTRY_POINTS_INNER_STEPS: usize = 1;
+const CALL_HASH_UPDATE_WITH_NESTED_HASH_STEPS: usize = 1;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
@@ -348,6 +351,7 @@ impl CompiledClassV1 {
             &self.bytecode_segment_lengths,
             versioned_constants,
             blake_weight,
+            &self.entry_points_by_type,
         );
 
         let poseidon_hash_resources =
@@ -518,9 +522,12 @@ pub fn estimate_casm_blake_hash_computation_resources(
     bytecode_segment_lengths: &NestedIntList,
     versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
+    entry_points_by_type: &EntryPointsByType<EntryPointV1>,
 ) -> GasAmount {
-    let (resources, blake_opcode_count) =
-        estimate_casm_blake_hash_computation_resources_inner(bytecode_segment_lengths);
+    let (resources, blake_opcode_count) = estimate_casm_blake_hash_computation_resources_inner(
+        bytecode_segment_lengths,
+        entry_points_by_type,
+    );
 
     assert!(
         resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
@@ -545,6 +552,7 @@ pub fn estimate_casm_blake_hash_computation_resources(
 /// - Blake opcode gas is returned separately, as it's not included in `ExecutionResources`.
 pub fn estimate_casm_blake_hash_computation_resources_inner(
     bytecode_segment_lengths: &NestedIntList,
+    entry_points_by_type: &EntryPointsByType<EntryPointV1>,
 ) -> (ExecutionResources, usize) {
     // TODO(AvivG): Currently ignores entry-point hashing costs.
     let mut resources = ExecutionResources::default();
@@ -561,6 +569,13 @@ pub fn estimate_casm_blake_hash_computation_resources_inner(
 
     // Compute cost of `bytecode_hash_node`.
     cost_of_bytecode_hash_node(bytecode_segment_lengths, &mut resources, &mut blake_opcodes);
+    cost_of_hash_entry_points(&entry_points_by_type.l1_handler, &mut resources, &mut blake_opcodes);
+    cost_of_hash_entry_points(&entry_points_by_type.external, &mut resources, &mut blake_opcodes);
+    cost_of_hash_entry_points(
+        &entry_points_by_type.constructor,
+        &mut resources,
+        &mut blake_opcodes,
+    );
 
     // Compute cost of `hash_finalize`: hash over (hash_entrypoints1, len_entrypoints1, hash_ep2,
     // len_ep2, hash_ep3, len_ep3, hash_bytecode, len_bytecode)
@@ -591,6 +606,31 @@ pub fn cost_of_bytecode_hash_node(
         NestedIntList::Leaf(len) => leaf_cost(*len, resources, blake_opcodes),
         NestedIntList::Node(segs) => node_cost(segs, resources, blake_opcodes),
     };
+}
+
+// TODO(AvivG): implement this
+pub fn cost_of_hash_entry_points(
+    _entry_points: &[EntryPointV1],
+    _resources: &mut ExecutionResources,
+    _blake_opcodes: &mut usize,
+) {
+    unimplemented!()
+}
+
+pub fn cost_of_hash_update_with_nested_hash(
+    builtins_list_len: usize,
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
+) {
+    let base_hash_update_with_nested_hash_steps =
+        CALL_HASH_UPDATE_WITH_NESTED_HASH_STEPS + HASH_UPDATE_SINGLE_STEPS + RETURN_STEPS;
+    resources.n_steps += base_hash_update_with_nested_hash_steps;
+
+    // assumig builtins are small felts
+    let (added_resources, added_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(0, builtins_list_len);
+    *resources += &added_resources;
+    *blake_opcodes += added_blake_opcode_count;
 }
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
