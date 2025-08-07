@@ -608,15 +608,64 @@ pub fn cost_of_bytecode_hash_node(
     };
 }
 
-// TODO(AvivG): implement this
 pub fn cost_of_hash_entry_points(
-    _entry_points: &[EntryPointV1],
-    _resources: &mut ExecutionResources,
-    _blake_opcodes: &mut usize,
+    entry_points: &[EntryPointV1],
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
 ) {
-    unimplemented!()
+    let base_hash_entry_points_steps = CALL_HASH_ENTRY_POINTS_STEPS
+        + HASH_INIT_STEPS
+        + HASH_UPDATE_SINGLE_STEPS
+        + HASH_FINALIZE_BASE_STEPS
+        + RETURN_STEPS
+        + CALL_HASH_ENTRY_POINTS_INNER_STEPS; //always one empty call
+    resources.n_steps += base_hash_entry_points_steps;
+    // compute cost of `hash_finalize`
+    // for each entry point we add to the hash selector(big felt) and offset(small felt)
+    let (added_resources, added_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(
+            entry_points.len() + entry_points.len(), // +1 is for builtins per entry point hash
+            entry_points.len(),
+        );
+    *resources += &added_resources;
+    *blake_opcodes += added_blake_opcode_count;
+    // compute cost of `hash_entry_points_inner`
+    for entry_point in entry_points {
+        cost_of_hash_entry_points_inner(entry_point, resources, blake_opcodes);
+    }
 }
 
+pub fn cost_of_hash_entry_points_inner(
+    entry_point: &EntryPointV1,
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
+) {
+    let base_hash_entry_points_inner_steps = CALL_HASH_ENTRY_POINTS_INNER_STEPS
+        + 1
+        + IF_STEPS
+        + RETURN_STEPS
+        + HASH_UPDATE_SINGLE_STEPS * 2;
+    resources.n_steps += base_hash_entry_points_inner_steps;
+
+    // compute cost of `hash_update_with_nested_hash`
+    cost_of_hash_update_with_nested_hash(entry_point.builtins.len(), resources, blake_opcodes);
+}
+
+pub fn cost_of_hash_update_with_nested_hash(
+    builtins_list_len: usize,
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
+) {
+    let base_hash_update_with_nested_hash_steps =
+        CALL_HASH_UPDATE_WITH_NESTED_HASH_STEPS + HASH_UPDATE_SINGLE_STEPS + RETURN_STEPS;
+    resources.n_steps += base_hash_update_with_nested_hash_steps;
+
+    // assumig builtins are small felts
+    let (added_resources, added_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(0, builtins_list_len);
+    *resources += &added_resources;
+    *blake_opcodes += added_blake_opcode_count;
+}
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
 // lengths.
