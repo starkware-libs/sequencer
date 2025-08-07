@@ -7,7 +7,7 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Semaphore;
 use tracing::{error, info, trace, warn};
 use validator::Validate;
@@ -16,6 +16,8 @@ use crate::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
+    PrioritizedRequest,
+    RequestPriority,
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::LocalServerMetrics;
@@ -73,24 +75,132 @@ where
     Request: Send,
     Response: Send,
 {
-    component: Component,
+    component: Option<Component>,
     rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    metrics: LocalServerMetrics,
+    metrics: &'static LocalServerMetrics,
+
+    low_priority_request_rx: Option<Receiver<ComponentRequestAndResponseSender<Request, Response>>>,
+    high_priority_request_rx:
+        Option<Receiver<ComponentRequestAndResponseSender<Request, Response>>>,
+    low_priority_request_tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
+    high_priority_request_tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
 }
 
 impl<Component, Request, Response> LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response>,
-    Request: Send,
-    Response: Send,
+    Component: ComponentRequestHandler<Request, Response> + Send + 'static,
+    Request: Send + Debug + PrioritizedRequest + 'static,
+    Response: Send + Debug + 'static,
 {
     pub fn new(
         component: Component,
         rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-        metrics: LocalServerMetrics,
+        metrics: &'static LocalServerMetrics,
     ) -> Self {
         metrics.register();
-        Self { component, rx, metrics }
+
+        // TODO(Tsabary):make the channel capacity configurable.
+        let (low_priority_request_tx, low_priority_request_rx) =
+            channel::<ComponentRequestAndResponseSender<Request, Response>>(1000);
+        let (high_priority_request_tx, high_priority_request_rx) =
+            channel::<ComponentRequestAndResponseSender<Request, Response>>(1000);
+
+        Self {
+            component: Some(component),
+            rx,
+            metrics,
+            low_priority_request_tx,
+            low_priority_request_rx: Some(low_priority_request_rx),
+            high_priority_request_tx,
+            high_priority_request_rx: Some(high_priority_request_rx),
+        }
+    }
+
+    async fn await_requests(&mut self) {
+        info!("Starting server for component {}", short_type_name::<Component>());
+
+        while let Some(request_and_res_tx) = self.rx.recv().await {
+            trace!(
+                "Component {} received request {:?} with priority {:?}",
+                short_type_name::<Component>(),
+                request_and_res_tx.request,
+                request_and_res_tx.request.priority()
+            );
+            match request_and_res_tx.request.priority() {
+                RequestPriority::High => {
+                    self.high_priority_request_tx
+                        .send(request_and_res_tx)
+                        .await
+                        .expect("Failed to send high priority request");
+                }
+                RequestPriority::Normal => {
+                    self.low_priority_request_tx
+                        .send(request_and_res_tx)
+                        .await
+                        .expect("Failed to send low priority request");
+                }
+            }
+            self.metrics.increment_received();
+            self.metrics.set_queue_depth(self.rx.len());
+        }
+
+        error!(
+            "Stopped awaiting requests in the component {} local server",
+            short_type_name::<Component>()
+        );
+    }
+
+    async fn process_requests(&mut self) {
+        // TODO(Tsabary): add log for requests that take too long.
+        info!("Starting server for component {}", short_type_name::<Component>());
+
+        // Take ownership of the component and the priority request receivers, so they can be used
+        // in the async task.
+        let mut component = self.component.take().expect("Component should be available");
+        let mut high_rx = self
+            .high_priority_request_rx
+            .take()
+            .expect("High priority request receiver should be available");
+        let mut low_rx = self
+            .low_priority_request_rx
+            .take()
+            .expect("Low priority request receiver should be available");
+        let metrics = self.metrics;
+
+        tokio::spawn(async move {
+            loop {
+                let request_and_res_tx = tokio::select! {
+                    // Prioritize high priority requests over low priority ones.
+                    biased;
+                    Some(item) = high_rx.recv() => item,
+                    Some(item) = low_rx.recv() => item,
+                    else => break,
+                };
+
+                trace!(
+                    "Component {} received request {:?}",
+                    short_type_name::<Component>(),
+                    request_and_res_tx.request
+                );
+
+                let request = request_and_res_tx.request;
+                let tx = request_and_res_tx.tx;
+
+                trace!(
+                    "Component {} is starting to process request {:?}",
+                    short_type_name::<Component>(),
+                    request
+                );
+                process_request(&mut component, request, tx).await;
+                metrics.increment_processed();
+                // TODO(Tsabary): make the processed and received metrics labeled based on the
+                // priority.
+            }
+            error!(
+                "Stopped processing requests in the component {} local server",
+                short_type_name::<Component>()
+            );
+        });
     }
 }
 
@@ -109,43 +219,17 @@ where
 impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response> + Send + ComponentStarter,
-    Request: Send + Debug,
-    Response: Send + Debug,
+    Component: ComponentRequestHandler<Request, Response> + Send + ComponentStarter + 'static,
+    Request: Send + Debug + PrioritizedRequest + 'static,
+    Response: Send + Debug + 'static,
 {
     async fn start(&mut self) {
         info!("Starting LocalComponentServer for {}.", short_type_name::<Component>());
-        self.component.start().await;
-        request_response_loop(&mut self.rx, &mut self.component, &self.metrics).await;
+        self.component.as_mut().unwrap().start().await;
+        self.process_requests().await;
+        self.await_requests().await;
         panic!("Finished LocalComponentServer for {}.", short_type_name::<Component>());
     }
-}
-
-async fn request_response_loop<Request, Response, Component>(
-    rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    component: &mut Component,
-    metrics: &LocalServerMetrics,
-) where
-    Component: ComponentRequestHandler<Request, Response> + Send,
-    Request: Send + Debug,
-    Response: Send + Debug,
-{
-    info!("Starting server for component {}", short_type_name::<Component>());
-
-    while let Some(request_and_res_tx) = rx.recv().await {
-        let request = request_and_res_tx.request;
-        let tx = request_and_res_tx.tx;
-        trace!("Component {} received request {:?}", short_type_name::<Component>(), request);
-
-        metrics.increment_received();
-        metrics.set_queue_depth(rx.len());
-
-        process_request(component, request, tx).await;
-
-        metrics.increment_processed();
-    }
-
-    error!("Stopping server for component {}", short_type_name::<Component>());
 }
 
 /// The `ConcurrentLocalComponentServer` struct is a generic server that handles concurrent requests
@@ -287,6 +371,11 @@ async fn process_request<Request, Response, Component>(
     Request: Send + Debug,
     Response: Send + Debug,
 {
+    trace!(
+        "Component {} is starting to process request {:?}",
+        short_type_name::<Component>(),
+        request
+    );
     let response = component.handle_request(request).await;
     trace!("Component {} is sending response {:?}", short_type_name::<Component>(), response);
 

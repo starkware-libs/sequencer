@@ -1,7 +1,12 @@
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
+use apollo_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+    PrioritizedRequest,
+    RequestPriority,
+};
 use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
@@ -110,6 +115,21 @@ pub enum StateSyncRequest {
     IsClassDeclaredAt(BlockNumber, ClassHash),
 }
 impl_debug_for_infra_requests_and_responses!(StateSyncRequest);
+impl PrioritizedRequest for StateSyncRequest {
+    fn priority(&self) -> RequestPriority {
+        match self {
+            StateSyncRequest::GetBlock(_) | StateSyncRequest::GetBlockHash(_) => {
+                RequestPriority::High
+            }
+            StateSyncRequest::GetStorageAt(_, _, _)
+            | StateSyncRequest::GetNonceAt(_, _)
+            | StateSyncRequest::GetClassHashAt(_, _)
+            | StateSyncRequest::AddNewBlock(_)
+            | StateSyncRequest::GetLatestBlockNumber()
+            | StateSyncRequest::IsClassDeclaredAt(_, _) => RequestPriority::Normal,
+        }
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum StateSyncResponse {
