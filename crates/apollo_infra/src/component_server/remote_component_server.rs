@@ -7,12 +7,12 @@ use apollo_infra_utils::type_name::short_type_name;
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
-use hyper::service::{make_service_fn, service_fn};
+use hyper::service::make_service_fn;
 use hyper::{Body, Request as HyperRequest, Response as HyperResponse, Server, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
-use tower::Service;
+use tower::{service_fn, Service, ServiceExt};
 use tracing::{debug, error, trace, warn};
 
 use crate::component_client::{ClientError, LocalComponentClient};
@@ -244,28 +244,57 @@ where
         let connection_semaphore = Arc::new(Semaphore::new(self.max_concurrency));
 
         let make_svc = make_service_fn(|_conn| {
-            let acquire_permit_fut = connection_semaphore.clone().acquire_owned();
+            let connection_semaphore = connection_semaphore.clone();
             let local_client = self.local_client.clone();
             let metrics = self.metrics.clone();
 
             async move {
-                let permit =
-                    acquire_permit_fut.await.expect("Permit should be acquired successfully");
+                match connection_semaphore.try_acquire_owned() {
+                    Ok(permit) => {
+                        trace!("Acquired semaphore permit for connection");
+                        let handle_request_service = service_fn(move |req| {
+                            trace!("Received request: {:?}", req);
+                            Self::remote_component_server_handler(
+                                req,
+                                local_client.clone(),
+                                metrics.clone(),
+                            )
+                        })
+                        .boxed();
 
-                let app_service = service_fn(move |req| {
-                    trace!("Received request: {:?}", req);
-                    Self::remote_component_server_handler(
-                        req,
-                        local_client.clone(),
-                        metrics.clone(),
-                    )
-                });
+                        // Bundle the service and the acquired permit to limit concurrency at the
+                        // connection level.
+                        let service = PermitGuardedService {
+                            inner: handle_request_service,
+                            _permit: Some(permit),
+                        };
+                        Ok::<_, hyper::Error>(service)
+                    }
+                    Err(_) => {
+                        trace!("Too many connections, denying a new connection");
+                        // Marked `async` to conform to the expected `Service` trait, requiring the
+                        // handler to return a `Future`.
+                        let reject_request_service = service_fn(move |_req| async {
+                            let response: HyperResponse<Body> = HyperResponse::builder()
+                                // Return a 503 Service Unavailable response to indicate that the server is busy, which should indicate the load balancer to divert the request to another server.
+                                .status(StatusCode::SERVICE_UNAVAILABLE)
+                                .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                                .body(Body::from("Server is busy addressing previous requests"))
+                                .expect("Should be able to construct server http response.");
+                            // Explicitly mention the type, helping the Rust compiler avoid Error
+                            // type ambiguity.
+                            let wrapped_response: Result<HyperResponse<Body>, hyper::Error> =
+                                Ok(response);
+                            wrapped_response
+                        })
+                        .boxed();
 
-                // Bundle the service and the acquired permit to limit concurrency at the connection
-                // level.
-                let service = PermitGuardedService { inner: app_service, _permit: permit };
-
-                Ok::<_, hyper::Error>(service)
+                        // No permit is acquired, so no need to hold one.
+                        let service =
+                            PermitGuardedService { inner: reject_request_service, _permit: None };
+                        Ok::<_, hyper::Error>(service)
+                    }
+                }
             }
         });
 
@@ -294,7 +323,7 @@ where
 /// delegates all service calls to the inner service.
 struct PermitGuardedService<S> {
     inner: S,
-    _permit: OwnedSemaphorePermit,
+    _permit: Option<OwnedSemaphorePermit>,
 }
 
 impl<S, Req> Service<Req> for PermitGuardedService<S>
