@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
-use apollo_infra::component_definitions::ComponentClient;
+use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest};
 use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
@@ -74,6 +74,7 @@ pub enum L1ProviderRequest {
     GetL1ProviderSnapshot,
 }
 impl_debug_for_infra_requests_and_responses!(L1ProviderRequest);
+impl PrioritizedRequest for L1ProviderRequest {}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1ProviderResponse {
