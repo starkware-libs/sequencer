@@ -103,7 +103,12 @@ pub(crate) fn parse_and_run_os(
 
     info!("Finished running OS. Serializing OS output...");
     serialize_runner_output(
-        &OsCliOutput { da_segment, metrics: metrics.into(), unused_hints },
+        &OsCliOutput {
+            additional_data: &cairo_pie.additional_data,
+            da_segment,
+            metrics: metrics.into(),
+            unused_hints,
+        },
         output_path,
         &cairo_pie,
         cairo_pie_zip_path,
