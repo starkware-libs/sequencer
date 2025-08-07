@@ -34,6 +34,26 @@ pub(crate) fn enter_scope_with_aliases(HintArgs { exec_scopes, .. }: HintArgs<'_
     Ok(())
 }
 
+pub(crate) fn get_class_hash_and_compiled_class_hash_v2<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { ids_data, vm, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let (class_hash, expected_casm_hash_v2) = hint_processor
+        .get_mut_current_execution_helper()?
+        .class_hashes_to_migrate_iterator
+        .next()
+        .expect("Class hashes iterator should not be empty");
+    insert_value_from_var_name(Ids::ClassHash.into(), class_hash.0, vm, ids_data, ap_tracking)?;
+    insert_value_from_var_name(
+        Ids::ExpectedCasmHashV2.into(),
+        expected_casm_hash_v2.0,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+    Ok(())
+}
+
 pub(crate) fn key_lt_min_alias_alloc_value(
     HintArgs { ids_data, ap_tracking, vm, constants, .. }: HintArgs<'_>,
 ) -> OsHintResult {

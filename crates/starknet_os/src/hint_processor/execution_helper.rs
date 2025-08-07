@@ -11,7 +11,7 @@ use cairo_vm::vm::errors::memory_errors::MemoryError;
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::BlockHash;
 use starknet_api::contract_class::EntryPointType;
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction, TransactionType};
 use starknet_types_core::felt::Felt;
 
@@ -28,6 +28,8 @@ use crate::vm_utils::VmUtilsError;
 pub struct OsExecutionHelper<'a, S: StateReader> {
     pub(crate) cached_state: CachedState<S>,
     pub(crate) os_block_input: &'a OsBlockInput,
+    pub(crate) class_hashes_to_migrate_iterator:
+        Box<dyn Iterator<Item = (ClassHash, CompiledClassHash)> + 'a>,
     pub(crate) os_logger: OsLogger,
     pub(crate) tx_execution_iter: TransactionExecutionIter<'a>,
     pub(crate) tx_tracker: TransactionTracker<'a>,
@@ -45,6 +47,9 @@ impl<'a, S: StateReader> OsExecutionHelper<'a, S> {
         Ok(Self {
             cached_state: Self::initialize_cached_state(state_reader, state_input)?,
             os_block_input,
+            class_hashes_to_migrate_iterator: Box::new(
+                os_block_input.class_hashes_to_migrate.iter().map(|(k, v)| (*k, *v)),
+            ),
             os_logger: OsLogger::new(debug_mode),
             tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
             tx_tracker: TransactionTracker::new(&os_block_input.transactions),
@@ -91,6 +96,9 @@ impl<'a> OsExecutionHelper<'a, DictStateReader> {
         Self {
             cached_state: CachedState::from(state_reader),
             os_block_input,
+            class_hashes_to_migrate_iterator: Box::new(
+                os_block_input.class_hashes_to_migrate.iter().map(|(k, v)| (*k, *v)),
+            ),
             os_logger: OsLogger::new(true),
             tx_execution_iter: TransactionExecutionIter::new(&os_block_input.tx_execution_infos),
             tx_tracker: TransactionTracker::new(&os_block_input.transactions),

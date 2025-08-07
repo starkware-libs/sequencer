@@ -9,6 +9,7 @@ from starkware.cairo.common.cairo_builtins import (
     ModBuiltin,
     PoseidonBuiltin,
 )
+from starkware.cairo.common.find_element import find_element
 from starkware.cairo.common.dict import dict_new, dict_update
 from starkware.cairo.common.dict_access import DictAccess
 from starkware.cairo.common.math import assert_not_equal
@@ -30,6 +31,7 @@ from starkware.starknet.core.os.contract_class.compiled_class import (
     guess_compiled_class_facts,
     validate_compiled_class_facts_post_execution,
 )
+from starkware.starknet.core.os.contract_class.compiled_class_struct import CompiledClass
 from starkware.starknet.core.os.contract_class.deprecated_compiled_class import (
     DeprecatedCompiledClassFact,
     deprecated_load_compiled_class_facts,
@@ -50,6 +52,12 @@ from starkware.starknet.core.os.output import (
 )
 from starkware.starknet.core.os.state.commitment import StateEntry
 from starkware.starknet.core.os.state.state import OsStateUpdate, state_update
+from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
+    compiled_class_hash as poseidon_compiled_class_hash,
+)
+from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
+    compiled_class_hash as blake_compiled_class_hash,
+)
 
 // Executes transactions on Starknet.
 func main{
@@ -266,6 +274,17 @@ func execute_blocks{
         write_block_number_to_block_hash_mapping(block_context=block_context);
     }
 
+    // Update the contract class changes according to the migration.
+
+    local n_classes_to_migrate;
+    // TODO(Meshi): Change to rust VM notion once all python tests only uses the rust VM.
+    %{ ids.n_classes_to_migrate = len(block_input.class_hashes_to_migrate) %}
+    with contract_class_changes {
+        migrate_classes_to_v2_casm_hash(
+            n_classes=n_classes_to_migrate, block_context=block_context
+        );
+    }
+
     // Execute transactions.
     let outputs = initial_carried_outputs;
     with contract_state_changes, contract_class_changes, outputs {
@@ -416,5 +435,50 @@ func write_block_number_to_block_hash_mapping{range_check_ptr, contract_state_ch
         prev_value=cast(state_entry, felt),
         new_value=cast(new_state_entry, felt),
     );
+    return ();
+}
+
+// Migrates contract classes from v1 (Poseidon-based CASM hash) to v2 (Blake-based CASM hash).
+// The class hashes are guessed, and should at least cover the non-migrated classes that
+// will be executed by the block.
+// Hint arguments:
+// block_input - The block input containing the class hashes to migrate.
+// class_hashes_to_migrate_iterator - An iterator over the class hashes to migrate.
+func migrate_classes_to_v2_casm_hash{
+    poseidon_ptr: PoseidonBuiltin*, range_check_ptr, contract_class_changes: DictAccess*
+}(n_classes: felt, block_context: BlockContext*) {
+    alloc_locals;
+    if (n_classes == 0) {
+        return ();
+    }
+    // Guess the class hash and compiled class hash v2.
+    local class_hash;
+    local expected_casm_hash_v2;
+
+    %{ GetClassHashAndCompiledClassHashV2 %}
+
+    // Find the compiled class fact using the guessed v2 hash.
+    static_assert CompiledClassFact.hash == 0;
+    let (compiled_class_fact: CompiledClassFact*) = find_element(
+        array_ptr=block_context.compiled_class_facts,
+        elm_size=CompiledClassFact.SIZE,
+        n_elms=block_context.n_compiled_class_facts,
+        key=expected_casm_hash_v2,
+    );
+    let compiled_class: CompiledClass* = compiled_class_fact.compiled_class;
+    // Compute the full compiled class hash, both v1 and v2,
+    // using the compiled class from the block context:
+    // The full hash is needed to verify the migration;
+    // taking the class from the block context is not necessary,
+    // it's for future optimization (to skip the additional hash on these classes at the end).
+    let (casm_hash_v1) = poseidon_compiled_class_hash(compiled_class, full_contract=TRUE);
+    let (casm_hash_v2) = blake_compiled_class_hash(compiled_class, full_contract=TRUE);
+    // Verify the guessed v2 hash.
+    assert expected_casm_hash_v2 = casm_hash_v2;
+    // Update the casm hash from v1 to v2.
+    dict_update{dict_ptr=contract_class_changes}(
+        key=class_hash, prev_value=casm_hash_v1, new_value=casm_hash_v2
+    );
+    migrate_classes_to_v2_casm_hash(n_classes=n_classes - 1, block_context=block_context);
     return ();
 }

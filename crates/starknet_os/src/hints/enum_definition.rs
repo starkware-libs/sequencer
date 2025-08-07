@@ -135,6 +135,7 @@ use crate::hints::hint_implementation::os::{
     configure_kzg_manager,
     create_block_additional_hints,
     get_n_blocks,
+    get_n_class_hashes_to_migrate,
     init_state_update_pointer,
     initialize_class_hashes,
     initialize_state_changes,
@@ -197,6 +198,7 @@ use crate::hints::hint_implementation::stateful_compression::implementation::{
     assert_key_big_enough_for_alias,
     contract_address_le_max_for_compression,
     enter_scope_with_aliases,
+    get_class_hash_and_compiled_class_hash_v2,
     guess_aliases_contract_storage_ptr,
     guess_contract_addr_storage_ptr,
     initialize_alias_counter,
@@ -1147,6 +1149,11 @@ define_hint_enum!(
         "memory[fp + 0] = to_felt_or_relocatable(aliases.read(key=ids.key))"
     ),
     (
+        GetClassHashAndCompiledClassHashV2,
+        get_class_hash_and_compiled_class_hash_v2,
+        "GetClassHashAndCompiledClassHashV2"
+    ),
+    (
         WriteNextAliasFromKey,
         write_next_alias_from_key,
         "aliases.write(key=ids.key, value=ids.next_available_alias)"
@@ -1601,6 +1608,11 @@ ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
         GetBlocksNumber,
         get_n_blocks,
         r#"memory[fp + 0] = to_felt_or_relocatable(len(os_input.block_inputs))"#
+    ),
+    (
+        GetNClassHashesToMigrate,
+        get_n_class_hashes_to_migrate,
+        r#"ids.n_classes_to_migrate = len(block_input.class_hashes_to_migrate)"#
     ),
     (
         WriteFullOutputToMemory,
