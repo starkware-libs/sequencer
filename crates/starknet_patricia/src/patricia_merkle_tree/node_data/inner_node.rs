@@ -26,6 +26,12 @@ pub struct BinaryData {
     pub right_hash: HashOutput,
 }
 
+impl BinaryData {
+    pub fn flatten(&self) -> Vec<Felt> {
+        vec![self.left_hash.0, self.right_hash.0]
+    }
+}
+
 // Wraps a U256. Maximal possible value is the longest path in a tree of height 251 (2 ^ 251 - 1).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct EdgePath(pub U256);
@@ -132,6 +138,16 @@ impl PathToBottom {
 pub struct EdgeData {
     pub bottom_hash: HashOutput,
     pub path_to_bottom: PathToBottom,
+}
+
+impl EdgeData {
+    pub fn flatten(&self) -> Vec<Felt> {
+        vec![
+            self.path_to_bottom.length.into(),
+            (&self.path_to_bottom.path).into(),
+            self.bottom_hash.0,
+        ]
+    }
 }
 
 impl PathToBottom {
