@@ -625,7 +625,7 @@
       "name": "native_compilation_error",
       "title": "Native compilation alert",
       "ruleGroup": "batcher",
-      "expr": "increase(native_compilation_error[1h])",
+      "expr": "increase(native_compilation_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -644,7 +644,7 @@
           "type": "query"
         }
       ],
-      "for": "30s",
+      "for": "0",
       "intervalSec": 30,
       "severity": "p5"
     },
