@@ -132,6 +132,9 @@ def main(deployment_config_path: str, data_dir: str) -> None:
         wait_for_resource(controller=controller, name=resource_name)
         print(f"✅ {controller}/{resource_name} is ready!")
 
+    print("\n📦 Current pod status:")
+    run(["kubectl", "get", "pods", "-o", "wide"])
+
     print("\n✅ All services are ready!")
 
 
