@@ -26,7 +26,17 @@ pub struct RunnerReturnObject {
     pub cairo_runner: CairoRunner,
 }
 
-// TODO(Aner): replace the return type with Result<StarknetRunnerOutput,...>
+
+#[cfg(any(test, feature = "testing"))]
+pub fn validate_builtins(runner: &mut CairoRunner){
+   let builtins_start = runner.get_builtins_final_stack((runner.vm.get_ap()-2).unwrap()).unwrap();
+   let n_builtins = runner.get_program().builtins_len();
+   let builtins_end = runner.vm.get_ap();
+   assert_eq!((builtins_start + n_builtins).unwrap(), builtins_end);
+}
+
+
+
 // TODO(Aner): Make generic (CommonHintProcessor trait) depend on testing flag.
 fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
     layout: LayoutName,
@@ -70,7 +80,7 @@ fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
 
     #[cfg(feature = "include_program_output")]
     let raw_output = crate::io::os_output::get_run_output(&cairo_runner.vm)?;
-
+    assert!(false);
     cairo_runner.vm.verify_auto_deductions().map_err(StarknetOsError::VirtualMachineError)?;
     cairo_runner
         .read_return_values(allow_missing_builtins)
@@ -115,6 +125,11 @@ pub fn run_os<S: StateReader>(
     )?;
 
     let mut runner_output = run_program(layout, &OS_PROGRAM, &mut snos_hint_processor)?;
+
+    #[cfg(any(test, feature = "testing"))]
+    {
+        validate_builtins(&mut runner_output.cairo_runner);
+    }
 
     Ok(StarknetOsRunnerOutput {
         #[cfg(feature = "include_program_output")]

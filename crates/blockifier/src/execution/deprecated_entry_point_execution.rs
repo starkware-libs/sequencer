@@ -301,7 +301,6 @@ pub fn validate_run(
     // Validate builtins' final stack.
     let mut current_builtin_ptr = implicit_args_end;
     current_builtin_ptr = runner.get_builtins_final_stack(current_builtin_ptr)?;
-
     // Validate implicit arguments segment length is unchanged.
     // Subtract one to get to the first implicit arg segment (the syscall pointer).
     let implicit_args_start = (current_builtin_ptr - 1)?;
