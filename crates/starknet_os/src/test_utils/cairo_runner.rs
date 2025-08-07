@@ -621,6 +621,8 @@ pub fn initialize_cairo_runner(
         entrypoint = format!("__main__.{entrypoint}");
     }
 
+    println!("entrypoint: {:?}", entrypoint);
+
     let program = inject_builtins(program_bytes, implicit_args)?;
     info!("Successfully injected builtins into program.");
 

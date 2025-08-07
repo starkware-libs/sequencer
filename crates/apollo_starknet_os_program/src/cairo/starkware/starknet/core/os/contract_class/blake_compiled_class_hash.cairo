@@ -32,26 +32,29 @@ func compiled_class_hash{range_check_ptr}(compiled_class: CompiledClass*, full_c
 ) {
     alloc_locals;
     assert compiled_class.compiled_class_version = COMPILED_CLASS_VERSION;
-
     let hash_state: HashState = hash_init();
-    with hash_state {
-        hash_update_single(item=compiled_class.compiled_class_version);
 
+    with hash_state {
+        %{print steps%}
+        hash_update_single(item=compiled_class.compiled_class_version);
+        %{print steps%}
         // Hash external entry points.
         hash_entry_points(
             entry_points=compiled_class.external_functions,
             n_entry_points=compiled_class.n_external_functions,
         );
-
+        // %{print steps%}
         // Hash L1 handler entry points.
         hash_entry_points(
             entry_points=compiled_class.l1_handlers, n_entry_points=compiled_class.n_l1_handlers
         );
-
+        // %{print steps%}
         // Hash constructor entry points.
         hash_entry_points(
             entry_points=compiled_class.constructors, n_entry_points=compiled_class.n_constructors
         );
+
+        // %{print steps%}
 
         // Hash bytecode.
         let bytecode_hash = bytecode_hash_node(
@@ -59,10 +62,14 @@ func compiled_class_hash{range_check_ptr}(compiled_class: CompiledClass*, full_c
             data_length=compiled_class.bytecode_length,
             full_contract=full_contract,
         );
+        %{print steps%}
         hash_update_single(item=bytecode_hash);
     }
+    %{print steps%}
 
+    // %{print steps%}
     let hash: felt = hash_finalize(hash_state=hash_state);
+
     return (hash=hash);
 }
 
@@ -105,25 +112,20 @@ func bytecode_hash_node{range_check_ptr}(
     data_ptr: felt*, data_length: felt, full_contract: felt
 ) -> felt {
     alloc_locals;
-
     local is_leaf;
-
     %{
         from starkware.starknet.core.os.contract_class.compiled_class_hash_objects import (
             BytecodeLeaf,
         )
         ids.is_leaf = 1 if isinstance(bytecode_segment_structure, BytecodeLeaf) else 0
     %}
-
     // Guess if the bytecode is a leaf or an internal node in the tree.
     if (is_leaf != FALSE) {
         // If the bytecode is a leaf, it must be loaded into memory. Compute its hash.
         let (hash) = encode_felt252_data_and_calc_blake_hash(data_len=data_length, data=data_ptr);
         return hash;
     }
-
     %{ bytecode_segments = iter(bytecode_segment_structure.segments) %}
-
     // Initialize Blake2s hash state for internal node.
     let hash_state: HashState = hash_init();
     with hash_state {
@@ -207,9 +209,11 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
     }
 
     // Add the segment length and hash to the hash state.
+    %{print steps%}
     hash_update_single(item=segment_length);
+    %{print steps%}
     hash_update_single(item=current_segment_hash);
-
+    %{print steps%}
     %{ vm_exit_scope() %}
 
     return bytecode_hash_internal_node(
@@ -222,12 +226,16 @@ func bytecode_hash_internal_node{range_check_ptr, hash_state: HashState}(
 func hash_entry_points{hash_state: HashState, range_check_ptr: felt}(
     entry_points: CompiledClassEntryPoint*, n_entry_points: felt
 ) {
+
     let inner_hash_state = hash_init();
+
     hash_entry_points_inner{hash_state=inner_hash_state, range_check_ptr=range_check_ptr}(
         entry_points=entry_points, n_entry_points=n_entry_points
     );
     let hash: felt = hash_finalize{range_check_ptr=range_check_ptr}(hash_state=inner_hash_state);
+    %{print steps%}
     hash_update_single(item=hash);
+    %{print steps%}
 
     return ();
 }
@@ -235,12 +243,16 @@ func hash_entry_points{hash_state: HashState, range_check_ptr: felt}(
 func hash_entry_points_inner{hash_state: HashState, range_check_ptr: felt}(
     entry_points: CompiledClassEntryPoint*, n_entry_points: felt
 ) {
+
     if (n_entry_points == 0) {
         return ();
     }
 
+    %{print steps%}
     hash_update_single(item=entry_points.selector);
+    %{print steps%}
     hash_update_single(item=entry_points.offset);
+    %{print steps%}
 
     // Hash builtins.
     hash_update_with_nested_hash{hash_state=hash_state, range_check_ptr=range_check_ptr}(

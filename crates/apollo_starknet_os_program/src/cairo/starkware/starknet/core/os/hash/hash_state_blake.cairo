@@ -33,9 +33,12 @@ func hash_update_with_nested_hash{hash_state: HashState, range_check_ptr: felt}(
 }
 
 func hash_finalize{range_check_ptr: felt}(hash_state: HashState) -> felt {
+    // %{print steps%}
     let data_length = hash_state.end - hash_state.start;
+    // %{print steps%}
     let (hash) = encode_felt252_data_and_calc_blake_hash(
         data_len=data_length, data=hash_state.start
     );
+    // %{print steps%}
     return (hash);
 }
