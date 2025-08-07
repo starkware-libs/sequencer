@@ -49,7 +49,7 @@ impl<T: TryFromOutputIter> TryFromOutputIter for Vec<T> {
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 /// Represents a full contract storage update.
-pub(crate) struct FullContractStorageUpdate {
+pub struct FullContractStorageUpdate {
     pub(crate) key: StorageKey,
     pub(crate) prev_value: Felt,
     pub(crate) new_value: Felt,
@@ -88,9 +88,9 @@ impl TryFromOutputIter for PartialContractStorageUpdate {
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 pub struct FullCompiledClassHashUpdate {
-    pub(crate) class_hash: ClassHash,
-    pub(crate) prev_compiled_class_hash: CompiledClassHash,
-    pub(crate) next_compiled_class_hash: CompiledClassHash,
+    pub class_hash: ClassHash,
+    pub prev_compiled_class_hash: CompiledClassHash,
+    pub next_compiled_class_hash: CompiledClassHash,
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
@@ -137,17 +137,17 @@ impl TryFromOutputIter for PartialCompiledClassHashUpdate {
 /// Represents the changes in a contract instance, in a full format.
 pub struct FullContractChanges {
     // The address of the contract.
-    pub(crate) addr: ContractAddress,
+    pub addr: ContractAddress,
     // The previous nonce of the contract.
-    pub(crate) prev_nonce: Nonce,
+    pub prev_nonce: Nonce,
     // The new nonce of the contract.
-    pub(crate) new_nonce: Nonce,
+    pub new_nonce: Nonce,
     // The previous class hash.
-    pub(crate) prev_class_hash: ClassHash,
+    pub prev_class_hash: ClassHash,
     // The new class hash.
-    pub(crate) new_class_hash: ClassHash,
+    pub new_class_hash: ClassHash,
     // The storage changes of the contract (includes the previous and new value).
-    pub(crate) storage_changes: Vec<FullContractStorageUpdate>,
+    pub storage_changes: Vec<FullContractStorageUpdate>,
 }
 
 impl TryFromOutputIter for FullContractChanges {
