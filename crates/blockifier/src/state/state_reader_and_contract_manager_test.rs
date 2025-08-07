@@ -2,6 +2,7 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 
 use crate::blockifier::config::ContractClassManagerConfig;
 use crate::execution::contract_class::RunnableCompiledClass;
@@ -20,7 +21,7 @@ fn build_reader_and_declare_contract(
     let mut reader = DictStateReader::default();
 
     // Declare the contract in the storage.
-    reader.add_class(&contract);
+    reader.add_class(&contract, &HashVersion::V2);
 
     StateReaderAndContractManager {
         state_reader: reader,
