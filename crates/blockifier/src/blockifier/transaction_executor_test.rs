@@ -6,6 +6,7 @@ use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use pretty_assertions::assert_eq;
 use rstest::rstest;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::deploy_account::executable_deploy_account_tx;
 use starknet_api::test_utils::invoke::executable_invoke_tx;
@@ -132,7 +133,7 @@ fn test_declare(
         declare_tx_args! {
             sender_address: account_contract.get_instance_address(0),
             class_hash: declared_contract.get_class_hash(),
-            compiled_class_hash: declared_contract.get_compiled_class_hash(),
+            compiled_class_hash: declared_contract.get_compiled_class_hash(&HashVersion::V2),
             version: tx_version,
             resource_bounds: l1_resource_bounds(0_u8.into(), DEFAULT_STRK_L1_GAS_PRICE.into()),
         },

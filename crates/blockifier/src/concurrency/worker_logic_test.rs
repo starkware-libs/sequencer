@@ -6,6 +6,7 @@ use blockifier_test_utils::calldata::{create_calldata, create_trivial_calldata};
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::test_utils::declare::executable_declare_tx;
 use starknet_api::test_utils::{NonceManager, TEST_ERC20_CONTRACT_ADDRESS2};
@@ -622,7 +623,7 @@ fn test_deploy_before_declare(
     let test_contract = FeatureContract::TestContract(cairo_version);
     let test_class_hash = test_contract.get_class_hash();
     let test_class_info = calculate_class_info_for_testing(test_contract.get_class());
-    let test_compiled_class_hash = test_contract.get_compiled_class_hash();
+    let test_compiled_class_hash = test_contract.get_compiled_class_hash(&HashVersion::V2);
     let declare_tx = AccountTransaction::new_with_default_flags(executable_declare_tx(
         declare_tx_args! {
             sender_address: account_address_0,
