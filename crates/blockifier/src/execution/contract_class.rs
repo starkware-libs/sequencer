@@ -59,14 +59,14 @@ use crate::utils::u64_from_usize;
 // TODO(AvivG): modify values to match the actual values.
 const CALL_BYTECODE_HASH_NODE_STEPS: usize = 7;
 const ALLOC_LOCAL_STEPS: usize = 1;
-const IF_STEPS: usize = 1;
+const IF_STEPS: usize = 2;
 const RETURN_STEPS: usize = 1;
 const HASH_INIT_STEPS: usize = 1;
 const HASH_FINALIZE_BASE_STEPS: usize = 1;
 const CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS: usize = 1;
 const ASSERT_STEPS: usize = 1;
-const HASH_UPDATE_SINGLE_STEPS: usize = 1;
 const TEMPVAR_STEPS: usize = 1;
+const HASH_UPDATE_SINGLE_STEPS: usize = 1;
 const EMPTY_ENTRY_POINTS_STEPS: usize = 1;
 const CALL_HASH_ENTRY_POINTS_STEPS: usize = 1;
 const CALL_HASH_ENTRY_POINTS_INNER_STEPS: usize = 1;
@@ -617,21 +617,6 @@ pub fn cost_of_hash_entry_points(
     unimplemented!()
 }
 
-pub fn cost_of_hash_update_with_nested_hash(
-    builtins_list_len: usize,
-    resources: &mut ExecutionResources,
-    blake_opcodes: &mut usize,
-) {
-    let base_hash_update_with_nested_hash_steps =
-        CALL_HASH_UPDATE_WITH_NESTED_HASH_STEPS + HASH_UPDATE_SINGLE_STEPS + RETURN_STEPS;
-    resources.n_steps += base_hash_update_with_nested_hash_steps;
-
-    // assumig builtins are small felts
-    let (added_resources, added_blake_opcode_count) =
-        cost_of_encode_felt252_data_and_calc_blake_hash(0, builtins_list_len);
-    *resources += &added_resources;
-    *blake_opcodes += added_blake_opcode_count;
-}
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
 // lengths.
