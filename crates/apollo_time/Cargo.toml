@@ -10,6 +10,7 @@ testing = ["mockall"]
 tokio = ["dep:tokio"]
 
 [dependencies]
+async-trait.workspace = true
 chrono.workspace = true
 mockall = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["time"], optional = true }
