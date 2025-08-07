@@ -15,9 +15,8 @@ use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMap
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::contracts::FeatureContract;
-use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
-use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
+use starknet_api::contract_class::{ClassInfo, ContractClass};
 use starknet_api::core::{
     ClassHash,
     CompiledClassHash as StarknetAPICompiledClassHash,
@@ -25,7 +24,7 @@ use starknet_api::core::{
 };
 use starknet_api::declare_tx_args;
 use starknet_api::executable_transaction::{AccountTransaction, DeclareTransaction};
-use starknet_api::state::{SierraContractClass, StorageKey};
+use starknet_api::state::StorageKey;
 use starknet_api::test_utils::declare::declare_tx;
 use starknet_api::test_utils::CHAIN_ID_FOR_TESTS;
 use starknet_api::transaction::fields::ValidResourceBounds;
@@ -139,16 +138,18 @@ pub(crate) async fn commit_state_diff(
     }
 }
 
-// TODO(Nimrod): Refactor this to take only feature contract and use
-// `get_class_info_of_cairo_1_feature_contract`.
 pub(crate) fn create_cairo1_bootstrap_declare_tx(
-    sierra: &SierraContractClass,
-    casm: CasmContractClass,
+    feature_contract: FeatureContract,
     execution_contracts: &mut OsExecutionContracts,
 ) -> AccountTransaction {
+    let sierra = feature_contract.get_sierra();
+    let class = feature_contract.get_class();
+    let ContractClass::V1((casm, _)) = class else {
+        panic!("Expected a Cairo 1 contract class.");
+    };
     let class_hash = sierra.calculate_class_hash();
     let compiled_class_hash = starknet_api::core::CompiledClassHash(casm.compiled_class_hash());
-    execution_contracts.add_cairo1_contract(casm.clone(), sierra);
+    execution_contracts.add_cairo1_contract(casm.clone(), &sierra);
     let declare_tx_args = declare_tx_args! {
         sender_address: DeclareTransaction::bootstrap_address(),
         class_hash,
@@ -156,14 +157,7 @@ pub(crate) fn create_cairo1_bootstrap_declare_tx(
         resource_bounds: ValidResourceBounds::create_for_testing_no_fee_enforcement(),
     };
     let account_declare_tx = declare_tx(declare_tx_args);
-    let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program).unwrap();
-    let contract_class = ContractClass::V1((casm, sierra_version.clone()));
-    let class_info = ClassInfo {
-        contract_class,
-        sierra_program_length: sierra.sierra_program.len(),
-        abi_length: sierra.abi.len(),
-        sierra_version,
-    };
+    let class_info = get_class_info_of_cairo_1_feature_contract(feature_contract);
     let tx =
         DeclareTransaction::create(account_declare_tx, class_info, &CHAIN_ID_FOR_TESTS).unwrap();
     AccountTransaction::Declare(tx)
