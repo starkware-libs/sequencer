@@ -317,6 +317,8 @@ pub fn create_node_config(
         state_sync_config,
     };
 
+    sequencer_node_config.validate_node_config().expect("Generated node config should be valid.");
+
     (sequencer_node_config, config_pointers_map)
 }
 
