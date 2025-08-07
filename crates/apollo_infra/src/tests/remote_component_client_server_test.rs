@@ -65,6 +65,13 @@ const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client reques
 const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
 const VALID_VALUE_A: ValueA = Felt::ONE;
 
+const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
+    retries: 0,
+    idle_connections: 0,
+    idle_timeout_ms: 0,
+    retry_interval_ms: 0,
+};
+
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
     async fn a_get_value(&self) -> ResultA {
@@ -139,13 +146,11 @@ where
         Server::bind(&socket).serve(make_svc).await.unwrap();
     });
 
-    // Todo(uriel): Get rid of this
     // Ensure the server starts running.
     task::yield_now().await;
 
-    let config = RemoteClientConfig::default();
     ComponentAClient::new(
-        config,
+        FAST_FAILING_CLIENT_CONFIG,
         &socket.ip().to_string(),
         socket.port(),
         TEST_REMOTE_CLIENT_METRICS,
@@ -284,9 +289,8 @@ async fn faulty_client_setup() {
 #[tokio::test]
 async fn unconnected_server() {
     let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
-    let client_config = RemoteClientConfig::default();
     let client = ComponentAClient::new(
-        client_config,
+        FAST_FAILING_CLIENT_CONFIG,
         &socket.ip().to_string(),
         socket.port(),
         TEST_REMOTE_CLIENT_METRICS,
