@@ -48,6 +48,14 @@ pub(crate) fn fee_token_address<S: StateReader>(
     Ok(insert_value_into_ap(vm, strk_fee_token_address.0.key())?)
 }
 
+pub(crate) fn public_key<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let public_key = hint_processor.os_hints_config.chain_info.public_key;
+    Ok(insert_value_into_ap(vm, public_key)?)
+}
+
 pub(crate) fn sequencer_address<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, .. }: HintArgs<'_>,

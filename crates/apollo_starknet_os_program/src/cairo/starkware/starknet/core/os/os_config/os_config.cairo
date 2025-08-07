@@ -10,6 +10,7 @@ struct StarknetOsConfig {
     chain_id: felt,
     // The (L2) address of the fee token contract.
     fee_token_address: felt,
+    public_key: felt,
 }
 
 // Calculates the hash of StarkNet OS config.
@@ -25,6 +26,9 @@ func get_starknet_os_config_hash{hash_ptr: HashBuiltin*}(starknet_os_config: Sta
     );
     let (hash_state_ptr) = hash_update_single(
         hash_state_ptr=hash_state_ptr, item=starknet_os_config.fee_token_address
+    );
+    let (hash_state_ptr) = hash_update_single(
+        hash_state_ptr=hash_state_ptr, item=starknet_os_config.public_key
     );
 
     let (starknet_os_config_hash) = hash_finalize(hash_state_ptr=hash_state_ptr);
