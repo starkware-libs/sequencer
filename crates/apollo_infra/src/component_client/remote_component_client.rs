@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_infra_utils::warn_every_n;
 use async_trait::async_trait;
 use hyper::body::{to_bytes, Bytes};
 use hyper::header::CONTENT_TYPE;
@@ -253,6 +254,10 @@ where
         // successful response, or the last response if all attempts failed.
         let max_attempts = self.config.retries + 1;
         trace!("Starting retry loop: max_attempts = {max_attempts}");
+        // TODO(Tsabary): consider making these consts configurable.
+        const LOG_ATTEMPT_INTERVAL: usize = 10;
+        const INITIAL_RETRY_DELAY: u64 = 1;
+        let mut retry_interval_ms = INITIAL_RETRY_DELAY;
         for attempt in 1..max_attempts + 1 {
             trace!("Request {log_message} attempt {attempt} of {max_attempts}");
             let http_request = self.construct_http_request(serialized_request_bytes.clone());
@@ -262,11 +267,17 @@ where
                 self.metrics.record_attempt(attempt);
                 return res;
             }
-            warn!("Request {log_message} failed on attempt {attempt}/{max_attempts}: {res:?}");
+            let warning_message = format!(
+                "Request {log_message} failed on attempt {attempt}/{max_attempts}: {res:?}"
+            );
+            warn_every_n!(LOG_ATTEMPT_INTERVAL, warning_message);
             if attempt == max_attempts {
                 self.metrics.record_attempt(attempt);
                 return res;
             }
+            // Exponential backoff, capped by the configured retry interval.
+            // TODO(Tsabary): rename the config value to indicate this is the max retry interval.
+            retry_interval_ms = (retry_interval_ms * 2).min(self.config.retry_interval_ms);
             tokio::time::sleep(Duration::from_millis(self.config.retry_interval_ms)).await;
         }
         unreachable!("Guaranteed to return a response before reaching this point.");
