@@ -1,7 +1,12 @@
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
+use apollo_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+    PrioritizedRequest,
+    RequestPriority,
+};
 use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::handle_all_response_variants;
@@ -61,6 +66,19 @@ pub enum MempoolRequest {
     GetMempoolSnapshot(),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolRequest);
+impl PrioritizedRequest for MempoolRequest {
+    fn priority(&self) -> RequestPriority {
+        match self {
+            MempoolRequest::CommitBlock(_) | MempoolRequest::GetTransactions(_) => {
+                RequestPriority::High
+            }
+            MempoolRequest::AddTransaction(_)
+            | MempoolRequest::AccountTxInPoolOrRecentBlock(_)
+            | MempoolRequest::UpdateGasPrice(_)
+            | MempoolRequest::GetMempoolSnapshot() => RequestPriority::Low,
+        }
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum MempoolResponse {

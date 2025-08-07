@@ -342,7 +342,7 @@ fn create_local_servers(
     communication: &mut SequencerNodeCommunication,
     components: &mut SequencerNodeComponents,
 ) -> LocalServers {
-    let batcher_metrics = LocalServerMetrics::new(
+    const BATCHER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &BATCHER_LOCAL_MSGS_RECEIVED,
         &BATCHER_LOCAL_MSGS_PROCESSED,
         &BATCHER_LOCAL_QUEUE_DEPTH,
@@ -352,9 +352,9 @@ fn create_local_servers(
         &config.components.batcher.execution_mode,
         &mut components.batcher,
         communication.take_batcher_rx(),
-        batcher_metrics
+        &BATCHER_METRICS
     );
-    let class_manager_metrics = LocalServerMetrics::new(
+    const CLASS_MANAGER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
         &CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
         &CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
@@ -364,10 +364,10 @@ fn create_local_servers(
         &config.components.class_manager.execution_mode,
         &mut components.class_manager,
         communication.take_class_manager_rx(),
-        class_manager_metrics,
+        CLASS_MANAGER_METRICS,
         config.components.class_manager.max_concurrency
     );
-    let gateway_metrics = LocalServerMetrics::new(
+    const GATEWAY_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &GATEWAY_LOCAL_MSGS_RECEIVED,
         &GATEWAY_LOCAL_MSGS_PROCESSED,
         &GATEWAY_LOCAL_QUEUE_DEPTH,
@@ -377,11 +377,11 @@ fn create_local_servers(
         &config.components.gateway.execution_mode,
         &mut components.gateway,
         communication.take_gateway_rx(),
-        gateway_metrics,
+        GATEWAY_METRICS,
         config.components.gateway.max_concurrency
     );
 
-    let l1_endpoint_monitor_metrics = LocalServerMetrics::new(
+    const L1_ENDPOINT_MONITOR_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &L1_ENDPOINT_MONITOR_LOCAL_MSGS_RECEIVED,
         &L1_ENDPOINT_MONITOR_LOCAL_MSGS_PROCESSED,
         &L1_ENDPOINT_MONITOR_LOCAL_QUEUE_DEPTH,
@@ -391,10 +391,10 @@ fn create_local_servers(
         &config.components.l1_endpoint_monitor.execution_mode,
         &mut components.l1_endpoint_monitor,
         communication.take_l1_endpoint_monitor_rx(),
-        l1_endpoint_monitor_metrics
+        &L1_ENDPOINT_MONITOR_METRICS
     );
 
-    let l1_provider_metrics = LocalServerMetrics::new(
+    const L1_PROVIDER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &L1_PROVIDER_LOCAL_MSGS_RECEIVED,
         &L1_PROVIDER_LOCAL_MSGS_PROCESSED,
         &L1_PROVIDER_LOCAL_QUEUE_DEPTH,
@@ -404,9 +404,9 @@ fn create_local_servers(
         &config.components.l1_provider.execution_mode,
         &mut components.l1_provider,
         communication.take_l1_provider_rx(),
-        l1_provider_metrics
+        &L1_PROVIDER_METRICS
     );
-    let l1_gas_price_provider_metrics = LocalServerMetrics::new(
+    const L1_GAS_PRICE_PROVIDER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
         &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
         &L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
@@ -416,9 +416,9 @@ fn create_local_servers(
         &config.components.l1_gas_price_provider.execution_mode,
         &mut components.l1_gas_price_provider,
         communication.take_l1_gas_price_rx(),
-        l1_gas_price_provider_metrics
+        &L1_GAS_PRICE_PROVIDER_METRICS
     );
-    let mempool_metrics = LocalServerMetrics::new(
+    const MEMPOOL_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &MEMPOOL_LOCAL_MSGS_RECEIVED,
         &MEMPOOL_LOCAL_MSGS_PROCESSED,
         &MEMPOOL_LOCAL_QUEUE_DEPTH,
@@ -428,9 +428,9 @@ fn create_local_servers(
         &config.components.mempool.execution_mode,
         &mut components.mempool,
         communication.take_mempool_rx(),
-        mempool_metrics
+        &MEMPOOL_METRICS
     );
-    let mempool_p2p_metrics = LocalServerMetrics::new(
+    const MEMPOOL_P2P_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
         &MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
         &MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
@@ -440,9 +440,9 @@ fn create_local_servers(
         &config.components.mempool_p2p.execution_mode,
         &mut components.mempool_p2p_propagator,
         communication.take_mempool_p2p_propagator_rx(),
-        mempool_p2p_metrics
+        &MEMPOOL_P2P_METRICS
     );
-    let sierra_compiler_metrics = LocalServerMetrics::new(
+    const SIERRA_COMPILER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
         &SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
         &SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
@@ -452,10 +452,10 @@ fn create_local_servers(
         &config.components.sierra_compiler.execution_mode,
         &mut components.sierra_compiler,
         communication.take_sierra_compiler_rx(),
-        sierra_compiler_metrics,
+        SIERRA_COMPILER_METRICS,
         config.components.sierra_compiler.max_concurrency
     );
-    let state_sync_metrics = LocalServerMetrics::new(
+    const STATE_SYNC_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &STATE_SYNC_LOCAL_MSGS_RECEIVED,
         &STATE_SYNC_LOCAL_MSGS_PROCESSED,
         &STATE_SYNC_LOCAL_QUEUE_DEPTH,
@@ -465,7 +465,7 @@ fn create_local_servers(
         &config.components.state_sync.execution_mode,
         &mut components.state_sync,
         communication.take_state_sync_rx(),
-        state_sync_metrics
+        &STATE_SYNC_METRICS
     );
 
     LocalServers {
