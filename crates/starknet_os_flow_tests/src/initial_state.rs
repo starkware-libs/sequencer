@@ -2,13 +2,11 @@
 use std::collections::HashMap;
 
 use blockifier::context::BlockContext;
-use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::transaction_execution::Transaction;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
-use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{
     calculate_contract_address,
     ClassHash,
@@ -183,24 +181,11 @@ fn create_default_initial_state_txs_and_contracts() -> InitialTransactionsData {
     // Declare account and ERC20 contracts.
     let account_contract =
         FeatureContract::AccountWithoutValidations(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let account_sierra = account_contract.get_sierra();
-    let account_contract = account_contract.get_class();
-    let ContractClass::V1((account_casm, _sierra_version)) = account_contract else {
-        panic!("Expected a V1 contract class, but got: {account_contract:?}");
-    };
-    let account_declare_tx = create_cairo1_bootstrap_declare_tx(
-        &account_sierra,
-        account_casm,
-        &mut os_execution_contracts,
-    );
+    let account_declare_tx =
+        create_cairo1_bootstrap_declare_tx(account_contract, &mut os_execution_contracts);
     let erc20_contract = FeatureContract::ERC20(CairoVersion::Cairo1(RunnableCairo1::Casm));
-    let erc20_sierra = erc20_contract.get_sierra();
-    let erc20_class = erc20_contract.get_class();
-    let ContractClass::V1((erc20_casm, _sierra_version)) = erc20_class else {
-        panic!("Expected a V1 contract class, but got: {erc20_class:?}");
-    };
     let erc20_declare_tx =
-        create_cairo1_bootstrap_declare_tx(&erc20_sierra, erc20_casm, &mut os_execution_contracts);
+        create_cairo1_bootstrap_declare_tx(erc20_contract, &mut os_execution_contracts);
 
     let mut txs = vec![
         Transaction::new_for_sequencing(StarknetAPITransaction::Account(account_declare_tx)),
