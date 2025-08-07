@@ -140,7 +140,6 @@ async fn initiate_build(args: &ProposalBuildArguments) -> BuildProposalResult<Co
         .expect("Can't convert timeout to chrono::Duration");
     let timestamp = args.deps.clock.unix_now();
     let (eth_to_fri_rate, l1_prices) = get_oracle_rate_and_prices(
-        args.deps.eth_to_strk_oracle_client.clone(),
         args.deps.l1_gas_price_provider.clone(),
         timestamp,
         args.previous_block_info.as_ref(),
