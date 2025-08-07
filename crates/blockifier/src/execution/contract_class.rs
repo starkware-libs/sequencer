@@ -52,6 +52,18 @@ use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
 use crate::utils::u64_from_usize;
 
+// TODO(AvivG): modify values to match the actual values.
+const CALL_BYTECODE_HASH_NODE_STEPS: usize = 7;
+const ALLOC_LOCAL_STEPS: usize = 1;
+const IF_STEPS: usize = 2;
+const RETURN_STEPS: usize = 1;
+const HASH_INIT_STEPS: usize = 1;
+const HASH_FINALIZE_BASE_STEPS: usize = 1;
+const CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS: usize = 1;
+const ASSERT_STEPS: usize = 1;
+const TEMPVAR_STEPS: usize = 1;
+const HASH_UPDATE_SINGLE_STEPS: usize = 1;
+
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
 pub mod test;
@@ -456,28 +468,40 @@ fn node_cost(
     resources: &mut ExecutionResources,
     blake_opcodes: &mut usize,
 ) {
-    // TODO(AvivG): Add base estimation for node.
+    // Cost of called functions in `bytecode_hash_node` (used only for the node case).
+    resources.n_steps += HASH_INIT_STEPS;
+    resources.n_steps += HASH_FINALIZE_BASE_STEPS;
+    resources.n_steps += RETURN_STEPS;
 
-    // TODO(AvivG): Add base estimation of each segment. Could this be part of 'leaf_cost'?
-    let segment_overhead = ExecutionResources::default();
+    // Cost of called functions in `bytecode_hash_internal_node`.
+    let mut segment_resources = ExecutionResources::default();
+    segment_resources.n_steps += CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS;
+    segment_resources.n_steps += IF_STEPS *2;
+    segment_resources.n_steps += ALLOC_LOCAL_STEPS;
+    segment_resources.n_steps += ASSERT_STEPS;
+    segment_resources.n_steps += TEMPVAR_STEPS * 2;
+    segment_resources.n_steps += HASH_UPDATE_SINGLE_STEPS * 2;
+    segment_resources.n_steps += RETURN_STEPS;
 
     // For each segment, hash its felts.
     for seg in segs {
         match seg {
             NestedIntList::Leaf(len) => {
                 leaf_cost(*len, resources, blake_opcodes);
-                *resources += &segment_overhead;
+                *resources += &segment_resources;
             }
             _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
         }
     }
 
-    // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
-    // and one segment length (“small” felt) per segment.
-    let (node_hash_resources, node_blake_opcode_count) =
+    // Compute cost of `hash_finalize`: hash over (hash1, len1, hash2, len2, …):
+    // - segment hash = "big" felt
+    // - segment length = "small" felt
+    let (hash_finalize_resources, hash_finalize_blake_opcode_count) =
         cost_of_encode_felt252_data_and_calc_blake_hash(segs.len(), segs.len());
-    *resources += &node_hash_resources;
-    *blake_opcodes += node_blake_opcode_count;
+
+    *resources += &hash_finalize_resources;
+    *blake_opcodes += hash_finalize_blake_opcode_count;
 }
 
 /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract.
@@ -528,7 +552,26 @@ pub fn estimate_casm_blake_hash_computation_resources_inner(
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
     };
+
+    let (bytecode_resources, bytecode_blake_opcode_count) =
+        cost_of_bytecode_hash_node(bytecode_segment_lengths);
+
+    resources += &bytecode_resources;
+
+    (resources, bytecode_blake_opcode_count)
+}
+
+pub fn cost_of_bytecode_hash_node(
+    bytecode_segment_lengths: &NestedIntList,
+) -> (ExecutionResources, usize) {
+    let mut resources = ExecutionResources::default();
     let mut blake_opcodes = 0;
+
+    // Cost of called functions in `bytecode_hash_node`.
+    resources.n_steps += CALL_BYTECODE_HASH_NODE_STEPS;
+    resources.n_steps += ALLOC_LOCAL_STEPS;
+    resources.n_steps += IF_STEPS;
+    resources.n_steps += RETURN_STEPS;
 
     // Add leaf vs node cost
     match bytecode_segment_lengths {
