@@ -60,7 +60,6 @@ use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use mempool_test_utils::starknet_api_test_utils::{AccountId, MultiAccountTransactionGenerator};
-use papyrus_base_layer::anvil_base_layer::AnvilBaseLayer;
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerConfig;
 use serde::Deserialize;
 use serde_json::{json, to_value};
@@ -75,6 +74,7 @@ use tokio::task::JoinHandle;
 use tracing::{debug, info, Instrument};
 use url::Url;
 
+use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::state_reader::StorageTestConfig;
 
 pub const ACCOUNT_ID_0: AccountId = 0;
