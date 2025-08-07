@@ -5,7 +5,12 @@ use std::sync::Arc;
 
 use apollo_compile_to_casm_types::SierraCompilerError;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
+use apollo_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+    PrioritizedRequest,
+    RequestPriority,
+};
 use apollo_infra::impl_debug_for_infra_requests_and_responses;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
@@ -137,6 +142,19 @@ pub enum ClassManagerRequest {
     GetSierra(ClassId),
 }
 impl_debug_for_infra_requests_and_responses!(ClassManagerRequest);
+impl PrioritizedRequest for ClassManagerRequest {
+    fn priority(&self) -> RequestPriority {
+        match self {
+            ClassManagerRequest::GetExecutable(_) | ClassManagerRequest::GetSierra(_) => {
+                RequestPriority::High
+            }
+
+            ClassManagerRequest::AddClass(_)
+            | ClassManagerRequest::AddClassAndExecutableUnsafe(_, _, _, _)
+            | ClassManagerRequest::AddDeprecatedClass(_, _) => RequestPriority::Normal,
+        }
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum ClassManagerResponse {

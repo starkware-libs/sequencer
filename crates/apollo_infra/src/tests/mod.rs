@@ -1,5 +1,6 @@
 mod concurrent_servers_test;
 mod local_component_client_server_test;
+mod local_request_prioritization;
 mod remote_component_client_server_test;
 mod server_metrics_test;
 
@@ -15,7 +16,7 @@ use strum_macros::AsRefStr;
 use tokio::sync::Mutex;
 
 use crate::component_client::ClientResult;
-use crate::component_definitions::{ComponentRequestHandler, ComponentStarter};
+use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
 use crate::metrics::{LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics};
 
 pub(crate) type ValueA = Felt;
@@ -146,6 +147,7 @@ impl ComponentA {
 }
 
 impl ComponentStarter for ComponentA {}
+impl PrioritizedRequest for ComponentARequest {}
 
 pub(crate) struct ComponentB {
     value: ValueB,
@@ -167,6 +169,7 @@ impl ComponentB {
 }
 
 impl ComponentStarter for ComponentB {}
+impl PrioritizedRequest for ComponentBRequest {}
 
 pub(crate) async fn test_a_b_functionality(
     a_client: impl ComponentAClientTrait,
