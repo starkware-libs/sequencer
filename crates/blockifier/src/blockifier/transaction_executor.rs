@@ -23,7 +23,6 @@ use crate::transaction::errors::TransactionExecutionError;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::transaction::transaction_execution::Transaction;
 use crate::transaction::transactions::ExecutableTransaction;
-use crate::utils::get_compiled_class_hash_v2;
 
 #[cfg(test)]
 #[path = "transaction_executor_test.rs"]
@@ -302,7 +301,9 @@ fn update_compiled_class_hash_migration_in_state<S: StateReader>(
             .get_compiled_class_hash(class_hash)
             .expect("Failed to get current compiled class hash for migration");
 
-        let compiled_class_hash_v2 = get_compiled_class_hash_v2(block_state, class_hash)
+        let compiled_class_hash_v2 = block_state
+            .state
+            .get_compiled_class_hash_v2(class_hash)
             .expect("Failed to get compiled class hash v2 for migration");
 
         // Sanity check: the compiled class hashes should not be equal.
