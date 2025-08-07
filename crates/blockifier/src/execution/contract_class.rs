@@ -63,6 +63,7 @@ const CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS: usize = 1;
 const ASSERT_STEPS: usize = 1;
 const TEMPVAR_STEPS: usize = 1;
 const HASH_UPDATE_SINGLE_STEPS: usize = 1;
+const EMPTY_ENTRY_POINTS_STEPS: usize = 1;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
@@ -476,7 +477,7 @@ fn node_cost(
     // Cost of called functions in `bytecode_hash_internal_node`.
     let mut segment_resources = ExecutionResources::default();
     segment_resources.n_steps += CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS;
-    segment_resources.n_steps += IF_STEPS *2;
+    segment_resources.n_steps += IF_STEPS * 2;
     segment_resources.n_steps += ALLOC_LOCAL_STEPS;
     segment_resources.n_steps += ASSERT_STEPS;
     segment_resources.n_steps += TEMPVAR_STEPS * 2;
@@ -542,31 +543,38 @@ pub fn estimate_casm_blake_hash_computation_resources_inner(
     bytecode_segment_lengths: &NestedIntList,
 ) -> (ExecutionResources, usize) {
     // TODO(AvivG): Currently ignores entry-point hashing costs.
-    // TODO(AvivG): Missing base overhead estimation for compiled_class_hash.
+    let mut resources = ExecutionResources::default();
+    let mut blake_opcodes = 0;
+    resources.n_steps += EMPTY_ENTRY_POINTS_STEPS;
+    resources.n_steps += ALLOC_LOCAL_STEPS;
+    resources.n_steps += ASSERT_STEPS;
+    resources.n_steps += HASH_INIT_STEPS;
+    resources.n_steps += HASH_UPDATE_SINGLE_STEPS * 2;
+    resources.n_steps += HASH_FINALIZE_BASE_STEPS;
+    resources.n_steps += RETURN_STEPS;
+    resources.builtin_instance_counter.insert(BuiltinName::range_check, 3);
+    // TODO(AvivG): address memory holes.
 
-    // Basic frame overhead.
-    // TODO(AvivG): Once compiled_class_hash estimation is complete,
-    // revisit whether this should be moved into cost_of_encode_felt252_data_and_calc_blake_hash.
-    let mut resources = ExecutionResources {
-        n_steps: 0,
-        n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
-    };
+    // Compute cost of `bytecode_hash_node`.
+    cost_of_bytecode_hash_node(bytecode_segment_lengths, &mut resources, &mut blake_opcodes);
 
-    let (bytecode_resources, bytecode_blake_opcode_count) =
-        cost_of_bytecode_hash_node(bytecode_segment_lengths);
+    // Compute cost of `hash_finalize`: hash over (hash_entrypoints1, len_entrypoints1, hash_ep2,
+    // len_ep2, hash_ep3, len_ep3, hash_bytecode, len_bytecode)
+    let hash_finalize_data_len = 6;
+    let (hash_finalize_resources, hash_finalize_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(hash_finalize_data_len, 0);
 
-    resources += &bytecode_resources;
+    resources += &hash_finalize_resources;
+    blake_opcodes += hash_finalize_blake_opcode_count;
 
-    (resources, bytecode_blake_opcode_count)
+    (resources, blake_opcodes)
 }
 
 pub fn cost_of_bytecode_hash_node(
     bytecode_segment_lengths: &NestedIntList,
-) -> (ExecutionResources, usize) {
-    let mut resources = ExecutionResources::default();
-    let mut blake_opcodes = 0;
-
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
+) {
     // Cost of called functions in `bytecode_hash_node`.
     resources.n_steps += CALL_BYTECODE_HASH_NODE_STEPS;
     resources.n_steps += ALLOC_LOCAL_STEPS;
@@ -576,11 +584,9 @@ pub fn cost_of_bytecode_hash_node(
     // Add leaf vs node cost
     match bytecode_segment_lengths {
         // Single-segment contract (e.g., older Sierra contracts).
-        NestedIntList::Leaf(len) => leaf_cost(*len, &mut resources, &mut blake_opcodes),
-        NestedIntList::Node(segs) => node_cost(segs, &mut resources, &mut blake_opcodes),
+        NestedIntList::Leaf(len) => leaf_cost(*len, resources, blake_opcodes),
+        NestedIntList::Node(segs) => node_cost(segs, resources, blake_opcodes),
     };
-
-    (resources, blake_opcodes)
 }
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
