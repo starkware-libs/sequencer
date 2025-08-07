@@ -27,17 +27,23 @@ fn test_get_visited_segments() {
         entry_points_by_type: Default::default(),
         hints: Default::default(),
         sierra_version: Default::default(),
-        bytecode_segment_lengths: IntList::Node(vec![
-            IntList::Leaf(151),
-            IntList::Leaf(104),
-            IntList::Node(vec![IntList::Leaf(170), IntList::Leaf(225)]),
-            IntList::Leaf(157),
-            IntList::Node(vec![IntList::Node(vec![
-                IntList::Node(vec![IntList::Leaf(101)]),
-                IntList::Leaf(195),
-                IntList::Leaf(125),
+        bytecode_segment_felt_sizes: MultiList::Node(vec![
+            MultiList::Leaf(151, FeltSizeGroups { small: 151, large: 0 }),
+            MultiList::Leaf(104, FeltSizeGroups { small: 104, large: 0 }),
+            MultiList::Node(vec![
+                MultiList::Leaf(170, FeltSizeGroups { small: 170, large: 0 }),
+                MultiList::Leaf(225, FeltSizeGroups { small: 225, large: 0 }),
+            ]),
+            MultiList::Leaf(157, FeltSizeGroups { small: 157, large: 0 }),
+            MultiList::Node(vec![MultiList::Node(vec![
+                MultiList::Node(vec![MultiList::Leaf(
+                    101,
+                    FeltSizeGroups { small: 101, large: 0 },
+                )]),
+                MultiList::Leaf(195, FeltSizeGroups { small: 195, large: 0 }),
+                MultiList::Leaf(125, FeltSizeGroups { small: 125, large: 0 }),
             ])]),
-            IntList::Leaf(162),
+            MultiList::Leaf(162, FeltSizeGroups { small: 162, large: 0 }),
         ]),
     }));
 
