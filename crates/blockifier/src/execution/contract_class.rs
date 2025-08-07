@@ -5,7 +5,11 @@ use std::sync::Arc;
 
 use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
-use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
+use cairo_lang_starknet_classes::casm_contract_class::{
+    CasmContractClass,
+    CasmContractEntryPoint,
+    CasmContractEntryPoints,
+};
 use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::serde::deserialize_program::{
     ApTracking,
@@ -55,7 +59,7 @@ use crate::utils::u64_from_usize;
 // TODO(AvivG): modify values to match the actual values.
 const CALL_BYTECODE_HASH_NODE_STEPS: usize = 7;
 const ALLOC_LOCAL_STEPS: usize = 1;
-const IF_STEPS: usize = 2;
+const IF_STEPS: usize = 1;
 const RETURN_STEPS: usize = 1;
 const HASH_INIT_STEPS: usize = 1;
 const HASH_FINALIZE_BASE_STEPS: usize = 1;
@@ -63,6 +67,9 @@ const CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS: usize = 1;
 const EMPTY_ENTRY_POINTS_STEPS: usize = 1;
 const ASSERT_STEPS: usize = 1;
 const HASH_UPDATE_SINGLE_STEPS: usize = 1;
+const CALL_HASH_ENTRY_POINTS_STEPS: usize = 1;
+const CALL_HASH_ENTRY_POINTS_INNER_STEPS: usize = 1;
+const CALL_HASH_UPDATE_WITH_NESTED_HASH_STEPS: usize = 1;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
@@ -343,6 +350,7 @@ impl CompiledClassV1 {
             &self.bytecode_segment_lengths,
             versioned_constants,
             blake_weight,
+            &self.entry_points_by_type,
         );
 
         let poseidon_hash_resources =
@@ -454,13 +462,13 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
 }
 
 /// Cost to hash a single flat segment of `len` felts.
-fn leaf_cost(len: usize, resources: &mut ExecutionResources, total_blake_opcode_count: &mut usize) {
+fn leaf_cost(len: usize, resources: &mut ExecutionResources, blake_opcodes: &mut usize) {
     // All `len` inputs treated as "big" felts; no small-felt optimization here.
     let (added_resources, added_blake_opcode_count) =
         cost_of_encode_felt252_data_and_calc_blake_hash(len, 0);
 
     *resources += &added_resources;
-    *total_blake_opcode_count += added_blake_opcode_count;
+    *blake_opcodes += added_blake_opcode_count;
 
     // Add base overhead for each segment.
     resources.n_steps += ALLOC_LOCAL_STEPS;
@@ -472,7 +480,7 @@ fn leaf_cost(len: usize, resources: &mut ExecutionResources, total_blake_opcode_
 fn node_cost(
     segs: &[NestedIntList],
     resources: &mut ExecutionResources,
-    total_blake_opcode_count: &mut usize,
+    blake_opcodes: &mut usize,
 ) {
     resources.n_steps += HASH_INIT_STEPS;
     resources.n_steps += HASH_FINALIZE_BASE_STEPS;
@@ -482,7 +490,7 @@ fn node_cost(
     for seg in segs {
         match seg {
             NestedIntList::Leaf(len) => {
-                leaf_cost(*len, resources, total_blake_opcode_count);
+                leaf_cost(*len, resources, blake_opcodes);
             }
             _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
         }
@@ -495,7 +503,7 @@ fn node_cost(
         cost_of_encode_felt252_data_and_calc_blake_hash(segs.len(), segs.len());
 
     *resources += &hash_finalize_resources;
-    *total_blake_opcode_count += hash_finalize_blake_opcode_count;
+    *blake_opcodes += hash_finalize_blake_opcode_count;
 }
 
 /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract.
@@ -507,9 +515,12 @@ pub fn estimate_casm_blake_hash_computation_resources(
     bytecode_segment_lengths: &NestedIntList,
     versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
+    entry_points_by_type: &EntryPointsByType<EntryPointV1>,
 ) -> GasAmount {
-    let (resources, blake_opcode_count) =
-        estimate_casm_blake_hash_computation_resources_inner(bytecode_segment_lengths);
+    let (resources, blake_opcode_count) = estimate_casm_blake_hash_computation_resources_inner(
+        bytecode_segment_lengths,
+        entry_points_by_type,
+    );
 
     assert!(
         resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
@@ -534,10 +545,11 @@ pub fn estimate_casm_blake_hash_computation_resources(
 /// - Blake opcode gas is returned separately, as it's not included in `ExecutionResources`.
 pub fn estimate_casm_blake_hash_computation_resources_inner(
     bytecode_segment_lengths: &NestedIntList,
+    entry_points_by_type: &EntryPointsByType<EntryPointV1>,
 ) -> (ExecutionResources, usize) {
     // TODO(AvivG): Currently ignores entry-point hashing costs.
     let mut resources = ExecutionResources::default();
-    let mut total_blake_opcode_count = 0;
+    let mut blake_opcodes = 0;
     resources.n_steps += EMPTY_ENTRY_POINTS_STEPS;
     resources.n_steps += ALLOC_LOCAL_STEPS;
     resources.n_steps += ASSERT_STEPS;
@@ -555,21 +567,24 @@ pub fn estimate_casm_blake_hash_computation_resources_inner(
     let (hash_finalize_resources, hash_finalize_blake_opcode_count) =
         cost_of_encode_felt252_data_and_calc_blake_hash(hash_finalize_data_len, 0);
 
-    cost_of_bytecode_hash_node(
-        bytecode_segment_lengths,
+    cost_of_bytecode_hash_node(bytecode_segment_lengths, &mut resources, &mut blake_opcodes);
+    cost_of_hash_entry_points(&entry_points_by_type.l1_handler, &mut resources, &mut blake_opcodes);
+    cost_of_hash_entry_points(&entry_points_by_type.external, &mut resources, &mut blake_opcodes);
+    cost_of_hash_entry_points(
+        &entry_points_by_type.constructor,
         &mut resources,
-        &mut total_blake_opcode_count,
+        &mut blake_opcodes,
     );
     resources += &hash_finalize_resources;
-    total_blake_opcode_count += hash_finalize_blake_opcode_count;
+    blake_opcodes += hash_finalize_blake_opcode_count;
 
-    (resources, total_blake_opcode_count)
+    (resources, blake_opcodes)
 }
 
 pub fn cost_of_bytecode_hash_node(
     bytecode_segment_lengths: &NestedIntList,
     resources: &mut ExecutionResources,
-    total_blake_opcode_count: &mut usize,
+    blake_opcodes: &mut usize,
 ) {
     let base_bytecode_hash_node_steps =
         CALL_BYTECODE_HASH_NODE_STEPS + ALLOC_LOCAL_STEPS + IF_STEPS + RETURN_STEPS;
@@ -578,9 +593,68 @@ pub fn cost_of_bytecode_hash_node(
     // Add leaf vs node cost
     match bytecode_segment_lengths {
         // Single-segment contract (e.g., older Sierra contracts).
-        NestedIntList::Leaf(len) => leaf_cost(*len, resources, total_blake_opcode_count),
-        NestedIntList::Node(segs) => node_cost(segs, resources, total_blake_opcode_count),
+        NestedIntList::Leaf(len) => leaf_cost(*len, resources, blake_opcodes),
+        NestedIntList::Node(segs) => node_cost(segs, resources, blake_opcodes),
     };
+}
+
+pub fn cost_of_hash_entry_points(
+    entry_points: &[EntryPointV1],
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
+) {
+    let base_hash_entry_points_steps = CALL_HASH_ENTRY_POINTS_STEPS
+        + HASH_INIT_STEPS
+        + HASH_UPDATE_SINGLE_STEPS
+        + HASH_FINALIZE_BASE_STEPS
+        + RETURN_STEPS
+        + CALL_HASH_ENTRY_POINTS_INNER_STEPS; //always one empty call
+    resources.n_steps += base_hash_entry_points_steps;
+    // compute cost of `hash_finalize`
+    // for each entry point we add to the hash selector(big felt) and offset(small felt)
+    let (added_resources, added_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(
+            entry_points.len() + entry_points.len(), // +1 is for builtins per entry point hash
+            entry_points.len(),
+        );
+    *resources += &added_resources;
+    *blake_opcodes += added_blake_opcode_count;
+    // compute cost of `hash_entry_points_inner`
+    for entry_point in entry_points {
+        cost_of_hash_entry_points_inner(entry_point, resources, blake_opcodes);
+    }
+}
+
+pub fn cost_of_hash_entry_points_inner(
+    entry_point: &EntryPointV1,
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
+) {
+    let base_hash_entry_points_inner_steps = CALL_HASH_ENTRY_POINTS_INNER_STEPS
+        + 1
+        + IF_STEPS
+        + RETURN_STEPS
+        + HASH_UPDATE_SINGLE_STEPS * 2;
+    resources.n_steps += base_hash_entry_points_inner_steps;
+
+    // compute cost of `hash_update_with_nested_hash`
+    cost_of_hash_update_with_nested_hash(entry_point.builtins.len(), resources, blake_opcodes);
+}
+
+pub fn cost_of_hash_update_with_nested_hash(
+    builtins_list_len: usize,
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
+) {
+    let base_hash_update_with_nested_hash_steps =
+        CALL_HASH_UPDATE_WITH_NESTED_HASH_STEPS + HASH_UPDATE_SINGLE_STEPS + RETURN_STEPS;
+    resources.n_steps += base_hash_update_with_nested_hash_steps;
+
+    // assumig builtins are small felts
+    let (added_resources, added_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(0, builtins_list_len);
+    *resources += &added_resources;
+    *blake_opcodes += added_blake_opcode_count;
 }
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
@@ -714,11 +788,7 @@ impl TryFrom<VersionedCasm> for CompiledClassV1 {
             instruction_locations,
         )?;
 
-        let entry_points_by_type = EntryPointsByType {
-            constructor: convert_entry_points_v1(&class.entry_points_by_type.constructor),
-            external: convert_entry_points_v1(&class.entry_points_by_type.external),
-            l1_handler: convert_entry_points_v1(&class.entry_points_by_type.l1_handler),
-        };
+        let entry_points_by_type = class.entry_points_by_type.into();
         let bytecode_segment_lengths = class
             .bytecode_segment_lengths
             .unwrap_or_else(|| NestedIntList::Leaf(program.data_len()));
@@ -779,6 +849,16 @@ pub struct EntryPointsByType<EP: HasSelector> {
     pub constructor: Vec<EP>,
     pub external: Vec<EP>,
     pub l1_handler: Vec<EP>,
+}
+
+impl From<CasmContractEntryPoints> for EntryPointsByType<EntryPointV1> {
+    fn from(entry_points_by_type: CasmContractEntryPoints) -> Self {
+        EntryPointsByType {
+            constructor: convert_entry_points_v1(&entry_points_by_type.constructor),
+            external: convert_entry_points_v1(&entry_points_by_type.external),
+            l1_handler: convert_entry_points_v1(&entry_points_by_type.l1_handler),
+        }
+    }
 }
 
 impl<EP: Clone + HasSelector> EntryPointsByType<EP> {
