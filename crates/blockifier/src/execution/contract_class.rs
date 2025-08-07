@@ -442,41 +442,50 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
 }
 
 /// Cost to hash a single flat segment of `len` felts.
-fn leaf_cost(len: usize) -> (ExecutionResources, usize) {
-    // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    cost_of_encode_felt252_data_and_calc_blake_hash(len, 0)
+fn leaf_cost(len: usize, resources: &mut ExecutionResources, total_blake_opcode_count: &mut usize) {
+    // All `len` inputs treated as "big" felts; no small-felt optimization here.
+    let (added_resources, added_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(len, 0);
+    *resources += &added_resources;
+    *total_blake_opcode_count += added_blake_opcode_count;
 }
 
 /// Cost to hash a multi-segment contract:
-fn node_cost(segs: &[NestedIntList]) -> (ExecutionResources, usize) {
-    // TODO(AvivG): Add base estimation for node.
-    let mut resources = ExecutionResources::default();
-    let mut total_blake_opcode_count = 0;
+fn node_cost(
+    segs: &[NestedIntList],
+    resources: &mut ExecutionResources,
+    total_blake_opcode_count: &mut usize,
+) {
+    resources.n_steps += HASH_INIT_STEPS;
+    resources.n_steps += HASH_FINALIZE_BASE_STEPS;
+    resources.n_steps += CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS;
 
-    // TODO(AvivG): Add base estimation of each segment. Could this be part of 'leaf_cost'?
-    let segment_overhead = ExecutionResources::default();
+    bytecode_hash_internal_node_cost(segs, resources, total_blake_opcode_count);
 
+    // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash ("big" felt))
+    // and one segment length ("small" felt) per segment.
+    // compute cost of `hash_finalize`
+    let (hash_finalize_resources, hash_finalize_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(segs.len(), segs.len());
+
+    *resources += &hash_finalize_resources;
+    *total_blake_opcode_count += hash_finalize_blake_opcode_count;
+}
+/// Cost of `bytecode_hash_internal_node` function, which hashes a multi-segment contract:
+fn bytecode_hash_internal_node_cost(
+    segs: &[NestedIntList],
+    resources: &mut ExecutionResources,
+    total_blake_opcode_count: &mut usize,
+) {
     // For each segment, hash its felts.
     for seg in segs {
         match seg {
             NestedIntList::Leaf(len) => {
-                let (leaf_resources, blake_opcode_count) = leaf_cost(*len);
-                resources += &leaf_resources;
-                resources += &segment_overhead;
-                total_blake_opcode_count += blake_opcode_count;
+                leaf_cost(*len, resources, total_blake_opcode_count);
             }
             _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
         }
     }
-
-    // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
-    // and one segment length (“small” felt) per segment.
-    let (node_hash_resources, node_blake_opcode_count) =
-        cost_of_encode_felt252_data_and_calc_blake_hash(segs.len(), segs.len());
-    resources += &node_hash_resources;
-    total_blake_opcode_count += node_blake_opcode_count;
-
-    (resources, total_blake_opcode_count)
 }
 
 /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract.
@@ -529,15 +538,42 @@ pub fn estimate_casm_blake_hash_computation_resources_inner(
     };
     let mut total_blake_opcode_count = 0;
 
-    // Add leaf vs node cost
-    let (bytecode_resources, bytecode_blake_opcode_count) = match bytecode_segment_lengths {
-        // Single-segment contract (e.g., older Sierra contracts).
-        NestedIntList::Leaf(len) => leaf_cost(*len),
-        NestedIntList::Node(segs) => node_cost(segs),
-    };
+    let (bytecode_resources, bytecode_blake_opcode_count) =
+        cost_of_bytecode_hash_node(bytecode_segment_lengths);
 
     resources += &bytecode_resources;
     total_blake_opcode_count += bytecode_blake_opcode_count;
+
+    (resources, total_blake_opcode_count)
+}
+
+// TODO(AvivG): modify values to match the actual values.
+const CALL_BYTECODE_HASH_NODE_STEPS: usize = 7;
+const ALLOC_LOCAL_STEPS: usize = 1;
+const IF_STEPS: usize = 2;
+const RETURN_STEPS: usize = 1;
+const HASH_INIT_STEPS: usize = 1;
+const HASH_FINALIZE_BASE_STEPS: usize = 1;
+const CALL_BYTECODE_HASH_INTERNAL_NODE_STEPS: usize = 1;
+
+pub fn cost_of_bytecode_hash_node(
+    bytecode_segment_lengths: &NestedIntList,
+) -> (ExecutionResources, usize) {
+    let base_bytecode_hash_node_steps =
+        CALL_BYTECODE_HASH_NODE_STEPS + ALLOC_LOCAL_STEPS + IF_STEPS + RETURN_STEPS;
+    let mut resources = ExecutionResources {
+        n_steps: base_bytecode_hash_node_steps,
+        n_memory_holes: 0,
+        builtin_instance_counter: HashMap::new(),
+    };
+    let mut total_blake_opcode_count = 0;
+
+    // Add leaf vs node cost
+    match bytecode_segment_lengths {
+        // Single-segment contract (e.g., older Sierra contracts).
+        NestedIntList::Leaf(len) => leaf_cost(*len, &mut resources, &mut total_blake_opcode_count),
+        NestedIntList::Node(segs) => node_cost(segs, &mut resources, &mut total_blake_opcode_count),
+    };
 
     (resources, total_blake_opcode_count)
 }
