@@ -50,6 +50,7 @@ use crate::execution::execution_utils::{
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
+use crate::utils::u64_from_usize;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
@@ -441,37 +442,28 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
 }
 
 /// Cost to hash a single flat segment of `len` felts.
-fn leaf_cost(
-    len: usize,
-    versioned_constants: &VersionedConstants,
-    blake_opcode_gas: usize,
-) -> GasAmount {
+fn leaf_cost(len: usize) -> (ExecutionResources, usize) {
     // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    cost_of_encode_felt252_data_and_calc_blake_hash(len, 0, versioned_constants, blake_opcode_gas)
+    cost_of_encode_felt252_data_and_calc_blake_hash(len, 0)
 }
 
 /// Cost to hash a multi-segment contract:
-fn node_cost(
-    segs: &[NestedIntList],
-    versioned_constants: &VersionedConstants,
-    blake_opcode_gas: usize,
-) -> GasAmount {
+fn node_cost(segs: &[NestedIntList]) -> (ExecutionResources, usize) {
     // TODO(AvivG): Add base estimation for node.
-    let mut gas = GasAmount::ZERO;
+    let mut resources = ExecutionResources::default();
+    let mut total_blake_opcode_count = 0;
 
     // TODO(AvivG): Add base estimation of each segment. Could this be part of 'leaf_cost'?
-    let segment_overhead = GasAmount::ZERO;
+    let segment_overhead = ExecutionResources::default();
 
     // For each segment, hash its felts.
     for seg in segs {
         match seg {
             NestedIntList::Leaf(len) => {
-                gas = gas.checked_add_panic_on_overflow(segment_overhead);
-                gas = gas.checked_add_panic_on_overflow(leaf_cost(
-                    *len,
-                    versioned_constants,
-                    blake_opcode_gas,
-                ));
+                let (leaf_resources, blake_opcode_count) = leaf_cost(*len);
+                resources += &leaf_resources;
+                resources += &segment_overhead;
+                total_blake_opcode_count += blake_opcode_count;
             }
             _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
         }
@@ -479,44 +471,75 @@ fn node_cost(
 
     // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
     // and one segment length (“small” felt) per segment.
-    let node_hash_cost = cost_of_encode_felt252_data_and_calc_blake_hash(
-        segs.len(),
-        segs.len(),
-        versioned_constants,
-        blake_opcode_gas,
-    );
+    let (node_hash_resources, node_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(segs.len(), segs.len());
+    resources += &node_hash_resources;
+    total_blake_opcode_count += node_blake_opcode_count;
 
-    gas.checked_add_panic_on_overflow(node_hash_cost)
+    (resources, total_blake_opcode_count)
 }
 
-/// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
-/// - Uses only bytecode size (treats all felts as “big”, ignores the small-felt optimization).
+/// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract.
+///
+/// Used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations, which differ in
+/// builtin costs. This unified logic is valid because only the `range_check` builtin is used,
+/// and its cost is identical across provers (see `bouncer.get_tx_weights`).
 pub fn estimate_casm_blake_hash_computation_resources(
     bytecode_segment_lengths: &NestedIntList,
     versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
 ) -> GasAmount {
+    let (resources, blake_opcode_count) =
+        estimate_casm_blake_hash_computation_resources_inner(bytecode_segment_lengths);
+
+    assert!(
+        resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
+        "Expected either empty builtins or only `range_check` builtin, got: {:?}. This breaks the \
+         assumption that builtin costs are identical between provers.",
+        resources.builtin_instance_counter.keys().collect::<Vec<_>>()
+    );
+
+    let resources_gas = vm_resources_to_sierra_gas(&resources, versioned_constants);
+    let total_blake_opcode_gas = blake_opcode_count
+        .checked_mul(blake_opcode_gas)
+        .map(u64_from_usize)
+        .map(GasAmount)
+        .expect("Overflow computing Blake opcode gas.");
+
+    resources_gas.checked_add_panic_on_overflow(total_blake_opcode_gas)
+}
+
+/// Estimates VM resources to compute the CASM Blake hash for a Cairo 1 contract.
+///
+/// - Uses only bytecode size: treats all felts as “big” (ignores small-felt optimization).
+/// - Blake opcode gas is returned separately, as it's not included in `ExecutionResources`.
+pub fn estimate_casm_blake_hash_computation_resources_inner(
+    bytecode_segment_lengths: &NestedIntList,
+) -> (ExecutionResources, usize) {
     // TODO(AvivG): Currently ignores entry-point hashing costs.
     // TODO(AvivG): Missing base overhead estimation for compiled_class_hash.
 
     // Basic frame overhead.
     // TODO(AvivG): Once compiled_class_hash estimation is complete,
     // revisit whether this should be moved into cost_of_encode_felt252_data_and_calc_blake_hash.
-    let resources = ExecutionResources {
+    let mut resources = ExecutionResources {
         n_steps: 0,
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
     };
-    let gas = vm_resources_to_sierra_gas(&resources, versioned_constants);
+    let mut total_blake_opcode_count = 0;
 
     // Add leaf vs node cost
-    let added_gas = match bytecode_segment_lengths {
+    let (bytecode_resources, bytecode_blake_opcode_count) = match bytecode_segment_lengths {
         // Single-segment contract (e.g., older Sierra contracts).
-        NestedIntList::Leaf(len) => leaf_cost(*len, versioned_constants, blake_opcode_gas),
-        NestedIntList::Node(segs) => node_cost(segs, versioned_constants, blake_opcode_gas),
+        NestedIntList::Leaf(len) => leaf_cost(*len),
+        NestedIntList::Node(segs) => node_cost(segs),
     };
 
-    gas.checked_add_panic_on_overflow(added_gas)
+    resources += &bytecode_resources;
+    total_blake_opcode_count += bytecode_blake_opcode_count;
+
+    (resources, total_blake_opcode_count)
 }
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
