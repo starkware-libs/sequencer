@@ -91,3 +91,17 @@ pub enum ServerError {
     #[error("Could not deserialize client request: {0}")]
     RequestDeserializationFailure(String),
 }
+
+#[derive(Debug)]
+pub enum RequestPriority {
+    High,
+    Normal,
+}
+
+pub trait PrioritizedRequest {
+    // TODO(Tsabary): Default implementation to avoid applying this trait to all request types. Need
+    // to remove this out later on.
+    fn priority(&self) -> RequestPriority {
+        RequestPriority::Normal
+    }
+}
