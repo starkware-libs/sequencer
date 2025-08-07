@@ -18,12 +18,9 @@ use cairo_vm::vm::vm_core::VirtualMachine;
 use num_bigint::BigUint;
 use starknet_api::core::ClassHash;
 use starknet_api::deprecated_contract_class::Program as DeprecatedProgram;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Calldata;
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
@@ -47,7 +44,6 @@ use crate::execution::syscalls::hint_processor::{ENTRYPOINT_NOT_FOUND_ERROR, OUT
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
-use crate::utils::u64_from_usize;
 
 #[cfg(test)]
 #[path = "execution_utils_test.rs"]
@@ -480,49 +476,19 @@ pub fn encode_and_blake_hash_execution_resources(
     ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter }
 }
 
-/// Estimates the L2 gas for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
+/// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
 ///
-/// This includes:
-/// - Gas derived from `ExecutionResources`
-/// - Additional gas for Blake opcodes (which is **not** part of `ExecutionResources`)
-///
-/// # Encoding Details
-/// - Small felts → 2 `u32`s each; Big felts → 8 `u32`s each.
-/// - Each felt requires one `range_check` operation.
-///
-/// # Compatibility Assumptions
-/// This function is used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations.
-/// This unified logic is valid because the only builtin involved is `range_check`, which has
-/// the same cost in both provers (see usage in `bouncer.get_tx_weights`).
-///
-/// # Notes
-/// The Blake opcode gas is separated because it is not reported via `ExecutionResources`,
-/// and must be accounted for explicitly.
-// TODO(AvivG): Consider separating `encode_felt252_to_u32s` and `blake_with_opcode` costs for
-// improved granularity and testability.
+/// Returns:
+/// - `ExecutionResources`: VM resource usage (e.g., n_steps, range checks)
+/// - `usize`: number of Blake opcodes used, accounted for separately as those are not reported via
+///   `ExecutionResources`.
 pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
     n_big_felts: usize,
     n_small_felts: usize,
-    versioned_constants: &VersionedConstants,
-    blake_opcode_gas: usize,
-) -> GasAmount {
+) -> (ExecutionResources, usize) {
     let vm_resources = encode_and_blake_hash_execution_resources(n_big_felts, n_small_felts);
 
-    assert!(
-        vm_resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
-        "Expected either empty builtins or only `range_check` builtin, got: {:?}. This breaks the \
-         assumption that builtin costs are identical between provers.",
-        vm_resources.builtin_instance_counter.keys().collect::<Vec<_>>()
-    );
-
-    let vm_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
-
     let blake_opcode_count = count_blake_opcode(n_big_felts, n_small_felts);
-    let blake_opcode_gas = blake_opcode_count
-        .checked_mul(blake_opcode_gas)
-        .map(u64_from_usize)
-        .map(GasAmount)
-        .expect("Overflow computing Blake opcode gas.");
 
-    vm_gas.checked_add_panic_on_overflow(blake_opcode_gas)
+    (vm_resources, blake_opcode_count)
 }
