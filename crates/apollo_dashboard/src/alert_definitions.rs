@@ -326,7 +326,7 @@ fn get_l1_message_scraper_reorg_detected_alert() -> Alert {
         }],
         PENDING_DURATION_DEFAULT,
         EVALUATION_INTERVAL_SEC_DEFAULT,
-        AlertSeverity::Informational,
+        AlertSeverity::Sos,
         AlertEnvFiltering::All,
     )
 }
