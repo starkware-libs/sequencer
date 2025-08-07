@@ -1030,7 +1030,7 @@
       "name": "http_server_avg_add_tx_latency",
       "title": "High HTTP server average add_tx latency",
       "ruleGroup": "http_server",
-      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]) / rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "expr": "rate(http_server_add_tx_latency_sum{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]) / clamp_min(rate(http_server_add_tx_latency_count{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m]), 1/120)",
       "conditions": [
         {
           "evaluator": {
