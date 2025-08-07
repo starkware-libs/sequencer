@@ -23,6 +23,7 @@ use crate::component_definitions::{
     ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
+    PrioritizedRequest,
 };
 use crate::component_server::{
     ComponentServerStarter,
@@ -45,6 +46,8 @@ const NUMBER_OF_ITERATIONS: usize = 10;
 enum TestComponentRequest {
     PerformTest,
 }
+
+impl PrioritizedRequest for TestComponentRequest {}
 
 #[derive(Serialize, Deserialize, Debug)]
 enum TestComponentResponse {
@@ -126,7 +129,7 @@ fn basic_test_setup() -> BasicSetup {
 async fn setup_local_server_test() -> (Arc<Semaphore>, LocalTestComponentClient) {
     let BasicSetup { component, local_client, rx, test_sem } = basic_test_setup();
 
-    let mut local_server = LocalComponentServer::new(component, rx, TEST_LOCAL_SERVER_METRICS);
+    let mut local_server = LocalComponentServer::new(component, rx, &TEST_LOCAL_SERVER_METRICS);
     task::spawn(async move {
         let _ = local_server.start().await;
     });
@@ -274,6 +277,7 @@ async fn only_metrics_counters_for_local_server() {
     }
 }
 
+// TODO(Tsabary): rewrite this test to verify all queue depths.
 #[tokio::test]
 async fn all_metrics_for_local_server() {
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -291,27 +295,15 @@ async fn all_metrics_for_local_server() {
     }
     task::yield_now().await;
 
-    // And then we will provide a single permit each time and check that all metrics are adjusted
-    // accordingly.
-    for i in 0..NUMBER_OF_ITERATIONS {
+    // Add permits one by one and check that all metrics are adjusted accordingly: all messages
+    // should be received, the queue should be empty (depth 0), and  the number of processed
+    // messages should be equal to the number of permits added.
+    for i in 0..NUMBER_OF_ITERATIONS + 1 {
         let metrics_as_string = recorder.handle().render();
-        // After sending i permits we should have i + 1 received messages, because the first message
-        // doesn't need a permit to be received but need a permit to be processed.
-        // So we will have only i processed messages.
-        // And the queue depth should be: NUMBER_OF_ITERATIONS - number of received messages.
-        assert_server_metrics(metrics_as_string.as_str(), i + 1, i, NUMBER_OF_ITERATIONS - i - 1);
+        assert_server_metrics(metrics_as_string.as_str(), NUMBER_OF_ITERATIONS, i, 0);
         test_sem.add_permits(1);
         task::yield_now().await;
     }
-
-    // Finally all messages processed and queue is empty.
-    let metrics_as_string = recorder.handle().render();
-    assert_server_metrics(
-        metrics_as_string.as_str(),
-        NUMBER_OF_ITERATIONS,
-        NUMBER_OF_ITERATIONS,
-        0,
-    );
 }
 
 #[tokio::test]
