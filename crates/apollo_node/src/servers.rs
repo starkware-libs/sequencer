@@ -461,11 +461,12 @@ fn create_local_servers(
         &STATE_SYNC_LOCAL_QUEUE_DEPTH,
     );
     let state_sync_server = create_local_server!(
-        REGULAR_LOCAL_SERVER,
+        CONCURRENT_LOCAL_SERVER,
         &config.components.state_sync.execution_mode,
         &mut components.state_sync,
         communication.take_state_sync_rx(),
-        state_sync_metrics
+        state_sync_metrics,
+        config.components.state_sync.max_concurrency
     );
 
     LocalServers {
