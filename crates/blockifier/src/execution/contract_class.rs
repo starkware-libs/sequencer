@@ -65,6 +65,9 @@ const ASSERT_STEPS: usize = 1;
 const TEMPVAR_STEPS: usize = 1;
 const HASH_UPDATE_SINGLE_STEPS: usize = 1;
 const EMPTY_ENTRY_POINTS_STEPS: usize = 1;
+const CALL_HASH_ENTRY_POINTS_STEPS: usize = 1;
+const CALL_HASH_ENTRY_POINTS_INNER_STEPS: usize = 1;
+const CALL_HASH_UPDATE_WITH_NESTED_HASH_STEPS: usize = 1;
 
 #[cfg(test)]
 #[path = "contract_class_test.rs"]
@@ -620,11 +623,65 @@ pub fn cost_of_bytecode_hash_node(
 }
 
 pub fn cost_of_hash_entry_points(
-    _entry_points: &[EntryPointV1],
-    _resources: &mut ExecutionResources,
-    _blake_opcodes: &mut usize,
+    entry_points: &[EntryPointV1],
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
 ) {
-    // TODO(AvivG): implement this
+    // Cost `hash_entry_points`.
+    resources.n_steps += CALL_HASH_ENTRY_POINTS_STEPS;
+    resources.n_steps += HASH_INIT_STEPS;
+    resources.n_steps += HASH_UPDATE_SINGLE_STEPS;
+    resources.n_steps += HASH_FINALIZE_BASE_STEPS;
+    resources.n_steps += RETURN_STEPS;
+    // always one empty call.
+    resources.n_steps += CALL_HASH_ENTRY_POINTS_INNER_STEPS;
+
+    for entry_point in entry_points {
+        cost_of_hash_entry_points_inner(entry_point, resources, blake_opcodes);
+    }
+
+    // Computes cost of `hash_finalize`: a hash over (selector1, offset1, selector2, offset2, ...).
+    // Each entry point has a selector (big felt) and an offset (small felt).
+    let (added_resources, added_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(
+            entry_points.len() + entry_points.len(), // +1 is for builtins per entry point hash
+            entry_points.len(),
+        );
+    *resources += &added_resources;
+    *blake_opcodes += added_blake_opcode_count;
+}
+
+pub fn cost_of_hash_entry_points_inner(
+    entry_point: &EntryPointV1,
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
+) {
+    // Cost `hash_entry_points_inner`.
+    resources.n_steps += CALL_HASH_ENTRY_POINTS_INNER_STEPS;
+    resources.n_steps += IF_STEPS;
+    resources.n_steps += RETURN_STEPS;
+    resources.n_steps += HASH_UPDATE_SINGLE_STEPS * 2;
+
+    // compute cost of `hash_update_with_nested_hash`
+    cost_of_hash_update_with_nested_hash(entry_point.builtins.len(), resources, blake_opcodes);
+}
+
+pub fn cost_of_hash_update_with_nested_hash(
+    builtins_list_len: usize,
+    resources: &mut ExecutionResources,
+    blake_opcodes: &mut usize,
+) {
+    // Cost `hash_update_with_nested_hash`.
+    resources.n_steps += CALL_HASH_UPDATE_WITH_NESTED_HASH_STEPS;
+    resources.n_steps += HASH_UPDATE_SINGLE_STEPS;
+    resources.n_steps += RETURN_STEPS;
+
+    // Builtin list contain both small and big felts—we treat all as big for simplicity.
+    let (added_resources, added_blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(0, builtins_list_len);
+
+    *resources += &added_resources;
+    *blake_opcodes += added_blake_opcode_count;
 }
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
