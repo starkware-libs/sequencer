@@ -1,11 +1,17 @@
 use std::collections::HashMap;
 
 use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
-use blockifier::execution::contract_class::estimate_casm_poseidon_hash_computation_resources;
+use blockifier::execution::contract_class::{
+    estimate_casm_blake_hash_computation_resources_inner,
+    estimate_casm_poseidon_hash_computation_resources,
+    EntryPointV1,
+    EntryPointsByType,
+};
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
+use cairo_lang_starknet_classes::NestedIntList;
 use cairo_vm::any_box;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
@@ -48,7 +54,7 @@ const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V1_HASH: expect_test::Expect =
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V1_HASH: Expect = expect!["8951"];
 // Allowed margin between estimated and actual execution resources.
 const ALLOWED_MARGIN_N_STEPS: usize = 169;
-const ALLOWED_MARGIN_POSEIDON_BUILTIN: usize = 4;
+const ALLOWED_MARGIN_POSEIDON_BUILTIN_V1_HASH: usize = 4;
 
 //  V2 (Blake) HASH CONSTS
 /// Expected Blake hash for the test contract
@@ -62,6 +68,10 @@ const EXPECTED_N_STEPS_FULL_CONTRACT_V2_HASH: Expect = expect!["399656"];
 const EXPECTED_BUILTIN_USAGE_PARTIAL_CONTRACT_V2_HASH: expect_test::Expect =
     expect!["range_check_builtin: 846"];
 const EXPECTED_N_STEPS_PARTIAL_CONTRACT_V2_HASH: Expect = expect!["35968"];
+// Allowed margin between estimated and actual execution resources.
+// TODO(AvivG): lower margins once felt size optimization is implemented.
+const ALLOWED_MARGIN_BLAKE_N_STEPS: usize = 555000;
+const ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH: usize = 5;
 
 /// Specifies the expected inputs and outputs for testing a class hash version.
 /// Includes entrypoint, bytecode, and expected runtime behavior.
@@ -82,6 +92,16 @@ trait HashVersionTestSpec {
     fn expected_n_steps_partial_contract(&self) -> Expect;
     /// The expected hash for the test contract.
     fn expected_hash(&self) -> Expect;
+    /// The allowed margin for the number of steps.
+    fn allowed_margin_n_steps(&self) -> usize;
+    /// The allowed margin for the builtin usage.
+    fn allowed_margin_builtin(&self) -> (BuiltinName, usize);
+    /// Estimates the execution resources for the compiled class hash function.
+    fn estimate_execution_resources(
+        &self,
+        bytecode_segment_lengths: &NestedIntList,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+    ) -> ExecutionResources;
 }
 
 impl HashVersionTestSpec for HashVersion {
@@ -139,6 +159,38 @@ impl HashVersionTestSpec for HashVersion {
         match self {
             HashVersion::V1 => apollo_starknet_os_program::OS_PROGRAM_BYTES,
             HashVersion::V2 => BLAKE_COMPILED_CLASS_HASH_BYTES,
+        }
+    }
+    fn allowed_margin_n_steps(&self) -> usize {
+        match self {
+            HashVersion::V1 => ALLOWED_MARGIN_N_STEPS,
+            HashVersion::V2 => ALLOWED_MARGIN_BLAKE_N_STEPS,
+        }
+    }
+    fn allowed_margin_builtin(&self) -> (BuiltinName, usize) {
+        match self {
+            HashVersion::V1 => (BuiltinName::poseidon, ALLOWED_MARGIN_POSEIDON_BUILTIN_V1_HASH),
+            HashVersion::V2 => {
+                (BuiltinName::range_check, ALLOWED_MARGIN_RANGE_CHECK_BUILTIN_V2_HASH)
+            }
+        }
+    }
+    fn estimate_execution_resources(
+        &self,
+        bytecode_segment_lengths: &NestedIntList,
+        entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+    ) -> ExecutionResources {
+        match self {
+            HashVersion::V1 => {
+                estimate_casm_poseidon_hash_computation_resources(bytecode_segment_lengths)
+            }
+            HashVersion::V2 => {
+                estimate_casm_blake_hash_computation_resources_inner(
+                    bytecode_segment_lengths,
+                    entry_points_by_type,
+                )
+                .0
+            }
         }
     }
 }
@@ -290,9 +342,9 @@ fn test_compiled_class_hash(
 /// Test that execution resources estimation for the compiled class hash
 /// matches the actual execution resources when running the entry point.
 #[rstest]
-fn test_compiled_class_hash_resources_estimation() {
-    // TODO(Aviv): Parameterize this test to run for both V1 and V2.
-    let hash_version = HashVersion::V1;
+fn test_compiled_class_hash_resources_estimation(
+    #[values(HashVersion::V1, HashVersion::V2)] hash_version: HashVersion,
+) {
     let feature_contract =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let mut contract_class = match feature_contract.get_class() {
@@ -308,30 +360,30 @@ fn test_compiled_class_hash_resources_estimation() {
         run_compiled_class_hash_entry_point(&contract_class, true, &hash_version);
 
     // Compare the actual execution resources with the estimation with some allowed margin.
-    let mut execution_resources_estimation = estimate_casm_poseidon_hash_computation_resources(
+    let mut execution_resources_estimation = hash_version.estimate_execution_resources(
         &contract_class.get_bytecode_segment_lengths(),
+        &contract_class.entry_points_by_type.into(),
     );
     let margin_n_steps =
         execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
+    let allowed_margin = hash_version.allowed_margin_n_steps();
     assert!(
-        margin_n_steps <= ALLOWED_MARGIN_N_STEPS,
-        "Estimated n_steps and actual n_steps differ by more than {ALLOWED_MARGIN_N_STEPS}.\n \
-         Margin N Steps: {margin_n_steps}"
+        margin_n_steps <= allowed_margin,
+        "Estimated n_steps and actual n_steps differ by more than {allowed_margin}.\n Margin N \
+         Steps: {margin_n_steps}."
     );
-    let margin_poseidon_builtin = execution_resources_estimation
+    let (builtin_name, allowed_margin_builtin) = hash_version.allowed_margin_builtin();
+    let margin_builtin = execution_resources_estimation
         .builtin_instance_counter
-        .remove(&BuiltinName::poseidon)
+        .remove(&builtin_name)
         .unwrap()
         .abs_diff(
-            actual_execution_resources
-                .builtin_instance_counter
-                .remove(&BuiltinName::poseidon)
-                .unwrap(),
+            actual_execution_resources.builtin_instance_counter.remove(&builtin_name).unwrap(),
         );
     assert!(
-        margin_poseidon_builtin <= ALLOWED_MARGIN_POSEIDON_BUILTIN,
-        "Estimated poseidon_builtin and actual poseidon_builtin differ by more than \
-         {ALLOWED_MARGIN_POSEIDON_BUILTIN}.\n Margin Poseidon Builtin: {margin_poseidon_builtin}"
+        margin_builtin <= allowed_margin_builtin,
+        "Estimated builtin:{builtin_name} and actual builtin:{builtin_name} differ by more than \
+         {allowed_margin_builtin}.\n Margin Builtin: {margin_builtin}"
     );
     // Assert that all other builtins have exactly the same values.
     assert_eq!(
