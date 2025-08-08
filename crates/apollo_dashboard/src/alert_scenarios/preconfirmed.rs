@@ -8,10 +8,9 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    EVALUATION_INTERVAL_SEC_DEFAULT,
+    PENDING_DURATION_DEFAULT,
 };
-
-const PENDING_DURATION_DEFAULT: &str = "30s";
-const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 
 /// No preconfirmed block was written in the last 10 minutes.
 fn get_preconfirmed_block_not_written(
