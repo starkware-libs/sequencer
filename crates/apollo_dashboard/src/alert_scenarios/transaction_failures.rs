@@ -58,7 +58,7 @@ fn get_http_server_high_transaction_failure_ratio(
         ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
-            comparison_value: 0.2,
+            comparison_value: 0.3,
             logical_op: AlertLogicalOp::And,
         }],
         PENDING_DURATION_DEFAULT,
