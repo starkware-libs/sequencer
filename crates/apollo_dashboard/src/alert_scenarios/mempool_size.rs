@@ -8,10 +8,9 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    EVALUATION_INTERVAL_SEC_DEFAULT,
+    PENDING_DURATION_DEFAULT,
 };
-
-const PENDING_DURATION_DEFAULT: &str = "30s";
-const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 
 fn get_mempool_pool_size_increase(
     alert_env_filtering: AlertEnvFiltering,

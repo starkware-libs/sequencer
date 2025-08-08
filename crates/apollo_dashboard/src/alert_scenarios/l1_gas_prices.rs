@@ -12,10 +12,9 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    EVALUATION_INTERVAL_SEC_DEFAULT,
+    PENDING_DURATION_DEFAULT,
 };
-
-const PENDING_DURATION_DEFAULT: &str = "30s";
-const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 
 /// Alert if we have no successful eth to strk rates data from the last hour.
 fn get_eth_to_strk_success_count_alert(

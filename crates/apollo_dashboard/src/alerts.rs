@@ -5,6 +5,10 @@ use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 use strum_macros::EnumIter;
 
+pub(crate) const PENDING_DURATION_DEFAULT: &str = "30s";
+pub(crate) const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
+pub(crate) const SECS_IN_MIN: u64 = 60;
+
 /// Alerts to be configured in the dashboard.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct Alerts {

@@ -14,10 +14,9 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    EVALUATION_INTERVAL_SEC_DEFAULT,
+    PENDING_DURATION_DEFAULT,
 };
-
-const PENDING_DURATION_DEFAULT: &str = "30s";
-const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
 
 // TODO(guy.f): consider uniting with regular tx failure rate.
 // TODO(guyf.f): Change threshold to 0.05 after mainnet launch.
