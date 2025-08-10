@@ -274,7 +274,7 @@
       "name": "gateway_add_tx_idle_all_sources",
       "title": "Gateway add_tx idle (all sources)",
       "ruleGroup": "gateway",
-      "expr": "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0)",
+      "expr": "sum(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -436,7 +436,7 @@
       "name": "http_server_no_successful_transactions",
       "title": "http server no successful transactions",
       "ruleGroup": "http_server",
-      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0)",
+      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[600s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -571,7 +571,7 @@
       "name": "mempool_add_tx_idle_all_sources",
       "title": "Mempool add_tx idle (all sources)",
       "ruleGroup": "mempool",
-      "expr": "sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])) or vector(0)",
+      "expr": "sum(increase(mempool_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[120s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
