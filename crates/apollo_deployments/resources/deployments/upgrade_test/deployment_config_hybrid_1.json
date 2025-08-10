@@ -20,7 +20,7 @@
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-core-service.apollo-alpha-test-1.sw-dev.io",
+        "external_dns_name": "sequencer-core-service.apollo-mainnet-test-1.sw-dev.io",
         "internal": true
       },
       "autoscale": false,
@@ -38,7 +38,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-1"
+        "gcsm_key": "apollo-mainnet-test-1"
       },
       "anti_affinity": true,
       "ports": {
@@ -65,7 +65,7 @@
       "ingress": {
         "domain": "sw-dev.io",
         "alternative_names": [
-          "sn-alpha-test-upgrade.gateway-proxy.sw-dev.io"
+          "sn-mainnet-test-upgrade.gateway-proxy.sw-dev.io"
         ],
         "internal": false,
         "rules": [
@@ -92,7 +92,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-1"
+        "gcsm_key": "apollo-mainnet-test-1"
       },
       "anti_affinity": false,
       "ports": {
@@ -130,7 +130,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-1"
+        "gcsm_key": "apollo-mainnet-test-1"
       },
       "anti_affinity": false,
       "ports": {
@@ -173,7 +173,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-1"
+        "gcsm_key": "apollo-mainnet-test-1"
       },
       "anti_affinity": false,
       "ports": {
@@ -200,7 +200,7 @@
       "ingress": null,
       "k8s_service_config": {
         "type": "LoadBalancer",
-        "external_dns_name": "sequencer-mempool-service.apollo-alpha-test-1.sw-dev.io",
+        "external_dns_name": "sequencer-mempool-service.apollo-mainnet-test-1.sw-dev.io",
         "internal": true
       },
       "autoscale": false,
@@ -218,7 +218,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-1"
+        "gcsm_key": "apollo-mainnet-test-1"
       },
       "anti_affinity": true,
       "ports": {
@@ -256,7 +256,7 @@
         }
       },
       "external_secret": {
-        "gcsm_key": "apollo-alpha-test-1"
+        "gcsm_key": "apollo-mainnet-test-1"
       },
       "anti_affinity": false,
       "ports": {

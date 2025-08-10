@@ -9,18 +9,18 @@ use crate::deployments::hybrid::{hybrid_deployment, INSTANCE_NAME_FORMAT};
 use crate::k8s::K8sServiceConfigParams;
 
 const NODE_IDS: [usize; 3] = [0, 1, 2];
-const HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "sn-alpha-test-upgrade.gateway-proxy.sw-dev.io";
+const HTTP_SERVER_INGRESS_ALTERNATIVE_NAME: &str = "sn-mainnet-test-upgrade.gateway-proxy.sw-dev.io";
 const INGRESS_DOMAIN: &str = "sw-dev.io";
-const SECRET_NAME_FORMAT: &str = "apollo-alpha-test-{}";
-const NODE_NAMESPACE_FORMAT: &str = "apollo-alpha-test-{}";
+const SECRET_NAME_FORMAT: &str = "apollo-mainnet-test-{}";
+const NODE_NAMESPACE_FORMAT: &str = "apollo-mainnet-test-{}";
 
-const STARKNET_CONTRACT_ADDRESS: &str = "0x9b8A6361d204a0C1F93d5194763538057444d958";
+const STARKNET_CONTRACT_ADDRESS: &str = "0x9A24bE2884FE593dFA951eE19C751e3a7c89fECd";
 const CHAIN_ID: &str = "SN_GOERLI";
 const ETH_FEE_TOKEN_ADDRESS: &str =
-    "0x7c07a3eec8ff611328722c3fc3e5d2e4ef2f60740c0bf86c756606036b74c16";
-const STARKNET_GATEWAY_URL: &str = "https://feeder.sn-alpha-test-upgrade.gateway-proxy.sw-dev.io";
+    "0x4475715fa6768670bb310eab072171856c94c1a04fa78be2370513aa2a87dc4";
+const STARKNET_GATEWAY_URL: &str = "https://feeder.sn-mainnet-test-upgrade.gateway-proxy.sw-dev.io";
 const STRK_FEE_TOKEN_ADDRESS: &str =
-    "0x54a93d918d62b2fb62b25e77d9cb693bd277ab7e6fa236e53af263f1adb40e4";
+    "0x6cd5b5125491c4bccec3d3b8635cbd98542c1d91a134541eca6e108cf0639f6";
 const L1_STARTUP_HEIGHT_OVERRIDE: Option<BlockNumber> = None;
 const STATE_SYNC_TYPE: StateSyncType = StateSyncType::Central;
 
