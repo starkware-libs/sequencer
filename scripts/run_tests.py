@@ -35,6 +35,7 @@ class BaseCommand(Enum):
     CLIPPY = "clippy"
     DOC = "doc"
     INTEGRATION = "integration"
+    MIRI = "miri"
 
     def cmds(self, crates: Set[str], is_nightly: bool) -> List[List[str]]:
         package_args = []
@@ -43,6 +44,8 @@ class BaseCommand(Enum):
 
         if self == BaseCommand.TEST:
             return [["cargo", "test"] + package_args]
+        elif self == BaseCommand.MIRI:
+            return [["cargo", "miri", "test"] + package_args]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
             return [["cargo", "clippy"] + clippy_args + ["--all-targets", "--all-features"]]
