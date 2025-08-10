@@ -6,8 +6,6 @@ use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::calldata::create_calldata;
 use blockifier_test_utils::contracts::FeatureContract;
 use rstest::rstest;
-use starknet_api::contract_class::ContractClass;
-use starknet_api::core::CompiledClassHash;
 use starknet_api::executable_transaction::{DeclareTransaction, InvokeTransaction};
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::test_utils::declare::declare_tx;
@@ -79,14 +77,8 @@ async fn declare_deploy_scenario(#[values(1, 2)] n_blocks: usize) {
     // Declare a test contract.
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
     let test_contract_sierra = test_contract.get_sierra();
-    let contract_class = test_contract.get_class();
-    // TODO(Nimrod): Get the class hash bay adding a method `get_real_class_hash` to feature
-    // contracts.
     let class_hash = test_contract_sierra.calculate_class_hash();
-    let ContractClass::V1((test_contract_casm, _)) = contract_class else {
-        panic!("Expected a V1 contract class.");
-    };
-    let compiled_class_hash = CompiledClassHash(test_contract_casm.compiled_class_hash());
+    let compiled_class_hash = test_contract.get_real_compiled_class_hash();
     let declare_tx_args = declare_tx_args! {
         sender_address: *FUNDED_ACCOUNT_ADDRESS,
         class_hash,
