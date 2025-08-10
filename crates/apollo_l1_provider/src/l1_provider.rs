@@ -56,7 +56,7 @@ impl L1Provider {
         }
 
         self.validate_height(height)?;
-        debug!("Starting block at height: {height}");
+        info!("Starting block at height: {height}");
         self.state = state.into();
         self.tx_manager.start_block();
         Ok(())
