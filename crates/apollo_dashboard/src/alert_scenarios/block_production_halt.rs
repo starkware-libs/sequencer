@@ -12,11 +12,10 @@ use crate::alerts::{
     AlertGroup,
     AlertLogicalOp,
     AlertSeverity,
+    EVALUATION_INTERVAL_SEC_DEFAULT,
+    PENDING_DURATION_DEFAULT,
+    SECS_IN_MIN,
 };
-
-const PENDING_DURATION_DEFAULT: &str = "30s";
-const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
-const SECS_IN_MIN: u64 = 60;
 
 /// Block number is stuck for more than duration minutes.
 fn get_consensus_block_number_stuck(
