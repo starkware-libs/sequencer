@@ -229,6 +229,8 @@ impl Batcher {
             propose_block_input.block_info.block_number,
         );
 
+        info!("Hey");
+
         // A channel to receive the transactions included in the proposed block.
         let (output_tx_sender, output_tx_receiver) = tokio::sync::mpsc::unbounded_channel();
 
@@ -238,6 +240,7 @@ impl Batcher {
                 propose_block_input.block_info.block_number,
                 propose_block_input.proposal_round,
                 cende_block_metadata,
+    
             );
 
         let (block_builder, abort_signal_sender) = self
