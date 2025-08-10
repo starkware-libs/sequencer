@@ -132,13 +132,13 @@ fn to_state_maps<CO: ContractChangesGetter, CL: UpdateGetter<ClassHash, Compiled
 }
 
 impl FullOsStateDiff {
-    pub(crate) fn as_state_maps(&self) -> StateMaps {
+    pub fn as_state_maps(&self) -> StateMaps {
         to_state_maps(&self.contracts, &self.classes)
     }
 }
 
 impl PartialOsStateDiff {
-    pub(crate) fn _as_state_maps(&self) -> StateMaps {
+    pub fn as_state_maps(&self) -> StateMaps {
         to_state_maps(&self.contracts, &self.classes)
     }
 }

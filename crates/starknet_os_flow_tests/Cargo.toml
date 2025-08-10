@@ -14,7 +14,7 @@ rstest.workspace = true
 starknet-types-core.workspace = true
 starknet_api.workspace = true
 starknet_committer.workspace = true
-starknet_os = { workspace = true, features = ["testing"] }
+starknet_os = { workspace = true, features = ["include_program_output", "testing"] }
 starknet_patricia = { workspace = true, features = ["testing"] }
 starknet_patricia_storage = { workspace = true, features = ["testing"] }
 tokio.workspace = true
