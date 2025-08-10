@@ -195,6 +195,10 @@ impl Batcher {
         )?;
 
         // TODO(yair): extract function for the following calls, use join_all.
+        info!(
+            "Committing block {}, round {} in Mempool client",
+            block_number, propose_block_input.proposal_round
+        );
         self.mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
             error!(
                 "Mempool is not ready to start proposal {}: {}.",
@@ -202,6 +206,10 @@ impl Batcher {
             );
             BatcherError::NotReady
         })?;
+        info!(
+            "Updating gas price for block {}, round {} in Mempool client",
+            block_number, propose_block_input.proposal_round
+        );
         self.mempool_client
             .update_gas_price(
                 propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
@@ -319,7 +327,6 @@ impl Batcher {
             self.l1_provider_client.clone(),
             validate_block_input.block_info.block_number,
         );
-
         let (block_builder, abort_signal_sender) = self
             .block_builder_factory
             .create_block_builder(
