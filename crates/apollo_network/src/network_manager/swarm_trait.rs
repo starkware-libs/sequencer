@@ -8,6 +8,7 @@ use tracing::{info, warn};
 use super::BroadcastedMessageMetadata;
 use crate::gossipsub_impl::Topic;
 use crate::misconduct_score::MisconductScore;
+use crate::network_manager::metrics::NetworkMetrics;
 use crate::peer_manager::ReputationModifier;
 use crate::sqmr::behaviour::SessionIdNotFoundError;
 use crate::sqmr::{InboundSessionId, OutboundSessionId, SessionId};
@@ -48,6 +49,8 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
     fn add_new_supported_inbound_protocol(&mut self, protocol_name: StreamProtocol);
 
     fn continue_propagation(&mut self, message_metadata: BroadcastedMessageMetadata);
+
+    fn update_metrics(&self, metrics: &NetworkMetrics);
 }
 
 impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
@@ -122,4 +125,93 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
 
     // TODO(shahak): Implement this function.
     fn continue_propagation(&mut self, _message_metadata: BroadcastedMessageMetadata) {}
+
+    fn update_metrics(&self, metrics: &NetworkMetrics) {
+        let Some(gossipsub_metrics) = &metrics.gossipsub_metrics else { return };
+        let gossipsub = &self.behaviour().gossipsub;
+
+        // Helper to convert usize counts to f64 metrics
+        let set_count = |gauge: &apollo_metrics::metrics::MetricGauge, count: usize| {
+            gauge.set(f64::from(u32::try_from(count).unwrap_or(u32::MAX)));
+        };
+
+        // Basic counts
+        set_count(&gossipsub_metrics.num_mesh_peers, gossipsub.all_mesh_peers().count());
+        set_count(&gossipsub_metrics.num_subscribed_topics, gossipsub.topics().count());
+
+        // Collect peer data once for analysis
+        let all_peers: Vec<_> = gossipsub.all_peers().collect();
+        set_count(&gossipsub_metrics.num_all_peers, all_peers.len());
+        set_count(&gossipsub_metrics.num_gossipsub_peers, gossipsub.peer_protocol().count());
+        gossipsub_metrics.num_floodsub_peers.set(0.0); // Currently all peers are gossipsub
+
+        // Topic subscription analysis
+        let topic_counts: Vec<usize> = all_peers.iter().map(|(_, topics)| topics.len()).collect();
+        let total_subscriptions: usize = topic_counts.iter().sum();
+        set_count(&gossipsub_metrics.total_topic_subscriptions, total_subscriptions);
+
+        if topic_counts.is_empty() {
+            [
+                &gossipsub_metrics.avg_topics_per_peer,
+                &gossipsub_metrics.max_topics_per_peer,
+                &gossipsub_metrics.min_topics_per_peer,
+            ]
+            .iter()
+            .for_each(|metric| metric.set(0.0));
+        } else {
+            let avg = f64::from(u32::try_from(total_subscriptions).unwrap_or(u32::MAX)) / f64::from(u32::try_from(topic_counts.len()).unwrap_or(u32::MAX));
+            gossipsub_metrics.avg_topics_per_peer.set(avg);
+
+            if let (Some(&max), Some(&min_non_zero)) =
+                (topic_counts.iter().max(), topic_counts.iter().filter(|&&c| c > 0).min())
+            {
+                set_count(&gossipsub_metrics.max_topics_per_peer, max);
+                set_count(&gossipsub_metrics.min_topics_per_peer, min_non_zero);
+            }
+        }
+
+        // Mesh analysis per topic
+        let our_topics: Vec<_> = gossipsub.topics().collect();
+        if our_topics.is_empty() {
+            [
+                &gossipsub_metrics.avg_mesh_peers_per_topic,
+                &gossipsub_metrics.max_mesh_peers_per_topic,
+                &gossipsub_metrics.min_mesh_peers_per_topic,
+            ]
+            .iter()
+            .for_each(|metric| metric.set(0.0));
+        } else {
+            let mesh_counts: Vec<usize> =
+                our_topics.iter().map(|topic| gossipsub.mesh_peers(topic).count()).collect();
+            let total_mesh = mesh_counts.iter().sum::<usize>();
+            let avg_mesh = f64::from(u32::try_from(total_mesh).unwrap_or(u32::MAX)) / f64::from(u32::try_from(our_topics.len()).unwrap_or(u32::MAX));
+            gossipsub_metrics.avg_mesh_peers_per_topic.set(avg_mesh);
+
+            if let (Some(&min), Some(&max)) = (mesh_counts.iter().min(), mesh_counts.iter().max()) {
+                set_count(&gossipsub_metrics.min_mesh_peers_per_topic, min);
+                set_count(&gossipsub_metrics.max_mesh_peers_per_topic, max);
+            }
+        }
+
+        // Peer scoring analysis
+        let peer_scores: Vec<f64> =
+            all_peers.iter().filter_map(|(peer_id, _)| gossipsub.peer_score(peer_id)).collect();
+        if peer_scores.is_empty() {
+            [
+                &gossipsub_metrics.num_peers_with_positive_score,
+                &gossipsub_metrics.num_peers_with_negative_score,
+                &gossipsub_metrics.avg_peer_score,
+            ]
+            .iter()
+            .for_each(|metric| metric.set(0.0));
+        } else {
+            let positive_count = peer_scores.iter().filter(|&&score| score > 0.0).count();
+            let negative_count = peer_scores.iter().filter(|&&score| score < 0.0).count();
+            let avg_score = peer_scores.iter().sum::<f64>() / f64::from(u32::try_from(peer_scores.len()).unwrap_or(u32::MAX));
+
+            set_count(&gossipsub_metrics.num_peers_with_positive_score, positive_count);
+            set_count(&gossipsub_metrics.num_peers_with_negative_score, negative_count);
+            gossipsub_metrics.avg_peer_score.set(avg_score);
+        }
+    }
 }
