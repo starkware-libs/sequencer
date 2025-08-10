@@ -12,7 +12,9 @@ use blockifier::blockifier::transaction_executor::{
 };
 use blockifier::context::BlockContext;
 use blockifier::state::cached_state::{CachedState, CommitmentStateDiff, StateMaps};
+use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::transaction::transaction_execution::Transaction;
+use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
 use starknet_api::contract_class::{ClassInfo, ContractClass, SierraVersion};
@@ -137,6 +139,8 @@ pub(crate) async fn commit_state_diff(
     }
 }
 
+// TODO(Nimrod): Refactor this to take only feature contract and use
+// `get_class_info_of_cairo_1_feature_contract`.
 pub(crate) fn create_cairo1_bootstrap_declare_tx(
     sierra: &SierraContractClass,
     casm: CasmContractClass,
@@ -344,4 +348,19 @@ pub(crate) fn divide_vec_into_n_parts<T>(mut vec: Vec<T>, n: usize) -> Vec<Vec<T
     }
     assert_eq!(n, items_per_part.len(), "Number of parts does not match.");
     items_per_part
+}
+
+// TODO(Nimrod): Consider moving it to a method of `FeatureContract`.
+pub(crate) fn get_class_info_of_cairo_1_feature_contract(
+    feature_contract: FeatureContract,
+) -> ClassInfo {
+    let sierra = feature_contract.get_sierra();
+    let contract_class = feature_contract.get_class();
+    let sierra_version = feature_contract.get_sierra_version();
+    ClassInfo {
+        contract_class,
+        sierra_program_length: sierra.sierra_program.len(),
+        abi_length: sierra.abi.len(),
+        sierra_version,
+    }
 }
