@@ -414,7 +414,18 @@ async fn handle_proposal_part(
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
-        None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
+        None => {
+            // The proposal content stream was closed before receiving a Fin message.
+            // This can be caused by:
+            // 1. The Proposer explicitly closing the stream (e.g., due to errors like
+            //    CendeWriteError)
+            // 2. The Proposer didn't send msgs for a long time, so the stream was dropped
+            // 3. The stream being evicted in the stream handler
+            // 4. Network issues causing the stream to disconnect
+            HandledProposalPart::Failed(
+                "Proposal content stream was closed before receiving fin".to_string(),
+            )
+        }
         Some(ProposalPart::Fin(fin)) => {
             info!("Received fin={fin:?}");
             let Some(final_n_executed_txs_nonopt) = *final_n_executed_txs else {
