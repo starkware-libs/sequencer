@@ -20,6 +20,7 @@ env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
   RUSTDOCFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
   EXTRA_RUST_TOOLCHAINS: nightly-2024-04-29
+  NIGHTLY_RUST_VERSION_FOR_MIRI: nightly
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
@@ -148,6 +149,52 @@ jobs:
           scripts/run_tests.py --command test
         env:
           SEED: 0
+
+  run-miri-tests:
+    runs-on: starkware-ubuntu-24.04-medium
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Fetch the entire history.
+          fetch-depth: 0
+      - uses: ./.github/actions/bootstrap
+        with:
+          extra_rust_toolchains: ${{ env.NIGHTLY_RUST_VERSION_FOR_MIRI }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Setup pypy and link to the location expected by .cargo/config.toml.
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+          cache: 'pip'
+      - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
+      - env:
+          LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
+        run: echo "LD_LIBRARY_PATH=${LD_LIBRARY_PATH}" >> $GITHUB_ENV
+      - run: pip install -r scripts/requirements.txt
+
+      # Install Miri
+      - name: Install Miri
+        run: rustup +${{ env.NIGHTLY_RUST_VERSION_FOR_MIRI }} component add miri
+
+      - name: "Run Miri tests on pull request"
+        if: github.event_name == 'pull_request'
+        run: |
+          scripts/run_tests.py --command miri --commit_id ${{ github.event.pull_request.base.sha }}
+        env:
+          SEED: 0
+          MIRIFLAGS: "-Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation"
+          NIGHTLY_RUST_VERSION: ${{ env.NIGHTLY_RUST_VERSION_FOR_MIRI }}
+
+      - name: "Run Miri tests on push"
+        if: github.event_name == 'push'
+        run: |
+          scripts/run_tests.py --command miri
+        env:
+          SEED: 0
+          MIRIFLAGS: "-Zmiri-strict-provenance -Zmiri-symbolic-alignment-check -Zmiri-disable-isolation"
+          NIGHTLY_RUST_VERSION: ${{ env.NIGHTLY_RUST_VERSION_FOR_MIRI }}
 
   run-integration-tests:
     runs-on: starkware-ubuntu-24.04-large

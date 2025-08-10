@@ -4,6 +4,7 @@ import argparse
 import subprocess
 from enum import Enum
 from typing import List, Optional, Set
+import os
 
 from tests_utils import get_tested_packages
 
@@ -35,6 +36,7 @@ class BaseCommand(Enum):
     CLIPPY = "clippy"
     DOC = "doc"
     INTEGRATION = "integration"
+    MIRI = "miri"
 
     def cmds(self, crates: Set[str], is_nightly: bool) -> List[List[str]]:
         package_args = []
@@ -43,6 +45,9 @@ class BaseCommand(Enum):
 
         if self == BaseCommand.TEST:
             return [["cargo", "test"] + package_args]
+        elif self == BaseCommand.MIRI:
+            nightly_rust_version = os.environ.get("NIGHTLY_RUST_VERSION")
+            return [["cargo", f"+{nightly_rust_version}" ,"miri", "test", "--lib"] + package_args]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
             return [["cargo", "clippy"] + clippy_args + ["--all-targets", "--all-features"]]
