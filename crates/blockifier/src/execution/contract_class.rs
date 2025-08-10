@@ -7,6 +7,7 @@ use cairo_lang_casm;
 use cairo_lang_casm::hints::Hint;
 use cairo_lang_starknet_classes::casm_contract_class::{CasmContractClass, CasmContractEntryPoint};
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_utils::bigint::BigUintAsHex;
 use cairo_vm::serde::deserialize_program::{
     ApTracking,
     FlowTrackingData,
@@ -57,6 +58,22 @@ pub mod test;
 
 pub trait HasSelector {
     fn selector(&self) -> &EntryPointSelector;
+}
+
+// TODO(AvivG): Remove `allow(unused)`.
+#[allow(unused)]
+pub(crate) struct FeltSizeCount {
+    // Number of felts below 2^63.
+    pub small: usize,
+    // Number of felts above or equal to 2^63.
+    pub large: usize,
+}
+
+// TODO(AvivG): Remove `allow(unused)`.
+#[allow(unused)]
+pub(crate) enum NestedFeltCounts {
+    Leaf(usize, FeltSizeCount), // (leaf length, felt size groups)
+    Node(Vec<NestedFeltCounts>),
 }
 
 /// The resource used to run a contract function.
@@ -491,6 +508,8 @@ fn node_cost(
 
 /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
 /// - Uses only bytecode size (treats all felts as “big”, ignores the small-felt optimization).
+// TODO(AvivG): use bytecode_segment_felt_sizes in estimation to account for small-big felt
+// optimization.
 pub fn estimate_casm_blake_hash_computation_resources(
     bytecode_segment_lengths: &NestedIntList,
     versioned_constants: &VersionedConstants,
@@ -572,6 +591,7 @@ pub struct ContractClassV1Inner {
     pub entry_points_by_type: EntryPointsByType<EntryPointV1>,
     pub hints: HashMap<String, Hint>,
     pub sierra_version: SierraVersion,
+    // TODO(AvivG): add bytecode_segment_felt_sizes and remove bytecode_segment_lengths.
     bytecode_segment_lengths: NestedIntList,
 }
 
@@ -750,5 +770,23 @@ impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
             EntryPointType::External => &self.external,
             EntryPointType::L1Handler => &self.l1_handler,
         }
+    }
+}
+
+impl NestedFeltCounts {
+    /// Builds a nested structure matching `layout`, consuming values from `bytecode`.
+    #[allow(unused)]
+    pub(crate) fn new(bytecode_segment_lengths: &NestedIntList, bytecode: &[BigUintAsHex]) -> Self {
+        let (base_node, consumed_felts) = Self::new_inner(bytecode_segment_lengths, bytecode);
+        assert_eq!(consumed_felts, bytecode.len());
+        base_node
+    }
+
+    /// Recursively builds the nested structure and returns it with the number of items consumed.
+    fn new_inner(
+        _bytecode_segment_lengths: &NestedIntList,
+        _bytecode: &[BigUintAsHex],
+    ) -> (Self, usize) {
+        unimplemented!()
     }
 }
