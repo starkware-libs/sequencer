@@ -5,6 +5,7 @@ use assert_matches::assert_matches;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
 use cairo_lang_starknet_classes::NestedIntList;
+use cairo_lang_utils::bigint::BigUintAsHex;
 use rstest::rstest;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::ContractClass;
@@ -12,6 +13,8 @@ use starknet_api::contract_class::ContractClass;
 use crate::execution::contract_class::{
     CompiledClassV1,
     ContractClassV1Inner,
+    FeltSizeCount,
+    NestedFeltCounts,
     RunnableCompiledClass,
 };
 use crate::test_utils::contracts::FeatureContractTrait;
@@ -87,4 +90,43 @@ fn test_compiled_class_hash(
         _ => panic!("RunnableCompiledClass::V0 does not support hash"),
     };
     assert_eq!(casm_hash, runnable_contact_class_hash);
+}
+
+#[rstest]
+#[case::empty(
+    NestedIntList::Leaf(0),
+    vec![],
+    NestedFeltCounts::Leaf(0, FeltSizeCount { small: 0, large: 0 })
+)]
+#[case::leaf(
+    NestedIntList::Leaf(3),
+    vec![
+        BigUintAsHex::from(1u64),
+        BigUintAsHex::from(1u64 << 63),
+        BigUintAsHex::from(1u64 << 63),
+    ],
+    NestedFeltCounts::Leaf(3, FeltSizeCount { small: 1, large: 2 })
+)]
+#[case::node(
+    NestedIntList::Node(vec![
+        NestedIntList::Leaf(1),
+        NestedIntList::Leaf(2),
+    ]),
+    vec![
+        BigUintAsHex::from(1u64),
+        BigUintAsHex::from(1u64),
+        BigUintAsHex::from(1u64 << 63),
+    ],
+    NestedFeltCounts::Node(vec![
+        NestedFeltCounts::Leaf(1, FeltSizeCount { small: 1, large: 0 }),
+        NestedFeltCounts::Leaf(2, FeltSizeCount { small: 1, large: 1 }),
+    ])
+)]
+fn test_create_bytecode_segment_felt_sizes(
+    #[case] bytecode_segment_lengths: NestedIntList,
+    #[case] bytecode: Vec<BigUintAsHex>,
+    #[case] expected_structure: NestedFeltCounts,
+) {
+    let result = NestedFeltCounts::new(&bytecode_segment_lengths, &bytecode);
+    assert_eq!(result, expected_structure);
 }
