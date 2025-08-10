@@ -307,7 +307,7 @@ fn test_compression() {
         compress(&state_diff, &state_reader, *ALIAS_CONTRACT_ADDRESS).unwrap();
     assert_eq!(compressed_state_diff, expected_compressed_state_diff);
 
-    let alias_keys = state_reader.storage_view.keys().map(|(_, key)| *key).collect();
+    let alias_keys = state_reader.storage_view.keys().map(|(_, key)| key.0).collect();
     let decompressed_state_diff =
         decompress(&compressed_state_diff, &state_reader, *ALIAS_CONTRACT_ADDRESS, alias_keys);
     assert_eq!(decompressed_state_diff, state_diff);

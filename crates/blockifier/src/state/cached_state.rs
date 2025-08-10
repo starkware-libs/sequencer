@@ -374,10 +374,9 @@ impl StateMaps {
     /// Returns the set of keys that aliases were potentially allocated for.
     #[cfg(any(test, feature = "testing"))]
     pub fn alias_keys(&self) -> HashSet<AliasKey> {
-        let mut keys = HashSet::from_iter(
-            self.get_contract_addresses().into_iter().map(|address| StorageKey(address.0)),
-        );
-        keys.extend(self.storage.keys().map(|(_address, storage_key)| *storage_key));
+        let mut keys =
+            HashSet::from_iter(self.get_contract_addresses().into_iter().map(|address| address.0));
+        keys.extend(self.storage.keys().map(|(_address, storage_key)| storage_key.0));
         keys
     }
 }

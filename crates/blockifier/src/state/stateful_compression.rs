@@ -15,11 +15,11 @@ use super::state_api::{State, StateReader, StateResult};
 pub mod stateful_compression_test;
 
 pub(crate) type Alias = Felt;
-pub(crate) type AliasKey = StorageKey;
+pub(crate) type AliasKey = PatriciaKey;
 
 #[derive(Debug, Error)]
 pub enum CompressionError {
-    #[error("Missing key in alias contract: {:#064x}", ***.0)]
+    #[error("Missing key in alias contract: {:#064x}", **.0)]
     MissedAlias(AliasKey),
     #[error(transparent)]
     StateError(#[from] StateError),
@@ -100,13 +100,14 @@ impl<'a, S: State> AliasUpdater<'a, S> {
     }
 
     fn set_alias_in_storage(&mut self, alias_key: AliasKey, alias: Alias) -> StateResult<()> {
-        self.state.set_storage_at(self.alias_contract_address, alias_key, alias)
+        self.state.set_storage_at(self.alias_contract_address, StorageKey(alias_key), alias)
     }
 
     /// Inserts the alias key to the updates if it's not already aliased.
     fn insert_alias(&mut self, alias_key: &AliasKey) -> StateResult<()> {
-        if alias_key.0 >= MIN_VALUE_FOR_ALIAS_ALLOC
-            && self.state.get_storage_at(self.alias_contract_address, *alias_key)? == Felt::ZERO
+        if *alias_key >= MIN_VALUE_FOR_ALIAS_ALLOC
+            && self.state.get_storage_at(self.alias_contract_address, StorageKey(*alias_key))?
+                == Felt::ZERO
         {
             let alias_to_allocate = self.next_free_alias.unwrap_or(INITIAL_AVAILABLE_ALIAS);
             self.set_alias_in_storage(*alias_key, alias_to_allocate)?;
@@ -120,11 +121,11 @@ impl<'a, S: State> AliasUpdater<'a, S> {
     fn finalize_updates(mut self) -> StateResult<()> {
         match self.next_free_alias {
             None => {
-                self.set_alias_in_storage(ALIAS_COUNTER_STORAGE_KEY, INITIAL_AVAILABLE_ALIAS)?;
+                self.set_alias_in_storage(ALIAS_COUNTER_STORAGE_KEY.0, INITIAL_AVAILABLE_ALIAS)?;
             }
             Some(alias) => {
                 if self.is_alias_inserted {
-                    self.set_alias_in_storage(ALIAS_COUNTER_STORAGE_KEY, alias)?;
+                    self.set_alias_in_storage(ALIAS_COUNTER_STORAGE_KEY.0, alias)?;
                 }
             }
         }
@@ -183,7 +184,7 @@ impl<S: StateReader> AliasCompressor<'_, S> {
         contract_address: &ContractAddress,
     ) -> CompressionResult<ContractAddress> {
         if contract_address.0 >= MIN_VALUE_FOR_ALIAS_ALLOC {
-            Ok(self.get_alias(StorageKey(contract_address.0))?.try_into()?)
+            Ok(self.get_alias(contract_address.0)?.try_into()?)
         } else {
             Ok(*contract_address)
         }
@@ -197,14 +198,15 @@ impl<S: StateReader> AliasCompressor<'_, S> {
         if storage_key.0 >= MIN_VALUE_FOR_ALIAS_ALLOC
             && contract_address > &MAX_NON_COMPRESSED_CONTRACT_ADDRESS
         {
-            Ok(self.get_alias(*storage_key)?.try_into()?)
+            Ok(self.get_alias(storage_key.0)?.try_into()?)
         } else {
             Ok(*storage_key)
         }
     }
 
     fn get_alias(&self, alias_key: AliasKey) -> CompressionResult<Alias> {
-        let alias = self.state.get_storage_at(self.alias_contract_address, alias_key)?;
+        let alias =
+            self.state.get_storage_at(self.alias_contract_address, StorageKey(alias_key))?;
         if alias == Felt::ZERO { Err(CompressionError::MissedAlias(alias_key)) } else { Ok(alias) }
     }
 }

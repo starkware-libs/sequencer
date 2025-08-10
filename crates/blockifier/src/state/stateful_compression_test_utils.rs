@@ -60,7 +60,7 @@ impl AliasDecompressorUtil {
         let mut reversed_alias_mapping = HashMap::new();
         for alias_key in alias_keys.into_iter() {
             reversed_alias_mapping.insert(
-                state.get_storage_at(alias_contract_address, alias_key).unwrap(),
+                state.get_storage_at(alias_contract_address, StorageKey(alias_key)).unwrap(),
                 alias_key,
             );
         }
@@ -86,7 +86,7 @@ impl AliasDecompressorUtil {
         if storage_key_alias.0 >= MIN_VALUE_FOR_ALIAS_ALLOC
             && contact_address > &MAX_NON_COMPRESSED_CONTRACT_ADDRESS
         {
-            self.restore_alias_key(*storage_key_alias.0)
+            StorageKey(self.restore_alias_key(*storage_key_alias.0.key()))
         } else {
             *storage_key_alias
         }
