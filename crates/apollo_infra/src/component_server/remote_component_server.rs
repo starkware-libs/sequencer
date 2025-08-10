@@ -272,20 +272,30 @@ where
                     }
                     Err(_) => {
                         trace!("Too many connections, denying a new connection");
+                        let body: Vec<u8> =
+                            SerdeWrapper::new(ServerError::RequestDeserializationFailure(
+                                "Server is busy addressing previous requests".to_string(),
+                            ))
+                            .wrapper_serialize()
+                            .expect("Server error serialization should succeed");
                         // Marked `async` to conform to the expected `Service` trait, requiring the
                         // handler to return a `Future`.
-                        let reject_request_service = service_fn(move |_req| async {
-                            let response: HyperResponse<Body> = HyperResponse::builder()
-                                // Return a 503 Service Unavailable response to indicate that the server is busy, which should indicate the load balancer to divert the request to another server.
-                                .status(StatusCode::SERVICE_UNAVAILABLE)
-                                .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
-                                .body(Body::from("Server is busy addressing previous requests"))
-                                .expect("Should be able to construct server http response.");
-                            // Explicitly mention the type, helping the Rust compiler avoid Error
-                            // type ambiguity.
-                            let wrapped_response: Result<HyperResponse<Body>, hyper::Error> =
-                                Ok(response);
-                            wrapped_response
+
+                        let reject_request_service = service_fn(move |_req| {
+                            let body = body.clone();
+                            async move {
+                                let response: HyperResponse<Body> = HyperResponse::builder()
+                                // Return a 503 Service Unavailable response to indicate that the server is
+                                // busy, which should indicate the load balancer to divert the request to
+                                // another server.
+                                    .status(StatusCode::SERVICE_UNAVAILABLE)
+                                    .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
+                                    .body(Body::from(body))
+                                    .expect("Should be able to construct server http response.");
+                                let wrapped_response: Result<HyperResponse<Body>, hyper::Error> =
+                                    Ok(response);
+                                wrapped_response
+                            }
                         })
                         .boxed();
 
