@@ -65,7 +65,7 @@
   "components.l1_gas_price_provider.remote_client_config.retry_interval_ms": 1000,
   "components.l1_gas_price_provider.url": "sequencer-l1-service",
   "components.l1_gas_price_scraper.execution_mode": "Disabled",
-  "components.l1_provider.execution_mode": "Remote",
+  "components.l1_provider.execution_mode": "LocalExecutionWithRemoteEnabled",
   "components.l1_provider.ip": "0.0.0.0",
   "components.l1_provider.local_server_config.channel_capacity": 1024,
   "components.l1_provider.max_concurrency": 128,
@@ -133,11 +133,16 @@
   "l1_endpoint_monitor_config.#is_none": true,
   "l1_gas_price_provider_config.#is_none": true,
   "l1_gas_price_scraper_config.#is_none": true,
-  "l1_provider_config.#is_none": true,
+  "l1_provider_config.#is_none": false,
   "l1_scraper_config.#is_none": true,
   "mempool_config.#is_none": true,
   "mempool_p2p_config.#is_none": true,
   "monitoring_endpoint_config.#is_none": false,
   "sierra_compiler_config.#is_none": true,
-  "state_sync_config.#is_none": false
+  "state_sync_config.#is_none": false,
+  "l1_provider_config.bootstrap_catch_up_height_override": 0,
+  "l1_provider_config.bootstrap_catch_up_height_override.#is_none": true,
+  "l1_provider_config.startup_sync_sleep_retry_interval_seconds": 2,
+  "l1_provider_config.l1_handler_cancellation_timelock_seconds": 300,
+  "l1_provider_config.new_l1_handler_cooldown_seconds": 245
 }
