@@ -11,7 +11,9 @@ use tracing::{error, info};
 use crate::component_client::ClientResult;
 
 pub(crate) const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
-
+pub const BUSY_PREVIOUS_REQUESTS_MSG: &str =
+    "Server is busy addressing previous requests";
+    
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
     async fn handle_request(&mut self, request: Request) -> Response;
