@@ -414,7 +414,15 @@ async fn handle_proposal_part(
     transaction_converter: Arc<dyn TransactionConverterTrait>,
 ) -> HandledProposalPart {
     match proposal_part {
-        None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
+        None => {
+            // This means that the stream was closed.
+            // Can happen due to:
+            // 1. The Proposer doesn't complete the proposal (e.g. error during build_proposal).
+            // 2. Network issues are preventing us from receiving the proposal.
+            HandledProposalPart::Failed(
+                "Proposal content stream was closed before receiving fin".to_string(),
+            )
+        }
         Some(ProposalPart::Fin(fin)) => {
             info!("Received fin={fin:?}");
             let Some(final_n_executed_txs_nonopt) = *final_n_executed_txs else {
