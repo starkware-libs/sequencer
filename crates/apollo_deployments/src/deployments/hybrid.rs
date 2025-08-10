@@ -30,7 +30,7 @@ use crate::deployment_definitions::{
     InfraServicePort,
     ServicePort,
 };
-use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
+use crate::deployments::POOL_MAX_IDLE_PER_HOST_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
@@ -694,8 +694,8 @@ impl HybridNodeServiceName {
         );
         match self {
             HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
-                base.remote_client_config.idle_connections =
-                    IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
+                base.remote_client_config.pool_max_idle_per_host =
+                    POOL_MAX_IDLE_PER_HOST_FOR_AUTOSCALED_SERVICES;
             }
             HybridNodeServiceName::Core
             | HybridNodeServiceName::HttpServer

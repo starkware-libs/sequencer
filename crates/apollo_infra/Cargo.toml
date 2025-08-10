@@ -17,7 +17,7 @@ apollo_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
 async-trait.workspace = true
-hyper = { workspace = true, features = ["client", "http2", "server", "tcp"] }
+hyper = { workspace = true, features = ["client", "http2", "runtime", "server", "tcp"] }
 rstest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true

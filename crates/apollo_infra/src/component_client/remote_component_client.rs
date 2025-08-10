@@ -1,14 +1,24 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use hyper::body::{to_bytes, Bytes};
+use hyper::client::HttpConnector;
 use hyper::header::CONTENT_TYPE;
-use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
+use hyper::{
+    Body,
+    Client as HyperClient,
+    Request as HyperRequest,
+    Response as HyperResponse,
+    StatusCode,
+    Uri,
+};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
@@ -20,59 +30,84 @@ use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCT
 use crate::metrics::RemoteClientMetrics;
 use crate::serde_utils::SerdeWrapper;
 
-// TODO(Tsabary): rename all constants to better describe their purpose.
+const DEFAULT_CLIENT_COUNT: usize = 10;
+const DEFAULT_HTTP2_KEEP_ALIVE_INTERVAL_MS: u64 = 30_000;
+const DEFAULT_HTTP2_KEEP_ALIVE_TIMEOUT_MS: u64 = 10_000;
+const DEFAULT_POOL_IDLE_TIMEOUT_MS: u64 = 30_000;
+const DEFAULT_POOL_MAX_IDLE_PER_HOST: usize = 100;
 const DEFAULT_RETRIES: usize = 150;
-const DEFAULT_IDLE_CONNECTIONS: usize = 10;
-// TODO(Tsabary): add `_SECS` suffix to the constant names and the config fields.
-const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
-const DEFAULT_RETRY_INTERVAL_MS: u64 = 1000;
-
-// TODO(Tsabary): consider retry delay mechanisms, e.g., exponential backoff, jitter, etc.
+const DEFAULT_RETRY_INTERVAL_MS: u64 = 1_000;
 
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct RemoteClientConfig {
+    pub client_count: usize,
+    pub http2_keep_alive_interval_ms: u64,
+    pub http2_keep_alive_timeout_ms: u64,
+    pub pool_idle_timeout_ms: u64,
+    pub pool_max_idle_per_host: usize,
     pub retries: usize,
-    pub idle_connections: usize,
-    pub idle_timeout_ms: u64,
     pub retry_interval_ms: u64,
 }
 
 impl Default for RemoteClientConfig {
     fn default() -> Self {
         Self {
+            client_count: DEFAULT_CLIENT_COUNT,
+            http2_keep_alive_interval_ms: DEFAULT_HTTP2_KEEP_ALIVE_INTERVAL_MS,
+            http2_keep_alive_timeout_ms: DEFAULT_HTTP2_KEEP_ALIVE_TIMEOUT_MS,
+            pool_idle_timeout_ms: DEFAULT_POOL_IDLE_TIMEOUT_MS,
+            pool_max_idle_per_host: DEFAULT_POOL_MAX_IDLE_PER_HOST,
             retries: DEFAULT_RETRIES,
-            idle_connections: DEFAULT_IDLE_CONNECTIONS,
-            idle_timeout_ms: DEFAULT_IDLE_TIMEOUT_MS,
             retry_interval_ms: DEFAULT_RETRY_INTERVAL_MS,
         }
     }
 }
 
+// TODO(Tsabary): fill in descriptions.
 impl SerializeConfig for RemoteClientConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         BTreeMap::from_iter([
             ser_param(
+                "client_count",
+                &self.client_count,
+                "Number of independent http clients to build. Each has its own connection pool.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "http2_keep_alive_interval_ms",
+                &self.http2_keep_alive_interval_ms,
+                "HTTP/2 ping interval (ms) for idle connections; detects half-open TCP sessions \
+                 and keeps NAT/firewall mappings alive.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "http2_keep_alive_timeout_ms",
+                &self.http2_keep_alive_timeout_ms,
+                "Max wait (ms) for a ping ACK before closing the HTTP/2 connection.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "pool_idle_timeout_ms",
+                &self.pool_idle_timeout_ms,
+                "Idle connection lifetime (ms) before being dropped from the pool.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "pool_max_idle_per_host",
+                &self.pool_max_idle_per_host,
+                "Max idle connections per host that will be kept pooled.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
                 "retries",
                 &self.retries,
-                "The max number of retries for sending a message.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "idle_connections",
-                &self.idle_connections,
-                "The maximum number of idle connections to keep alive.",
-                ParamPrivacyInput::Public,
-            ),
-            ser_param(
-                "idle_timeout_ms",
-                &self.idle_timeout_ms,
-                "The duration in milliseconds to keep an idle connection open before closing.",
+                "Total retry attempts after the first send.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "retry_interval_ms",
                 &self.retry_interval_ms,
-                "The duration in milliseconds to wait between remote connection retries.",
+                "Upper bound for exponential backoff delay (ms) between retries.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -81,86 +116,16 @@ impl SerializeConfig for RemoteClientConfig {
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously through HTTP connection.
-///
-/// # Type Parameters
-/// - `Request`: The type of the request. This type must implement the `serde::Serialize` trait.
-/// - `Response`: The type of the response. This type must implement the
-///   `serde::de::DeserializeOwned` (e.g. by using #[derive(Deserialize)]) trait.
-///
-/// # Fields
-/// - `uri`: URI address of the server.
-/// - `client`: The inner HTTP client that initiates the connection to the server and manages it.
-/// - `config`: Client configuration.
-///
-/// # Example
-/// ```rust
-/// // Example usage of the RemoteComponentClient
-///
-/// use apollo_infra::metrics::RemoteClientMetrics;
-/// use apollo_metrics::metrics::{MetricHistogram, MetricScope};
-/// use serde::{Deserialize, Serialize};
-///
-/// use crate::apollo_infra::component_client::{RemoteClientConfig, RemoteComponentClient};
-/// use crate::apollo_infra::component_definitions::ComponentClient;
-///
-/// // Define your request and response types
-/// #[derive(Serialize, Deserialize, Debug)]
-/// struct MyRequest {
-///     pub content: String,
-/// }
-///
-/// impl AsRef<str> for MyRequest {
-///     fn as_ref(&self) -> &str {
-///         &self.content
-///     }
-/// }
-///
-/// #[derive(Serialize, Deserialize, Debug)]
-/// struct MyResponse {
-///     content: String,
-/// }
-///
-/// #[tokio::main]
-/// async fn main() {
-///     // Create a channel for sending requests and receiving responses
-///     // Instantiate the client.
-///     let url = "127.0.0.1".to_string();
-///     let port: u16 = 8080;
-///     let config = RemoteClientConfig::default();
-///
-///     const EXAMPLE_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
-///         MetricScope::Infra,
-///         "example_histogram_metric",
-///         "example_histogram_metric_filter",
-///         "example_histogram_metric_sum_filter",
-///         "example_histogram_metric_count_filter",
-///         "Example histogram metrics",
-///     );
-///     let metrics = RemoteClientMetrics::new(&EXAMPLE_HISTOGRAM_METRIC);
-///     let client =
-///         RemoteComponentClient::<MyRequest, MyResponse>::new(config, &url, port, metrics);
-///
-///     // Instantiate a request.
-///     let request = MyRequest { content: "Hello, world!".to_string() };
-///
-///     // Send the request; typically, the client should await for a response.
-///     client.send(request);
-/// }
-/// ```
-///
-/// # Notes
-/// - The `RemoteComponentClient` struct is designed to work in an asynchronous environment,
-///   utilizing Tokio's async runtime and hyper framework to send HTTP requests and receive HTTP
-///   responses.
 pub struct RemoteComponentClient<Request, Response>
 where
     Request: Serialize,
     Response: DeserializeOwned,
 {
-    uri: Uri,
-    client: Client<hyper::client::HttpConnector>,
+    clients: Arc<Vec<HyperClient<HttpConnector, Body>>>, // Independent connection pools
     config: RemoteClientConfig,
     metrics: RemoteClientMetrics,
+    rr: AtomicUsize, // Round-robin index for connection pool selection
+    uri: Uri,
     // [`RemoteComponentClient<Request,Response>`] should be [`Send + Sync`] while [`Request`] and
     // [`Response`] are only [`Send`]. [`Phantom<T>`] is [`Send + Sync`] only if [`T`] is, despite
     // this bound making no sense as the phantom data field is unused. As such, we wrap it as
@@ -183,13 +148,38 @@ where
         metrics: RemoteClientMetrics,
     ) -> Self {
         let uri = format!("http://{url}:{port}/").parse().unwrap();
-        let client = Client::builder()
-            .http2_only(true)
-            .pool_max_idle_per_host(config.idle_connections)
-            .pool_idle_timeout(Duration::from_millis(config.idle_timeout_ms))
-            .build_http();
+        let clients = (0..config.client_count)
+            .map(|_| {
+                let http = HttpConnector::new();
+                HyperClient::builder()
+                    .http2_only(true)
+                    // TODO(Tsabary): consider making these configurable.
+                    .http2_keep_alive_interval(Some(Duration::from_secs(30)))
+                    // TODO(Tsabary): consider making these configurable.
+                    .http2_keep_alive_timeout(Duration::from_secs(10))
+                    .http2_adaptive_window(true)
+                    .pool_idle_timeout(Duration::from_millis(config.pool_idle_timeout_ms))
+                    .pool_max_idle_per_host(config.pool_max_idle_per_host)
+                    .build(http)
+            })
+            .collect::<Vec<_>>();
+
         debug!("RemoteComponentClient created with URI: {uri:?}");
-        Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
+        Self {
+            clients: Arc::new(clients),
+            config,
+            metrics,
+            rr: AtomicUsize::new(0),
+            uri,
+            _req: PhantomData,
+            _res: PhantomData,
+        }
+    }
+
+    #[inline]
+    fn pick_client(&self) -> &HyperClient<HttpConnector, Body> {
+        let i = self.rr.fetch_add(1, Ordering::Relaxed);
+        &self.clients[i % self.clients.len()]
     }
 
     fn construct_http_request(&self, serialized_request: Bytes) -> HyperRequest<Body> {
@@ -202,7 +192,8 @@ where
 
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
         trace!("Sending HTTP request");
-        let http_response = self.client.request(http_request).await.map_err(|err| {
+        let client = self.pick_client();
+        let http_response = client.request(http_request).await.map_err(|err| {
             warn!("HTTP request to {} failed with error: {err:?}", self.uri);
             ClientError::CommunicationFailure(err.to_string())
         })?;
@@ -304,7 +295,8 @@ where
     fn clone(&self) -> Self {
         Self {
             uri: self.uri.clone(),
-            client: self.client.clone(),
+            clients: self.clients.clone(),
+            rr: AtomicUsize::new(self.rr.load(Ordering::Relaxed)),
             config: self.config.clone(),
             metrics: self.metrics.clone(),
             _req: PhantomData,
