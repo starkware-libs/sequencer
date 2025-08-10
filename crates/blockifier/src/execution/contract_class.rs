@@ -361,6 +361,7 @@ impl CompiledClassV1 {
             &self.bytecode_segment_lengths,
             versioned_constants,
             blake_weight,
+            &self.entry_points_by_type,
         );
 
         let poseidon_hash_resources =
@@ -533,9 +534,12 @@ pub fn estimate_casm_blake_hash_computation_resources(
     bytecode_segment_lengths: &NestedIntList,
     versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
+    entry_points_by_type: &EntryPointsByType<EntryPointV1>,
 ) -> GasAmount {
-    let (resources, blake_opcode_count) =
-        estimate_casm_blake_hash_computation_resources_inner(bytecode_segment_lengths);
+    let (resources, blake_opcode_count) = estimate_casm_blake_hash_computation_resources_inner(
+        bytecode_segment_lengths,
+        entry_points_by_type,
+    );
 
     assert!(
         resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
@@ -560,8 +564,8 @@ pub fn estimate_casm_blake_hash_computation_resources(
 /// - Blake opcode gas is returned separately, as it's not included in `ExecutionResources`.
 pub fn estimate_casm_blake_hash_computation_resources_inner(
     bytecode_segment_lengths: &NestedIntList,
+    entry_points_by_type: &EntryPointsByType<EntryPointV1>,
 ) -> (ExecutionResources, usize) {
-    // TODO(AvivG): Currently ignores entry-point hashing costs.
     let mut resources = ExecutionResources::default();
     let mut blake_opcodes = 0;
     resources.n_steps += EMPTY_ENTRY_POINTS_STEPS;
@@ -576,6 +580,13 @@ pub fn estimate_casm_blake_hash_computation_resources_inner(
 
     // Compute cost of `bytecode_hash_node`.
     cost_of_bytecode_hash_node(bytecode_segment_lengths, &mut resources, &mut blake_opcodes);
+    cost_of_hash_entry_points(&entry_points_by_type.l1_handler, &mut resources, &mut blake_opcodes);
+    cost_of_hash_entry_points(&entry_points_by_type.external, &mut resources, &mut blake_opcodes);
+    cost_of_hash_entry_points(
+        &entry_points_by_type.constructor,
+        &mut resources,
+        &mut blake_opcodes,
+    );
 
     // Compute cost of `hash_finalize`: hash over (hash_entrypoints1, len_entrypoints1, hash_ep2,
     // len_ep2, hash_ep3, len_ep3, hash_bytecode, len_bytecode)
@@ -606,6 +617,14 @@ pub fn cost_of_bytecode_hash_node(
         NestedIntList::Leaf(len) => leaf_cost(*len, resources, blake_opcodes),
         NestedIntList::Node(segs) => node_cost(segs, resources, blake_opcodes),
     };
+}
+
+pub fn cost_of_hash_entry_points(
+    _entry_points: &[EntryPointV1],
+    _resources: &mut ExecutionResources,
+    _blake_opcodes: &mut usize,
+) {
+    // TODO(AvivG): implement this
 }
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
