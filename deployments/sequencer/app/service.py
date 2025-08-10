@@ -167,11 +167,27 @@ class ServiceApp(Construct):
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(),
-                                readiness_probe=self._get_http_probe(
-                                    path=const.PROBE_MONITORING_READY_PATH
+                                startup_probe=self._get_http_probe(
+                                    success_threshold=const.STARTUP_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.STARTUP_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.STARTUP_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.STARTUP_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
                                 ),
-                                liveness_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(
+                                    success_threshold=const.READINESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.READINESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.READINESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.READINESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_READY_PATH,
+                                ),
+                                liveness_probe=self._get_http_probe(
+                                    success_threshold=const.LIVENESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.LIVENESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.LIVENESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.LIVENESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
+                                ),
                                 volume_mounts=self._get_volume_mounts(),
                                 resources=self._get_container_resources(),
                             )
@@ -213,11 +229,27 @@ class ServiceApp(Construct):
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(),
-                                readiness_probe=self._get_http_probe(
-                                    path=const.PROBE_MONITORING_READY_PATH
+                                startup_probe=self._get_http_probe(
+                                    success_threshold=const.STARTUP_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.STARTUP_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.STARTUP_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.STARTUP_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
                                 ),
-                                liveness_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(
+                                    success_threshold=const.READINESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.READINESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.READINESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.READINESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_READY_PATH,
+                                ),
+                                liveness_probe=self._get_http_probe(
+                                    success_threshold=const.LIVENESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.LIVENESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.LIVENESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.LIVENESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
+                                ),
                                 volume_mounts=self._get_volume_mounts(),
                                 resources=self._get_container_resources(),
                             )
@@ -397,10 +429,11 @@ class ServiceApp(Construct):
 
     def _get_http_probe(
         self,
-        period_seconds: int = const.PROBE_PERIOD_SECONDS,
-        failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
-        timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS,
-        path: str = const.PROBE_MONITORING_ALIVE_PATH,
+        success_threshold: int,
+        failure_threshold: int,
+        period_seconds: int,
+        timeout_seconds: int,
+        path: str,
     ) -> k8s.Probe:
 
         return k8s.Probe(
@@ -408,6 +441,7 @@ class ServiceApp(Construct):
                 path=path,
                 port=k8s.IntOrString.from_number(self.monitoring_endpoint_port),
             ),
+            success_threshold=success_threshold,
             period_seconds=period_seconds,
             failure_threshold=failure_threshold,
             timeout_seconds=timeout_seconds,
