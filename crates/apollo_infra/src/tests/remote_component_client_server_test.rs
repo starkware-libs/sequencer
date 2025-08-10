@@ -61,8 +61,7 @@ const MOCK_SERVER_ERROR: &str = "mock server error";
 const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
 const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client request";
-// ClientError::ResponseDeserializationFailure error message.
-const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
+const BAD_REQUEST_ERROR_MESSAGE: &str = "Got status code: 400 Bad Request";
 const VALID_VALUE_A: ValueA = Felt::ONE;
 
 const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
@@ -309,7 +308,7 @@ async fn unconnected_server() {
 )]
 #[case::response_deserialization_failure(
     create_client_and_faulty_server(ARBITRARY_DATA.to_string()).await,
-    &[DESERIALIZE_RES_ERROR_MESSAGE],
+    &[BAD_REQUEST_ERROR_MESSAGE],
 )]
 #[tokio::test]
 async fn faulty_server(

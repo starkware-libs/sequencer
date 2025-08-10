@@ -214,15 +214,23 @@ where
                 response_body
             }
             status_code => {
-                warn!(
-                    "Unexpected response status: {status_code:?}. Unable to deserialize response."
-                );
-                Err(ClientError::ResponseError(
-                    status_code,
-                    ServerError::RequestDeserializationFailure(
-                        "Could not deserialize server response".to_string(),
-                    ),
-                ))
+                let body_bytes = to_bytes(http_response.into_body())
+                    .await
+                    .map_err(|e| ClientError::CommunicationFailure(e.to_string()))?;
+
+                match SerdeWrapper::<ServerError>::wrapper_deserialize(&body_bytes) {
+                    Ok(server_err) => Err(ClientError::ResponseError(status_code, server_err)),
+                    Err(e) => {
+                        let raw = String::from_utf8_lossy(&body_bytes);
+                        warn!("Non-OK ({status_code}) with unparseable error body: {e}; raw={raw}");
+                        Err(ClientError::ResponseError(
+                            status_code,
+                            ServerError::RequestDeserializationFailure(format!(
+                                "Server returned {status_code}, invalid error body: {e}; raw={raw}"
+                            )),
+                        ))
+                    }
+                }
             }
         }
     }
