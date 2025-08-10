@@ -314,6 +314,7 @@ impl PreconfirmedBlockWriterFactoryTrait for PreconfirmedBlockWriterFactory {
         round: Round,
         block_metadata: CendeBlockMetadata,
     ) -> (Box<dyn PreconfirmedBlockWriterTrait>, CandidateTxSender, PreconfirmedTxSender) {
+        info!("Create pre confirmed block writer for block {}", block_number);
         // Initialize channels for communication between the pre confirmed block writer and the
         // block builder.
         let (pre_confirmed_tx_sender, pre_confirmed_tx_receiver) =

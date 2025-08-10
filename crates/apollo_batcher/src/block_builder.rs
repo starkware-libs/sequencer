@@ -655,6 +655,10 @@ impl BlockBuilderFactory {
     ) -> BlockBuilderResult<
         ConcurrentTransactionExecutor<StateReaderAndContractManager<PapyrusReader>>,
     > {
+        info!(
+            "preprocess and create transaction executor for block {}",
+            block_metadata.block_info.block_number
+        );
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(

@@ -5,6 +5,7 @@ use apollo_batcher_types::errors::BatcherError;
 use blockifier::abi::constants;
 use chrono::Utc;
 use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use tracing::info;
 
 use crate::block_builder::BlockBuilderError;
 
@@ -36,6 +37,7 @@ pub(crate) fn verify_block_input(
     block_number: BlockNumber,
     retrospective_block_hash: Option<BlockHashAndNumber>,
 ) -> BatcherResult<()> {
+    info!("Verify block input for block number {}, at height {}", block_number, height);
     verify_non_empty_retrospective_block_hash(height, retrospective_block_hash)?;
     verify_block_number(height, block_number)?;
     Ok(())
