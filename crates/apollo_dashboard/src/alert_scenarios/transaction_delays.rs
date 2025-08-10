@@ -61,7 +61,9 @@ fn get_http_server_avg_add_tx_latency_alert(
         "http_server_avg_add_tx_latency",
         "High HTTP server average add_tx latency",
         AlertGroup::HttpServer,
-        format!("rate({sum_metric}[2m]) / rate({count_metric}[2m])"),
+        // The clamp_min is used to avoid division by zero, and the minimal value
+        // is 1/120, which is the minimum value of a valid count rate over a 2-minute window.
+        format!("rate({sum_metric}[2m]) / clamp_min(rate({count_metric}[2m]), 1/120)"),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
             comparison_value: 2.0,
