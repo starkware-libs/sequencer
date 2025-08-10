@@ -13,7 +13,7 @@ use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
 use strum_macros::AsRefStr;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
@@ -142,15 +142,20 @@ pub(crate) trait ComponentBClientTrait: Send + Sync {
 
 pub(crate) struct ComponentA {
     b: Box<dyn ComponentBClientTrait>,
+    sem: Option<Arc<Semaphore>>,
 }
 
 impl ComponentA {
     pub fn new(b: Box<dyn ComponentBClientTrait>) -> Self {
-        Self { b }
+        Self { b, sem: None }
     }
 
     pub async fn a_get_value(&self) -> ValueA {
         self.b.b_get_value().await.unwrap()
+    }
+
+    pub fn with_semaphore(b: Box<dyn ComponentBClientTrait>, sem: Arc<Semaphore>) -> Self {
+        Self { b, sem: Some(sem) }
     }
 }
 
@@ -198,7 +203,15 @@ pub(crate) async fn test_a_b_functionality(
 impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for ComponentA {
     async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
         match request {
-            ComponentARequest::AGetValue => ComponentAResponse::AGetValue(self.a_get_value().await),
+            ComponentARequest::AGetValue => {
+                if let Some(sem) = &self.sem {
+                    let _permit = sem.clone().acquire_owned().await.unwrap();
+                    let v = self.a_get_value().await;
+                    ComponentAResponse::AGetValue(v)
+                } else {
+                    ComponentAResponse::AGetValue(self.a_get_value().await)
+                }
+            }
         }
     }
 }

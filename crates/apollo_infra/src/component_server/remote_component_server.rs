@@ -16,7 +16,12 @@ use tower::{service_fn, Service, ServiceExt};
 use tracing::{debug, error, trace, warn};
 
 use crate::component_client::{ClientError, LocalComponentClient};
-use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
+use crate::component_definitions::{
+    ComponentClient,
+    ServerError,
+    APPLICATION_OCTET_STREAM,
+    BUSY_PREVIOUS_REQUESTS_MSG,
+};
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::RemoteServerMetrics;
 use crate::serde_utils::SerdeWrapper;
@@ -285,7 +290,7 @@ where
                         let reject_request_service = service_fn(move |_req| async {
                             let body: Vec<u8> =
                                 SerdeWrapper::new(ServerError::RequestDeserializationFailure(
-                                    "Server is busy addressing previous requests".to_string(),
+                                    BUSY_PREVIOUS_REQUESTS_MSG.to_string(),
                                 ))
                                 .wrapper_serialize()
                                 .expect("Server error serialization should succeed");
