@@ -57,9 +57,9 @@ pub struct FullContractStorageUpdate {
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
-pub(crate) struct PartialContractStorageUpdate {
-    pub(crate) key: StorageKey,
-    pub(crate) new_value: Felt,
+pub struct PartialContractStorageUpdate {
+    pub key: StorageKey,
+    pub new_value: Felt,
 }
 
 impl TryFromOutputIter for FullContractStorageUpdate {
@@ -96,8 +96,8 @@ pub struct FullCompiledClassHashUpdate {
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Debug, PartialEq)]
 pub struct PartialCompiledClassHashUpdate {
-    pub(crate) class_hash: ClassHash,
-    pub(crate) next_compiled_class_hash: CompiledClassHash,
+    pub class_hash: ClassHash,
+    pub next_compiled_class_hash: CompiledClassHash,
 }
 
 impl TryFromOutputIter for FullCompiledClassHashUpdate {
@@ -170,13 +170,13 @@ impl TryFromOutputIter for FullContractChanges {
 /// Represents the changes in a contract instance, in a partial format.
 pub struct PartialContractChanges {
     // The address of the contract.
-    pub(crate) addr: ContractAddress,
+    pub addr: ContractAddress,
     // The new nonce of the contract (for account contracts, if changed).
-    pub(crate) new_nonce: Option<Nonce>,
+    pub new_nonce: Option<Nonce>,
     // The new class hash (if changed).
-    pub(crate) new_class_hash: Option<ClassHash>,
+    pub new_class_hash: Option<ClassHash>,
     // The storage changes of the contract (includes only the new value).
-    pub(crate) storage_changes: Vec<PartialContractStorageUpdate>,
+    pub storage_changes: Vec<PartialContractStorageUpdate>,
 }
 
 impl TryFromOutputIter for PartialContractChanges {

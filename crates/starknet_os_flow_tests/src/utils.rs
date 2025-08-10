@@ -41,6 +41,7 @@ use starknet_committer::block_committer::input::{
 use starknet_committer::patricia_merkle_tree::leaf::leaf_impl::ContractState;
 use starknet_committer::patricia_merkle_tree::types::CompiledClassHash;
 use starknet_os::io::os_input::{CachedStateInput, CommitmentInfo};
+use starknet_os::io::os_output_types::PartialOsStateDiff;
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::original_skeleton_tree::tree::OriginalSkeletonTreeImpl;
 use starknet_patricia::patricia_merkle_tree::types::{NodeIndex, SortedLeafIndices, SubTreeHeight};
@@ -356,5 +357,34 @@ pub(crate) fn get_class_info_of_cairo_1_feature_contract(
         sierra_program_length: sierra.sierra_program.len(),
         abi_length: sierra.abi.len(),
         sierra_version,
+    }
+}
+
+/// Indicates how to compare the state diff.
+/// - `Subset` is used to assert that the state diff is a *subset* of the actual state diff.
+/// - `Exact` is used to assert that the state diff is *exactly* the actual state diff.
+#[derive(Debug, PartialEq)]
+pub(crate) enum ComparedStateDiff {
+    Subset(PartialOsStateDiff),
+    Exact(PartialOsStateDiff),
+}
+
+impl ComparedStateDiff {
+    pub(crate) fn matches(&self, state_diff: &PartialOsStateDiff) -> bool {
+        match self {
+            Self::Exact(full_diff) => full_diff == state_diff,
+            Self::Subset(PartialOsStateDiff { contracts, classes }) => {
+                contracts.iter().all(|contract| {
+                    if !state_diff.contracts.contains(contract) {
+                        panic!(
+                            "Expected contract {:?} to be in the state diff.\n state_diff: {:?}",
+                            contract, state_diff.contracts
+                        );
+                    } else {
+                        true
+                    }
+                }) && classes.iter().all(|class| state_diff.classes.contains(class))
+            }
+        }
     }
 }

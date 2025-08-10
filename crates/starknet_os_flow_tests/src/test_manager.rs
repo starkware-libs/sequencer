@@ -26,7 +26,7 @@ use starknet_os::io::os_input::{
     OsHintsConfig,
     StarknetOsInput,
 };
-use starknet_os::io::os_output::StarknetOsRunnerOutput;
+use starknet_os::io::os_output::{OsOutput, OsStateDiff, StarknetOsRunnerOutput};
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_types_core::felt::Felt;
@@ -48,6 +48,7 @@ use crate::utils::{
     execute_transactions,
     maybe_dummy_block_hash_and_number,
     CommitmentOutput,
+    ComparedStateDiff,
     ExecutionOutput,
 };
 
@@ -290,10 +291,24 @@ impl<S: FlowTestState> TestManager<S> {
             chain_id: CHAIN_ID_FOR_TESTS.clone(),
             strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
         };
-        let os_hints_config = OsHintsConfig { full_output: true, chain_info, ..Default::default() };
+        let os_hints_config = OsHintsConfig { chain_info, ..Default::default() };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         run_os_stateless(layout, os_hints).unwrap()
+    }
+
+    pub(crate) fn assert_expected_state_diff(
+        output: &OsOutput,
+        compared_state_diff: &ComparedStateDiff,
+    ) {
+        let OsStateDiff::Partial(ref partial_os_state_diff) = output.state_diff else {
+            panic!("Expected a partial state diff in the output because of the OS config.");
+        };
+
+        assert!(
+            compared_state_diff.matches(partial_os_state_diff),
+            "The given state diff does not match the expected state diff."
+        );
     }
 }
 
