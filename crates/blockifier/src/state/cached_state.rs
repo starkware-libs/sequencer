@@ -11,6 +11,8 @@ use crate::context::TransactionContext;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::errors::StateError;
 use crate::state::state_api::{State, StateReader, StateResult, UpdatableState};
+#[cfg(any(test, feature = "testing"))]
+use crate::state::stateful_compression::AliasKey;
 use crate::transaction::objects::TransactionExecutionInfo;
 use crate::utils::{strict_subtract_mappings, subtract_mappings};
 
@@ -367,6 +369,15 @@ impl StateMaps {
             storage_keys: self.storage.keys().cloned().collect(),
             compiled_class_hash_keys: self.compiled_class_hashes.keys().cloned().collect(),
         }
+    }
+
+    #[cfg(any(test, feature = "testing"))]
+    pub fn alias_keys(&self) -> HashSet<AliasKey> {
+        let mut keys = HashSet::from_iter(
+            self.get_contract_addresses().into_iter().map(|address| StorageKey(address.0)),
+        );
+        keys.extend(self.storage.keys().map(|(_address, storage_key)| *storage_key));
+        keys
     }
 }
 

@@ -1,11 +1,14 @@
 #![allow(dead_code)]
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
+use blockifier::state::cached_state::StateMaps;
+use blockifier::state::stateful_compression_test_utils::decompress;
+use blockifier::test_utils::ALIAS_CONTRACT_ADDRESS;
 use blockifier::transaction::transaction_execution::Transaction as BlockifierTransaction;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 use starknet_api::contract_class::ContractClass;
@@ -26,7 +29,7 @@ use starknet_os::io::os_input::{
     OsHintsConfig,
     StarknetOsInput,
 };
-use starknet_os::io::os_output::StarknetOsRunnerOutput;
+use starknet_os::io::os_output::{OsStateDiff, StarknetOsRunnerOutput};
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_patricia_storage::map_storage::BorrowedMapStorage;
 use starknet_types_core::felt::Felt;
@@ -66,6 +69,11 @@ pub(crate) struct TestManager<S: FlowTestState> {
     pub(crate) execution_contracts: OsExecutionContracts,
 
     per_block_transactions: Vec<Vec<BlockifierTransaction>>,
+}
+
+pub(crate) struct OsTestOutput {
+    pub(crate) os_output: StarknetOsRunnerOutput,
+    pub(crate) decompressed_state_diff: StateMaps,
 }
 
 impl<S: FlowTestState> TestManager<S> {
@@ -154,7 +162,7 @@ impl<S: FlowTestState> TestManager<S> {
     pub(crate) async fn execute_test_with_default_block_contexts(
         self,
         initial_block_number: u64,
-    ) -> StarknetOsRunnerOutput {
+    ) -> OsTestOutput {
         let n_blocks = self.per_block_transactions.len();
         let block_contexts: Vec<BlockContext> = (0..n_blocks)
             .map(|i| {
@@ -171,7 +179,7 @@ impl<S: FlowTestState> TestManager<S> {
     pub(crate) async fn execute_test_with_block_contexts(
         self,
         block_contexts: Vec<BlockContext>,
-    ) -> StarknetOsRunnerOutput {
+    ) -> OsTestOutput {
         assert_eq!(
             block_contexts.len(),
             self.per_block_transactions.len(),
@@ -193,10 +201,7 @@ impl<S: FlowTestState> TestManager<S> {
     }
 
     // Private method which executes the flow test.
-    async fn execute_flow_test(
-        mut self,
-        block_contexts: Vec<BlockContext>,
-    ) -> StarknetOsRunnerOutput {
+    async fn execute_flow_test(mut self, block_contexts: Vec<BlockContext>) -> OsTestOutput {
         let per_block_txs = self.per_block_transactions;
         let mut os_block_inputs = vec![];
         let mut cached_state_inputs = vec![];
@@ -209,6 +214,7 @@ impl<S: FlowTestState> TestManager<S> {
             contracts_trie_root_hash: self.initial_state.contracts_trie_root_hash,
             classes_trie_root_hash: self.initial_state.classes_trie_root_hash,
         };
+        let mut alias_keys = HashSet::new();
         for (block_txs, block_context) in per_block_txs.into_iter().zip(block_contexts.into_iter())
         {
             // Clone the block info for later use.
@@ -220,6 +226,7 @@ impl<S: FlowTestState> TestManager<S> {
             // Update the wrapped state.
             let state_diff = final_state.to_state_diff().unwrap();
             state = final_state.state;
+            alias_keys.extend(state_diff.state_maps.alias_keys());
             state.apply_writes(&state_diff.state_maps, &final_state.class_hash_to_class.borrow());
             // Commit the state diff.
             let committer_state_diff = create_committer_state_diff(block_summary.state_diff);
@@ -290,10 +297,18 @@ impl<S: FlowTestState> TestManager<S> {
             chain_id: CHAIN_ID_FOR_TESTS.clone(),
             strk_fee_token_address: *STRK_FEE_TOKEN_ADDRESS,
         };
-        let os_hints_config = OsHintsConfig { full_output: true, chain_info, ..Default::default() };
+        let os_hints_config = OsHintsConfig { chain_info, ..Default::default() };
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
-        run_os_stateless(layout, os_hints).unwrap()
+        let os_output = run_os_stateless(layout, os_hints).unwrap();
+        let OsStateDiff::Partial(ref partial_os_state_diff) = os_output.os_output.state_diff else {
+            panic!("Expected a partial state diff in the output because of the OS config.");
+        };
+        let compressed_state_diff = partial_os_state_diff.as_state_maps();
+        let decompressed_state_diff =
+            decompress(&compressed_state_diff, &state, *ALIAS_CONTRACT_ADDRESS, alias_keys);
+
+        OsTestOutput { os_output, decompressed_state_diff }
     }
 }
 
