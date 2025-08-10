@@ -148,8 +148,8 @@ pub(crate) fn create_cairo1_bootstrap_declare_tx(
         panic!("Expected a Cairo 1 contract class.");
     };
     let class_hash = sierra.calculate_class_hash();
-    let compiled_class_hash = starknet_api::core::CompiledClassHash(casm.compiled_class_hash());
-    execution_contracts.add_cairo1_contract(casm.clone(), &sierra);
+    let compiled_class_hash = feature_contract.get_real_compiled_class_hash();
+    execution_contracts.add_cairo1_contract(casm, &sierra);
     let declare_tx_args = declare_tx_args! {
         sender_address: DeclareTransaction::bootstrap_address(),
         class_hash,
