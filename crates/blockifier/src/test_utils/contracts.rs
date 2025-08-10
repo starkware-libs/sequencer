@@ -1,5 +1,6 @@
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use cached::proc_macro::cached;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::abi::abi_utils::selector_from_name;
 use starknet_api::abi::constants::CONSTRUCTOR_ENTRY_POINT_NAME;
@@ -71,21 +72,28 @@ pub trait FeatureContractTrait {
     }
 }
 
+#[cached]
+// Note: This function is defined outside of the impl block to allow caching.
+// The `#[cached]` macro doesn't support caching functions that take self as an argument.
+fn get_class_for_feature_contract(feature_contract: FeatureContract) -> ContractClass {
+    match feature_contract.cairo_version() {
+        CairoVersion::Cairo0 => ContractClass::V0(DeprecatedContractClass::from_file(
+            &feature_contract.get_compiled_path(),
+        )),
+        CairoVersion::Cairo1(RunnableCairo1::Casm) => ContractClass::V1((
+            CasmContractClass::from_file(&feature_contract.get_compiled_path()),
+            feature_contract.get_sierra_version(),
+        )),
+        #[cfg(feature = "cairo_native")]
+        CairoVersion::Cairo1(RunnableCairo1::Native) => {
+            panic!("Native contracts are not supported by this function.")
+        }
+    }
+}
+
 impl FeatureContractTrait for FeatureContract {
     fn get_class(&self) -> ContractClass {
-        match self.cairo_version() {
-            CairoVersion::Cairo0 => {
-                ContractClass::V0(DeprecatedContractClass::from_file(&self.get_compiled_path()))
-            }
-            CairoVersion::Cairo1(RunnableCairo1::Casm) => ContractClass::V1((
-                CasmContractClass::from_file(&self.get_compiled_path()),
-                self.get_sierra_version(),
-            )),
-            #[cfg(feature = "cairo_native")]
-            CairoVersion::Cairo1(RunnableCairo1::Native) => {
-                panic!("Native contracts are not supported by this function.")
-            }
-        }
+        get_class_for_feature_contract(*self)
     }
 
     fn get_runnable_class(&self) -> RunnableCompiledClass {
