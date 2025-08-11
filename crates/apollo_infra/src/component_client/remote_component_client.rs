@@ -27,6 +27,7 @@ const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
 const DEFAULT_RETRY_INTERVAL_MS: u64 = 1000;
 const INITIAL_RETRY_DELAY_MS: u64 = 1;
+const LOG_ATTEMPT_INTERVAL_MS: usize = 10;
 
 // TODO(Tsabary): consider retry delay mechanisms, e.g., exponential backoff, jitter, etc.
 
@@ -35,8 +36,9 @@ pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
     pub idle_timeout_ms: u64,
-    pub initial_retry_delay_ms: u64,
+    pub log_attempt_interval_ms: usize,
     pub retry_interval_ms: u64,
+    pub initial_retry_delay_ms: u64,
 }
 
 impl Default for RemoteClientConfig {
@@ -46,6 +48,7 @@ impl Default for RemoteClientConfig {
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
             idle_timeout_ms: DEFAULT_IDLE_TIMEOUT_MS,
             initial_retry_delay_ms: INITIAL_RETRY_DELAY_MS,
+            log_attempt_interval_ms: LOG_ATTEMPT_INTERVAL_MS,
             retry_interval_ms: DEFAULT_RETRY_INTERVAL_MS,
         }
     }
@@ -76,6 +79,12 @@ impl SerializeConfig for RemoteClientConfig {
                 "initial_retry_delay_ms",
                 &self.initial_retry_delay_ms,
                 "Initial delay before first retry in milliseconds",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "log_attempt_interval_ms",
+                &self.log_attempt_interval_ms,
+                "Number of attempts between failure log messages",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -273,8 +282,6 @@ where
         // successful response, or the last response if all attempts failed.
         let max_attempts = self.config.retries + 1;
         trace!("Starting retry loop: max_attempts = {max_attempts}");
-        // TODO(Tsabary): consider making these consts configurable.
-        const LOG_ATTEMPT_INTERVAL: usize = 10;
         let mut retry_interval_ms = self.config.initial_retry_delay_ms;
         for attempt in 1..max_attempts + 1 {
             trace!("Request {log_message} attempt {attempt} of {max_attempts}");
@@ -285,7 +292,8 @@ where
                 self.metrics.record_attempt(attempt);
                 return res;
             }
-            if attempt % LOG_ATTEMPT_INTERVAL == LOG_ATTEMPT_INTERVAL - 1 {
+            let log_attempt_interval_ms = self.config.log_attempt_interval_ms;
+            if attempt % log_attempt_interval_ms == log_attempt_interval_ms - 1 {
                 warn!("Request {log_message} failed on attempt {attempt}/{max_attempts}: {res:?}");
             }
             if attempt == max_attempts {

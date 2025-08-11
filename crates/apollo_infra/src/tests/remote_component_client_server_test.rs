@@ -70,6 +70,7 @@ const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     idle_timeout_ms: 0,
     retry_interval_ms: 0,
     initial_retry_delay_ms: 0,
+    log_attempt_interval_ms: 0,
 };
 
 #[async_trait]
