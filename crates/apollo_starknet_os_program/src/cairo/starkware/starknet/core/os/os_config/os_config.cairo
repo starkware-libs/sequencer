@@ -1,4 +1,5 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.cairo.common.ec_point import EcPoint
 from starkware.cairo.common.hash_state import hash_finalize, hash_init, hash_update_single
 from starkware.cairo.common.registers import get_fp_and_pc
 
@@ -10,6 +11,7 @@ struct StarknetOsConfig {
     chain_id: felt,
     // The (L2) address of the fee token contract.
     fee_token_address: felt,
+    public_key_hash: felt,
 }
 
 // Calculates the hash of StarkNet OS config.
@@ -26,8 +28,19 @@ func get_starknet_os_config_hash{hash_ptr: HashBuiltin*}(starknet_os_config: Sta
     let (hash_state_ptr) = hash_update_single(
         hash_state_ptr=hash_state_ptr, item=starknet_os_config.fee_token_address
     );
+    let (hash_state_ptr) = hash_update_single(
+        hash_state_ptr=hash_state_ptr, item=starknet_os_config.public_key_hash
+    );
 
     let (starknet_os_config_hash) = hash_finalize(hash_state_ptr=hash_state_ptr);
 
     return (starknet_os_config_hash=starknet_os_config_hash);
+}
+
+func get_public_key_hash{hash_ptr: HashBuiltin*}(public_key: EcPoint*) -> (public_key_hash: felt) {
+    let (hash_state_ptr) = hash_init();
+    let (hash_state_ptr) = hash_update_single(hash_state_ptr=hash_state_ptr, item=public_key.x);
+    let (hash_state_ptr) = hash_update_single(hash_state_ptr=hash_state_ptr, item=public_key.y);
+    let (public_key_hash) = hash_finalize(hash_state_ptr=hash_state_ptr);
+    return (public_key_hash=public_key_hash);
 }

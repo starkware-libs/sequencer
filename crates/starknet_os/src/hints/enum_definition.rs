@@ -15,8 +15,12 @@ use crate::hints::hint_implementation::aggregator::{
     allocate_segments_for_messages,
     disable_da_page_creation,
     get_aggregator_output,
+    get_chain_id_from_input,
+    get_fee_token_address_from_input,
     get_full_output_from_input,
     get_os_output_for_inner_blocks,
+    get_public_key_x_from_aggregator_input,
+    get_public_key_y_from_aggregator_input,
     get_use_kzg_da_from_input,
     set_state_update_pointers_to_none,
     write_da_segment,
@@ -31,6 +35,7 @@ use crate::hints::hint_implementation::block_context::{
     chain_id,
     fee_token_address,
     get_block_mapping,
+    public_key_hash,
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
@@ -136,6 +141,8 @@ use crate::hints::hint_implementation::os::{
     create_block_additional_hints,
     get_n_blocks,
     get_n_class_hashes_to_migrate,
+    get_public_key_x_from_os_input,
+    get_public_key_y_from_os_input,
     init_state_update_pointer,
     initialize_class_hashes,
     initialize_state_changes,
@@ -919,7 +926,7 @@ ids.initial_carried_outputs = segments.gen_arg(
             val, memory[ids.unpacked_u32s + offset + i] = divmod(val, 2**32)
         assert val == 0
         offset += val_len"#}
-    ),
+    )
 );
 
 define_common_hint_enum!(
@@ -1030,7 +1037,7 @@ else:
         SetStateUpdatePointersToNone,
         set_state_update_pointers_to_none,
         r#"state_update_pointers = None"#
-    )
+    ),
 );
 
 define_hint_enum!(
@@ -1081,6 +1088,11 @@ define_hint_enum!(
         "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.fee_token_address)"
     ),
     (
+        PublicKeyHash,
+        public_key_hash,
+        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.public_key_hash)"
+    ),
+    (
         SequencerAddress,
         sequencer_address,
         "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.sequencer_address)"
@@ -1088,7 +1100,7 @@ define_hint_enum!(
     (
         WriteUseKzgDaToMemory,
         write_use_kzg_da_to_memory,
-        indoc! {r#"memory[fp + 20] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
+        indoc! {r#"memory[fp + 21] = to_felt_or_relocatable(os_hints_config.use_kzg_da and (
     not os_hints_config.full_output
 ))"#}
     ),
@@ -1617,7 +1629,7 @@ ids.contract_class_component_hashes = segments.gen_arg(class_component_hashes)"#
     (
         WriteFullOutputToMemory,
         write_full_output_to_memory,
-        indoc! {r#"memory[fp + 21] = to_felt_or_relocatable(os_hints_config.full_output)"#}
+        indoc! {r#"memory[fp + 22] = to_felt_or_relocatable(os_hints_config.full_output)"#}
     ),
     (
         ConfigureKzgManager,
@@ -1846,7 +1858,17 @@ block_input = next(block_input_iterator)
 ) = get_execution_helper_and_syscall_handlers(
     block_input=block_input, global_hints=global_hints, os_hints_config=os_hints_config
 )"#}
-    )
+    ),
+    (
+        GetPublicKeyXFromOsInput,
+        get_public_key_x_from_os_input,
+        r#"memory[ap] = to_felt_or_relocatable(os_input.public_key_x)"#
+    ),
+    (
+        GetPublicKeyYFromOsInput,
+        get_public_key_y_from_os_input,
+        r#"memory[ap] = to_felt_or_relocatable(os_input.public_key_y)"#
+    ),
 );
 
 define_hint_enum!(
@@ -1912,6 +1934,26 @@ if da_path is not None:
         GetUseKzgDaFromInput,
         get_use_kzg_da_from_input,
         r#"memory[ap] = to_felt_or_relocatable(program_input["use_kzg_da"])"#
+    ),
+    (
+        GetChainIdFromInput,
+        get_chain_id_from_input,
+        r#"memory[ap] = to_felt_or_relocatable(program_input["chain_id"])"#
+    ),
+    (
+        GetFeeTokenAddressFromInput,
+        get_fee_token_address_from_input,
+        r#"memory[ap] = to_felt_or_relocatable(program_input["fee_token_address"])"#
+    ),
+    (
+        GetPublicKeyXFromAggregatorInput,
+        get_public_key_x_from_aggregator_input,
+        r#"memory[ap] = to_felt_or_relocatable(program_input["public_key_x"])"#
+    ),
+    (
+        GetPublicKeyYFromAggregatorInput,
+        get_public_key_y_from_aggregator_input,
+        r#"memory[ap] = to_felt_or_relocatable(program_input["public_key_y"])"#
     ),
 );
 
