@@ -358,3 +358,11 @@ pub(crate) fn get_class_info_of_cairo_1_feature_contract(
         sierra_version,
     }
 }
+
+pub(crate) fn hashmap_contains_other<K, V>(contains: &HashMap<K, V>, other: &HashMap<K, V>) -> bool
+where
+    K: Eq + std::hash::Hash,
+    V: PartialEq,
+{
+    other.iter().all(|(k, v)| contains.get(k) == Some(v))
+}
