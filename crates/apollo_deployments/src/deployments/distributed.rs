@@ -199,8 +199,8 @@ impl ServiceNameInner for DistributedNodeServiceName {
                 DistributedNodeServiceName::ConsensusManager => Some(Toleration::ApolloCoreService),
                 DistributedNodeServiceName::HttpServer => Some(Toleration::ApolloGeneralService),
                 DistributedNodeServiceName::Gateway => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::L1 => Some(Toleration::ApolloGeneralService),
-                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                DistributedNodeServiceName::L1 => Some(Toleration::ApolloL1Service),
+                DistributedNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
                 DistributedNodeServiceName::SierraCompiler => {
                     Some(Toleration::ApolloGeneralService)
                 }
