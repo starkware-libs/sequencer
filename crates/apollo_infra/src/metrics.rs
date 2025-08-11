@@ -173,7 +173,7 @@ pub struct RemoteServerMetrics {
     total_received_msgs: &'static MetricCounter,
     valid_received_msgs: &'static MetricCounter,
     processed_msgs: &'static MetricCounter,
-    _number_of_connections: &'static MetricGauge,
+    number_of_connections: &'static MetricGauge,
 }
 
 impl RemoteServerMetrics {
@@ -183,12 +183,7 @@ impl RemoteServerMetrics {
         processed_msgs: &'static MetricCounter,
         number_of_connections: &'static MetricGauge,
     ) -> Self {
-        Self {
-            total_received_msgs,
-            valid_received_msgs,
-            processed_msgs,
-            _number_of_connections: number_of_connections,
-        }
+        Self { total_received_msgs, valid_received_msgs, processed_msgs, number_of_connections }
     }
 
     pub fn register(&self) {
@@ -228,5 +223,9 @@ impl RemoteServerMetrics {
         self.processed_msgs
             .parse_numeric_metric::<u64>(metrics_as_string)
             .expect("processed_msgs metrics should be available")
+    }
+
+    pub fn set_number_of_connections(&self, value: usize) {
+        self.number_of_connections.set_lossy(value);
     }
 }

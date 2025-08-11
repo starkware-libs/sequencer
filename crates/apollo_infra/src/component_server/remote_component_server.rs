@@ -255,8 +255,12 @@ where
             let connection_semaphore = connection_semaphore.clone();
             let local_client = self.local_client.clone();
             let metrics = self.metrics.clone();
+            let max_concurrency = self.max_concurrency;
 
             async move {
+                metrics.set_number_of_connections(
+                    max_concurrency - connection_semaphore.available_permits(),
+                );
                 match connection_semaphore.try_acquire_owned() {
                     Ok(permit) => {
                         trace!("Acquired semaphore permit for connection");
