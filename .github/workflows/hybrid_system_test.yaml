@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   check-system-test-trigger:
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     outputs:
       should_run: ${{ steps.system_check.outputs.should_run }}
     steps:
@@ -65,7 +65,7 @@ jobs:
   system_test_hybrid:
     needs: check-system-test-trigger
     if: needs.check-system-test-trigger.outputs.should_run == 'true'
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
