@@ -5,6 +5,7 @@ use apollo_infra::metrics::{
     L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
     L1_PROVIDER_REMOTE_MSGS_PROCESSED,
     L1_PROVIDER_REMOTE_MSGS_RECEIVED,
+    L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
     L1_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_l1_provider::metrics::{
@@ -45,6 +46,9 @@ fn get_panel_l1_message_scraper_baselayer_error_count() -> Panel {
 fn get_panel_l1_message_scraper_reorg_detected() -> Panel {
     Panel::from_counter(L1_MESSAGE_SCRAPER_REORG_DETECTED, PanelType::TimeSeries)
 }
+fn get_panel_l1_provider_remote_number_of_connections() -> Panel {
+    Panel::from_gauge(L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
+}
 
 // TODO(noamsp): rename to l1_event_row
 pub(crate) fn get_l1_provider_row() -> Row {
@@ -68,6 +72,7 @@ pub(crate) fn get_l1_provider_infra_row() -> Row {
             get_panel_l1_provider_remote_msgs_received(),
             get_panel_l1_provider_remote_valid_msgs_received(),
             get_panel_l1_provider_remote_msgs_processed(),
+            get_panel_l1_provider_remote_number_of_connections(),
             get_panel_l1_provider_remote_client_send_attempts(),
         ],
     )
