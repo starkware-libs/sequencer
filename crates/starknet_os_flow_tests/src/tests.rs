@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
+use blockifier::state::cached_state::StateMaps;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier::test_utils::dict_state_reader::DictStateReader;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
@@ -31,7 +33,7 @@ use starknet_api::{declare_tx_args, invoke_tx_args};
 use starknet_types_core::felt::Felt;
 
 use crate::initial_state::create_default_initial_state_data;
-use crate::test_manager::{OsTestOutput, TestManager, FUNDED_ACCOUNT_ADDRESS};
+use crate::test_manager::{TestManager, FUNDED_ACCOUNT_ADDRESS};
 use crate::utils::{divide_vec_into_n_parts, get_class_info_of_cairo_1_feature_contract};
 
 pub(crate) static NON_TRIVIAL_RESOURCE_BOUNDS: LazyLock<ValidResourceBounds> =
@@ -135,27 +137,21 @@ async fn declare_deploy_scenario(#[values(1, 2)] n_blocks: usize) {
     test_manager.add_invoke_tx(deploy_contract_tx);
     test_manager.divide_transactions_into_n_blocks(n_blocks);
     let initial_block_number = CURRENT_BLOCK_NUMBER + 1;
-    let OsTestOutput { decompressed_state_diff, .. } =
+    let test_output =
         test_manager.execute_test_with_default_block_contexts(initial_block_number).await;
 
-    // Verify that the OS output contains the entry in the classes changes from the declare tx.
-    assert!(decompressed_state_diff.compiled_class_hashes.get(&class_hash).is_some_and(
-        |actual_compiled_class_hash| *actual_compiled_class_hash == compiled_class_hash
-    ));
+    let partial_state_diff = StateMaps {
+        // Deployed contract.
+        class_hashes: HashMap::from([(expected_contract_address, class_hash)]),
+        // Storage update from the contract's constructor.
+        storage: HashMap::from([(
+            (expected_contract_address, get_storage_var_address("my_storage_var", &[])),
+            arg1 + arg2,
+        )]),
+        // Declared class.
+        compiled_class_hashes: HashMap::from([(class_hash, compiled_class_hash)]),
+        ..Default::default()
+    };
 
-    // Verify the deployed contract.
-    assert!(
-        decompressed_state_diff
-            .class_hashes
-            .get(&expected_contract_address)
-            .is_some_and(|actual_class_hash| *actual_class_hash == class_hash)
-    );
-
-    // Verify the storage update from the contract's constructor.
-    assert!(
-        decompressed_state_diff
-            .storage
-            .get(&(expected_contract_address, get_storage_var_address("my_storage_var", &[])))
-            .is_some_and(|actual_value| *actual_value == arg1 + arg2)
-    );
+    test_output.assert_contains_state_diff(&partial_state_diff);
 }

@@ -49,6 +49,7 @@ use crate::utils::{
     create_committer_state_diff,
     divide_vec_into_n_parts,
     execute_transactions,
+    hashmap_contains_other,
     maybe_dummy_block_hash_and_number,
     CommitmentOutput,
     ExecutionOutput,
@@ -74,6 +75,31 @@ pub(crate) struct TestManager<S: FlowTestState> {
 pub(crate) struct OsTestOutput {
     pub(crate) os_output: StarknetOsRunnerOutput,
     pub(crate) decompressed_state_diff: StateMaps,
+}
+
+impl OsTestOutput {
+    pub(crate) fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
+        assert!(hashmap_contains_other(
+            &self.decompressed_state_diff.class_hashes,
+            &partial_state_diff.class_hashes
+        ));
+        assert!(hashmap_contains_other(
+            &self.decompressed_state_diff.nonces,
+            &partial_state_diff.nonces
+        ));
+        assert!(hashmap_contains_other(
+            &self.decompressed_state_diff.storage,
+            &partial_state_diff.storage
+        ));
+        assert!(hashmap_contains_other(
+            &self.decompressed_state_diff.compiled_class_hashes,
+            &partial_state_diff.compiled_class_hashes
+        ));
+        assert!(hashmap_contains_other(
+            &self.decompressed_state_diff.declared_contracts,
+            &partial_state_diff.declared_contracts
+        ));
+    }
 }
 
 impl<S: FlowTestState> TestManager<S> {
