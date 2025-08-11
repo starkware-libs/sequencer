@@ -1036,6 +1036,15 @@
         "extra_params": {}
       },
       {
+        "title": "batcher_remote_number_of_connections",
+        "description": "Number of connections to batcher remote server",
+        "type": "timeseries",
+        "exprs": [
+          "batcher_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "batcher_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a batcher remote client",
         "type": "timeseries",
@@ -1118,6 +1127,15 @@
         "type": "timeseries",
         "exprs": [
           "state_sync_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "state_sync_remote_number_of_connections",
+        "description": "Number of connections to state sync remote server",
+        "type": "timeseries",
+        "exprs": [
+          "state_sync_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -1208,6 +1226,15 @@
         "extra_params": {}
       },
       {
+        "title": "gateway_remote_number_of_connections",
+        "description": "Number of connections to gateway remote server",
+        "type": "timeseries",
+        "exprs": [
+          "gateway_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "gateway_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a gateway remote client",
         "type": "timeseries",
@@ -1290,6 +1317,15 @@
         "type": "timeseries",
         "exprs": [
           "mempool_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_remote_number_of_connections",
+        "description": "Number of connections to mempool remote server",
+        "type": "timeseries",
+        "exprs": [
+          "mempool_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -1380,6 +1416,15 @@
         "extra_params": {}
       },
       {
+        "title": "mempool_p2p_propagator_remote_number_of_connections",
+        "description": "Number of connections to mempool p2p remote server",
+        "type": "timeseries",
+        "exprs": [
+          "mempool_p2p_propagator_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "mempool_p2p_propagator_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a mempool p2p remote client",
         "type": "timeseries",
@@ -1462,6 +1507,15 @@
         "type": "timeseries",
         "exprs": [
           "l1_provider_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "l1_provider_remote_number_of_connections",
+        "description": "Number of connections to L1 provider remote server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_provider_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
@@ -1552,6 +1606,15 @@
         "extra_params": {}
       },
       {
+        "title": "l1_gas_price_provider_remote_number_of_connections",
+        "description": "Number of connections to L1 gas price provider remote server",
+        "type": "timeseries",
+        "exprs": [
+          "l1_gas_price_provider_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "l1_gas_price_provider_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a L1 gas price provider remote client",
         "type": "timeseries",
@@ -1638,6 +1701,15 @@
         "extra_params": {}
       },
       {
+        "title": "class_manager_remote_number_of_connections",
+        "description": "Number of connections to class manager remote server",
+        "type": "timeseries",
+        "exprs": [
+          "class_manager_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
         "title": "class_manager_remote_client_send_attempts",
         "description": "Required number of remote connection attempts made by a class manager remote client",
         "type": "timeseries",
@@ -1720,6 +1792,15 @@
         "type": "timeseries",
         "exprs": [
           "sierra_compiler_remote_msgs_processed{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "sierra_compiler_remote_number_of_connections",
+        "description": "Number of connections to sierra compiler remote server",
+        "type": "timeseries",
+        "exprs": [
+          "sierra_compiler_remote_number_of_connections{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
         "extra_params": {}
       },
