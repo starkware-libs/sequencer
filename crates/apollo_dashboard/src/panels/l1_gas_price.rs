@@ -5,6 +5,7 @@ use apollo_infra::metrics::{
     L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
     L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
+    L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
     L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED,
 };
 use apollo_l1_gas_price::metrics::{
@@ -33,6 +34,9 @@ fn get_panel_l1_gas_price_provider_remote_valid_msgs_received() -> Panel {
 }
 fn get_panel_l1_gas_price_provider_remote_msgs_processed() -> Panel {
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
+}
+fn get_panel_l1_gas_price_provider_remote_number_of_connections() -> Panel {
+    Panel::from_gauge(L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
 }
 fn get_panel_l1_gas_price_provider_local_queue_depth() -> Panel {
     Panel::from_gauge(L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
@@ -114,6 +118,7 @@ pub(crate) fn get_l1_gas_price_infra_row() -> Row {
             get_panel_l1_gas_price_provider_remote_msgs_received(),
             get_panel_l1_gas_price_provider_remote_valid_msgs_received(),
             get_panel_l1_gas_price_provider_remote_msgs_processed(),
+            get_panel_l1_gas_price_provider_remote_number_of_connections(),
             get_panel_l1_gas_price_provider_remote_client_send_attempts(),
         ],
     )
