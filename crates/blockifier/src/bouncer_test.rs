@@ -6,6 +6,7 @@ use blockifier_test_utils::contracts::FeatureContract;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use rstest::{fixture, rstest};
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::fields::Fee;
@@ -396,8 +397,8 @@ fn test_get_tx_weights_with_casm_hash_computation(block_context: BlockContext) {
     let test_contract_v1 =
         FeatureContract::TestContract(CairoVersion::Cairo1(RunnableCairo1::Casm));
 
-    state_reader.add_class(&FeatureContractData::from(test_contract_v0));
-    state_reader.add_class(&FeatureContractData::from(test_contract_v1));
+    state_reader.add_class(&FeatureContractData::from(test_contract_v0), &HashVersion::V2);
+    state_reader.add_class(&FeatureContractData::from(test_contract_v1), &HashVersion::V2);
     let state = CachedState::new(state_reader);
 
     let executed_class_hashes =
