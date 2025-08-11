@@ -206,7 +206,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-core-service",
+      "toleration": "apollo-mempool-service",
       "resources": {
         "requests": {
           "cpu": 1,
