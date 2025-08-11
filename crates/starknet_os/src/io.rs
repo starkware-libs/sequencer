@@ -1,5 +1,5 @@
 pub mod os_input;
 pub mod os_output;
 pub mod os_output_types;
-#[cfg(test)]
+#[cfg(any(feature = "testing", test))]
 pub mod test_utils;
