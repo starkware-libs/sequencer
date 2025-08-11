@@ -5,6 +5,7 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use clap::{Parser, Subcommand};
 use serde::Serialize;
+use starknet_os::hint_processor::os_logger::OsTransactionTrace;
 use starknet_os::hints::enum_definition::AllHints;
 use starknet_os::metrics::OsMetrics;
 use starknet_types_core::felt::Felt;
@@ -141,6 +142,7 @@ pub(crate) struct OsCliOutput {
     pub(crate) da_segment: Option<Vec<Felt>>,
     pub(crate) metrics: OsCliMetrics,
     pub unused_hints: HashSet<AllHints>,
+    pub(crate) txs: Vec<OsTransactionTrace>,
 }
 
 #[derive(Serialize)]
