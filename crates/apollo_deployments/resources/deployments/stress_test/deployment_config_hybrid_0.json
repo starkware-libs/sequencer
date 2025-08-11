@@ -202,15 +202,15 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-core-service",
+      "toleration": "apollo-mempool-service",
       "resources": {
         "requests": {
-          "cpu": 1,
-          "memory": 2
-        },
-        "limits": {
           "cpu": 2,
           "memory": 4
+        },
+        "limits": {
+          "cpu": 3.5,
+          "memory": 12
         }
       },
       "external_secret": {
