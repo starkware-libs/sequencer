@@ -13,6 +13,7 @@ use starknet_types_core::felt::Felt;
 use crate::errors::StarknetOsError;
 use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, AggregatorInput};
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
+use crate::hint_processor::os_logger::OsTransactionTrace;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::io::os_input::{OsHints, StarknetOsInput};
@@ -115,6 +116,9 @@ pub fn run_os<S: StateReader>(
     )?;
 
     let mut runner_output = run_program(layout, &OS_PROGRAM, &mut snos_hint_processor)?;
+    #[cfg(any(test, feature = "testing"))]
+    let txs_trace: Vec<OsTransactionTrace> =
+        snos_hint_processor.get_current_execution_helper().unwrap().os_logger.get_txs().clone();
 
     Ok(StarknetOsRunnerOutput {
         #[cfg(feature = "include_program_output")]
@@ -136,6 +140,8 @@ pub fn run_os<S: StateReader>(
         metrics: OsMetrics::new(&mut runner_output.cairo_runner, &snos_hint_processor)?,
         #[cfg(any(test, feature = "testing"))]
         unused_hints: snos_hint_processor.get_unused_hints(),
+        #[cfg(any(test, feature = "testing"))]
+        txs: txs_trace,
     })
 }
 

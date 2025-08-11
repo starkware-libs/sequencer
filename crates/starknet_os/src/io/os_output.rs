@@ -335,6 +335,8 @@ pub struct StarknetOsRunnerOutput {
     pub metrics: OsMetrics,
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: std::collections::HashSet<crate::hints::enum_definition::AllHints>,
+    #[cfg(any(test, feature = "testing"))]
+    pub txs: Vec<crate::hint_processor::os_logger::OsTransactionTrace>,
 }
 
 pub struct StarknetAggregatorRunnerOutput {

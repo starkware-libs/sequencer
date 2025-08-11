@@ -97,13 +97,13 @@ pub(crate) fn parse_and_run_os(
     validate_os_input(&os_hints.os_input);
 
     info!("Running OS...");
-    let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, .. } =
+    let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, txs, .. } =
         run_os_stateless(layout, os_hints)
             .unwrap_or_else(|err| panic!("OS run failed. Error: {err}"));
 
     info!("Finished running OS. Serializing OS output...");
     serialize_runner_output(
-        &OsCliOutput { da_segment, metrics: metrics.into(), unused_hints },
+        &OsCliOutput { da_segment, metrics: metrics.into(), unused_hints, txs },
         output_path,
         &cairo_pie,
         cairo_pie_zip_path,
