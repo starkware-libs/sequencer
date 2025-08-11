@@ -109,6 +109,7 @@ def main():
                 image=image,
                 k8s_service_config=svc["k8s_service_config"],
                 controller=svc["controller"].lower(),
+                update_strategy_type=svc["update_strategy_type"],
                 replicas=svc["replicas"],
                 autoscale=svc["autoscale"],
                 ingress=svc["ingress"],
