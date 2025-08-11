@@ -55,6 +55,17 @@ define_metrics!(
         MetricCounter { STATE_SYNC_REMOTE_MSGS_RECEIVED, "state_sync_remote_msgs_received", "Counter of messages received by state sync remote server", init = 0 },
         MetricCounter { STATE_SYNC_REMOTE_VALID_MSGS_RECEIVED, "state_sync_remote_valid_msgs_received", "Counter of valid messages received by state sync remote server", init = 0 },
         MetricCounter { STATE_SYNC_REMOTE_MSGS_PROCESSED, "state_sync_remote_msgs_processed", "Counter of messages processed by state sync remote server", init = 0 },
+        // Remote server gauges
+        MetricGauge { BATCHER_REMOTE_NUMBER_OF_CONNECTIONS, "batcher_remote_number_of_connections", "Number of connections to batcher remote server" },
+        MetricGauge { CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS, "class_manager_remote_number_of_connections", "Number of connections to class manager remote server" },
+        MetricGauge { GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS, "gateway_remote_number_of_connections", "Number of connections to gateway remote server" },
+        MetricGauge { L1_ENDPOINT_MONITOR_REMOTE_NUMBER_OF_CONNECTIONS, "l1_endpoint_monitor_remote_number_of_connections", "Number of connections to L1 endpoint monitor remote server" },
+        MetricGauge { L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS, "l1_provider_remote_number_of_connections", "Number of connections to L1 provider remote server" },
+        MetricGauge { L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS, "l1_gas_price_provider_remote_number_of_connections", "Number of connections to L1 gas price provider remote server" },
+        MetricGauge { MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS, "mempool_remote_number_of_connections", "Number of connections to mempool remote server" },
+        MetricGauge { MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS, "mempool_p2p_propagator_remote_number_of_connections", "Number of connections to mempool p2p remote server" },
+        MetricGauge { SIERRA_COMPILER_REMOTE_NUMBER_OF_CONNECTIONS, "sierra_compiler_remote_number_of_connections", "Number of connections to sierra compiler remote server" },
+        MetricGauge { STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS, "state_sync_remote_number_of_connections", "Number of connections to state sync remote server" },
         // Local server queue depths
         MetricGauge { BATCHER_LOCAL_QUEUE_DEPTH, "batcher_local_queue_depth", "The depth of the batcher's local message queue" },
         MetricGauge { CLASS_MANAGER_LOCAL_QUEUE_DEPTH, "class_manager_local_queue_depth", "The depth of the class manager's local message queue" },
@@ -162,6 +173,7 @@ pub struct RemoteServerMetrics {
     total_received_msgs: &'static MetricCounter,
     valid_received_msgs: &'static MetricCounter,
     processed_msgs: &'static MetricCounter,
+    _number_of_connections: &'static MetricGauge,
 }
 
 impl RemoteServerMetrics {
@@ -169,8 +181,14 @@ impl RemoteServerMetrics {
         total_received_msgs: &'static MetricCounter,
         valid_received_msgs: &'static MetricCounter,
         processed_msgs: &'static MetricCounter,
+        number_of_connections: &'static MetricGauge,
     ) -> Self {
-        Self { total_received_msgs, valid_received_msgs, processed_msgs }
+        Self {
+            total_received_msgs,
+            valid_received_msgs,
+            processed_msgs,
+            _number_of_connections: number_of_connections,
+        }
     }
 
     pub fn register(&self) {
