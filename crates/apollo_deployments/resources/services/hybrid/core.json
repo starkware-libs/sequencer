@@ -1,5 +1,5 @@
 {
-  "base_layer_config.#is_none": true,
+  "base_layer_config.#is_none": false,
   "batcher_config.#is_none": false,
   "class_manager_config.#is_none": false,
   "components.batcher.execution_mode": "LocalExecutionWithRemoteEnabled",
@@ -124,5 +124,10 @@
   "l1_provider_config.bootstrap_catch_up_height_override.#is_none": true,
   "l1_provider_config.startup_sync_sleep_retry_interval_seconds": 2,
   "l1_provider_config.l1_handler_cancellation_timelock_seconds": 300,
-  "l1_provider_config.new_l1_handler_cooldown_seconds": 245
+  "l1_provider_config.new_l1_handler_cooldown_seconds": 245,
+  "l1_provider_config.dummy_mode": true,
+  "base_layer_config.prague_blob_gas_calc": true,
+  "base_layer_config.timeout_millis": 1000,
+  "base_layer_config.node_url": "http://foo.com",
+  "base_layer_config.starknet_contract_address": "0x4fA369fEBf0C574ea05EC12bC0e1Bc9Cd461Dd0f"
 }
