@@ -205,8 +205,6 @@ fn run_compiled_class_hash_entry_point(
     // Run the Cairo entrypoint function.
     // State reader is not used in this test.
     let state_reader = None;
-    // Validations are not supported since we loaded the contract class by ourselves.
-    let skip_parameter_validations = true;
     let (_implicit_return_values, explicit_return_values) = run_cairo_0_entrypoint(
         entrypoint,
         &explicit_args,
@@ -216,7 +214,6 @@ fn run_compiled_class_hash_entry_point(
         &program,
         &runner_config,
         &expected_return_values,
-        skip_parameter_validations,
     )
     .unwrap();
 
