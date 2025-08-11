@@ -182,15 +182,14 @@ impl ServiceNameInner for HybridNodeServiceName {
             Environment::CloudK8s(cloud_env) => match cloud_env {
                 CloudK8sEnvironment::SepoliaIntegration | CloudK8sEnvironment::UpgradeTest => {
                     match self {
-                        HybridNodeServiceName::Core | HybridNodeServiceName::Mempool => {
-                            Some(Toleration::ApolloCoreService)
-                        }
+                        HybridNodeServiceName::Core => Some(Toleration::ApolloCoreService),
                         HybridNodeServiceName::HttpServer
                         | HybridNodeServiceName::Gateway
                         | HybridNodeServiceName::L1
                         | HybridNodeServiceName::SierraCompiler => {
                             Some(Toleration::ApolloGeneralService)
                         }
+                        HybridNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
                     }
                 }
                 CloudK8sEnvironment::Mainnet
@@ -203,7 +202,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     | HybridNodeServiceName::SierraCompiler => {
                         Some(Toleration::ApolloGeneralService)
                     }
-                    HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                    HybridNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
                 },
                 CloudK8sEnvironment::Potc2 => match self {
                     HybridNodeServiceName::Core => Some(Toleration::Batcher864),
@@ -213,7 +212,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                     | HybridNodeServiceName::SierraCompiler => {
                         Some(Toleration::ApolloGeneralService)
                     }
-                    HybridNodeServiceName::Mempool => Some(Toleration::ApolloCoreService),
+                    HybridNodeServiceName::Mempool => Some(Toleration::ApolloMempoolService),
                 },
             },
             Environment::LocalK8s => None,
@@ -310,7 +309,7 @@ impl ServiceNameInner for HybridNodeServiceName {
                         Resources::new(Resource::new(1, 2), Resource::new(2, 4))
                     }
                     HybridNodeServiceName::Mempool => {
-                        Resources::new(Resource::new(1, 2), Resource::new(2, 4))
+                        Resources::new(Resource::new(2, 4), Resource::new(3, 12))
                     }
                     HybridNodeServiceName::SierraCompiler => {
                         Resources::new(Resource::new(1, 2), Resource::new(2, 4))
