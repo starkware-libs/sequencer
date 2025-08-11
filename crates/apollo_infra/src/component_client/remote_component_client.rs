@@ -26,6 +26,7 @@ const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 // TODO(Tsabary): add `_SECS` suffix to the constant names and the config fields.
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
 const DEFAULT_RETRY_INTERVAL_MS: u64 = 1000;
+const INITIAL_RETRY_DELAY_MS: u64 = 1;
 
 // TODO(Tsabary): consider retry delay mechanisms, e.g., exponential backoff, jitter, etc.
 
@@ -34,6 +35,7 @@ pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
     pub idle_timeout_ms: u64,
+    pub initial_retry_delay_ms: u64,
     pub retry_interval_ms: u64,
 }
 
@@ -43,6 +45,7 @@ impl Default for RemoteClientConfig {
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
             idle_timeout_ms: DEFAULT_IDLE_TIMEOUT_MS,
+            initial_retry_delay_ms: INITIAL_RETRY_DELAY_MS,
             retry_interval_ms: DEFAULT_RETRY_INTERVAL_MS,
         }
     }
@@ -67,6 +70,12 @@ impl SerializeConfig for RemoteClientConfig {
                 "idle_timeout_ms",
                 &self.idle_timeout_ms,
                 "The duration in milliseconds to keep an idle connection open before closing.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "initial_retry_delay_ms",
+                &self.initial_retry_delay_ms,
+                "Initial delay before first retry in milliseconds",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
@@ -266,8 +275,7 @@ where
         trace!("Starting retry loop: max_attempts = {max_attempts}");
         // TODO(Tsabary): consider making these consts configurable.
         const LOG_ATTEMPT_INTERVAL: usize = 10;
-        const INITIAL_RETRY_DELAY: u64 = 1;
-        let mut retry_interval_ms = INITIAL_RETRY_DELAY;
+        let mut retry_interval_ms = self.config.initial_retry_delay_ms;
         for attempt in 1..max_attempts + 1 {
             trace!("Request {log_message} attempt {attempt} of {max_attempts}");
             let http_request = self.construct_http_request(serialized_request_bytes.clone());
