@@ -17,7 +17,7 @@ use blockifier::state::state_api::{StateReader, StateResult};
 use blockifier::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::{SierraContractClass, StateNumber, StorageKey};
@@ -119,7 +119,7 @@ impl PapyrusReader {
         if self.is_declared(class_hash)? {
             // Cairo 1.
             let (casm_compiled_class, sierra) = self.read_casm_and_sierra(class_hash)?;
-            let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)?;
+            let sierra_version = sierra.get_sierra_version()?;
             return Ok(CompiledClasses::V1(
                 CompiledClassV1::try_from((casm_compiled_class, sierra_version))?,
                 Arc::new(sierra),

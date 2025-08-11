@@ -18,7 +18,6 @@ use indexmap::IndexMap;
 use papyrus_common::state::{DeployedContract, ReplacedClass, StorageEntry};
 // Expose the tool for creating entry point selectors from function names.
 pub use starknet_api::abi::abi_utils::selector_from_name;
-use starknet_api::contract_class::SierraVersion;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
@@ -73,8 +72,8 @@ pub(crate) fn get_contract_class(
             let (Some(casm), Some(sierra)) = txn.get_casm_and_sierra(class_hash)? else {
                 return Err(ExecutionUtilsError::CasmTableNotSynced);
             };
-            let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program)
-                .map_err(ExecutionUtilsError::SierraValidationError)?;
+            let sierra_version =
+                sierra.get_sierra_version().map_err(ExecutionUtilsError::SierraValidationError)?;
             return Ok(Some(RunnableCompiledClass::V1(CompiledClassV1::try_from((
                 casm,
                 sierra_version,

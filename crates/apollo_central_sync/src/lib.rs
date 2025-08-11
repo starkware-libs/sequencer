@@ -58,7 +58,7 @@ use starknet_api::block::{
     StarknetVersion,
 };
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
-use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, SequencerPublicKey};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{StateDiff, ThinStateDiff};
@@ -629,7 +629,8 @@ impl<
                 let class = self.reader.begin_ro_txn()?.get_class(&class_hash)?.expect(
                     "Compiled classes stream gave class hash that doesn't appear in storage.",
                 );
-                let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
+                let sierra_version = class
+                    .get_sierra_version()
                     .expect("Failed reading sierra version from program.");
                 let contract_class = ContractClass::V1((compiled_class.clone(), sierra_version));
                 class_manager_client
