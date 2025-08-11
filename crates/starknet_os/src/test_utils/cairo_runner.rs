@@ -674,6 +674,8 @@ pub fn run_cairo_0_entrypoint(
         os_hints_config,
         &os_block_input,
         os_state_input,
+        Felt::from(0),
+        Felt::from(0),
     )
     .unwrap_or_else(|err| panic!("Failed to create SnosHintProcessor: {err:?}"));
     info!("Program and Hint processor created successfully.");
