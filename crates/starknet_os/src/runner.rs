@@ -1,5 +1,8 @@
+use std::collections::BTreeMap;
+
 use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
 use blockifier::state::state_api::StateReader;
+use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
 use cairo_vm::types::layout_name::LayoutName;
@@ -7,18 +10,25 @@ use cairo_vm::types::program::Program;
 use cairo_vm::vm::errors::vm_exception::VmException;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
-#[cfg(feature = "include_program_output")]
+use starknet_api::core::CompiledClassHash;
+use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
 use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, AggregatorInput};
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
+use crate::hint_processor::os_logger::OsTransactionTrace;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
-use crate::io::os_input::{OsHints, StarknetOsInput};
+use crate::io::os_input::{
+    CachedStateInput,
+    OsBlockInput,
+    OsHints,
+    OsHintsConfig,
+    StarknetOsInput,
+};
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::OsMetrics;
-
 pub struct RunnerReturnObject {
     #[cfg(feature = "include_program_output")]
     pub raw_output: Vec<Felt>,
@@ -105,6 +115,32 @@ pub fn run_os<S: StateReader>(
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
+    let (runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
+        layout,
+        os_hints_config,
+        &os_block_inputs,
+        cached_state_inputs,
+        deprecated_compiled_classes,
+        compiled_classes,
+        state_readers,
+        public_key_x,
+        public_key_y,
+    )?;
+
+    generate_os_output(runner_output, snos_hint_processor)
+}
+
+fn create_hint_processor_and_run_os<'a, S: StateReader>(
+    layout: LayoutName,
+    os_hints_config: OsHintsConfig,
+    os_block_inputs: &'a [OsBlockInput],
+    cached_state_inputs: Vec<CachedStateInput>,
+    deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
+    compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
+    state_readers: Vec<S>,
+    public_key_x: Felt,
+    public_key_y: Felt,
+) -> Result<(RunnerReturnObject, SnosHintProcessor<'a, S>), StarknetOsError> {
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         &OS_PROGRAM,
@@ -118,8 +154,16 @@ pub fn run_os<S: StateReader>(
         public_key_y,
     )?;
 
-    let mut runner_output = run_program(layout, &OS_PROGRAM, &mut snos_hint_processor)?;
+    // Run the OS program.
+    let runner_output = run_program(layout, &OS_PROGRAM, &mut snos_hint_processor)?;
 
+    Ok((runner_output, snos_hint_processor))
+}
+
+fn generate_os_output(
+    mut runner_output: RunnerReturnObject,
+    mut snos_hint_processor: SnosHintProcessor<'_, impl StateReader>,
+) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     Ok(StarknetOsRunnerOutput {
         #[cfg(feature = "include_program_output")]
         os_output: {
@@ -143,6 +187,42 @@ pub fn run_os<S: StateReader>(
     })
 }
 
+// Has the same functionality as `run_os`, but returns the transaction trace, which is needed in
+// some tests.
+pub fn run_os_for_testing<S: StateReader>(
+    layout: LayoutName,
+    OsHints {
+        os_hints_config,
+        os_input:
+            StarknetOsInput {
+                os_block_inputs,
+                cached_state_inputs,
+                deprecated_compiled_classes,
+                compiled_classes,
+                public_key_x,
+                public_key_y,
+            },
+    }: OsHints,
+    state_readers: Vec<S>,
+) -> Result<(StarknetOsRunnerOutput, Vec<OsTransactionTrace>), StarknetOsError> {
+    let (runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
+        layout,
+        os_hints_config,
+        &os_block_inputs,
+        cached_state_inputs,
+        deprecated_compiled_classes,
+        compiled_classes,
+        state_readers,
+        public_key_x,
+        public_key_y,
+    )?;
+
+    let txs_trace: Vec<OsTransactionTrace> =
+        snos_hint_processor.get_current_execution_helper().unwrap().os_logger.get_txs().clone();
+
+    Ok((generate_os_output(runner_output, snos_hint_processor)?, txs_trace))
+}
+
 /// Run the OS with a "stateless" state reader - panics if the state is accessed for data that was
 /// not pre-loaded as part of the input.
 pub fn run_os_stateless(
@@ -151,6 +231,14 @@ pub fn run_os_stateless(
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
     let n_blocks = os_hints.os_input.os_block_inputs.len();
     run_os(layout, os_hints, vec![PanickingStateReader; n_blocks])
+}
+
+pub fn run_os_stateless_for_testing(
+    layout: LayoutName,
+    os_hints: OsHints,
+) -> Result<(StarknetOsRunnerOutput, Vec<OsTransactionTrace>), StarknetOsError> {
+    let n_blocks = os_hints.os_input.os_block_inputs.len();
+    run_os_for_testing(layout, os_hints, vec![PanickingStateReader; n_blocks])
 }
 
 /// Run the Aggregator.
