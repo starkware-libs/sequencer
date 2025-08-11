@@ -59,3 +59,65 @@ impl AddAssign<&EstimatedExecutionResources> for EstimatedExecutionResources {
         }
     }
 }
+
+// TODO(AvivG): Remove allow once used.
+#[allow(unused)]
+struct ExecutionResourcesEstimatorV1 {}
+
+impl ExecutionResourcesEstimator for ExecutionResourcesEstimatorV1 {
+    /// Creates `EstimatedExecutionResources` for the V1 hash version.
+    fn create_resources(&self) -> EstimatedExecutionResources {
+        EstimatedExecutionResources::V1 { resources: ExecutionResources::default() }
+    }
+
+    fn cost_of_hash_function(
+        &mut self,
+        _felt_count: NestedFeltCounts,
+    ) -> EstimatedExecutionResources {
+        // TODO(AvivG): Implement by calling 'poseidon_hash_many_cost'.
+        self.create_resources()
+    }
+}
+
+// TODO(AvivG): Remove allow once used.
+#[allow(unused)]
+struct ExecutionResourcesEstimatorV2 {}
+
+impl ExecutionResourcesEstimator for ExecutionResourcesEstimatorV2 {
+    /// Creates `EstimatedExecutionResources` for the V2 hash version.
+    fn create_resources(&self) -> EstimatedExecutionResources {
+        EstimatedExecutionResources::V2 { resources: ExecutionResources::default(), blake_count: 0 }
+    }
+
+    fn cost_of_hash_function(
+        &mut self,
+        _felt_count: NestedFeltCounts,
+    ) -> EstimatedExecutionResources {
+        // TODO(AvivG): Implement by calling 'cost_of_encode_felt252_data_and_calc_blake_hash'.
+        self.create_resources()
+    }
+}
+
+// TODO(AvivG): Remove allow once used.
+#[allow(unused)]
+trait ExecutionResourcesEstimator {
+    /// Creates `EstimatedExecutionResources` for the current hash version.
+    fn create_resources(&self) -> EstimatedExecutionResources;
+
+    /// Estimates resources used by the hash function for the current hash version.
+    fn cost_of_hash_function(
+        &mut self,
+        _felt_count: NestedFeltCounts,
+    ) -> EstimatedExecutionResources;
+
+    /// Estimates resources used by the `compiled_class_hash` Cairo function used in the Starknet
+    /// OS.
+    fn cost_of_compiled_class_hash(
+        &mut self,
+        _bytecode_segment_felt_sizes: &NestedFeltCounts,
+        _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+    ) -> EstimatedExecutionResources {
+        // TODO(AvivG): Implement.
+        self.create_resources()
+    }
+}
