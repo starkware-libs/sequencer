@@ -13,7 +13,7 @@ use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as SNTypsCoreStarkHash};
 
 use crate::block::{BlockHash, BlockNumber};
-use crate::contract_class::EntryPointType;
+use crate::contract_class::{EntryPointType, SierraVersion};
 use crate::core::{
     ClassHash,
     CompiledClassHash,
@@ -26,7 +26,7 @@ use crate::core::{
 use crate::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use crate::hash::{PoseidonHash, StarkHash};
 use crate::rpc_transaction::EntryPointByType;
-use crate::{impl_from_through_intermediate, StarknetApiError};
+use crate::{impl_from_through_intermediate, StarknetApiError, StarknetApiResult};
 
 pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
 pub type DeprecatedDeclaredClasses = IndexMap<ClassHash, DeprecatedContractClass>;
@@ -266,6 +266,10 @@ impl SierraContractClass {
 
     pub fn create_contract_class_version(suffix: &str) -> Felt {
         Felt::from_bytes_be_slice(format!("{CONTRACT_CLASS_VERSION_PREFIX}{suffix}").as_bytes())
+    }
+
+    pub fn get_sierra_version(&self) -> StarknetApiResult<SierraVersion> {
+        SierraVersion::extract_from_program(&self.sierra_program)
     }
 }
 

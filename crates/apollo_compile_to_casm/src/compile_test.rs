@@ -11,7 +11,7 @@ use cairo_lang_starknet_classes::allowed_libfuncs::{
 use cairo_lang_starknet_classes::contract_class::ContractClass as CairoLangContractClass;
 use mempool_test_utils::{FAULTY_ACCOUNT_CLASS_FILE, TEST_FILES_FOLDER};
 use pretty_assertions::assert_eq;
-use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::state::SierraContractClass;
 
 use crate::compiler::SierraToCasmCompiler;
@@ -98,7 +98,7 @@ fn test_sierra_compiler() {
 
     let compiler = SierraCompiler::new(compiler);
     let class = SierraContractClass::from(class);
-    let sierra_version = SierraVersion::extract_from_program(&class.sierra_program).unwrap();
+    let sierra_version = class.get_sierra_version().unwrap();
     let expected_executable_class = ContractClass::V1((expected_executable_class, sierra_version));
 
     // Test.

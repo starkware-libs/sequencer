@@ -16,7 +16,7 @@ use blockifier::state::errors::StateError;
 use blockifier::state::state_api::{StateReader as BlockifierStateReader, StateResult};
 use papyrus_common::pending_classes::{ApiContractClass, PendingClassesTrait};
 use papyrus_common::state::DeclaredClassHashEntry;
-use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StateNumber, StorageKey};
 use starknet_types_core::felt::Felt;
@@ -93,8 +93,7 @@ impl BlockifierStateReader for ExecutionStateReader {
                 match api_contract_class {
                     ApiContractClass::ContractClass(sierra) => {
                         if let Some(pending_casm) = pending_classes.get_compiled_class(class_hash) {
-                            let sierra_version =
-                                SierraVersion::extract_from_program(&sierra.sierra_program)?;
+                            let sierra_version = sierra.get_sierra_version()?;
                             let runnable_compiled_class = RunnableCompiledClass::V1(
                                 CompiledClassV1::try_from((pending_casm, sierra_version))
                                     .map_err(StateError::ProgramError)?,

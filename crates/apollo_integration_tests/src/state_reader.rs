@@ -32,7 +32,7 @@ use starknet_api::block::{
     FeeType,
     GasPricePerToken,
 };
-use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, ContractAddress, Nonce, SequencerContractAddress};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::state::{SierraContractClass, StorageKey, ThinStateDiff};
@@ -240,7 +240,7 @@ fn initialize_class_manager_test_state(
         class_manager_storage.set_deprecated_class(class_hash, casm).unwrap();
     }
     for (class_hash, (sierra, casm)) in cairo1_contract_classes {
-        let sierra_version = SierraVersion::extract_from_program(&sierra.sierra_program).unwrap();
+        let sierra_version = sierra.get_sierra_version().unwrap();
         let class = ContractClass::V1((casm, sierra_version));
         class_manager_storage
             .set_class(

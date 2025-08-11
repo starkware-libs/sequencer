@@ -3815,7 +3815,7 @@ async fn get_compiled_class() {
         res,
         (
             CompiledContractClass::V1(cairo1_contract_class),
-            SierraVersion::extract_from_program(&sierra_contract_class.sierra_program).unwrap()
+            sierra_contract_class.get_sierra_version().unwrap()
         )
     );
 

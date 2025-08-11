@@ -6,7 +6,7 @@ use apollo_infra::component_definitions::{default_component_start_fn, ComponentS
 use apollo_proc_macros::sequencer_latency_histogram;
 use async_trait::async_trait;
 use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
-use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::contract_class::ContractClass;
 use starknet_api::state::SierraContractClass;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
@@ -60,8 +60,8 @@ impl SierraCompiler {
     #[sequencer_latency_histogram(COMPILATION_DURATION, true)]
     pub fn compile(&self, class: RawClass) -> SierraCompilerResult<RawExecutableHashedClass> {
         let class = SierraContractClass::try_from(class)?;
-        let sierra_version = SierraVersion::extract_from_program(&class.sierra_program)
-            .map_err(SierraCompilerError::SierraVersionFormat)?;
+        let sierra_version =
+            class.get_sierra_version().map_err(SierraCompilerError::SierraVersionFormat)?;
         let class = into_contract_class_for_compilation(&class);
 
         // TODO(Elin): handle resources (whether here or an infra. layer load-balancing).

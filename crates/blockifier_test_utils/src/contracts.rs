@@ -190,7 +190,7 @@ impl FeatureContract {
     }
 
     pub fn get_sierra_version(&self) -> SierraVersion {
-        SierraVersion::extract_from_program(&self.get_sierra().sierra_program).unwrap()
+        self.get_sierra().get_sierra_version().unwrap()
     }
 
     pub fn get_raw_class(&self) -> String {

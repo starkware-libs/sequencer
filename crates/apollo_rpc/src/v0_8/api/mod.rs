@@ -469,10 +469,9 @@ fn get_class_lengths(
         .and_then(|contract_class| {
             let sierra_program_len = contract_class.sierra_program.len();
             let abi_len = contract_class.abi.len();
-            let sierra_program =
-                SierraVersion::extract_from_program(&contract_class.sierra_program)
-                    .map_err(internal_server_error)?;
-            Ok((sierra_program_len, abi_len, sierra_program))
+            let sierra_version =
+                contract_class.get_sierra_version().map_err(internal_server_error)?;
+            Ok((sierra_program_len, abi_len, sierra_version))
         })
 }
 
