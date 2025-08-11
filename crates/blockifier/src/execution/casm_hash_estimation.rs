@@ -1,6 +1,9 @@
 use std::ops::AddAssign;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
+
+use crate::execution::contract_class::{EntryPointV1, EntryPointsByType, NestedFeltCounts};
 
 #[cfg(test)]
 #[path = "casm_hash_estimation_test.rs"]
@@ -18,6 +21,20 @@ pub enum EstimatedExecutionResources {
     /// Blake opcodes count is tracked separately, as they are not included in
     /// `ExecutionResources`.
     V2Hash { resources: ExecutionResources, blake_count: usize },
+}
+
+impl EstimatedExecutionResources {
+    pub fn new(hash_version: HashVersion) -> Self {
+        match hash_version {
+            HashVersion::V1 => {
+                EstimatedExecutionResources::V1Hash { resources: ExecutionResources::default() }
+            }
+            HashVersion::V2 => EstimatedExecutionResources::V2Hash {
+                resources: ExecutionResources::default(),
+                blake_count: 0,
+            },
+        }
+    }
 }
 
 impl AddAssign<&ExecutionResources> for EstimatedExecutionResources {
@@ -56,7 +73,38 @@ impl AddAssign<&EstimatedExecutionResources> for EstimatedExecutionResources {
             }
             // Any mismatched variant
             _ => panic!("Cannot add EstimatedExecutionResources of different variants"),
-
         }
+    }
+}
+
+/// Trait for estimating the Cairo execution resources consumed when running the
+/// `compiled_class_hash` function in the Starknet OS.
+///
+/// Varied implementations of this trait correspond to a specific hash function used by
+/// `compiled_class_hash`.
+///
+/// This provides resource estimates rather than exact values.
+// TODO(AvivG): Remove allow once used.
+#[allow(unused)]
+trait CasmHashResourcesEstimator {
+    /// Specifies the hash function variant that the estimate is for.
+    fn hash_version(&self) -> HashVersion;
+
+    /// Estimates the Cairo execution resources used when applying the hash function during CASM
+    /// hashing.
+    fn estimated_resources_of_hash_function(
+        &mut self,
+        _felt_count: NestedFeltCounts,
+    ) -> EstimatedExecutionResources;
+
+    /// Estimates the Cairo execution resources for `compiled_class_hash` in the
+    /// Starknet OS.
+    fn estimated_resources_of_compiled_class_hash(
+        &mut self,
+        _bytecode_segment_felt_sizes: &NestedFeltCounts,
+        _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+    ) -> EstimatedExecutionResources {
+        // TODO(AvivG): Implement.
+        EstimatedExecutionResources::new(self.hash_version())
     }
 }
