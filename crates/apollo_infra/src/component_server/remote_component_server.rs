@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use apollo_infra_utils::type_name::short_type_name;
+use apollo_metrics::metrics::MetricGauge;
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
@@ -260,10 +261,12 @@ where
             let connection_semaphore = connection_semaphore.clone();
             let local_client = self.local_client.clone();
             let metrics = self.metrics.clone();
+            let number_of_connections_metric = metrics.number_of_connections;
 
             async move {
                 match connection_semaphore.try_acquire_owned() {
                     Ok(permit) => {
+                        metrics.increment_number_of_connections();
                         trace!("Acquired semaphore permit for connection");
                         let handle_request_service = service_fn(move |req| {
                             trace!("Received request: {:?}", req);
@@ -280,6 +283,7 @@ where
                         let service = PermitGuardedService {
                             inner: handle_request_service,
                             _permit: Some(permit),
+                            number_of_connections_metric,
                         };
                         Ok::<_, hyper::Error>(service)
                     }
@@ -311,8 +315,11 @@ where
                         .boxed();
 
                         // No permit is acquired, so no need to hold one.
-                        let service =
-                            PermitGuardedService { inner: reject_request_service, _permit: None };
+                        let service = PermitGuardedService {
+                            inner: reject_request_service,
+                            _permit: None,
+                            number_of_connections_metric,
+                        };
                         Ok::<_, hyper::Error>(service)
                     }
                 }
@@ -345,6 +352,7 @@ where
 struct PermitGuardedService<S> {
     inner: S,
     _permit: Option<OwnedSemaphorePermit>,
+    number_of_connections_metric: &'static MetricGauge,
 }
 
 impl<S, Req> Service<Req> for PermitGuardedService<S>
@@ -361,5 +369,13 @@ where
 
     fn call(&mut self, req: Req) -> Self::Future {
         self.inner.call(req)
+    }
+}
+
+impl<S> Drop for PermitGuardedService<S> {
+    fn drop(&mut self) {
+        if self._permit.is_some() {
+            self.number_of_connections_metric.decrement(1);
+        }
     }
 }
