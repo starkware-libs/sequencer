@@ -17,12 +17,11 @@ use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_os::hint_processor::aggregator_hint_processor::AggregatorInput;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, StarknetOsInput};
 use starknet_os::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
-use starknet_os::runner::{run_aggregator, run_os_stateless};
+use starknet_os::runner::{run_aggregator, run_os_stateless, run_os_stateless_for_testing};
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
 use tracing_subscriber::Registry;
-
 use crate::os_cli::run_os_cli::{AggregatorCliOutput, OsCliOutput, ProgramToDump};
 use crate::shared_utils::read::{load_input, write_to_file};
 
@@ -88,6 +87,7 @@ pub(crate) fn parse_and_run_os(
     input_path: String,
     output_path: String,
     log_filter_handle: Handle<LevelFilter, Registry>,
+    with_trace: bool,
 ) {
     let OsCliInput { layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
     log_filter_handle
@@ -97,13 +97,21 @@ pub(crate) fn parse_and_run_os(
     validate_os_input(&os_hints.os_input);
 
     info!("Running OS...");
-    let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, .. } =
-        run_os_stateless(layout, os_hints)
+    let (runner_output, txs) = if with_trace {
+        let (output, traces) = run_os_stateless_for_testing(layout, os_hints)
             .unwrap_or_else(|err| panic!("OS run failed. Error: {err}"));
+        (output, Some(traces))
+    } else {
+        let output = run_os_stateless(layout, os_hints)
+            .unwrap_or_else(|err| panic!("OS run failed. Error: {err}"));
+        (output, None)
+    };
+
+    let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, .. } = runner_output;
 
     info!("Finished running OS. Serializing OS output...");
     serialize_runner_output(
-        &OsCliOutput { da_segment, metrics: metrics.into(), unused_hints },
+        &OsCliOutput { da_segment, metrics: metrics.into(), unused_hints, txs},
         output_path,
         &cairo_pie,
         cairo_pie_zip_path,
