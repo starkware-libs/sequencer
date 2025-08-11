@@ -41,6 +41,7 @@
         "gcsm_key": "apollo-potc-2-sepolia-mock-sharp-1"
       },
       "anti_affinity": true,
+<<<<<<< HEAD
       "ports": {
         "Batcher": 55000,
         "ClassManager": 55001,
@@ -48,6 +49,17 @@
         "ConsensusP2p": 53080,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "ports": {
+        "Batcher": 55000,
+        "ClassManager": 55001,
+        "StateSync": 55009,
+        "ConsensusP2P": 53080,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "HttpServer",

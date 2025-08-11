@@ -184,7 +184,7 @@ pub enum SerializationType {
     PositiveInteger,
     String,
 }
-
+// TODO(Tsabary): alphabetize the enum variants.
 /// Errors at the configuration dumping and loading process.
 #[allow(missing_docs)]
 #[derive(thiserror::Error, Debug)]
@@ -209,4 +209,6 @@ pub enum ConfigError {
     ValidationError(#[from] ValidationError),
     #[error(transparent)]
     ConfigValidationError(#[from] ParsedValidationErrors),
+    #[error("{component_config_mismatch}")]
+    ComponentConfigMismatch { component_config_mismatch: String },
 }

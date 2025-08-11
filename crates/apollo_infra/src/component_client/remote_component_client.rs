@@ -6,7 +6,7 @@ use std::time::Duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
-use hyper::body::to_bytes;
+use hyper::body::{to_bytes, Bytes};
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
 use serde::de::DeserializeOwned;
@@ -24,8 +24,8 @@ use crate::serde_utils::SerdeWrapper;
 const DEFAULT_RETRIES: usize = 150;
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 // TODO(Tsabary): add `_SECS` suffix to the constant names and the config fields.
-const DEFAULT_IDLE_TIMEOUT: u64 = 30;
-const DEFAULT_RETRY_INTERVAL: u64 = 1;
+const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
+const DEFAULT_RETRY_INTERVAL_MS: u64 = 1000;
 
 // TODO(Tsabary): consider retry delay mechanisms, e.g., exponential backoff, jitter, etc.
 
@@ -33,8 +33,8 @@ const DEFAULT_RETRY_INTERVAL: u64 = 1;
 pub struct RemoteClientConfig {
     pub retries: usize,
     pub idle_connections: usize,
-    pub idle_timeout: u64,
-    pub retry_interval: u64,
+    pub idle_timeout_ms: u64,
+    pub retry_interval_ms: u64,
 }
 
 impl Default for RemoteClientConfig {
@@ -42,8 +42,8 @@ impl Default for RemoteClientConfig {
         Self {
             retries: DEFAULT_RETRIES,
             idle_connections: DEFAULT_IDLE_CONNECTIONS,
-            idle_timeout: DEFAULT_IDLE_TIMEOUT,
-            retry_interval: DEFAULT_RETRY_INTERVAL,
+            idle_timeout_ms: DEFAULT_IDLE_TIMEOUT_MS,
+            retry_interval_ms: DEFAULT_RETRY_INTERVAL_MS,
         }
     }
 }
@@ -64,15 +64,15 @@ impl SerializeConfig for RemoteClientConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "idle_timeout",
-                &self.idle_timeout,
-                "The duration in seconds to keep an idle connection open before closing.",
+                "idle_timeout_ms",
+                &self.idle_timeout_ms,
+                "The duration in milliseconds to keep an idle connection open before closing.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "retry_interval",
-                &self.retry_interval,
-                "The duration in seconds to wait between remote connection retries.",
+                "retry_interval_ms",
+                &self.retry_interval_ms,
+                "The duration in milliseconds to wait between remote connection retries.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -109,6 +109,12 @@ impl SerializeConfig for RemoteClientConfig {
 ///     pub content: String,
 /// }
 ///
+/// impl AsRef<str> for MyRequest {
+///     fn as_ref(&self) -> &str {
+///         &self.content
+///     }
+/// }
+///
 /// #[derive(Serialize, Deserialize, Debug)]
 /// struct MyResponse {
 ///     content: String,
@@ -120,12 +126,7 @@ impl SerializeConfig for RemoteClientConfig {
 ///     // Instantiate the client.
 ///     let url = "127.0.0.1".to_string();
 ///     let port: u16 = 8080;
-///     let config = RemoteClientConfig {
-///         retries: 3,
-///         idle_connections: usize::MAX,
-///         idle_timeout: 90,
-///         retry_interval: 3,
-///     };
+///     let config = RemoteClientConfig::default();
 ///
 ///     const EXAMPLE_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
 ///         MetricScope::Infra,
@@ -185,13 +186,13 @@ where
         let client = Client::builder()
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
-            .pool_idle_timeout(Duration::from_secs(config.idle_timeout))
+            .pool_idle_timeout(Duration::from_millis(config.idle_timeout_ms))
             .build_http();
-        debug!("RemoteComponentClient created with URI: {:?}", uri);
+        debug!("RemoteComponentClient created with URI: {uri:?}");
         Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
     }
 
-    fn construct_http_request(&self, serialized_request: Vec<u8>) -> HyperRequest<Body> {
+    fn construct_http_request(&self, serialized_request: Bytes) -> HyperRequest<Body> {
         trace!("Constructing remote request");
         HyperRequest::post(self.uri.clone())
             .header(CONTENT_TYPE, APPLICATION_OCTET_STREAM)
@@ -202,7 +203,7 @@ where
     async fn try_send(&self, http_request: HyperRequest<Body>) -> ClientResult<Response> {
         trace!("Sending HTTP request");
         let http_response = self.client.request(http_request).await.map_err(|err| {
-            warn!("HTTP request failed with error: {:?}", err);
+            warn!("HTTP request to {} failed with error: {err:?}", self.uri);
             ClientError::CommunicationFailure(err.to_string())
         })?;
 
@@ -213,16 +214,26 @@ where
                 response_body
             }
             status_code => {
-                warn!(
-                    "Unexpected response status: {:?}. Unable to deserialize response.",
-                    status_code
-                );
-                Err(ClientError::ResponseError(
-                    status_code,
-                    ServerError::RequestDeserializationFailure(
-                        "Could not deserialize server response".to_string(),
-                    ),
-                ))
+                let body_bytes = to_bytes(http_response.into_body())
+                    .await
+                    .map_err(|e| ClientError::CommunicationFailure(e.to_string()))?;
+
+                match SerdeWrapper::<ServerError>::wrapper_deserialize(&body_bytes) {
+                    Ok(server_err) => Err(ClientError::ResponseError(status_code, server_err)),
+                    Err(e) => {
+                        let raw = String::from_utf8_lossy(&body_bytes);
+                        warn!(
+                            "Non-OK ({status_code}) with deserialization error body: {e}; \
+                             raw={raw}"
+                        );
+                        Err(ClientError::ResponseError(
+                            status_code,
+                            ServerError::RequestDeserializationFailure(format!(
+                                "Server returned {status_code}, invalid error body: {e}; raw={raw}"
+                            )),
+                        ))
+                    }
+                }
             }
         }
     }
@@ -232,34 +243,51 @@ where
 impl<Request, Response> ComponentClient<Request, Response>
     for RemoteComponentClient<Request, Response>
 where
-    Request: Send + Serialize + DeserializeOwned + Debug,
+    Request: Send + Serialize + DeserializeOwned + Debug + AsRef<str>,
     Response: Send + Serialize + DeserializeOwned + Debug,
 {
     async fn send(&self, component_request: Request) -> ClientResult<Response> {
+        let log_message = format!("{} to {}", component_request.as_ref(), self.uri);
+
         // Serialize the request.
         let serialized_request = SerdeWrapper::new(component_request)
             .wrapper_serialize()
             .expect("Request serialization should succeed");
+        // Convert the serialized request into `Bytes`, a zero-copy, reference-counted buffer used
+        // by Hyper. Constructing a Hyper request consumes the body, so we need a way to
+        // reuse the request payload across multiple retries without reallocating memory. By
+        // using `Bytes` and cloning it per attempt, we preserve the original data
+        // efficiently and avoid unnecessary memory copies.
+        let serialized_request_bytes: Bytes = serialized_request.into();
 
         // Construct the request, and send it up to 'max_retries + 1' times. Return if received a
         // successful response, or the last response if all attempts failed.
         let max_attempts = self.config.retries + 1;
-        trace!("Starting retry loop: max_attempts = {:?}", max_attempts);
+        trace!("Starting retry loop: max_attempts = {max_attempts}");
+        // TODO(Tsabary): consider making these consts configurable.
+        const LOG_ATTEMPT_INTERVAL: usize = 10;
+        const INITIAL_RETRY_DELAY: u64 = 1;
+        let mut retry_interval_ms = INITIAL_RETRY_DELAY;
         for attempt in 1..max_attempts + 1 {
-            trace!("Attempt {} of {:?}", attempt, max_attempts);
-            let http_request = self.construct_http_request(serialized_request.clone());
+            trace!("Request {log_message} attempt {attempt} of {max_attempts}");
+            let http_request = self.construct_http_request(serialized_request_bytes.clone());
             let res = self.try_send(http_request).await;
             if res.is_ok() {
-                trace!("Request successful on attempt {}/{}", attempt, max_attempts);
+                trace!("Request {log_message} successful on attempt {attempt}/{max_attempts}");
                 self.metrics.record_attempt(attempt);
                 return res;
             }
-            warn!("Request failed on attempt {}/{}: {:?}", attempt, max_attempts, res);
+            if attempt % LOG_ATTEMPT_INTERVAL == LOG_ATTEMPT_INTERVAL - 1 {
+                warn!("Request {log_message} failed on attempt {attempt}/{max_attempts}: {res:?}");
+            }
             if attempt == max_attempts {
                 self.metrics.record_attempt(attempt);
                 return res;
             }
-            tokio::time::sleep(Duration::from_secs(self.config.retry_interval)).await;
+            tokio::time::sleep(Duration::from_millis(retry_interval_ms)).await;
+            // Exponential backoff, capped by the configured retry interval.
+            // TODO(Tsabary): rename the config value to indicate this is the max retry interval.
+            retry_interval_ms = (retry_interval_ms * 2).min(self.config.retry_interval_ms);
         }
         unreachable!("Guaranteed to return a response before reaching this point.");
     }

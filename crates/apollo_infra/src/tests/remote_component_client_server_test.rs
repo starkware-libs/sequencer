@@ -57,15 +57,19 @@ use crate::tests::{
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
 
-const MAX_IDLE_CONNECTION: usize = usize::MAX;
-const IDLE_TIMEOUT: u64 = 90;
 const MOCK_SERVER_ERROR: &str = "mock server error";
 const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
 const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client request";
-// ClientError::ResponseDeserializationFailure error message.
-const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
+const BAD_REQUEST_ERROR_MESSAGE: &str = "Got status code: 400 Bad Request";
 const VALID_VALUE_A: ValueA = Felt::ONE;
+
+const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
+    retries: 0,
+    idle_connections: 0,
+    idle_timeout_ms: 0,
+    retry_interval_ms: 0,
+};
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
@@ -141,13 +145,11 @@ where
         Server::bind(&socket).serve(make_svc).await.unwrap();
     });
 
-    // Todo(uriel): Get rid of this
     // Ensure the server starts running.
     task::yield_now().await;
 
-    let config = RemoteClientConfig::default();
     ComponentAClient::new(
-        config,
+        FAST_FAILING_CLIENT_CONFIG,
         &socket.ip().to_string(),
         socket.port(),
         TEST_REMOTE_CLIENT_METRICS,
@@ -286,9 +288,8 @@ async fn faulty_client_setup() {
 #[tokio::test]
 async fn unconnected_server() {
     let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
-    let client_config = RemoteClientConfig::default();
     let client = ComponentAClient::new(
-        client_config,
+        FAST_FAILING_CLIENT_CONFIG,
         &socket.ip().to_string(),
         socket.port(),
         TEST_REMOTE_CLIENT_METRICS,
@@ -307,7 +308,7 @@ async fn unconnected_server() {
 )]
 #[case::response_deserialization_failure(
     create_client_and_faulty_server(ARBITRARY_DATA.to_string()).await,
-    &[DESERIALIZE_RES_ERROR_MESSAGE],
+    &[BAD_REQUEST_ERROR_MESSAGE],
 )]
 #[tokio::test]
 async fn faulty_server(
@@ -361,12 +362,7 @@ async fn retry_request() {
     // The initial server state is 'false', hence the first attempt returns an error and
     // sets the server state to 'true'. The second attempt (first retry) therefore returns a
     // 'success', while setting the server state to 'false' yet again.
-    let retry_config = RemoteClientConfig {
-        retries: 1,
-        idle_connections: MAX_IDLE_CONNECTION,
-        idle_timeout: IDLE_TIMEOUT,
-        ..Default::default()
-    };
+    let retry_config = RemoteClientConfig { retries: 1, ..Default::default() };
     let a_client_retry = ComponentAClient::new(
         retry_config,
         &socket.ip().to_string(),
@@ -376,12 +372,7 @@ async fn retry_request() {
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
     // The current server state is 'false', hence the first and only attempt returns an error.
-    let no_retry_config = RemoteClientConfig {
-        retries: 0,
-        idle_connections: MAX_IDLE_CONNECTION,
-        idle_timeout: IDLE_TIMEOUT,
-        ..Default::default()
-    };
+    let no_retry_config = RemoteClientConfig { retries: 0, ..Default::default() };
     let a_client_no_retry = ComponentAClient::new(
         no_retry_config,
         &socket.ip().to_string(),

@@ -4,10 +4,12 @@ pub mod runner;
 mod test;
 
 use std::cmp::min;
+use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
+use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::{StateSyncResult, SyncBlock};
@@ -36,13 +38,40 @@ pub fn create_state_sync_and_runner(
 ) -> (StateSync, StateSyncRunner) {
     let (new_block_sender, new_block_receiver) = channel(BUFFER_SIZE);
     let (state_sync_runner, storage_reader) =
-        StateSyncRunner::new(config, new_block_receiver, class_manager_client);
-    (StateSync { storage_reader, new_block_sender }, state_sync_runner)
+        StateSyncRunner::new(config.clone(), new_block_receiver, class_manager_client);
+    (StateSync::new(storage_reader, new_block_sender, config), state_sync_runner)
 }
 
+#[derive(Clone)]
 pub struct StateSync {
     storage_reader: StorageReader,
     new_block_sender: Sender<SyncBlock>,
+    starknet_client: Option<Arc<dyn StarknetReader + Send + Sync>>,
+}
+
+impl StateSync {
+    pub fn new(
+        storage_reader: StorageReader,
+        new_block_sender: Sender<SyncBlock>,
+        config: StateSyncConfig,
+    ) -> Self {
+        let starknet_client = config.central_sync_client_config.map(|config| {
+            let config = config.central_source_config;
+            let starknet_client: Arc<dyn StarknetReader + Send + Sync> = Arc::new(
+                StarknetFeederGatewayClient::new(
+                    config.starknet_url.as_ref(),
+                    config.http_headers,
+                    // TODO(shahak): fill with a proper version, or allow not specifying the
+                    // node version.
+                    "",
+                    config.retry_config,
+                )
+                .expect("Failed creating feeder gateway client"),
+            );
+            starknet_client
+        });
+        Self { storage_reader, new_block_sender, starknet_client }
+    }
 }
 
 // TODO(shahak): Have StateSyncRunner call StateSync instead of the opposite once we stop supporting
@@ -54,9 +83,16 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
             StateSyncRequest::GetBlock(block_number) => {
                 StateSyncResponse::GetBlock(self.get_block(block_number).map(Box::new))
             }
+<<<<<<< HEAD
             StateSyncRequest::GetBlockHash(block_number) => {
                 StateSyncResponse::GetBlockHash(self.get_block_hash(block_number))
             }
+||||||| 38f03e1d0
+=======
+            StateSyncRequest::GetBlockHash(block_number) => {
+                StateSyncResponse::GetBlockHash(self.get_block_hash(block_number).await)
+            }
+>>>>>>> origin/main-v0.14.0
             StateSyncRequest::AddNewBlock(sync_block) => StateSyncResponse::AddNewBlock(
                 self.new_block_sender.send(*sync_block).await.map_err(StateSyncError::from),
             ),
@@ -91,6 +127,7 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 impl StateSync {
     fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
         let txn = self.storage_reader.begin_ro_txn()?;
+<<<<<<< HEAD
 
         let block_header = txn
             .get_block_header(block_number)?
@@ -100,6 +137,34 @@ impl StateSync {
             .ok_or(StateSyncError::BlockNotFound(block_number))?;
         let thin_state_diff =
             txn.get_state_diff(block_number)?.ok_or(StateSyncError::BlockNotFound(block_number))?;
+||||||| 38f03e1d0
+        let block_header = txn.get_block_header(block_number)?;
+        let Some(block_transactions_with_hash) =
+            txn.get_block_transactions_with_hash(block_number)?
+        else {
+            return Ok(None);
+        };
+        let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
+            return Ok(None);
+        };
+        let Some(block_header) = block_header else {
+            return Ok(None);
+        };
+=======
+
+        let block_not_found_err = Err(StateSyncError::BlockNotFound(block_number));
+        let Some(block_header) = txn.get_block_header(block_number)? else {
+            return block_not_found_err;
+        };
+        let Some(block_transactions_with_hash) =
+            txn.get_block_transactions_with_hash(block_number)?
+        else {
+            return block_not_found_err;
+        };
+        let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
+            return block_not_found_err;
+        };
+>>>>>>> origin/main-v0.14.0
 
         let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
         let mut account_transaction_hashes: Vec<TransactionHash> = vec![];
@@ -115,6 +180,7 @@ impl StateSync {
             block_header_without_hash: block_header.block_header_without_hash,
             account_transaction_hashes,
             l1_transaction_hashes,
+<<<<<<< HEAD
         })
     }
 
@@ -124,6 +190,28 @@ impl StateSync {
             .get_block_header(block_number)?
             .ok_or(StateSyncError::BlockNotFound(block_number))?;
         Ok(block_header.block_hash)
+||||||| 38f03e1d0
+        }))
+=======
+        })
+    }
+
+    async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
+        // Getting the next block because the Sync block only contains parent hash.
+        match (self.get_block(block_number.unchecked_next()), self.starknet_client.as_ref()) {
+            (Ok(block), _) => Ok(block.block_header_without_hash.parent_hash),
+            (Err(StateSyncError::BlockNotFound(_)), Some(starknet_client)) => {
+                // As a fallback, try to get the block hash through the feeder directly. This
+                // method is faster than get_block which the sync runner uses.
+                // TODO(shahak): Test this flow.
+                starknet_client
+                    .block_hash(block_number)
+                    .await?
+                    .ok_or(StateSyncError::BlockNotFound(block_number))
+            }
+            (Err(err), _) => Err(err),
+        }
+>>>>>>> origin/main-v0.14.0
     }
 
     fn get_storage_at(
@@ -263,7 +351,7 @@ fn verify_contract_deployed<Mode: TransactionKind>(
 }
 
 pub type LocalStateSyncServer =
-    LocalComponentServer<StateSync, StateSyncRequest, StateSyncResponse>;
+    ConcurrentLocalComponentServer<StateSync, StateSyncRequest, StateSyncResponse>;
 pub type RemoteStateSyncServer = RemoteComponentServer<StateSyncRequest, StateSyncResponse>;
 
 impl ComponentStarter for StateSync {}

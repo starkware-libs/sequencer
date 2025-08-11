@@ -70,7 +70,7 @@ class ServiceApp(Construct):
             "service",
             metadata=k8s.ObjectMeta(
                 labels=self.labels,
-                annotations=self._get_service_anotations(),
+                annotations=self._get_service_annotations(),
             ),
             spec=k8s.ServiceSpec(
                 type=self._get_service_type(),
@@ -167,11 +167,27 @@ class ServiceApp(Construct):
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(),
-                                readiness_probe=self._get_http_probe(
-                                    path=const.PROBE_MONITORING_READY_PATH
+                                startup_probe=self._get_http_probe(
+                                    success_threshold=const.STARTUP_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.STARTUP_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.STARTUP_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.STARTUP_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
                                 ),
-                                liveness_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(
+                                    success_threshold=const.READINESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.READINESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.READINESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.READINESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_READY_PATH,
+                                ),
+                                liveness_probe=self._get_http_probe(
+                                    success_threshold=const.LIVENESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.LIVENESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.LIVENESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.LIVENESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
+                                ),
                                 volume_mounts=self._get_volume_mounts(),
                                 resources=self._get_container_resources(),
                             )
@@ -213,11 +229,27 @@ class ServiceApp(Construct):
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(),
-                                readiness_probe=self._get_http_probe(
-                                    path=const.PROBE_MONITORING_READY_PATH
+                                startup_probe=self._get_http_probe(
+                                    success_threshold=const.STARTUP_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.STARTUP_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.STARTUP_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.STARTUP_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
                                 ),
-                                liveness_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(
+                                    success_threshold=const.READINESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.READINESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.READINESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.READINESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_READY_PATH,
+                                ),
+                                liveness_probe=self._get_http_probe(
+                                    success_threshold=const.LIVENESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.LIVENESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.LIVENESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.LIVENESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
+                                ),
                                 volume_mounts=self._get_volume_mounts(),
                                 resources=self._get_container_resources(),
                             )
@@ -358,7 +390,7 @@ class ServiceApp(Construct):
             for attr in self._get_ports_subset_keys_from_config()
         ]
 
-    def _get_service_anotations(self) -> typing.Dict[str, str]:
+    def _get_service_annotations(self) -> typing.Dict[str, str]:
         annotations = {}
         if self.service_topology.k8s_service_config is None:
             return annotations
@@ -366,7 +398,12 @@ class ServiceApp(Construct):
             self.service_topology.k8s_service_config.get("internal") is True
             and self._get_service_type() == const.K8SServiceType.LOAD_BALANCER
         ):
-            annotations.update({"cloud.google.com/load-balancer-type": "Internal"})
+            annotations.update(
+                {
+                    "cloud.google.com/load-balancer-type": "Internal",
+                    "networking.gke.io/internal-load-balancer-allow-global-access": "true",
+                }
+            )
         if self.service_topology.k8s_service_config.get("external_dns_name"):
             annotations.update(
                 {
@@ -392,16 +429,18 @@ class ServiceApp(Construct):
 
     def _get_http_probe(
         self,
-        period_seconds: int = const.PROBE_PERIOD_SECONDS,
-        failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
-        timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS,
-        path: str = const.PROBE_MONITORING_ALIVE_PATH,
+        success_threshold: int,
+        failure_threshold: int,
+        period_seconds: int,
+        timeout_seconds: int,
+        path: str,
     ) -> k8s.Probe:
         return k8s.Probe(
             http_get=k8s.HttpGetAction(
                 path=path,
                 port=k8s.IntOrString.from_number(self.monitoring_endpoint_port),
             ),
+            success_threshold=success_threshold,
             period_seconds=period_seconds,
             failure_threshold=failure_threshold,
             timeout_seconds=timeout_seconds,

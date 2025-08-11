@@ -46,12 +46,23 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "ConsensusP2p": 53080,
         "HttpServer": 8080,
         "MempoolP2p": 53200,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "ports": {
+        "ConsensusP2P": 53080,
+        "HttpServer": 8080,
+        "MempoolP2p": 53200,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     }
   ]
 }

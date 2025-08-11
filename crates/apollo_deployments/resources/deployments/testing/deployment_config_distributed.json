@@ -104,10 +104,19 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "ConsensusP2p": 53080,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "ports": {
+        "ConsensusP2P": 53080,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "HttpServer",
@@ -302,6 +311,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "SierraCompiler": 55007,
         "MonitoringEndpoint": 8082
@@ -341,6 +351,14 @@
         "SignatureManager": 55008,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "ports": {
+        "SierraCompiler": 55007,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "StateSync",

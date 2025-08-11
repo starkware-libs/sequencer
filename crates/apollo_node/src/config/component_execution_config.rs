@@ -17,6 +17,10 @@ const DEFAULT_INVALID_PORT: u16 = 0;
 
 pub const MAX_CONCURRENCY: usize = 8;
 
+pub trait ExpectedComponentConfig {
+    fn is_component_config_expected(&self) -> bool;
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReactiveComponentExecutionMode {
     Disabled,
@@ -25,10 +29,31 @@ pub enum ReactiveComponentExecutionMode {
     LocalExecutionWithRemoteDisabled,
 }
 
+impl ExpectedComponentConfig for ReactiveComponentExecutionMode {
+    fn is_component_config_expected(&self) -> bool {
+        match self {
+            ReactiveComponentExecutionMode::Disabled | ReactiveComponentExecutionMode::Remote => {
+                false
+            }
+            ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled
+            | ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled => true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum ActiveComponentExecutionMode {
     Disabled,
     Enabled,
+}
+
+impl ExpectedComponentConfig for ActiveComponentExecutionMode {
+    fn is_component_config_expected(&self) -> bool {
+        match self {
+            ActiveComponentExecutionMode::Disabled => false,
+            ActiveComponentExecutionMode::Enabled => true,
+        }
+    }
 }
 
 /// Reactive component configuration.
@@ -154,6 +179,12 @@ impl ReactiveComponentExecutionConfig {
     }
 }
 
+impl ExpectedComponentConfig for ReactiveComponentExecutionConfig {
+    fn is_component_config_expected(&self) -> bool {
+        self.execution_mode.is_component_config_expected()
+    }
+}
+
 /// Active component configuration.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 #[validate(schema(function = "validate_active_component_execution_config"))]
@@ -175,6 +206,12 @@ impl SerializeConfig for ActiveComponentExecutionConfig {
 impl Default for ActiveComponentExecutionConfig {
     fn default() -> Self {
         ActiveComponentExecutionConfig::enabled()
+    }
+}
+
+impl ExpectedComponentConfig for ActiveComponentExecutionConfig {
+    fn is_component_config_expected(&self) -> bool {
+        self.execution_mode.is_component_config_expected()
     }
 }
 

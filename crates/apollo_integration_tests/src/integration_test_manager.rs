@@ -10,11 +10,11 @@ use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
+use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
-use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::config_utils::DeploymentBaseAppConfig;
 use apollo_node::config::definitions::ConfigPointersMap;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_NON_POINTERS_WHITELIST};
@@ -88,11 +88,14 @@ pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
 pub const HTTP_PORT_ARG: &str = "http-port";
 pub const MONITORING_PORT_ARG: &str = "monitoring-port";
 
+const ALLOW_BOOTSTRAP_TXS: bool = false;
+
 pub struct NodeSetup {
     executables: Vec<ExecutableSetup>,
     batcher_index: usize,
     http_server_index: usize,
     state_sync_index: usize,
+    consensus_manager_index: usize,
 
     // Client for adding transactions to the sequencer node.
     pub add_tx_http_client: HttpTestClient,
@@ -112,6 +115,7 @@ impl NodeSetup {
         batcher_index: usize,
         http_server_index: usize,
         state_sync_index: usize,
+        consensus_manager_index: usize,
         add_tx_http_client: HttpTestClient,
         storage_handles: StorageTestHandles,
     ) -> Self {
@@ -127,12 +131,14 @@ impl NodeSetup {
         validate_index(batcher_index, len, "Batcher");
         validate_index(http_server_index, len, "HTTP server");
         validate_index(state_sync_index, len, "State sync");
+        validate_index(consensus_manager_index, len, "Consensus manager");
 
         Self {
             executables,
             batcher_index,
             http_server_index,
             state_sync_index,
+            consensus_manager_index,
             add_tx_http_client,
             storage_handles,
         }
@@ -148,6 +154,10 @@ impl NodeSetup {
 
     pub fn state_sync_monitoring_client(&self) -> &MonitoringClient {
         &self.executables[self.state_sync_index].monitoring_client
+    }
+
+    pub fn consensus_manager_monitoring_client(&self) -> &MonitoringClient {
+        &self.executables[self.consensus_manager_index].monitoring_client
     }
 
     pub fn get_executables(&self) -> &Vec<ExecutableSetup> {
@@ -698,6 +708,14 @@ impl IntegrationTestManager {
         .await;
     }
 
+    pub async fn get_consensus_manager_monitoring_client_for_running_node(
+        &self,
+        node_idx: usize,
+    ) -> &MonitoringClient {
+        let running_node = self.running_nodes.get(&node_idx).expect("Running node should exist");
+        &running_node.node_setup.consensus_manager_monitoring_client()
+    }
+
     pub async fn await_sync_block_on_all_running_nodes(
         &mut self,
         expected_block_number: BlockNumber,
@@ -789,7 +807,7 @@ pub fn nonce_to_usize(nonce: Nonce) -> usize {
     usize::from_str_radix(unprefixed_hex, 16).unwrap()
 }
 
-pub async fn get_sequencer_setup_configs(
+async fn get_sequencer_setup_configs(
     tx_generator: &MultiAccountTransactionGenerator,
     // TODO(Tsabary/Nadin): instead of number of nodes, this should be a vector of deployments.
     num_of_consolidated_nodes: usize,
@@ -863,6 +881,7 @@ pub async fn get_sequencer_setup_configs(
 
     let mut nodes = Vec::new();
 
+    // TODO(tsabary): Move these to the start of the test and propagate their values when relevant.
     // All nodes use the same recorder_url and eth_to_strk_oracle_url.
     let (recorder_url, _join_handle) =
         spawn_local_success_recorder(base_layer_ports.get_next_port());
@@ -873,20 +892,25 @@ pub async fn get_sequencer_setup_configs(
         .next()
         .expect("Failed to get an AvailablePorts instance for node configs");
 
+    // Create nodes.
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
         let mut executables = Vec::new();
         let batcher_index = node_component_config.get_batcher_index();
         let http_server_index = node_component_config.get_http_server_index();
         let state_sync_index = node_component_config.get_state_sync_index();
         let class_manager_index = node_component_config.get_class_manager_index();
+        let consensus_manager_index = node_component_config.get_consensus_manager_index();
 
         let mut consensus_manager_config = consensus_manager_configs.remove(0);
         let mempool_p2p_config = mempool_p2p_configs.remove(0);
         let state_sync_config = state_sync_configs.remove(0);
 
         consensus_manager_config.cende_config.recorder_url = recorder_url.clone();
-        consensus_manager_config.eth_to_strk_oracle_config.url_header_list =
-            Some(vec![eth_to_strk_oracle_url.clone()]);
+        let eth_to_strk_oracle_config = EthToStrkOracleConfig {
+            url_header_list: Some(vec![eth_to_strk_oracle_url.clone()]),
+            ..Default::default()
+        };
+
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
         let chain_info = chain_info.clone();
 
@@ -900,56 +924,63 @@ pub async fn get_sequencer_setup_configs(
             &chain_info,
         );
 
-        // Derive the configuration for the sequencer node.
-        let allow_bootstrap_txs = false;
-        let (config, config_pointers_map) = create_node_config(
-            &mut config_available_ports,
-            chain_info,
-            storage_setup.storage_config.clone(),
-            state_sync_config,
-            consensus_manager_config,
-            mempool_p2p_config,
-            MonitoringEndpointConfig::default(),
-            ComponentConfig::default(),
-            base_layer_config.clone(),
-            BLOCK_MAX_CAPACITY_N_STEPS,
-            validator_id,
-            allow_bootstrap_txs,
-        );
-        let base_app_config = DeploymentBaseAppConfig::new(
-            config.clone(),
-            config_pointers_map.clone(),
-            CONFIG_NON_POINTERS_WHITELIST.clone(),
-        );
-
-        let HttpServerConfig { ip, port } = config.http_server_config.unwrap();
-        let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
-
+        // Per node, create the executables constituting it.
         for (executable_index, executable_component_config) in
             node_component_config.into_iter().enumerate()
         {
+            // Set a monitoring endpoint for each executable.
+            let monitoring_endpoint_config = MonitoringEndpointConfig {
+                port: config_available_ports.get_next_port(),
+                collect_metrics: true,
+                ..Default::default()
+            };
+
+            let (config, config_pointers_map) = create_node_config(
+                &mut config_available_ports,
+                chain_info.clone(),
+                storage_setup.storage_config.clone(),
+                state_sync_config.clone(),
+                consensus_manager_config.clone(),
+                eth_to_strk_oracle_config.clone(),
+                mempool_p2p_config.clone(),
+                monitoring_endpoint_config,
+                executable_component_config.clone(),
+                base_layer_config.clone(),
+                BLOCK_MAX_CAPACITY_N_STEPS,
+                validator_id,
+                ALLOW_BOOTSTRAP_TXS,
+            );
+
+            let base_app_config = DeploymentBaseAppConfig::new(
+                config,
+                config_pointers_map,
+                CONFIG_NON_POINTERS_WHITELIST.clone(),
+            );
+
             let node_execution_id = NodeExecutionId::new(node_index, executable_index);
             let exec_config_path =
                 custom_paths.as_ref().and_then(|paths| paths.get_config_path(&node_execution_id));
 
             executables.push(
-                ExecutableSetup::new(
-                    base_app_config.clone(),
-                    node_execution_id,
-                    available_ports_generator
-                        .next()
-                        .expect("Failed to get an AvailablePorts instance for executable configs"),
-                    exec_config_path,
-                    executable_component_config,
-                )
-                .await,
+                ExecutableSetup::new(base_app_config, node_execution_id, exec_config_path).await,
             );
         }
+
+        let http_server_config = executables[http_server_index]
+            .base_app_config
+            .get_config()
+            .http_server_config
+            .as_ref()
+            .expect("Http server config should be set for this executable.");
+        let HttpServerConfig { ip, port } = http_server_config;
+        let add_tx_http_client = HttpTestClient::new(SocketAddr::new(*ip, *port));
+
         nodes.push(NodeSetup::new(
             executables,
             batcher_index,
             http_server_index,
             state_sync_index,
+            consensus_manager_index,
             add_tx_http_client,
             storage_setup.storage_handles,
         ));

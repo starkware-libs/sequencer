@@ -993,6 +993,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -1085,7 +1086,6 @@ dependencies = [
  "apollo_consensus_orchestrator",
  "apollo_infra",
  "apollo_infra_utils",
- "apollo_l1_gas_price",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
  "apollo_network",
@@ -1338,6 +1338,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "time",
  "tokio",
@@ -1377,6 +1378,7 @@ dependencies = [
  "anyhow",
  "apollo_batcher",
  "apollo_class_manager",
+ "apollo_compile_to_casm",
  "apollo_config",
  "apollo_consensus",
  "apollo_consensus_manager",
@@ -1504,11 +1506,9 @@ dependencies = [
  "papyrus_base_layer",
  "reqwest 0.11.27",
  "serde",
- "serde_json",
  "starknet_api",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
- "tokio",
  "tracing",
 ]
 
@@ -2144,6 +2144,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_infra",
  "apollo_proc_macros",
+ "apollo_starknet_client",
  "apollo_storage",
  "async-trait",
  "futures",
@@ -4001,9 +4002,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.6.0-rc.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bb843f93a320c7d8cb99843a02c4c613f8263022ce8b52070d82cc4341168ee"
+checksum = "4d714224a1280776d90422e631790c0138d138a80b8e16231829dacea13c8289"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -4057,9 +4058,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-vm"
-version = "2.2.0"
+version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d2a2f6d93aa279509d396d6f5c1992fa63d7d32c2b8d61ffa3398617c2cd0cd"
+checksum = "2afc2bb5cf948599994a1f1634edc81934c3952e2f32c8e49efbde63d767fa69"
 dependencies = [
  "anyhow",
  "bincode 2.0.0-rc.3",

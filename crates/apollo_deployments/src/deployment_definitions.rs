@@ -8,15 +8,22 @@ use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use starknet_api::block::BlockNumber;
+<<<<<<< HEAD
 use strum::{EnumIter, IntoEnumIterator};
 use strum_macros::{Display, EnumDiscriminants, EnumString};
+||||||| 38f03e1d0
+use strum::EnumIter;
+use strum_macros::{Display, EnumString};
+=======
+use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
+use strum_macros::{Display, EnumString};
+>>>>>>> origin/main-v0.14.0
 use url::Url;
 
 use crate::deployment::{Deployment, P2PCommunicationType};
 use crate::deployment_definitions::testing::system_test_deployments;
 use crate::deployment_definitions::upgrade_test::upgrade_test_hybrid_deployments;
 use crate::deployments::hybrid::load_and_create_hybrid_deployments;
-
 #[cfg(test)]
 #[path = "deployment_definitions_test.rs"]
 mod deployment_definitions_test;
@@ -26,6 +33,7 @@ mod upgrade_test;
 
 type DeploymentFn = fn() -> Vec<Deployment>;
 
+<<<<<<< HEAD
 const BATCHER_PORT: u16 = 55000;
 const CLASS_MANAGER_PORT: u16 = 55001;
 const CONSENSUS_P2P_PORT: u16 = 53080;
@@ -39,6 +47,21 @@ const SIERRA_COMPILER_PORT: u16 = 55007;
 const SIGNATURE_MANAGER_PORT: u16 = 55008;
 const STATE_SYNC_PORT: u16 = 55009;
 
+||||||| 38f03e1d0
+=======
+const BATCHER_PORT: u16 = 55000;
+const CLASS_MANAGER_PORT: u16 = 55001;
+const CONSENSUS_P2P_PORT: u16 = 53080;
+const GATEWAY_PORT: u16 = 55002;
+const L1_ENDPOINT_MONITOR_PORT: u16 = 55005;
+const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;
+const L1_PROVIDER_PORT: u16 = 55004;
+const MEMPOOL_PORT: u16 = 55006;
+const MEMPOOL_P2P_PORT: u16 = 53200;
+const SIERRA_COMPILER_PORT: u16 = 55007;
+const STATE_SYNC_PORT: u16 = 55009;
+
+>>>>>>> origin/main-v0.14.0
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     || load_and_create_hybrid_deployments(POTC2_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(MAINNET_DEPLOYMENT_INPUTS_PATH),
@@ -170,6 +193,7 @@ impl StateSyncType {
     }
 }
 
+<<<<<<< HEAD
 #[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
 pub enum BusinessLogicServicePort {
     ConsensusP2p,
@@ -193,6 +217,34 @@ impl BusinessLogicServicePort {
 // is complete.
 #[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
 pub enum InfraServicePort {
+||||||| 38f03e1d0
+#[derive(Clone, Debug, Display, Serialize, PartialEq)]
+pub enum ServicePort {
+=======
+#[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
+pub enum BusinessLogicServicePort {
+    ConsensusP2P,
+    HttpServer,
+    MempoolP2p,
+    MonitoringEndpoint,
+}
+
+impl BusinessLogicServicePort {
+    pub fn get_port(&self) -> u16 {
+        match self {
+            BusinessLogicServicePort::ConsensusP2P => CONSENSUS_P2P_PORT,
+            BusinessLogicServicePort::HttpServer => HTTP_SERVER_PORT,
+            BusinessLogicServicePort::MempoolP2p => MEMPOOL_P2P_PORT,
+            BusinessLogicServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
+        }
+    }
+}
+
+// TODO(Nadin): Integrate this logic with `ComponentConfigInService` once the merge from main-14.0
+// is complete.
+#[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
+pub enum InfraServicePort {
+>>>>>>> origin/main-v0.14.0
     Batcher,
     ClassManager,
     Gateway,
@@ -203,6 +255,61 @@ pub enum InfraServicePort {
     SierraCompiler,
     SignatureManager,
     StateSync,
+<<<<<<< HEAD
+||||||| 38f03e1d0
+    HttpServer,
+    MonitoringEndpoint,
+=======
+}
+
+impl InfraServicePort {
+    pub fn get_port(&self) -> u16 {
+        match self {
+            InfraServicePort::Batcher => BATCHER_PORT,
+            InfraServicePort::ClassManager => CLASS_MANAGER_PORT,
+            InfraServicePort::Gateway => GATEWAY_PORT,
+            InfraServicePort::L1EndpointMonitor => L1_ENDPOINT_MONITOR_PORT,
+            InfraServicePort::L1GasPriceProvider => L1_GAS_PRICE_PROVIDER_PORT,
+            InfraServicePort::L1Provider => L1_PROVIDER_PORT,
+            InfraServicePort::Mempool => MEMPOOL_PORT,
+            InfraServicePort::SierraCompiler => SIERRA_COMPILER_PORT,
+            InfraServicePort::StateSync => STATE_SYNC_PORT,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Display, Ord, PartialEq, Eq, PartialOrd, EnumDiscriminants)]
+pub enum ServicePort {
+    Infra(InfraServicePort),
+    BusinessLogic(BusinessLogicServicePort),
+}
+
+impl serde::Serialize for ServicePort {
+    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            ServicePort::Infra(port) => serde::Serialize::serialize(port, serializer),
+            ServicePort::BusinessLogic(port) => serde::Serialize::serialize(port, serializer),
+        }
+    }
+}
+
+impl ServicePort {
+    pub fn get_port(&self) -> u16 {
+        match self {
+            ServicePort::Infra(inner) => inner.get_port(),
+            ServicePort::BusinessLogic(inner) => inner.get_port(),
+        }
+    }
+
+    pub fn iter() -> impl Iterator<Item = ServicePort> {
+        InfraServicePort::iter()
+            .map(ServicePort::Infra)
+            .chain(BusinessLogicServicePort::iter().map(ServicePort::BusinessLogic))
+    }
+>>>>>>> origin/main-v0.14.0
 }
 
 impl InfraServicePort {

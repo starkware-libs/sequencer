@@ -2,10 +2,14 @@ use apollo_starknet_os_program::{AGGREGATOR_PROGRAM, OS_PROGRAM};
 use blockifier::state::state_api::StateReader;
 use cairo_vm::cairo_run::CairoRunConfig;
 use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::program::Program;
-use cairo_vm::vm::errors::vm_exception::VmException;
-use cairo_vm::vm::runners::cairo_pie::CairoPie;
+use cairo_vm::vm::runners::cairo_pie::{
+    BuiltinAdditionalData,
+    CairoPie,
+    OutputBuiltinAdditionalData,
+};
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 #[cfg(feature = "include_program_output")]
 use starknet_types_core::felt::Felt;
@@ -15,9 +19,11 @@ use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hint_processor::panicking_state_reader::PanickingStateReader;
 use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
+use crate::hints::hint_implementation::output::OUTPUT_ATTRIBUTE_FACT_TOPOLOGY;
 use crate::io::os_input::{OsHints, StarknetOsInput};
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::OsMetrics;
+use crate::vm_utils::vm_error_with_code_snippet;
 
 pub const DEFAULT_OS_LAYOUT: LayoutName = LayoutName::all_cairo;
 
@@ -56,7 +62,7 @@ fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
     // Run the Cairo VM.
     cairo_runner
         .run_until_pc(end, hint_processor)
-        .map_err(|err| Box::new(VmException::from_vm_error(&cairo_runner, err)))?;
+        .map_err(|err| Box::new(vm_error_with_code_snippet(&cairo_runner, err)))?;
 
     // End the Cairo VM run.
     let disable_finalize_all = false;
@@ -105,6 +111,8 @@ pub fn run_os<S: StateReader>(
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<StarknetOsRunnerOutput, StarknetOsError> {
+    let is_onchain_kzg_da = !os_hints_config.full_output && os_hints_config.use_kzg_da;
+
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
         &OS_PROGRAM,
@@ -117,6 +125,31 @@ pub fn run_os<S: StateReader>(
     )?;
 
     let mut runner_output = run_program(layout, &OS_PROGRAM, &mut snos_hint_processor)?;
+
+    // Extract the output attributes.
+    let BuiltinAdditionalData::Output(OutputBuiltinAdditionalData {
+        attributes: output_attributes,
+        ..
+    }) = runner_output
+        .cairo_pie
+        .additional_data
+        .0
+        .get(&BuiltinName::output)
+        .expect("Output builtin should be present in the CairoPie.")
+    else {
+        panic!("Output builtin additional data should be of type OutputBuiltinAdditionalData.")
+    };
+
+    if is_onchain_kzg_da {
+        // Sanity check.
+        assert!(output_attributes.is_empty(), "No attributes should be added in KZG mode.");
+    } else {
+        // The data-availability should be part of the output.
+        assert!(
+            output_attributes.contains_key(OUTPUT_ATTRIBUTE_FACT_TOPOLOGY),
+            "{OUTPUT_ATTRIBUTE_FACT_TOPOLOGY:?} is missing.",
+        );
+    }
 
     Ok(StarknetOsRunnerOutput {
         #[cfg(feature = "include_program_output")]

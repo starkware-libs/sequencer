@@ -109,6 +109,8 @@ pub enum ClassManagerError {
         contract_class_object_size: usize,
         max_contract_class_object_size: usize,
     },
+    #[error("Unsupported contract class version: {0}.")]
+    UnsupportedContractClassVersion(String),
 }
 
 impl<E: Error> From<CachedClassStorageError<E>> for ClassManagerError {

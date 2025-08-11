@@ -1,5 +1,6 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
+use libp2p::gossipsub::PeerScoreThresholds;
 use libp2p::identity::Keypair;
 use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
@@ -68,10 +69,49 @@ impl MixedBehaviour {
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
+<<<<<<< HEAD
         let protocol_name =
             StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
                 .expect("Failed to create StreamProtocol from a string that starts with /");
         let kademlia_config = kad::Config::new(protocol_name);
+||||||| 38f03e1d0
+        let mut kademlia_config = kad::Config::default();
+        kademlia_config.set_protocol_names(vec![
+            StreamProtocol::try_from_owned(format!("/starknet/kad/{}/1.0.0", chain_id))
+                .expect("Failed to create StreamProtocol from a string that starts with /"),
+        ]);
+=======
+        let mut kademlia_config = kad::Config::default();
+        kademlia_config.set_protocol_names(vec![
+            StreamProtocol::try_from_owned(format!("/starknet/kad/{}/1.0.0", chain_id))
+                .expect("Failed to create StreamProtocol from a string that starts with /"),
+        ]);
+        let mut gossipsub = gossipsub::Behaviour::new(
+            gossipsub::MessageAuthenticity::Signed(keypair),
+            gossipsub::ConfigBuilder::default()
+                    // TODO(shahak): try to reduce this bound.
+                    .max_transmit_size(1 << 34)
+                    .max_messages_per_rpc(Some(1))
+                    .build()
+                    .expect("Failed to build gossipsub config"),
+        )
+        .unwrap_or_else(|err_string| {
+            panic!("Failed creating gossipsub behaviour due to the following error: {err_string}")
+        });
+        // TODO(AndrewL): remove this in a non-trusted network
+        gossipsub
+            .with_peer_score(
+                Default::default(),
+                PeerScoreThresholds {
+                    gossip_threshold: f64::MIN,
+                    publish_threshold: f64::MIN,
+                    graylist_threshold: f64::MIN,
+                    ..Default::default()
+                },
+            )
+            .expect("Failed to set peer score parameters for gossipsub behaviour");
+
+>>>>>>> origin/main-v0.14.0
         Self {
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
             discovery: bootstrap_peers_multiaddrs
@@ -110,19 +150,7 @@ impl MixedBehaviour {
                 kademlia_config,
             ),
             sqmr: sqmr::Behaviour::new(streamed_bytes_config),
-            gossipsub: gossipsub::Behaviour::new(
-                gossipsub::MessageAuthenticity::Signed(keypair),
-                gossipsub::ConfigBuilder::default()
-                    // TODO(shahak): try to reduce this bound.
-                    .max_transmit_size(1 << 34)
-                    .build()
-                    .expect("Failed to build gossipsub config"),
-            )
-            .unwrap_or_else(|err_string| {
-                panic!(
-                    "Failed creating gossipsub behaviour due to the following error: {err_string}"
-                )
-            }),
+            gossipsub,
         }
     }
 }

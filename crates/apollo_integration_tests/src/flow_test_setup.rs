@@ -1,12 +1,20 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+<<<<<<< HEAD
 use apollo_config::converters::UrlAndHeaders;
+||||||| 38f03e1d0
+use alloy::node_bindings::AnvilInstance;
+use apollo_config::converters::UrlAndHeaders;
+=======
+use alloy::node_bindings::AnvilInstance;
+>>>>>>> origin/main-v0.14.0
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra_utils::test_utils::AvailablePorts;
+use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -50,7 +58,6 @@ use starknet_api::transaction::{
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};
-use url::Url;
 
 use crate::anvil_base_layer::AnvilBaseLayer;
 use crate::state_reader::{StorageTestHandles, StorageTestSetup};
@@ -65,7 +72,7 @@ use crate::utils::{
     AccumulatedTransactions,
 };
 
-const NUM_OF_SEQUENCERS: usize = 2;
+pub const NUM_OF_SEQUENCERS: usize = 2;
 const SEQUENCER_0: usize = 0;
 const SEQUENCER_1: usize = 1;
 const BUILDER_BASE_ADDRESS: Felt = Felt::from_hex_unchecked("0x42");
@@ -134,6 +141,7 @@ impl FlowTestSetup {
         )
         .await;
 
+        // TODO(Itamar): Remove txs collector logic when flow tests are stable enough.
         // Spawn a thread that listens to proposals and collects batched transactions.
         let accumulated_txs = Arc::new(Mutex::new(AccumulatedTransactions::default()));
         let tx_collector_task = TxCollector {
@@ -243,8 +251,10 @@ impl FlowSequencerSetup {
 
         let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
-        consensus_manager_config.eth_to_strk_oracle_config.url_header_list =
-            Some(vec![eth_to_strk_oracle_url_headers]);
+        let eth_to_strk_oracle_config = EthToStrkOracleConfig {
+            url_header_list: Some(vec![eth_to_strk_oracle_url_headers]),
+            ..Default::default()
+        };
 
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
 
@@ -266,6 +276,7 @@ impl FlowSequencerSetup {
             storage_config,
             state_sync_config,
             consensus_manager_config,
+            eth_to_strk_oracle_config,
             mempool_p2p_config,
             monitoring_endpoint_config,
             component_config,
@@ -334,10 +345,6 @@ pub fn create_consensus_manager_configs_and_channels(
     for (i, config) in consensus_manager_configs.iter_mut().enumerate() {
         config.context_config.builder_address =
             ContractAddress::try_from(BUILDER_BASE_ADDRESS + Felt::from(i)).unwrap();
-        config.eth_to_strk_oracle_config.url_header_list = Some(vec![UrlAndHeaders {
-            url: Url::parse("https://eth_to_strk_oracle_url").expect("Should be a valid URL"),
-            headers: BTreeMap::new(),
-        }]);
     }
 
     let broadcast_channels = network_config_into_broadcast_channels(
