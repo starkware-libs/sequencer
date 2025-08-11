@@ -1,6 +1,9 @@
 use std::ops::AddAssign;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
+
+use crate::execution::contract_class::{EntryPointV1, EntryPointsByType, NestedFeltCounts};
 
 #[cfg(test)]
 #[path = "casm_hash_estimation_test.rs"]
@@ -18,6 +21,20 @@ pub enum EstimatedExecutionResources {
     /// Blake opcodes count is tracked separately, as they are not included in
     /// `ExecutionResources`.
     V2Hash { resources: ExecutionResources, blake_count: usize },
+}
+
+impl EstimatedExecutionResources {
+    pub fn new(hash_version: HashVersion) -> Self {
+        match hash_version {
+            HashVersion::V1 => {
+                EstimatedExecutionResources::V1Hash { resources: ExecutionResources::default() }
+            }
+            HashVersion::V2 => EstimatedExecutionResources::V2Hash {
+                resources: ExecutionResources::default(),
+                blake_count: 0,
+            },
+        }
+    }
 }
 
 impl AddAssign<&ExecutionResources> for EstimatedExecutionResources {
@@ -68,5 +85,28 @@ impl AddAssign<&EstimatedExecutionResources> for EstimatedExecutionResources {
                 panic!("Cannot add V1 EstimatedExecutionResources to V2 variant")
             }
         }
+    }
+}
+
+// TODO(AvivG): Remove allow once used.
+#[allow(unused)]
+trait ExecutionResourcesEstimator {
+    fn hash_version(&self) -> HashVersion;
+
+    /// Estimates resources used by the hash function for the current hash version.
+    fn cost_of_hash_function(
+        &mut self,
+        _felt_count: NestedFeltCounts,
+    ) -> EstimatedExecutionResources;
+
+    /// Estimates resources used by the `compiled_class_hash` Cairo function used in the Starknet
+    /// OS.
+    fn cost_of_compiled_class_hash(
+        &mut self,
+        _bytecode_segment_felt_sizes: &NestedFeltCounts,
+        _entry_points_by_type: &EntryPointsByType<EntryPointV1>,
+    ) -> EstimatedExecutionResources {
+        // TODO(AvivG): Implement.
+        EstimatedExecutionResources::new(self.hash_version())
     }
 }
