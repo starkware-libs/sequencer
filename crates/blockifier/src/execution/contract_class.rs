@@ -106,6 +106,50 @@ impl From<&NestedFeltCounts> for NestedIntList {
     }
 }
 
+impl NestedFeltCounts {
+    /// Builds a nested structure matching `layout`, consuming values from `bytecode`.
+    #[allow(unused)]
+    pub(crate) fn new(bytecode_segment_lengths: &NestedIntList, bytecode: &[BigUintAsHex]) -> Self {
+        let (base_node, consumed_felts) = Self::new_inner(bytecode_segment_lengths, bytecode, 0);
+        assert_eq!(consumed_felts, bytecode.len());
+        base_node
+    }
+
+    /// Recursively builds the nested structure and returns it with the number of items consumed.
+    fn new_inner(
+        bytecode_segment_lengths: &NestedIntList,
+        bytecode: &[BigUintAsHex],
+        segmentation_depth: usize,
+    ) -> (Self, usize) {
+        assert!(segmentation_depth <= 1, "Only supported for segmentation depth at most 1.");
+
+        match bytecode_segment_lengths {
+            NestedIntList::Leaf(len) => {
+                let felt_size_groups = FeltSizeCount::from(&bytecode[..*len]);
+                (NestedFeltCounts::Leaf(*len, felt_size_groups), *len)
+            }
+            NestedIntList::Node(segments_vec) => {
+                let mut total_felt_count = 0;
+                let mut segments = Vec::with_capacity(segments_vec.len());
+
+                for segment in segments_vec {
+                    // Recurse into the segment layout.
+                    let (segment, felt_count) = Self::new_inner(
+                        segment,
+                        &bytecode[total_felt_count..],
+                        segmentation_depth + 1,
+                    );
+                    // Accumulate the count from the segment`s subtree.
+                    total_felt_count += felt_count;
+                    segments.push(segment);
+                }
+
+                (NestedFeltCounts::Node(segments), total_felt_count)
+            }
+        }
+    }
+}
+
 /// The resource used to run a contract function.
 #[cfg_attr(feature = "transaction_serde", derive(serde::Deserialize))]
 #[derive(Clone, Copy, Default, Debug, Eq, PartialEq, Serialize)]
@@ -814,50 +858,6 @@ impl<EP: HasSelector> Index<EntryPointType> for EntryPointsByType<EP> {
             EntryPointType::Constructor => &self.constructor,
             EntryPointType::External => &self.external,
             EntryPointType::L1Handler => &self.l1_handler,
-        }
-    }
-}
-
-impl NestedFeltCounts {
-    /// Builds a nested structure matching `layout`, consuming values from `bytecode`.
-    #[allow(unused)]
-    pub(crate) fn new(bytecode_segment_lengths: &NestedIntList, bytecode: &[BigUintAsHex]) -> Self {
-        let (base_node, consumed_felts) = Self::new_inner(bytecode_segment_lengths, bytecode, 0);
-        assert_eq!(consumed_felts, bytecode.len());
-        base_node
-    }
-
-    /// Recursively builds the nested structure and returns it with the number of items consumed.
-    fn new_inner(
-        bytecode_segment_lengths: &NestedIntList,
-        bytecode: &[BigUintAsHex],
-        segmentation_depth: usize,
-    ) -> (Self, usize) {
-        assert!(segmentation_depth <= 1, "Only supported for segmentation depth at most 1.");
-
-        match bytecode_segment_lengths {
-            NestedIntList::Leaf(len) => {
-                let felt_size_groups = FeltSizeCount::from(&bytecode[..*len]);
-                (NestedFeltCounts::Leaf(*len, felt_size_groups), *len)
-            }
-            NestedIntList::Node(segments_vec) => {
-                let mut total_felt_count = 0;
-                let mut segments = Vec::with_capacity(segments_vec.len());
-
-                for segment in segments_vec {
-                    // Recurse into the segment layout.
-                    let (segment, felt_count) = Self::new_inner(
-                        segment,
-                        &bytecode[total_felt_count..],
-                        segmentation_depth + 1,
-                    );
-                    // Accumulate the count from the segment`s subtree.
-                    total_felt_count += felt_count;
-                    segments.push(segment);
-                }
-
-                (NestedFeltCounts::Node(segments), total_felt_count)
-            }
         }
     }
 }
