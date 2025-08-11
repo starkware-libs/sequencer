@@ -327,6 +327,7 @@ impl OsOutput {
 
 #[derive(Debug)]
 pub struct StarknetOsRunnerOutput {
+    pub raw_os_output: Vec<Felt>,
     #[cfg(feature = "include_program_output")]
     pub os_output: OsOutput,
     pub cairo_pie: CairoPie,
