@@ -151,9 +151,12 @@ impl StatefulTransactionValidator {
         let latest_block_info = get_latest_block_info(state_reader_factory)?;
         let state_reader = state_reader_factory.get_state_reader(latest_block_info.block_number);
         let state = CachedState::new(state_reader);
-        let versioned_constants = VersionedConstants::get_versioned_constants(
+        let mut versioned_constants = VersionedConstants::get_versioned_constants(
             self.config.versioned_constants_overrides.clone(),
         );
+        // The validation of a transaction is not affected by the casm hash migration.
+        versioned_constants.enable_casm_hash_migration = false;
+
         let mut block_info = latest_block_info;
         block_info.block_number = block_info.block_number.unchecked_next();
         // TODO(yael 21/4/24): create the block context using pre_process_block once we will be
