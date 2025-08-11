@@ -213,7 +213,7 @@ pub struct RemoteServerMetrics {
     total_received_msgs: &'static MetricCounter,
     valid_received_msgs: &'static MetricCounter,
     processed_msgs: &'static MetricCounter,
-    _number_of_connections: &'static MetricGauge,
+    pub number_of_connections: &'static MetricGauge,
 }
 
 impl RemoteServerMetrics {
@@ -223,18 +223,14 @@ impl RemoteServerMetrics {
         processed_msgs: &'static MetricCounter,
         number_of_connections: &'static MetricGauge,
     ) -> Self {
-        Self {
-            total_received_msgs,
-            valid_received_msgs,
-            processed_msgs,
-            _number_of_connections: number_of_connections,
-        }
+        Self { total_received_msgs, valid_received_msgs, processed_msgs, number_of_connections }
     }
 
     pub fn register(&self) {
         self.total_received_msgs.register();
         self.valid_received_msgs.register();
         self.processed_msgs.register();
+        self.number_of_connections.register();
     }
 
     pub fn increment_total_received(&self) {
@@ -268,5 +264,20 @@ impl RemoteServerMetrics {
         self.processed_msgs
             .parse_numeric_metric::<u64>(metrics_as_string)
             .expect("processed_msgs metrics should be available")
+    }
+
+    pub fn increment_number_of_connections(&self) {
+        self.number_of_connections.increment(1);
+    }
+
+    pub fn decrement_number_of_connections(&self) {
+        self.number_of_connections.decrement(1);
+    }
+
+    #[cfg(any(feature = "testing", test))]
+    pub fn get_number_of_connections_value(&self, metrics_as_string: &str) -> usize {
+        self.number_of_connections
+            .parse_numeric_metric::<usize>(metrics_as_string)
+            .expect("number_of_connections metrics should be available")
     }
 }
