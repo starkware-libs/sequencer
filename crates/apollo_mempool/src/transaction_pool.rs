@@ -11,7 +11,7 @@ use starknet_api::rpc_transaction::InternalRpcTransaction;
 use starknet_api::transaction::TransactionHash;
 
 use crate::mempool::TransactionReference;
-use crate::metrics::TRANSACTION_TIME_SPENT_IN_MEMPOOL;
+use crate::metrics::{TRANSACTION_TIME_SPENT_IN_MEMPOOL, TRANSACTION_TIME_SPENT_UNTIL_COMMITTED};
 use crate::utils::try_increment_nonce;
 
 #[cfg(test)]
@@ -105,8 +105,23 @@ impl TransactionPool {
         Ok(tx)
     }
 
-    pub fn remove_up_to_nonce(&mut self, address: ContractAddress, nonce: Nonce) -> usize {
+    // Only for commit flow — using elsewhere will record incorrect commit times.
+    pub fn remove_up_to_nonce_when_committed(
+        &mut self,
+        address: ContractAddress,
+        nonce: Nonce,
+    ) -> usize {
         let removed_txs = self.txs_by_account.remove_up_to_nonce(address, nonce);
+
+        for tx_ref in &removed_txs {
+            if let Ok(submission_time) = self.get_submission_time(tx_ref.tx_hash) {
+                let time_spent = (self.txs_by_submission_time.clock.now() - submission_time)
+                    .to_std()
+                    .unwrap()
+                    .as_secs_f64();
+                TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.record(time_spent);
+            }
+        }
 
         self.remove_from_main_mapping(&removed_txs);
         self.remove_from_timed_mapping(&removed_txs);
