@@ -110,7 +110,7 @@ impl NestedFeltCounts {
     /// Builds a nested structure matching `layout`, consuming values from `bytecode`.
     #[allow(unused)]
     pub(crate) fn new(bytecode_segment_lengths: &NestedIntList, bytecode: &[BigUintAsHex]) -> Self {
-        let (base_node, consumed_felts) = Self::new_inner(bytecode_segment_lengths, bytecode, 0);
+        let (base_node, consumed_felts) = Self::new_inner(bytecode_segment_lengths, bytecode);
         assert_eq!(consumed_felts, bytecode.len());
         base_node
     }
@@ -119,10 +119,7 @@ impl NestedFeltCounts {
     fn new_inner(
         bytecode_segment_lengths: &NestedIntList,
         bytecode: &[BigUintAsHex],
-        segmentation_depth: usize,
     ) -> (Self, usize) {
-        assert!(segmentation_depth <= 1, "Only supported for segmentation depth at most 1.");
-
         match bytecode_segment_lengths {
             NestedIntList::Leaf(len) => {
                 let felt_size_groups = FeltSizeCount::from(&bytecode[..*len]);
@@ -134,11 +131,8 @@ impl NestedFeltCounts {
 
                 for segment in segments_vec {
                     // Recurse into the segment layout.
-                    let (segment, felt_count) = Self::new_inner(
-                        segment,
-                        &bytecode[total_felt_count..],
-                        segmentation_depth + 1,
-                    );
+                    let (segment, felt_count) =
+                        Self::new_inner(segment, &bytecode[total_felt_count..]);
                     // Accumulate the count from the segment`s subtree.
                     total_felt_count += felt_count;
                     segments.push(segment);
