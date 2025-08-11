@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 use cairo_vm::types::errors::math_errors::MathError;
@@ -187,15 +188,18 @@ impl FullStateDiffWriter {
         for contract in contracts {
             let contract_address: MaybeRelocatable = (**contract.addr).into();
             // Exists in inner_storage if this contract was changed in a previous state diff.
-            let state_manager = self.inner_storage.entry(contract_address.clone()).or_insert({
-                // Write the initial `StateEntry` struct (the prev values in the first state diff
-                // the contract was changed in) into memory.
-                StateEntryManager::new_state_entry(
-                    vm,
-                    contract.prev_class_hash,
-                    contract.prev_nonce,
-                )?
-            });
+            let state_manager = match self.inner_storage.entry(contract_address.clone()) {
+                Entry::Occupied(entry) => entry.into_mut(),
+                Entry::Vacant(entry) => {
+                    // Write the initial `StateEntry` struct (the prev values in the first state
+                    // diff the contract was changed in) into memory.
+                    entry.insert(StateEntryManager::new_state_entry(
+                        vm,
+                        contract.prev_class_hash,
+                        contract.prev_nonce,
+                    )?)
+                }
+            };
 
             state_manager.add_state_entry(
                 vm,
