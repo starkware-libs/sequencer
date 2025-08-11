@@ -25,6 +25,7 @@ libp2p = { workspace = true, features = [
   "identify",
   "kad",
   "macros",
+  "metrics",
   "noise",
   "quic",
   "serde",
@@ -34,6 +35,8 @@ libp2p = { workspace = true, features = [
 ] }
 metrics.workspace = true
 metrics-exporter-prometheus.workspace = true
+prometheus-client.workspace = true
+prometheus-parse.workspace = true
 replace_with.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet_api.workspace = true
