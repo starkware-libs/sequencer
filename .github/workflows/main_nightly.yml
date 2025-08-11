@@ -8,10 +8,25 @@ env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
 
 jobs:
+  define_branches:
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    outputs:
+      branches: ${{ steps.branches.outputs.branches }}
+    steps:
+      - name: Define branches for nightly run.
+        id: branches
+        run: echo 'branches=["main", "main-v0.14.0"]' >> "$GITHUB_OUTPUT"
+
   codecov:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    needs: define_branches
+    strategy:
+      matrix:
+        branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
       - uses: ./.github/actions/bootstrap
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -44,9 +59,15 @@ jobs:
           verbose: true
 
   feature_combos:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    needs: define_branches
+    strategy:
+      matrix:
+        branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
 
       # Setup pypy and link to the location expected by .cargo/config.toml.
       - uses: actions/setup-python@v5
@@ -70,9 +91,15 @@ jobs:
         run: scripts/run_feature_combos_test.py
 
   run-integration-tests:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: blacksmith-8vcpu-ubuntu-2404
+    needs: define_branches
+    strategy:
+      matrix:
+        branch: ${{ fromJson(needs.define_branches.outputs.branches) }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
 
       - uses: ./.github/actions/bootstrap
         with:

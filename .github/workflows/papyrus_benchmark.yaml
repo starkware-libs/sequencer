@@ -8,7 +8,7 @@ on:
 
 jobs:
   storage-benchmark:
-    runs-on: ubuntu-24.04
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: "write"
       id-token: "write"

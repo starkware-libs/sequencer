@@ -95,7 +95,7 @@ jobs:
   # TODO(dvir): make this run only if the path 'crates/apollo_storage/src/db/**' (same path as in the CI)  was changed on the
   # last day and increase the number of repetitions.
   random-table-test:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap

@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   run-regression-tests:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
@@ -63,7 +63,7 @@ jobs:
       - run: cargo test -p starknet_committer_and_os_cli --release -- --include-ignored test_regression
 
   benchmarking:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       # Checkout the base branch to get the old code.
@@ -113,6 +113,9 @@ jobs:
         with:
           clean: false
       - run: echo "NEW_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
+
+      # If the pip requirements on the old commit are different from the new commit, re-install them.
+      - run: pip install -r scripts/requirements.txt
 
       # Input files didn't change.
       - if: env.OLD_BENCH_INPUT_FILES_PREFIX == env.NEW_BENCH_INPUT_FILES_PREFIX

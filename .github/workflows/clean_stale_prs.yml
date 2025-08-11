@@ -9,7 +9,7 @@ on:
 jobs:
   stale:
     name: 🧹 Clean up stale issues and PRs
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: 🚀 Run stale
         uses: actions/stale@v3

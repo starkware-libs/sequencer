@@ -1,4 +1,4 @@
-name: Sequencer - Hybrid Node System Test
+name: Sequencer - Consolidated Node System Test
 
 on:
   workflow_dispatch:
@@ -13,11 +13,11 @@ on:
 
 env:
   job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/deployments/testing/deployment_config_hybrid.json
-  namespace: sequencer-hybrid-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
-  cluster_name: hybrid-system-test
+  deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/deployments/testing/deployment_config_consolidated.json
+  namespace: sequencer-consolidated-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
+  cluster_name: consolidated-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
-  path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py"
+  path_triggers: ".github/workflows/consolidated_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py"
   pvc_storage_class_name: "premium-rwo"
   anvil_port: "8545"
 
@@ -62,7 +62,7 @@ jobs:
           echo "Captured output: $should_run"
           echo "should_run=$should_run" >> $GITHUB_OUTPUT
 
-  system_test_hybrid:
+  system_test:
     needs: check-system-test-trigger
     if: needs.check-system-test-trigger.outputs.should_run == 'true'
     runs-on: blacksmith-8vcpu-ubuntu-2404
@@ -333,7 +333,7 @@ jobs:
           sleep 2
 
       - name: Send transactions test
-        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --deployment_config_path ${{ env.deployment_config_path }} --config_dir "${{ env.config_dir }}" --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
+        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --deployment_config_path ${{ env.deployment_config_path }} --config_dir "${{ env.config_dir }}" --node_type "consolidated" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
 
       - name: Get container logs
         if: always()
@@ -349,9 +349,9 @@ jobs:
             echo "Logs for pod: $pod"
             kubectl logs -n "$namespace" "$pod" || echo "⚠️ Failed to get logs for $pod"
 
-            # echo ""
-            # echo "Description for pod: $pod"
-            # kubectl describe pod -n "$namespace" "$pod" || echo "⚠️ Failed to describe pod $pod"
-            # echo "---------------------------------------------"
-            # echo ""
+            echo ""
+            echo "Description for pod: $pod"
+            kubectl describe pod -n "$namespace" "$pod" || echo "⚠️ Failed to describe pod $pod"
+            echo "---------------------------------------------"
+            echo ""
           done

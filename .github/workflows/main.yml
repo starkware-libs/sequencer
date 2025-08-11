@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   code_style:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       # Environment setup.
       - uses: actions/checkout@v4
@@ -66,10 +66,6 @@ jobs:
           cargo update -w --locked
           git diff --exit-code Cargo.lock
 
-      # Make sure no submodules are out of date or missing.
-      - name: "Check submodules"
-        run: git submodule status
-
       # Run code style on PR.
       - name: "Run TODO style pull request"
         if: github.event_name == 'pull_request'
@@ -80,6 +76,9 @@ jobs:
       - name: "Run cargo doc pull request"
         if: github.event_name == 'pull_request'
         run: scripts/run_tests.py --command doc --changes_only --commit_id ${{ github.event.pull_request.base.sha }}
+      - name: "Run python code style pull request"
+        if: github.event_name == 'pull_request'
+        run: scripts/py_code_style.py
 
       # Run code style on push.
       - name: "Run rustfmt"
@@ -100,7 +99,7 @@ jobs:
         run: cargo machete
 
   run-workspace-tests:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -109,7 +108,7 @@ jobs:
       - run: cargo test -p workspace_tests
 
   run-tests:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
         with:
@@ -151,7 +150,7 @@ jobs:
           SEED: 0
 
   run-integration-tests:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: blacksmith-8vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
         with:
