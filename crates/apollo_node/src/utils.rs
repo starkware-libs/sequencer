@@ -1,5 +1,4 @@
 use apollo_config::presentation::get_config_presentation;
-use apollo_config::validators::config_validate;
 use apollo_config::ConfigError;
 use tracing::info;
 
@@ -24,22 +23,38 @@ pub async fn create_node_modules(
 
 pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
     let config_load_result = SequencerNodeConfig::load_and_process(args);
+<<<<<<< HEAD
     let config =
         config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {err}"));
+||||||| 38f03e1d0
+    let config =
+        config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {}", err));
+=======
+    let loaded_config =
+        config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {err}"));
+>>>>>>> origin/main-v0.14.0
     info!("Finished loading configuration.");
 
+<<<<<<< HEAD
     if let Err(error) = config_validate(&config) {
         panic!("Config validation failed: {error}");
+||||||| 38f03e1d0
+    if let Err(error) = config_validate(&config) {
+        panic!("Config validation failed: {}", error);
+=======
+    if let Err(error) = loaded_config.validate_node_config() {
+        panic!("Config validation failed: {error}");
+>>>>>>> origin/main-v0.14.0
     }
     info!("Finished validating configuration.");
 
     info!("Config map:");
     info!(
         "{:#?}",
-        get_config_presentation::<SequencerNodeConfig>(&config, false)
+        get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
             .expect("Should be able to get representation.")
     );
     info!("Finished dumping configuration.");
 
-    Ok(config)
+    Ok(loaded_config)
 }

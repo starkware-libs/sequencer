@@ -1,5 +1,6 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
+use libp2p::gossipsub::PeerScoreThresholds;
 use libp2p::identity::Keypair;
 use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
@@ -73,6 +74,31 @@ impl MixedBehaviour {
             StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
                 .expect("Failed to create StreamProtocol from a string that starts with /"),
         ]);
+        let mut gossipsub = gossipsub::Behaviour::new(
+            gossipsub::MessageAuthenticity::Signed(keypair),
+            gossipsub::ConfigBuilder::default()
+                    // TODO(shahak): try to reduce this bound.
+                    .max_transmit_size(1 << 34)
+                    .max_messages_per_rpc(Some(1))
+                    .build()
+                    .expect("Failed to build gossipsub config"),
+        )
+        .unwrap_or_else(|err_string| {
+            panic!("Failed creating gossipsub behaviour due to the following error: {err_string}")
+        });
+        // TODO(AndrewL): remove this in a non-trusted network
+        gossipsub
+            .with_peer_score(
+                Default::default(),
+                PeerScoreThresholds {
+                    gossip_threshold: f64::MIN,
+                    publish_threshold: f64::MIN,
+                    graylist_threshold: f64::MIN,
+                    ..Default::default()
+                },
+            )
+            .expect("Failed to set peer score parameters for gossipsub behaviour");
+
         Self {
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
             discovery: bootstrap_peers_multiaddrs
@@ -111,19 +137,7 @@ impl MixedBehaviour {
                 kademlia_config,
             ),
             sqmr: sqmr::Behaviour::new(streamed_bytes_config),
-            gossipsub: gossipsub::Behaviour::new(
-                gossipsub::MessageAuthenticity::Signed(keypair),
-                gossipsub::ConfigBuilder::default()
-                    // TODO(shahak): try to reduce this bound.
-                    .max_transmit_size(1 << 34)
-                    .build()
-                    .expect("Failed to build gossipsub config"),
-            )
-            .unwrap_or_else(|err_string| {
-                panic!(
-                    "Failed creating gossipsub behaviour due to the following error: {err_string}"
-                )
-            }),
+            gossipsub,
         }
     }
 }

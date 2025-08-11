@@ -28,10 +28,13 @@ use crate::hints::enum_definition::AllHints;
 use crate::hints::hint_implementation::kzg::utils::FftError;
 use crate::hints::hint_implementation::patricia::error::PatriciaError;
 use crate::hints::vars::{Const, Ids};
+use crate::io::os_output::OsOutputError;
 use crate::vm_utils::VmUtilsError;
 
 #[derive(Debug, thiserror::Error)]
 pub enum OsHintError {
+    #[error("Tried to access an already consumed Bootloader input.")]
+    AggregatorBootloaderInputAlreadyConsumed,
     #[error("Assertion failed: {message}")]
     AssertionFailed { message: String },
     #[error("Unexpectedly assigned leaf bytecode segment.")]
@@ -100,6 +103,8 @@ pub enum OsHintError {
     MissingUnselectedBuiltinPtr { builtin: MaybeRelocatable, decoded: Option<String> },
     #[error(transparent)]
     OsLogger(#[from] OsLoggerError),
+    #[error(transparent)]
+    OsOutput(#[from] OsOutputError),
     #[error(transparent)]
     PathToBottom(#[from] PathToBottomError),
     #[error(transparent)]

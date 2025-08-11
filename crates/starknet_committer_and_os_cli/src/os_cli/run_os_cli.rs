@@ -2,6 +2,7 @@ use std::collections::HashSet;
 
 use blockifier::execution::syscalls::vm_syscall_utils::SyscallUsageMap;
 use cairo_vm::types::relocatable::MaybeRelocatable;
+use cairo_vm::vm::runners::cairo_pie::CairoPieAdditionalData;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use clap::{Parser, Subcommand};
 use serde::Serialize;
@@ -137,7 +138,8 @@ impl From<OsMetrics> for OsCliMetrics {
 }
 
 #[derive(Serialize)]
-pub(crate) struct OsCliOutput {
+pub(crate) struct OsCliOutput<'a> {
+    pub(crate) additional_data: &'a CairoPieAdditionalData,
     pub(crate) da_segment: Option<Vec<Felt>>,
     pub(crate) metrics: OsCliMetrics,
     pub unused_hints: HashSet<AllHints>,

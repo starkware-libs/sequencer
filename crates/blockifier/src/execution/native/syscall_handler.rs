@@ -44,7 +44,6 @@ use crate::execution::syscalls::vm_syscall_utils::{
     SelfOrRevert,
     SyscallExecutorBaseError,
     SyscallSelector,
-    SyscallUsageMap,
     TryExtractRevert,
 };
 use crate::state::state_api::State;
@@ -55,9 +54,6 @@ pub const CALL_CONTRACT_SELECTOR_NAME: &str = "call_contract";
 pub const LIBRARY_CALL_SELECTOR_NAME: &str = "library_call";
 pub struct NativeSyscallHandler<'state> {
     pub base: Box<SyscallHandlerBase<'state>>,
-
-    // Track every use of each syscall selector
-    pub syscalls_usage: SyscallUsageMap,
 
     // It is set if an unrecoverable error happens during syscall execution
     pub unrecoverable_error: Option<SyscallExecutionError>,
@@ -71,25 +67,12 @@ impl<'state> NativeSyscallHandler<'state> {
     ) -> NativeSyscallHandler<'state> {
         NativeSyscallHandler {
             base: Box::new(SyscallHandlerBase::new(call, state, context)),
-            syscalls_usage: SyscallUsageMap::new(),
             unrecoverable_error: None,
         }
     }
 
     pub fn gas_costs(&self) -> &GasCosts {
         self.base.context.gas_costs()
-    }
-
-    // Increment syscall usage's count relative to the given selector
-    fn increment_syscall_count_by(&mut self, selector: SyscallSelector, n: usize) {
-        let syscall_usage = self.syscalls_usage.entry(selector).or_default();
-        syscall_usage.call_count += n;
-    }
-
-    // Increment syscall usage's linear factor relative to the given selector
-    fn increment_syscall_linear_factor_by(&mut self, selector: SyscallSelector, n: usize) {
-        let syscall_usage = self.syscalls_usage.entry(selector).or_default();
-        syscall_usage.linear_factor += n;
     }
 
     /// Handles all gas-related logics, syscall usage counting and perform additional checks. In
@@ -105,6 +88,12 @@ impl<'state> NativeSyscallHandler<'state> {
             // accelerate the end of the execution. The returned data is not important
             return Err(vec![]);
         }
+
+        // Keccak syscall usages' increments are handled inside its implementation.
+        if !matches!(selector, SyscallSelector::Keccak) {
+            self.base.increment_syscall_count_by(selector, 1);
+        }
+
         // Refund `SYSCALL_BASE_GAS_COST` as it was pre-charged.
         let required_gas = total_gas_cost - self.gas_costs().base.syscall_base_gas_cost;
 
@@ -131,11 +120,6 @@ impl<'state> NativeSyscallHandler<'state> {
         //    the current tracked value), or we will pass through another syscall before failing -
         //    and by induction (we will reach this point again), the gas will be charged correctly.
         self.base.context.update_revert_gas_with_next_remaining_gas(GasAmount(*remaining_gas));
-
-        // Keccak syscall usages' increments are handled inside its implementation.
-        if !matches!(selector, SyscallSelector::Keccak) {
-            self.increment_syscall_count_by(selector, 1);
-        }
 
         Ok(())
     }
@@ -352,7 +336,6 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             self.gas_costs().syscalls.deploy.get_syscall_cost(u64_from_usize(calldata.len()));
 
         self.pre_execute_syscall(remaining_gas, total_gas_cost, SyscallSelector::Deploy)?;
-        self.increment_syscall_linear_factor_by(SyscallSelector::Deploy, calldata.len());
 
         let (deployed_contract_address, call_info) = self
             .base
@@ -397,7 +380,6 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             self.gas_costs().syscalls.meta_tx_v0.get_syscall_cost(u64_from_usize(calldata.len()));
 
         self.pre_execute_syscall(remaining_gas, total_gas_cost, SyscallSelector::MetaTxV0)?;
-        self.increment_syscall_linear_factor_by(SyscallSelector::MetaTxV0, calldata.len());
 
         let contract_address = ContractAddress::try_from(address)
             .map_err(|error| self.handle_error(remaining_gas, error.into()))?;
@@ -627,7 +609,9 @@ impl StarknetSyscallHandler for &mut NativeSyscallHandler<'_> {
             remaining_gas,
         ) {
             Ok((state, n_rounds)) => {
-                self.increment_syscall_count_by(SyscallSelector::Keccak, n_rounds);
+                // For the keccak system call we want to count the number of rounds rather than the
+                // number of syscall invocations.
+                self.base.increment_syscall_count_by(SyscallSelector::Keccak, n_rounds);
 
                 Ok(U256 {
                     hi: u128::from(state[2]) | (u128::from(state[3]) << 64),
