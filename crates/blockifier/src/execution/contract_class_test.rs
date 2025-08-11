@@ -27,17 +27,23 @@ fn test_get_visited_segments() {
         entry_points_by_type: Default::default(),
         hints: Default::default(),
         sierra_version: Default::default(),
-        bytecode_segment_lengths: NestedIntList::Node(vec![
-            NestedIntList::Leaf(151),
-            NestedIntList::Leaf(104),
-            NestedIntList::Node(vec![NestedIntList::Leaf(170), NestedIntList::Leaf(225)]),
-            NestedIntList::Leaf(157),
-            NestedIntList::Node(vec![NestedIntList::Node(vec![
-                NestedIntList::Node(vec![NestedIntList::Leaf(101)]),
-                NestedIntList::Leaf(195),
-                NestedIntList::Leaf(125),
+        bytecode_segment_felt_sizes: NestedFeltCounts::Node(vec![
+            NestedFeltCounts::Leaf(151, FeltSizeCount { small: 151, large: 0 }),
+            NestedFeltCounts::Leaf(104, FeltSizeCount { small: 104, large: 0 }),
+            NestedFeltCounts::Node(vec![
+                NestedFeltCounts::Leaf(170, FeltSizeCount { small: 170, large: 0 }),
+                NestedFeltCounts::Leaf(225, FeltSizeCount { small: 225, large: 0 }),
+            ]),
+            NestedFeltCounts::Leaf(157, FeltSizeCount { small: 157, large: 0 }),
+            NestedFeltCounts::Node(vec![NestedFeltCounts::Node(vec![
+                NestedFeltCounts::Node(vec![NestedFeltCounts::Leaf(
+                    101,
+                    FeltSizeCount { small: 101, large: 0 },
+                )]),
+                NestedFeltCounts::Leaf(195, FeltSizeCount { small: 195, large: 0 }),
+                NestedFeltCounts::Leaf(125, FeltSizeCount { small: 125, large: 0 }),
             ])]),
-            NestedIntList::Leaf(162),
+            NestedFeltCounts::Leaf(162, FeltSizeCount { small: 162, large: 0 }),
         ]),
     }));
 
