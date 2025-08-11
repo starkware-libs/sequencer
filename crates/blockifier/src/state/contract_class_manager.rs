@@ -21,10 +21,6 @@ pub mod trivial_class_manager {
     // Trivial implementation of the class manager for Native-less projects.
     impl TrivialClassManager {
         pub fn start(config: ContractClassManagerConfig) -> Self {
-            assert!(
-                !config.cairo_native_run_config.run_cairo_native,
-                "Cairo Native feature is off."
-            );
             Self { cache: RawClassCache::new(config.contract_cache_size) }
         }
 
