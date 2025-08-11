@@ -19,6 +19,7 @@ define_metrics!(
         MetricGauge { MEMPOOL_DELAYED_DECLARES_SIZE, "mempool_delayed_declare_size", "The number of declare transactions that are being delayed" },
         MetricGauge { MEMPOOL_TOTAL_SIZE_BYTES, "mempool_total_size_bytes", "The total size in bytes of the transactions in the mempool"},
         MetricHistogram { TRANSACTION_TIME_SPENT_IN_MEMPOOL, "mempool_transaction_time_spent", "The time (secs) that a transaction spent in the mempool" },
+        MetricHistogram { TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, "mempool_transaction_time_spent_until_committed", "The time (secs) that a transaction spent in the mempool until it was committed" },
     },
 );
 
@@ -120,4 +121,5 @@ pub(crate) fn register_metrics() {
     MEMPOOL_TOTAL_SIZE_BYTES.register();
     // Register Histograms.
     TRANSACTION_TIME_SPENT_IN_MEMPOOL.register();
+    TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.register();
 }
