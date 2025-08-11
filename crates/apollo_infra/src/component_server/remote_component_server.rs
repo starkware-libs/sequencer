@@ -44,7 +44,7 @@ use crate::serde_utils::SerdeWrapper;
 /// # Example
 /// ```rust
 /// // Example usage of the RemoteComponentServer
-/// use apollo_metrics::metrics::{MetricCounter, MetricScope};
+/// use apollo_metrics::metrics::{MetricCounter, MetricGauge, MetricScope};
 /// use async_trait::async_trait;
 /// use serde::{Deserialize, Serialize};
 /// use tokio::task;
@@ -74,6 +74,13 @@ use crate::serde_utils::SerdeWrapper;
 ///     "remote_processed_messages_counter_filter",
 ///     "Processed messages counter",
 ///     0,
+/// );
+///
+/// const REMOTE_NUMBER_OF_CONNECTIONS: MetricGauge = MetricGauge::new(
+///     MetricScope::Infra,
+///     "remote_number_of_connections",
+///     "remote_number_of_connections_filter",
+///     "Remote number of connections gauge",
 /// );
 ///
 /// // Define your component
@@ -127,6 +134,7 @@ use crate::serde_utils::SerdeWrapper;
 ///             &REMOTE_MESSAGES_RECEIVED,
 ///             &REMOTE_VALID_MESSAGES_RECEIVED,
 ///             &REMOTE_MESSAGES_PROCESSED,
+///             &REMOTE_NUMBER_OF_CONNECTIONS,
 ///         ),
 ///     );
 ///

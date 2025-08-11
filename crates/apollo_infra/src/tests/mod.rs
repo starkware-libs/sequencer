@@ -74,6 +74,13 @@ const REMOTE_TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
     0,
 );
 
+const REMOTE_NUMBER_OF_CONNECTIONS: MetricGauge = MetricGauge::new(
+    MetricScope::Infra,
+    "remote_number_of_connections",
+    "remote_number_of_connections_filter",
+    "Remote number of connections gauge",
+);
+
 const EXAMPLE_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
     MetricScope::Infra,
     "example_histogram_metric",
@@ -87,6 +94,7 @@ pub(crate) const TEST_REMOTE_SERVER_METRICS: RemoteServerMetrics = RemoteServerM
     &REMOTE_TEST_MSGS_RECEIVED,
     &REMOTE_VALID_TEST_MSGS_RECEIVED,
     &REMOTE_TEST_MSGS_PROCESSED,
+    &REMOTE_NUMBER_OF_CONNECTIONS,
 );
 
 pub(crate) const TEST_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
