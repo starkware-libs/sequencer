@@ -664,6 +664,16 @@
           "histogram_quantile(0.95, sum(rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
+      },
+      {
+        "title": "mempool_transaction_time_to_commit",
+        "description": "The time (secs) that a transaction spent in the mempool until it was committed",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum(rate(mempool_transaction_time_to_commit_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(mempool_transaction_time_to_commit_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+        ],
+        "extra_params": {}
       }
     ],
     "L1 Provider": [
