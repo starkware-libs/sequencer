@@ -43,6 +43,8 @@ async fn main() {
     let log_filter_handle = configure_tracing();
 
     let args = CliArgs::parse();
+    println!("Parsed CLI args: {:?}", args);
+    println!("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$");
     info!("Starting committer & OS cli with args: \n{:?}", args);
 
     match args.command {

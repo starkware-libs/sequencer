@@ -5,6 +5,7 @@ use cairo_vm::types::relocatable::MaybeRelocatable;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use clap::{Parser, Subcommand};
 use serde::Serialize;
+use starknet_os::hint_processor::os_logger::OsTransactionTrace;
 use starknet_os::hints::enum_definition::AllHints;
 use starknet_os::metrics::OsMetrics;
 use starknet_types_core::felt::Felt;
@@ -62,6 +63,7 @@ enum Command {
     RunOsStateless {
         #[clap(flatten)]
         io_args: IoArgs,
+        with_trace: bool,
     },
     RunAggregator {
         #[clap(flatten)]
@@ -81,8 +83,8 @@ pub async fn run_os_cli(
         Command::PythonTest(python_test_arg) => {
             run_python_test::<OsPythonTestRunner>(python_test_arg).await;
         }
-        Command::RunOsStateless { io_args: IoArgs { input_path, output_path } } => {
-            parse_and_run_os(input_path, output_path, log_filter_handle);
+        Command::RunOsStateless { io_args: IoArgs { input_path, output_path }, with_trace } => {
+            parse_and_run_os(input_path, output_path, log_filter_handle, with_trace);
         }
         Command::RunAggregator { io_args: IoArgs { input_path, output_path } } => {
             parse_and_run_aggregator(input_path, output_path, log_filter_handle);
@@ -141,6 +143,8 @@ pub(crate) struct OsCliOutput {
     pub(crate) da_segment: Option<Vec<Felt>>,
     pub(crate) metrics: OsCliMetrics,
     pub unused_hints: HashSet<AllHints>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) txs: Option<Vec<OsTransactionTrace>>,
 }
 
 #[derive(Serialize)]
