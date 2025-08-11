@@ -264,13 +264,15 @@ where
             async move {
                 match connection_semaphore.try_acquire_owned() {
                     Ok(permit) => {
+                        metrics.increment_number_of_connections();
+                        let remote_server_metrics = metrics.clone();
                         trace!("Acquired semaphore permit for connection");
                         let handle_request_service = service_fn(move |req| {
                             trace!("Received request: {:?}", req);
                             Self::remote_component_server_handler(
                                 req,
                                 local_client.clone(),
-                                metrics.clone(),
+                                remote_server_metrics.clone(),
                             )
                         })
                         .boxed();
@@ -280,6 +282,7 @@ where
                         let service = PermitGuardedService {
                             inner: handle_request_service,
                             _permit: Some(permit),
+                            remote_server_metrics: metrics,
                         };
                         Ok::<_, hyper::Error>(service)
                     }
@@ -311,8 +314,11 @@ where
                         .boxed();
 
                         // No permit is acquired, so no need to hold one.
-                        let service =
-                            PermitGuardedService { inner: reject_request_service, _permit: None };
+                        let service = PermitGuardedService {
+                            inner: reject_request_service,
+                            _permit: None,
+                            remote_server_metrics: metrics,
+                        };
                         Ok::<_, hyper::Error>(service)
                     }
                 }
@@ -345,6 +351,7 @@ where
 struct PermitGuardedService<S> {
     inner: S,
     _permit: Option<OwnedSemaphorePermit>,
+    remote_server_metrics: Arc<RemoteServerMetrics>,
 }
 
 impl<S, Req> Service<Req> for PermitGuardedService<S>
@@ -361,5 +368,13 @@ where
 
     fn call(&mut self, req: Req) -> Self::Future {
         self.inner.call(req)
+    }
+}
+
+impl<S> Drop for PermitGuardedService<S> {
+    fn drop(&mut self) {
+        if self._permit.is_some() {
+            self.remote_server_metrics.decrement_number_of_connections();
+        }
     }
 }
