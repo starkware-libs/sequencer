@@ -175,42 +175,23 @@ where
 
     async fn process_requests(&mut self) {
         // TODO(Tsabary): add log for requests that take too long.
-        info!(
-            "Starting to process requests in the component {} local server",
-            short_type_name::<Component>()
-        );
+        let component_name = short_type_name::<Component>();
+        info!("Starting to process requests in the component {component_name} local server",);
 
         let RequestProcessingMembers { mut component, mut high_rx, mut normal_rx, metrics } =
             self.get_processing_inner_members();
 
         tokio::spawn(async move {
             loop {
-                let request_and_res_tx = tokio::select! {
-                    // Prioritize high priority requests over normal priority ones using `biased`.
-                    biased;
-                    Some(item) = high_rx.recv() => item,
-                    Some(item) = normal_rx.recv() => item,
-                    else => break,
-                };
-
-                trace!(
-                    "Component {} received request {:?}",
-                    short_type_name::<Component>(),
-                    request_and_res_tx.request
-                );
-
-                let request = request_and_res_tx.request;
-                let tx = request_and_res_tx.tx;
+                let (request, tx) =
+                    get_next_request_for_processing(&mut high_rx, &mut normal_rx, &component_name)
+                        .await;
 
                 process_request(&mut component, request, tx).await;
                 metrics.increment_processed();
                 // TODO(Tsabary): make the processed and received metrics labeled based on the
                 // priority.
             }
-            error!(
-                "Stopped processing requests in the component {} local server",
-                short_type_name::<Component>()
-            );
         });
     }
 }
@@ -302,9 +283,10 @@ where
     // TODO(Tsabary): avoid code duplication with `LocalComponentServer::process_requests`.
     async fn process_requests(&mut self) {
         // TODO(Tsabary): add log for requests that take too long.
+        let component_name = short_type_name::<Component>();
         info!(
-            "Starting to process requests in the component {} concurrent local server",
-            short_type_name::<Component>()
+            "Starting to process requests in the component {component_name} concurrent local \
+             server",
         );
 
         let RequestProcessingMembers { component, mut high_rx, mut normal_rx, metrics } =
@@ -315,22 +297,9 @@ where
         // TODO(Itay): clean some code duplications here.
         tokio::spawn(async move {
             loop {
-                let request_and_res_tx = tokio::select! {
-                    // Prioritize high priority requests over normal priority ones using `biased`.
-                    biased;
-                    Some(item) = high_rx.recv() => item,
-                    Some(item) = normal_rx.recv() => item,
-                    else => break,
-                };
-
-                trace!(
-                    "Component {} received request {:?}",
-                    short_type_name::<Component>(),
-                    request_and_res_tx.request
-                );
-
-                let request = request_and_res_tx.request;
-                let tx = request_and_res_tx.tx;
+                let (request, tx) =
+                    get_next_request_for_processing(&mut high_rx, &mut normal_rx, &component_name)
+                        .await;
 
                 // Acquire a permit to run the task.
                 let permit = task_limiter.clone().acquire_owned().await.unwrap();
@@ -347,10 +316,6 @@ where
                     // priority.
                 });
             }
-            error!(
-                "Stopped processing requests in the component {} local server",
-                short_type_name::<Component>()
-            );
         });
     }
 }
@@ -418,4 +383,29 @@ where
     high_rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     normal_rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     metrics: &'static LocalServerMetrics,
+}
+
+async fn get_next_request_for_processing<Request, Response>(
+    high_rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    normal_rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    component_name: &str,
+) -> (Request, Sender<Response>)
+where
+    Request: Send + Debug,
+    Response: Send,
+{
+    let request_and_res_tx = tokio::select! {
+        // Prioritize high priority requests over normal priority ones using `biased`.
+        biased;
+        Some(item) = high_rx.recv() => item,
+        Some(item) = normal_rx.recv() => item,
+        else => {
+            panic!("Stopped processing requests in the component {component_name} local server");
+        }
+    };
+    let request = request_and_res_tx.request;
+    let tx = request_and_res_tx.tx;
+
+    trace!("Component {component_name} received request {request:?}",);
+    (request, tx)
 }
