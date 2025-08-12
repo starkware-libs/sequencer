@@ -66,6 +66,7 @@ const STRESS_TEST_DEPLOYMENT_INPUTS_PATH: &str =
 #[derive(Debug, Deserialize)]
 pub struct DeploymentInputs {
     pub node_ids: Vec<usize>,
+    pub num_validators: usize,
     pub http_server_ingress_alternative_name: String,
     pub ingress_domain: String,
     pub secret_name_format: Template,
