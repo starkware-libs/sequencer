@@ -854,6 +854,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
@@ -934,6 +935,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
@@ -1275,6 +1277,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
@@ -1454,6 +1457,7 @@ dependencies = [
  "async-trait",
  "mockall",
  "serde",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "url",
@@ -1500,6 +1504,7 @@ dependencies = [
  "reqwest 0.11.27",
  "serde",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
@@ -1548,6 +1553,7 @@ dependencies = [
  "papyrus_base_layer",
  "serde",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
@@ -1625,6 +1631,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
@@ -1641,6 +1648,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
@@ -2086,6 +2094,7 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]

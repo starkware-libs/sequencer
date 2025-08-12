@@ -7,7 +7,7 @@ use apollo_infra::component_definitions::{
     PrioritizedRequest,
     RequestPriority,
 };
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
@@ -17,7 +17,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::block::GasPrice;
 use starknet_api::core::ContractAddress;
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::MempoolError;
@@ -55,7 +56,12 @@ pub trait MempoolClient: Send + Sync {
     async fn get_mempool_snapshot(&self) -> MempoolClientResult<MempoolSnapshot>;
 }
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(MempoolRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum MempoolRequest {
     AddTransaction(AddTransactionArgsWrapper),
     CommitBlock(CommitBlockArgs),
@@ -66,6 +72,7 @@ pub enum MempoolRequest {
     GetMempoolSnapshot(),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolRequest);
+impl_labeled_request!(MempoolRequest, MempoolRequestLabelValue);
 impl PrioritizedRequest for MempoolRequest {
     fn priority(&self) -> RequestPriority {
         match self {
