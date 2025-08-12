@@ -170,15 +170,21 @@ impl BlockifierStateReader for ExecutionStateReader {
                 }
             }
         }
-        let block_number = self
+
+        let maybe_block_number = self
             .storage_reader
             .begin_ro_txn()
             .map_err(storage_err_to_state_err)?
             .get_state_reader()
             .map_err(storage_err_to_state_err)?
             .get_class_definition_block_number(&class_hash)
-            .map_err(storage_err_to_state_err)?
-            .ok_or(StateError::UndeclaredClassHash(class_hash))?;
+            .map_err(storage_err_to_state_err)?;
+
+        // Cairo 0 classes (and undeclared classes) do not have a compiled class hash.
+        // According to the trait, return the default value.
+        let Some(block_number) = maybe_block_number else {
+            return Ok(CompiledClassHash::default());
+        };
 
         let state_diff = self
             .storage_reader
