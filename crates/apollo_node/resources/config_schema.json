@@ -434,6 +434,11 @@
     "privacy": "Public",
     "value": 30000
   },
+  "components.batcher.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
   "components.batcher.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -483,6 +488,11 @@
     "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
     "value": 30000
+  },
+  "components.class_manager.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
   },
   "components.class_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -539,6 +549,11 @@
     "privacy": "Public",
     "value": 30000
   },
+  "components.gateway.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
   "components.gateway.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -594,6 +609,11 @@
     "privacy": "Public",
     "value": 30000
   },
+  "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
   "components.l1_endpoint_monitor.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -643,6 +663,11 @@
     "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
     "value": 30000
+  },
+  "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
   },
   "components.l1_gas_price_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -699,6 +724,11 @@
     "privacy": "Public",
     "value": 30000
   },
+  "components.l1_provider.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
   "components.l1_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -754,6 +784,11 @@
     "privacy": "Public",
     "value": 30000
   },
+  "components.mempool.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
   "components.mempool.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -803,6 +838,11 @@
     "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
     "value": 30000
+  },
+  "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
   },
   "components.mempool_p2p.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -859,6 +899,11 @@
     "privacy": "Public",
     "value": 30000
   },
+  "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
   "components.sierra_compiler.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -908,6 +953,11 @@
     "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
     "value": 30000
+  },
+  "components.state_sync.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
   },
   "components.state_sync.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
