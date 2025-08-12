@@ -116,6 +116,8 @@ pub enum TransactionExecutionError {
         storage_address: ContractAddress,
         selector: EntryPointSelector,
     },
+    #[error("Cairo0 validate error with retdata: {0:?}")]
+    ValidateCairo0Error(Retdata),
     #[error(
         "Invalid segment structure: PC {0} was visited, but the beginning of the segment {1} was \
          not."
