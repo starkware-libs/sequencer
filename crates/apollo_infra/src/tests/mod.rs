@@ -12,12 +12,14 @@ use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tokio::sync::{Mutex, Semaphore};
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
 use crate::metrics::{LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics};
+use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 
 pub(crate) type ValueA = Felt;
 pub(crate) type ValueB = Felt;
@@ -133,21 +135,37 @@ pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
     Arc::new(Mutex::new(available_ports))
 });
 
-#[derive(Serialize, Deserialize, Debug, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(ComponentARequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum ComponentARequest {
     AGetValue,
 }
+impl_debug_for_infra_requests_and_responses!(ComponentARequest);
+impl_labeled_request!(ComponentARequest, ComponentARequestLabelValue);
+impl PrioritizedRequest for ComponentARequest {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentAResponse {
     AGetValue(ValueA),
 }
 
-#[derive(Serialize, Deserialize, Debug, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(ComponentBRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum ComponentBRequest {
     BGetValue,
     BSetValue(ValueB),
 }
+impl_debug_for_infra_requests_and_responses!(ComponentBRequest);
+impl_labeled_request!(ComponentBRequest, ComponentBRequestLabelValue);
+impl PrioritizedRequest for ComponentBRequest {}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum ComponentBResponse {
@@ -186,7 +204,6 @@ impl ComponentA {
 }
 
 impl ComponentStarter for ComponentA {}
-impl PrioritizedRequest for ComponentARequest {}
 
 pub(crate) struct ComponentB {
     value: ValueB,
@@ -208,7 +225,6 @@ impl ComponentB {
 }
 
 impl ComponentStarter for ComponentB {}
-impl PrioritizedRequest for ComponentBRequest {}
 
 pub(crate) async fn test_a_b_functionality(
     a_client: impl ComponentAClientTrait,

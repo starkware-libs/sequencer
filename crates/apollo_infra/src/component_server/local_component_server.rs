@@ -22,6 +22,7 @@ use crate::component_definitions::{
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::LocalServerMetrics;
+use crate::requests::LabeledRequest;
 
 // TODO(Tsabary): create custom configs per service, considering the required throughput and spike
 // tolerance.
@@ -94,7 +95,7 @@ where
 impl<Component, Request, Response> LocalComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + 'static,
-    Request: Send + Debug + PrioritizedRequest + 'static,
+    Request: Send + Debug + PrioritizedRequest + LabeledRequest + 'static,
     Response: Send + Debug + 'static,
 {
     pub fn new(
@@ -229,7 +230,7 @@ impl<Component, Request, Response> ComponentServerStarter
     for LocalComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Send + ComponentStarter + 'static,
-    Request: Send + Debug + PrioritizedRequest + 'static,
+    Request: Send + Debug + PrioritizedRequest + LabeledRequest + 'static,
     Response: Send + Debug + 'static,
 {
     async fn start(&mut self) {
@@ -278,7 +279,7 @@ where
 impl<Component, Request, Response> ConcurrentLocalComponentServer<Component, Request, Response>
 where
     Component: ComponentRequestHandler<Request, Response> + Clone + Send + 'static,
-    Request: Send + Debug + PrioritizedRequest + 'static,
+    Request: Send + Debug + PrioritizedRequest + LabeledRequest + 'static,
     Response: Send + Debug + 'static,
 {
     pub fn new(
@@ -359,7 +360,7 @@ impl<Component, Request, Response> ComponentServerStarter
 where
     Component:
         ComponentRequestHandler<Request, Response> + ComponentStarter + Clone + Send + 'static,
-    Request: Send + Debug + PrioritizedRequest + 'static,
+    Request: Send + Debug + PrioritizedRequest + LabeledRequest + 'static,
     Response: Send + Debug + 'static,
 {
     async fn start(&mut self) {
@@ -380,7 +381,7 @@ async fn process_request<Request, Response, Component>(
     processing_time_warning_threshold_ms: u128,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Send,
-    Request: Send + Debug,
+    Request: Send + Debug + LabeledRequest,
     Response: Send + Debug,
 {
     let component_name = short_type_name::<Component>();
