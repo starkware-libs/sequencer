@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet};
 use std::task::{Context, Poll};
 
+use libp2p::core::transport::PortUse;
 use libp2p::core::Endpoint;
 use libp2p::swarm::behaviour::ConnectionEstablished;
-use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::{
     dummy,
     ConnectionClosed,
@@ -93,6 +93,7 @@ impl NetworkBehaviour for OneConnectionPerPeerBehaviour {
         peer: PeerId,
         _addr: &Multiaddr,
         _role_override: Endpoint,
+        _port_use: PortUse,
     ) -> Result<Self::ConnectionHandler, ConnectionDenied> {
         self.handle_established_connection(peer)
     }
@@ -126,11 +127,12 @@ impl NetworkBehaviour for OneConnectionPerPeerBehaviour {
                 remaining_established,
                 connection_id,
                 endpoint,
+                cause,
             }) => {
                 let trace_message = format!(
                     "Connection closed with peer: {peer_id}, remaining connections: \
                      {remaining_established}, connection_id: {connection_id:?}, endpoint: \
-                     {endpoint:?}"
+                     {endpoint:?}, cause: {cause:?}"
                 );
                 info!(trace_message);
                 if remaining_established != 0 {
@@ -160,14 +162,16 @@ impl NetworkBehaviour for OneConnectionPerPeerBehaviour {
                 send_back_addr,
                 error,
                 connection_id,
+                peer_id,
             }) => {
                 let trace_message = format!(
                     "Listen failure with local_addr: {local_addr:?}, send_back_addr: \
-                     {send_back_addr:?}, error: {error:?}, connection_id: {connection_id:?}"
+                     {send_back_addr:?}, error: {error:?}, connection_id: {connection_id:?}, \
+                     peer_id: {peer_id:?}",
                 );
                 info!(trace_message);
                 // Extract peer_id from multiaddr if it contains one
-                if let Some(peer_id) = DialOpts::from(send_back_addr.clone()).get_peer_id() {
+                if let Some(peer_id) = peer_id {
                     self.remove_pending_connection(peer_id);
                 } else {
                     info!("Listen failure without a peer_id, connection_id: {connection_id:?}");
