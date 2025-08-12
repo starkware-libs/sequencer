@@ -193,11 +193,6 @@ where
                 let request = request_and_res_tx.request;
                 let tx = request_and_res_tx.tx;
 
-                trace!(
-                    "Component {} is starting to process request {:?}",
-                    short_type_name::<Component>(),
-                    request
-                );
                 process_request(&mut component, request, tx).await;
                 metrics.increment_processed();
                 // TODO(Tsabary): make the processed and received metrics labeled based on the
@@ -270,16 +265,7 @@ where
     Request: Send,
     Response: Send,
 {
-    component: Option<Component>,
-    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    metrics: &'static LocalServerMetrics,
-
-    normal_priority_request_rx:
-        Option<Receiver<ComponentRequestAndResponseSender<Request, Response>>>,
-    high_priority_request_rx:
-        Option<Receiver<ComponentRequestAndResponseSender<Request, Response>>>,
-    normal_priority_request_tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
-    high_priority_request_tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
+    local_component_server: LocalComponentServer<Component, Request, Response>,
 
     max_concurrency: usize,
 }
@@ -297,59 +283,13 @@ where
         max_concurrency: usize,
         metrics: &'static LocalServerMetrics,
     ) -> Self {
-        // TODO(Tsabary):make the channel capacity configurable.
-        let (normal_priority_request_tx, normal_priority_request_rx) =
-            channel::<ComponentRequestAndResponseSender<Request, Response>>(1000);
-        let (high_priority_request_tx, high_priority_request_rx) =
-            channel::<ComponentRequestAndResponseSender<Request, Response>>(1000);
+        let local_component_server = LocalComponentServer::new(component, rx, metrics);
 
-        Self {
-            component: Some(component),
-            rx,
-            metrics,
-            normal_priority_request_tx,
-            normal_priority_request_rx: Some(normal_priority_request_rx),
-            high_priority_request_tx,
-            high_priority_request_rx: Some(high_priority_request_rx),
-            max_concurrency,
-        }
+        Self { local_component_server, max_concurrency }
     }
 
-    // TODO(Tsabary): avoid code duplication with `LocalComponentServer::await_requests`.
     async fn await_requests(&mut self) {
-        info!(
-            "Starting to await requests in the component {} concurrent local server",
-            short_type_name::<Component>()
-        );
-        while let Some(request_and_res_tx) = self.rx.recv().await {
-            trace!(
-                "Component {} received request {:?} with priority {:?}",
-                short_type_name::<Component>(),
-                request_and_res_tx.request,
-                request_and_res_tx.request.priority()
-            );
-            match request_and_res_tx.request.priority() {
-                RequestPriority::High => {
-                    self.high_priority_request_tx
-                        .send(request_and_res_tx)
-                        .await
-                        .expect("Failed to send high priority request");
-                }
-                RequestPriority::Normal => {
-                    self.normal_priority_request_tx
-                        .send(request_and_res_tx)
-                        .await
-                        .expect("Failed to send low priority request");
-                }
-            }
-            self.metrics.increment_received();
-            self.metrics.set_queue_depth(self.rx.len());
-        }
-
-        error!(
-            "Stopped awaiting requests in the component {} local server",
-            short_type_name::<Component>()
-        );
+        self.local_component_server.await_requests().await;
     }
 
     // TODO(Tsabary): avoid code duplication with `LocalComponentServer::process_requests`.
@@ -362,16 +302,19 @@ where
 
         // Take ownership of the component and the priority request receivers, so they can be used
         // in the async task.
-        let component = self.component.take().expect("Component should be available");
+        let component =
+            self.local_component_server.component.take().expect("Component should be available");
         let mut high_rx = self
+            .local_component_server
             .high_priority_request_rx
             .take()
             .expect("High priority request receiver should be available");
         let mut normal_rx = self
+            .local_component_server
             .normal_priority_request_rx
             .take()
             .expect("Normal priority request receiver should be available");
-        let metrics = self.metrics;
+        let metrics = self.local_component_server.metrics;
 
         let task_limiter = Arc::new(Semaphore::new(self.max_concurrency));
 
@@ -400,11 +343,6 @@ where
 
                 let mut cloned_component = component.clone();
                 tokio::spawn(async move {
-                    trace!(
-                        "Component {} is starting to process request {:?}",
-                        short_type_name::<Component>(),
-                        request
-                    );
                     process_request(&mut cloned_component, request, tx).await;
 
                     metrics.increment_processed();
@@ -447,8 +385,8 @@ where
 {
     async fn start(&mut self) {
         info!("Starting ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
-        self.metrics.register();
-        self.component.as_mut().unwrap().start().await;
+        self.local_component_server.metrics.register();
+        self.local_component_server.component.as_mut().unwrap().start().await;
         self.process_requests().await;
         self.await_requests().await;
         panic!("Finished ConcurrentLocalComponentServer for {}.", short_type_name::<Component>());
