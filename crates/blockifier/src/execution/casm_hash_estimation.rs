@@ -110,3 +110,39 @@ trait ExecutionResourcesEstimator {
         EstimatedExecutionResources::new(self.hash_version())
     }
 }
+
+// TODO(AvivG): Remove allow once used.
+#[allow(unused)]
+struct ExecutionResourcesEstimatorV1 {}
+
+impl ExecutionResourcesEstimator for ExecutionResourcesEstimatorV1 {
+    fn hash_version(&self) -> HashVersion {
+        HashVersion::V1
+    }
+
+    fn cost_of_hash_function(
+        &mut self,
+        _felt_count: NestedFeltCounts,
+    ) -> EstimatedExecutionResources {
+        // TODO(AvivG): Implement by calling 'poseidon_hash_many_cost'.
+        EstimatedExecutionResources::new(self.hash_version())
+    }
+}
+
+// TODO(AvivG): Remove allow once used.
+#[allow(unused)]
+struct ExecutionResourcesEstimatorV2 {}
+
+impl ExecutionResourcesEstimator for ExecutionResourcesEstimatorV2 {
+    fn hash_version(&self) -> HashVersion {
+        HashVersion::V2
+    }
+
+    fn cost_of_hash_function(
+        &mut self,
+        _felt_count: NestedFeltCounts,
+    ) -> EstimatedExecutionResources {
+        // TODO(AvivG): Implement by calling 'cost_of_encode_felt252_data_and_calc_blake_hash'.
+        EstimatedExecutionResources::new(HashVersion::V2)
+    }
+}
