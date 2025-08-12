@@ -44,6 +44,7 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, NodeService, NodeType, ServiceNameInner};
+use crate::update_strategy::UpdateStrategy;
 use crate::utils::{determine_port_numbers, get_validator_id};
 
 pub const HYBRID_NODE_REQUIRED_PORTS_NUM: usize = 9;
@@ -671,6 +672,17 @@ impl ServiceNameInner for HybridNodeServiceName {
             }
         }
         components
+    }
+
+    fn get_update_strategy(&self) -> UpdateStrategy {
+        match self {
+            HybridNodeServiceName::Core => UpdateStrategy::Recreate,
+            HybridNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
+            HybridNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
+            HybridNodeServiceName::L1 => UpdateStrategy::RollingUpdate,
+            HybridNodeServiceName::Mempool => UpdateStrategy::Recreate,
+            HybridNodeServiceName::SierraCompiler => UpdateStrategy::RollingUpdate,
+        }
     }
 }
 
