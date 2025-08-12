@@ -22,7 +22,9 @@ pub struct DictStateReader {
     pub address_to_class_hash: HashMap<ContractAddress, ClassHash>,
     pub class_hash_to_class: HashMap<ClassHash, RunnableCompiledClass>,
     pub class_hash_to_sierra: HashMap<ClassHash, SierraContractClass>,
+    // A mapping: class hash to compiled class hash, part of the state.
     pub class_hash_to_compiled_class_hash: HashMap<ClassHash, CompiledClassHash>,
+    // A mapping: class hash to compiled class hash v2, **not** part of the state.
     pub class_hash_to_compiled_class_hash_v2: HashMap<ClassHash, CompiledClassHash>,
 }
 
@@ -53,8 +55,7 @@ impl DictStateReader {
     }
 
     /// Adds the compiled class hashes of the contract to the state reader.
-    /// The `hash_version` parameter is used to determine if we should add the class before the
-    /// migration.
+    /// The `hash_version` parameter is used to determine what it the hash version in the state.
     fn add_compiled_class_hashes(
         &mut self,
         contract: &FeatureContractData,
@@ -64,10 +65,16 @@ impl DictStateReader {
         self.class_hash_to_compiled_class_hash_v2
             .insert(contract.class_hash, contract.compiled_class_hash_v2);
 
-        // For hash version V1, also add compiled class hash v1.
-        if let HashVersion::V1 = hash_version {
-            self.class_hash_to_compiled_class_hash
-                .insert(contract.class_hash, contract.compiled_class_hash_v1);
+        // Add to the sate compiled class hash mapping according to the hash version.
+        match hash_version {
+            HashVersion::V1 => {
+                self.class_hash_to_compiled_class_hash
+                    .insert(contract.class_hash, contract.compiled_class_hash_v1);
+            }
+            HashVersion::V2 => {
+                self.class_hash_to_compiled_class_hash
+                    .insert(contract.class_hash, contract.compiled_class_hash_v2);
+            }
         }
     }
 }
