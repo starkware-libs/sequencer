@@ -1,4 +1,3 @@
-use std::cmp::min;
 use std::convert::TryInto;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -133,7 +132,7 @@ async fn setup_local_server_test() -> (Arc<Semaphore>, LocalTestComponentClient)
     task::spawn(async move {
         let _ = local_server.start().await;
     });
-
+    task::yield_now().await;
     (test_sem, local_client)
 }
 
@@ -146,11 +145,12 @@ async fn setup_concurrent_local_server_test(
         component,
         rx,
         max_concurrency,
-        TEST_LOCAL_SERVER_METRICS,
+        &TEST_LOCAL_SERVER_METRICS,
     );
     task::spawn(async move {
         let _ = concurrent_local_server.start().await;
     });
+    task::yield_now().await;
 
     (test_sem, local_client)
 }
@@ -351,8 +351,7 @@ async fn all_metrics_for_concurrent_server() {
     let max_concurrency = NUMBER_OF_ITERATIONS / 2;
     let (test_sem, client) = setup_concurrent_local_server_test(max_concurrency).await;
 
-    // Current test is checking not only message counters but the queue depth too.
-    // So first we send all the messages.
+    // Send all the requests.
     for _ in 0..NUMBER_OF_ITERATIONS {
         let multi_client = client.clone();
         task::spawn(async move {
@@ -361,13 +360,16 @@ async fn all_metrics_for_concurrent_server() {
     }
     task::yield_now().await;
 
+    // TODO(Tsabary): add metrics for the prioritized requests queue depths.
     for i in 0..NUMBER_OF_ITERATIONS {
-        // After sending i permits, we should have 'max_concurrency + i + 1' received messages,
-        // up to a maximum of NUMBER_OF_ITERATIONS.
-        let expected_received_msgs = min(max_concurrency + 1 + i, NUMBER_OF_ITERATIONS);
+        // Requests are passed to the prioritized processing channels regardless of permits
+        // (assuming the channel capacity suffices in this setting), hence the
+        // expected received messages is NUMBER_OF_ITERATIONS, regardless of the number of added
+        // permits.
+        let expected_received_msgs = NUMBER_OF_ITERATIONS;
 
-        // The queue depth should be: 'NUMBER_OF_ITERATIONS - number of received messages'.
-        let expected_queue_depth = NUMBER_OF_ITERATIONS - expected_received_msgs;
+        // For the same considerations, the awaiting to be received queue depth should be 0.
+        let expected_queue_depth = 0;
 
         let metrics_as_string = recorder.handle().render();
         assert_server_metrics(

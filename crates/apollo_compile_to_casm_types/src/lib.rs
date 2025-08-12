@@ -4,7 +4,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
+use apollo_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+    PrioritizedRequest,
+};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
@@ -162,6 +166,7 @@ pub enum SierraCompilerClientError {
 pub enum SierraCompilerRequest {
     Compile(RawClass),
 }
+impl PrioritizedRequest for SierraCompilerRequest {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SierraCompilerResponse {
