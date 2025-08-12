@@ -159,6 +159,40 @@ impl Batcher {
     }
 
     #[instrument(skip(self), err)]
+    pub async fn dump_block(&mut self, proposal_id: ProposalId) -> BatcherResult<()> {
+        // Dump the built block for the specific proposal id, if available.
+        let guard = self.executed_proposals.lock().await;
+        if let Some(Ok(artifacts)) = guard.get(&proposal_id) {
+            debug!(
+                "Dumping block for proposal {:?}: commitment={:?}, final_n_executed_txs={}, \
+                 l2_gas_used={}, rejected_txs={:?}, reverted_count={}, \
+                 has_compressed_state_diff={}, bouncer_weights={:?}",
+                proposal_id,
+                artifacts.commitment(),
+                artifacts.final_n_executed_txs,
+                artifacts.l2_gas_used,
+                artifacts.execution_data.rejected_tx_hashes,
+                artifacts
+                    .execution_data
+                    .execution_infos
+                    .values()
+                    .filter(|info| info.revert_error.is_some())
+                    .count(),
+                artifacts.compressed_state_diff.is_some(),
+                artifacts.bouncer_weights,
+            );
+            // Also dump the full execution infos and address_to_nonce in separate logs to avoid
+            // overly long single log lines.
+            debug!(target: "batcher.dump_block", proposal_id = ?proposal_id, execution_infos = ?artifacts.execution_data.execution_infos);
+            debug!(target: "batcher.dump_block", proposal_id = ?proposal_id, address_to_nonce = ?artifacts.address_to_nonce());
+            return Ok(());
+        }
+
+        debug!("No completed block available to dump for proposal {:?}", proposal_id);
+        Ok(())
+    }
+
+    #[instrument(skip(self), err)]
     pub async fn start_height(&mut self, input: StartHeightInput) -> BatcherResult<()> {
         if self.active_height == Some(input.height) {
             return Err(BatcherError::HeightInProgress);

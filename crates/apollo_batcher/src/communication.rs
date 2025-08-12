@@ -39,6 +39,9 @@ impl ComponentRequestHandler<BatcherRequest, BatcherResponse> for Batcher {
             BatcherRequest::RevertBlock(input) => {
                 BatcherResponse::RevertBlock(self.revert_block(input).await)
             }
+            BatcherRequest::DumpBlock(proposal_id) => {
+                BatcherResponse::DumpBlock(self.dump_block(proposal_id).await)
+            }
         }
     }
 }

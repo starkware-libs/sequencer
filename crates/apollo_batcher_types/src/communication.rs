@@ -23,6 +23,7 @@ use crate::batcher_types::{
     GetHeightResponse,
     GetProposalContentInput,
     GetProposalContentResponse,
+    ProposalId,
     ProposeBlockInput,
     RevertBlockInput,
     SendProposalContentInput,
@@ -81,6 +82,8 @@ pub trait BatcherClient: Send + Sync {
     ) -> BatcherClientResult<DecisionReachedResponse>;
     /// Reverts the block with the given block number, only if it is the last in the storage.
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
+    /// Dumps the block for the given proposal_id to the logs at DEBUG level.
+    async fn dump_block(&self, proposal_id: ProposalId) -> BatcherClientResult<()>;
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr)]
@@ -94,6 +97,7 @@ pub enum BatcherRequest {
     DecisionReached(DecisionReachedInput),
     AddSyncBlock(SyncBlock),
     RevertBlock(RevertBlockInput),
+    DumpBlock(ProposalId),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
 impl PrioritizedRequest for BatcherRequest {}
@@ -109,6 +113,7 @@ pub enum BatcherResponse {
     DecisionReached(BatcherResult<Box<DecisionReachedResponse>>),
     AddSyncBlock(BatcherResult<()>),
     RevertBlock(BatcherResult<()>),
+    DumpBlock(BatcherResult<()>),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherResponse);
 
@@ -227,6 +232,17 @@ where
         handle_all_response_variants!(
             BatcherResponse,
             RevertBlock,
+            BatcherClientError,
+            BatcherError,
+            Direct
+        )
+    }
+
+    async fn dump_block(&self, proposal_id: ProposalId) -> BatcherClientResult<()> {
+        let request = BatcherRequest::DumpBlock(proposal_id);
+        handle_all_response_variants!(
+            BatcherResponse,
+            DumpBlock,
             BatcherClientError,
             BatcherError,
             Direct

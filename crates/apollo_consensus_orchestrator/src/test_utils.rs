@@ -196,6 +196,8 @@ impl TestDeps {
                 })
             },
         );
+        // Default no-op expectation for dump_block, which may be called on mismatches.
+        self.batcher.expect_dump_block().returning(|_proposal_id| Ok(()));
     }
 
     pub(crate) fn setup_default_transaction_converter(&mut self) {
