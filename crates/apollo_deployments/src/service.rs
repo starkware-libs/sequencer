@@ -40,6 +40,7 @@ use crate::k8s::{
 };
 #[cfg(test)]
 use crate::test_utils::FIX_BINARY_NAME;
+use crate::update_strategy::UpdateStrategy;
 
 const SERVICES_DIR_NAME: &str = "services/";
 
@@ -59,6 +60,8 @@ pub struct Service {
     resources: Resources,
     external_secret: Option<ExternalSecret>,
     anti_affinity: bool,
+    #[serde(rename = "update_strategy_type")]
+    update_strategy: UpdateStrategy,
     ports: BTreeMap<ServicePort, u16>,
 }
 
@@ -100,6 +103,7 @@ impl Service {
         let replicas = node_service.get_replicas(&environment);
         let anti_affinity = node_service.get_anti_affinity(&environment);
         let ports = node_service.get_service_port_mapping();
+        let update_strategy = node_service.get_update_strategy();
         Self {
             node_service,
             config_paths,
@@ -113,6 +117,7 @@ impl Service {
             resources,
             external_secret,
             anti_affinity,
+            update_strategy,
             ports,
         }
     }
@@ -252,6 +257,10 @@ impl NodeService {
     pub fn get_service_port_mapping(&self) -> BTreeMap<ServicePort, u16> {
         self.as_inner().get_service_port_mapping()
     }
+
+    pub fn get_update_strategy(&self) -> UpdateStrategy {
+        self.as_inner().get_update_strategy()
+    }
 }
 
 pub(crate) trait ServiceNameInner: Display {
@@ -335,6 +344,8 @@ pub(crate) trait ServiceNameInner: Display {
     }
 
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService>;
+
+    fn get_update_strategy(&self) -> UpdateStrategy;
 }
 
 impl NodeType {

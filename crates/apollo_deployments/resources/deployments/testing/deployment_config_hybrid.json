@@ -35,6 +35,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+      "update_strategy_type": "Recreate",
       "ports": {
         "Batcher": 55000,
         "ClassManager": 55001,
@@ -85,6 +86,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
       "ports": {
         "HttpServer": 8080,
         "MonitoringEndpoint": 8082
@@ -121,6 +123,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
       "ports": {
         "Gateway": 55002,
         "MonitoringEndpoint": 8082
@@ -162,6 +165,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
       "ports": {
         "L1EndpointMonitor": 55005,
         "L1GasPriceProvider": 55003,
@@ -201,6 +205,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+      "update_strategy_type": "Recreate",
       "ports": {
         "Mempool": 55006,
         "MonitoringEndpoint": 8082
@@ -237,6 +242,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
       "ports": {
         "SierraCompiler": 55007,
         "MonitoringEndpoint": 8082

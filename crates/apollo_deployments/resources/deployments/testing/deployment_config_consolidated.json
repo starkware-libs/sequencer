@@ -46,6 +46,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+      "update_strategy_type": "Recreate",
       "ports": {
         "ConsensusP2P": 53080,
         "HttpServer": 8080,
