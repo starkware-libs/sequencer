@@ -187,10 +187,7 @@ where
                     get_next_request_for_processing(&mut high_rx, &mut normal_rx, &component_name)
                         .await;
 
-                process_request(&mut component, request, tx).await;
-                metrics.increment_processed();
-                // TODO(Tsabary): make the processed and received metrics labeled based on the
-                // priority.
+                process_request(&mut component, request, tx, metrics).await;
             }
         });
     }
@@ -280,7 +277,6 @@ where
         self.local_component_server.await_requests().await;
     }
 
-    // TODO(Tsabary): avoid code duplication with `LocalComponentServer::process_requests`.
     async fn process_requests(&mut self) {
         // TODO(Tsabary): add log for requests that take too long.
         let component_name = short_type_name::<Component>();
@@ -294,7 +290,6 @@ where
 
         let task_limiter = Arc::new(Semaphore::new(self.max_concurrency));
 
-        // TODO(Itay): clean some code duplications here.
         tokio::spawn(async move {
             loop {
                 let (request, tx) =
@@ -304,16 +299,12 @@ where
                 // Acquire a permit to run the task.
                 let permit = task_limiter.clone().acquire_owned().await.unwrap();
 
+                // Clone the component for concurrent request processing.
                 let mut cloned_component = component.clone();
                 tokio::spawn(async move {
-                    process_request(&mut cloned_component, request, tx).await;
-
-                    metrics.increment_processed();
-
+                    process_request(&mut cloned_component, request, tx, metrics).await;
                     // Drop the permit to allow more tasks to be created.
                     drop(permit);
-                    // TODO(Tsabary): make the processed and received metrics labeled based on the
-                    // priority.
                 });
             }
         });
@@ -356,6 +347,7 @@ async fn process_request<Request, Response, Component>(
     component: &mut Component,
     request: Request,
     tx: Sender<Response>,
+    metrics: &'static LocalServerMetrics,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Send,
     Request: Send + Debug,
@@ -368,6 +360,10 @@ async fn process_request<Request, Response, Component>(
     );
     let response = component.handle_request(request).await;
     trace!("Component {} is sending response {:?}", short_type_name::<Component>(), response);
+
+    // TODO(Tsabary): make the processed and received metrics labeled based on the priority and of
+    // the request label.
+    metrics.increment_processed();
 
     // Send the response to the client. This might result in a panic if the client has closed
     // the response channel, which is considered a bug.
