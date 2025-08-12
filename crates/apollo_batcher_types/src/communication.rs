@@ -6,14 +6,15 @@ use apollo_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     PrioritizedRequest,
 };
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 use crate::batcher_types::{
@@ -83,7 +84,12 @@ pub trait BatcherClient: Send + Sync {
     async fn revert_block(&self, input: RevertBlockInput) -> BatcherClientResult<()>;
 }
 
-#[derive(Serialize, Deserialize, Clone, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(BatcherRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum BatcherRequest {
     ProposeBlock(ProposeBlockInput),
     GetProposalContent(GetProposalContentInput),
@@ -96,6 +102,7 @@ pub enum BatcherRequest {
     RevertBlock(RevertBlockInput),
 }
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
+impl_labeled_request!(BatcherRequest, BatcherRequestLabelValue);
 impl PrioritizedRequest for BatcherRequest {}
 
 #[derive(Serialize, Deserialize, AsRefStr)]

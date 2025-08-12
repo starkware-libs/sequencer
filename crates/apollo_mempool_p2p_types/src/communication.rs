@@ -6,13 +6,14 @@ use apollo_infra::component_definitions::{
     ComponentRequestAndResponseSender,
     PrioritizedRequest,
 };
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::MempoolP2pPropagatorError;
@@ -48,13 +49,19 @@ pub type MempoolP2pPropagatorClientResult<T> = Result<T, MempoolP2pPropagatorCli
 pub type MempoolP2pPropagatorRequestAndResponseSender =
     ComponentRequestAndResponseSender<MempoolP2pPropagatorRequest, MempoolP2pPropagatorResponse>;
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(MempoolP2pPropagatorRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum MempoolP2pPropagatorRequest {
     AddTransaction(InternalRpcTransaction),
     ContinuePropagation(BroadcastedMessageMetadata),
     BroadcastQueuedTransactions(),
 }
 impl_debug_for_infra_requests_and_responses!(MempoolP2pPropagatorRequest);
+impl_labeled_request!(MempoolP2pPropagatorRequest, MempoolP2pPropagatorRequestLabelValue);
 impl PrioritizedRequest for MempoolP2pPropagatorRequest {}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
