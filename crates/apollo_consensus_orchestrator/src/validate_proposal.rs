@@ -34,6 +34,7 @@ use tracing::{debug, error, info, instrument, warn};
 use crate::metrics::{
     CONSENSUS_L1_DATA_GAS_MISMATCH,
     CONSENSUS_L1_GAS_MISMATCH,
+    CONSENSUS_PROPOSAL_FIN_MISMATCH,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
 };
@@ -222,6 +223,7 @@ pub(crate) async fn validate_proposal(
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
+        CONSENSUS_PROPOSAL_FIN_MISMATCH.increment(1);
         return Err(ValidateProposalError::ProposalFinMismatch);
     }
 

@@ -1,6 +1,33 @@
 {
   "alerts": [
     {
+      "name": "consensus_proposal_fin_mismatch_once",
+      "title": "Consensus proposal fin mismatch occurred",
+      "ruleGroup": "consensus",
+      "expr": "increase(consensus_proposal_fin_mismatch{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              0.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4"
+    },
+    {
       "name": "cende_write_blob_failure_once",
       "title": "Cende write blob failure once",
       "ruleGroup": "consensus",
