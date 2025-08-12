@@ -15,7 +15,12 @@ const DEFAULT_URL: &str = "localhost";
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
 const DEFAULT_INVALID_PORT: u16 = 0;
 
-pub const MAX_CONCURRENCY: usize = 8;
+// TODO(Tsabary): create custom configs per service, considering the required throughput and spike
+// tolerance.
+
+// TODO(Tsabary): rename this constant and config field to better reflect its purpose.
+
+pub const MAX_CONCURRENCY: usize = 128;
 
 pub trait ExpectedComponentConfig {
     fn is_component_config_expected(&self) -> bool;

@@ -22,7 +22,10 @@ use crate::component_definitions::{
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::LocalServerMetrics;
 
-const DEFAULT_CHANNEL_CAPACITY: usize = 128;
+// TODO(Tsabary): create custom configs per service, considering the required throughput and spike
+// tolerance.
+
+const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
 
 // The communication configuration of the local component.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
