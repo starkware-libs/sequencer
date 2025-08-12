@@ -24,6 +24,7 @@ starknet-types-core.workspace = true
 starknet_api.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
 mockall.workspace = true

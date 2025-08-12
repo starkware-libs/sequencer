@@ -81,7 +81,7 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
     async fn handle_request(&mut self, request: StateSyncRequest) -> StateSyncResponse {
         match request {
             StateSyncRequest::GetBlock(block_number) => {
-                StateSyncResponse::GetBlock(self.get_block(block_number).map(Box::new))
+                StateSyncResponse::GetBlock(self.get_block(block_number).await.map(Box::new))
             }
             StateSyncRequest::GetBlockHash(block_number) => {
                 StateSyncResponse::GetBlockHash(self.get_block_hash(block_number).await)
@@ -90,27 +90,27 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
                 self.new_block_sender.send(*sync_block).await.map_err(StateSyncError::from),
             ),
             StateSyncRequest::GetStorageAt(block_number, contract_address, storage_key) => {
-                StateSyncResponse::GetStorageAt(self.get_storage_at(
-                    block_number,
-                    contract_address,
-                    storage_key,
-                ))
+                StateSyncResponse::GetStorageAt(
+                    self.get_storage_at(block_number, contract_address, storage_key).await,
+                )
             }
             StateSyncRequest::GetNonceAt(block_number, contract_address) => {
-                StateSyncResponse::GetNonceAt(self.get_nonce_at(block_number, contract_address))
+                StateSyncResponse::GetNonceAt(
+                    self.get_nonce_at(block_number, contract_address).await,
+                )
             }
             StateSyncRequest::GetClassHashAt(block_number, contract_address) => {
                 StateSyncResponse::GetClassHashAt(
-                    self.get_class_hash_at(block_number, contract_address),
+                    self.get_class_hash_at(block_number, contract_address).await,
                 )
             }
             StateSyncRequest::GetLatestBlockNumber() => {
-                StateSyncResponse::GetLatestBlockNumber(self.get_latest_block_number())
+                StateSyncResponse::GetLatestBlockNumber(self.get_latest_block_number().await)
             }
             // TODO(shahak): Add tests for is_class_declared_at.
             StateSyncRequest::IsClassDeclaredAt(block_number, class_hash) => {
                 StateSyncResponse::IsClassDeclaredAt(
-                    self.is_class_declared_at(block_number, class_hash),
+                    self.is_class_declared_at(block_number, class_hash).await,
                 )
             }
         }
@@ -118,42 +118,46 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 }
 
 impl StateSync {
-    fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
-        let txn = self.storage_reader.begin_ro_txn()?;
+    async fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
+        let storage_reader = self.storage_reader.clone();
+        tokio::task::spawn_blocking(move || {
+            let txn = storage_reader.begin_ro_txn()?;
 
-        let block_not_found_err = Err(StateSyncError::BlockNotFound(block_number));
-        let Some(block_header) = txn.get_block_header(block_number)? else {
-            return block_not_found_err;
-        };
-        let Some(block_transactions_with_hash) =
-            txn.get_block_transactions_with_hash(block_number)?
-        else {
-            return block_not_found_err;
-        };
-        let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
-            return block_not_found_err;
-        };
+            let block_not_found_err = Err(StateSyncError::BlockNotFound(block_number));
+            let Some(block_header) = txn.get_block_header(block_number)? else {
+                return block_not_found_err;
+            };
+            let Some(block_transactions_with_hash) =
+                txn.get_block_transactions_with_hash(block_number)?
+            else {
+                return block_not_found_err;
+            };
+            let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
+                return block_not_found_err;
+            };
 
-        let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
-        let mut account_transaction_hashes: Vec<TransactionHash> = vec![];
-        for (tx, tx_hash) in block_transactions_with_hash {
-            match tx {
-                Transaction::L1Handler(_) => l1_transaction_hashes.push(tx_hash),
-                _ => account_transaction_hashes.push(tx_hash),
+            let mut l1_transaction_hashes: Vec<TransactionHash> = vec![];
+            let mut account_transaction_hashes: Vec<TransactionHash> = vec![];
+            for (tx, tx_hash) in block_transactions_with_hash {
+                match tx {
+                    Transaction::L1Handler(_) => l1_transaction_hashes.push(tx_hash),
+                    _ => account_transaction_hashes.push(tx_hash),
+                }
             }
-        }
 
-        Ok(SyncBlock {
-            state_diff: thin_state_diff,
-            block_header_without_hash: block_header.block_header_without_hash,
-            account_transaction_hashes,
-            l1_transaction_hashes,
+            Ok(SyncBlock {
+                state_diff: thin_state_diff,
+                block_header_without_hash: block_header.block_header_without_hash,
+                account_transaction_hashes,
+                l1_transaction_hashes,
+            })
         })
+        .await?
     }
 
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
         // Getting the next block because the Sync block only contains parent hash.
-        match (self.get_block(block_number.unchecked_next()), self.starknet_client.as_ref()) {
+        match (self.get_block(block_number.unchecked_next()).await, self.starknet_client.as_ref()) {
             (Ok(block), _) => Ok(block.block_header_without_hash.parent_hash),
             (Err(StateSyncError::BlockNotFound(_)), Some(starknet_client)) => {
                 // As a fallback, try to get the block hash through the feeder directly. This
@@ -168,93 +172,111 @@ impl StateSync {
         }
     }
 
-    fn get_storage_at(
+    async fn get_storage_at(
         &self,
         block_number: BlockNumber,
         contract_address: ContractAddress,
         storage_key: StorageKey,
     ) -> StateSyncResult<Felt> {
-        let txn = self.storage_reader.begin_ro_txn()?;
-        verify_synced_up_to(&txn, block_number)?;
+        let storage_reader = self.storage_reader.clone();
+        tokio::task::spawn_blocking(move || {
+            let txn = storage_reader.begin_ro_txn()?;
+            verify_synced_up_to(&txn, block_number)?;
 
-        let state_number = StateNumber::unchecked_right_after_block(block_number);
-        let state_reader = txn.get_state_reader()?;
+            let state_number = StateNumber::unchecked_right_after_block(block_number);
+            let state_reader = txn.get_state_reader()?;
 
-        verify_contract_deployed(&state_reader, state_number, contract_address)?;
+            verify_contract_deployed(&state_reader, state_number, contract_address)?;
 
-        let res = state_reader.get_storage_at(state_number, &contract_address, &storage_key)?;
+            let res = state_reader.get_storage_at(state_number, &contract_address, &storage_key)?;
 
-        Ok(res)
+            Ok(res)
+        })
+        .await?
     }
 
-    fn get_nonce_at(
+    async fn get_nonce_at(
         &self,
         block_number: BlockNumber,
         contract_address: ContractAddress,
     ) -> StateSyncResult<Nonce> {
-        let txn = self.storage_reader.begin_ro_txn()?;
-        verify_synced_up_to(&txn, block_number)?;
+        let storage_reader = self.storage_reader.clone();
+        tokio::task::spawn_blocking(move || {
+            let txn = storage_reader.begin_ro_txn()?;
+            verify_synced_up_to(&txn, block_number)?;
 
-        let state_number = StateNumber::unchecked_right_after_block(block_number);
-        let state_reader = txn.get_state_reader()?;
+            let state_number = StateNumber::unchecked_right_after_block(block_number);
+            let state_reader = txn.get_state_reader()?;
 
-        verify_contract_deployed(&state_reader, state_number, contract_address)?;
+            verify_contract_deployed(&state_reader, state_number, contract_address)?;
 
-        let res = state_reader
-            .get_nonce_at(state_number, &contract_address)?
-            .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+            let res = state_reader
+                .get_nonce_at(state_number, &contract_address)?
+                .ok_or(StateSyncError::ContractNotFound(contract_address))?;
 
-        Ok(res)
+            Ok(res)
+        })
+        .await?
     }
 
-    fn get_class_hash_at(
+    async fn get_class_hash_at(
         &self,
         block_number: BlockNumber,
         contract_address: ContractAddress,
     ) -> StateSyncResult<ClassHash> {
-        let txn = self.storage_reader.begin_ro_txn()?;
-        verify_synced_up_to(&txn, block_number)?;
+        let storage_reader = self.storage_reader.clone();
+        tokio::task::spawn_blocking(move || {
+            let txn = storage_reader.begin_ro_txn()?;
+            verify_synced_up_to(&txn, block_number)?;
 
-        let state_number = StateNumber::unchecked_right_after_block(block_number);
-        let state_reader = txn.get_state_reader()?;
-        let class_hash = state_reader
-            .get_class_hash_at(state_number, &contract_address)?
-            .ok_or(StateSyncError::ContractNotFound(contract_address))?;
-        Ok(class_hash)
+            let state_number = StateNumber::unchecked_right_after_block(block_number);
+            let state_reader = txn.get_state_reader()?;
+            let class_hash = state_reader
+                .get_class_hash_at(state_number, &contract_address)?
+                .ok_or(StateSyncError::ContractNotFound(contract_address))?;
+            Ok(class_hash)
+        })
+        .await?
     }
 
-    fn get_latest_block_number(&self) -> StateSyncResult<Option<BlockNumber>> {
-        let txn = self.storage_reader.begin_ro_txn()?;
-        let latest_block_number = latest_synced_block(&txn)?;
-        Ok(latest_block_number)
+    async fn get_latest_block_number(&self) -> StateSyncResult<Option<BlockNumber>> {
+        let storage_reader = self.storage_reader.clone();
+        tokio::task::spawn_blocking(move || {
+            let txn = storage_reader.begin_ro_txn()?;
+            let latest_block_number = latest_synced_block(&txn)?;
+            Ok(latest_block_number)
+        })
+        .await?
     }
 
-    fn is_class_declared_at(
+    async fn is_class_declared_at(
         &self,
         block_number: BlockNumber,
         class_hash: ClassHash,
     ) -> StateSyncResult<bool> {
-        let class_definition_block_number_opt = self
-            .storage_reader
-            .begin_ro_txn()?
-            .get_state_reader()?
-            .get_class_definition_block_number(&class_hash)?;
-        if let Some(class_definition_block_number) = class_definition_block_number_opt {
-            return Ok(class_definition_block_number <= block_number);
-        }
+        let storage_reader = self.storage_reader.clone();
+        tokio::task::spawn_blocking(move || {
+            let class_definition_block_number_opt = storage_reader
+                .begin_ro_txn()?
+                .get_state_reader()?
+                .get_class_definition_block_number(&class_hash)?;
+            if let Some(class_definition_block_number) = class_definition_block_number_opt {
+                return Ok(class_definition_block_number <= block_number);
+            }
 
-        // TODO(noamsp): Add unit testing for cairo0
-        let deprecated_class_definition_block_number_opt = self
-            .storage_reader
-            .begin_ro_txn()?
-            .get_state_reader()?
-            .get_deprecated_class_definition_block_number(&class_hash)?;
+            // TODO(noamsp): Add unit testing for cairo0
+            let deprecated_class_definition_block_number_opt = storage_reader
+                .begin_ro_txn()?
+                .get_state_reader()?
+                .get_deprecated_class_definition_block_number(&class_hash)?;
 
-        Ok(deprecated_class_definition_block_number_opt.is_some_and(
-            |deprecated_class_definition_block_number| {
-                deprecated_class_definition_block_number <= block_number
-            },
-        ))
+            Ok(deprecated_class_definition_block_number_opt.is_some_and(
+                |deprecated_class_definition_block_number| {
+                    deprecated_class_definition_block_number <= block_number
+                },
+            ))
+        })
+        .await?
     }
 }
 
