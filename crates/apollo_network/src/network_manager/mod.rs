@@ -18,6 +18,7 @@ use futures::future::{ready, BoxFuture, Ready};
 use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
+use libp2p::gossipsub::PublishError::{self};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
@@ -616,18 +617,38 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
     }
 
     fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
-        if let Some(broadcast_metrics_by_topic) =
-            self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics_by_topic.as_ref())
-        {
-            match broadcast_metrics_by_topic.get(&topic_hash) {
-                Some(broadcast_metrics) => {
-                    broadcast_metrics.num_sent_broadcast_messages.increment(1)
+        // Get topic-specific metrics once
+        let topic_metrics = self
+            .metrics
+            .as_ref()
+            .and_then(|metrics| metrics.broadcast_metrics_by_topic.as_ref())
+            .and_then(|broadcast_metrics_by_topic| broadcast_metrics_by_topic.get(&topic_hash));
+
+        // Update sent message count
+        if let Some(broadcast_metrics) = topic_metrics {
+            broadcast_metrics.num_sent_broadcast_messages.increment(1);
+        } else {
+            error!("Attempted to update topic metric with unregistered topic_hash");
+        }
+
+        trace!("Sending broadcast message with topic hash: {topic_hash:?}");
+        let result = self.swarm.broadcast_message(message, topic_hash.clone());
+
+        // Handle broadcast errors and update metrics
+        if let Err(err) = result {
+            // TODO(shahak): Consider reporting to the subscriber broadcast failures or
+            // retrying upon failure.
+            warn!(
+                "Error occured while broadcasting a message to the topic with hash \
+                 {topic_hash:?}: {err:?}"
+            );
+
+            if matches!(err, PublishError::NoPeersSubscribedToTopic) {
+                if let Some(broadcast_metrics) = topic_metrics {
+                    broadcast_metrics.error_metrics.num_no_peers_subscribed_errors.increment(1);
                 }
-                None => error!("Attempted to update topic metric with unregistered topic_hash"),
             }
         }
-        trace!("Sending broadcast message with topic hash: {topic_hash:?}");
-        self.swarm.broadcast_message(message, topic_hash);
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {

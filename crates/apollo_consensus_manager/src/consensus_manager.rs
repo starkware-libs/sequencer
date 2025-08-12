@@ -21,7 +21,11 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkErrorMetrics,
+    BroadcastNetworkMetrics,
+    NetworkMetrics,
+};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
@@ -37,6 +41,7 @@ use crate::config::ConsensusManagerConfig;
 use crate::metrics::{
     CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_NUM_NO_PEERS_SUBSCRIBED_ERRORS,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
@@ -83,6 +88,9 @@ impl ConsensusManager {
             BroadcastNetworkMetrics {
                 num_sent_broadcast_messages: CONSENSUS_VOTES_NUM_SENT_MESSAGES,
                 num_received_broadcast_messages: CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
+                error_metrics: BroadcastNetworkErrorMetrics {
+                    num_no_peers_subscribed_errors: CONSENSUS_NUM_NO_PEERS_SUBSCRIBED_ERRORS,
+                },
             },
         );
         broadcast_metrics_by_topic.insert(
@@ -90,6 +98,9 @@ impl ConsensusManager {
             BroadcastNetworkMetrics {
                 num_sent_broadcast_messages: CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
                 num_received_broadcast_messages: CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
+                error_metrics: BroadcastNetworkErrorMetrics {
+                    num_no_peers_subscribed_errors: CONSENSUS_NUM_NO_PEERS_SUBSCRIBED_ERRORS,
+                },
             },
         );
         let network_manager_metrics = Some(NetworkMetrics {
