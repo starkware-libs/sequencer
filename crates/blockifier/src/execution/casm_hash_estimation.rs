@@ -9,6 +9,7 @@ use crate::execution::contract_class::{
     FeltSizeCount,
     NestedFeltCounts,
 };
+use crate::execution::execution_utils::poseidon_hash_many_cost;
 
 #[cfg(test)]
 #[path = "casm_hash_estimation_test.rs"]
@@ -29,7 +30,6 @@ pub enum EstimatedExecutionResources {
 }
 
 impl EstimatedExecutionResources {
-    // TODO(AvivG): this is a duplication in having both `new` and `v1`/`v2`, remove one.
     pub fn new(hash_version: HashVersion) -> Self {
         match hash_version {
             HashVersion::V1 => {
@@ -112,5 +112,43 @@ trait EstimateCasmHashResources {
     ) -> EstimatedExecutionResources {
         // TODO(AvivG): Implement.
         EstimatedExecutionResources::new(self.hash_version())
+    }
+}
+
+// TODO(AvivG): Remove allow once used.
+#[allow(unused)]
+struct CasmV1HashResourceEstimate {}
+
+impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
+    fn hash_version(&self) -> HashVersion {
+        HashVersion::V1
+    }
+
+    fn estimated_resources_of_hash_function(
+        &mut self,
+        felt_count: FeltSizeCount,
+    ) -> EstimatedExecutionResources {
+        EstimatedExecutionResources::V1Hash {
+            // TODO(AvivG): Consider inlining `poseidon_hash_many_cost` logic here.
+            resources: poseidon_hash_many_cost(felt_count.n_felts()),
+        }
+    }
+}
+
+// TODO(AvivG): Remove allow once used.
+#[allow(unused)]
+struct CasmV2HashResourceEstimate {}
+
+impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
+    fn hash_version(&self) -> HashVersion {
+        HashVersion::V2
+    }
+
+    fn estimated_resources_of_hash_function(
+        &mut self,
+        _felt_count: FeltSizeCount,
+    ) -> EstimatedExecutionResources {
+        // TODO(AvivG): Use `cost_of_encode_felt252_data_and_calc_blake_hash` once it returns ER.
+        EstimatedExecutionResources::new(HashVersion::V2)
     }
 }
