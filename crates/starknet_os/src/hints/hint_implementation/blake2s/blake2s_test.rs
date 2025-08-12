@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
 use blake2s::encode_felt252_data_and_calc_blake_hash;
 use blockifier::execution::execution_utils::encode_and_blake_hash_execution_resources;
 use cairo_vm::types::builtin_name::BuiltinName;
@@ -80,7 +79,7 @@ fn test_cairo_vs_rust_blake2s_implementation(#[case] test_data: Vec<Felt>) {
     let state_reader = None;
     let result = initialize_and_run_cairo_0_entry_point(
         &runner_config,
-        BLAKE_COMPILED_CLASS_HASH_BYTES,
+        apollo_starknet_os_program::OS_PROGRAM_BYTES,
         "starkware.cairo.common.cairo_blake2s.blake2s.encode_felt252_data_and_calc_blake_hash",
         &explicit_args,
         &implicit_args,
