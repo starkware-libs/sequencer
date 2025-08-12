@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::sync::Semaphore;
+use tokio::time::Instant;
 use tracing::{error, info, trace, warn};
 use validator::Validate;
 
@@ -80,6 +81,7 @@ where
     component: Option<Component>,
     rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     metrics: &'static LocalServerMetrics,
+    processing_time_warning_threshold_ms: u128,
 
     normal_priority_request_rx:
         Option<Receiver<ComponentRequestAndResponseSender<Request, Response>>>,
@@ -106,10 +108,13 @@ where
         let (high_priority_request_tx, high_priority_request_rx) =
             channel::<ComponentRequestAndResponseSender<Request, Response>>(1000);
 
+        let processing_time_warning_threshold_ms = 3_000; // TODO(Tsabary): make this configurable.
+
         Self {
             component: Some(component),
             rx,
             metrics,
+            processing_time_warning_threshold_ms,
             normal_priority_request_tx,
             normal_priority_request_rx: Some(normal_priority_request_rx),
             high_priority_request_tx,
@@ -132,8 +137,14 @@ where
             .take()
             .expect("Normal priority request receiver should be available");
         let metrics = self.metrics;
-
-        RequestProcessingMembers { component, high_rx, normal_rx, metrics }
+        let processing_time_warning_threshold_ms = self.processing_time_warning_threshold_ms;
+        RequestProcessingMembers {
+            component,
+            high_rx,
+            normal_rx,
+            metrics,
+            processing_time_warning_threshold_ms,
+        }
     }
 
     async fn await_requests(&mut self) {
@@ -173,12 +184,16 @@ where
     }
 
     async fn process_requests(&mut self) {
-        // TODO(Tsabary): add log for requests that take too long.
         let component_name = short_type_name::<Component>();
         info!("Starting to process requests in the component {component_name} local server",);
 
-        let RequestProcessingMembers { mut component, mut high_rx, mut normal_rx, metrics } =
-            self.get_processing_inner_members();
+        let RequestProcessingMembers {
+            mut component,
+            mut high_rx,
+            mut normal_rx,
+            metrics,
+            processing_time_warning_threshold_ms,
+        } = self.get_processing_inner_members();
 
         tokio::spawn(async move {
             loop {
@@ -186,7 +201,14 @@ where
                     get_next_request_for_processing(&mut high_rx, &mut normal_rx, &component_name)
                         .await;
 
-                process_request(&mut component, request, tx, metrics).await;
+                process_request(
+                    &mut component,
+                    request,
+                    tx,
+                    metrics,
+                    processing_time_warning_threshold_ms,
+                )
+                .await;
             }
         });
     }
@@ -274,15 +296,19 @@ where
     }
 
     async fn process_requests(&mut self) {
-        // TODO(Tsabary): add log for requests that take too long.
         let component_name = short_type_name::<Component>();
         info!(
             "Starting to process requests in the component {component_name} concurrent local \
              server",
         );
 
-        let RequestProcessingMembers { component, mut high_rx, mut normal_rx, metrics } =
-            self.local_component_server.get_processing_inner_members();
+        let RequestProcessingMembers {
+            component,
+            mut high_rx,
+            mut normal_rx,
+            metrics,
+            processing_time_warning_threshold_ms,
+        } = self.local_component_server.get_processing_inner_members();
 
         let task_limiter = Arc::new(Semaphore::new(self.max_concurrency));
 
@@ -298,7 +324,14 @@ where
                 // Clone the component for concurrent request processing.
                 let mut cloned_component = component.clone();
                 tokio::spawn(async move {
-                    process_request(&mut cloned_component, request, tx, metrics).await;
+                    process_request(
+                        &mut cloned_component,
+                        request,
+                        tx,
+                        metrics,
+                        processing_time_warning_threshold_ms,
+                    )
+                    .await;
                     // Drop the permit to allow more tasks to be created.
                     drop(permit);
                 });
@@ -342,23 +375,34 @@ async fn process_request<Request, Response, Component>(
     request: Request,
     tx: Sender<Response>,
     metrics: &'static LocalServerMetrics,
+    processing_time_warning_threshold_ms: u128,
 ) where
     Component: ComponentRequestHandler<Request, Response> + Send,
     Request: Send + Debug,
     Response: Send + Debug,
 {
-    trace!(
-        "Component {} is starting to process request {:?}",
-        short_type_name::<Component>(),
-        request
-    );
+    let component_name = short_type_name::<Component>();
+    let request_info = format!("{:?}", request);
+
+    trace!("Component {component_name} is starting to process request {request_info:?}",);
+    // Please note that the we're measuring the time of an asynchronous request processing, which
+    // might also include the awaited time of this task to execute.
+    let start = Instant::now();
     let response = component.handle_request(request).await;
-    trace!("Component {} is sending response {:?}", short_type_name::<Component>(), response);
+    let elapsed = start.elapsed();
+    let elapsed_ms = elapsed.as_millis();
+    if elapsed.as_millis() > processing_time_warning_threshold_ms {
+        warn!(
+            "Component {component_name} took {elapsed_ms} ms to process request {request_info:?}, \
+             exceeding the {processing_time_warning_threshold_ms} ms threshold.",
+        );
+    }
 
     // TODO(Tsabary): make the processed and received metrics labeled based on the priority and of
     // the request label.
     metrics.increment_processed();
 
+    trace!("Component {component_name} is sending response {response:?}");
     // Send the response to the client. This might result in a panic if the client has closed
     // the response channel, which is considered a bug.
     tx.send(response).await.expect("Response connection should be open.");
@@ -373,6 +417,7 @@ where
     high_rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     normal_rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
     metrics: &'static LocalServerMetrics,
+    processing_time_warning_threshold_ms: u128,
 }
 
 async fn get_next_request_for_processing<Request, Response>(
