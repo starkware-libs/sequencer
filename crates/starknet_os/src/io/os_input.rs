@@ -6,7 +6,7 @@ use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::{BlockHash, BlockInfo, BlockNumber};
 #[cfg(feature = "deserialize")]
 use starknet_api::core::deserialize_chain_id_from_hex;
-use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
+use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, EcPoint, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
 use starknet_api::state::{ContractClassComponentHashes, StorageKey};
@@ -70,6 +70,7 @@ pub struct OsChainInfo {
     #[cfg_attr(feature = "deserialize", serde(deserialize_with = "deserialize_chain_id_from_hex"))]
     pub(crate) chain_id: ChainId,
     pub(crate) strk_fee_token_address: ContractAddress,
+    pub public_key: EcPoint,
 }
 
 impl Default for OsChainInfo {
@@ -77,6 +78,7 @@ impl Default for OsChainInfo {
         OsChainInfo {
             chain_id: ChainId::Other("0x0".to_string()),
             strk_fee_token_address: ContractAddress::default(),
+            public_key: EcPoint::default(),
         }
     }
 }

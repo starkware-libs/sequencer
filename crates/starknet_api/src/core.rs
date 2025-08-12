@@ -194,6 +194,32 @@ pub fn calculate_contract_address(
 
     ContractAddress::try_from(address)
 }
+#[derive(
+    Debug,
+    Default,
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Hash,
+    Deserialize,
+    Serialize,
+    PartialOrd,
+    Ord,
+    derive_more::Display,
+    SizeOf,
+)]
+#[display(fmt = "EcPoint(x: {x}, y: {y})")]
+pub struct EcPoint {
+    pub x: Felt,
+    pub y: Felt,
+}
+
+impl EcPoint {
+    pub fn from_felt(x: Felt, y: Felt) -> Self {
+        Self { x, y }
+    }
+}
 
 /// The hash of a ContractClass.
 #[derive(
