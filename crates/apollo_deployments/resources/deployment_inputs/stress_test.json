@@ -1,5 +1,6 @@
 {
   "node_ids": [0, 1, 2],
+  "num_validators": 3,
   "http_server_ingress_alternative_name": "apollo-stresstest-dev.sw-dev.io",
   "ingress_domain": "sw-dev.io",
   "secret_name_format": "apollo-stresstest-dev-{}",
