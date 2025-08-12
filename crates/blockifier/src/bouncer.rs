@@ -923,8 +923,7 @@ fn get_migration_data<S: StateReader>(
 
                 compiled_class_hashes.insert(class_hash);
                 gas = gas.checked_add_panic_on_overflow(new_gas);
-                // TODO(Aviv): Use add maps instead of extend.
-                poseidon_builtins.extend(new_builtins);
+                add_maps(&mut poseidon_builtins, &new_builtins);
             }
             Ok((compiled_class_hashes, gas, poseidon_builtins))
         },
