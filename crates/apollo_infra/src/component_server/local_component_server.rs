@@ -118,6 +118,25 @@ where
         }
     }
 
+    fn get_processing_inner_members(
+        &mut self,
+    ) -> RequestProcessingMembers<Request, Response, Component> {
+        // Take ownership of the component and the priority request receivers, so they can be used
+        // in the async task.
+        let component = self.component.take().expect("Component should be available");
+        let high_rx = self
+            .high_priority_request_rx
+            .take()
+            .expect("High priority request receiver should be available");
+        let normal_rx = self
+            .normal_priority_request_rx
+            .take()
+            .expect("Normal priority request receiver should be available");
+        let metrics = self.metrics;
+
+        RequestProcessingMembers { component, high_rx, normal_rx, metrics }
+    }
+
     async fn await_requests(&mut self) {
         info!(
             "Starting to await requests in the component {} local server",
@@ -161,18 +180,8 @@ where
             short_type_name::<Component>()
         );
 
-        // Take ownership of the component and the priority request receivers, so they can be used
-        // in the async task.
-        let mut component = self.component.take().expect("Component should be available");
-        let mut high_rx = self
-            .high_priority_request_rx
-            .take()
-            .expect("High priority request receiver should be available");
-        let mut normal_rx = self
-            .normal_priority_request_rx
-            .take()
-            .expect("Normal priority request receiver should be available");
-        let metrics = self.metrics;
+        let RequestProcessingMembers { mut component, mut high_rx, mut normal_rx, metrics } =
+            self.get_processing_inner_members();
 
         tokio::spawn(async move {
             loop {
@@ -276,7 +285,6 @@ where
     Request: Send + Debug + PrioritizedRequest + 'static,
     Response: Send + Debug + 'static,
 {
-    // TODO(Tsabary): avoid code duplication with `LocalComponentServer::new`.
     pub fn new(
         component: Component,
         rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
@@ -284,7 +292,6 @@ where
         metrics: &'static LocalServerMetrics,
     ) -> Self {
         let local_component_server = LocalComponentServer::new(component, rx, metrics);
-
         Self { local_component_server, max_concurrency }
     }
 
@@ -300,21 +307,8 @@ where
             short_type_name::<Component>()
         );
 
-        // Take ownership of the component and the priority request receivers, so they can be used
-        // in the async task.
-        let component =
-            self.local_component_server.component.take().expect("Component should be available");
-        let mut high_rx = self
-            .local_component_server
-            .high_priority_request_rx
-            .take()
-            .expect("High priority request receiver should be available");
-        let mut normal_rx = self
-            .local_component_server
-            .normal_priority_request_rx
-            .take()
-            .expect("Normal priority request receiver should be available");
-        let metrics = self.local_component_server.metrics;
+        let RequestProcessingMembers { component, mut high_rx, mut normal_rx, metrics } =
+            self.local_component_server.get_processing_inner_members();
 
         let task_limiter = Arc::new(Semaphore::new(self.max_concurrency));
 
@@ -413,4 +407,15 @@ async fn process_request<Request, Response, Component>(
     // Send the response to the client. This might result in a panic if the client has closed
     // the response channel, which is considered a bug.
     tx.send(response).await.expect("Response connection should be open.");
+}
+
+struct RequestProcessingMembers<Request, Response, Component>
+where
+    Request: Send,
+    Response: Send,
+{
+    component: Component,
+    high_rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    normal_rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    metrics: &'static LocalServerMetrics,
 }
