@@ -18,7 +18,7 @@ use crate::deployment_definitions::{
     InfraServicePort,
     ServicePort,
 };
-use crate::deployments::IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
+use crate::deployments::POOL_MAX_IDLE_PER_HOST_FOR_AUTOSCALED_SERVICES;
 use crate::k8s::{
     get_environment_ingress_internal,
     get_ingress,
@@ -791,8 +791,8 @@ impl DistributedNodeServiceName {
         );
         match self {
             DistributedNodeServiceName::Gateway | DistributedNodeServiceName::SierraCompiler => {
-                base.remote_client_config.idle_connections =
-                    IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
+                base.remote_client_config.pool_max_idle_per_host =
+                    POOL_MAX_IDLE_PER_HOST_FOR_AUTOSCALED_SERVICES
             }
             DistributedNodeServiceName::Batcher
             | DistributedNodeServiceName::ClassManager

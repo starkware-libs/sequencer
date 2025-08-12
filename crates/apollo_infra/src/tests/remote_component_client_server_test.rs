@@ -65,9 +65,12 @@ const BAD_REQUEST_ERROR_MESSAGE: &str = "Got status code: 400 Bad Request";
 const VALID_VALUE_A: ValueA = Felt::ONE;
 
 const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
+    client_count: 1,
+    http2_keep_alive_interval_ms: 0,
+    http2_keep_alive_timeout_ms: 0,
+    pool_idle_timeout_ms: 0,
+    pool_max_idle_per_host: 0,
     retries: 0,
-    idle_connections: 0,
-    idle_timeout_ms: 0,
     retry_interval_ms: 0,
 };
 
