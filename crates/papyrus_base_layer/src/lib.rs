@@ -82,10 +82,19 @@ pub trait BaseLayerContract {
 }
 
 /// Reference to an L1 block, extend as needed.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Default, Eq, PartialEq)]
 pub struct L1BlockReference {
     pub number: L1BlockNumber,
     pub hash: L1BlockHash,
+}
+
+impl std::fmt::Debug for L1BlockReference {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("L1BlockReference")
+            .field("number", &self.number)
+            .field("hash", &format_args!("0x{}", hex::encode(self.hash)))
+            .finish()
+    }
 }
 
 /// A struct with some of the fields of the L1 block header. Extend as needed.
