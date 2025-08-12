@@ -74,7 +74,6 @@ impl Default for LocalServerConfig {
 /// - `metrics`: The metrics for the server.
 pub struct LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response>,
     Request: Send,
     Response: Send,
 {
@@ -195,7 +194,6 @@ where
 
 impl<Component, Request, Response> Drop for LocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response>,
     Request: Send,
     Response: Send,
 {
@@ -248,12 +246,10 @@ where
 /// - `metrics`: The metrics for the server wrapped in Arc so it could be used concurrently.
 pub struct ConcurrentLocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response>,
     Request: Send,
     Response: Send,
 {
     local_component_server: LocalComponentServer<Component, Request, Response>,
-
     max_concurrency: usize,
 }
 
@@ -311,11 +307,9 @@ where
     }
 }
 
-// TODO(Lev,Itay): Find a way to avoid duplicity, maybe by a blanket implementation.
 impl<Component, Request, Response> Drop
     for ConcurrentLocalComponentServer<Component, Request, Response>
 where
-    Component: ComponentRequestHandler<Request, Response>,
     Request: Send,
     Response: Send,
 {
