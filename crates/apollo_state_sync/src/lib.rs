@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::{ComponentRequestHandler, ComponentStarter};
-use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
+use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
 use apollo_starknet_client::reader::{StarknetFeederGatewayClient, StarknetReader};
 use apollo_state_sync_types::communication::{StateSyncRequest, StateSyncResponse};
 use apollo_state_sync_types::errors::StateSyncError;
@@ -305,7 +305,7 @@ fn verify_contract_deployed<Mode: TransactionKind>(
 }
 
 pub type LocalStateSyncServer =
-    ConcurrentLocalComponentServer<StateSync, StateSyncRequest, StateSyncResponse>;
+    LocalComponentServer<StateSync, StateSyncRequest, StateSyncResponse>;
 pub type RemoteStateSyncServer = RemoteComponentServer<StateSyncRequest, StateSyncResponse>;
 
 impl ComponentStarter for StateSync {}
