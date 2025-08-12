@@ -11,6 +11,7 @@ pub mod gossipsub_impl;
 pub mod misconduct_score;
 mod mixed_behaviour;
 pub mod network_manager;
+mod one_connection_per_peer;
 mod peer_manager;
 mod sqmr;
 #[cfg(test)]

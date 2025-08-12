@@ -11,6 +11,7 @@ use starknet_api::core::ChainId;
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
 use crate::discovery::DiscoveryConfig;
+use crate::one_connection_per_peer::OneConnectionPerPeerBehaviour;
 use crate::peer_manager::PeerManagerConfig;
 use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 
@@ -18,6 +19,7 @@ use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
 pub struct MixedBehaviour {
+    pub one_connection_per_peer: OneConnectionPerPeerBehaviour,
     pub peer_manager: peer_manager::PeerManager,
     pub discovery: Toggle<discovery::Behaviour>,
     pub identify: identify::Behaviour,
@@ -74,6 +76,7 @@ impl MixedBehaviour {
                 .expect("Failed to create StreamProtocol from a string that starts with /"),
         ]);
         Self {
+            one_connection_per_peer: OneConnectionPerPeerBehaviour::default(),
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
             discovery: bootstrap_peers_multiaddrs
                 .map(|bootstrap_peer_multiaddr| {
