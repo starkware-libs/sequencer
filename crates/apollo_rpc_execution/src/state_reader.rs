@@ -5,6 +5,7 @@ mod state_reader_test;
 use std::cell::Cell;
 
 use apollo_class_manager_types::SharedClassManagerClient;
+use apollo_storage::class_hash::ClassHashStorageReader;
 use apollo_storage::state::StateStorageReader;
 use apollo_storage::{StorageError, StorageReader};
 use blockifier::execution::contract_class::{
@@ -204,6 +205,19 @@ impl BlockifierStateReader for ExecutionStateReader {
         )?;
 
         Ok(*compiled_class_hash)
+    }
+
+    fn get_compiled_class_hash_v2(&self, class_hash: ClassHash) -> StateResult<CompiledClassHash> {
+        // Try to read the compiled class hash v2 from the dedicated stateless table.
+        // If it's missing (e.g., class not declared/Cairo0), return the default value.
+        let maybe_hash = self
+            .storage_reader
+            .begin_ro_txn()
+            .map_err(storage_err_to_state_err)?
+            .get_executable_class_hash_v2(&class_hash)
+            .map_err(storage_err_to_state_err)?;
+
+        Ok(maybe_hash.unwrap_or_default())
     }
 }
 
