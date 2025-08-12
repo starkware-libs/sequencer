@@ -2,12 +2,14 @@ use std::fmt::{Display, Formatter, Result};
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
+use alloy::primitives::Address as EthereumContractAddress;
 use apollo_http_server::config::HTTP_SERVER_PORT;
 use apollo_infra_utils::template::Template;
 use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use starknet_api::block::BlockNumber;
+use starknet_api::core::ContractAddress;
 use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
 use strum_macros::{Display, EnumString};
 use url::Url;
@@ -71,14 +73,11 @@ pub struct DeploymentInputs {
     pub ingress_domain: String,
     pub secret_name_format: Template,
     pub node_namespace_format: Template,
-    pub starknet_contract_address: String, /* TODO(Tsabary): should be an Eth address, currently
-                                            * only enforced at config loading. */
+    pub starknet_contract_address: EthereumContractAddress,
     pub chain_id_string: String,
-    pub eth_fee_token_address: String, /* TODO(Tsabary): should be a Starknet address, currently
-                                        * only enforced at config loading. */
+    pub eth_fee_token_address: ContractAddress,
     pub starknet_gateway_url: Url,
-    pub strk_fee_token_address: String, /* TODO(Tsabary): should be a Starknet address,
-                                         * currently only enforced at config loading. */
+    pub strk_fee_token_address: ContractAddress,
     pub l1_startup_height_override: Option<BlockNumber>,
     pub state_sync_type: StateSyncType,
     pub p2p_communication_type: P2PCommunicationType,
