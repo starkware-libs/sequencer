@@ -919,6 +919,33 @@
       "severity": "p4"
     },
     {
+      "name": "consensus_p2p_no_peers_subscribed_errors",
+      "title": "Consensus p2p no peers subscribed errors",
+      "ruleGroup": "consensus",
+      "expr": "increase(apollo_consensus_num_no_peers_subscribed_errors{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              5.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4"
+    },
+    {
       "name": "consensus_round_above_zero",
       "title": "Consensus round above zero",
       "ruleGroup": "consensus",
@@ -1389,6 +1416,33 @@
               2.0
             ],
             "type": "lt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p4"
+    },
+    {
+      "name": "mempool_p2p_no_peers_subscribed_errors",
+      "title": "Mempool p2p no peers subscribed errors",
+      "ruleGroup": "mempool",
+      "expr": "increase(apollo_mempool_p2p_num_no_peers_subscribed_errors{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              5.0
+            ],
+            "type": "gt"
           },
           "operator": {
             "type": "and"
