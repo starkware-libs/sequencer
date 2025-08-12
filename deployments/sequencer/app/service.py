@@ -144,6 +144,9 @@ class ServiceApp(Construct):
             spec=k8s.DeploymentSpec(
                 replicas=self.service_topology.replicas,
                 selector=k8s.LabelSelector(match_labels=self.labels),
+                strategy=self._get_deployment_update_strategy(
+                    type=self.service_topology.update_strategy_type
+                ),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(
                         labels=self.labels,
@@ -206,6 +209,9 @@ class ServiceApp(Construct):
                 service_name=f"{self.node.id}-service",
                 replicas=self.service_topology.replicas,
                 selector=k8s.LabelSelector(match_labels=self.labels),
+                update_strategy=self._get_statefulset_update_strategy(
+                    type=self.service_topology.update_strategy_type
+                ),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(
                         labels=self.labels,
@@ -711,3 +717,68 @@ class ServiceApp(Construct):
                 ),
             )
         return None
+
+    def _get_deployment_rolling_update(
+        self, max_surge: str, max_unavailable: str
+    ) -> k8s.RollingUpdateDeployment:
+        return k8s.RollingUpdateDeployment(
+            max_surge=k8s.IntOrString.from_string(max_surge),
+            max_unavailable=k8s.IntOrString.from_string(max_unavailable),
+        )
+
+    def _get_statefulset_rolling_update(
+        self,
+        max_unavailable: str,
+        partition: int,
+    ) -> k8s.RollingUpdateStatefulSetStrategy:
+        return k8s.RollingUpdateStatefulSetStrategy(
+            max_unavailable=k8s.IntOrString.from_string(max_unavailable),
+            partition=partition,
+        )
+
+    def _get_deployment_update_strategy(self, type: str) -> k8s.DeploymentStrategy:
+        assert type in [
+            "Recreate",
+            "RollingUpdate",
+        ], f"Deployment strategy type must be one of 'Recreate' or 'RollingUpdate', got {type}."
+
+        max_surge = const.DEFAULT_ROLLING_UPDATE_MAX_SURGE
+        max_unavailable = const.DEFAULT_ROLLING_UPDATE_MAX_UNAVAILABLE
+
+        return k8s.DeploymentStrategy(
+            type=type,
+            rolling_update=(
+                self._get_deployment_rolling_update(
+                    max_surge=max_surge, max_unavailable=max_unavailable
+                )
+                if type == "RollingUpdate"
+                else None
+            ),
+        )
+
+    def _get_statefulset_update_strategy(self, type: str) -> k8s.StatefulSetUpdateStrategy:
+        assert type in [
+            "OnDelete",
+            "RollingUpdate",
+            "Recreate",
+        ], f"StatefulSet strategy type must be one of 'OnDelete', 'Recreate' or 'RollingUpdate', got {type}."
+
+        max_unavailable = const.DEFAULT_ROLLING_UPDATE_MAX_UNAVAILABLE
+        partition = const.DEFAULT_ROLLING_UPDATE_PARTITION
+
+        if type == "Recreate":
+            type = "RollingUpdate"
+            max_unavailable = const.RECREATE_ROLLING_UPDATE_MAX_UNAVAILABLE
+        return k8s.StatefulSetUpdateStrategy(
+            type=type,
+            rolling_update=(
+                (
+                    self._get_statefulset_rolling_update(
+                        max_unavailable=max_unavailable,
+                        partition=partition,
+                    )
+                )
+                if type == "RollingUpdate"
+                else None
+            ),
+        )
