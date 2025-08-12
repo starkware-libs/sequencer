@@ -68,6 +68,12 @@ pub struct FeltSizeCount {
     pub large: usize,
 }
 
+impl FeltSizeCount {
+    pub fn n_felts(&self) -> usize {
+        self.small + self.large
+    }
+}
+
 /// Counts felts in bytecode by size (small < 2^63, large >= 2^63).
 impl From<&[BigUintAsHex]> for FeltSizeCount {
     fn from(bytecode: &[BigUintAsHex]) -> Self {
