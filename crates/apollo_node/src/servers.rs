@@ -465,7 +465,7 @@ fn create_local_servers(
         &config.components.state_sync.execution_mode,
         &mut components.state_sync,
         communication.take_state_sync_rx(),
-        STATE_SYNC_METRICS,
+        STATE_SYNC_METRICS
     );
 
     LocalServers {
