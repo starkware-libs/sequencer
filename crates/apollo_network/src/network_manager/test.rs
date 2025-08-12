@@ -15,7 +15,7 @@ use futures::{pin_mut, Future, SinkExt, StreamExt};
 use lazy_static::lazy_static;
 use libp2p::core::transport::PortUse;
 use libp2p::core::ConnectedPoint;
-use libp2p::gossipsub::{SubscriptionError, TopicHash};
+use libp2p::gossipsub::{MessageId, PublishError, SubscriptionError, TopicHash};
 use libp2p::swarm::ConnectionId;
 use libp2p::{Multiaddr, PeerId, StreamProtocol};
 use tokio::select;
@@ -175,10 +175,15 @@ impl SwarmTrait for MockSwarm {
         Ok(())
     }
 
-    fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+    fn broadcast_message(
+        &mut self,
+        message: Bytes,
+        topic_hash: TopicHash,
+    ) -> Result<MessageId, PublishError> {
         for sender in &self.broadcasted_messages_senders {
             sender.unbounded_send((message.clone(), topic_hash.clone())).unwrap();
         }
+        Ok(MessageId::new(&message))
     }
 
     fn report_peer_as_malicious(&mut self, peer_id: PeerId, _: MisconductScore) {
