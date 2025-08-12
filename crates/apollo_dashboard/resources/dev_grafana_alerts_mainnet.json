@@ -811,6 +811,33 @@
       "severity": "p1"
     },
     {
+      "name": "consensus_p2p_insufficient_peers_errors",
+      "title": "Consensus p2p insufficient peers errors",
+      "ruleGroup": "consensus",
+      "expr": "increase(apollo_consensus_num_insufficient_peers_errors{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              5.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p1"
+    },
+    {
       "name": "consensus_round_above_zero",
       "title": "Consensus round above zero",
       "ruleGroup": "consensus",
@@ -1295,6 +1322,33 @@
       "for": "30s",
       "intervalSec": 30,
       "severity": "p2"
+    },
+    {
+      "name": "mempool_p2p_insufficient_peers_errors",
+      "title": "Mempool p2p insufficient peers errors",
+      "ruleGroup": "mempool",
+      "expr": "increase(apollo_mempool_p2p_num_insufficient_peers_errors{cluster=~\"$cluster\", namespace=~\"$namespace\"}[2m])",
+      "conditions": [
+        {
+          "evaluator": {
+            "params": [
+              5.0
+            ],
+            "type": "gt"
+          },
+          "operator": {
+            "type": "and"
+          },
+          "reducer": {
+            "params": [],
+            "type": "avg"
+          },
+          "type": "query"
+        }
+      ],
+      "for": "30s",
+      "intervalSec": 30,
+      "severity": "p1"
     },
     {
       "name": "mempool_pool_size_increase",

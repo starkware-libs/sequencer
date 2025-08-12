@@ -1,5 +1,8 @@
 use apollo_http_server::metrics::HTTP_SERVER_ADD_TX_LATENCY;
-use apollo_mempool_p2p::metrics::MEMPOOL_P2P_NUM_CONNECTED_PEERS;
+use apollo_mempool_p2p::metrics::{
+    MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+    MEMPOOL_P2P_NUM_INSUFFICIENT_PEERS_ERRORS,
+};
 
 use crate::alerts::{
     Alert,
@@ -42,6 +45,44 @@ pub(crate) fn get_mempool_p2p_peer_down_vec() -> Vec<Alert> {
     vec![
         get_mempool_p2p_peer_down(AlertEnvFiltering::MainnetStyleAlerts, AlertSeverity::Regular),
         get_mempool_p2p_peer_down(
+            AlertEnvFiltering::TestnetStyleAlerts,
+            AlertSeverity::WorkingHours,
+        ),
+    ]
+}
+
+/// Triggers if the number of insufficient peers errors exceeds 5 in a 2-minute window.
+fn get_mempool_p2p_insufficient_peers_errors(
+    alert_env_filtering: AlertEnvFiltering,
+    alert_severity: AlertSeverity,
+) -> Alert {
+    Alert::new(
+        "mempool_p2p_insufficient_peers_errors",
+        "Mempool p2p insufficient peers errors",
+        AlertGroup::Mempool,
+        format!(
+            "increase({}[2m])",
+            MEMPOOL_P2P_NUM_INSUFFICIENT_PEERS_ERRORS.get_name_with_filter()
+        ),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 5.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        alert_severity,
+        alert_env_filtering,
+    )
+}
+
+pub(crate) fn get_mempool_p2p_insufficient_peers_errors_vec() -> Vec<Alert> {
+    vec![
+        get_mempool_p2p_insufficient_peers_errors(
+            AlertEnvFiltering::MainnetStyleAlerts,
+            AlertSeverity::Sos,
+        ),
+        get_mempool_p2p_insufficient_peers_errors(
             AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::WorkingHours,
         ),
