@@ -36,6 +36,7 @@ use crate::metrics::{
     CONSENSUS_L1_GAS_MISMATCH,
     CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
     CONSENSUS_NUM_TXS_IN_PROPOSAL,
+    CONSENSUS_PROPOSAL_FIN_MISMATCH,
 };
 use crate::orchestrator_versioned_constants::VersionedConstants;
 use crate::sequencer_consensus_context::{BuiltProposals, SequencerConsensusContextDeps};
@@ -222,6 +223,7 @@ pub(crate) async fn validate_proposal(
 
     // TODO(matan): Switch to signature validation.
     if built_block != received_fin.proposal_commitment {
+        CONSENSUS_PROPOSAL_FIN_MISMATCH.increment(1);
         return Err(ValidateProposalError::ProposalFinMismatch);
     }
 

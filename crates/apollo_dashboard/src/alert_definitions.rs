@@ -11,6 +11,7 @@ use apollo_consensus_manager::metrics::{
 use apollo_consensus_orchestrator::metrics::{
     CENDE_WRITE_PREV_HEIGHT_BLOB_LATENCY,
     CONSENSUS_L1_GAS_PRICE_PROVIDER_ERROR,
+    CONSENSUS_PROPOSAL_FIN_MISMATCH,
 };
 use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
@@ -212,6 +213,24 @@ fn get_consensus_l1_gas_price_provider_failure_once() -> Alert {
     )
 }
 
+fn get_consensus_proposal_fin_mismatch_once() -> Alert {
+    Alert::new(
+        "consensus_proposal_fin_mismatch_once",
+        "Consensus proposal fin mismatch occurred",
+        AlertGroup::Consensus,
+        format!("increase({}[1h])", CONSENSUS_PROPOSAL_FIN_MISMATCH.get_name_with_filter()),
+        vec![AlertCondition {
+            comparison_op: AlertComparisonOp::GreaterThan,
+            comparison_value: 0.0,
+            logical_op: AlertLogicalOp::And,
+        }],
+        PENDING_DURATION_DEFAULT,
+        EVALUATION_INTERVAL_SEC_DEFAULT,
+        AlertSeverity::WorkingHours,
+        AlertEnvFiltering::All,
+    )
+}
+
 fn get_consensus_conflicting_votes() -> Alert {
     Alert::new(
         "consensus_conflicting_votes",
@@ -398,6 +417,7 @@ fn get_mempool_p2p_disconnections() -> Alert {
 
 pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     let mut alerts = vec![
+        get_consensus_proposal_fin_mismatch_once(),
         get_cende_write_blob_failure_once_alert(),
         get_cende_write_prev_height_blob_latency_too_high(),
         get_consensus_conflicting_votes(),
