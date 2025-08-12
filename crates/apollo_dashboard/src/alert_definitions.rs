@@ -26,6 +26,7 @@ use crate::alert_scenarios::block_production_delay::{
     get_cende_write_blob_failure_alert_vec,
     get_cende_write_blob_failure_once_alert,
     get_consensus_block_number_progress_is_slow_vec,
+    get_consensus_p2p_no_peers_subscribed_errors_vec,
     get_consensus_p2p_peer_down_vec,
     get_consensus_round_above_zero_multiple_times_vec,
     get_consensus_round_above_zero_vec,
@@ -64,6 +65,7 @@ use crate::alert_scenarios::tps::{
 use crate::alert_scenarios::transaction_delays::{
     get_http_server_avg_add_tx_latency_alert_vec,
     get_http_server_p95_add_tx_latency_alert_vec,
+    get_mempool_p2p_no_peers_subscribed_errors_vec,
     get_mempool_p2p_peer_down_vec,
 };
 use crate::alert_scenarios::transaction_failures::{
@@ -450,6 +452,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     alerts.append(&mut get_consensus_block_number_stuck_vec());
     alerts.append(&mut get_consensus_p2p_not_enough_peers_for_quorum_vec());
     alerts.append(&mut get_consensus_p2p_peer_down_vec());
+    alerts.append(&mut get_consensus_p2p_no_peers_subscribed_errors_vec());
     alerts.append(&mut get_consensus_round_above_zero_vec());
     alerts.append(&mut get_consensus_round_above_zero_multiple_times_vec());
     alerts.append(&mut get_consensus_round_high_vec());
@@ -466,6 +469,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     alerts.append(&mut get_l1_message_scraper_no_successes_alert_vec());
     alerts.append(&mut get_mempool_evictions_count_alert_vec());
     alerts.append(&mut get_mempool_p2p_peer_down_vec());
+    alerts.append(&mut get_mempool_p2p_no_peers_subscribed_errors_vec());
     alerts.append(&mut get_mempool_pool_size_increase_vec());
     alerts.append(&mut get_mempool_transaction_drop_ratio_vec());
     alerts.append(&mut get_preconfirmed_block_not_written_vec());
