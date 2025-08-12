@@ -30,7 +30,8 @@ use starknet_os::io::os_input::{
     OsHintsConfig,
     StarknetOsInput,
 };
-use starknet_os::io::os_output::{OsStateDiff, StarknetOsRunnerOutput};
+use starknet_os::io::os_output::{OsOutput, OsStateDiff, StarknetOsRunnerOutput};
+use starknet_os::io::os_output_types::TryFromOutputIter;
 use starknet_os::runner::{run_os_stateless, DEFAULT_OS_LAYOUT};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_types_core::felt::Felt;
@@ -107,23 +108,22 @@ impl OsTestOutput {
 
         // TODO(Dori): Implement builtin validations.
 
+        let raw_os_output = self.os_output.raw_os_output.clone();
+        let os_output = OsOutput::try_from_output_iter(&mut raw_os_output.into_iter()).unwrap();
         // Validate state roots.
         assert_eq!(
-            self.os_output.os_output.common_os_output.initial_root,
+            os_output.common_os_output.initial_root,
             self.expected_values.previous_global_root.0
         );
-        assert_eq!(
-            self.os_output.os_output.common_os_output.final_root,
-            self.expected_values.new_global_root.0
-        );
+        assert_eq!(os_output.common_os_output.final_root, self.expected_values.new_global_root.0);
 
         // Block numbers.
         assert_eq!(
-            self.os_output.os_output.common_os_output.prev_block_number,
+            os_output.common_os_output.prev_block_number,
             self.expected_values.previous_block_number
         );
         assert_eq!(
-            self.os_output.os_output.common_os_output.new_block_number,
+            os_output.common_os_output.new_block_number,
             self.expected_values.new_block_number
         );
 
@@ -131,13 +131,13 @@ impl OsTestOutput {
 
         // Config hash.
         assert_eq!(
-            self.os_output.os_output.common_os_output.starknet_os_config_hash,
+            os_output.common_os_output.starknet_os_config_hash,
             self.expected_values.config_hash,
         );
 
         // Flags.
-        assert_eq!(self.os_output.os_output.use_kzg_da(), self.expected_values.use_kzg_da);
-        assert!(!self.os_output.os_output.full_output());
+        assert_eq!(os_output.use_kzg_da(), self.expected_values.use_kzg_da);
+        assert!(!os_output.full_output());
     }
 
     fn assert_contains_state_diff(&self, partial_state_diff: &StateMaps) {
@@ -434,8 +434,11 @@ impl<S: FlowTestState> TestManager<S> {
         let os_hints = OsHints { os_input: starknet_os_input, os_hints_config };
         let layout = DEFAULT_OS_LAYOUT;
         let os_output = run_os_stateless(layout, os_hints).unwrap();
-        let decompressed_state_diff =
-            Self::get_decompressed_state_diff(&os_output.os_output.state_diff, &state, alias_keys);
+        let decompressed_state_diff = {
+            let raw_os_output = os_output.raw_os_output.clone();
+            let os_output = OsOutput::try_from_output_iter(&mut raw_os_output.into_iter()).unwrap();
+            Self::get_decompressed_state_diff(&os_output.state_diff, &state, alias_keys)
+        };
 
         OsTestOutput {
             os_output,
