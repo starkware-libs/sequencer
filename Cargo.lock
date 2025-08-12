@@ -9442,6 +9442,7 @@ dependencies = [
  "ethers",
  "ethers-core",
  "futures",
+ "hex",
  "mockall",
  "pretty_assertions",
  "serde",
