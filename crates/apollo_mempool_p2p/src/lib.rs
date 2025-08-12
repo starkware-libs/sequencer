@@ -10,7 +10,11 @@ use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_gateway_types::communication::SharedGatewayClient;
 use apollo_mempool_p2p_types::communication::SharedMempoolP2pPropagatorClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    NetworkErrorMetrics,
+    NetworkMetrics,
+};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use futures::FutureExt;
 use metrics::MEMPOOL_P2P_NUM_BLACKLISTED_PEERS;
@@ -19,6 +23,7 @@ use tracing::{info_span, Instrument};
 use crate::config::MempoolP2pConfig;
 use crate::metrics::{
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
+    MEMPOOL_P2P_NUM_INSUFFICIENT_PEERS_ERRORS,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
 };
@@ -50,6 +55,9 @@ pub fn create_p2p_propagator_and_runner(
         num_blacklisted_peers: MEMPOOL_P2P_NUM_BLACKLISTED_PEERS,
         broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
         sqmr_metrics: None,
+        error_metrics: NetworkErrorMetrics {
+            num_insufficient_peers_errors: MEMPOOL_P2P_NUM_INSUFFICIENT_PEERS_ERRORS,
+        },
     });
     let mut network_manager = NetworkManager::new(
         mempool_p2p_config.network_config,

@@ -18,6 +18,7 @@ use futures::future::{ready, BoxFuture, Ready};
 use futures::sink::With;
 use futures::stream::{FuturesUnordered, Map, Stream};
 use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
+use libp2p::gossipsub::PublishError::InsufficientPeers;
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
@@ -627,7 +628,12 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             }
         }
         trace!("Sending broadcast message with topic hash: {topic_hash:?}");
-        self.swarm.broadcast_message(message, topic_hash);
+        let result = self.swarm.broadcast_message(message, topic_hash);
+        if let Err(InsufficientPeers) = result {
+            if let Some(metrics) = self.metrics.as_ref() {
+                metrics.error_metrics.num_insufficient_peers_errors.increment(1);
+            }
+        }
     }
 
     fn report_session_removed_to_metrics(&mut self, session_id: SessionId) {
