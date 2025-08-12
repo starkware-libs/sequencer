@@ -23,7 +23,7 @@ use papyrus_base_layer::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
 };
-use papyrus_base_layer::{BaseLayerContract, L1BlockReference, MockBaseLayerContract};
+use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockReference, MockBaseLayerContract};
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::contract_address;
@@ -607,7 +607,7 @@ async fn l1_reorg_block_hash(mut dummy_base_layer: MockBaseLayerContract) {
     assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
 
     // Simulate an L1 fork: last block hash changed due to reorg.
-    let l1_block_hash_after_l1_reorg = [123; 32];
+    let l1_block_hash_after_l1_reorg = L1BlockHash([123; 32]);
     *l1_block_at_response.lock().unwrap() =
         Some(L1BlockReference { hash: l1_block_hash_after_l1_reorg, ..Default::default() });
 
