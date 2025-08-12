@@ -1,6 +1,6 @@
 {
   "state_sync_config.central_sync_client_config.central_source_config.class_cache_size": 128,
-  "state_sync_config.central_sync_client_config.central_source_config.concurrent_requests": 10,
+  "state_sync_config.central_sync_client_config.central_source_config.concurrent_requests": 20,
   "state_sync_config.central_sync_client_config.central_source_config.max_classes_to_download": 20,
   "state_sync_config.central_sync_client_config.central_source_config.max_state_updates_to_download": 20,
   "state_sync_config.central_sync_client_config.central_source_config.max_state_updates_to_store_in_memory": 20,

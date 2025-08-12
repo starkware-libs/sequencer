@@ -409,7 +409,7 @@ impl Mempool {
     #[instrument(skip(self, args))]
     pub fn commit_block(&mut self, args: CommitBlockArgs) {
         let CommitBlockArgs { address_to_nonce, rejected_tx_hashes } = args;
-        debug!(
+        info!(
             "Committing block with {} addresses and {} rejected tx to the mempool.",
             address_to_nonce.len(),
             rejected_tx_hashes.len()
@@ -456,7 +456,7 @@ impl Mempool {
             self.insert_to_tx_queue(*tx_reference);
         }
 
-        debug!("Aligned mempool to committed nonces.");
+        info!("Aligned mempool to committed nonces.");
 
         // Remove rejected transactions from the mempool.
         if !rejected_tx_hashes.is_empty() {
