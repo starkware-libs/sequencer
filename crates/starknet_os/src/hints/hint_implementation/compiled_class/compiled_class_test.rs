@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use apollo_starknet_os_program::test_programs::BLAKE_COMPILED_CLASS_HASH_BYTES;
 use blockifier::execution::contract_class::{
     estimate_casm_poseidon_hash_computation_resources,
     NestedFeltCounts,
@@ -73,8 +72,6 @@ trait HashVersionTestSpec {
     fn compiled_class_hash_entrypoint_name(&self) -> &'static str;
     /// The implicit args for the compiled class hash entrypoint.
     fn implicit_args(&self) -> Vec<ImplicitArg>;
-    /// The program bytes of the compiled class hash function.
-    fn program_bytes(&self) -> &'static [u8];
     /// The expected builtin usage for the compiled class hash function,
     /// depending on whether the full contract is loaded or not.
     fn expected_builtin_usage_full_contract(&self) -> Expect;
@@ -94,7 +91,10 @@ impl HashVersionTestSpec for HashVersion {
                 "starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash.\
                  compiled_class_hash"
             }
-            HashVersion::V2 => "__main__.compiled_class_hash",
+            HashVersion::V2 => {
+                "starkware.starknet.core.os.contract_class.blake_compiled_class_hash.\
+                 compiled_class_hash"
+            }
         }
     }
     fn implicit_args(&self) -> Vec<ImplicitArg> {
@@ -138,12 +138,6 @@ impl HashVersionTestSpec for HashVersion {
             HashVersion::V2 => EXPECTED_V2_HASH,
         }
     }
-    fn program_bytes(&self) -> &'static [u8] {
-        match self {
-            HashVersion::V1 => apollo_starknet_os_program::OS_PROGRAM_BYTES,
-            HashVersion::V2 => BLAKE_COMPILED_CLASS_HASH_BYTES,
-        }
-    }
 }
 
 /// Runs the compiled class hash entry point for the given contract class,
@@ -183,7 +177,7 @@ fn run_compiled_class_hash_entry_point(
     hint_locals.insert("bytecode_segment_structure".to_string(), any_box!(bytecode_structure));
     let (mut runner, program, entrypoint) = initialize_cairo_runner(
         &runner_config,
-        hash_version.program_bytes(),
+        apollo_starknet_os_program::OS_PROGRAM_BYTES,
         hash_version.compiled_class_hash_entrypoint_name(),
         &implicit_args,
         hint_locals,
