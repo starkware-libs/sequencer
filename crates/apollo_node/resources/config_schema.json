@@ -439,6 +439,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.batcher.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.batcher.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -493,6 +498,11 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
+  },
+  "components.class_manager.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.class_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -554,6 +564,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.gateway.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.gateway.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -614,6 +629,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.l1_endpoint_monitor.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -668,6 +688,11 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
+  },
+  "components.l1_gas_price_provider.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.l1_gas_price_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -729,6 +754,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.l1_provider.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.l1_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -789,6 +819,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.mempool.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.mempool.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -843,6 +878,11 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
+  },
+  "components.mempool_p2p.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.mempool_p2p.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
@@ -904,6 +944,11 @@
     "privacy": "Public",
     "value": 1
   },
+  "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
+  },
   "components.sierra_compiler.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
@@ -958,6 +1003,11 @@
     "description": "Initial delay before first retry in milliseconds",
     "privacy": "Public",
     "value": 1
+  },
+  "components.state_sync.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.state_sync.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
