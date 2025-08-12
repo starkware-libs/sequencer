@@ -917,23 +917,22 @@ fn get_migration_data<S: StateReader>(
     // TODO(Aviv): Return hash_map<class_hash, compiled_class_hashes_v2_to_v1>.
     executed_class_hashes.iter().try_fold(
         (HashMap::new(), GasAmount::ZERO, HashMap::new()),
-        |(mut class_hashes_to_migrate, mut gas, mut poseidon_builtins), &class_hash| {
+        |(mut class_hashes_to_migrate, mut gas, mut poseidon_casm_builtins), &class_hash| {
             if let Some((class_hash, compiled_class_hash_v2_to_v1)) =
                 should_migrate(state_reader, class_hash)?
             {
                 let class = state_reader.get_compiled_class(class_hash)?;
-                let (new_gas, new_builtins) = class
+                let (migration_gas, migration_builtins) = class
                     .estimate_compiled_class_hash_migration_resources(
                         versioned_constants,
                         blake_weight,
                     );
 
                 class_hashes_to_migrate.insert(class_hash, compiled_class_hash_v2_to_v1);
-                gas = gas.checked_add_panic_on_overflow(new_gas);
-                // TODO(Aviv): Use add maps instead of extend.
-                poseidon_builtins.extend(new_builtins);
+                gas = gas.checked_add_panic_on_overflow(migration_gas);
+                add_maps(&mut poseidon_casm_builtins, &migration_builtins);
             }
-            Ok((class_hashes_to_migrate, gas, poseidon_builtins))
+            Ok((class_hashes_to_migrate, gas, poseidon_casm_builtins))
         },
     )
 }
