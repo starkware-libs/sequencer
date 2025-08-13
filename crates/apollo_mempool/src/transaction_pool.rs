@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use apollo_mempool_types::errors::MempoolError;
 use apollo_mempool_types::mempool_types::{AccountState, MempoolResult};
+use apollo_metrics::metrics::MetricHistogram;
 use apollo_time::time::{Clock, DateTime};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
@@ -118,11 +119,8 @@ impl TransactionPool {
             let submission_time = self
                 .get_submission_time(tx_ref.tx_hash)
                 .expect("Transaction must still be in Mempool when recording commit latency");
-            let time_spent = (self.txs_by_submission_time.clock.now() - submission_time)
-                .to_std()
-                .unwrap()
-                .as_secs_f64();
-            TRANSACTION_TIME_SPENT_UNTIL_COMMITTED.record(time_spent);
+            self.txs_by_submission_time
+                .record_time_spent(submission_time, &TRANSACTION_TIME_SPENT_UNTIL_COMMITTED);
         }
 
         self.remove_from_main_mapping(&removed_txs);
@@ -377,9 +375,7 @@ impl TimedTransactionMap {
     /// Returns the removed transaction reference if it exists in the mapping.
     fn remove(&mut self, tx_hash: TransactionHash) -> Option<TransactionReference> {
         let submission_id = self.hash_to_submission_id.remove(&tx_hash)?;
-        TRANSACTION_TIME_SPENT_IN_MEMPOOL.record(
-            (self.clock.now() - submission_id.submission_time).to_std().unwrap().as_secs_f64(),
-        );
+        self.record_time_spent(submission_id.submission_time, &TRANSACTION_TIME_SPENT_IN_MEMPOOL);
         self.txs_by_submission_time.remove(&submission_id)
     }
 
@@ -409,15 +405,18 @@ impl TimedTransactionMap {
                 );
                 removed_txs.push(tx);
 
-                TRANSACTION_TIME_SPENT_IN_MEMPOOL.record(
-                    (self.clock.now() - submission_id.submission_time)
-                        .to_std()
-                        .unwrap()
-                        .as_secs_f64(),
+                self.record_time_spent(
+                    submission_id.submission_time,
+                    &TRANSACTION_TIME_SPENT_IN_MEMPOOL,
                 );
             }
         }
 
         removed_txs
+    }
+
+    fn record_time_spent(&self, submission_time: DateTime, metric: &MetricHistogram) {
+        let time_spent_secs = (self.clock.now() - submission_time).to_std().unwrap().as_secs_f64();
+        metric.record(time_spent_secs);
     }
 }
