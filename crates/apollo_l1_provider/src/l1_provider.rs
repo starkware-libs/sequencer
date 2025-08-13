@@ -143,6 +143,7 @@ impl L1Provider {
         rejected_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
+        info!("Committing block to L1 provider at height {}.", height);
         if self.state.uninitialized() {
             return Err(L1ProviderError::Uninitialized);
         }
