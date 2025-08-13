@@ -11,7 +11,6 @@ use cairo_vm::vm::runners::cairo_pie::{
     OutputBuiltinAdditionalData,
 };
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
-#[cfg(feature = "include_program_output")]
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
@@ -26,7 +25,6 @@ use crate::metrics::OsMetrics;
 use crate::vm_utils::vm_error_with_code_snippet;
 
 pub struct RunnerReturnObject {
-    #[cfg(feature = "include_program_output")]
     pub raw_output: Vec<Felt>,
     pub cairo_pie: CairoPie,
     pub cairo_runner: CairoRunner,
@@ -74,7 +72,6 @@ fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
         cairo_runner.finalize_segments()?;
     }
 
-    #[cfg(feature = "include_program_output")]
     let raw_output = crate::io::os_output::get_run_output(&cairo_runner.vm)?;
 
     cairo_runner.vm.verify_auto_deductions().map_err(StarknetOsError::VirtualMachineError)?;
@@ -87,12 +84,7 @@ fn run_program<'a, HP: HintProcessor + CommonHintProcessor<'a>>(
 
     // Parse the Cairo VM output.
     let cairo_pie = cairo_runner.get_cairo_pie().map_err(StarknetOsError::RunnerError)?;
-    Ok(RunnerReturnObject {
-        #[cfg(feature = "include_program_output")]
-        raw_output,
-        cairo_pie,
-        cairo_runner,
-    })
+    Ok(RunnerReturnObject { raw_output, cairo_pie, cairo_runner })
 }
 
 pub fn run_os<S: StateReader>(
@@ -154,7 +146,8 @@ pub fn run_os<S: StateReader>(
         os_output: {
             use crate::io::os_output_types::TryFromOutputIter;
             // Prepare and check expected output.
-            let os_raw_output = runner_output.raw_output;
+            // TODO(Rotem): Check if we can remove the clone here.
+            let os_raw_output = runner_output.raw_output.clone();
             let os_output = crate::io::os_output::OsOutput::try_from_output_iter(
                 &mut os_raw_output.into_iter(),
             )?;
@@ -164,6 +157,7 @@ pub fn run_os<S: StateReader>(
             );
             os_output
         },
+        raw_os_output: runner_output.raw_output,
         cairo_pie: runner_output.cairo_pie,
         da_segment: snos_hint_processor.get_da_segment().take(),
         metrics: OsMetrics::new(&mut runner_output.cairo_runner, &snos_hint_processor)?,
