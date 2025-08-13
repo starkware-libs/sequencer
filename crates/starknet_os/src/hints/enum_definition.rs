@@ -162,6 +162,7 @@ use crate::hints::hint_implementation::output::{
     set_n_updates_small,
     set_state_updates_start,
     set_tree_structure,
+    sha256_hash_compressed_data_with_random,
 };
 use crate::hints::hint_implementation::patricia::implementation::{
     assert_case_is_right,
@@ -926,6 +927,11 @@ ids.initial_carried_outputs = segments.gen_arg(
         assert val == 0
         offset += val_len"#}
     ),
+    (
+        Sha256HashCompressedDataWithRandom,
+        sha256_hash_compressed_data_with_random,
+        "generate_keys_from_hash(ids.compressed_start, ids.compressed_dst)"
+    )
 );
 
 define_common_hint_enum!(

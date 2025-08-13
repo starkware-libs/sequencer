@@ -5,6 +5,9 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_ptr_from_var_name,
     insert_value_from_var_name,
 };
+use rand::rngs::OsRng;
+use rand::RngCore;
+use sha2::{Digest, Sha256};
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
@@ -148,5 +151,53 @@ pub(crate) fn set_n_updates_small(
         ids_data,
         ap_tracking,
     )?;
+    Ok(())
+}
+
+pub(crate) fn sha256_hash_compressed_data_with_random(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let compressed_start =
+        get_ptr_from_var_name(Ids::CompressedStart.into(), vm, ids_data, ap_tracking)?;
+    let compressed_dst =
+        get_ptr_from_var_name(Ids::CompressedDst.into(), vm, ids_data, ap_tracking)?;
+    let array_size = (compressed_dst - compressed_start)?;
+
+    // Generate a cryptographically secure random seed
+    let mut random_bytes = [0u8; 32];
+    OsRng.fill_bytes(&mut random_bytes);
+
+    let mut hasher = Sha256::new();
+    hasher.update(random_bytes);
+
+    for i in 0..array_size {
+        let felt = vm.get_integer((compressed_start + i)?)?;
+        hasher.update(felt.to_bytes_be());
+    }
+    let hash_result = hasher.finalize();
+
+    let mut symmetric_key_input = hash_result.to_vec();
+    symmetric_key_input.push(0);
+    let symmetric_key_hash = Sha256::digest(&symmetric_key_input);
+    let mut symmetric_key_bytes = [0u8; 32];
+    symmetric_key_bytes.copy_from_slice(&symmetric_key_hash[..]);
+    let symmetric_key = Felt::from_bytes_be(&symmetric_key_bytes);
+    insert_value_from_var_name(Ids::SymmetricKey.into(), symmetric_key, vm, ids_data, ap_tracking)?;
+
+    let mut sn_private_key_1_input = hash_result.to_vec();
+    sn_private_key_1_input.push(1);
+    let sn_private_key_1_hash = Sha256::digest(&sn_private_key_1_input);
+    // Use only first 31 bytes (248 bits) to ensure result is < 2^248 < EC group order.
+    let mut sn_private_key_1_bytes = [0u8; 32];
+    sn_private_key_1_bytes[1..].copy_from_slice(&sn_private_key_1_hash[..31]);
+    let sn_private_key_1 = Felt::from_bytes_be(&sn_private_key_1_bytes);
+    insert_value_from_var_name(
+        Ids::SnPrivateKey1.into(),
+        sn_private_key_1,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
     Ok(())
 }
