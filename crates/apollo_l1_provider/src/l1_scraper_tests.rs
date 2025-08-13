@@ -13,7 +13,31 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use indexmap::IndexSet;
 use itertools::Itertools;
+<<<<<<< HEAD
 use papyrus_base_layer::{L1BlockReference, MockBaseLayerContract};
+||||||| 38f03e1d0
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    Starknet,
+};
+use papyrus_base_layer::test_utils::{
+    anvil_instance_from_config,
+    ethereum_base_layer_config_for_anvil,
+};
+use papyrus_base_layer::{BaseLayerContract, L1BlockReference, MockBaseLayerContract};
+=======
+use papyrus_base_layer::ethereum_base_layer_contract::{
+    EthereumBaseLayerConfig,
+    EthereumBaseLayerContract,
+    Starknet,
+};
+use papyrus_base_layer::test_utils::{
+    anvil_instance_from_config,
+    ethereum_base_layer_config_for_anvil,
+};
+use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockReference, MockBaseLayerContract};
+>>>>>>> origin/main-v0.14.0
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
@@ -444,7 +468,7 @@ async fn l1_reorg_block_hash(mut dummy_base_layer: MockBaseLayerContract) {
     assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
 
     // Simulate an L1 fork: last block hash changed due to reorg.
-    let l1_block_hash_after_l1_reorg = [123; 32];
+    let l1_block_hash_after_l1_reorg = L1BlockHash([123; 32]);
     *l1_block_at_response.lock().unwrap() =
         Some(L1BlockReference { hash: l1_block_hash_after_l1_reorg, ..Default::default() });
 

@@ -27,6 +27,7 @@ use crate::k8s::{
     Toleration,
 };
 use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
+use crate::update_strategy::UpdateStrategy;
 
 const NODE_STORAGE: usize = 1000;
 const TESTING_NODE_STORAGE: usize = 1;
@@ -114,6 +115,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         }
     }
 
+<<<<<<< HEAD
     fn get_service_ports(&self) -> BTreeSet<ServicePort> {
         let mut service_ports = BTreeSet::new();
         for service_port in ServicePort::iter() {
@@ -142,11 +144,50 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         }
 
         service_ports
+||||||| 38f03e1d0
+    // TODO(Nadin): Implement this method to return the actual ports used by the service.
+    fn get_ports(&self) -> BTreeMap<ServicePort, u16> {
+        BTreeMap::new()
+=======
+    fn get_service_ports(&self) -> BTreeSet<ServicePort> {
+        let mut service_ports = BTreeSet::new();
+        for service_port in ServicePort::iter() {
+            match service_port {
+                ServicePort::BusinessLogic(bl_port) => match bl_port {
+                    BusinessLogicServicePort::MonitoringEndpoint
+                    | BusinessLogicServicePort::HttpServer
+                    | BusinessLogicServicePort::ConsensusP2P
+                    | BusinessLogicServicePort::MempoolP2p => {
+                        service_ports.insert(service_port);
+                    }
+                },
+                ServicePort::Infra(infra_port) => match infra_port {
+                    InfraServicePort::Batcher
+                    | InfraServicePort::Mempool
+                    | InfraServicePort::ClassManager
+                    | InfraServicePort::Gateway
+                    | InfraServicePort::L1EndpointMonitor
+                    | InfraServicePort::L1GasPriceProvider
+                    | InfraServicePort::L1Provider
+                    | InfraServicePort::SierraCompiler
+                    | InfraServicePort::StateSync => {}
+                },
+            }
+        }
+
+        service_ports
+>>>>>>> origin/main-v0.14.0
     }
 
     fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
         match self {
             ConsolidatedNodeServiceName::Node => ComponentConfigInService::iter().collect(),
+        }
+    }
+
+    fn get_update_strategy(&self) -> UpdateStrategy {
+        match self {
+            ConsolidatedNodeServiceName::Node => UpdateStrategy::Recreate,
         }
     }
 }

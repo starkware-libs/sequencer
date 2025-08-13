@@ -17,19 +17,19 @@ use apollo_mempool_p2p::metrics::{
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_mempool_p2p_num_connected_peers() -> Panel {
-    Panel::from_gauge(MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::Stat)
+    Panel::from_gauge(MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
 }
 
 fn get_panel_mempool_p2p_num_sent_messages() -> Panel {
-    Panel::from_counter(MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::Stat)
+    Panel::from_counter(MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::TimeSeries)
 }
 
 fn get_panel_mempool_p2p_num_received_messages() -> Panel {
-    Panel::from_counter(MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::Stat)
+    Panel::from_counter(MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::TimeSeries)
 }
 
 fn get_panel_mempool_p2p_broadcasted_batch_size() -> Panel {
-    Panel::from_hist(MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, PanelType::Stat)
+    Panel::from_hist(MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, PanelType::TimeSeries)
 }
 
 fn get_panel_mempool_p2p_local_msgs_received() -> Panel {

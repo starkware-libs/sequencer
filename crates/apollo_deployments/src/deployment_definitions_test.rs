@@ -2,7 +2,6 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::env;
 use std::fs::File;
 
-use apollo_config::validators::config_validate;
 use apollo_config::CONFIG_FILE_ARG;
 use apollo_infra_utils::dumping::{serialize_to_file, serialize_to_file_test};
 use apollo_infra_utils::path::resolve_project_relative_path;
@@ -117,8 +116,16 @@ fn load_and_process_service_config_files() {
             // DNS-resolvable in the test setting. As such, we set all host names to
             // localhost to allow successful validation.
             loaded_config.components.set_urls_to_localhost();
+<<<<<<< HEAD
             if let Err(error) = config_validate(&loaded_config) {
                 panic!("Config validation failed: {error}");
+||||||| 38f03e1d0
+            if let Err(error) = config_validate(&loaded_config) {
+                panic!("Config validation failed: {}", error);
+=======
+            if let Err(error) = loaded_config.validate_node_config() {
+                panic!("Config validation failed: {}", error);
+>>>>>>> origin/main-v0.14.0
             }
         }
     }

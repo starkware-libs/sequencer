@@ -32,10 +32,20 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "Batcher": 55000,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "Batcher": 55000,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "ClassManager",
@@ -68,10 +78,20 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "ClassManager": 55001,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "Recreate",
+      "ports": {
+        "ClassManager": 55001,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "ConsensusManager",
@@ -104,10 +124,20 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "ConsensusP2p": 53080,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "Recreate",
+      "ports": {
+        "ConsensusP2P": 53080,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "HttpServer",
@@ -151,10 +181,20 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "HttpServer": 8080,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "HttpServer": 8080,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "Gateway",
@@ -187,10 +227,20 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "Gateway": 55002,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "Gateway": 55002,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "L1",
@@ -227,12 +277,24 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "L1EndpointMonitor": 55005,
         "L1GasPriceProvider": 55003,
         "L1Provider": 55004,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "L1EndpointMonitor": 55005,
+        "L1GasPriceProvider": 55003,
+        "L1Provider": 55004,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "Mempool",
@@ -266,10 +328,20 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "Mempool": 55006,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "Recreate",
+      "ports": {
+        "Mempool": 55006,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "SierraCompiler",
@@ -302,6 +374,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "SierraCompiler": 55007,
         "MonitoringEndpoint": 8082
@@ -341,6 +414,15 @@
         "SignatureManager": 55008,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "SierraCompiler": 55007,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     },
     {
       "name": "StateSync",
@@ -373,10 +455,20 @@
       },
       "external_secret": null,
       "anti_affinity": false,
+<<<<<<< HEAD
       "ports": {
         "StateSync": 55009,
         "MonitoringEndpoint": 8082
       }
+||||||| 38f03e1d0
+      "ports": {}
+=======
+      "update_strategy_type": "Recreate",
+      "ports": {
+        "StateSync": 55009,
+        "MonitoringEndpoint": 8082
+      }
+>>>>>>> origin/main-v0.14.0
     }
   ]
 }

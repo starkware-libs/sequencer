@@ -4,8 +4,8 @@ use std::fmt::Display;
 use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
-use apollo_infra::component_definitions::ComponentClient;
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest};
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -21,7 +21,8 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::transaction::{TransactionHash, TransactionHasher};
 use starknet_api::StarknetApiError;
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tracing::instrument;
 
 use crate::errors::{L1ProviderClientError, L1ProviderError};
@@ -50,7 +51,12 @@ pub enum InvalidValidationStatus {
     ConsumedOnL1OrUnknown,
 }
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(L1ProviderRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum L1ProviderRequest {
     AddEvents(Vec<Event>),
     CommitBlock {
@@ -74,6 +80,8 @@ pub enum L1ProviderRequest {
     GetL1ProviderSnapshot,
 }
 impl_debug_for_infra_requests_and_responses!(L1ProviderRequest);
+impl_labeled_request!(L1ProviderRequest, L1ProviderRequestLabelValue);
+impl PrioritizedRequest for L1ProviderRequest {}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1ProviderResponse {

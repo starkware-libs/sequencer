@@ -657,11 +657,21 @@
       },
       {
         "title": "mempool_transaction_time_spent",
-        "description": "The time (secs) that a transaction spent in the mempool",
+        "description": "The time (seconds) a transaction spent in the mempool before removal (any reason - commit, reject, TTL expiry, fee escalation, or eviction)",
         "type": "timeseries",
         "exprs": [
           "histogram_quantile(0.50, sum(rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
           "histogram_quantile(0.95, sum(rate(mempool_transaction_time_spent_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "mempool_transaction_time_spent_until_committed",
+        "description": "The time (seconds) a transaction spent in the mempool until it was committed",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum(rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(mempool_transaction_time_spent_until_committed_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -935,7 +945,7 @@
       {
         "title": "apollo_mempool_p2p_num_connected_peers",
         "description": "The number of connected peers to the mempool p2p component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_mempool_p2p_num_connected_peers{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -944,7 +954,7 @@
       {
         "title": "apollo_mempool_p2p_num_sent_messages",
         "description": "The number of messages sent by the mempool p2p component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_mempool_p2p_num_sent_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -953,7 +963,7 @@
       {
         "title": "apollo_mempool_p2p_num_received_messages",
         "description": "The number of messages received by the mempool p2p component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "apollo_mempool_p2p_num_received_messages{cluster=~\"$cluster\", namespace=~\"$namespace\"}"
         ],
@@ -962,7 +972,7 @@
       {
         "title": "apollo_mempool_p2p_broadcasted_transaction_batch_size",
         "description": "The number of transactions in batches broadcast by the mempool p2p component",
-        "type": "stat",
+        "type": "timeseries",
         "exprs": [
           "histogram_quantile(0.50, sum(rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
           "histogram_quantile(0.95, sum(rate(apollo_mempool_p2p_broadcasted_transaction_batch_size_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"

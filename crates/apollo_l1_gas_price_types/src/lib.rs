@@ -1,11 +1,11 @@
 pub mod errors;
-
+use std::fmt::Debug;
 use std::iter::Sum;
 use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
-use apollo_infra::component_definitions::ComponentClient;
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest};
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use errors::{EthToStrkOracleClientError, L1GasPriceClientError, L1GasPriceProviderError};
@@ -14,7 +14,8 @@ use mockall::automock;
 use papyrus_base_layer::L1BlockNumber;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockTimestamp, GasPrice};
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tracing::instrument;
 
 pub const DEFAULT_ETH_TO_FRI_RATE: u128 = 10_u128.pow(21);
@@ -56,19 +57,28 @@ impl<'a> Sum<&'a Self> for PriceInfo {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(L1GasPriceRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum L1GasPriceRequest {
     Initialize,
     GetGasPrice(BlockTimestamp),
     AddGasPrice(GasPriceData),
+    GetEthToFriRate(u64),
 }
 impl_debug_for_infra_requests_and_responses!(L1GasPriceRequest);
+impl_labeled_request!(L1GasPriceRequest, L1GasPriceRequestLabelValue);
+impl PrioritizedRequest for L1GasPriceRequest {}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1GasPriceResponse {
     Initialize(L1GasPriceProviderResult<()>),
     GetGasPrice(L1GasPriceProviderResult<PriceInfo>),
     AddGasPrice(L1GasPriceProviderResult<()>),
+    GetEthToFriRate(L1GasPriceProviderResult<u128>),
 }
 impl_debug_for_infra_requests_and_responses!(L1GasPriceResponse);
 
@@ -85,11 +95,13 @@ pub trait L1GasPriceProviderClient: Send + Sync {
         &self,
         timestamp: BlockTimestamp,
     ) -> L1GasPriceProviderClientResult<PriceInfo>;
+
+    async fn get_eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128>;
 }
 
 #[cfg_attr(any(feature = "testing", test), automock)]
 #[async_trait]
-pub trait EthToStrkOracleClientTrait: Send + Sync {
+pub trait EthToStrkOracleClientTrait: Send + Sync + Debug {
     /// Fetches the eth to fri rate for a given timestamp.
     async fn eth_to_fri_rate(&self, timestamp: u64) -> Result<u128, EthToStrkOracleClientError>;
 }
@@ -130,6 +142,17 @@ where
         handle_all_response_variants!(
             L1GasPriceResponse,
             GetGasPrice,
+            L1GasPriceClientError,
+            L1GasPriceProviderError,
+            Direct
+        )
+    }
+    #[instrument(skip(self))]
+    async fn get_eth_to_fri_rate(&self, timestamp: u64) -> L1GasPriceProviderClientResult<u128> {
+        let request = L1GasPriceRequest::GetEthToFriRate(timestamp);
+        handle_all_response_variants!(
+            L1GasPriceResponse,
+            GetEthToFriRate,
             L1GasPriceClientError,
             L1GasPriceProviderError,
             Direct

@@ -4,7 +4,12 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
+use apollo_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+    PrioritizedRequest,
+};
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
@@ -13,6 +18,8 @@ use serde::{Deserialize, Serialize};
 use starknet_api::contract_class::ContractClass;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::state::SierraContractClass;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 pub type SierraCompilerResult<T> = Result<T, SierraCompilerError>;
@@ -157,10 +164,18 @@ pub enum SierraCompilerClientError {
     SierraCompilerError(#[from] SierraCompilerError),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(SierraCompilerRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum SierraCompilerRequest {
     Compile(RawClass),
 }
+impl_debug_for_infra_requests_and_responses!(SierraCompilerRequest);
+impl_labeled_request!(SierraCompilerRequest, SierraCompilerRequestLabelValue);
+impl PrioritizedRequest for SierraCompilerRequest {}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum SierraCompilerResponse {

@@ -13,7 +13,6 @@ apollo_l1_gas_price_types.workspace = true
 apollo_metrics.workspace = true
 async-trait.workspace = true
 futures.workspace = true
-hex.workspace = true
 lru.workspace = true
 papyrus_base_layer.workspace = true
 reqwest.workspace = true
