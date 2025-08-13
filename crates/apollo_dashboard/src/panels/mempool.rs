@@ -20,6 +20,7 @@ use apollo_mempool::metrics::{
     MEMPOOL_TRANSACTIONS_DROPPED,
     MEMPOOL_TRANSACTIONS_RECEIVED,
     TRANSACTION_TIME_SPENT_IN_MEMPOOL,
+    TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
 
 use crate::dashboard::{Panel, PanelType, Row};
@@ -137,6 +138,9 @@ fn get_panel_mempool_delayed_declares_size() -> Panel {
 fn get_panel_mempool_transaction_time_spent() -> Panel {
     Panel::from_hist(TRANSACTION_TIME_SPENT_IN_MEMPOOL, PanelType::TimeSeries)
 }
+fn get_panel_mempool_transaction_time_spent_until_committed() -> Panel {
+    Panel::from_hist(TRANSACTION_TIME_SPENT_UNTIL_COMMITTED, PanelType::TimeSeries)
+}
 
 pub(crate) fn get_mempool_row() -> Row {
     Row::new(
@@ -153,6 +157,7 @@ pub(crate) fn get_mempool_row() -> Row {
             get_panel_mempool_get_txs_size(),
             get_panel_mempool_delayed_declares_size(),
             get_panel_mempool_transaction_time_spent(),
+            get_panel_mempool_transaction_time_spent_until_committed(),
         ],
     )
 }
