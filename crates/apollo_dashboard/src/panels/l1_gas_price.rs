@@ -2,6 +2,8 @@ use apollo_infra::metrics::{
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
     L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
+    L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES,
+    L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES,
     L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
     L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
@@ -19,29 +21,35 @@ use apollo_l1_gas_price::metrics::{
 
 use crate::dashboard::{Panel, PanelType, Row};
 
-fn get_panel_l1_gas_price_provider_local_msgs_received() -> Panel {
+fn get_panel_local_msgs_received() -> Panel {
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
-fn get_panel_l1_gas_price_provider_local_msgs_processed() -> Panel {
+fn get_panel_local_msgs_processed() -> Panel {
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
 }
-fn get_panel_l1_gas_price_provider_remote_msgs_received() -> Panel {
+fn get_panel_remote_msgs_received() -> Panel {
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
 }
-fn get_panel_l1_gas_price_provider_remote_valid_msgs_received() -> Panel {
+fn get_panel_remote_valid_msgs_received() -> Panel {
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
 }
-fn get_panel_l1_gas_price_provider_remote_msgs_processed() -> Panel {
+fn get_panel_remote_msgs_processed() -> Panel {
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
-fn get_panel_l1_gas_price_provider_local_queue_depth() -> Panel {
+fn get_panel_local_queue_depth() -> Panel {
     Panel::from_gauge(L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
 }
-fn get_panel_l1_gas_price_provider_remote_client_send_attempts() -> Panel {
+fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
+fn get_panel_processing_times() -> Panel {
+    Panel::from_hist(L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES, PanelType::TimeSeries)
+}
+fn get_panel_queueing_times() -> Panel {
+    Panel::from_hist(L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES, PanelType::TimeSeries)
+}
 
-fn get_panel_l1_gas_price_provider_insufficient_history() -> Panel {
+fn get_panel_insufficient_history() -> Panel {
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, PanelType::Stat)
 }
 fn get_panel_l1_gas_price_scraper_success_count() -> Panel {
@@ -92,7 +100,7 @@ pub(crate) fn get_l1_gas_price_row() -> Row {
             get_panel_eth_to_strk_error_count(),
             get_panel_eth_to_strk_success_count(),
             get_panel_eth_to_strk_rate(),
-            get_panel_l1_gas_price_provider_insufficient_history(),
+            get_panel_insufficient_history(),
             get_panel_l1_gas_price_scraper_success_count(),
             get_panel_l1_gas_price_scraper_baselayer_error_count(),
             get_panel_l1_gas_price_scraper_reorg_detected(),
@@ -108,13 +116,15 @@ pub(crate) fn get_l1_gas_price_infra_row() -> Row {
     Row::new(
         "L1 Gas Price Infra",
         vec![
-            get_panel_l1_gas_price_provider_local_msgs_received(),
-            get_panel_l1_gas_price_provider_local_msgs_processed(),
-            get_panel_l1_gas_price_provider_local_queue_depth(),
-            get_panel_l1_gas_price_provider_remote_msgs_received(),
-            get_panel_l1_gas_price_provider_remote_valid_msgs_received(),
-            get_panel_l1_gas_price_provider_remote_msgs_processed(),
-            get_panel_l1_gas_price_provider_remote_client_send_attempts(),
+            get_panel_local_msgs_received(),
+            get_panel_local_msgs_processed(),
+            get_panel_local_queue_depth(),
+            get_panel_remote_msgs_received(),
+            get_panel_remote_valid_msgs_received(),
+            get_panel_remote_msgs_processed(),
+            get_panel_remote_client_send_attempts(),
+            get_panel_processing_times(),
+            get_panel_queueing_times(),
         ],
     )
 }
