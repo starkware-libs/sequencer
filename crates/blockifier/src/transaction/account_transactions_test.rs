@@ -81,14 +81,8 @@ use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
-<<<<<<< HEAD
-use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
-||||||| 2ae14dc9f
-use crate::execution::syscalls::SyscallSelector;
-=======
 use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
-use crate::execution::syscalls::SyscallSelector;
->>>>>>> origin/main-v0.13.6
+use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
     get_sequencer_balance_keys,
@@ -118,19 +112,12 @@ use crate::transaction::account_transaction::{
     AccountTransaction,
     ExecutionFlags as AccountExecutionFlags,
 };
-<<<<<<< HEAD
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
 use crate::transaction::objects::{
     HasRelatedFeeType,
     TransactionExecutionInfo,
     TransactionInfoCreator,
 };
-||||||| 2ae14dc9f
-use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
-=======
-use crate::transaction::errors::TransactionExecutionError;
-use crate::transaction::objects::{HasRelatedFeeType, TransactionInfoCreator};
->>>>>>> origin/main-v0.13.6
 use crate::transaction::test_utils::{
     all_resource_bounds,
     block_context,
