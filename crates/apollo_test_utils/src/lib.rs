@@ -451,7 +451,7 @@ auto_impl_get_test_instance! {
         pub sequencer: SequencerContractAddress,
         pub timestamp: BlockTimestamp,
         pub l1_da_mode: L1DataAvailabilityMode,
-        pub starknet_version: StarknetVersion,
+        pub starknet_version: Option<StarknetVersion>,
     }
     pub struct BlockNumber(pub u64);
     pub struct BlockSignature(pub Signature);

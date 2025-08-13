@@ -296,7 +296,10 @@ fn create_random_sync_block(
         sequencer,
         l1_da_mode,
         starknet_version,
-    } = BlockHeaderWithoutHash::get_test_instance(&mut rng);
+    }
+    // TODO(Arni): Make sure the function get_test_instance correctly
+    // creates a Some starknet version.
+        = BlockHeaderWithoutHash::get_test_instance(&mut rng);
     let block_header_without_hash = BlockHeaderWithoutHash {
         block_number,
         parent_hash,
