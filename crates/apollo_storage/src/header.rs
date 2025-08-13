@@ -60,12 +60,14 @@ use starknet_api::core::{
 };
 use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
-use tracing::debug;
+use tracing::{debug, warn};
 
 use crate::db::serialization::NoVersionValueWrapper;
 use crate::db::table_types::{DbCursorTrait, SimpleTable, Table};
-use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
+use crate::db::{DbError, DbTransaction, TableHandle, TransactionKind, RW};
 use crate::{MarkerKind, MarkersTable, StorageError, StorageResult, StorageTxn};
+
+const DEFAULT_VERSION: StarknetVersion = StarknetVersion::V0_9_1;
 
 #[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub(crate) struct StorageBlockHeader {
@@ -219,7 +221,18 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
             return Ok(None);
         };
         cursor.lower_bound(&next_block_number)?;
-        let res = cursor.prev()?;
+        let res = match cursor.prev() {
+            Ok(r) => r,
+            Err(DbError::InnerDeserialization) => {
+                warn!(
+                    %block_number,
+                    fallback = ?DEFAULT_VERSION,
+                    "starknet_version failed to deserialize; using default"
+                );
+                return Ok(Some(DEFAULT_VERSION));
+            }
+            Err(e) => return Err(e.into()),
+        };
 
         match res {
             Some((_block_number, starknet_version)) => Ok(Some(starknet_version)),
