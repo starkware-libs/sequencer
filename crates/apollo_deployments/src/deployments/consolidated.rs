@@ -152,7 +152,7 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
 
     fn get_update_strategy(&self) -> UpdateStrategy {
         match self {
-            ConsolidatedNodeServiceName::Node => UpdateStrategy::Recreate,
+            ConsolidatedNodeServiceName::Node => UpdateStrategy::RollingUpdate,
         }
     }
 }

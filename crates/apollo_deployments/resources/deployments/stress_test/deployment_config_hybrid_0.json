@@ -37,7 +37,7 @@
         "gcsm_key": "apollo-stresstest-dev-0"
       },
       "anti_affinity": true,
-      "update_strategy_type": "Recreate",
+      "update_strategy_type": "RollingUpdate",
       "ports": {
         "Batcher": 55000,
         "ClassManager": 55001,
