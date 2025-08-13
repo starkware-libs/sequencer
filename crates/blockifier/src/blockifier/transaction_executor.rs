@@ -297,7 +297,7 @@ fn update_compiled_class_hash_migration_in_state<S: StateReader>(
 ) -> StateResult<CompiledClassHashesForMigration> {
     // TODO(Aviv): Use compiled_class_hashes_v2_to_v1 from the bouncer after the refactor.
     let mut compiled_class_hashes_v2_to_v1: CompiledClassHashesForMigration = Vec::new();
-    for &class_hash in bouncer.class_hashes_to_migrate() {
+    for &class_hash in bouncer.class_hashes_to_migrate().keys() {
         let compiled_class_hash_v1 = block_state
             .get_compiled_class_hash(class_hash)
             .expect("Failed to get current compiled class hash for migration");

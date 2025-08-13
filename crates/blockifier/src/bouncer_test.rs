@@ -143,7 +143,7 @@ fn test_block_weights_has_room_n_txs(
     },
     casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
     // TODO(Meshi): Change to relevant test case when the migration is implemented.
-    class_hashes_to_migrate: HashSet::default(),
+    class_hashes_to_migrate: HashMap::default(),
 }
 })]
 fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
@@ -176,13 +176,13 @@ fn test_bouncer_update(#[case] initial_bouncer: Bouncer) {
     };
     let casm_hash_computation_data_proving_gas = CasmHashComputationData::empty();
     // TODO(Meshi): Change to relevant test case when the migration is implemented.
-    let class_hashes_to_migrate = HashSet::default();
+    let class_hashes_to_migrate = HashMap::default();
 
     let tx_weights = TxWeights {
         bouncer_weights: weights_to_update,
         casm_hash_computation_data_sierra_gas: casm_hash_computation_data_sierra_gas.clone(),
         casm_hash_computation_data_proving_gas: casm_hash_computation_data_proving_gas.clone(),
-        class_hashes_to_migrate: class_hashes_to_migrate.clone(),
+        class_hashes_to_migrate,
     };
 
     let state_changes_keys_to_update =
