@@ -652,6 +652,7 @@ impl Batcher {
             .filter(|tx_hash| consumed_l1_handler_tx_hashes.contains(tx_hash))
             .collect();
 
+        info!("Committing block to L1 provider at height {}.", height);
         let l1_provider_result = self
             .l1_provider_client
             .commit_block(consumed_l1_handler_tx_hashes, rejected_l1_handler_tx_hashes, height)
@@ -948,7 +949,11 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
         state_diff: ThinStateDiff,
     ) -> apollo_storage::StorageResult<()> {
         // TODO(AlonH): write casms.
-        self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+        let mut txn = self.begin_rw_txn()?;
+        info!("Appending state diff for height {}", height.0);
+        txn = txn.append_state_diff(height, state_diff)?;
+        info!("Committing state diff for height {}", height.0);
+        txn.commit()
     }
 
     // This function will panic if there is a storage failure to revert the block.
