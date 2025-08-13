@@ -846,12 +846,12 @@
     ],
     "Compile sierra to casm": [
       {
-        "title": "compile_to_casm_compilation_duration",
+        "title": "compile_to_casm_compilation_duration_seconds",
         "description": "Server-side compilation to casm duration in seconds",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(compile_to_casm_compilation_duration_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(compile_to_casm_compilation_duration_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
