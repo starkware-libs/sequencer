@@ -5,6 +5,10 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_ptr_from_var_name,
     insert_value_from_var_name,
 };
+use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
+use rand::rngs::OsRng;
+use rand::RngCore;
+use sha2::{Digest, Sha256};
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
@@ -148,5 +152,70 @@ pub(crate) fn set_n_updates_small(
         ids_data,
         ap_tracking,
     )?;
+    Ok(())
+}
+
+pub(crate) fn calculate_keys_using_sha256_hash(
+    HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let compressed_start =
+        get_ptr_from_var_name(Ids::CompressedStart.into(), vm, ids_data, ap_tracking)?;
+    let compressed_dst =
+        get_ptr_from_var_name(Ids::CompressedDst.into(), vm, ids_data, ap_tracking)?;
+    let array_size = (compressed_dst - compressed_start)?;
+
+    // Generate a cryptographically secure random seed
+    let mut random_bytes = [0u8; 32];
+    OsRng.fill_bytes(&mut random_bytes);
+
+    let mut hasher = Sha256::new();
+    hasher.update(random_bytes);
+
+    for i in 0..array_size {
+        let felt = vm.get_integer((compressed_start + i)?)?;
+        hasher.update(felt.to_bytes_be());
+    }
+    let random_key_seed = hasher.finalize().to_vec();
+
+    // Closure to generate a key with a specific nonce
+    let generate_key = |nonce: u8| -> Felt {
+        let mut key_input = random_key_seed.clone();
+        key_input.push(nonce);
+        let key_hash = Sha256::digest(&key_input);
+
+        if nonce == 0 {
+            // For symmetric key, use all 32 bytes
+            Felt::from_bytes_be(&key_hash.into())
+        } else {
+            // For private keys, use only first 31 bytes (248 bits) to ensure result is < 2^248 < EC
+            // group order
+            let mut key_bytes = [0u8; 32];
+            key_bytes[1..].copy_from_slice(&key_hash[..31]);
+            Felt::from_bytes_be(&key_bytes)
+        }
+    };
+
+    let symmetric_key = generate_key(0);
+    insert_value_from_var_name(Ids::SymmetricKey.into(), symmetric_key, vm, ids_data, ap_tracking)?;
+
+    let n_keys = get_integer_from_var_name(Ids::NKeys.into(), vm, ids_data, ap_tracking)?;
+    let num_private_keys = felt_to_usize(&n_keys)?;
+    let private_keys_start = vm.add_memory_segment();
+    assert!(num_private_keys < 256, "NKeys value too large or invalid");
+    for i in 0..num_private_keys {
+        let nonce = (i + 1) as u8;
+        let private_key = generate_key(nonce);
+
+        vm.insert_value((private_keys_start + i)?, private_key)?;
+    }
+
+    insert_value_from_var_name(
+        Ids::SnPrivateKeysStart.into(),
+        private_keys_start,
+        vm,
+        ids_data,
+        ap_tracking,
+    )?;
+
     Ok(())
 }
