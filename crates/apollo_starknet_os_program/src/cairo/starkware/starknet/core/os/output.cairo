@@ -86,6 +86,10 @@ func serialize_os_output{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, output
     local full_output = os_output.header.full_output;
     let compress_state_updates = 1 - full_output;
 
+    if (compress_state_updates == 1 and public_key.x == 0) {
+        tempvar symmetric_key = nondet %{ symmetric_key %};
+    }
+
     // Compute the data availability segment.
     local state_updates_start: felt*;
     let state_updates_ptr = state_updates_start;

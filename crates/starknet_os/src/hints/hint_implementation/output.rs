@@ -4,7 +4,10 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
     get_integer_from_var_name,
     get_ptr_from_var_name,
     insert_value_from_var_name,
+    insert_value_into_ap,
 };
+use rand::rngs::OsRng;
+use rand::RngCore;
 use starknet_types_core::felt::Felt;
 
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
@@ -149,4 +152,12 @@ pub(crate) fn set_n_updates_small(
         ap_tracking,
     )?;
     Ok(())
+}
+
+pub(crate) fn get_symmetric_key(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResult {
+    let mut bytes = [0u8; 32];
+    OsRng.fill_bytes(&mut bytes);
+    bytes[0] &= 0b0000_0011;
+    let symmetric_key = Felt::from_bytes_be_slice(&bytes);
+    Ok(insert_value_into_ap(vm, symmetric_key)?)
 }
