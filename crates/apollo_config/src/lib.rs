@@ -181,31 +181,31 @@ pub enum SerializationType {
     PositiveInteger,
     String,
 }
-// TODO(Tsabary): alphabetize the enum variants.
+
 /// Errors at the configuration dumping and loading process.
 #[allow(missing_docs)]
 #[derive(thiserror::Error, Debug)]
 pub enum ConfigError {
-    #[error(transparent)]
-    CommandInput(#[from] clap::error::Error),
-    #[error(transparent)]
-    MissingParam(#[from] serde_json::Error),
-    #[error(transparent)]
-    CommandMatches(#[from] MatchesError),
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
-    #[error("Received an unexpected parameter: {param_path}.")]
-    UnexpectedParam { param_path: String },
-    #[error("{target_param} is not found.")]
-    PointerTargetNotFound { target_param: String },
-    #[error("{pointing_param} is not found.")]
-    PointerSourceNotFound { pointing_param: String },
     #[error("Changing {param_path} from required type {required} to {given} is not allowed.")]
     ChangeRequiredParamType { param_path: String, required: SerializationType, given: Value },
     #[error(transparent)]
-    ValidationError(#[from] ValidationError),
+    CommandInput(#[from] clap::error::Error),
     #[error(transparent)]
-    ConfigValidationError(#[from] ParsedValidationErrors),
+    CommandMatches(#[from] MatchesError),
     #[error("{component_config_mismatch}")]
     ComponentConfigMismatch { component_config_mismatch: String },
+    #[error(transparent)]
+    ConfigValidationError(#[from] ParsedValidationErrors),
+    #[error(transparent)]
+    IOError(#[from] std::io::Error),
+    #[error(transparent)]
+    MissingParam(#[from] serde_json::Error),
+    #[error("{pointing_param} is not found.")]
+    PointerSourceNotFound { pointing_param: String },
+    #[error("{target_param} is not found.")]
+    PointerTargetNotFound { target_param: String },
+    #[error("Received an unexpected parameter: {param_path}.")]
+    UnexpectedParam { param_path: String },
+    #[error(transparent)]
+    ValidationError(#[from] ValidationError),
 }
