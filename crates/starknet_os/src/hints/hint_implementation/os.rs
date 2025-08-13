@@ -13,6 +13,7 @@ use crate::hint_processor::snos_hint_processor::SnosHintProcessor;
 use crate::hint_processor::state_update_pointers::StateUpdatePointers;
 use crate::hints::enum_definition::{AllHints, OsHint};
 use crate::hints::error::OsHintResult;
+use crate::hints::hint_implementation::output::load_public_keys_into_memory;
 use crate::hints::nondet_offsets::insert_nondet_hint_value;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::{CairoStruct, Ids, Scope};
@@ -155,27 +156,6 @@ pub(crate) fn get_public_keys<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let public_keys = hint_processor.os_hints_config.public_keys.clone();
-    let public_keys_segment = vm.add_memory_segment();
-
-    insert_value_from_var_name(
-        Ids::PublicKeysStart.into(),
-        public_keys_segment,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-
-    let public_keys_data: Vec<MaybeRelocatable> =
-        public_keys.into_iter().map(|key| key.into()).collect();
-    vm.load_data(public_keys_segment, &public_keys_data)?;
-
-    insert_value_from_var_name(
-        Ids::NKeys.into(),
-        public_keys_data.len(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-    Ok(())
+    let public_keys = &hint_processor.os_hints_config.public_keys;
+    load_public_keys_into_memory(vm, ids_data, ap_tracking, public_keys.clone())
 }

@@ -8,6 +8,7 @@ use starknet_types_core::felt::Felt;
 use crate::hint_processor::aggregator_hint_processor::{AggregatorHintProcessor, DataAvailability};
 use crate::hint_processor::common_hint_processor::CommonHintProcessor;
 use crate::hints::error::OsHintResult;
+use crate::hints::hint_implementation::output::load_public_keys_into_memory;
 use crate::hints::types::HintArgs;
 use crate::hints::vars::Ids;
 
@@ -116,28 +117,7 @@ pub(crate) fn get_public_keys_from_aggregator_input(
     hint_processor: &mut AggregatorHintProcessor<'_>,
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let public_keys = hint_processor.input.public_keys.clone();
-    let public_keys_segment = vm.add_memory_segment();
-
-    insert_value_from_var_name(
-        Ids::PublicKeysStart.into(),
-        public_keys_segment,
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-
-    let public_keys_data: Vec<MaybeRelocatable> =
-        public_keys.into_iter().map(|key| key.into()).collect();
-    vm.load_data(public_keys_segment, &public_keys_data)?;
-
-    insert_value_from_var_name(
-        Ids::NKeys.into(),
-        public_keys_data.len(),
-        vm,
-        ids_data,
-        ap_tracking,
-    )?;
-
+    let public_keys = &hint_processor.input.public_keys;
+    load_public_keys_into_memory(vm, ids_data, ap_tracking, public_keys.clone())?;
     Ok(())
 }

@@ -118,7 +118,7 @@ pub struct OsHintsConfig {
     pub full_output: bool,
     pub use_kzg_da: bool,
     pub chain_info: OsChainInfo,
-    pub public_keys: Vec<Felt>,
+    pub public_keys: Option<Vec<Felt>>,
 }
 
 impl OsHintsConfig {
