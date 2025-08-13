@@ -374,7 +374,7 @@ fn create_local_servers(
         &config.components.class_manager.execution_mode,
         &mut components.class_manager,
         communication.take_class_manager_rx(),
-        CLASS_MANAGER_METRICS,
+        &CLASS_MANAGER_METRICS,
         config.components.class_manager.max_concurrency
     );
     const GATEWAY_METRICS: LocalServerMetrics = LocalServerMetrics::new(
@@ -387,7 +387,7 @@ fn create_local_servers(
         &config.components.gateway.execution_mode,
         &mut components.gateway,
         communication.take_gateway_rx(),
-        GATEWAY_METRICS,
+        &GATEWAY_METRICS,
         config.components.gateway.max_concurrency
     );
 
@@ -462,7 +462,7 @@ fn create_local_servers(
         &config.components.sierra_compiler.execution_mode,
         &mut components.sierra_compiler,
         communication.take_sierra_compiler_rx(),
-        SIERRA_COMPILER_METRICS,
+        &SIERRA_COMPILER_METRICS,
         config.components.sierra_compiler.max_concurrency
     );
     const STATE_SYNC_METRICS: LocalServerMetrics = LocalServerMetrics::new(
@@ -475,7 +475,7 @@ fn create_local_servers(
         &config.components.state_sync.execution_mode,
         &mut components.state_sync,
         communication.take_state_sync_rx(),
-        STATE_SYNC_METRICS,
+        &STATE_SYNC_METRICS,
         config.components.state_sync.max_concurrency
     );
 
