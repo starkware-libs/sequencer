@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tokio::sync::mpsc::channel;
 use tokio::task;
 
@@ -15,6 +16,7 @@ use crate::component_definitions::{
 };
 use crate::component_server::{ComponentServerStarter, LocalComponentServer};
 use crate::tests::TEST_LOCAL_SERVER_METRICS;
+use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 
 #[async_trait]
 impl ComponentRequestHandler<PriorityTestRequest, PriorityTestResponse> for PriorityTestComponent {
@@ -33,12 +35,19 @@ impl ComponentRequestHandler<PriorityTestRequest, PriorityTestResponse> for Prio
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, AsRefStr, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(PriorityTestRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum PriorityTestRequest {
     HighPriorityAdd(usize),
     NormalPriorityAdd(usize),
     Get,
 }
+impl_debug_for_infra_requests_and_responses!(PriorityTestRequest);
+impl_labeled_request!(PriorityTestRequest, PriorityTestRequestLabelValue);
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum PriorityTestResponse {

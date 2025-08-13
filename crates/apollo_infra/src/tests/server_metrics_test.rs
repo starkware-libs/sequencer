@@ -6,7 +6,8 @@ use async_trait::async_trait;
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use serde::{Deserialize, Serialize};
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio::sync::Semaphore;
 use tokio::task::{self, JoinSet};
@@ -36,16 +37,23 @@ use crate::tests::{
     TEST_REMOTE_CLIENT_METRICS,
     TEST_REMOTE_SERVER_METRICS,
 };
+use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 
 type TestResult = ClientResult<()>;
 
 const NUMBER_OF_ITERATIONS: usize = 10;
 
-#[derive(Serialize, Deserialize, Debug, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(TestComponentRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 enum TestComponentRequest {
     PerformTest,
 }
-
+impl_debug_for_infra_requests_and_responses!(TestComponentRequest);
+impl_labeled_request!(TestComponentRequest, TestComponentRequestLabelValue);
 impl PrioritizedRequest for TestComponentRequest {}
 
 #[derive(Serialize, Deserialize, Debug)]

@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tokio::sync::mpsc::channel;
 use tokio::sync::Semaphore;
 use tokio::task;
@@ -34,13 +35,21 @@ use crate::tests::{
     TEST_REMOTE_CLIENT_METRICS,
     TEST_REMOTE_SERVER_METRICS,
 };
+use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 
 type TestResult = ClientResult<()>;
 
-#[derive(Serialize, Deserialize, Debug, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(ConcurrentComponentRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 enum ConcurrentComponentRequest {
     PerformAction(TestSemaphore),
 }
+impl_debug_for_infra_requests_and_responses!(ConcurrentComponentRequest);
+impl_labeled_request!(ConcurrentComponentRequest, ConcurrentComponentRequestLabelValue);
 impl PrioritizedRequest for ConcurrentComponentRequest {}
 
 #[derive(Serialize, Deserialize, Debug)]
