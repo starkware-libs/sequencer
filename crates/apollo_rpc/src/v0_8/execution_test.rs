@@ -60,6 +60,7 @@ use starknet_api::block::{
     BlockTimestamp,
     GasPricePerToken,
 };
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::contract_class::EntryPointType;
 use starknet_api::core::{
     ClassHash,
@@ -1644,7 +1645,7 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
     let class2 = starknet_api::state::SierraContractClass::default();
     let casm: CasmContractClass = read_json_file("casm.json");
     let class_hash2 = class_hash!("0x2");
-    let compiled_class_hash = CompiledClassHash(StarkHash::default());
+    let compiled_class_hash = casm.hash(&HashVersion::V2);
 
     let account_class = read_json_file("account_class.json");
     let account_balance_key =
