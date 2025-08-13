@@ -948,7 +948,11 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
         state_diff: ThinStateDiff,
     ) -> apollo_storage::StorageResult<()> {
         // TODO(AlonH): write casms.
-        self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+        let mut txn = self.begin_rw_txn()?;
+        info!("Appending state diff for height {}", height.0);
+        txn = txn.append_state_diff(height, state_diff)?;
+        info!("Committing state diff for height {}", height.0);
+        txn.commit()
     }
 
     // This function will panic if there is a storage failure to revert the block.
