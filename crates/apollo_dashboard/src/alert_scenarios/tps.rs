@@ -46,7 +46,7 @@ pub(crate) fn get_http_server_no_successful_transactions() -> Alert {
         "http_server_no_successful_transactions",
         "http server no successful transactions",
         AlertGroup::HttpServer,
-        ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
+        &ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
         Duration::from_secs(10 * SECS_IN_MIN),
     )
 }
@@ -56,7 +56,7 @@ pub(crate) fn get_gateway_add_tx_idle() -> Alert {
         "gateway_add_tx_idle_all_sources",
         "Gateway add_tx idle (all sources)",
         AlertGroup::Gateway,
-        GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter(),
+        &GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter(),
         Duration::from_secs(2 * SECS_IN_MIN),
     )
 }
@@ -66,7 +66,7 @@ pub(crate) fn get_mempool_add_tx_idle() -> Alert {
         "mempool_add_tx_idle_all_sources",
         "Mempool add_tx idle (all sources)",
         AlertGroup::Mempool,
-        MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter(),
+        &MEMPOOL_TRANSACTIONS_RECEIVED.get_name_with_filter(),
         Duration::from_secs(2 * SECS_IN_MIN),
     )
 }
