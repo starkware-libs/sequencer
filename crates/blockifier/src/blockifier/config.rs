@@ -198,6 +198,9 @@ pub struct CairoNativeRunConfig {
 impl Default for CairoNativeRunConfig {
     fn default() -> Self {
         Self {
+            #[cfg(feature = "cairo_native")]
+            run_cairo_native: true,
+            #[cfg(not(feature = "cairo_native"))]
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,

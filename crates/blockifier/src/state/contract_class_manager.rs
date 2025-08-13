@@ -25,6 +25,7 @@ pub mod trivial_class_manager {
                 !config.cairo_native_run_config.run_cairo_native,
                 "Cairo Native feature is off."
             );
+
             Self { cache: RawClassCache::new(config.contract_cache_size) }
         }
 
