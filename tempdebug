@@ -1,0 +1,2557 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.45s
+warning: the following packages contain code that will be rejected by a future version of Rust: size-of v0.1.5
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running `target/debug/deployment_generator`
+Generated data file: "crates/apollo_deployments/resources/services/consolidated/node.json"
+ITAY DEBUG: Remote component config for core: ReactiveComponentExecutionConfig { execution_mode: Remote, local_server_config: None, remote_client_config: Some(RemoteClientConfig { retries: 150, idle_connections: 10, idle_timeout_ms: 30000, log_attempt_interval_ms: 10, initial_retry_delay_ms: 1, max_retry_interval_ms: 1000 }), max_concurrency: 128, url: "sequencer-core-service", ip: 0.0.0.0, port: 55000 }
+ITAY DEBUG: Remote component config for core: ReactiveComponentExecutionConfig { execution_mode: Remote, local_server_config: None, remote_client_config: Some(RemoteClientConfig { retries: 150, idle_connections: 10, idle_timeout_ms: 30000, log_attempt_interval_ms: 10, initial_retry_delay_ms: 1, max_retry_interval_ms: 1000 }), max_concurrency: 128, url: "sequencer-core-service", ip: 0.0.0.0, port: 55001 }
+ITAY DEBUG: Remote component config for gateway: ReactiveComponentExecutionConfig { execution_mode: Remote, local_server_config: None, remote_client_config: Some(RemoteClientConfig { retries: 150, idle_connections: 0, idle_timeout_ms: 30000, log_attempt_interval_ms: 10, initial_retry_delay_ms: 1, max_retry_interval_ms: 1000 }), max_concurrency: 128, url: "sequencer-gateway-service", ip: 0.0.0.0, port: 55002 }
+ITAY DEBUG: Remote component config for l1: ReactiveComponentExecutionConfig { execution_mode: Remote, local_server_config: None, remote_client_config: Some(RemoteClientConfig { retries: 150, idle_connections: 10, idle_timeout_ms: 30000, log_attempt_interval_ms: 10, initial_retry_delay_ms: 1, max_retry_interval_ms: 1000 }), max_concurrency: 128, url: "sequencer-l1-service", ip: 0.0.0.0, port: 55003 }
+ITAY DEBUG: Remote component config for l1: ReactiveComponentExecutionConfig { execution_mode: Remote, local_server_config: None, remote_client_config: Some(RemoteClientConfig { retries: 150, idle_connections: 10, idle_timeout_ms: 30000, log_attempt_interval_ms: 10, initial_retry_delay_ms: 1, max_retry_interval_ms: 1000 }), max_concurrency: 128, url: "sequencer-l1-service", ip: 0.0.0.0, port: 55004 }
+ITAY DEBUG: Remote component config for mempool: ReactiveComponentExecutionConfig { execution_mode: Remote, local_server_config: None, remote_client_config: Some(RemoteClientConfig { retries: 150, idle_connections: 10, idle_timeout_ms: 30000, log_attempt_interval_ms: 10, initial_retry_delay_ms: 1, max_retry_interval_ms: 1000 }), max_concurrency: 128, url: "sequencer-mempool-service", ip: 0.0.0.0, port: 55006 }
+ITAY DEBUG: Remote component config for sierra_compiler: ReactiveComponentExecutionConfig { execution_mode: Remote, local_server_config: None, remote_client_config: Some(RemoteClientConfig { retries: 150, idle_connections: 0, idle_timeout_ms: 30000, log_attempt_interval_ms: 10, initial_retry_delay_ms: 1, max_retry_interval_ms: 1000 }), max_concurrency: 128, url: "sequencer-sierracompiler-service", ip: 0.0.0.0, port: 55007 }
+ITAY DEBUG: Remote component config for core: ReactiveComponentExecutionConfig { execution_mode: Remote, local_server_config: None, remote_client_config: Some(RemoteClientConfig { retries: 150, idle_connections: 10, idle_timeout_ms: 30000, log_attempt_interval_ms: 10, initial_retry_delay_ms: 1, max_retry_interval_ms: 1000 }), max_concurrency: 128, url: "sequencer-core-service", ip: 0.0.0.0, port: 55009 }
+ITAY DEBUG: L1 component config has the following batcher config ReactiveComponentExecutionConfig { execution_mode: Remote, local_server_config: None, remote_client_config: Some(RemoteClientConfig { retries: 150, idle_connections: 10, idle_timeout_ms: 30000, log_attempt_interval_ms: 10, initial_retry_delay_ms: 1, max_retry_interval_ms: 1000 }), max_concurrency: 128, url: "sequencer-core-service", ip: 0.0.0.0, port: 55000 }
+Generated data file: "crates/apollo_deployments/resources/services/hybrid/core.json"
+Generated data file: "crates/apollo_deployments/resources/services/hybrid/http_server.json"
+Generated data file: "crates/apollo_deployments/resources/services/hybrid/gateway.json"
+
+ITAY DEBUG: Dumping L1 component config wrapper
+ ComponentConfigsSerializationWrapper {
+    component_config: ComponentConfig {
+        batcher: ReactiveComponentExecutionConfig {
+            execution_mode: Remote,
+            local_server_config: None,
+            remote_client_config: Some(
+                RemoteClientConfig {
+                    retries: 150,
+                    idle_connections: 10,
+                    idle_timeout_ms: 30000,
+                    log_attempt_interval_ms: 10,
+                    initial_retry_delay_ms: 1,
+                    max_retry_interval_ms: 1000,
+                },
+            ),
+            max_concurrency: 128,
+            url: "sequencer-core-service",
+            ip: 0.0.0.0,
+            port: 55000,
+        },
+        class_manager: ReactiveComponentExecutionConfig {
+            execution_mode: Disabled,
+            local_server_config: None,
+            remote_client_config: None,
+            max_concurrency: 128,
+            url: "localhost",
+            ip: 0.0.0.0,
+            port: 0,
+        },
+        gateway: ReactiveComponentExecutionConfig {
+            execution_mode: Disabled,
+            local_server_config: None,
+            remote_client_config: None,
+            max_concurrency: 128,
+            url: "localhost",
+            ip: 0.0.0.0,
+            port: 0,
+        },
+        l1_endpoint_monitor: ReactiveComponentExecutionConfig {
+            execution_mode: LocalExecutionWithRemoteDisabled,
+            local_server_config: Some(
+                LocalServerConfig {
+                    inbound_requests_channel_capacity: 1024,
+                    high_priority_requests_channel_capacity: 1024,
+                    normal_priority_requests_channel_capacity: 1024,
+                    processing_time_warning_threshold_ms: 3000,
+                },
+            ),
+            remote_client_config: None,
+            max_concurrency: 128,
+            url: "localhost",
+            ip: 0.0.0.0,
+            port: 0,
+        },
+        l1_provider: ReactiveComponentExecutionConfig {
+            execution_mode: LocalExecutionWithRemoteEnabled,
+            local_server_config: Some(
+                LocalServerConfig {
+                    inbound_requests_channel_capacity: 1024,
+                    high_priority_requests_channel_capacity: 1024,
+                    normal_priority_requests_channel_capacity: 1024,
+                    processing_time_warning_threshold_ms: 3000,
+                },
+            ),
+            remote_client_config: None,
+            max_concurrency: 128,
+            url: "sequencer-l1-service",
+            ip: 0.0.0.0,
+            port: 55004,
+        },
+        l1_gas_price_provider: ReactiveComponentExecutionConfig {
+            execution_mode: LocalExecutionWithRemoteEnabled,
+            local_server_config: Some(
+                LocalServerConfig {
+                    inbound_requests_channel_capacity: 1024,
+                    high_priority_requests_channel_capacity: 1024,
+                    normal_priority_requests_channel_capacity: 1024,
+                    processing_time_warning_threshold_ms: 3000,
+                },
+            ),
+            remote_client_config: None,
+            max_concurrency: 128,
+            url: "sequencer-l1-service",
+            ip: 0.0.0.0,
+            port: 55003,
+        },
+        mempool: ReactiveComponentExecutionConfig {
+            execution_mode: Disabled,
+            local_server_config: None,
+            remote_client_config: None,
+            max_concurrency: 128,
+            url: "localhost",
+            ip: 0.0.0.0,
+            port: 0,
+        },
+        mempool_p2p: ReactiveComponentExecutionConfig {
+            execution_mode: Disabled,
+            local_server_config: None,
+            remote_client_config: None,
+            max_concurrency: 128,
+            url: "localhost",
+            ip: 0.0.0.0,
+            port: 0,
+        },
+        sierra_compiler: ReactiveComponentExecutionConfig {
+            execution_mode: Disabled,
+            local_server_config: None,
+            remote_client_config: None,
+            max_concurrency: 128,
+            url: "localhost",
+            ip: 0.0.0.0,
+            port: 0,
+        },
+        state_sync: ReactiveComponentExecutionConfig {
+            execution_mode: Remote,
+            local_server_config: None,
+            remote_client_config: Some(
+                RemoteClientConfig {
+                    retries: 150,
+                    idle_connections: 10,
+                    idle_timeout_ms: 30000,
+                    log_attempt_interval_ms: 10,
+                    initial_retry_delay_ms: 1,
+                    max_retry_interval_ms: 1000,
+                },
+            ),
+            max_concurrency: 128,
+            url: "sequencer-core-service",
+            ip: 0.0.0.0,
+            port: 55009,
+        },
+        consensus_manager: ActiveComponentExecutionConfig {
+            execution_mode: Disabled,
+        },
+        http_server: ActiveComponentExecutionConfig {
+            execution_mode: Disabled,
+        },
+        l1_scraper: ActiveComponentExecutionConfig {
+            execution_mode: Enabled,
+        },
+        l1_gas_price_scraper: ActiveComponentExecutionConfig {
+            execution_mode: Enabled,
+        },
+        monitoring_endpoint: ActiveComponentExecutionConfig {
+            execution_mode: Enabled,
+        },
+    },
+    components_in_service: {
+        BaseLayer,
+        General,
+        L1EndpointMonitor,
+        L1GasPriceProvider,
+        L1GasPriceScraper,
+        L1Provider,
+        L1Scraper,
+        MonitoringEndpoint,
+    },
+}
+
+ITAY DEBUG: Dumping L1 component config wrapper dumped
+ {
+    "base_layer_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: Public,
+    },
+    "batcher_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: Public,
+    },
+    "class_manager_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Remote"),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.batcher.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(55000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.batcher.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("sequencer-core-service"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Disabled"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.class_manager.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.class_manager.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.consensus_manager.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Disabled"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Disabled"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.gateway.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.gateway.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.http_server.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Disabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_endpoint_monitor.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteEnabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_gas_price_provider.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(55003),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_gas_price_provider.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("sequencer-l1-service"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_scraper.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteEnabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(55004),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_provider.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("sequencer-l1-service"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_scraper.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Disabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Disabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool_p2p.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool_p2p.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.monitoring_endpoint.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Disabled"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.sierra_compiler.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.sierra_compiler.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Remote"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.state_sync.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(55009),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.state_sync.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("sequencer-core-service"),
+        ),
+        privacy: Public,
+    },
+    "consensus_manager_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: Public,
+    },
+    "gateway_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: Public,
+    },
+    "http_server_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: Public,
+    },
+    "l1_endpoint_monitor_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: Public,
+    },
+    "l1_gas_price_provider_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: Public,
+    },
+    "l1_gas_price_scraper_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: Public,
+    },
+    "l1_provider_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: Public,
+    },
+    "l1_scraper_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: Public,
+    },
+    "mempool_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: Public,
+    },
+    "mempool_p2p_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: Public,
+    },
+    "monitoring_endpoint_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: Public,
+    },
+    "sierra_compiler_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: Public,
+    },
+    "state_sync_config.#is_none": SerializedParam {
+        description: "Placeholder description",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: Public,
+    },
+}
+
+ITAY DEBUG: Dumping L1 component config wrapper dumped json
+ Object {
+    "base_layer_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(false),
+    },
+    "batcher_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(true),
+    },
+    "class_manager_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(true),
+    },
+    "components.batcher.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Remote"),
+    },
+    "components.batcher.ip": Object {
+        "description": String("Binding address of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("0.0.0.0"),
+    },
+    "components.batcher.local_server_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.batcher.local_server_config.high_priority_requests_channel_capacity": Object {
+        "description": String("The high priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.batcher.local_server_config.inbound_requests_channel_capacity": Object {
+        "description": String("The inbound requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.batcher.local_server_config.normal_priority_requests_channel_capacity": Object {
+        "description": String("The normal priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.batcher.local_server_config.processing_time_warning_threshold_ms": Object {
+        "description": String("Request processing threshold time in ms after which a warning message is logged."),
+        "privacy": String("Public"),
+        "value": Number(3000),
+    },
+    "components.batcher.max_concurrency": Object {
+        "description": String("The maximum number of concurrent requests handling."),
+        "privacy": String("Public"),
+        "value": Number(128),
+    },
+    "components.batcher.port": Object {
+        "description": String("Listening port of the remote component server."),
+        "privacy": String("Public"),
+        "value": Number(55000),
+    },
+    "components.batcher.remote_client_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(false),
+    },
+    "components.batcher.remote_client_config.idle_connections": Object {
+        "description": String("The maximum number of idle connections to keep alive."),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.batcher.remote_client_config.idle_timeout_ms": Object {
+        "description": String("The duration in milliseconds to keep an idle connection open before closing."),
+        "privacy": String("Public"),
+        "value": Number(30000),
+    },
+    "components.batcher.remote_client_config.initial_retry_delay_ms": Object {
+        "description": String("Initial delay before first retry in milliseconds"),
+        "privacy": String("Public"),
+        "value": Number(1),
+    },
+    "components.batcher.remote_client_config.log_attempt_interval_ms": Object {
+        "description": String("Number of attempts between failure log messages"),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.batcher.remote_client_config.max_retry_interval_ms": Object {
+        "description": String("The maximal duration in milliseconds to wait between remote connection retries."),
+        "privacy": String("Public"),
+        "value": Number(1000),
+    },
+    "components.batcher.remote_client_config.retries": Object {
+        "description": String("The max number of retries for sending a message."),
+        "privacy": String("Public"),
+        "value": Number(150),
+    },
+    "components.batcher.url": Object {
+        "description": String("URL of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("sequencer-core-service"),
+    },
+    "components.class_manager.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Disabled"),
+    },
+    "components.class_manager.ip": Object {
+        "description": String("Binding address of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("0.0.0.0"),
+    },
+    "components.class_manager.local_server_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.class_manager.local_server_config.high_priority_requests_channel_capacity": Object {
+        "description": String("The high priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.class_manager.local_server_config.inbound_requests_channel_capacity": Object {
+        "description": String("The inbound requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.class_manager.local_server_config.normal_priority_requests_channel_capacity": Object {
+        "description": String("The normal priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.class_manager.local_server_config.processing_time_warning_threshold_ms": Object {
+        "description": String("Request processing threshold time in ms after which a warning message is logged."),
+        "privacy": String("Public"),
+        "value": Number(3000),
+    },
+    "components.class_manager.max_concurrency": Object {
+        "description": String("The maximum number of concurrent requests handling."),
+        "privacy": String("Public"),
+        "value": Number(128),
+    },
+    "components.class_manager.port": Object {
+        "description": String("Listening port of the remote component server."),
+        "privacy": String("Public"),
+        "value": Number(0),
+    },
+    "components.class_manager.remote_client_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.class_manager.remote_client_config.idle_connections": Object {
+        "description": String("The maximum number of idle connections to keep alive."),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.class_manager.remote_client_config.idle_timeout_ms": Object {
+        "description": String("The duration in milliseconds to keep an idle connection open before closing."),
+        "privacy": String("Public"),
+        "value": Number(30000),
+    },
+    "components.class_manager.remote_client_config.initial_retry_delay_ms": Object {
+        "description": String("Initial delay before first retry in milliseconds"),
+        "privacy": String("Public"),
+        "value": Number(1),
+    },
+    "components.class_manager.remote_client_config.log_attempt_interval_ms": Object {
+        "description": String("Number of attempts between failure log messages"),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.class_manager.remote_client_config.max_retry_interval_ms": Object {
+        "description": String("The maximal duration in milliseconds to wait between remote connection retries."),
+        "privacy": String("Public"),
+        "value": Number(1000),
+    },
+    "components.class_manager.remote_client_config.retries": Object {
+        "description": String("The max number of retries for sending a message."),
+        "privacy": String("Public"),
+        "value": Number(150),
+    },
+    "components.class_manager.url": Object {
+        "description": String("URL of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("localhost"),
+    },
+    "components.consensus_manager.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Disabled"),
+    },
+    "components.gateway.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Disabled"),
+    },
+    "components.gateway.ip": Object {
+        "description": String("Binding address of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("0.0.0.0"),
+    },
+    "components.gateway.local_server_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.gateway.local_server_config.high_priority_requests_channel_capacity": Object {
+        "description": String("The high priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.gateway.local_server_config.inbound_requests_channel_capacity": Object {
+        "description": String("The inbound requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.gateway.local_server_config.normal_priority_requests_channel_capacity": Object {
+        "description": String("The normal priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.gateway.local_server_config.processing_time_warning_threshold_ms": Object {
+        "description": String("Request processing threshold time in ms after which a warning message is logged."),
+        "privacy": String("Public"),
+        "value": Number(3000),
+    },
+    "components.gateway.max_concurrency": Object {
+        "description": String("The maximum number of concurrent requests handling."),
+        "privacy": String("Public"),
+        "value": Number(128),
+    },
+    "components.gateway.port": Object {
+        "description": String("Listening port of the remote component server."),
+        "privacy": String("Public"),
+        "value": Number(0),
+    },
+    "components.gateway.remote_client_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.gateway.remote_client_config.idle_connections": Object {
+        "description": String("The maximum number of idle connections to keep alive."),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.gateway.remote_client_config.idle_timeout_ms": Object {
+        "description": String("The duration in milliseconds to keep an idle connection open before closing."),
+        "privacy": String("Public"),
+        "value": Number(30000),
+    },
+    "components.gateway.remote_client_config.initial_retry_delay_ms": Object {
+        "description": String("Initial delay before first retry in milliseconds"),
+        "privacy": String("Public"),
+        "value": Number(1),
+    },
+    "components.gateway.remote_client_config.log_attempt_interval_ms": Object {
+        "description": String("Number of attempts between failure log messages"),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.gateway.remote_client_config.max_retry_interval_ms": Object {
+        "description": String("The maximal duration in milliseconds to wait between remote connection retries."),
+        "privacy": String("Public"),
+        "value": Number(1000),
+    },
+    "components.gateway.remote_client_config.retries": Object {
+        "description": String("The max number of retries for sending a message."),
+        "privacy": String("Public"),
+        "value": Number(150),
+    },
+    "components.gateway.url": Object {
+        "description": String("URL of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("localhost"),
+    },
+    "components.http_server.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Disabled"),
+    },
+    "components.l1_endpoint_monitor.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("LocalExecutionWithRemoteDisabled"),
+    },
+    "components.l1_endpoint_monitor.ip": Object {
+        "description": String("Binding address of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("0.0.0.0"),
+    },
+    "components.l1_endpoint_monitor.local_server_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(false),
+    },
+    "components.l1_endpoint_monitor.local_server_config.high_priority_requests_channel_capacity": Object {
+        "description": String("The high priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.l1_endpoint_monitor.local_server_config.inbound_requests_channel_capacity": Object {
+        "description": String("The inbound requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.l1_endpoint_monitor.local_server_config.normal_priority_requests_channel_capacity": Object {
+        "description": String("The normal priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.l1_endpoint_monitor.local_server_config.processing_time_warning_threshold_ms": Object {
+        "description": String("Request processing threshold time in ms after which a warning message is logged."),
+        "privacy": String("Public"),
+        "value": Number(3000),
+    },
+    "components.l1_endpoint_monitor.max_concurrency": Object {
+        "description": String("The maximum number of concurrent requests handling."),
+        "privacy": String("Public"),
+        "value": Number(128),
+    },
+    "components.l1_endpoint_monitor.port": Object {
+        "description": String("Listening port of the remote component server."),
+        "privacy": String("Public"),
+        "value": Number(0),
+    },
+    "components.l1_endpoint_monitor.remote_client_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.l1_endpoint_monitor.remote_client_config.idle_connections": Object {
+        "description": String("The maximum number of idle connections to keep alive."),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.l1_endpoint_monitor.remote_client_config.idle_timeout_ms": Object {
+        "description": String("The duration in milliseconds to keep an idle connection open before closing."),
+        "privacy": String("Public"),
+        "value": Number(30000),
+    },
+    "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": Object {
+        "description": String("Initial delay before first retry in milliseconds"),
+        "privacy": String("Public"),
+        "value": Number(1),
+    },
+    "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval_ms": Object {
+        "description": String("Number of attempts between failure log messages"),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.l1_endpoint_monitor.remote_client_config.max_retry_interval_ms": Object {
+        "description": String("The maximal duration in milliseconds to wait between remote connection retries."),
+        "privacy": String("Public"),
+        "value": Number(1000),
+    },
+    "components.l1_endpoint_monitor.remote_client_config.retries": Object {
+        "description": String("The max number of retries for sending a message."),
+        "privacy": String("Public"),
+        "value": Number(150),
+    },
+    "components.l1_endpoint_monitor.url": Object {
+        "description": String("URL of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("localhost"),
+    },
+    "components.l1_gas_price_provider.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("LocalExecutionWithRemoteEnabled"),
+    },
+    "components.l1_gas_price_provider.ip": Object {
+        "description": String("Binding address of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("0.0.0.0"),
+    },
+    "components.l1_gas_price_provider.local_server_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(false),
+    },
+    "components.l1_gas_price_provider.local_server_config.high_priority_requests_channel_capacity": Object {
+        "description": String("The high priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.l1_gas_price_provider.local_server_config.inbound_requests_channel_capacity": Object {
+        "description": String("The inbound requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.l1_gas_price_provider.local_server_config.normal_priority_requests_channel_capacity": Object {
+        "description": String("The normal priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.l1_gas_price_provider.local_server_config.processing_time_warning_threshold_ms": Object {
+        "description": String("Request processing threshold time in ms after which a warning message is logged."),
+        "privacy": String("Public"),
+        "value": Number(3000),
+    },
+    "components.l1_gas_price_provider.max_concurrency": Object {
+        "description": String("The maximum number of concurrent requests handling."),
+        "privacy": String("Public"),
+        "value": Number(128),
+    },
+    "components.l1_gas_price_provider.port": Object {
+        "description": String("Listening port of the remote component server."),
+        "privacy": String("Public"),
+        "value": Number(55003),
+    },
+    "components.l1_gas_price_provider.remote_client_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.l1_gas_price_provider.remote_client_config.idle_connections": Object {
+        "description": String("The maximum number of idle connections to keep alive."),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.l1_gas_price_provider.remote_client_config.idle_timeout_ms": Object {
+        "description": String("The duration in milliseconds to keep an idle connection open before closing."),
+        "privacy": String("Public"),
+        "value": Number(30000),
+    },
+    "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": Object {
+        "description": String("Initial delay before first retry in milliseconds"),
+        "privacy": String("Public"),
+        "value": Number(1),
+    },
+    "components.l1_gas_price_provider.remote_client_config.log_attempt_interval_ms": Object {
+        "description": String("Number of attempts between failure log messages"),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.l1_gas_price_provider.remote_client_config.max_retry_interval_ms": Object {
+        "description": String("The maximal duration in milliseconds to wait between remote connection retries."),
+        "privacy": String("Public"),
+        "value": Number(1000),
+    },
+    "components.l1_gas_price_provider.remote_client_config.retries": Object {
+        "description": String("The max number of retries for sending a message."),
+        "privacy": String("Public"),
+        "value": Number(150),
+    },
+    "components.l1_gas_price_provider.url": Object {
+        "description": String("URL of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("sequencer-l1-service"),
+    },
+    "components.l1_gas_price_scraper.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Enabled"),
+    },
+    "components.l1_provider.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("LocalExecutionWithRemoteEnabled"),
+    },
+    "components.l1_provider.ip": Object {
+        "description": String("Binding address of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("0.0.0.0"),
+    },
+    "components.l1_provider.local_server_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(false),
+    },
+    "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": Object {
+        "description": String("The high priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.l1_provider.local_server_config.inbound_requests_channel_capacity": Object {
+        "description": String("The inbound requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.l1_provider.local_server_config.normal_priority_requests_channel_capacity": Object {
+        "description": String("The normal priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.l1_provider.local_server_config.processing_time_warning_threshold_ms": Object {
+        "description": String("Request processing threshold time in ms after which a warning message is logged."),
+        "privacy": String("Public"),
+        "value": Number(3000),
+    },
+    "components.l1_provider.max_concurrency": Object {
+        "description": String("The maximum number of concurrent requests handling."),
+        "privacy": String("Public"),
+        "value": Number(128),
+    },
+    "components.l1_provider.port": Object {
+        "description": String("Listening port of the remote component server."),
+        "privacy": String("Public"),
+        "value": Number(55004),
+    },
+    "components.l1_provider.remote_client_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.l1_provider.remote_client_config.idle_connections": Object {
+        "description": String("The maximum number of idle connections to keep alive."),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.l1_provider.remote_client_config.idle_timeout_ms": Object {
+        "description": String("The duration in milliseconds to keep an idle connection open before closing."),
+        "privacy": String("Public"),
+        "value": Number(30000),
+    },
+    "components.l1_provider.remote_client_config.initial_retry_delay_ms": Object {
+        "description": String("Initial delay before first retry in milliseconds"),
+        "privacy": String("Public"),
+        "value": Number(1),
+    },
+    "components.l1_provider.remote_client_config.log_attempt_interval_ms": Object {
+        "description": String("Number of attempts between failure log messages"),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.l1_provider.remote_client_config.max_retry_interval_ms": Object {
+        "description": String("The maximal duration in milliseconds to wait between remote connection retries."),
+        "privacy": String("Public"),
+        "value": Number(1000),
+    },
+    "components.l1_provider.remote_client_config.retries": Object {
+        "description": String("The max number of retries for sending a message."),
+        "privacy": String("Public"),
+        "value": Number(150),
+    },
+    "components.l1_provider.url": Object {
+        "description": String("URL of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("sequencer-l1-service"),
+    },
+    "components.l1_scraper.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Enabled"),
+    },
+    "components.mempool.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Disabled"),
+    },
+    "components.mempool.ip": Object {
+        "description": String("Binding address of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("0.0.0.0"),
+    },
+    "components.mempool.local_server_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.mempool.local_server_config.high_priority_requests_channel_capacity": Object {
+        "description": String("The high priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.mempool.local_server_config.inbound_requests_channel_capacity": Object {
+        "description": String("The inbound requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.mempool.local_server_config.normal_priority_requests_channel_capacity": Object {
+        "description": String("The normal priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.mempool.local_server_config.processing_time_warning_threshold_ms": Object {
+        "description": String("Request processing threshold time in ms after which a warning message is logged."),
+        "privacy": String("Public"),
+        "value": Number(3000),
+    },
+    "components.mempool.max_concurrency": Object {
+        "description": String("The maximum number of concurrent requests handling."),
+        "privacy": String("Public"),
+        "value": Number(128),
+    },
+    "components.mempool.port": Object {
+        "description": String("Listening port of the remote component server."),
+        "privacy": String("Public"),
+        "value": Number(0),
+    },
+    "components.mempool.remote_client_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.mempool.remote_client_config.idle_connections": Object {
+        "description": String("The maximum number of idle connections to keep alive."),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.mempool.remote_client_config.idle_timeout_ms": Object {
+        "description": String("The duration in milliseconds to keep an idle connection open before closing."),
+        "privacy": String("Public"),
+        "value": Number(30000),
+    },
+    "components.mempool.remote_client_config.initial_retry_delay_ms": Object {
+        "description": String("Initial delay before first retry in milliseconds"),
+        "privacy": String("Public"),
+        "value": Number(1),
+    },
+    "components.mempool.remote_client_config.log_attempt_interval_ms": Object {
+        "description": String("Number of attempts between failure log messages"),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.mempool.remote_client_config.max_retry_interval_ms": Object {
+        "description": String("The maximal duration in milliseconds to wait between remote connection retries."),
+        "privacy": String("Public"),
+        "value": Number(1000),
+    },
+    "components.mempool.remote_client_config.retries": Object {
+        "description": String("The max number of retries for sending a message."),
+        "privacy": String("Public"),
+        "value": Number(150),
+    },
+    "components.mempool.url": Object {
+        "description": String("URL of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("localhost"),
+    },
+    "components.mempool_p2p.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Disabled"),
+    },
+    "components.mempool_p2p.ip": Object {
+        "description": String("Binding address of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("0.0.0.0"),
+    },
+    "components.mempool_p2p.local_server_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.mempool_p2p.local_server_config.high_priority_requests_channel_capacity": Object {
+        "description": String("The high priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.mempool_p2p.local_server_config.inbound_requests_channel_capacity": Object {
+        "description": String("The inbound requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.mempool_p2p.local_server_config.normal_priority_requests_channel_capacity": Object {
+        "description": String("The normal priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.mempool_p2p.local_server_config.processing_time_warning_threshold_ms": Object {
+        "description": String("Request processing threshold time in ms after which a warning message is logged."),
+        "privacy": String("Public"),
+        "value": Number(3000),
+    },
+    "components.mempool_p2p.max_concurrency": Object {
+        "description": String("The maximum number of concurrent requests handling."),
+        "privacy": String("Public"),
+        "value": Number(128),
+    },
+    "components.mempool_p2p.port": Object {
+        "description": String("Listening port of the remote component server."),
+        "privacy": String("Public"),
+        "value": Number(0),
+    },
+    "components.mempool_p2p.remote_client_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.mempool_p2p.remote_client_config.idle_connections": Object {
+        "description": String("The maximum number of idle connections to keep alive."),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.mempool_p2p.remote_client_config.idle_timeout_ms": Object {
+        "description": String("The duration in milliseconds to keep an idle connection open before closing."),
+        "privacy": String("Public"),
+        "value": Number(30000),
+    },
+    "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": Object {
+        "description": String("Initial delay before first retry in milliseconds"),
+        "privacy": String("Public"),
+        "value": Number(1),
+    },
+    "components.mempool_p2p.remote_client_config.log_attempt_interval_ms": Object {
+        "description": String("Number of attempts between failure log messages"),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.mempool_p2p.remote_client_config.max_retry_interval_ms": Object {
+        "description": String("The maximal duration in milliseconds to wait between remote connection retries."),
+        "privacy": String("Public"),
+        "value": Number(1000),
+    },
+    "components.mempool_p2p.remote_client_config.retries": Object {
+        "description": String("The max number of retries for sending a message."),
+        "privacy": String("Public"),
+        "value": Number(150),
+    },
+    "components.mempool_p2p.url": Object {
+        "description": String("URL of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("localhost"),
+    },
+    "components.monitoring_endpoint.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Enabled"),
+    },
+    "components.sierra_compiler.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Disabled"),
+    },
+    "components.sierra_compiler.ip": Object {
+        "description": String("Binding address of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("0.0.0.0"),
+    },
+    "components.sierra_compiler.local_server_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.sierra_compiler.local_server_config.high_priority_requests_channel_capacity": Object {
+        "description": String("The high priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.sierra_compiler.local_server_config.inbound_requests_channel_capacity": Object {
+        "description": String("The inbound requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.sierra_compiler.local_server_config.normal_priority_requests_channel_capacity": Object {
+        "description": String("The normal priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.sierra_compiler.local_server_config.processing_time_warning_threshold_ms": Object {
+        "description": String("Request processing threshold time in ms after which a warning message is logged."),
+        "privacy": String("Public"),
+        "value": Number(3000),
+    },
+    "components.sierra_compiler.max_concurrency": Object {
+        "description": String("The maximum number of concurrent requests handling."),
+        "privacy": String("Public"),
+        "value": Number(128),
+    },
+    "components.sierra_compiler.port": Object {
+        "description": String("Listening port of the remote component server."),
+        "privacy": String("Public"),
+        "value": Number(0),
+    },
+    "components.sierra_compiler.remote_client_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.sierra_compiler.remote_client_config.idle_connections": Object {
+        "description": String("The maximum number of idle connections to keep alive."),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.sierra_compiler.remote_client_config.idle_timeout_ms": Object {
+        "description": String("The duration in milliseconds to keep an idle connection open before closing."),
+        "privacy": String("Public"),
+        "value": Number(30000),
+    },
+    "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": Object {
+        "description": String("Initial delay before first retry in milliseconds"),
+        "privacy": String("Public"),
+        "value": Number(1),
+    },
+    "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": Object {
+        "description": String("Number of attempts between failure log messages"),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.sierra_compiler.remote_client_config.max_retry_interval_ms": Object {
+        "description": String("The maximal duration in milliseconds to wait between remote connection retries."),
+        "privacy": String("Public"),
+        "value": Number(1000),
+    },
+    "components.sierra_compiler.remote_client_config.retries": Object {
+        "description": String("The max number of retries for sending a message."),
+        "privacy": String("Public"),
+        "value": Number(150),
+    },
+    "components.sierra_compiler.url": Object {
+        "description": String("URL of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("localhost"),
+    },
+    "components.state_sync.execution_mode": Object {
+        "description": String("The component execution mode."),
+        "privacy": String("Public"),
+        "value": String("Remote"),
+    },
+    "components.state_sync.ip": Object {
+        "description": String("Binding address of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("0.0.0.0"),
+    },
+    "components.state_sync.local_server_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(true),
+    },
+    "components.state_sync.local_server_config.high_priority_requests_channel_capacity": Object {
+        "description": String("The high priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.state_sync.local_server_config.inbound_requests_channel_capacity": Object {
+        "description": String("The inbound requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.state_sync.local_server_config.normal_priority_requests_channel_capacity": Object {
+        "description": String("The normal priority requests channel capacity."),
+        "privacy": String("Public"),
+        "value": Number(1024),
+    },
+    "components.state_sync.local_server_config.processing_time_warning_threshold_ms": Object {
+        "description": String("Request processing threshold time in ms after which a warning message is logged."),
+        "privacy": String("Public"),
+        "value": Number(3000),
+    },
+    "components.state_sync.max_concurrency": Object {
+        "description": String("The maximum number of concurrent requests handling."),
+        "privacy": String("Public"),
+        "value": Number(128),
+    },
+    "components.state_sync.port": Object {
+        "description": String("Listening port of the remote component server."),
+        "privacy": String("Public"),
+        "value": Number(55009),
+    },
+    "components.state_sync.remote_client_config.#is_none": Object {
+        "description": String("Flag for an optional field."),
+        "privacy": String("TemporaryValue"),
+        "value": Bool(false),
+    },
+    "components.state_sync.remote_client_config.idle_connections": Object {
+        "description": String("The maximum number of idle connections to keep alive."),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.state_sync.remote_client_config.idle_timeout_ms": Object {
+        "description": String("The duration in milliseconds to keep an idle connection open before closing."),
+        "privacy": String("Public"),
+        "value": Number(30000),
+    },
+    "components.state_sync.remote_client_config.initial_retry_delay_ms": Object {
+        "description": String("Initial delay before first retry in milliseconds"),
+        "privacy": String("Public"),
+        "value": Number(1),
+    },
+    "components.state_sync.remote_client_config.log_attempt_interval_ms": Object {
+        "description": String("Number of attempts between failure log messages"),
+        "privacy": String("Public"),
+        "value": Number(10),
+    },
+    "components.state_sync.remote_client_config.max_retry_interval_ms": Object {
+        "description": String("The maximal duration in milliseconds to wait between remote connection retries."),
+        "privacy": String("Public"),
+        "value": Number(1000),
+    },
+    "components.state_sync.remote_client_config.retries": Object {
+        "description": String("The max number of retries for sending a message."),
+        "privacy": String("Public"),
+        "value": Number(150),
+    },
+    "components.state_sync.url": Object {
+        "description": String("URL of the remote component server."),
+        "privacy": String("Public"),
+        "value": String("sequencer-core-service"),
+    },
+    "consensus_manager_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(true),
+    },
+    "gateway_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(true),
+    },
+    "http_server_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(true),
+    },
+    "l1_endpoint_monitor_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(false),
+    },
+    "l1_gas_price_provider_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(false),
+    },
+    "l1_gas_price_scraper_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(false),
+    },
+    "l1_provider_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(false),
+    },
+    "l1_scraper_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(false),
+    },
+    "mempool_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(true),
+    },
+    "mempool_p2p_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(true),
+    },
+    "monitoring_endpoint_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(false),
+    },
+    "sierra_compiler_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(true),
+    },
+    "state_sync_config.#is_none": Object {
+        "description": String("Placeholder description"),
+        "privacy": String("Public"),
+        "value": Bool(true),
+    },
+}
+ITAY DEBUG: Dumping L1 component config
+ Object {"base_layer_config.#is_none": Bool(false), "batcher_config.#is_none": Bool(true), "class_manager_config.#is_none": Bool(true), "components.batcher.execution_mode": String("Remote"), "components.batcher.ip": String("0.0.0.0"), "components.batcher.local_server_config.#is_none": Bool(true), "components.batcher.local_server_config.high_priority_requests_channel_capacity": Number(1024), "components.batcher.local_server_config.inbound_requests_channel_capacity": Number(1024), "components.batcher.local_server_config.normal_priority_requests_channel_capacity": Number(1024), "components.batcher.local_server_config.processing_time_warning_threshold_ms": Number(3000), "components.batcher.max_concurrency": Number(128), "components.batcher.port": Number(55000), "components.batcher.remote_client_config.#is_none": Bool(false), "components.batcher.remote_client_config.idle_connections": Number(10), "components.batcher.remote_client_config.idle_timeout_ms": Number(30000), "components.batcher.remote_client_config.initial_retry_delay_ms": Number(1), "components.batcher.remote_client_config.log_attempt_interval_ms": Number(10), "components.batcher.remote_client_config.max_retry_interval_ms": Number(1000), "components.batcher.remote_client_config.retries": Number(150), "components.batcher.url": String("sequencer-core-service"), "components.class_manager.execution_mode": String("Disabled"), "components.class_manager.ip": String("0.0.0.0"), "components.class_manager.local_server_config.#is_none": Bool(true), "components.class_manager.local_server_config.high_priority_requests_channel_capacity": Number(1024), "components.class_manager.local_server_config.inbound_requests_channel_capacity": Number(1024), "components.class_manager.local_server_config.normal_priority_requests_channel_capacity": Number(1024), "components.class_manager.local_server_config.processing_time_warning_threshold_ms": Number(3000), "components.class_manager.max_concurrency": Number(128), "components.class_manager.port": Number(0), "components.class_manager.remote_client_config.#is_none": Bool(true), "components.class_manager.remote_client_config.idle_connections": Number(10), "components.class_manager.remote_client_config.idle_timeout_ms": Number(30000), "components.class_manager.remote_client_config.initial_retry_delay_ms": Number(1), "components.class_manager.remote_client_config.log_attempt_interval_ms": Number(10), "components.class_manager.remote_client_config.max_retry_interval_ms": Number(1000), "components.class_manager.remote_client_config.retries": Number(150), "components.class_manager.url": String("localhost"), "components.consensus_manager.execution_mode": String("Disabled"), "components.gateway.execution_mode": String("Disabled"), "components.gateway.ip": String("0.0.0.0"), "components.gateway.local_server_config.#is_none": Bool(true), "components.gateway.local_server_config.high_priority_requests_channel_capacity": Number(1024), "components.gateway.local_server_config.inbound_requests_channel_capacity": Number(1024), "components.gateway.local_server_config.normal_priority_requests_channel_capacity": Number(1024), "components.gateway.local_server_config.processing_time_warning_threshold_ms": Number(3000), "components.gateway.max_concurrency": Number(128), "components.gateway.port": Number(0), "components.gateway.remote_client_config.#is_none": Bool(true), "components.gateway.remote_client_config.idle_connections": Number(10), "components.gateway.remote_client_config.idle_timeout_ms": Number(30000), "components.gateway.remote_client_config.initial_retry_delay_ms": Number(1), "components.gateway.remote_client_config.log_attempt_interval_ms": Number(10), "components.gateway.remote_client_config.max_retry_interval_ms": Number(1000), "components.gateway.remote_client_config.retries": Number(150), "components.gateway.url": String("localhost"), "components.http_server.execution_mode": String("Disabled"), "components.l1_endpoint_monitor.execution_mode": String("LocalExecutionWithRemoteDisabled"), "components.l1_endpoint_monitor.ip": String("0.0.0.0"), "components.l1_endpoint_monitor.local_server_config.#is_none": Bool(false), "components.l1_endpoint_monitor.local_server_config.high_priority_requests_channel_capacity": Number(1024), "components.l1_endpoint_monitor.local_server_config.inbound_requests_channel_capacity": Number(1024), "components.l1_endpoint_monitor.local_server_config.normal_priority_requests_channel_capacity": Number(1024), "components.l1_endpoint_monitor.local_server_config.processing_time_warning_threshold_ms": Number(3000), "components.l1_endpoint_monitor.max_concurrency": Number(128), "components.l1_endpoint_monitor.port": Number(0), "components.l1_endpoint_monitor.remote_client_config.#is_none": Bool(true), "components.l1_endpoint_monitor.remote_client_config.idle_connections": Number(10), "components.l1_endpoint_monitor.remote_client_config.idle_timeout_ms": Number(30000), "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": Number(1), "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval_ms": Number(10), "components.l1_endpoint_monitor.remote_client_config.max_retry_interval_ms": Number(1000), "components.l1_endpoint_monitor.remote_client_config.retries": Number(150), "components.l1_endpoint_monitor.url": String("localhost"), "components.l1_gas_price_provider.execution_mode": String("LocalExecutionWithRemoteEnabled"), "components.l1_gas_price_provider.ip": String("0.0.0.0"), "components.l1_gas_price_provider.local_server_config.#is_none": Bool(false), "components.l1_gas_price_provider.local_server_config.high_priority_requests_channel_capacity": Number(1024), "components.l1_gas_price_provider.local_server_config.inbound_requests_channel_capacity": Number(1024), "components.l1_gas_price_provider.local_server_config.normal_priority_requests_channel_capacity": Number(1024), "components.l1_gas_price_provider.local_server_config.processing_time_warning_threshold_ms": Number(3000), "components.l1_gas_price_provider.max_concurrency": Number(128), "components.l1_gas_price_provider.port": Number(55003), "components.l1_gas_price_provider.remote_client_config.#is_none": Bool(true), "components.l1_gas_price_provider.remote_client_config.idle_connections": Number(10), "components.l1_gas_price_provider.remote_client_config.idle_timeout_ms": Number(30000), "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": Number(1), "components.l1_gas_price_provider.remote_client_config.log_attempt_interval_ms": Number(10), "components.l1_gas_price_provider.remote_client_config.max_retry_interval_ms": Number(1000), "components.l1_gas_price_provider.remote_client_config.retries": Number(150), "components.l1_gas_price_provider.url": String("sequencer-l1-service"), "components.l1_gas_price_scraper.execution_mode": String("Enabled"), "components.l1_provider.execution_mode": String("LocalExecutionWithRemoteEnabled"), "components.l1_provider.ip": String("0.0.0.0"), "components.l1_provider.local_server_config.#is_none": Bool(false), "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": Number(1024), "components.l1_provider.local_server_config.inbound_requests_channel_capacity": Number(1024), "components.l1_provider.local_server_config.normal_priority_requests_channel_capacity": Number(1024), "components.l1_provider.local_server_config.processing_time_warning_threshold_ms": Number(3000), "components.l1_provider.max_concurrency": Number(128), "components.l1_provider.port": Number(55004), "components.l1_provider.remote_client_config.#is_none": Bool(true), "components.l1_provider.remote_client_config.idle_connections": Number(10), "components.l1_provider.remote_client_config.idle_timeout_ms": Number(30000), "components.l1_provider.remote_client_config.initial_retry_delay_ms": Number(1), "components.l1_provider.remote_client_config.log_attempt_interval_ms": Number(10), "components.l1_provider.remote_client_config.max_retry_interval_ms": Number(1000), "components.l1_provider.remote_client_config.retries": Number(150), "components.l1_provider.url": String("sequencer-l1-service"), "components.l1_scraper.execution_mode": String("Enabled"), "components.mempool.execution_mode": String("Disabled"), "components.mempool.ip": String("0.0.0.0"), "components.mempool.local_server_config.#is_none": Bool(true), "components.mempool.local_server_config.high_priority_requests_channel_capacity": Number(1024), "components.mempool.local_server_config.inbound_requests_channel_capacity": Number(1024), "components.mempool.local_server_config.normal_priority_requests_channel_capacity": Number(1024), "components.mempool.local_server_config.processing_time_warning_threshold_ms": Number(3000), "components.mempool.max_concurrency": Number(128), "components.mempool.port": Number(0), "components.mempool.remote_client_config.#is_none": Bool(true), "components.mempool.remote_client_config.idle_connections": Number(10), "components.mempool.remote_client_config.idle_timeout_ms": Number(30000), "components.mempool.remote_client_config.initial_retry_delay_ms": Number(1), "components.mempool.remote_client_config.log_attempt_interval_ms": Number(10), "components.mempool.remote_client_config.max_retry_interval_ms": Number(1000), "components.mempool.remote_client_config.retries": Number(150), "components.mempool.url": String("localhost"), "components.mempool_p2p.execution_mode": String("Disabled"), "components.mempool_p2p.ip": String("0.0.0.0"), "components.mempool_p2p.local_server_config.#is_none": Bool(true), "components.mempool_p2p.local_server_config.high_priority_requests_channel_capacity": Number(1024), "components.mempool_p2p.local_server_config.inbound_requests_channel_capacity": Number(1024), "components.mempool_p2p.local_server_config.normal_priority_requests_channel_capacity": Number(1024), "components.mempool_p2p.local_server_config.processing_time_warning_threshold_ms": Number(3000), "components.mempool_p2p.max_concurrency": Number(128), "components.mempool_p2p.port": Number(0), "components.mempool_p2p.remote_client_config.#is_none": Bool(true), "components.mempool_p2p.remote_client_config.idle_connections": Number(10), "components.mempool_p2p.remote_client_config.idle_timeout_ms": Number(30000), "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": Number(1), "components.mempool_p2p.remote_client_config.log_attempt_interval_ms": Number(10), "components.mempool_p2p.remote_client_config.max_retry_interval_ms": Number(1000), "components.mempool_p2p.remote_client_config.retries": Number(150), "components.mempool_p2p.url": String("localhost"), "components.monitoring_endpoint.execution_mode": String("Enabled"), "components.sierra_compiler.execution_mode": String("Disabled"), "components.sierra_compiler.ip": String("0.0.0.0"), "components.sierra_compiler.local_server_config.#is_none": Bool(true), "components.sierra_compiler.local_server_config.high_priority_requests_channel_capacity": Number(1024), "components.sierra_compiler.local_server_config.inbound_requests_channel_capacity": Number(1024), "components.sierra_compiler.local_server_config.normal_priority_requests_channel_capacity": Number(1024), "components.sierra_compiler.local_server_config.processing_time_warning_threshold_ms": Number(3000), "components.sierra_compiler.max_concurrency": Number(128), "components.sierra_compiler.port": Number(0), "components.sierra_compiler.remote_client_config.#is_none": Bool(true), "components.sierra_compiler.remote_client_config.idle_connections": Number(10), "components.sierra_compiler.remote_client_config.idle_timeout_ms": Number(30000), "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": Number(1), "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": Number(10), "components.sierra_compiler.remote_client_config.max_retry_interval_ms": Number(1000), "components.sierra_compiler.remote_client_config.retries": Number(150), "components.sierra_compiler.url": String("localhost"), "components.state_sync.execution_mode": String("Remote"), "components.state_sync.ip": String("0.0.0.0"), "components.state_sync.local_server_config.#is_none": Bool(true), "components.state_sync.local_server_config.high_priority_requests_channel_capacity": Number(1024), "components.state_sync.local_server_config.inbound_requests_channel_capacity": Number(1024), "components.state_sync.local_server_config.normal_priority_requests_channel_capacity": Number(1024), "components.state_sync.local_server_config.processing_time_warning_threshold_ms": Number(3000), "components.state_sync.max_concurrency": Number(128), "components.state_sync.port": Number(55009), "components.state_sync.remote_client_config.#is_none": Bool(false), "components.state_sync.remote_client_config.idle_connections": Number(10), "components.state_sync.remote_client_config.idle_timeout_ms": Number(30000), "components.state_sync.remote_client_config.initial_retry_delay_ms": Number(1), "components.state_sync.remote_client_config.log_attempt_interval_ms": Number(10), "components.state_sync.remote_client_config.max_retry_interval_ms": Number(1000), "components.state_sync.remote_client_config.retries": Number(150), "components.state_sync.url": String("sequencer-core-service"), "consensus_manager_config.#is_none": Bool(true), "gateway_config.#is_none": Bool(true), "http_server_config.#is_none": Bool(true), "l1_endpoint_monitor_config.#is_none": Bool(false), "l1_gas_price_provider_config.#is_none": Bool(false), "l1_gas_price_scraper_config.#is_none": Bool(false), "l1_provider_config.#is_none": Bool(false), "l1_scraper_config.#is_none": Bool(false), "mempool_config.#is_none": Bool(true), "mempool_p2p_config.#is_none": Bool(true), "monitoring_endpoint_config.#is_none": Bool(false), "sierra_compiler_config.#is_none": Bool(true), "state_sync_config.#is_none": Bool(true)}
+Generated data file: "crates/apollo_deployments/resources/services/hybrid/l1.json"
+Generated data file: "crates/apollo_deployments/resources/services/hybrid/mempool.json"
+Generated data file: "crates/apollo_deployments/resources/services/hybrid/sierra_compiler.json"
+Generated data file: "crates/apollo_deployments/resources/services/distributed/batcher.json"
+Generated data file: "crates/apollo_deployments/resources/services/distributed/class_manager.json"
+Generated data file: "crates/apollo_deployments/resources/services/distributed/consensus_manager.json"
+Generated data file: "crates/apollo_deployments/resources/services/distributed/http_server.json"
+Generated data file: "crates/apollo_deployments/resources/services/distributed/gateway.json"
+Generated data file: "crates/apollo_deployments/resources/services/distributed/l1.json"
+Generated data file: "crates/apollo_deployments/resources/services/distributed/mempool.json"
+Generated data file: "crates/apollo_deployments/resources/services/distributed/sierra_compiler.json"
+Generated data file: "crates/apollo_deployments/resources/services/distributed/state_sync.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/potc2/deployment_config_hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/potc2/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/potc2/hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/potc2/deployment_config_hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/potc2/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/potc2/hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/potc2/deployment_config_hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/potc2/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/potc2/hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/mainnet/deployment_config_hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/mainnet/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/mainnet/hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/mainnet/deployment_config_hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/mainnet/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/mainnet/hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/mainnet/deployment_config_hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/mainnet/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/mainnet/hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_integration/deployment_config_hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_integration/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_integration/hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_integration/deployment_config_hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_integration/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_integration/hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_integration/deployment_config_hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_integration/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_integration/hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/deployment_config_hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/deployment_config_hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/deployment_config_hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/deployment_config_hybrid_3.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/sepolia_testnet/hybrid_3.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/stress_test/deployment_config_hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/stress_test/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/stress_test/hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/stress_test/deployment_config_hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/stress_test/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/stress_test/hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/stress_test/deployment_config_hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/stress_test/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/stress_test/hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/testing/deployment_config_distributed.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/testing/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/testing/distributed.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/testing/deployment_config_hybrid.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/testing/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/testing/hybrid.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/testing/deployment_config_consolidated.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/testing/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/testing/consolidated.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/upgrade_test/deployment_config_hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/upgrade_test/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/upgrade_test/hybrid_0.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/upgrade_test/deployment_config_hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/upgrade_test/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/upgrade_test/hybrid_1.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/upgrade_test/deployment_config_hybrid_2.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/upgrade_test/deployment_config_override.json"
+Generated data file: "crates/apollo_deployments/resources/deployments/upgrade_test/hybrid_2.json"

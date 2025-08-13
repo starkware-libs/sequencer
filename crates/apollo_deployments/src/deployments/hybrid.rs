@@ -685,7 +685,11 @@ impl HybridNodeServiceName {
         );
         match self {
             HybridNodeServiceName::Gateway | HybridNodeServiceName::SierraCompiler => {
-                base.remote_client_config.idle_connections =
+                let remote_client_config_ref = base
+                    .remote_client_config
+                    .as_mut()
+                    .expect("Remote client config should be available");
+                remote_client_config_ref.idle_connections =
                     IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
             }
             HybridNodeServiceName::Core
@@ -693,6 +697,7 @@ impl HybridNodeServiceName {
             | HybridNodeServiceName::L1
             | HybridNodeServiceName::Mempool => {}
         };
+        println!("ITAY DEBUG: Remote component config for {}: {:?}", self, base);
         base
     }
 
@@ -775,6 +780,12 @@ fn get_l1_component_config(
     config.l1_endpoint_monitor = ReactiveComponentExecutionConfig::local_with_remote_disabled();
     config.monitoring_endpoint = ActiveComponentExecutionConfig::enabled();
     config.state_sync = state_sync_remote_config;
+
+    println!(
+        "ITAY DEBUG: L1 component config has the following batcher config {:?}",
+        config.batcher
+    );
+
     config
 }
 

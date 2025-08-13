@@ -317,7 +317,7 @@ macro_rules! create_local_server {
                     $component
                         .take()
                         .expect(concat!(stringify!($component), " is not initialized.")),
-                    $local_server_config,
+                    $local_server_config.as_ref().expect("Local server config should be available"),
                     $receiver,
                     $( $max_concurrency,)?
                     $server_metrics,
@@ -383,6 +383,7 @@ fn create_local_servers(
     communication: &mut SequencerNodeCommunication,
     components: &mut SequencerNodeComponents,
 ) -> LocalServers {
+    // TODO(Tsabary): consider replacing the macro with a generic function.
     const BATCHER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &BATCHER_LOCAL_MSGS_RECEIVED,
         &BATCHER_LOCAL_MSGS_PROCESSED,

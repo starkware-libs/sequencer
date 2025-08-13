@@ -295,7 +295,10 @@ macro_rules! create_client {
             }
             ReactiveComponentExecutionMode::Remote => {
                 let remote_client = Some(<$remote_client_type>::new(
-                    $remote_client_config.clone(),
+                    $remote_client_config
+                        .as_ref()
+                        .expect("Remote client config should be available")
+                        .clone(),
                     $url,
                     $port,
                     $metrics,
@@ -312,6 +315,7 @@ pub fn create_node_clients(
     channels: &mut SequencerNodeCommunication,
 ) -> SequencerNodeClients {
     info!("Creating node clients.");
+    // TODO(Tsabary): consider replacing the macro with a generic function.
     let batcher_remote_metrics = RemoteClientMetrics::new(&BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS);
     let batcher_client = create_client!(
         &config.components.batcher.execution_mode,

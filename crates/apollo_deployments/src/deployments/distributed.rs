@@ -806,8 +806,12 @@ impl DistributedNodeServiceName {
         );
         match self {
             DistributedNodeServiceName::Gateway | DistributedNodeServiceName::SierraCompiler => {
-                base.remote_client_config.idle_connections =
-                    IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES
+                let remote_client_config_ref = base
+                    .remote_client_config
+                    .as_mut()
+                    .expect("Remote client config should be available");
+                remote_client_config_ref.idle_connections =
+                    IDLE_CONNECTIONS_FOR_AUTOSCALED_SERVICES;
             }
             DistributedNodeServiceName::Batcher
             | DistributedNodeServiceName::ClassManager
