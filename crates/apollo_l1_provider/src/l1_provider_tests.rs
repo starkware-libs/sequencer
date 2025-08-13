@@ -123,6 +123,7 @@ fn validate_happy_flow() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1)])
         .with_committed([l1_handler(2)])
+        .with_consumed([l1_handler(3)])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
 
@@ -134,6 +135,11 @@ fn validate_happy_flow() {
     assert_eq!(
         l1_provider.validate(tx_hash!(2), BlockNumber(0)).unwrap(),
         ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2)
+    );
+    // Transaction was consumed on L1.
+    assert_eq!(
+        l1_provider.validate(tx_hash!(3), BlockNumber(0)).unwrap(),
+        ValidationStatus::Invalid(InvalidValidationStatus::ConsumedOnL1)
     );
     // Transaction wasn't deleted after the validation.
     assert_eq!(
