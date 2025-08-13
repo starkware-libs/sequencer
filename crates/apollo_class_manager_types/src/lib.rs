@@ -11,7 +11,7 @@ use apollo_infra::component_definitions::{
     PrioritizedRequest,
     RequestPriority,
 };
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(feature = "testing")]
@@ -21,7 +21,8 @@ use starknet_api::contract_class::ContractClass;
 use starknet_api::core::{ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedClass;
 use starknet_api::state::SierraContractClass;
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 pub type ClassManagerResult<T> = Result<T, ClassManagerError>;
@@ -133,7 +134,12 @@ pub enum ClassManagerClientError {
     ClassManagerError(#[from] ClassManagerError),
 }
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(ClassManagerRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum ClassManagerRequest {
     AddClass(Class),
     AddClassAndExecutableUnsafe(ClassId, Class, ExecutableClassHash, ExecutableClass),
@@ -142,6 +148,7 @@ pub enum ClassManagerRequest {
     GetSierra(ClassId),
 }
 impl_debug_for_infra_requests_and_responses!(ClassManagerRequest);
+impl_labeled_request!(ClassManagerRequest, ClassManagerRequestLabelValue);
 impl PrioritizedRequest for ClassManagerRequest {
     fn priority(&self) -> RequestPriority {
         match self {
