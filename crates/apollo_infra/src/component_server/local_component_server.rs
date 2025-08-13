@@ -51,27 +51,8 @@ impl Default for LocalServerConfig {
     }
 }
 
-/// The `LocalComponentServer` struct is a generic server that handles requests and responses for a
-/// specified component. It receives requests, processes them using the provided component, and
-/// sends back responses. The server needs to be started using the `start` function, which runs
-/// indefinitely.
-///
-/// # Type Parameters
-///
-/// - `Component`: The type of the component that will handle the requests. This type must implement
-///   the `ComponentRequestHandler` trait, which defines how the component processes requests and
-///   generates responses.
-/// - `Request`: The type of requests that the component will handle. This type must implement the
-///   `Send` trait to ensure safe concurrency.
-/// - `Response`: The type of responses that the component will generate. This type must implement
-///   the `Send` trait to ensure safe concurrency.
-///
-/// # Fields
-///
-/// - `component`: The component responsible for handling the requests and generating responses.
-/// - `rx`: A receiver that receives incoming requests along with a sender to send back the
-///   responses. This receiver is of type ` Receiver<RequestWrapper<Request, Response>>`.
-/// - `metrics`: The metrics for the server.
+/// The `LocalComponentServer` struct is a generic server that receives requests and returns
+/// responses for a specified component, using Tokio mspc channels for asynchronous communication.
 pub struct LocalComponentServer<Component, Request, Response>
 where
     Request: Send,
@@ -243,29 +224,8 @@ where
     }
 }
 
-/// The `ConcurrentLocalComponentServer` struct is a generic server that handles concurrent requests
-/// and responses for a specified component. It receives requests, processes them concurrently by
-/// running the provided component in a task, with returning response back form the task. The server
-/// needs to be started using the `start` function, which runs indefinitely.
-///
-/// # Type Parameters
-///
-/// - `Component`: The type of the component that will handle the requests. This type must implement
-///   the `ComponentRequestHandler` trait, which defines how the component processes requests and
-///   generates responses. In order to handle concurrent requests, the component must also implement
-///   the `Clone` trait and the `Send`.
-/// - `Request`: The type of requests that the component will handle. This type must implement the
-///   `Send` trait to ensure safe concurrency.
-/// - `Response`: The type of responses that the component will generate. This type must implement
-///   the `Send` trait to ensure safe concurrency.
-///
-/// # Fields
-///
-/// - `component`: The component responsible for handling the requests and generating responses.
-/// - `rx`: A receiver that receives incoming requests along with a sender to send back the
-///   responses. This receiver is of type ` Receiver<RequestWrapper<Request, Response>>`.
-/// - `max_concurrency`: The maximum number of concurrent requests that the server can handle.
-/// - `metrics`: The metrics for the server wrapped in Arc so it could be used concurrently.
+/// The `ConcurrentLocalComponentServer` adds a concurrency wrapper to the `LocalComponentServer`,
+/// allowing concurrent processing of requests.
 pub struct ConcurrentLocalComponentServer<Component, Request, Response>
 where
     Request: Send,
