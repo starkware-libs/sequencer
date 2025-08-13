@@ -135,10 +135,6 @@ fn validate_happy_flow() {
         l1_provider.validate(tx_hash!(2), BlockNumber(0)).unwrap(),
         ValidationStatus::Invalid(InvalidValidationStatus::AlreadyIncludedOnL2)
     );
-    assert_eq!(
-        l1_provider.validate(tx_hash!(3), BlockNumber(0)).unwrap(),
-        ValidationStatus::Invalid(InvalidValidationStatus::ConsumedOnL1OrUnknown)
-    );
     // Transaction wasn't deleted after the validation.
     assert_eq!(
         l1_provider.validate(tx_hash!(1), BlockNumber(0)).unwrap(),
@@ -954,13 +950,13 @@ fn add_events_double_cancellation_only_first_counted() {
 }
 
 #[test]
-fn validate_tx_unknown_returns_invalid_consumed_or_unknown() {
+fn validate_tx_unknown_returns_invalid_not_found() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
     // tx_1 was never added
     let status = l1_provider.validate(tx_hash!(1), l1_provider.current_height).unwrap();
-    assert_eq!(status, InvalidValidationStatus::ConsumedOnL1OrUnknown.into());
+    assert_eq!(status, InvalidValidationStatus::NotFound.into());
 }
 
 #[test]

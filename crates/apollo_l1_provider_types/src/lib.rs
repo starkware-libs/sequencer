@@ -48,7 +48,10 @@ pub enum InvalidValidationStatus {
     AlreadyIncludedInProposedBlock,
     AlreadyIncludedOnL2,
     CancelledOnL2,
-    ConsumedOnL1OrUnknown,
+    // This tx can be safely deleted from the records.
+    ConsumedOnL1,
+    // This tx is either never been seen or was seen, consumed, and deleted.
+    NotFound,
 }
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
