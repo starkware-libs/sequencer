@@ -147,7 +147,7 @@
   "batcher_config.block_builder_config.tx_polling_interval_millis": {
     "description": "Time to wait (in milliseconds) between transaction requests when the previous request returned no transactions.",
     "privacy": "Public",
-    "value": 1
+    "value": 10
   },
   "batcher_config.block_builder_config.versioned_constants_overrides.invoke_tx_max_n_steps": {
     "description": "Maximum number of steps the invoke function is allowed to run.",
@@ -412,12 +412,12 @@
   "components.batcher.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
   },
   "components.batcher.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.batcher.port": {
     "description": "Listening port of the remote component server.",
@@ -429,20 +429,30 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.batcher.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.batcher.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.batcher.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.batcher.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.batcher.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
   },
-  "components.batcher.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
+  "components.batcher.remote_client_config.retry_interval_ms": {
+    "description": "The duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 1
+    "value": 1000
   },
   "components.batcher.url": {
     "description": "URL of the remote component server.",
@@ -462,12 +472,12 @@
   "components.class_manager.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
   },
   "components.class_manager.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.class_manager.port": {
     "description": "Listening port of the remote component server.",
@@ -479,20 +489,30 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.class_manager.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.class_manager.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.class_manager.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.class_manager.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.class_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
   },
-  "components.class_manager.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
+  "components.class_manager.remote_client_config.retry_interval_ms": {
+    "description": "The duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 1
+    "value": 1000
   },
   "components.class_manager.url": {
     "description": "URL of the remote component server.",
@@ -517,12 +537,12 @@
   "components.gateway.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
   },
   "components.gateway.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.gateway.port": {
     "description": "Listening port of the remote component server.",
@@ -534,20 +554,30 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.gateway.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.gateway.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.gateway.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.gateway.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.gateway.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
   },
-  "components.gateway.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
+  "components.gateway.remote_client_config.retry_interval_ms": {
+    "description": "The duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 1
+    "value": 1000
   },
   "components.gateway.url": {
     "description": "URL of the remote component server.",
@@ -572,12 +602,12 @@
   "components.l1_endpoint_monitor.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
   },
   "components.l1_endpoint_monitor.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.l1_endpoint_monitor.port": {
     "description": "Listening port of the remote component server.",
@@ -589,20 +619,30 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.l1_endpoint_monitor.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.l1_endpoint_monitor.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.l1_endpoint_monitor.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
   },
-  "components.l1_endpoint_monitor.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
+  "components.l1_endpoint_monitor.remote_client_config.retry_interval_ms": {
+    "description": "The duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 1
+    "value": 1000
   },
   "components.l1_endpoint_monitor.url": {
     "description": "URL of the remote component server.",
@@ -622,12 +662,12 @@
   "components.l1_gas_price_provider.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
   },
   "components.l1_gas_price_provider.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.l1_gas_price_provider.port": {
     "description": "Listening port of the remote component server.",
@@ -639,20 +679,30 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.l1_gas_price_provider.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.l1_gas_price_provider.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.l1_gas_price_provider.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.l1_gas_price_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
   },
-  "components.l1_gas_price_provider.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
+  "components.l1_gas_price_provider.remote_client_config.retry_interval_ms": {
+    "description": "The duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 1
+    "value": 1000
   },
   "components.l1_gas_price_provider.url": {
     "description": "URL of the remote component server.",
@@ -677,12 +727,12 @@
   "components.l1_provider.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
   },
   "components.l1_provider.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.l1_provider.port": {
     "description": "Listening port of the remote component server.",
@@ -694,20 +744,30 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.l1_provider.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.l1_provider.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.l1_provider.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.l1_provider.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.l1_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
   },
-  "components.l1_provider.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
+  "components.l1_provider.remote_client_config.retry_interval_ms": {
+    "description": "The duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 1
+    "value": 1000
   },
   "components.l1_provider.url": {
     "description": "URL of the remote component server.",
@@ -732,12 +792,12 @@
   "components.mempool.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
   },
   "components.mempool.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.mempool.port": {
     "description": "Listening port of the remote component server.",
@@ -749,20 +809,30 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.mempool.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.mempool.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.mempool.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.mempool.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.mempool.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
   },
-  "components.mempool.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
+  "components.mempool.remote_client_config.retry_interval_ms": {
+    "description": "The duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 1
+    "value": 1000
   },
   "components.mempool.url": {
     "description": "URL of the remote component server.",
@@ -782,12 +852,12 @@
   "components.mempool_p2p.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
   },
   "components.mempool_p2p.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.mempool_p2p.port": {
     "description": "Listening port of the remote component server.",
@@ -799,20 +869,30 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.mempool_p2p.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.mempool_p2p.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.mempool_p2p.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.mempool_p2p.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
   },
-  "components.mempool_p2p.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
+  "components.mempool_p2p.remote_client_config.retry_interval_ms": {
+    "description": "The duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 1
+    "value": 1000
   },
   "components.mempool_p2p.url": {
     "description": "URL of the remote component server.",
@@ -837,12 +917,12 @@
   "components.sierra_compiler.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
   },
   "components.sierra_compiler.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.sierra_compiler.port": {
     "description": "Listening port of the remote component server.",
@@ -854,20 +934,30 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.sierra_compiler.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.sierra_compiler.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.sierra_compiler.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
   },
-  "components.sierra_compiler.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
+  "components.sierra_compiler.remote_client_config.retry_interval_ms": {
+    "description": "The duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 1
+    "value": 1000
   },
   "components.sierra_compiler.url": {
     "description": "URL of the remote component server.",
@@ -937,12 +1027,12 @@
   "components.state_sync.local_server_config.channel_capacity": {
     "description": "The communication channel buffer size.",
     "privacy": "Public",
-    "value": 128
+    "value": 1024
   },
   "components.state_sync.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
     "privacy": "Public",
-    "value": 8
+    "value": 128
   },
   "components.state_sync.port": {
     "description": "Listening port of the remote component server.",
@@ -954,20 +1044,30 @@
     "privacy": "Public",
     "value": 10
   },
-  "components.state_sync.remote_client_config.idle_timeout": {
-    "description": "The duration in seconds to keep an idle connection open before closing.",
+  "components.state_sync.remote_client_config.idle_timeout_ms": {
+    "description": "The duration in milliseconds to keep an idle connection open before closing.",
     "privacy": "Public",
-    "value": 30
+    "value": 30000
+  },
+  "components.state_sync.remote_client_config.initial_retry_delay_ms": {
+    "description": "Initial delay before first retry in milliseconds",
+    "privacy": "Public",
+    "value": 1
+  },
+  "components.state_sync.remote_client_config.log_attempt_interval_ms": {
+    "description": "Number of attempts between failure log messages",
+    "privacy": "Public",
+    "value": 10
   },
   "components.state_sync.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
   },
-  "components.state_sync.remote_client_config.retry_interval": {
-    "description": "The duration in seconds to wait between remote connection retries.",
+  "components.state_sync.remote_client_config.retry_interval_ms": {
+    "description": "The duration in milliseconds to wait between remote connection retries.",
     "privacy": "Public",
-    "value": 1
+    "value": 1000
   },
   "components.state_sync.url": {
     "description": "URL of the remote component server.",
@@ -1123,26 +1223,6 @@
     "description": "Safety margin (in ms) to make sure that consensus determines when to timeout validating a proposal.",
     "privacy": "Public",
     "value": 10000
-  },
-  "consensus_manager_config.eth_to_strk_oracle_config.lag_interval_seconds": {
-    "description": "The size of the interval (seconds) that the eth to strk rate is taken on. The lag refers to the fact that the interval `[T, T+k)` contains the conversion rate for queries in the interval `[T+k, T+2k)`. Should be configured in alignment with relevant query parameters in `url_header_list`, if required.",
-    "privacy": "Public",
-    "value": 1
-  },
-  "consensus_manager_config.eth_to_strk_oracle_config.max_cache_size": {
-    "description": "The maximum number of cached conversion rates.",
-    "privacy": "Public",
-    "value": 100
-  },
-  "consensus_manager_config.eth_to_strk_oracle_config.query_timeout_sec": {
-    "description": "The timeout (seconds) for the query to the eth to strk oracle.",
-    "privacy": "Public",
-    "value": 3
-  },
-  "consensus_manager_config.eth_to_strk_oracle_config.url_header_list": {
-    "description": "A list of Url+HTTP headers for the eth to strk oracle. The url is followed by a comma and then headers as key^value pairs, separated by commas. For example: `https://api.example.com/api,key1^value1,key2^value2`. Each URL+headers is separated by a pipe `|` character. The `timestamp` parameter is appended dynamically when making requests, in order to have a stable mapping from block timestamp to conversion rate. ",
-    "privacy": "Private",
-    "value": "https://api.example.com/api"
   },
   "consensus_manager_config.immediate_active_height": {
     "description": "The height at which the node may actively participate in consensus.",
@@ -1443,6 +1523,26 @@
     "description": "Flag for an optional field.",
     "privacy": "TemporaryValue",
     "value": false
+  },
+  "l1_gas_price_provider_config.eth_to_strk_oracle_config.lag_interval_seconds": {
+    "description": "The size of the interval (seconds) that the eth to strk rate is taken on. The lag refers to the fact that the interval `[T, T+k)` contains the conversion rate for queries in the interval `[T+k, T+2k)`. Should be configured in alignment with relevant query parameters in `url_header_list`, if required.",
+    "privacy": "Public",
+    "value": 1
+  },
+  "l1_gas_price_provider_config.eth_to_strk_oracle_config.max_cache_size": {
+    "description": "The maximum number of cached conversion rates.",
+    "privacy": "Public",
+    "value": 100
+  },
+  "l1_gas_price_provider_config.eth_to_strk_oracle_config.query_timeout_sec": {
+    "description": "The timeout (seconds) for the query to the eth to strk oracle.",
+    "privacy": "Public",
+    "value": 3
+  },
+  "l1_gas_price_provider_config.eth_to_strk_oracle_config.url_header_list": {
+    "description": "A list of Url+HTTP headers for the eth to strk oracle. The url is followed by a comma and then headers as key^value pairs, separated by commas. For example: `https://api.example.com/api,key1^value1,key2^value2`. Each URL+headers is separated by a pipe `|` character. The `timestamp` parameter is appended dynamically when making requests, in order to have a stable mapping from block timestamp to conversion rate. ",
+    "privacy": "Private",
+    "value": "https://api.example.com/api"
   },
   "l1_gas_price_provider_config.lag_margin_seconds": {
     "description": "Difference between the time of the block from L1 used to calculate the gas price and the time of the L2 block this price is used in",

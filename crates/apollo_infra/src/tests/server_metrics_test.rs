@@ -1,4 +1,3 @@
-use std::cmp::min;
 use std::convert::TryInto;
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -7,6 +6,7 @@ use async_trait::async_trait;
 use metrics::set_default_local_recorder;
 use metrics_exporter_prometheus::PrometheusBuilder;
 use serde::{Deserialize, Serialize};
+use strum_macros::AsRefStr;
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio::sync::Semaphore;
 use tokio::task::{self, JoinSet};
@@ -19,9 +19,10 @@ use crate::component_client::{
 };
 use crate::component_definitions::{
     ComponentClient,
-    ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
+    PrioritizedRequest,
+    RequestWrapper,
 };
 use crate::component_server::{
     ComponentServerStarter,
@@ -40,10 +41,12 @@ type TestResult = ClientResult<()>;
 
 const NUMBER_OF_ITERATIONS: usize = 10;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, AsRefStr)]
 enum TestComponentRequest {
     PerformTest,
 }
+
+impl PrioritizedRequest for TestComponentRequest {}
 
 #[derive(Serialize, Deserialize, Debug)]
 enum TestComponentResponse {
@@ -53,8 +56,7 @@ enum TestComponentResponse {
 type LocalTestComponentClient = LocalComponentClient<TestComponentRequest, TestComponentResponse>;
 type RemoteTestComponentClient = RemoteComponentClient<TestComponentRequest, TestComponentResponse>;
 
-type TestReceiver =
-    Receiver<ComponentRequestAndResponseSender<TestComponentRequest, TestComponentResponse>>;
+type TestReceiver = Receiver<RequestWrapper<TestComponentRequest, TestComponentResponse>>;
 
 #[async_trait]
 trait TestComponentClientTrait: Send + Sync {
@@ -113,9 +115,7 @@ fn basic_test_setup() -> BasicSetup {
     let test_sem = Arc::new(Semaphore::new(0));
     let component = TestComponent::new(test_sem.clone());
 
-    let (tx, rx) = channel::<
-        ComponentRequestAndResponseSender<TestComponentRequest, TestComponentResponse>,
-    >(32);
+    let (tx, rx) = channel::<RequestWrapper<TestComponentRequest, TestComponentResponse>>(32);
 
     let local_client = LocalTestComponentClient::new(tx);
 
@@ -125,11 +125,11 @@ fn basic_test_setup() -> BasicSetup {
 async fn setup_local_server_test() -> (Arc<Semaphore>, LocalTestComponentClient) {
     let BasicSetup { component, local_client, rx, test_sem } = basic_test_setup();
 
-    let mut local_server = LocalComponentServer::new(component, rx, TEST_LOCAL_SERVER_METRICS);
+    let mut local_server = LocalComponentServer::new(component, rx, &TEST_LOCAL_SERVER_METRICS);
     task::spawn(async move {
         let _ = local_server.start().await;
     });
-
+    task::yield_now().await;
     (test_sem, local_client)
 }
 
@@ -142,11 +142,12 @@ async fn setup_concurrent_local_server_test(
         component,
         rx,
         max_concurrency,
-        TEST_LOCAL_SERVER_METRICS,
+        &TEST_LOCAL_SERVER_METRICS,
     );
     task::spawn(async move {
         let _ = concurrent_local_server.start().await;
     });
+    task::yield_now().await;
 
     (test_sem, local_client)
 }
@@ -267,6 +268,7 @@ async fn only_metrics_counters_for_local_server() {
     }
 }
 
+// TODO(Tsabary): rewrite this test to verify all queue depths.
 #[tokio::test]
 async fn all_metrics_for_local_server() {
     let recorder = PrometheusBuilder::new().build_recorder();
@@ -284,27 +286,15 @@ async fn all_metrics_for_local_server() {
     }
     task::yield_now().await;
 
-    // And then we will provide a single permit each time and check that all metrics are adjusted
-    // accordingly.
-    for i in 0..NUMBER_OF_ITERATIONS {
+    // Add permits one by one and check that all metrics are adjusted accordingly: all messages
+    // should be received, the queue should be empty (depth 0), and  the number of processed
+    // messages should be equal to the number of permits added.
+    for i in 0..NUMBER_OF_ITERATIONS + 1 {
         let metrics_as_string = recorder.handle().render();
-        // After sending i permits we should have i + 1 received messages, because the first message
-        // doesn't need a permit to be received but need a permit to be processed.
-        // So we will have only i processed messages.
-        // And the queue depth should be: NUMBER_OF_ITERATIONS - number of received messages.
-        assert_server_metrics(metrics_as_string.as_str(), i + 1, i, NUMBER_OF_ITERATIONS - i - 1);
+        assert_server_metrics(metrics_as_string.as_str(), NUMBER_OF_ITERATIONS, i, 0);
         test_sem.add_permits(1);
         task::yield_now().await;
     }
-
-    // Finally all messages processed and queue is empty.
-    let metrics_as_string = recorder.handle().render();
-    assert_server_metrics(
-        metrics_as_string.as_str(),
-        NUMBER_OF_ITERATIONS,
-        NUMBER_OF_ITERATIONS,
-        0,
-    );
 }
 
 #[tokio::test]
@@ -352,8 +342,7 @@ async fn all_metrics_for_concurrent_server() {
     let max_concurrency = NUMBER_OF_ITERATIONS / 2;
     let (test_sem, client) = setup_concurrent_local_server_test(max_concurrency).await;
 
-    // Current test is checking not only message counters but the queue depth too.
-    // So first we send all the messages.
+    // Send all the requests.
     for _ in 0..NUMBER_OF_ITERATIONS {
         let multi_client = client.clone();
         task::spawn(async move {
@@ -362,13 +351,16 @@ async fn all_metrics_for_concurrent_server() {
     }
     task::yield_now().await;
 
+    // TODO(Tsabary): add metrics for the prioritized requests queue depths.
     for i in 0..NUMBER_OF_ITERATIONS {
-        // After sending i permits, we should have 'max_concurrency + i + 1' received messages,
-        // up to a maximum of NUMBER_OF_ITERATIONS.
-        let expected_received_msgs = min(max_concurrency + 1 + i, NUMBER_OF_ITERATIONS);
+        // Requests are passed to the prioritized processing channels regardless of permits
+        // (assuming the channel capacity suffices in this setting), hence the
+        // expected received messages is NUMBER_OF_ITERATIONS, regardless of the number of added
+        // permits.
+        let expected_received_msgs = NUMBER_OF_ITERATIONS;
 
-        // The queue depth should be: 'NUMBER_OF_ITERATIONS - number of received messages'.
-        let expected_queue_depth = NUMBER_OF_ITERATIONS - expected_received_msgs;
+        // For the same considerations, the awaiting to be received queue depth should be 0.
+        let expected_queue_depth = 0;
 
         let metrics_as_string = recorder.handle().render();
         assert_server_metrics(

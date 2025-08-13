@@ -18,6 +18,7 @@ use starknet_os::hint_processor::aggregator_hint_processor::AggregatorInput;
 use starknet_os::io::os_input::{OsBlockInput, OsHints, StarknetOsInput};
 use starknet_os::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use starknet_os::runner::{run_aggregator, run_os_stateless};
+use starknet_types_core::felt::Felt;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::reload::Handle;
@@ -32,6 +33,7 @@ pub(crate) struct OsCliInput {
     pub layout: LayoutName,
     pub os_hints: OsHints,
     pub cairo_pie_zip_path: String,
+    pub raw_os_output_path: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -89,7 +91,8 @@ pub(crate) fn parse_and_run_os(
     output_path: String,
     log_filter_handle: Handle<LevelFilter, Registry>,
 ) {
-    let OsCliInput { layout, os_hints, cairo_pie_zip_path } = load_input(input_path);
+    let OsCliInput { layout, os_hints, cairo_pie_zip_path, raw_os_output_path } =
+        load_input(input_path);
     log_filter_handle
         .modify(|filter| *filter = os_hints.os_hints_config.log_level())
         .expect("Failed to set the log level.");
@@ -97,16 +100,33 @@ pub(crate) fn parse_and_run_os(
     validate_os_input(&os_hints.os_input);
 
     info!("Running OS...");
+<<<<<<< HEAD
     let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, .. } =
         run_os_stateless(layout, os_hints)
             .unwrap_or_else(|err| panic!("OS run failed. Error: {err}"));
+||||||| 38f03e1d0
+    let StarknetOsRunnerOutput { cairo_pie, da_segment, metrics, unused_hints, .. } =
+        run_os_stateless(layout, os_hints)
+            .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
+=======
+    let StarknetOsRunnerOutput {
+        raw_os_output, cairo_pie, da_segment, metrics, unused_hints, ..
+    } = run_os_stateless(layout, os_hints)
+        .unwrap_or_else(|err| panic!("OS run failed. Error: {}", err));
+>>>>>>> origin/main-v0.14.0
 
     info!("Finished running OS. Serializing OS output...");
     serialize_runner_output(
-        &OsCliOutput { da_segment, metrics: metrics.into(), unused_hints },
+        &OsCliOutput {
+            additional_data: &cairo_pie.additional_data,
+            da_segment,
+            metrics: metrics.into(),
+            unused_hints,
+        },
         output_path,
         &cairo_pie,
         cairo_pie_zip_path,
+        Some((&raw_os_output, raw_os_output_path)),
     );
     info!("OS program ran successfully.");
 }
@@ -131,6 +151,7 @@ pub(crate) fn parse_and_run_aggregator(
         output_path,
         &cairo_pie,
         cairo_pie_zip_path,
+        None,
     );
     info!("Aggregator program ran successfully.");
 }
@@ -140,6 +161,7 @@ fn serialize_runner_output<T: serde::Serialize>(
     output_path: String,
     cairo_pie: &CairoPie,
     cairo_pie_zip_path: String,
+    raw_program_output_and_path: Option<(&Vec<Felt>, String)>,
 ) {
     write_to_file(&output_path, output);
     let merge_extra_segments = true;
@@ -154,6 +176,20 @@ fn serialize_runner_output<T: serde::Serialize>(
             Ok(meta) => format!("{}", meta.len() / 1024),
         }
     );
+
+    if let Some((raw_program_output, raw_program_output_path)) = raw_program_output_and_path {
+        info!("Writing raw program output to file.");
+        write_to_file(&raw_program_output_path, raw_program_output);
+        info!(
+            "Finished writing raw program output to file. File size: {}.",
+            match std::fs::metadata(&raw_program_output_path) {
+                Err(_) => String::from("UNKNOWN"),
+                Ok(meta) => format!("{} KB", meta.len() / 1024),
+            }
+        );
+    } else {
+        info!("No raw OS output to write.");
+    }
 }
 
 pub(crate) fn dump_source_files(output_path: String) {

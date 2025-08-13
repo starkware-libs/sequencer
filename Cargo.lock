@@ -855,6 +855,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
@@ -935,6 +936,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
@@ -993,6 +995,8 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "strum 0.25.0",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
 
@@ -1085,7 +1089,6 @@ dependencies = [
  "apollo_consensus_orchestrator",
  "apollo_infra",
  "apollo_infra_utils",
- "apollo_l1_gas_price",
  "apollo_l1_gas_price_types",
  "apollo_metrics",
  "apollo_network",
@@ -1194,6 +1197,7 @@ dependencies = [
 name = "apollo_deployments"
 version = "0.0.0"
 dependencies = [
+ "alloy",
  "apollo_config",
  "apollo_http_server",
  "apollo_infra_utils",
@@ -1278,6 +1282,7 @@ dependencies = [
  "serde",
  "serde_json",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
@@ -1338,6 +1343,7 @@ dependencies = [
  "serde_json",
  "starknet-types-core",
  "starknet_api",
+ "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "time",
  "tokio",
@@ -1377,6 +1383,7 @@ dependencies = [
  "anyhow",
  "apollo_batcher",
  "apollo_class_manager",
+ "apollo_compile_to_casm",
  "apollo_config",
  "apollo_consensus",
  "apollo_consensus_manager",
@@ -1459,6 +1466,7 @@ dependencies = [
  "async-trait",
  "mockall",
  "serde",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "url",
@@ -1475,7 +1483,6 @@ dependencies = [
  "apollo_metrics",
  "async-trait",
  "futures",
- "hex",
  "lru 0.12.5",
  "mockall",
  "mockito 1.6.1",
@@ -1504,11 +1511,10 @@ dependencies = [
  "papyrus_base_layer",
  "reqwest 0.11.27",
  "serde",
- "serde_json",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
- "tokio",
  "tracing",
 ]
 
@@ -1528,7 +1534,6 @@ dependencies = [
  "apollo_time",
  "assert_matches",
  "async-trait",
- "hex",
  "indexmap 2.9.0",
  "itertools 0.12.1",
  "mockall",
@@ -1556,6 +1561,7 @@ dependencies = [
  "papyrus_base_layer",
  "serde",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
  "tracing",
@@ -1633,6 +1639,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
@@ -1649,6 +1656,7 @@ dependencies = [
  "mockall",
  "serde",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
 ]
@@ -2144,6 +2152,7 @@ version = "0.0.0"
 dependencies = [
  "apollo_infra",
  "apollo_proc_macros",
+ "apollo_starknet_client",
  "apollo_storage",
  "async-trait",
  "futures",
@@ -2151,8 +2160,10 @@ dependencies = [
  "serde",
  "starknet-types-core",
  "starknet_api",
+ "strum 0.25.0",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]
@@ -4001,9 +4012,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-native"
-version = "0.6.0-rc.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9bb843f93a320c7d8cb99843a02c4c613f8263022ce8b52070d82cc4341168ee"
+checksum = "4d714224a1280776d90422e631790c0138d138a80b8e16231829dacea13c8289"
 dependencies = [
  "anyhow",
  "aquamarine",
@@ -4057,9 +4068,9 @@ dependencies = [
 
 [[package]]
 name = "cairo-vm"
-version = "2.2.0"
+version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d2a2f6d93aa279509d396d6f5c1992fa63d7d32c2b8d61ffa3398617c2cd0cd"
+checksum = "2afc2bb5cf948599994a1f1634edc81934c3952e2f32c8e49efbde63d767fa69"
 dependencies = [
  "anyhow",
  "bincode 2.0.0-rc.3",
@@ -7852,9 +7863,21 @@ dependencies = [
 
 [[package]]
 name = "libp2p-gossipsub"
+<<<<<<< HEAD
 version = "0.49.0"
+||||||| 38f03e1d0
+version = "0.46.1"
+=======
+version = "0.49.2"
+>>>>>>> origin/main-v0.14.0
 source = "registry+https://github.com/rust-lang/crates.io-index"
+<<<<<<< HEAD
 checksum = "ba535a5d960cc39c3621cee2941ff570a9476679a4c7ca80982412b14f4a88fd"
+||||||| 38f03e1d0
+checksum = "d665144a616dadebdc5fff186b1233488cdcd8bfb1223218ff084b6d052c94f7"
+=======
+checksum = "c7f58e37d8d6848e5c4c9e3c35c6f61133235bff2960c9c00a663b0849301221"
+>>>>>>> origin/main-v0.14.0
 dependencies = [
  "async-channel",
  "asynchronous-codec",
@@ -9293,6 +9316,7 @@ dependencies = [
  "ethers",
  "ethers-core",
  "futures",
+ "hex",
  "mockall",
  "pretty_assertions",
  "serde",

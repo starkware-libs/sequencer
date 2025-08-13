@@ -11,6 +11,7 @@ use starknet_api::core::ChainId;
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
 use crate::discovery::DiscoveryConfig;
+use crate::misc_behaviours::OneConnectionPerPeerBehaviour;
 use crate::peer_manager::PeerManagerConfig;
 use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 
@@ -18,6 +19,7 @@ use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
 pub struct MixedBehaviour {
+    pub one_connection_per_peer: OneConnectionPerPeerBehaviour,
     pub peer_manager: peer_manager::PeerManager,
     pub discovery: Toggle<discovery::Behaviour>,
     pub identify: identify::Behaviour,
@@ -68,11 +70,26 @@ impl MixedBehaviour {
     ) -> Self {
         let public_key = keypair.public();
         let local_peer_id = PeerId::from_public_key(&public_key);
+<<<<<<< HEAD
         let protocol_name =
             StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
                 .expect("Failed to create StreamProtocol from a string that starts with /");
         let kademlia_config = kad::Config::new(protocol_name);
+||||||| 38f03e1d0
+        let mut kademlia_config = kad::Config::default();
+        kademlia_config.set_protocol_names(vec![
+            StreamProtocol::try_from_owned(format!("/starknet/kad/{}/1.0.0", chain_id))
+                .expect("Failed to create StreamProtocol from a string that starts with /"),
+        ]);
+=======
+        let protocol_name =
+            StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
+                .expect("Failed to create StreamProtocol from a string that starts with /");
+        let kademlia_config = kad::Config::new(protocol_name);
+
+>>>>>>> origin/main-v0.14.0
         Self {
+            one_connection_per_peer: OneConnectionPerPeerBehaviour::default(),
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
             discovery: bootstrap_peers_multiaddrs
                 .map(|bootstrap_peer_multiaddr| {

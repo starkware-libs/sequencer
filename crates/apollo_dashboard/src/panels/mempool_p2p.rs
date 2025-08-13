@@ -2,6 +2,8 @@ use apollo_infra::metrics::{
     MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
     MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
     MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
+    MEMPOOL_P2P_PROCESSING_TIMES,
+    MEMPOOL_P2P_QUEUEING_TIMES,
     MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
     MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
     MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
@@ -17,47 +19,53 @@ use apollo_mempool_p2p::metrics::{
 use crate::dashboard::{Panel, PanelType, Row};
 
 fn get_panel_mempool_p2p_num_connected_peers() -> Panel {
-    Panel::from_gauge(MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::Stat)
+    Panel::from_gauge(MEMPOOL_P2P_NUM_CONNECTED_PEERS, PanelType::TimeSeries)
 }
 
 fn get_panel_mempool_p2p_num_sent_messages() -> Panel {
-    Panel::from_counter(MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::Stat)
+    Panel::from_counter(MEMPOOL_P2P_NUM_SENT_MESSAGES, PanelType::TimeSeries)
 }
 
 fn get_panel_mempool_p2p_num_received_messages() -> Panel {
-    Panel::from_counter(MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::Stat)
+    Panel::from_counter(MEMPOOL_P2P_NUM_RECEIVED_MESSAGES, PanelType::TimeSeries)
 }
 
 fn get_panel_mempool_p2p_broadcasted_batch_size() -> Panel {
-    Panel::from_hist(MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, PanelType::Stat)
+    Panel::from_hist(MEMPOOL_P2P_BROADCASTED_BATCH_SIZE, PanelType::TimeSeries)
 }
 
-fn get_panel_mempool_p2p_local_msgs_received() -> Panel {
+fn get_panel_local_msgs_received() -> Panel {
     Panel::from_counter(MEMPOOL_P2P_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 
-fn get_panel_mempool_p2p_local_msgs_processed() -> Panel {
+fn get_panel_local_msgs_processed() -> Panel {
     Panel::from_counter(MEMPOOL_P2P_LOCAL_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 
-fn get_panel_mempool_p2p_remote_msgs_received() -> Panel {
+fn get_panel_remote_msgs_received() -> Panel {
     Panel::from_counter(MEMPOOL_P2P_REMOTE_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 
-fn get_panel_mempool_p2p_remote_valid_msgs_received() -> Panel {
+fn get_panel_remote_valid_msgs_received() -> Panel {
     Panel::from_counter(MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED, PanelType::TimeSeries)
 }
 
-fn get_panel_mempool_p2p_remote_msgs_processed() -> Panel {
+fn get_panel_remote_msgs_processed() -> Panel {
     Panel::from_counter(MEMPOOL_P2P_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
 }
 
-fn get_panel_mempool_p2p_local_queue_depth() -> Panel {
+fn get_panel_local_queue_depth() -> Panel {
     Panel::from_gauge(MEMPOOL_P2P_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
 }
 
-fn get_panel_mempool_p2p_remote_client_send_attempts() -> Panel {
+fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
+}
+fn get_panel_processing_times() -> Panel {
+    Panel::from_hist(MEMPOOL_P2P_PROCESSING_TIMES, PanelType::TimeSeries)
+}
+fn get_panel_queueing_times() -> Panel {
+    Panel::from_hist(MEMPOOL_P2P_QUEUEING_TIMES, PanelType::TimeSeries)
 }
 
 pub(crate) fn get_mempool_p2p_row() -> Row {
@@ -76,13 +84,15 @@ pub(crate) fn get_mempool_p2p_infra_row() -> Row {
     Row::new(
         "MempoolP2pInfra",
         vec![
-            get_panel_mempool_p2p_local_msgs_received(),
-            get_panel_mempool_p2p_local_msgs_processed(),
-            get_panel_mempool_p2p_local_queue_depth(),
-            get_panel_mempool_p2p_remote_msgs_received(),
-            get_panel_mempool_p2p_remote_valid_msgs_received(),
-            get_panel_mempool_p2p_remote_msgs_processed(),
-            get_panel_mempool_p2p_remote_client_send_attempts(),
+            get_panel_local_msgs_received(),
+            get_panel_local_msgs_processed(),
+            get_panel_local_queue_depth(),
+            get_panel_remote_msgs_received(),
+            get_panel_remote_valid_msgs_received(),
+            get_panel_remote_msgs_processed(),
+            get_panel_remote_client_send_attempts(),
+            get_panel_processing_times(),
+            get_panel_queueing_times(),
         ],
     )
 }

@@ -1,11 +1,6 @@
 use std::sync::Arc;
 
-use apollo_l1_gas_price_types::{
-    EthToStrkOracleClientTrait,
-    L1GasPriceProviderClient,
-    PriceInfo,
-    DEFAULT_ETH_TO_FRI_RATE,
-};
+use apollo_l1_gas_price_types::{L1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_protobuf::consensus::{ConsensusBlockInfo, ProposalPart};
 use apollo_state_sync_types::communication::{
     StateSyncClient,
@@ -78,14 +73,13 @@ impl From<StateSyncClientError> for ValidateProposalError {
 }
 
 pub(crate) async fn get_oracle_rate_and_prices(
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     l1_gas_price_provider_client: Arc<dyn L1GasPriceProviderClient>,
     timestamp: u64,
     previous_block_info: Option<&ConsensusBlockInfo>,
     gas_price_params: &GasPriceParams,
 ) -> (u128, PriceInfo) {
     let (eth_to_strk_rate, price_info) = tokio::join!(
-        eth_to_strk_oracle_client.eth_to_fri_rate(timestamp),
+        l1_gas_price_provider_client.get_eth_to_fri_rate(timestamp),
         l1_gas_price_provider_client.get_price_info(BlockTimestamp(timestamp))
     );
     if price_info.is_err() {
@@ -191,8 +185,26 @@ pub(crate) async fn retrospective_block_hash(
     match retrospective_block_number {
         Some(block_number) => {
             let block_number = BlockNumber(block_number);
+<<<<<<< HEAD
             let block_hash = state_sync_client.get_block_hash(block_number).await?;
             Ok(Some(BlockHashAndNumber { number: block_number, hash: block_hash }))
+||||||| 38f03e1d0
+            let block = state_sync_client
+                // Getting the next block hash because the Sync block only contains parent hash.
+                .get_block(block_number.unchecked_next())
+                .await
+                .map_err(StateSyncError::ClientError)?
+                .ok_or(StateSyncError::NotReady(format!(
+                "Failed to get retrospective block number {block_number}"
+            )))?;
+            Some(BlockHashAndNumber {
+                number: block_number,
+                hash: block.block_header_without_hash.parent_hash,
+            })
+=======
+            let block_hash = state_sync_client.get_block_hash(block_number).await?;
+            Some(BlockHashAndNumber { number: block_number, hash: block_hash })
+>>>>>>> origin/main-v0.14.0
         }
         None => {
             info!(
