@@ -20,10 +20,8 @@ use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCT
 use crate::metrics::RemoteClientMetrics;
 use crate::serde_utils::SerdeWrapper;
 
-// TODO(Tsabary): rename all constants to better describe their purpose.
 const DEFAULT_RETRIES: usize = 150;
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
-// TODO(Tsabary): add `_SECS` suffix to the constant names and the config fields.
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
 const DEFAULT_RETRY_INTERVAL_MS: u64 = 1000;
 const DEFAULT_INITIAL_RETRY_DELAY_MS: u64 = 1;
@@ -99,77 +97,6 @@ impl SerializeConfig for RemoteClientConfig {
 
 /// The `RemoteComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously through HTTP connection.
-///
-/// # Type Parameters
-/// - `Request`: The type of the request. This type must implement the `serde::Serialize` trait.
-/// - `Response`: The type of the response. This type must implement the
-///   `serde::de::DeserializeOwned` (e.g. by using #[derive(Deserialize)]) trait.
-///
-/// # Fields
-/// - `uri`: URI address of the server.
-/// - `client`: The inner HTTP client that initiates the connection to the server and manages it.
-/// - `config`: Client configuration.
-///
-/// # Example
-/// ```rust
-/// // Example usage of the RemoteComponentClient
-///
-/// use apollo_infra::metrics::RemoteClientMetrics;
-/// use apollo_metrics::metrics::{MetricHistogram, MetricScope};
-/// use serde::{Deserialize, Serialize};
-///
-/// use crate::apollo_infra::component_client::{RemoteClientConfig, RemoteComponentClient};
-/// use crate::apollo_infra::component_definitions::ComponentClient;
-///
-/// // Define your request and response types
-/// #[derive(Serialize, Deserialize, Debug)]
-/// struct MyRequest {
-///     pub content: String,
-/// }
-///
-/// impl AsRef<str> for MyRequest {
-///     fn as_ref(&self) -> &str {
-///         &self.content
-///     }
-/// }
-///
-/// #[derive(Serialize, Deserialize, Debug)]
-/// struct MyResponse {
-///     content: String,
-/// }
-///
-/// #[tokio::main]
-/// async fn main() {
-///     // Create a channel for sending requests and receiving responses
-///     // Instantiate the client.
-///     let url = "127.0.0.1".to_string();
-///     let port: u16 = 8080;
-///     let config = RemoteClientConfig::default();
-///
-///     const EXAMPLE_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
-///         MetricScope::Infra,
-///         "example_histogram_metric",
-///         "example_histogram_metric_filter",
-///         "example_histogram_metric_sum_filter",
-///         "example_histogram_metric_count_filter",
-///         "Example histogram metrics",
-///     );
-///     let metrics = RemoteClientMetrics::new(&EXAMPLE_HISTOGRAM_METRIC);
-///     let client =
-///         RemoteComponentClient::<MyRequest, MyResponse>::new(config, &url, port, metrics);
-///
-///     // Instantiate a request.
-///     let request = MyRequest { content: "Hello, world!".to_string() };
-///
-///     // Send the request; typically, the client should await for a response.
-///     client.send(request);
-/// }
-/// ```
-///
-/// # Notes
-/// - The `RemoteComponentClient` struct is designed to work in an asynchronous environment,
-///   utilizing Tokio's async runtime and hyper framework to send HTTP requests and receive HTTP
-///   responses.
 pub struct RemoteComponentClient<Request, Response>
 where
     Request: Serialize,
