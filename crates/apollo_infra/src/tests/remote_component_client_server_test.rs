@@ -8,6 +8,8 @@ use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
+use metrics::set_default_local_recorder;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -169,12 +171,46 @@ where
     )
 }
 
+// Helper to wait until the remote server connections metric reaches the expected value. Bounded by
+// elapsed time to avoid hanging tests.
+async fn wait_for_remote_connections<F>(
+    mut metrics_render: F,
+    expected: usize,
+) -> Result<(), String>
+where
+    F: FnMut() -> String,
+{
+    let start = tokio::time::Instant::now();
+    let timeout = std::time::Duration::from_millis(1000);
+    loop {
+        let metrics_as_string = metrics_render();
+        let conns =
+            TEST_REMOTE_SERVER_METRICS.get_number_of_connections_value(metrics_as_string.as_str());
+        if conns == expected {
+            return Ok(());
+        }
+        if start.elapsed() >= timeout {
+            return Err(format!(
+                "Timed out waiting for remote connections metric. expected: {} got: {}",
+                expected, conns
+            ));
+        }
+        tokio::task::yield_now().await;
+    }
+}
+
 /// Ensures the remote client respects the server’s concurrency cap:
 /// - Two in-flight requests exhaust the limit and a third is **immediately rejected** with `503
 ///   Service Unavailable` and the message `"Server is busy addressing previous requests"`.
 /// - After releasing permits on the shared semaphore, a subsequent request succeeds.
+/// This test also verifies that the number of connections to the remote server metric is updated
+/// correctly.
 #[tokio::test]
 async fn remote_connection_concurrency() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = set_default_local_recorder(&recorder);
+    TEST_REMOTE_SERVER_METRICS.register();
+
     let setup_value: ValueB = Felt::from(90);
     let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
@@ -200,10 +236,15 @@ async fn remote_connection_concurrency() {
     // First two requests will block on the semaphore inside ComponentA
     let fut1 =
         tokio::spawn(async move { client1.send(ComponentARequest::AGetValue).await.unwrap() });
+
+    tokio::task::yield_now().await;
+    wait_for_remote_connections(|| recorder.handle().render(), 1).await.unwrap();
+
     let _fut2 =
         tokio::spawn(async move { client2.send(ComponentARequest::AGetValue).await.unwrap() });
 
     tokio::task::yield_now().await;
+    wait_for_remote_connections(|| recorder.handle().render(), 2).await.unwrap();
 
     let err = client3
         .send(ComponentARequest::AGetValue)
@@ -222,13 +263,19 @@ async fn remote_connection_concurrency() {
         other => panic!("expected ResponseError(503, _), got: {other:?}"),
     }
 
+    wait_for_remote_connections(|| recorder.handle().render(), 2).await.unwrap();
+
     // Release one slot
     semaphore.add_permits(1);
     fut1.await.unwrap();
 
+    wait_for_remote_connections(|| recorder.handle().render(), 1).await.unwrap();
     let result4 = client4.send(ComponentARequest::AGetValue).await;
     assert!(result4.is_ok(), "Expected client4 to succeed after one slot was freed");
+
+    wait_for_remote_connections(|| recorder.handle().render(), 2).await.unwrap();
 }
+
 async fn setup_for_tests(
     setup_value: ValueB,
     a_socket: SocketAddr,
