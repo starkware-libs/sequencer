@@ -38,6 +38,7 @@ strum = { workspace = true, features = ["derive"] }
 strum_macros.workspace = true
 thiserror.workspace = true
 time.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 assert_matches.workspace = true

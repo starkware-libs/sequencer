@@ -166,9 +166,7 @@ impl<Mode: TransactionKind> HeaderStorageReader for StorageTxn<'_, Mode> {
         let Some(block_header) = headers_table.get(&self.txn, &block_number)? else {
             return Ok(None);
         };
-        let Some(starknet_version) = self.get_starknet_version(block_number)? else {
-            return Ok(None);
-        };
+        let starknet_version = self.get_starknet_version(block_number)?;
         Ok(Some(BlockHeader {
             block_hash: block_header.block_hash,
             block_header_without_hash: BlockHeaderWithoutHash {
@@ -285,7 +283,10 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
 
         self.update_starknet_version(
             &block_number,
-            &block_header.block_header_without_hash.starknet_version,
+            &block_header
+                .block_header_without_hash
+                .starknet_version
+                .expect("We should always update the Starknet version to a valid value."),
         )
     }
 
@@ -348,7 +349,7 @@ impl HeaderStorageWriter for StorageTxn<'_, RW> {
         let res = cursor.prev()?;
 
         let starknet_version = match res {
-            Some((_block_number, starknet_version)) => starknet_version,
+            Some((_block_number, starknet_version)) => Some(starknet_version),
             None => unreachable!(
                 "Since block_number >= self.get_header_marker(), starknet_version_table should \
                  have at least a single mapping."

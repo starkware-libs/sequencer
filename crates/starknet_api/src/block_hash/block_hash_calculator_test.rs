@@ -51,7 +51,7 @@ macro_rules! test_hash_changes {
 
             let header = BlockHeaderWithoutHash {
                 l1_da_mode: L1DataAvailabilityMode::Blob,
-                starknet_version: BlockHashVersion::V0_13_4.into(),
+                starknet_version: Some(BlockHashVersion::V0_13_4.into()),
                 $($header_field: $header_value),*
             };
             let commitments = BlockHeaderCommitments {
@@ -103,7 +103,7 @@ fn test_block_hash_regression(
         l2_gas_price: GasPricePerToken { price_in_fri: 11_u8.into(), price_in_wei: 12_u8.into() },
         l2_gas_consumed: GasAmount(13),
         next_l2_gas_price: GasPrice(14),
-        starknet_version: block_hash_version.clone().into(),
+        starknet_version: Some(block_hash_version.clone().into()),
         parent_hash: BlockHash(Felt::from(11_u8)),
     };
     let transactions_data = vec![TransactionHashingData {
@@ -165,7 +165,7 @@ fn l2_gas_price_pre_v0_13_4() {
                 price_in_fri: l2_gas_price.into(),
                 price_in_wei: l2_gas_price.into(),
             },
-            starknet_version: BlockHashVersion::V0_13_2.into(),
+            starknet_version: Some(BlockHashVersion::V0_13_2.into()),
             ..Default::default()
         }
     };

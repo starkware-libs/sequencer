@@ -123,7 +123,7 @@ impl TryFrom<protobuf::SignedBlockHeader> for SignedBlockHeader {
         let l1_da_mode = enum_int_to_l1_data_availability_mode(value.l1_data_availability_mode)?;
 
         let starknet_version = match StarknetVersion::try_from(value.protocol_version.to_owned()) {
-            Ok(version) => version,
+            Ok(version) => Some(version),
             Err(_) => {
                 return Err(ProtobufConversionError::OutOfRangeValue {
                     type_description: "starknet version",
@@ -262,7 +262,11 @@ impl From<(BlockHeader, Vec<BlockSignature>)> for protobuf::SignedBlockHeader {
             receipts: header
                 .receipt_commitment
                 .map(|receipt_commitment| receipt_commitment.0.into()),
-            protocol_version: header.block_header_without_hash.starknet_version.to_string(),
+            protocol_version: header
+                .block_header_without_hash
+                .starknet_version
+                .unwrap_or_default()
+                .to_string(),
             l1_gas_price_wei: Some(
                 header.block_header_without_hash.l1_gas_price.price_in_wei.0.into(),
             ),
