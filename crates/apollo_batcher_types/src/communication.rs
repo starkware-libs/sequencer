@@ -1,11 +1,7 @@
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{
-    ComponentClient,
-    ComponentRequestAndResponseSender,
-    PrioritizedRequest,
-};
+use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -36,8 +32,7 @@ use crate::errors::BatcherError;
 pub type LocalBatcherClient = LocalComponentClient<BatcherRequest, BatcherResponse>;
 pub type RemoteBatcherClient = RemoteComponentClient<BatcherRequest, BatcherResponse>;
 pub type BatcherClientResult<T> = Result<T, BatcherClientError>;
-pub type BatcherRequestAndResponseSender =
-    ComponentRequestAndResponseSender<BatcherRequest, BatcherResponse>;
+pub type BatcherRequestWrapper = RequestWrapper<BatcherRequest, BatcherResponse>;
 pub type SharedBatcherClient = Arc<dyn BatcherClient>;
 
 /// Serves as the batcher's shared interface. Requires `Send + Sync` to allow transferring and

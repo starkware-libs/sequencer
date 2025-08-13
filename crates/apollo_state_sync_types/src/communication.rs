@@ -3,9 +3,9 @@ use std::sync::Arc;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{
     ComponentClient,
-    ComponentRequestAndResponseSender,
     PrioritizedRequest,
     RequestPriority,
+    RequestWrapper,
 };
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
@@ -101,8 +101,7 @@ pub type StateSyncClientResult<T> = Result<T, StateSyncClientError>;
 pub type LocalStateSyncClient = LocalComponentClient<StateSyncRequest, StateSyncResponse>;
 pub type RemoteStateSyncClient = RemoteComponentClient<StateSyncRequest, StateSyncResponse>;
 pub type SharedStateSyncClient = Arc<dyn StateSyncClient>;
-pub type StateSyncRequestAndResponseSender =
-    ComponentRequestAndResponseSender<StateSyncRequest, StateSyncResponse>;
+pub type StateSyncRequestWrapper = RequestWrapper<StateSyncRequest, StateSyncResponse>;
 
 #[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
 #[strum_discriminants(

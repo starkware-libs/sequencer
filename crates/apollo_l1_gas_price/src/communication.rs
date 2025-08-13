@@ -1,8 +1,5 @@
 use apollo_infra::component_client::{LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{
-    ComponentRequestAndResponseSender,
-    ComponentRequestHandler,
-};
+use apollo_infra::component_definitions::{ComponentRequestHandler, RequestWrapper};
 use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer, WrapperServer};
 use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse};
 use async_trait::async_trait;
@@ -15,8 +12,7 @@ use crate::l1_gas_price_scraper::L1GasPriceScraper;
 pub type LocalL1GasPriceServer =
     LocalComponentServer<L1GasPriceProvider, L1GasPriceRequest, L1GasPriceResponse>;
 pub type RemoteL1GasPriceServer = RemoteComponentServer<L1GasPriceRequest, L1GasPriceResponse>;
-pub type L1GasPriceRequestAndResponseSender =
-    ComponentRequestAndResponseSender<L1GasPriceRequest, L1GasPriceResponse>;
+pub type L1GasPriceRequestWrapper = RequestWrapper<L1GasPriceRequest, L1GasPriceResponse>;
 pub type LocalL1GasPriceClient = LocalComponentClient<L1GasPriceRequest, L1GasPriceResponse>;
 pub type RemoteL1GasPriceClient = RemoteComponentClient<L1GasPriceRequest, L1GasPriceResponse>;
 

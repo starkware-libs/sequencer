@@ -7,9 +7,9 @@ use apollo_compile_to_casm_types::SierraCompilerError;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{
     ComponentClient,
-    ComponentRequestAndResponseSender,
     PrioritizedRequest,
     RequestPriority,
+    RequestWrapper,
 };
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
@@ -33,8 +33,7 @@ pub type RemoteClassManagerClient =
     RemoteComponentClient<ClassManagerRequest, ClassManagerResponse>;
 
 pub type SharedClassManagerClient = Arc<dyn ClassManagerClient>;
-pub type ClassManagerRequestAndResponseSender =
-    ComponentRequestAndResponseSender<ClassManagerRequest, ClassManagerResponse>;
+pub type ClassManagerRequestWrapper = RequestWrapper<ClassManagerRequest, ClassManagerResponse>;
 
 // TODO(Elin): export.
 pub type ClassId = ClassHash;

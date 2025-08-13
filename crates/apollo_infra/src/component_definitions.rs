@@ -6,6 +6,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::time::Instant;
 use tracing::{error, info};
 
 use crate::component_client::ClientResult;
@@ -78,13 +79,24 @@ impl<T: Send> ComponentCommunication<T> {
     }
 }
 
-pub struct ComponentRequestAndResponseSender<Request, Response>
+pub struct RequestWrapper<Request, Response>
 where
     Request: Send,
     Response: Send,
 {
     pub request: Request,
     pub tx: Sender<Response>,
+    pub creation_time: Instant,
+}
+
+impl<Request, Response> RequestWrapper<Request, Response>
+where
+    Request: Send,
+    Response: Send,
+{
+    pub fn new(request: Request, tx: Sender<Response>) -> Self {
+        Self { request, tx, creation_time: Instant::now() }
+    }
 }
 
 #[derive(Debug, Error, Deserialize, Serialize, Clone, PartialEq, Eq)]

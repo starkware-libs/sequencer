@@ -1,11 +1,7 @@
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{
-    ComponentClient,
-    ComponentRequestAndResponseSender,
-    PrioritizedRequest,
-};
+use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
@@ -22,8 +18,7 @@ use crate::gateway_types::{GatewayInput, GatewayOutput, GatewayResult};
 pub type LocalGatewayClient = LocalComponentClient<GatewayRequest, GatewayResponse>;
 pub type RemoteGatewayClient = RemoteComponentClient<GatewayRequest, GatewayResponse>;
 pub type GatewayClientResult<T> = Result<T, GatewayClientError>;
-pub type GatewayRequestAndResponseSender =
-    ComponentRequestAndResponseSender<GatewayRequest, GatewayResponse>;
+pub type GatewayRequestWrapper = RequestWrapper<GatewayRequest, GatewayResponse>;
 pub type SharedGatewayClient = Arc<dyn GatewayClient>;
 use tracing::{error, instrument};
 

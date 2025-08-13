@@ -7,11 +7,11 @@ use tokio::task;
 use crate::component_client::LocalComponentClient;
 use crate::component_definitions::{
     ComponentClient,
-    ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
     PrioritizedRequest,
     RequestPriority,
+    RequestWrapper,
 };
 use crate::component_server::{ComponentServerStarter, LocalComponentServer};
 use crate::tests::TEST_LOCAL_SERVER_METRICS;
@@ -81,8 +81,7 @@ async fn request_prioritization() {
     const NUMBER_OF_MESSAGES: usize = 10;
 
     // Create the channel, a client, a component, and a server.
-    let (tx, rx) =
-        channel::<ComponentRequestAndResponseSender<PriorityTestRequest, PriorityTestResponse>>(32);
+    let (tx, rx) = channel::<RequestWrapper<PriorityTestRequest, PriorityTestResponse>>(32);
     let client = LocalComponentClient::new(tx);
     let component = PriorityTestComponent::new();
     let mut component_server = LocalComponentServer::new(component, rx, &TEST_LOCAL_SERVER_METRICS);

@@ -25,7 +25,7 @@ use crate::component_client::{
 };
 use crate::component_definitions::{
     ComponentClient,
-    ComponentRequestAndResponseSender,
+    RequestWrapper,
     ServerError,
     APPLICATION_OCTET_STREAM,
     BUSY_PREVIOUS_REQUESTS_MSG,
@@ -259,10 +259,8 @@ async fn setup_for_tests(
 
     let component_b = ComponentB::new(setup_value, Box::new(a_remote_client.clone()));
 
-    let (tx_a, rx_a) =
-        channel::<ComponentRequestAndResponseSender<ComponentARequest, ComponentAResponse>>(32);
-    let (tx_b, rx_b) =
-        channel::<ComponentRequestAndResponseSender<ComponentBRequest, ComponentBResponse>>(32);
+    let (tx_a, rx_a) = channel::<RequestWrapper<ComponentARequest, ComponentAResponse>>(32);
+    let (tx_b, rx_b) = channel::<RequestWrapper<ComponentBRequest, ComponentBResponse>>(32);
 
     let a_local_client = LocalComponentClient::<ComponentARequest, ComponentAResponse>::new(tx_a);
     let b_local_client = LocalComponentClient::<ComponentBRequest, ComponentBResponse>::new(tx_b);
