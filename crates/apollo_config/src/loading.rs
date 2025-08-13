@@ -14,7 +14,7 @@ use command::{get_command_matches, update_config_map_by_command_args};
 use itertools::any;
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
-use tracing::{error, info, instrument};
+use tracing::{error, info, warn, instrument};
 
 use crate::validators::validate_path_exists;
 use crate::{
@@ -65,6 +65,8 @@ pub fn load_and_process_config<T: for<'a> Deserialize<'a>>(
     // Retaining values from the default config map for backward compatibility.
     let (mut values_map, types_map) = split_values_and_types(config_map);
     if ignore_default_values {
+        warn!("TEST warning.");
+        error!("TEST error.");
         info!("Ignoring default values by overriding with an empty map.");
         values_map = BTreeMap::new();
     }
