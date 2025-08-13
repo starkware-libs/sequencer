@@ -30,7 +30,6 @@ pub(crate) type ResultB = ClientResult<ValueB>;
 const TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
     "test_msgs_received",
-    "test_msgs_received_filter",
     "Test messages received counter",
     0,
 );
@@ -38,38 +37,18 @@ const TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
 const TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
     "test_msgs_processed",
-    "test_msgs_processed_filter",
     "Test messages processed counter",
     0,
 );
 
-const TEST_QUEUE_DEPTH: MetricGauge = MetricGauge::new(
-    MetricScope::Infra,
-    "queue_queue_depth",
-    "queue_queue_depth_filter",
-    "Test channel queue depth gauge",
-);
+const TEST_QUEUE_DEPTH: MetricGauge =
+    MetricGauge::new(MetricScope::Infra, "queue_queue_depth", "Test channel queue depth gauge");
 
-const TEST_PROCESSING_TIMES: MetricHistogram = MetricHistogram::new(
-    MetricScope::Infra,
-    "processing_times",
-    "processing_times_filter",
-    "processing_times_sum_filter",
-    "processing_times_count_filter",
-    "Test processing time histogram",
-);
+const TEST_PROCESSING_TIMES: MetricHistogram =
+    MetricHistogram::new(MetricScope::Infra, "processing_times", "Test processing time histogram");
 
-const TEST_QUEUEING_TIMES: MetricHistogram = MetricHistogram::new(
-    MetricScope::Infra,
-    "queueing_times",
-    "queueing_times_filter",
-    "queueing_times_sum_filter",
-    "queueing_times_count_filter",
-    "Test queueing time histogram",
-);
-
-// TODO(Tsabary): remove redundant args from metrics constructor, specifically, the "with_filter"
-// args.
+const TEST_QUEUEING_TIMES: MetricHistogram =
+    MetricHistogram::new(MetricScope::Infra, "queueing_times", "Test queueing time histogram");
 
 pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
     &TEST_MSGS_RECEIVED,
@@ -82,7 +61,6 @@ pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics = LocalServerMetr
 const REMOTE_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
     "remote_test_msgs_received",
-    "remote_test_msgs_received_filter",
     "Remote test messages received counter",
     0,
 );
@@ -90,7 +68,6 @@ const REMOTE_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
 const REMOTE_VALID_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
     "remote_valid_test_msgs_received",
-    "remote_valid_test_msgs_received_filter",
     "Valid remote test messages received counter",
     0,
 );
@@ -98,7 +75,6 @@ const REMOTE_VALID_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
 const REMOTE_TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
     "remote_test_msgs_processed",
-    "remote_test_msgs_processed_filter",
     "Remote test messages processed counter",
     0,
 );
@@ -106,16 +82,12 @@ const REMOTE_TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
 const REMOTE_NUMBER_OF_CONNECTIONS: MetricGauge = MetricGauge::new(
     MetricScope::Infra,
     "remote_number_of_connections",
-    "remote_number_of_connections_filter",
     "Remote number of connections gauge",
 );
 
 const EXAMPLE_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
     MetricScope::Infra,
     "example_histogram_metric",
-    "example_histogram_metric_filter",
-    "example_histogram_metric_sum_filter",
-    "example_histogram_metric_count_filter",
     "Example histogram metrics",
 );
 
