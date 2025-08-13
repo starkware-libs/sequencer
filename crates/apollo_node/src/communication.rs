@@ -112,44 +112,48 @@ impl SequencerNodeCommunication {
 pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommunication {
     info!("Creating node channels.");
     let (tx_batcher, rx_batcher) = channel::<BatcherRequestWrapper>(
-        config.components.batcher.local_server_config.channel_capacity,
+        config.components.batcher.local_server_config.inbound_requests_channel_capacity,
     );
 
     let (tx_class_manager, rx_class_manager) = channel::<ClassManagerRequestWrapper>(
-        config.components.class_manager.local_server_config.channel_capacity,
+        config.components.class_manager.local_server_config.inbound_requests_channel_capacity,
     );
 
     let (tx_gateway, rx_gateway) = channel::<GatewayRequestWrapper>(
-        config.components.gateway.local_server_config.channel_capacity,
+        config.components.gateway.local_server_config.inbound_requests_channel_capacity,
     );
 
     let (tx_l1_endpoint_monitor, rx_l1_endpoint_monitor) = channel::<L1EndpointMonitorRequestWrapper>(
-        config.components.l1_endpoint_monitor.local_server_config.channel_capacity,
+        config.components.l1_endpoint_monitor.local_server_config.inbound_requests_channel_capacity,
     );
 
     let (tx_l1_provider, rx_l1_provider) = channel::<L1ProviderRequestWrapper>(
-        config.components.l1_provider.local_server_config.channel_capacity,
+        config.components.l1_provider.local_server_config.inbound_requests_channel_capacity,
     );
 
     let (tx_l1_gas_price, rx_l1_gas_price) = channel::<L1GasPriceRequestWrapper>(
-        config.components.l1_gas_price_provider.local_server_config.channel_capacity,
+        config
+            .components
+            .l1_gas_price_provider
+            .local_server_config
+            .inbound_requests_channel_capacity,
     );
 
     let (tx_mempool, rx_mempool) = channel::<MempoolRequestWrapper>(
-        config.components.mempool.local_server_config.channel_capacity,
+        config.components.mempool.local_server_config.inbound_requests_channel_capacity,
     );
 
     let (tx_mempool_p2p_propagator, rx_mempool_p2p_propagator) =
         channel::<MempoolP2pPropagatorRequestWrapper>(
-            config.components.mempool_p2p.local_server_config.channel_capacity,
+            config.components.mempool_p2p.local_server_config.inbound_requests_channel_capacity,
         );
 
     let (tx_sierra_compiler, rx_sierra_compiler) = channel::<SierraCompilerRequestWrapper>(
-        config.components.sierra_compiler.local_server_config.channel_capacity,
+        config.components.sierra_compiler.local_server_config.inbound_requests_channel_capacity,
     );
 
     let (tx_state_sync, rx_state_sync) = channel::<StateSyncRequestWrapper>(
-        config.components.state_sync.local_server_config.channel_capacity,
+        config.components.state_sync.local_server_config.inbound_requests_channel_capacity,
     );
 
     SequencerNodeCommunication {

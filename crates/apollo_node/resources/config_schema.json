@@ -409,10 +409,25 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.batcher.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.batcher.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.batcher.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.batcher.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.batcher.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.batcher.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -444,15 +459,15 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.batcher.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "components.batcher.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.batcher.remote_client_config.retry_interval_ms": {
-    "description": "The duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
   },
   "components.batcher.url": {
     "description": "URL of the remote component server.",
@@ -469,10 +484,25 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.class_manager.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.class_manager.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.class_manager.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.class_manager.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.class_manager.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.class_manager.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -504,15 +534,15 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.class_manager.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "components.class_manager.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.class_manager.remote_client_config.retry_interval_ms": {
-    "description": "The duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
   },
   "components.class_manager.url": {
     "description": "URL of the remote component server.",
@@ -534,10 +564,25 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.gateway.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.gateway.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.gateway.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.gateway.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.gateway.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.gateway.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -569,15 +614,15 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.gateway.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "components.gateway.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.gateway.remote_client_config.retry_interval_ms": {
-    "description": "The duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
   },
   "components.gateway.url": {
     "description": "URL of the remote component server.",
@@ -599,10 +644,25 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.l1_endpoint_monitor.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.l1_endpoint_monitor.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.l1_endpoint_monitor.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.l1_endpoint_monitor.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.l1_endpoint_monitor.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.l1_endpoint_monitor.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -634,15 +694,15 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.l1_endpoint_monitor.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "components.l1_endpoint_monitor.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.l1_endpoint_monitor.remote_client_config.retry_interval_ms": {
-    "description": "The duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
   },
   "components.l1_endpoint_monitor.url": {
     "description": "URL of the remote component server.",
@@ -659,10 +719,25 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.l1_gas_price_provider.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.l1_gas_price_provider.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.l1_gas_price_provider.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.l1_gas_price_provider.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.l1_gas_price_provider.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.l1_gas_price_provider.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -694,15 +769,15 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.l1_gas_price_provider.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "components.l1_gas_price_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.l1_gas_price_provider.remote_client_config.retry_interval_ms": {
-    "description": "The duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
   },
   "components.l1_gas_price_provider.url": {
     "description": "URL of the remote component server.",
@@ -724,10 +799,25 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.l1_provider.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.l1_provider.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.l1_provider.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.l1_provider.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.l1_provider.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -759,15 +849,15 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.l1_provider.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "components.l1_provider.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.l1_provider.remote_client_config.retry_interval_ms": {
-    "description": "The duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
   },
   "components.l1_provider.url": {
     "description": "URL of the remote component server.",
@@ -789,10 +879,25 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.mempool.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.mempool.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.mempool.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.mempool.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.mempool.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.mempool.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -824,15 +929,15 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.mempool.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "components.mempool.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.mempool.remote_client_config.retry_interval_ms": {
-    "description": "The duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
   },
   "components.mempool.url": {
     "description": "URL of the remote component server.",
@@ -849,10 +954,25 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.mempool_p2p.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.mempool_p2p.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.mempool_p2p.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.mempool_p2p.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.mempool_p2p.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.mempool_p2p.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -884,15 +1004,15 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.mempool_p2p.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "components.mempool_p2p.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.mempool_p2p.remote_client_config.retry_interval_ms": {
-    "description": "The duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
   },
   "components.mempool_p2p.url": {
     "description": "URL of the remote component server.",
@@ -914,10 +1034,25 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.sierra_compiler.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.sierra_compiler.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.sierra_compiler.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.sierra_compiler.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.sierra_compiler.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.sierra_compiler.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -949,15 +1084,15 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.sierra_compiler.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "components.sierra_compiler.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.sierra_compiler.remote_client_config.retry_interval_ms": {
-    "description": "The duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
   },
   "components.sierra_compiler.url": {
     "description": "URL of the remote component server.",
@@ -974,10 +1109,25 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
-  "components.state_sync.local_server_config.channel_capacity": {
-    "description": "The communication channel buffer size.",
+  "components.state_sync.local_server_config.high_priority_requests_channel_capacity": {
+    "description": "The high priority requests channel capacity.",
     "privacy": "Public",
     "value": 1024
+  },
+  "components.state_sync.local_server_config.inbound_requests_channel_capacity": {
+    "description": "The inbound requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.state_sync.local_server_config.normal_priority_requests_channel_capacity": {
+    "description": "The normal priority requests channel capacity.",
+    "privacy": "Public",
+    "value": 1024
+  },
+  "components.state_sync.local_server_config.processing_time_warning_threshold_ms": {
+    "description": "Request processing threshold time in ms after which a warning message is logged.",
+    "privacy": "Public",
+    "value": 3000
   },
   "components.state_sync.max_concurrency": {
     "description": "The maximum number of concurrent requests handling.",
@@ -1009,15 +1159,15 @@
     "privacy": "Public",
     "value": 10
   },
+  "components.state_sync.remote_client_config.max_retry_interval_ms": {
+    "description": "The maximal duration in milliseconds to wait between remote connection retries.",
+    "privacy": "Public",
+    "value": 1000
+  },
   "components.state_sync.remote_client_config.retries": {
     "description": "The max number of retries for sending a message.",
     "privacy": "Public",
     "value": 150
-  },
-  "components.state_sync.remote_client_config.retry_interval_ms": {
-    "description": "The duration in milliseconds to wait between remote connection retries.",
-    "privacy": "Public",
-    "value": 1000
   },
   "components.state_sync.url": {
     "description": "URL of the remote component server.",

@@ -29,6 +29,7 @@ use crate::component_server::{
     ComponentServerStarter,
     ConcurrentLocalComponentServer,
     LocalComponentServer,
+    LocalServerConfig,
     RemoteComponentServer,
 };
 use crate::tests::{
@@ -117,9 +118,11 @@ struct BasicSetup {
     local_client: LocalTestComponentClient,
     rx: TestReceiver,
     test_sem: Arc<Semaphore>,
+    local_server_config: LocalServerConfig,
 }
 
 fn basic_test_setup() -> BasicSetup {
+    let local_server_config = LocalServerConfig::default();
     let test_sem = Arc::new(Semaphore::new(0));
     let component = TestComponent::new(test_sem.clone());
 
@@ -127,13 +130,15 @@ fn basic_test_setup() -> BasicSetup {
 
     let local_client = LocalTestComponentClient::new(tx);
 
-    BasicSetup { component, local_client, rx, test_sem }
+    BasicSetup { component, local_client, rx, test_sem, local_server_config }
 }
 
 async fn setup_local_server_test() -> (Arc<Semaphore>, LocalTestComponentClient) {
-    let BasicSetup { component, local_client, rx, test_sem } = basic_test_setup();
+    let BasicSetup { component, local_client, rx, test_sem, local_server_config } =
+        basic_test_setup();
 
-    let mut local_server = LocalComponentServer::new(component, rx, &TEST_LOCAL_SERVER_METRICS);
+    let mut local_server =
+        LocalComponentServer::new(component, &local_server_config, rx, &TEST_LOCAL_SERVER_METRICS);
     task::spawn(async move {
         let _ = local_server.start().await;
     });
@@ -144,10 +149,12 @@ async fn setup_local_server_test() -> (Arc<Semaphore>, LocalTestComponentClient)
 async fn setup_concurrent_local_server_test(
     max_concurrency: usize,
 ) -> (Arc<Semaphore>, LocalTestComponentClient) {
-    let BasicSetup { component, local_client, rx, test_sem } = basic_test_setup();
+    let BasicSetup { component, local_client, rx, test_sem, local_server_config } =
+        basic_test_setup();
 
     let mut concurrent_local_server = ConcurrentLocalComponentServer::new(
         component,
+        &local_server_config,
         rx,
         max_concurrency,
         &TEST_LOCAL_SERVER_METRICS,

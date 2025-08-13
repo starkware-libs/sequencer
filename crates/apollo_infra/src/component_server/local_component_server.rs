@@ -27,28 +27,60 @@ use crate::requests::LabeledRequest;
 // TODO(Tsabary): create custom configs per service, considering the required throughput and spike
 // tolerance.
 
-const DEFAULT_CHANNEL_CAPACITY: usize = 1024;
-
+const DEFAULT_INBOUND_REQUESTS_CHANNEL_CAPACITY: usize = 1024;
+const DEFAULT_HIGH_PRIORITY_REQUESTS_CHANNEL_CAPACITY: usize = 1024;
+const DEFAULT_NORMAL_PRIORITY_REQUESTS_CHANNEL_CAPACITY: usize = 1024;
+const DEFAULT_PROCESSING_TIME_WARNING_THRESHOLD_MS: u128 = 3_000;
 // The communication configuration of the local component.
 #[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq)]
 pub struct LocalServerConfig {
-    pub channel_capacity: usize,
+    pub inbound_requests_channel_capacity: usize,
+    pub high_priority_requests_channel_capacity: usize,
+    pub normal_priority_requests_channel_capacity: usize,
+    pub processing_time_warning_threshold_ms: u128,
 }
 
 impl SerializeConfig for LocalServerConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
-        BTreeMap::from_iter([ser_param(
-            "channel_capacity",
-            &self.channel_capacity,
-            "The communication channel buffer size.",
-            ParamPrivacyInput::Public,
-        )])
+        BTreeMap::from_iter([
+            ser_param(
+                "inbound_requests_channel_capacity",
+                &self.inbound_requests_channel_capacity,
+                "The inbound requests channel capacity.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "high_priority_requests_channel_capacity",
+                &self.high_priority_requests_channel_capacity,
+                "The high priority requests channel capacity.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "normal_priority_requests_channel_capacity",
+                &self.normal_priority_requests_channel_capacity,
+                "The normal priority requests channel capacity.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "processing_time_warning_threshold_ms",
+                &self.processing_time_warning_threshold_ms,
+                "Request processing threshold time in ms after which a warning message is logged.",
+                ParamPrivacyInput::Public,
+            ),
+        ])
     }
 }
 
 impl Default for LocalServerConfig {
     fn default() -> Self {
-        Self { channel_capacity: DEFAULT_CHANNEL_CAPACITY }
+        Self {
+            inbound_requests_channel_capacity: DEFAULT_INBOUND_REQUESTS_CHANNEL_CAPACITY,
+            high_priority_requests_channel_capacity:
+                DEFAULT_HIGH_PRIORITY_REQUESTS_CHANNEL_CAPACITY,
+            normal_priority_requests_channel_capacity:
+                DEFAULT_NORMAL_PRIORITY_REQUESTS_CHANNEL_CAPACITY,
+            processing_time_warning_threshold_ms: DEFAULT_PROCESSING_TIME_WARNING_THRESHOLD_MS,
+        }
     }
 }
 
@@ -78,22 +110,24 @@ where
 {
     pub fn new(
         component: Component,
+        config: &LocalServerConfig,
         rx: Receiver<RequestWrapper<Request, Response>>,
         metrics: &'static LocalServerMetrics,
     ) -> Self {
-        // TODO(Tsabary):make the channel capacity configurable.
         let (normal_priority_request_tx, normal_priority_request_rx) =
-            channel::<RequestWrapper<Request, Response>>(1000);
+            channel::<RequestWrapper<Request, Response>>(
+                config.normal_priority_requests_channel_capacity,
+            );
         let (high_priority_request_tx, high_priority_request_rx) =
-            channel::<RequestWrapper<Request, Response>>(1000);
-
-        let processing_time_warning_threshold_ms = 3_000; // TODO(Tsabary): make this configurable.
+            channel::<RequestWrapper<Request, Response>>(
+                config.high_priority_requests_channel_capacity,
+            );
 
         Self {
             component: Some(component),
             rx,
             metrics,
-            processing_time_warning_threshold_ms,
+            processing_time_warning_threshold_ms: config.processing_time_warning_threshold_ms,
             normal_priority_request_tx,
             normal_priority_request_rx: Some(normal_priority_request_rx),
             high_priority_request_tx,
@@ -244,11 +278,12 @@ where
 {
     pub fn new(
         component: Component,
+        config: &LocalServerConfig,
         rx: Receiver<RequestWrapper<Request, Response>>,
         max_concurrency: usize,
         metrics: &'static LocalServerMetrics,
     ) -> Self {
-        let local_component_server = LocalComponentServer::new(component, rx, metrics);
+        let local_component_server = LocalComponentServer::new(component, config, rx, metrics);
         Self { local_component_server, max_concurrency }
     }
 

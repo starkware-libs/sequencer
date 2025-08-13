@@ -14,7 +14,7 @@ use crate::component_definitions::{
     RequestPriority,
     RequestWrapper,
 };
-use crate::component_server::{ComponentServerStarter, LocalComponentServer};
+use crate::component_server::{ComponentServerStarter, LocalComponentServer, LocalServerConfig};
 use crate::tests::TEST_LOCAL_SERVER_METRICS;
 use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 
@@ -93,7 +93,9 @@ async fn request_prioritization() {
     let (tx, rx) = channel::<RequestWrapper<PriorityTestRequest, PriorityTestResponse>>(32);
     let client = LocalComponentClient::new(tx);
     let component = PriorityTestComponent::new();
-    let mut component_server = LocalComponentServer::new(component, rx, &TEST_LOCAL_SERVER_METRICS);
+    let local_server_config = LocalServerConfig::default();
+    let mut component_server =
+        LocalComponentServer::new(component, &local_server_config, rx, &TEST_LOCAL_SERVER_METRICS);
 
     // Send requests with different priorities before starting the server, creating a backlog of
     // mixed priority requests.
