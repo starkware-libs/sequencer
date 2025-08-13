@@ -7,60 +7,7 @@ use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
 
 /// The `LocalComponentClient` struct is a generic client for sending component requests and
-/// receiving responses asynchronously.
-///
-/// # Type Parameters
-/// - `Request`: The type of the request. This type must implement both `Send` and `Sync` traits.
-/// - `Response`: The type of the response. This type must implement both `Send` and `Sync` traits.
-///
-/// # Fields
-/// - `tx`: An asynchronous sender channel for transmitting
-///   `ComponentRequestAndResponseSender<Request, Response>` messages.
-///
-/// # Example
-/// ```rust
-/// // Example usage of the LocalComponentClient
-/// use serde::{Deserialize, Serialize};
-/// use tokio::sync::mpsc::Sender;
-///
-/// use crate::apollo_infra::component_client::LocalComponentClient;
-/// use crate::apollo_infra::component_definitions::{
-///     ComponentClient,
-///     ComponentRequestAndResponseSender,
-/// };
-///
-/// // Define your request and response types
-/// #[derive(Deserialize, Serialize)]
-/// struct MyRequest {
-///     pub content: String,
-/// }
-///
-/// #[derive(Deserialize, Serialize)]
-/// struct MyResponse {
-///     content: String,
-/// }
-///
-/// #[tokio::main]
-/// async fn main() {
-///     // Create a channel for sending requests and receiving responses
-///     let (tx, _rx) = tokio::sync::mpsc::channel::<
-///         ComponentRequestAndResponseSender<MyRequest, MyResponse>,
-///     >(100);
-///
-///     // Instantiate the client.
-///     let client = LocalComponentClient::new(tx);
-///
-///     // Instantiate a request.
-///     let request = MyRequest { content: "Hello, world!".to_string() };
-///
-///     // Send the request; typically, the client should await for a response.
-///     client.send(request);
-/// }
-/// ```
-///
-/// # Notes
-/// - The `LocalComponentClient` struct is designed to work in an asynchronous environment,
-///   utilizing Tokio's async runtime and channels.
+/// receiving responses asynchronously using Tokio mspc channels.
 pub struct LocalComponentClient<Request, Response>
 where
     Request: Send,
