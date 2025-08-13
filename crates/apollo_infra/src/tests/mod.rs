@@ -48,8 +48,34 @@ const TEST_QUEUE_DEPTH: MetricGauge = MetricGauge::new(
     "Test channel queue depth gauge",
 );
 
-pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics =
-    LocalServerMetrics::new(&TEST_MSGS_RECEIVED, &TEST_MSGS_PROCESSED, &TEST_QUEUE_DEPTH);
+const TEST_PROCESSING_TIMES: MetricHistogram = MetricHistogram::new(
+    MetricScope::Infra,
+    "processing_times",
+    "processing_times_filter",
+    "processing_times_sum_filter",
+    "processing_times_count_filter",
+    "Test processing time histogram",
+);
+
+const TEST_QUEUEING_TIMES: MetricHistogram = MetricHistogram::new(
+    MetricScope::Infra,
+    "queueing_times",
+    "queueing_times_filter",
+    "queueing_times_sum_filter",
+    "queueing_times_count_filter",
+    "Test queueing time histogram",
+);
+
+// TODO(Tsabary): remove redundant args from metrics constructor, specifically, the "with_filter"
+// args.
+
+pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
+    &TEST_MSGS_RECEIVED,
+    &TEST_MSGS_PROCESSED,
+    &TEST_QUEUE_DEPTH,
+    &TEST_PROCESSING_TIMES,
+    &TEST_QUEUEING_TIMES,
+);
 
 const REMOTE_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,

@@ -314,6 +314,8 @@ where
 
         tokio::spawn(async move {
             loop {
+                // TODO(Tsabary): record the queueing time.
+                // TODO(Tsabary): add a test for the queueing time metric.
                 let (request, tx) =
                     get_next_request_for_processing(&mut high_rx, &mut normal_rx, &component_name)
                         .await;
@@ -391,6 +393,9 @@ async fn process_request<Request, Response, Component>(
     let response = component.handle_request(request).await;
     let elapsed = start.elapsed();
     let elapsed_ms = elapsed.as_millis();
+    // TODO(Tsabary): add a test for the processing time metric.
+    metrics.record_processing_time(elapsed_ms);
+
     if elapsed.as_millis() > processing_time_warning_threshold_ms {
         warn!(
             "Component {component_name} took {elapsed_ms} ms to process request {request_info:?}, \
