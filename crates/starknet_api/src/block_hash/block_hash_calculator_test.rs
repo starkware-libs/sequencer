@@ -51,7 +51,7 @@ macro_rules! test_hash_changes {
 
             let header = BlockHeaderWithoutHash {
                 l1_da_mode: L1DataAvailabilityMode::Blob,
-                starknet_version: BlockHashVersion::V0_13_4.into(),
+                starknet_version: Some(BlockHashVersion::V0_13_4.into()),
                 $($header_field: $header_value),*
             };
             let commitments = BlockHeaderCommitments {
@@ -165,7 +165,7 @@ fn l2_gas_price_pre_v0_13_4() {
                 price_in_fri: l2_gas_price.into(),
                 price_in_wei: l2_gas_price.into(),
             },
-            starknet_version: BlockHashVersion::V0_13_2.into(),
+            starknet_version: Some(BlockHashVersion::V0_13_2.into()),
             ..Default::default()
         }
     };

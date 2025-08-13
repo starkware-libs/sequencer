@@ -1584,6 +1584,7 @@ async fn read_pending_data<Mode: TransactionKind>(
                 starknet_version: latest_header
                     .block_header_without_hash
                     .starknet_version
+                    .unwrap_or_default()
                     .to_string(),
                 ..Default::default()
             }),
