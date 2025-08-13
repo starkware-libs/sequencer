@@ -19,10 +19,10 @@ use crate::component_client::{
 };
 use crate::component_definitions::{
     ComponentClient,
-    ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
     PrioritizedRequest,
+    RequestWrapper,
 };
 use crate::component_server::{
     ComponentServerStarter,
@@ -56,8 +56,7 @@ enum TestComponentResponse {
 type LocalTestComponentClient = LocalComponentClient<TestComponentRequest, TestComponentResponse>;
 type RemoteTestComponentClient = RemoteComponentClient<TestComponentRequest, TestComponentResponse>;
 
-type TestReceiver =
-    Receiver<ComponentRequestAndResponseSender<TestComponentRequest, TestComponentResponse>>;
+type TestReceiver = Receiver<RequestWrapper<TestComponentRequest, TestComponentResponse>>;
 
 #[async_trait]
 trait TestComponentClientTrait: Send + Sync {
@@ -116,9 +115,7 @@ fn basic_test_setup() -> BasicSetup {
     let test_sem = Arc::new(Semaphore::new(0));
     let component = TestComponent::new(test_sem.clone());
 
-    let (tx, rx) = channel::<
-        ComponentRequestAndResponseSender<TestComponentRequest, TestComponentResponse>,
-    >(32);
+    let (tx, rx) = channel::<RequestWrapper<TestComponentRequest, TestComponentResponse>>(32);
 
     let local_client = LocalTestComponentClient::new(tx);
 

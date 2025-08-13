@@ -4,11 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{
-    ComponentClient,
-    ComponentRequestAndResponseSender,
-    PrioritizedRequest,
-};
+use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
@@ -32,8 +28,8 @@ pub type LocalSierraCompilerClient =
 pub type RemoteSierraCompilerClient =
     RemoteComponentClient<SierraCompilerRequest, SierraCompilerResponse>;
 pub type SharedSierraCompilerClient = Arc<dyn SierraCompilerClient>;
-pub type SierraCompilerRequestAndResponseSender =
-    ComponentRequestAndResponseSender<SierraCompilerRequest, SierraCompilerResponse>;
+pub type SierraCompilerRequestWrapper =
+    RequestWrapper<SierraCompilerRequest, SierraCompilerResponse>;
 
 // TODO(Elin): change to a more efficient serde (bytes, or something similar).
 // A prerequisite for this is to solve serde-untagged lack of support.

@@ -18,10 +18,10 @@ use crate::component_client::{
 };
 use crate::component_definitions::{
     ComponentClient,
-    ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
     PrioritizedRequest,
+    RequestWrapper,
 };
 use crate::component_server::{
     ComponentServerStarter,
@@ -123,9 +123,8 @@ where
 async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
     let component = ConcurrentComponent::new();
 
-    let (tx_a, rx_a) = channel::<
-        ComponentRequestAndResponseSender<ConcurrentComponentRequest, ConcurrentComponentResponse>,
-    >(32);
+    let (tx_a, rx_a) =
+        channel::<RequestWrapper<ConcurrentComponentRequest, ConcurrentComponentResponse>>(32);
 
     let local_client = LocalConcurrentComponentClient::new(tx_a);
 

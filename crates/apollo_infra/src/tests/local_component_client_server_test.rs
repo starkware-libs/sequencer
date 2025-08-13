@@ -4,7 +4,7 @@ use tokio::sync::mpsc::channel;
 use tokio::task;
 
 use crate::component_client::{ClientError, ClientResult, LocalComponentClient};
-use crate::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
+use crate::component_definitions::{ComponentClient, RequestWrapper};
 use crate::component_server::{ComponentServerStarter, LocalComponentServer};
 use crate::tests::{
     test_a_b_functionality,
@@ -64,10 +64,8 @@ async fn local_client_server() {
     let setup_value: ValueB = Felt::from(30);
     let expected_value: ValueA = setup_value;
 
-    let (tx_a, rx_a) =
-        channel::<ComponentRequestAndResponseSender<ComponentARequest, ComponentAResponse>>(32);
-    let (tx_b, rx_b) =
-        channel::<ComponentRequestAndResponseSender<ComponentBRequest, ComponentBResponse>>(32);
+    let (tx_a, rx_a) = channel::<RequestWrapper<ComponentARequest, ComponentAResponse>>(32);
+    let (tx_b, rx_b) = channel::<RequestWrapper<ComponentBRequest, ComponentBResponse>>(32);
 
     let a_client = ComponentAClient::new(tx_a.clone());
     let b_client = ComponentBClient::new(tx_b.clone());

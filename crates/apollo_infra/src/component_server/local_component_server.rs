@@ -14,11 +14,11 @@ use tracing::{error, info, trace, warn};
 use validator::Validate;
 
 use crate::component_definitions::{
-    ComponentRequestAndResponseSender,
     ComponentRequestHandler,
     ComponentStarter,
     PrioritizedRequest,
     RequestPriority,
+    RequestWrapper,
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::LocalServerMetrics;
@@ -70,8 +70,7 @@ impl Default for LocalServerConfig {
 ///
 /// - `component`: The component responsible for handling the requests and generating responses.
 /// - `rx`: A receiver that receives incoming requests along with a sender to send back the
-///   responses. This receiver is of type ` Receiver<ComponentRequestAndResponseSender<Request,
-///   Response>>`.
+///   responses. This receiver is of type ` Receiver<RequestWrapper<Request, Response>>`.
 /// - `metrics`: The metrics for the server.
 pub struct LocalComponentServer<Component, Request, Response>
 where
@@ -79,16 +78,14 @@ where
     Response: Send,
 {
     component: Option<Component>,
-    rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    rx: Receiver<RequestWrapper<Request, Response>>,
     metrics: &'static LocalServerMetrics,
     processing_time_warning_threshold_ms: u128,
 
-    normal_priority_request_rx:
-        Option<Receiver<ComponentRequestAndResponseSender<Request, Response>>>,
-    high_priority_request_rx:
-        Option<Receiver<ComponentRequestAndResponseSender<Request, Response>>>,
-    normal_priority_request_tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
-    high_priority_request_tx: Sender<ComponentRequestAndResponseSender<Request, Response>>,
+    normal_priority_request_rx: Option<Receiver<RequestWrapper<Request, Response>>>,
+    high_priority_request_rx: Option<Receiver<RequestWrapper<Request, Response>>>,
+    normal_priority_request_tx: Sender<RequestWrapper<Request, Response>>,
+    high_priority_request_tx: Sender<RequestWrapper<Request, Response>>,
 }
 
 impl<Component, Request, Response> LocalComponentServer<Component, Request, Response>
@@ -99,14 +96,14 @@ where
 {
     pub fn new(
         component: Component,
-        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+        rx: Receiver<RequestWrapper<Request, Response>>,
         metrics: &'static LocalServerMetrics,
     ) -> Self {
         // TODO(Tsabary):make the channel capacity configurable.
         let (normal_priority_request_tx, normal_priority_request_rx) =
-            channel::<ComponentRequestAndResponseSender<Request, Response>>(1000);
+            channel::<RequestWrapper<Request, Response>>(1000);
         let (high_priority_request_tx, high_priority_request_rx) =
-            channel::<ComponentRequestAndResponseSender<Request, Response>>(1000);
+            channel::<RequestWrapper<Request, Response>>(1000);
 
         let processing_time_warning_threshold_ms = 3_000; // TODO(Tsabary): make this configurable.
 
@@ -152,23 +149,23 @@ where
             "Starting to await requests in the component {} local server",
             short_type_name::<Component>()
         );
-        while let Some(request_and_res_tx) = self.rx.recv().await {
+        while let Some(request_wrapper) = self.rx.recv().await {
             trace!(
                 "Component {} received request {:?} with priority {:?}",
                 short_type_name::<Component>(),
-                request_and_res_tx.request,
-                request_and_res_tx.request.priority()
+                request_wrapper.request,
+                request_wrapper.request.priority()
             );
-            match request_and_res_tx.request.priority() {
+            match request_wrapper.request.priority() {
                 RequestPriority::High => {
                     self.high_priority_request_tx
-                        .send(request_and_res_tx)
+                        .send(request_wrapper)
                         .await
                         .expect("Failed to send high priority request");
                 }
                 RequestPriority::Normal => {
                     self.normal_priority_request_tx
-                        .send(request_and_res_tx)
+                        .send(request_wrapper)
                         .await
                         .expect("Failed to send low priority request");
                 }
@@ -197,9 +194,13 @@ where
 
         tokio::spawn(async move {
             loop {
-                let (request, tx) =
-                    get_next_request_for_processing(&mut high_rx, &mut normal_rx, &component_name)
-                        .await;
+                let (request, tx) = get_next_request_for_processing(
+                    &mut high_rx,
+                    &mut normal_rx,
+                    &component_name,
+                    metrics,
+                )
+                .await;
 
                 process_request(
                     &mut component,
@@ -262,8 +263,7 @@ where
 ///
 /// - `component`: The component responsible for handling the requests and generating responses.
 /// - `rx`: A receiver that receives incoming requests along with a sender to send back the
-///   responses. This receiver is of type ` Receiver<ComponentRequestAndResponseSender<Request,
-///   Response>>`.
+///   responses. This receiver is of type ` Receiver<RequestWrapper<Request, Response>>`.
 /// - `max_concurrency`: The maximum number of concurrent requests that the server can handle.
 /// - `metrics`: The metrics for the server wrapped in Arc so it could be used concurrently.
 pub struct ConcurrentLocalComponentServer<Component, Request, Response>
@@ -283,7 +283,7 @@ where
 {
     pub fn new(
         component: Component,
-        rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+        rx: Receiver<RequestWrapper<Request, Response>>,
         max_concurrency: usize,
         metrics: &'static LocalServerMetrics,
     ) -> Self {
@@ -314,11 +314,14 @@ where
 
         tokio::spawn(async move {
             loop {
-                // TODO(Tsabary): record the queueing time.
                 // TODO(Tsabary): add a test for the queueing time metric.
-                let (request, tx) =
-                    get_next_request_for_processing(&mut high_rx, &mut normal_rx, &component_name)
-                        .await;
+                let (request, tx) = get_next_request_for_processing(
+                    &mut high_rx,
+                    &mut normal_rx,
+                    &component_name,
+                    metrics,
+                )
+                .await;
 
                 // Acquire a permit to run the task.
                 let permit = task_limiter.clone().acquire_owned().await.unwrap();
@@ -419,22 +422,23 @@ where
     Response: Send,
 {
     component: Component,
-    high_rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    normal_rx: Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    high_rx: Receiver<RequestWrapper<Request, Response>>,
+    normal_rx: Receiver<RequestWrapper<Request, Response>>,
     metrics: &'static LocalServerMetrics,
     processing_time_warning_threshold_ms: u128,
 }
 
 async fn get_next_request_for_processing<Request, Response>(
-    high_rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
-    normal_rx: &mut Receiver<ComponentRequestAndResponseSender<Request, Response>>,
+    high_rx: &mut Receiver<RequestWrapper<Request, Response>>,
+    normal_rx: &mut Receiver<RequestWrapper<Request, Response>>,
     component_name: &str,
+    metrics: &'static LocalServerMetrics,
 ) -> (Request, Sender<Response>)
 where
     Request: Send + Debug,
     Response: Send,
 {
-    let request_and_res_tx = tokio::select! {
+    let request_wrapper = tokio::select! {
         // Prioritize high priority requests over normal priority ones using `biased`.
         biased;
         Some(item) = high_rx.recv() => item,
@@ -443,9 +447,15 @@ where
             panic!("Stopped processing requests in the component {component_name} local server");
         }
     };
-    let request = request_and_res_tx.request;
-    let tx = request_and_res_tx.tx;
+    let request = request_wrapper.request;
+    let tx = request_wrapper.tx;
+    let creation_time = request_wrapper.creation_time;
 
-    trace!("Component {component_name} received request {request:?}",);
+    trace!(
+        "Component {component_name} received request {request:?} that was created at \
+         {creation_time:?}",
+    );
+    metrics.record_queueing_time(creation_time.elapsed().as_millis());
+
     (request, tx)
 }

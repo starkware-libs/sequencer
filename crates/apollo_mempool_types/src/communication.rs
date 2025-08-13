@@ -3,9 +3,9 @@ use std::sync::Arc;
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{
     ComponentClient,
-    ComponentRequestAndResponseSender,
     PrioritizedRequest,
     RequestPriority,
+    RequestWrapper,
 };
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
@@ -28,8 +28,7 @@ pub type LocalMempoolClient = LocalComponentClient<MempoolRequest, MempoolRespon
 pub type RemoteMempoolClient = RemoteComponentClient<MempoolRequest, MempoolResponse>;
 pub type MempoolResult<T> = Result<T, MempoolError>;
 pub type MempoolClientResult<T> = Result<T, MempoolClientError>;
-pub type MempoolRequestAndResponseSender =
-    ComponentRequestAndResponseSender<MempoolRequest, MempoolResponse>;
+pub type MempoolRequestWrapper = RequestWrapper<MempoolRequest, MempoolResponse>;
 pub type SharedMempoolClient = Arc<dyn MempoolClient>;
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
