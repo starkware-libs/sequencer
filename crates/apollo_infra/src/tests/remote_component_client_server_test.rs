@@ -75,14 +75,8 @@ const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     initial_retry_delay_ms: 0,
     log_attempt_interval_ms: 1,
 };
-const TEST_METRIC: MetricHistogram = MetricHistogram::new(
-    MetricScope::Infra,
-    "test_histogram",
-    "filter1",
-    "sum_filter",
-    "count_filter",
-    "description",
-);
+const TEST_METRIC: MetricHistogram =
+    MetricHistogram::new(MetricScope::Infra, "test_histogram", "description");
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
