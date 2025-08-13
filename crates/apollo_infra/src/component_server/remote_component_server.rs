@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use apollo_infra_utils::type_name::short_type_name;
-use apollo_metrics::metrics::MetricGauge;
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
