@@ -292,8 +292,8 @@ pub fn ser_optional_param<T: Serialize>(
     ])
 }
 
-/// Serializes is_none flag for a param.
-pub fn ser_is_param_none(name: &str, is_none: bool) -> (String, SerializedParam) {
+// Serializes is_none flag for a param.
+fn ser_is_param_none(name: &str, is_none: bool) -> (String, SerializedParam) {
     common_ser_param(
         format!("{name}{FIELD_SEPARATOR}{IS_NONE_MARK}").as_str(),
         SerializedContent::DefaultValue(json!(is_none)),

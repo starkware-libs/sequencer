@@ -77,8 +77,8 @@ fn valid_component_execution_config(
 ) {
     let component_exe_config = ReactiveComponentExecutionConfig {
         execution_mode,
-        local_server_config,
-        remote_client_config,
+        local_server_config: Some(local_server_config),
+        remote_client_config: Some(remote_client_config),
         max_concurrency: 1,
         url: url.to_string(),
         ip,
