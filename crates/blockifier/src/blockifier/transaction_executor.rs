@@ -295,18 +295,9 @@ fn update_compiled_class_hash_migration_in_state<S: StateReader>(
     bouncer: &Bouncer,
     block_state: &mut CachedState<S>,
 ) -> StateResult<CompiledClassHashesForMigration> {
-    // TODO(Aviv): Use compiled_class_hashes_v2_to_v1 from the bouncer after the refactor.
-    let mut compiled_class_hashes_v2_to_v1: CompiledClassHashesForMigration = Vec::new();
-    for &class_hash in bouncer.class_hashes_to_migrate().keys() {
-        let compiled_class_hash_v1 = block_state
-            .get_compiled_class_hash(class_hash)
-            .expect("Failed to get current compiled class hash for migration");
-
-        let compiled_class_hash_v2 = block_state
-            .state
-            .get_compiled_class_hash_v2(class_hash)
-            .expect("Failed to get compiled class hash v2 for migration");
-
+    for (class_hash, (compiled_class_hash_v2, compiled_class_hash_v1)) in
+        bouncer.class_hashes_to_migrate()
+    {
         // Sanity check: the compiled class hashes should not be equal.
         assert_ne!(
             compiled_class_hash_v1, compiled_class_hash_v2,
@@ -314,10 +305,10 @@ fn update_compiled_class_hash_migration_in_state<S: StateReader>(
         );
 
         // TODO(Meshi): Consider panic here instead of returning an error.
-        block_state.set_compiled_class_hash(class_hash, compiled_class_hash_v2)?;
-        compiled_class_hashes_v2_to_v1.push((compiled_class_hash_v2, compiled_class_hash_v1));
+        block_state.set_compiled_class_hash(*class_hash, *compiled_class_hash_v2)?;
     }
-    Ok(compiled_class_hashes_v2_to_v1)
+    // TODO(Aviv): Consider using mem take instead of cloning.
+    Ok(bouncer.class_hashes_to_migrate().values().cloned().collect())
 }
 
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
