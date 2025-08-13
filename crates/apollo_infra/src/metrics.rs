@@ -88,6 +88,30 @@ define_metrics!(
         MetricHistogram { MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS, "mempool_p2p_propagator_remote_client_send_attempts", "Required number of remote connection attempts made by a mempool p2p remote client"},
         MetricHistogram { SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS, "sierra_compiler_remote_client_send_attempts", "Required number of remote connection attempts made by a sierra compiler remote client"},
         MetricHistogram { STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS, "state_sync_remote_client_send_attempts", "Required number of remote connection attempts made by a state sync remote client"},
+        // Local server histograms
+        // TODO(Tsabary): should be labelled according to request type. This will probably require moving these definitions to the component definitions.
+        MetricHistogram { BATCHER_PROCESSING_TIMES, "batcher_processing_times", "Request processing times of the batcher"},
+        MetricHistogram { CLASS_MANAGER_PROCESSING_TIMES, "class_manager_processing_times", "Request processing times of the class manager"},
+        MetricHistogram { GATEWAY_PROCESSING_TIMES, "gateway_processing_times", "Request processing times of the gateway"},
+        MetricHistogram { L1_ENDPOINT_MONITOR_PROCESSING_TIMES, "l1_endpoint_monitor_processing_times", "Request processing times of the L1 endpoint monitor"},
+        MetricHistogram { L1_PROVIDER_PROCESSING_TIMES, "l1_provider_processing_times", "Request processing times of the L1 provider"},
+        MetricHistogram { L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES, "l1_gas_price_provider_processing_times", "Request processing times of the L1 gas price provider"},
+        MetricHistogram { MEMPOOL_PROCESSING_TIMES, "mempool_processing_times", "Request processing times of the mempool"},
+        MetricHistogram { MEMPOOL_P2P_PROCESSING_TIMES, "mempool_p2p_propagator_processing_times", "Request processing times of the mempool p2p"},
+        MetricHistogram { SIERRA_COMPILER_PROCESSING_TIMES, "sierra_compiler_processing_times", "Request processing times of the sierra compiler"},
+        MetricHistogram { STATE_SYNC_PROCESSING_TIMES, "state_sync_processing_times", "Request processing times of the state sync"},
+
+        MetricHistogram { BATCHER_QUEUEING_TIMES, "batcher_queueing_times", "Request queueing times of the batcher"},
+        MetricHistogram { CLASS_MANAGER_QUEUEING_TIMES, "class_manager_queueing_times", "Request queueing times of the class manager"},
+        MetricHistogram { GATEWAY_QUEUEING_TIMES, "gateway_queueing_times", "Request queueing times of the gateway"},
+        MetricHistogram { L1_ENDPOINT_MONITOR_QUEUEING_TIMES, "l1_endpoint_monitor_queueing_times", "Request queueing times of the L1 endpoint monitor"},
+        MetricHistogram { L1_PROVIDER_QUEUEING_TIMES, "l1_provider_queueing_times", "Request queueing times of the L1 provider"},
+        MetricHistogram { L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES, "l1_gas_price_provider_queueing_times", "Request queueing times of the L1 gas price provider"},
+        MetricHistogram { MEMPOOL_QUEUEING_TIMES, "mempool_queueing_times", "Request queueing times of the mempool"},
+        MetricHistogram { MEMPOOL_P2P_QUEUEING_TIMES, "mempool_p2p_propagator_queueing_times", "Request queueing times of the mempool p2p"},
+        MetricHistogram { SIERRA_COMPILER_QUEUEING_TIMES, "sierra_compiler_queueing_times", "Request queueing times of the sierra compiler"},
+        MetricHistogram { STATE_SYNC_QUEUEING_TIMES, "state_sync_queueing_times", "Request queueing times of the state sync"},
+
     },
 );
 
@@ -117,6 +141,9 @@ pub struct LocalServerMetrics {
     received_msgs: &'static MetricCounter,
     processed_msgs: &'static MetricCounter,
     queue_depth: &'static MetricGauge,
+    // TODO(Tsabary): should be labelled according to request type.
+    processing_times: &'static MetricHistogram,
+    queueing_times: &'static MetricHistogram,
 }
 
 impl LocalServerMetrics {
@@ -124,14 +151,18 @@ impl LocalServerMetrics {
         received_msgs: &'static MetricCounter,
         processed_msgs: &'static MetricCounter,
         queue_depth: &'static MetricGauge,
+        processing_times: &'static MetricHistogram,
+        queueing_times: &'static MetricHistogram,
     ) -> Self {
-        Self { received_msgs, processed_msgs, queue_depth }
+        Self { received_msgs, processed_msgs, queue_depth, processing_times, queueing_times }
     }
 
     pub fn register(&self) {
         self.received_msgs.register();
         self.processed_msgs.register();
         self.queue_depth.register();
+        self.processing_times.register();
+        self.queueing_times.register();
     }
 
     pub fn increment_received(&self) {
@@ -165,6 +196,15 @@ impl LocalServerMetrics {
         self.queue_depth
             .parse_numeric_metric::<usize>(metrics_as_string)
             .expect("queue_depth metrics should be available")
+    }
+
+    // TODO(Tsabary): add the getter fns for tests.
+    pub fn record_processing_time(&self, value: u128) {
+        self.processing_times.record_lossy(value);
+    }
+
+    pub fn record_queueing_time(&self, value: u128) {
+        self.queueing_times.record_lossy(value);
     }
 }
 
