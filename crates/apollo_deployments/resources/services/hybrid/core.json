@@ -118,7 +118,7 @@
   "components.state_sync.execution_mode": "LocalExecutionWithRemoteEnabled",
   "components.state_sync.ip": "0.0.0.0",
   "components.state_sync.local_server_config.channel_capacity": 1024,
-  "components.state_sync.max_concurrency": 128,
+  "components.state_sync.max_concurrency": 8,
   "components.state_sync.port": 55009,
   "components.state_sync.remote_client_config.idle_connections": 10,
   "components.state_sync.remote_client_config.idle_timeout_ms": 30000,
