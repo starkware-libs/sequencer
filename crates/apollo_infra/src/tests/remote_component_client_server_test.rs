@@ -1,13 +1,17 @@
 use std::fmt::Debug;
+use std::future::ready;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
+use apollo_infra_utils::run_until::run_until;
 use apollo_metrics::metrics::{MetricHistogram, MetricScope};
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
+use metrics::set_default_local_recorder;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -168,8 +172,16 @@ where
 /// - Two in-flight requests exhaust the limit and a third is **immediately rejected** with `503
 ///   Service Unavailable` and the message `"Server is busy addressing previous requests"`.
 /// - After releasing permits on the shared semaphore, a subsequent request succeeds.
+/// This test also verifies that the number of connections to the remote server metric is updated
+/// correctly.
 #[tokio::test]
 async fn remote_connection_concurrency() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = set_default_local_recorder(&recorder);
+    TEST_REMOTE_SERVER_METRICS.register();
+    const METRIC_SAMPLING_INTERVAL_MILLIS: u64 = 5;
+    const MAX_ATTEMPTS: usize = 50;
+
     let setup_value: ValueB = Felt::from(90);
     let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
@@ -195,10 +207,43 @@ async fn remote_connection_concurrency() {
     // First two requests will block on the semaphore inside ComponentA
     let fut1 =
         tokio::spawn(async move { client1.send(ComponentARequest::AGetValue).await.unwrap() });
+
+    tokio::task::yield_now().await;
+    run_until(
+        METRIC_SAMPLING_INTERVAL_MILLIS,
+        MAX_ATTEMPTS,
+        || {
+            let metric_recorder = recorder.handle().render();
+            ready(
+                TEST_REMOTE_SERVER_METRICS
+                    .get_number_of_connections_value(metric_recorder.as_str()),
+            )
+        },
+        |connections| *connections == 1,
+        None,
+    )
+    .await
+    .unwrap();
+
     let _fut2 =
         tokio::spawn(async move { client2.send(ComponentARequest::AGetValue).await.unwrap() });
 
     tokio::task::yield_now().await;
+    run_until(
+        METRIC_SAMPLING_INTERVAL_MILLIS,
+        MAX_ATTEMPTS,
+        || {
+            let metric_recorder = recorder.handle().render();
+            ready(
+                TEST_REMOTE_SERVER_METRICS
+                    .get_number_of_connections_value(metric_recorder.as_str()),
+            )
+        },
+        |connections| *connections == 2,
+        None,
+    )
+    .await
+    .unwrap();
 
     let err = client3
         .send(ComponentARequest::AGetValue)
@@ -217,13 +262,62 @@ async fn remote_connection_concurrency() {
         other => panic!("expected ResponseError(503, _), got: {other:?}"),
     }
 
+    run_until(
+        METRIC_SAMPLING_INTERVAL_MILLIS,
+        MAX_ATTEMPTS,
+        || {
+            let metric_recorder = recorder.handle().render();
+            ready(
+                TEST_REMOTE_SERVER_METRICS
+                    .get_number_of_connections_value(metric_recorder.as_str()),
+            )
+        },
+        |connections| *connections == 2,
+        None,
+    )
+    .await
+    .unwrap();
+
     // Release one slot
     semaphore.add_permits(1);
     fut1.await.unwrap();
 
+    run_until(
+        METRIC_SAMPLING_INTERVAL_MILLIS,
+        MAX_ATTEMPTS,
+        || {
+            let metric_recorder = recorder.handle().render();
+            ready(
+                TEST_REMOTE_SERVER_METRICS
+                    .get_number_of_connections_value(metric_recorder.as_str()),
+            )
+        },
+        |connections| *connections == 1,
+        None,
+    )
+    .await
+    .unwrap();
+
     let result4 = client4.send(ComponentARequest::AGetValue).await;
     assert!(result4.is_ok(), "Expected client4 to succeed after one slot was freed");
+
+    run_until(
+        METRIC_SAMPLING_INTERVAL_MILLIS,
+        MAX_ATTEMPTS,
+        || {
+            let metric_recorder = recorder.handle().render();
+            ready(
+                TEST_REMOTE_SERVER_METRICS
+                    .get_number_of_connections_value(metric_recorder.as_str()),
+            )
+        },
+        |connections| *connections == 2,
+        None,
+    )
+    .await
+    .unwrap();
 }
+
 async fn setup_for_tests(
     setup_value: ValueB,
     a_socket: SocketAddr,
