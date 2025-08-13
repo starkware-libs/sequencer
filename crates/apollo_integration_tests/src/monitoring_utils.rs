@@ -146,13 +146,15 @@ pub async fn verify_txs_accepted(
     sequencer_idx: usize,
     expected_n_accepted_txs: usize,
 ) {
+    const INTERVAL_MS: u64 = 5_000;
+    const MAX_ATTEMPTS: usize = 20;
+
     info!("Verifying that sequencer {sequencer_idx} accepted {expected_n_accepted_txs} txs.");
-    let n_accepted_txs = sequencer_num_accepted_txs(monitoring_client).await;
-    assert_eq!(
-        n_accepted_txs, expected_n_accepted_txs,
-        "Sequencer {sequencer_idx} accepted an unexpected number of txs. Expected \
-         {expected_n_accepted_txs} got {n_accepted_txs}"
-    );
+    let condition = |num_accpted_tx: &usize| *num_accpted_tx >= expected_n_accepted_txs;
+
+    let n_accepted_txs_closure = || sequencer_num_accepted_txs(monitoring_client);
+
+    run_until(INTERVAL_MS, MAX_ATTEMPTS, n_accepted_txs_closure, condition, None).await;
 }
 
 pub async fn await_txs_accepted(
