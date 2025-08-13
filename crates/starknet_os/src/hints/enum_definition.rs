@@ -154,6 +154,7 @@ use crate::hints::hint_implementation::os_logger::{
     os_logger_exit_syscall,
 };
 use crate::hints::hint_implementation::output::{
+    calculate_keys_using_sha256_hash,
     set_compressed_start,
     set_n_updates_small,
     set_state_updates_start,
@@ -922,6 +923,11 @@ ids.initial_carried_outputs = segments.gen_arg(
         assert val == 0
         offset += val_len"#}
     ),
+    (
+        GenerateKeysUsingSha256Hash,
+        calculate_keys_using_sha256_hash,
+        "generate_keys_from_hash(ids.compressed_start, ids.compressed_dst, ids.n_keys)"
+    )
 );
 
 define_common_hint_enum!(
