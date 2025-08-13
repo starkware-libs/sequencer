@@ -158,6 +158,7 @@ use crate::hints::hint_implementation::os_logger::{
     os_logger_exit_syscall,
 };
 use crate::hints::hint_implementation::output::{
+    get_symmetric_key,
     set_compressed_start,
     set_n_updates_small,
     set_state_updates_start,
@@ -929,6 +930,7 @@ ids.initial_carried_outputs = segments.gen_arg(
         assert val == 0
         offset += val_len"#}
     ),
+    (GetSymmetricKey, get_symmetric_key, "memory[ap] = to_felt_or_relocatable(symmetric_key)")
 );
 
 define_common_hint_enum!(

@@ -122,6 +122,7 @@ func serialize_os_output{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, output
         state_updates_start=state_updates_start,
         state_updates_end=state_updates_ptr,
         compress_state_updates=compress_state_updates,
+        public_key=public_key,
     );
 
     if (use_kzg_da != FALSE) {
@@ -231,7 +232,10 @@ func serialize_os_kzg_commitment_info{output_ptr: felt*}(
 
 // Returns the final data-availability to output.
 func process_data_availability{range_check_ptr}(
-    state_updates_start: felt*, state_updates_end: felt*, compress_state_updates: felt
+    state_updates_start: felt*,
+    state_updates_end: felt*,
+    compress_state_updates: felt,
+    public_key: EcPoint*,
 ) -> (da_start: felt*, da_end: felt*) {
     if (compress_state_updates == 0) {
         return (da_start=state_updates_start, da_end=state_updates_end);
@@ -252,6 +256,11 @@ func process_data_availability{range_check_ptr}(
     with compressed_dst {
         compress(data_start=state_updates_start, data_end=state_updates_end);
     }
+    if (public_key.x == 0) {
+        return (da_start=compressed_start, da_end=compressed_dst);
+    }
+    tempvar symmetric_key = nondet %{ symmetric_key %};
+    // TODO(Einat): encrypt the data with the symmetric key.
     return (da_start=compressed_start, da_end=compressed_dst);
 }
 
