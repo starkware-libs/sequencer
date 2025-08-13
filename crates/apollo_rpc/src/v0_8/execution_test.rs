@@ -28,6 +28,7 @@ use apollo_starknet_client::reader::objects::transaction::{
 use apollo_starknet_client::reader::PendingData;
 use apollo_storage::body::BodyStorageWriter;
 use apollo_storage::class::ClassStorageWriter;
+use apollo_storage::class_hash::ClassHashStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
 use apollo_storage::header::HeaderStorageWriter;
 use apollo_storage::state::StateStorageWriter;
@@ -1709,6 +1710,8 @@ fn prepare_storage_for_execution(mut storage_writer: StorageWriter) -> StorageWr
                 ),
             },
         )
+        .unwrap()
+        .set_executable_class_hash_v2(&class_hash2, compiled_class_hash)
         .unwrap()
         .append_classes(
             BlockNumber(0),
