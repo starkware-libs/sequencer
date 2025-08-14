@@ -13,7 +13,11 @@ use apollo_central_sync::{
 use apollo_class_manager_types::SharedClassManagerClient;
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra::component_server::WrapperServer;
-use apollo_network::network_manager::metrics::{NetworkMetrics, SqmrNetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    NetworkErrorMetrics,
+    NetworkMetrics,
+    SqmrNetworkMetrics,
+};
 use apollo_network::network_manager::{NetworkError, NetworkManager};
 use apollo_p2p_sync::client::{
     P2pSyncClient,
@@ -37,6 +41,7 @@ use apollo_state_sync_metrics::metrics::{
     P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
     P2P_SYNC_NUM_BLACKLISTED_PEERS,
     P2P_SYNC_NUM_CONNECTED_PEERS,
+    P2P_SYNC_NUM_INSUFFICIENT_PEERS_ERRORS,
     STATE_SYNC_REVERTED_TRANSACTIONS,
 };
 use apollo_state_sync_types::state_sync_types::SyncBlock;
@@ -213,6 +218,9 @@ impl StateSyncRunner {
                     num_active_inbound_sessions: P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
                     num_active_outbound_sessions: P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
                 }),
+                error_metrics: NetworkErrorMetrics {
+                    num_insufficient_peers_errors: P2P_SYNC_NUM_INSUFFICIENT_PEERS_ERRORS,
+                },
             });
             NetworkManager::new(
                 network_config.clone(),

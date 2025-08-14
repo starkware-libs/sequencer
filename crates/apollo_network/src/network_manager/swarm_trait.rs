@@ -1,5 +1,5 @@
 use futures::stream::Stream;
-use libp2p::gossipsub::{SubscriptionError, TopicHash};
+use libp2p::gossipsub::{PublishError, SubscriptionError, TopicHash};
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::{DialError, NetworkBehaviour, SwarmEvent};
 use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm};
@@ -42,7 +42,11 @@ pub trait SwarmTrait: Stream<Item = Event> + Unpin {
 
     fn subscribe_to_topic(&mut self, topic: &Topic) -> Result<(), SubscriptionError>;
 
-    fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash);
+    fn broadcast_message(
+        &mut self,
+        message: Bytes,
+        topic_hash: TopicHash,
+    ) -> Result<(), PublishError>;
 
     fn report_peer_as_malicious(&mut self, peer_id: PeerId, misconduct_score: MisconductScore);
 
@@ -98,9 +102,13 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
         self.behaviour_mut().gossipsub.subscribe(topic).map(|_| ())
     }
 
-    fn broadcast_message(&mut self, message: Bytes, topic_hash: TopicHash) {
+    fn broadcast_message(
+        &mut self,
+        message: Bytes,
+        topic_hash: TopicHash,
+    ) -> Result<(), PublishError> {
         let result = self.behaviour_mut().gossipsub.publish(topic_hash.clone(), message);
-        if let Err(err) = result {
+        if let Err(ref err) = result {
             // TODO(shahak): Consider reporting to the subscriber broadcast failures or retrying
             // upon failure.
             warn!(
@@ -108,6 +116,7 @@ impl SwarmTrait for Swarm<mixed_behaviour::MixedBehaviour> {
                  {topic_hash:?}: {err:?}"
             );
         }
+        result.map(|_| ())
     }
 
     fn report_peer_as_malicious(&mut self, peer_id: PeerId, misconduct_score: MisconductScore) {

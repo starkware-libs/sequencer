@@ -29,6 +29,16 @@ impl SqmrNetworkMetrics {
     }
 }
 
+pub struct NetworkErrorMetrics {
+    pub num_insufficient_peers_errors: MetricCounter,
+}
+
+impl NetworkErrorMetrics {
+    pub fn register(&self) {
+        self.num_insufficient_peers_errors.register();
+    }
+}
+
 // TODO(alonl, shahak): Consider making these fields private and receive Topics instead of
 // TopicHashes in the constructor
 pub struct NetworkMetrics {
@@ -36,6 +46,7 @@ pub struct NetworkMetrics {
     pub num_blacklisted_peers: MetricGauge,
     pub broadcast_metrics_by_topic: Option<HashMap<TopicHash, BroadcastNetworkMetrics>>,
     pub sqmr_metrics: Option<SqmrNetworkMetrics>,
+    pub error_metrics: NetworkErrorMetrics,
 }
 
 impl NetworkMetrics {
@@ -52,5 +63,6 @@ impl NetworkMetrics {
         if let Some(sqmr_metrics) = self.sqmr_metrics.as_ref() {
             sqmr_metrics.register();
         }
+        self.error_metrics.register();
     }
 }

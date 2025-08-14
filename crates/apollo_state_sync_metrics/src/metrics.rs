@@ -19,6 +19,7 @@ define_metrics!(
         MetricGauge { P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS, "apollo_p2p_sync_num_active_inbound_sessions", "The number of inbound sessions to the p2p sync component" },
         MetricGauge { P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS, "apollo_p2p_sync_num_active_outbound_sessions", "The number of outbound sessions to the p2p sync component" },
         MetricGauge { P2P_SYNC_NUM_BLACKLISTED_PEERS, "apollo_p2p_sync_num_blacklisted_peers", "The number of currently blacklisted peers by the p2p sync component" },
+        MetricCounter { P2P_SYNC_NUM_INSUFFICIENT_PEERS_ERRORS, "apollo_p2p_sync_num_insufficient_peers_errors", "The number of InsufficientPeers errors encountered while broadcasting messages", init = 0 },
         // Metrics common to central and p2p.
         MetricGauge { STATE_SYNC_HEADER_MARKER, "apollo_state_sync_header_marker", "The first block number for which the state sync component does not have a header" },
         MetricGauge { STATE_SYNC_BODY_MARKER, "apollo_state_sync_body_marker", "The first block number for which the state sync component does not have a body" },

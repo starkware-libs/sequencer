@@ -21,7 +21,11 @@ use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
-use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
+use apollo_network::network_manager::metrics::{
+    BroadcastNetworkMetrics,
+    NetworkErrorMetrics,
+    NetworkMetrics,
+};
 use apollo_network::network_manager::{BroadcastTopicChannels, NetworkManager};
 use apollo_protobuf::consensus::{HeightAndRound, ProposalPart, StreamMessage, Vote};
 use apollo_reverts::revert_blocks_and_eternal_pending;
@@ -36,6 +40,7 @@ use crate::config::ConsensusManagerConfig;
 use crate::metrics::{
     CONSENSUS_NUM_BLACKLISTED_PEERS,
     CONSENSUS_NUM_CONNECTED_PEERS,
+    CONSENSUS_NUM_INSUFFICIENT_PEERS_ERRORS,
     CONSENSUS_PROPOSALS_NUM_RECEIVED_MESSAGES,
     CONSENSUS_PROPOSALS_NUM_SENT_MESSAGES,
     CONSENSUS_VOTES_NUM_RECEIVED_MESSAGES,
@@ -93,6 +98,9 @@ impl ConsensusManager {
             num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
             broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
             sqmr_metrics: None,
+            error_metrics: NetworkErrorMetrics {
+                num_insufficient_peers_errors: CONSENSUS_NUM_INSUFFICIENT_PEERS_ERRORS,
+            },
         });
         let mut network_manager =
             NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics);
