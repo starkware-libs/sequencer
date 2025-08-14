@@ -117,7 +117,18 @@ pub fn calculate_block_hash(
     header: BlockHeaderWithoutHash,
     block_commitments: BlockHeaderCommitments,
 ) -> StarknetApiResult<BlockHash> {
-    let block_hash_version: BlockHashVersion = header.starknet_version.try_into()?;
+    // Replace match with a map_none. is Ok?
+    let starknet_version = match header.starknet_version {
+        Some(starknet_version) => starknet_version,
+        None => {
+            tracing::debug!(
+                "Calculating block hash for an unsupported Starknet version. Probably For \
+                 Starknet version before 0_9_1."
+            );
+            return Err(StarknetApiError::InvalidStarknetVersion(vec![]));
+        }
+    };
+    let block_hash_version: BlockHashVersion = starknet_version.try_into()?;
     Ok(BlockHash(
         HashChain::new()
             .chain(&block_hash_version.clone().into())
@@ -139,9 +150,7 @@ pub fn calculate_block_hash(
                 )
                 .iter(),
             )
-            .chain(
-                &ascii_as_felt(&header.starknet_version.to_string()).expect("Expect ASCII version"),
-            )
+            .chain(&ascii_as_felt(&starknet_version.to_string()).expect("Expect ASCII version"))
             .chain(&Felt::ZERO)
             .chain(&header.parent_hash.0)
             .get_poseidon_hash(),

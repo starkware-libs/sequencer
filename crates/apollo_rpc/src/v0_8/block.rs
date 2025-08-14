@@ -69,7 +69,10 @@ impl From<starknet_api::block::BlockHeader> for BlockHeader {
                 price_in_fri: header.block_header_without_hash.l2_gas_price.price_in_fri,
             },
             l1_da_mode: header.block_header_without_hash.l1_da_mode,
-            starknet_version: header.block_header_without_hash.starknet_version.to_string(),
+            starknet_version: match header.block_header_without_hash.starknet_version {
+                Some(version) => version.to_string(),
+                None => "missing".to_string(),
+            },
         }
     }
 }

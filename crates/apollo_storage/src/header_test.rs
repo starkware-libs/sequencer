@@ -152,7 +152,7 @@ async fn starknet_version() {
         BlockHeader {
             block_hash: BlockHash(felt!(hash)),
             block_header_without_hash: BlockHeaderWithoutHash {
-                starknet_version,
+                starknet_version: Some(starknet_version),
                 ..Default::default()
             },
             ..Default::default()

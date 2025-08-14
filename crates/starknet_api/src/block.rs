@@ -210,7 +210,7 @@ pub struct BlockHeader {
 }
 
 /// The header of a [Block](`crate::block::Block`) without hashing.
-#[derive(Debug, Default, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct BlockHeaderWithoutHash {
     pub parent_hash: BlockHash,
     pub block_number: BlockNumber,
@@ -223,9 +223,27 @@ pub struct BlockHeaderWithoutHash {
     pub sequencer: SequencerContractAddress,
     pub timestamp: BlockTimestamp,
     pub l1_da_mode: L1DataAvailabilityMode,
-    pub starknet_version: StarknetVersion,
+    pub starknet_version: Option<StarknetVersion>,
 }
 
+impl Default for BlockHeaderWithoutHash {
+    fn default() -> Self {
+        Self {
+            parent_hash: Default::default(),
+            block_number: Default::default(),
+            l1_gas_price: Default::default(),
+            l1_data_gas_price: Default::default(),
+            l2_gas_price: Default::default(),
+            l2_gas_consumed: Default::default(),
+            next_l2_gas_price: Default::default(),
+            state_root: Default::default(),
+            sequencer: Default::default(),
+            timestamp: Default::default(),
+            l1_da_mode: Default::default(),
+            starknet_version: Some(Default::default()),
+        }
+    }
+}
 /// The [transactions](`crate::transaction::Transaction`) and their
 /// [outputs](`crate::transaction::TransactionOutput`) in a [block](`crate::block::Block`).
 #[derive(Debug, Default, Clone, Eq, PartialEq, Deserialize, Serialize)]

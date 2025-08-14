@@ -340,7 +340,7 @@ impl Block {
                 timestamp: self.timestamp(),
                 l1_data_gas_price: self.l1_data_gas_price(),
                 l1_da_mode: self.l1_da_mode(),
-                starknet_version: self.starknet_version(),
+                starknet_version: Some(self.starknet_version()),
             },
             state_diff_commitment: self.state_diff_commitment(),
             transaction_commitment,
