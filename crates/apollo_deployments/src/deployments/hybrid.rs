@@ -676,7 +676,7 @@ impl ServiceNameInner for HybridNodeServiceName {
 
     fn get_update_strategy(&self) -> UpdateStrategy {
         match self {
-            HybridNodeServiceName::Core => UpdateStrategy::Recreate,
+            HybridNodeServiceName::Core => UpdateStrategy::RollingUpdate,
             HybridNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
             HybridNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
             HybridNodeServiceName::L1 => UpdateStrategy::RollingUpdate,

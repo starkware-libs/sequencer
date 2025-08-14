@@ -35,7 +35,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "update_strategy_type": "Recreate",
+      "update_strategy_type": "RollingUpdate",
       "ports": {
         "Batcher": 55000,
         "ClassManager": 55001,
