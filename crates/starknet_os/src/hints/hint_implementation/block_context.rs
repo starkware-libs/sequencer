@@ -77,3 +77,11 @@ pub(crate) fn write_use_kzg_da_to_memory<S: StateReader>(
         Felt::from(use_kzg_da),
     )
 }
+
+pub(crate) fn public_key_hash<S: StateReader>(
+    hint_processor: &mut SnosHintProcessor<'_, S>,
+    HintArgs { vm, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let public_key_hash = hint_processor.os_hints_config.public_key_hash;
+    Ok(insert_value_into_ap(vm, public_key_hash)?)
+}
