@@ -30,6 +30,7 @@ use crate::io::os_input::{
 };
 use crate::io::os_output::{StarknetAggregatorRunnerOutput, StarknetOsRunnerOutput};
 use crate::metrics::OsMetrics;
+use crate::test_utils::validate_builtins;
 pub struct RunnerReturnObject {
     #[cfg(feature = "include_program_output")]
     pub raw_output: Vec<Felt>,
@@ -196,7 +197,7 @@ pub fn run_os_for_testing<S: StateReader>(
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<(StarknetOsRunnerOutput, Vec<OsTransactionTrace>), StarknetOsError> {
-    let (runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
+    let (mut runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
         layout,
         os_hints_config,
         &os_block_inputs,
@@ -205,6 +206,8 @@ pub fn run_os_for_testing<S: StateReader>(
         compiled_classes,
         state_readers,
     )?;
+
+    validate_builtins(&mut runner_output.cairo_runner);
 
     let txs_trace: Vec<OsTransactionTrace> =
         snos_hint_processor.get_current_execution_helper().unwrap().os_logger.get_txs().clone();
