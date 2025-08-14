@@ -12,6 +12,7 @@ use apollo_state_sync_types::communication::StateSyncRequestWrapper;
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tracing::info;
 
+use crate::config::component_execution_config::ExpectedComponentConfig;
 use crate::config::node_config::SequencerNodeConfig;
 
 pub struct SequencerNodeCommunication {
@@ -111,79 +112,167 @@ impl SequencerNodeCommunication {
 
 pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommunication {
     info!("Creating node channels.");
-    let (tx_batcher, rx_batcher) = channel::<BatcherRequestWrapper>(
-        config.components.batcher.local_server_config.inbound_requests_channel_capacity,
-    );
+    let (tx_batcher, rx_batcher) =
+        match config.components.batcher.execution_mode.is_component_config_expected() {
+            true => {
+                let (tx_batcher, rx_batcher) = channel::<BatcherRequestWrapper>(
+                    config.components.batcher.local_server_config.inbound_requests_channel_capacity,
+                );
+                (Some(tx_batcher), Some(rx_batcher))
+            }
+            false => (None, None),
+        };
 
-    let (tx_class_manager, rx_class_manager) = channel::<ClassManagerRequestWrapper>(
-        config.components.class_manager.local_server_config.inbound_requests_channel_capacity,
-    );
+    let (tx_class_manager, rx_class_manager) =
+        match config.components.class_manager.execution_mode.is_component_config_expected() {
+            true => {
+                let (tx_class_manager, rx_class_manager) = channel::<ClassManagerRequestWrapper>(
+                    config
+                        .components
+                        .class_manager
+                        .local_server_config
+                        .inbound_requests_channel_capacity,
+                );
+                (Some(tx_class_manager), Some(rx_class_manager))
+            }
+            false => (None, None),
+        };
 
-    let (tx_gateway, rx_gateway) = channel::<GatewayRequestWrapper>(
-        config.components.gateway.local_server_config.inbound_requests_channel_capacity,
-    );
+    let (tx_gateway, rx_gateway) =
+        match config.components.gateway.execution_mode.is_component_config_expected() {
+            true => {
+                let (tx_gateway, rx_gateway) = channel::<GatewayRequestWrapper>(
+                    config.components.gateway.local_server_config.inbound_requests_channel_capacity,
+                );
+                (Some(tx_gateway), Some(rx_gateway))
+            }
+            false => (None, None),
+        };
 
-    let (tx_l1_endpoint_monitor, rx_l1_endpoint_monitor) = channel::<L1EndpointMonitorRequestWrapper>(
-        config.components.l1_endpoint_monitor.local_server_config.inbound_requests_channel_capacity,
-    );
+    let (tx_l1_endpoint_monitor, rx_l1_endpoint_monitor) =
+        match config.components.l1_endpoint_monitor.execution_mode.is_component_config_expected() {
+            true => {
+                let (tx_l1_endpoint_monitor, rx_l1_endpoint_monitor) =
+                    channel::<L1EndpointMonitorRequestWrapper>(
+                        config
+                            .components
+                            .l1_endpoint_monitor
+                            .local_server_config
+                            .inbound_requests_channel_capacity,
+                    );
+                (Some(tx_l1_endpoint_monitor), Some(rx_l1_endpoint_monitor))
+            }
+            false => (None, None),
+        };
 
-    let (tx_l1_provider, rx_l1_provider) = channel::<L1ProviderRequestWrapper>(
-        config.components.l1_provider.local_server_config.inbound_requests_channel_capacity,
-    );
+    let (tx_l1_provider, rx_l1_provider) = match config
+        .components
+        .l1_provider
+        .execution_mode
+        .is_component_config_expected()
+    {
+        true => {
+            let (tx_l1_provider, rx_l1_provider) = channel::<L1ProviderRequestWrapper>(
+                config.components.l1_provider.local_server_config.inbound_requests_channel_capacity,
+            );
+            (Some(tx_l1_provider), Some(rx_l1_provider))
+        }
+        false => (None, None),
+    };
 
-    let (tx_l1_gas_price, rx_l1_gas_price) = channel::<L1GasPriceRequestWrapper>(
-        config
-            .components
-            .l1_gas_price_provider
-            .local_server_config
-            .inbound_requests_channel_capacity,
-    );
+    let (tx_l1_gas_price, rx_l1_gas_price) =
+        match config.components.l1_gas_price_provider.execution_mode.is_component_config_expected()
+        {
+            true => {
+                let (tx_l1_gas_price, rx_l1_gas_price) = channel::<L1GasPriceRequestWrapper>(
+                    config
+                        .components
+                        .l1_gas_price_provider
+                        .local_server_config
+                        .inbound_requests_channel_capacity,
+                );
+                (Some(tx_l1_gas_price), Some(rx_l1_gas_price))
+            }
+            false => (None, None),
+        };
 
-    let (tx_mempool, rx_mempool) = channel::<MempoolRequestWrapper>(
-        config.components.mempool.local_server_config.inbound_requests_channel_capacity,
-    );
+    let (tx_mempool, rx_mempool) =
+        match config.components.mempool.execution_mode.is_component_config_expected() {
+            true => {
+                let (tx_mempool, rx_mempool) = channel::<MempoolRequestWrapper>(
+                    config.components.mempool.local_server_config.inbound_requests_channel_capacity,
+                );
+                (Some(tx_mempool), Some(rx_mempool))
+            }
+            false => (None, None),
+        };
 
     let (tx_mempool_p2p_propagator, rx_mempool_p2p_propagator) =
-        channel::<MempoolP2pPropagatorRequestWrapper>(
-            config.components.mempool_p2p.local_server_config.inbound_requests_channel_capacity,
-        );
+        match config.components.mempool_p2p.execution_mode.is_component_config_expected() {
+            true => {
+                let (tx_mempool_p2p_propagator, rx_mempool_p2p_propagator) =
+                    channel::<MempoolP2pPropagatorRequestWrapper>(
+                        config
+                            .components
+                            .mempool_p2p
+                            .local_server_config
+                            .inbound_requests_channel_capacity,
+                    );
+                (Some(tx_mempool_p2p_propagator), Some(rx_mempool_p2p_propagator))
+            }
+            false => (None, None),
+        };
 
-    let (tx_sierra_compiler, rx_sierra_compiler) = channel::<SierraCompilerRequestWrapper>(
-        config.components.sierra_compiler.local_server_config.inbound_requests_channel_capacity,
-    );
+    let (tx_sierra_compiler, rx_sierra_compiler) =
+        match config.components.sierra_compiler.execution_mode.is_component_config_expected() {
+            true => {
+                let (tx_sierra_compiler, rx_sierra_compiler) =
+                    channel::<SierraCompilerRequestWrapper>(
+                        config
+                            .components
+                            .sierra_compiler
+                            .local_server_config
+                            .inbound_requests_channel_capacity,
+                    );
+                (Some(tx_sierra_compiler), Some(rx_sierra_compiler))
+            }
+            false => (None, None),
+        };
 
-    let (tx_state_sync, rx_state_sync) = channel::<StateSyncRequestWrapper>(
-        config.components.state_sync.local_server_config.inbound_requests_channel_capacity,
-    );
+    let (tx_state_sync, rx_state_sync) = match config
+        .components
+        .state_sync
+        .execution_mode
+        .is_component_config_expected()
+    {
+        true => {
+            let (tx_state_sync, rx_state_sync) = channel::<StateSyncRequestWrapper>(
+                config.components.state_sync.local_server_config.inbound_requests_channel_capacity,
+            );
+            (Some(tx_state_sync), Some(rx_state_sync))
+        }
+        false => (None, None),
+    };
 
     SequencerNodeCommunication {
-        batcher_channel: ComponentCommunication::new(Some(tx_batcher), Some(rx_batcher)),
-        class_manager_channel: ComponentCommunication::new(
-            Some(tx_class_manager),
-            Some(rx_class_manager),
-        ),
-        gateway_channel: ComponentCommunication::new(Some(tx_gateway), Some(rx_gateway)),
+        batcher_channel: ComponentCommunication::new(tx_batcher, rx_batcher),
+        class_manager_channel: ComponentCommunication::new(tx_class_manager, rx_class_manager),
+        gateway_channel: ComponentCommunication::new(tx_gateway, rx_gateway),
         l1_endpoint_monitor_channel: ComponentCommunication::new(
-            Some(tx_l1_endpoint_monitor),
-            Some(rx_l1_endpoint_monitor),
+            tx_l1_endpoint_monitor,
+            rx_l1_endpoint_monitor,
         ),
-        l1_provider_channel: ComponentCommunication::new(
-            Some(tx_l1_provider),
-            Some(rx_l1_provider),
-        ),
-        l1_gas_price_channel: ComponentCommunication::new(
-            Some(tx_l1_gas_price),
-            Some(rx_l1_gas_price),
-        ),
-        mempool_channel: ComponentCommunication::new(Some(tx_mempool), Some(rx_mempool)),
+        l1_provider_channel: ComponentCommunication::new(tx_l1_provider, rx_l1_provider),
+        l1_gas_price_channel: ComponentCommunication::new(tx_l1_gas_price, rx_l1_gas_price),
+        mempool_channel: ComponentCommunication::new(tx_mempool, rx_mempool),
         mempool_p2p_propagator_channel: ComponentCommunication::new(
-            Some(tx_mempool_p2p_propagator),
-            Some(rx_mempool_p2p_propagator),
+            tx_mempool_p2p_propagator,
+            rx_mempool_p2p_propagator,
         ),
         sierra_compiler_channel: ComponentCommunication::new(
-            Some(tx_sierra_compiler),
-            Some(rx_sierra_compiler),
+            tx_sierra_compiler,
+            rx_sierra_compiler,
         ),
-        state_sync_channel: ComponentCommunication::new(Some(tx_state_sync), Some(rx_state_sync)),
+        state_sync_channel: ComponentCommunication::new(tx_state_sync, rx_state_sync),
     }
 }
