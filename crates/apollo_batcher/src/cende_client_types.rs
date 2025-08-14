@@ -246,28 +246,6 @@ impl
 trait OrderedItem {
     type UnorderedItem;
 
-<<<<<<< HEAD
-    let mut l2_to_l1_messages = vec![];
-    for call in call_info_iterator {
-        let messages =
-            call.execution.l2_to_l1_messages.iter().map(|l2_to_l1_message| L2ToL1Message {
-                from_address: call.call.caller_address,
-                to_address: EthAddress::try_from(l2_to_l1_message.message.to_address)
-                    .expect("Failed to convert L1Address to EthAddress"),
-                payload: l2_to_l1_message.message.payload.clone(),
-            });
-        l2_to_l1_messages.extend(messages);
-||||||| 38f03e1d0
-    let mut l2_to_l1_messages = vec![];
-    for call in call_info_iterator {
-        let messages =
-            call.execution.l2_to_l1_messages.iter().map(|l2_to_l1_message| L2ToL1Message {
-                from_address: call.call.caller_address,
-                to_address: l2_to_l1_message.message.to_address,
-                payload: l2_to_l1_message.message.payload.clone(),
-            });
-        l2_to_l1_messages.extend(messages);
-=======
     /// converts to a tuple of (order, non-ordered struct).
     fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem);
 
@@ -319,7 +297,6 @@ impl OrderedItem for OrderedL2ToL1Message {
                 payload: self.message.payload.clone(),
             },
         )
->>>>>>> origin/main-v0.14.0
     }
 
     fn get_items_from_call_execution<'a>(

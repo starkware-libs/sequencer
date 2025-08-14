@@ -322,13 +322,7 @@ where
         Server::bind(&self.socket)
             .serve(make_svc)
             .await
-<<<<<<< HEAD
-            .unwrap_or_else(|e| panic!("HttpServerStartError: {e}"));
-||||||| 38f03e1d0
-            .unwrap_or_else(|e| panic!("HttpServerStartError: {}", e));
-=======
-            .unwrap_or_else(|e| panic!("Remote component server start error: {}", e));
->>>>>>> origin/main-v0.14.0
+            .unwrap_or_else(|e| panic!("Remote component server start error: {e}"));
     }
 }
 
