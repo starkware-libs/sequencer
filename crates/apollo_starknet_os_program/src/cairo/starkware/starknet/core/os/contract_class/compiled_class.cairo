@@ -196,7 +196,6 @@ func validate_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_p
             "is_segment_used_callback": is_segment_used_callback
         })
     %}
-    // TODO(Meshi): Use blake once we start declaring with blake.
     let (hash) = blake_compiled_class_hash(compiled_class, full_contract=FALSE);
     %{
         vm_exit_scope()
