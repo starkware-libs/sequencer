@@ -26,8 +26,8 @@ from starkware.starknet.core.os.contract_class.compiled_class_struct import (
     CompiledClassEntryPoint,
     CompiledClassFact,
 )
-from starkware.starknet.core.os.contract_class.poseidon_compiled_class_hash import (
-    compiled_class_hash as poseidon_compiled_class_hash,
+from starkware.starknet.core.os.contract_class.blake_compiled_class_hash import (
+    compiled_class_hash as blake_compiled_class_hash,
 )
 
 // Checks that the list of selectors is sorted.
@@ -197,7 +197,7 @@ func validate_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_p
         })
     %}
     // TODO(Meshi): Use blake once we start declaring with blake.
-    let (hash) = poseidon_compiled_class_hash(compiled_class, full_contract=FALSE);
+    let (hash) = blake_compiled_class_hash(compiled_class, full_contract=FALSE);
     %{
         vm_exit_scope()
 

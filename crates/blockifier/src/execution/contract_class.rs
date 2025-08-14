@@ -516,7 +516,7 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
             };
             let base_segment_cost = ExecutionResources {
                 n_steps: 25,
-                n_memory_holes: 1,
+                n_memory_holes: 2,
                 builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 1)]),
             };
             for segment in segments {
