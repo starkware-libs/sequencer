@@ -9,12 +9,15 @@ use crate::common::{end_to_end_flow, TestScenario};
 
 mod common;
 
+const BLOCK_CAPACITY_LARGER_THAN_SINGLE_TX: GasAmount = GasAmount(30000000);
+
+/// This test checks that at least one block is full.
 #[tokio::test]
-async fn many_txs() {
+async fn many_txs_fill_at_least_one_block() {
     end_to_end_flow(
         TestIdentifier::EndToEndFlowTestManyTxs,
         create_many_txs_scenario(),
-        GasAmount(17500000),
+        BLOCK_CAPACITY_LARGER_THAN_SINGLE_TX,
         true,
         false,
     )
