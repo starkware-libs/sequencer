@@ -85,20 +85,7 @@ impl ComponentConfig {
             class_manager: ReactiveComponentExecutionConfig::disabled(),
             consensus_manager: ActiveComponentExecutionConfig::disabled(),
             gateway: ReactiveComponentExecutionConfig::disabled(),
-<<<<<<< HEAD
-            mempool: ReactiveComponentExecutionConfig::disabled(),
-            mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
-            sierra_compiler: ReactiveComponentExecutionConfig::disabled(),
-            signature_manager: ReactiveComponentExecutionConfig::disabled(),
-            state_sync: ReactiveComponentExecutionConfig::disabled(),
-||||||| 38f03e1d0
-            mempool: ReactiveComponentExecutionConfig::disabled(),
-            mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
-            sierra_compiler: ReactiveComponentExecutionConfig::disabled(),
-            state_sync: ReactiveComponentExecutionConfig::disabled(),
-=======
             http_server: ActiveComponentExecutionConfig::disabled(),
->>>>>>> origin/main-v0.14.0
             l1_endpoint_monitor: ReactiveComponentExecutionConfig::disabled(),
             l1_provider: ReactiveComponentExecutionConfig::disabled(),
             l1_gas_price_provider: ReactiveComponentExecutionConfig::disabled(),
@@ -108,6 +95,7 @@ impl ComponentConfig {
             mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
             monitoring_endpoint: ActiveComponentExecutionConfig::disabled(),
             sierra_compiler: ReactiveComponentExecutionConfig::disabled(),
+            signature_manager: ReactiveComponentExecutionConfig::disabled(),
             state_sync: ReactiveComponentExecutionConfig::disabled(),
         }
     }

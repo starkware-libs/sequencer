@@ -27,17 +27,10 @@ pub mod trivial_class_manager {
                 !config.cairo_native_run_config.run_cairo_native,
                 "Cairo Native feature is off."
             );
-<<<<<<< HEAD
             Self {
                 class_cache: RawClassCache::new(config.contract_cache_size),
                 compiled_class_hash_v2_cache: GlobalContractCache::new(config.contract_cache_size),
             }
-||||||| 38f03e1d0
-            Self { cache: RawClassCache::new(config.contract_cache_size) }
-=======
-
-            Self { cache: RawClassCache::new(config.contract_cache_size) }
->>>>>>> origin/main-v0.14.0
         }
 
         pub fn get_runnable(&self, class_hash: &ClassHash) -> Option<RunnableCompiledClass> {
