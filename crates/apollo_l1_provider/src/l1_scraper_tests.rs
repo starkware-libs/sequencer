@@ -13,31 +13,7 @@ use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use indexmap::IndexSet;
 use itertools::Itertools;
-<<<<<<< HEAD
-use papyrus_base_layer::{L1BlockReference, MockBaseLayerContract};
-||||||| 38f03e1d0
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    Starknet,
-};
-use papyrus_base_layer::test_utils::{
-    anvil_instance_from_config,
-    ethereum_base_layer_config_for_anvil,
-};
-use papyrus_base_layer::{BaseLayerContract, L1BlockReference, MockBaseLayerContract};
-=======
-use papyrus_base_layer::ethereum_base_layer_contract::{
-    EthereumBaseLayerConfig,
-    EthereumBaseLayerContract,
-    Starknet,
-};
-use papyrus_base_layer::test_utils::{
-    anvil_instance_from_config,
-    ethereum_base_layer_config_for_anvil,
-};
-use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockReference, MockBaseLayerContract};
->>>>>>> origin/main-v0.14.0
+use papyrus_base_layer::{L1BlockHash, L1BlockReference, MockBaseLayerContract};
 use rstest::{fixture, rstest};
 use starknet_api::block::BlockNumber;
 use starknet_api::transaction::TransactionHash;
