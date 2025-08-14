@@ -2,8 +2,8 @@ use apollo_infra::metrics::{
     CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
     CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
     CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
-    CLASS_MANAGER_PROCESSING_TIMES,
-    CLASS_MANAGER_QUEUEING_TIMES,
+    CLASS_MANAGER_PROCESSING_TIMES_SECS,
+    CLASS_MANAGER_QUEUEING_TIMES_SECS,
     CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
     CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
     CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
@@ -34,10 +34,10 @@ fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(CLASS_MANAGER_PROCESSING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(CLASS_MANAGER_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
 }
 fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(CLASS_MANAGER_QUEUEING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(CLASS_MANAGER_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
 pub(crate) fn get_class_manager_infra_row() -> Row {
     Row::new(

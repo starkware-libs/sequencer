@@ -11,8 +11,8 @@ use apollo_infra::metrics::{
     BATCHER_LOCAL_MSGS_PROCESSED,
     BATCHER_LOCAL_MSGS_RECEIVED,
     BATCHER_LOCAL_QUEUE_DEPTH,
-    BATCHER_PROCESSING_TIMES,
-    BATCHER_QUEUEING_TIMES,
+    BATCHER_PROCESSING_TIMES_SECS,
+    BATCHER_QUEUEING_TIMES_SECS,
     BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
     BATCHER_REMOTE_MSGS_PROCESSED,
     BATCHER_REMOTE_MSGS_RECEIVED,
@@ -55,10 +55,10 @@ fn get_panel_local_queue_depth() -> Panel {
     Panel::from_gauge(BATCHER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
 }
 fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(BATCHER_PROCESSING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(BATCHER_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
 }
 fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(BATCHER_QUEUEING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(BATCHER_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)

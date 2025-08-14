@@ -3,8 +3,8 @@ use apollo_infra::metrics::{
     SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
     SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
     SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
-    SIERRA_COMPILER_PROCESSING_TIMES,
-    SIERRA_COMPILER_QUEUEING_TIMES,
+    SIERRA_COMPILER_PROCESSING_TIMES_SECS,
+    SIERRA_COMPILER_QUEUEING_TIMES_SECS,
     SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
     SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
     SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
@@ -35,10 +35,10 @@ fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(SIERRA_COMPILER_PROCESSING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(SIERRA_COMPILER_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
 }
 fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(SIERRA_COMPILER_QUEUEING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(SIERRA_COMPILER_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
 
 fn get_panel_compilation_duration() -> Panel {

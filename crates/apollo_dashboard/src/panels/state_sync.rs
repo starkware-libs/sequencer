@@ -2,8 +2,8 @@ use apollo_infra::metrics::{
     STATE_SYNC_LOCAL_MSGS_PROCESSED,
     STATE_SYNC_LOCAL_MSGS_RECEIVED,
     STATE_SYNC_LOCAL_QUEUE_DEPTH,
-    STATE_SYNC_PROCESSING_TIMES,
-    STATE_SYNC_QUEUEING_TIMES,
+    STATE_SYNC_PROCESSING_TIMES_SECS,
+    STATE_SYNC_QUEUEING_TIMES_SECS,
     STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
     STATE_SYNC_REMOTE_MSGS_PROCESSED,
     STATE_SYNC_REMOTE_MSGS_RECEIVED,
@@ -46,10 +46,10 @@ fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(STATE_SYNC_PROCESSING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(STATE_SYNC_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
 }
 fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(STATE_SYNC_QUEUEING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(STATE_SYNC_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
 
 fn get_panel_p2p_sync_num_connected_peers() -> Panel {

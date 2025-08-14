@@ -2,8 +2,8 @@ use apollo_infra::metrics::{
     MEMPOOL_LOCAL_MSGS_PROCESSED,
     MEMPOOL_LOCAL_MSGS_RECEIVED,
     MEMPOOL_LOCAL_QUEUE_DEPTH,
-    MEMPOOL_PROCESSING_TIMES,
-    MEMPOOL_QUEUEING_TIMES,
+    MEMPOOL_PROCESSING_TIMES_SECS,
+    MEMPOOL_QUEUEING_TIMES_SECS,
     MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
     MEMPOOL_REMOTE_MSGS_PROCESSED,
     MEMPOOL_REMOTE_MSGS_RECEIVED,
@@ -49,10 +49,10 @@ fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(MEMPOOL_PROCESSING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(MEMPOOL_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
 }
 fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(MEMPOOL_QUEUEING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(MEMPOOL_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
 
 fn get_panel_mempool_transactions_received() -> Panel {
