@@ -181,8 +181,11 @@ async fn txs_happy_flow() {
         tx: expected_internal_l1_tx,
         paid_fee_on_l1: Fee(0),
     };
-    let first_expected_log =
-        Event::L1HandlerTransaction { l1_handler_tx: tx.clone(), timestamp: block_timestamps[0] };
+    let first_expected_log = Event::L1HandlerTransaction {
+        l1_handler_tx: tx.clone(),
+        block_timestamp: block_timestamps[0],
+        scrape_timestamp: block_timestamps[0].0,
+    };
 
     let expected_internal_l1_tx_2 = L1HandlerTransaction {
         nonce: Nonce(StarkHash::ONE),
@@ -199,7 +202,8 @@ async fn txs_happy_flow() {
             tx: expected_internal_l1_tx_2,
             ..tx
         },
-        timestamp: block_timestamps[1],
+        block_timestamp: block_timestamps[1],
+        scrape_timestamp: block_timestamps[1].0,
     };
 
     let expected_cancel_message = Event::TransactionCancellationStarted {
