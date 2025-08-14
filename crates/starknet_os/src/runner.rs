@@ -142,21 +142,6 @@ pub fn run_os<S: StateReader>(
     }
 
     Ok(StarknetOsRunnerOutput {
-        #[cfg(feature = "include_program_output")]
-        os_output: {
-            use crate::io::os_output_types::TryFromOutputIter;
-            // Prepare and check expected output.
-            // TODO(Rotem): Check if we can remove the clone here.
-            let os_raw_output = runner_output.raw_output.clone();
-            let os_output = crate::io::os_output::OsOutput::try_from_output_iter(
-                &mut os_raw_output.into_iter(),
-            )?;
-            log::debug!(
-                "OsOutput for block number={}: {os_output:?}",
-                os_output.common_os_output.new_block_number
-            );
-            os_output
-        },
         raw_os_output: runner_output.raw_output,
         cairo_pie: runner_output.cairo_pie,
         da_segment: snos_hint_processor.get_da_segment().take(),
