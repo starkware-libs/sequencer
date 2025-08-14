@@ -44,18 +44,18 @@ const TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
 const TEST_QUEUE_DEPTH: MetricGauge =
     MetricGauge::new(MetricScope::Infra, "queue_queue_depth", "Test channel queue depth gauge");
 
-const TEST_PROCESSING_TIMES: MetricHistogram =
+const TEST_PROCESSING_TIMES_SECS: MetricHistogram =
     MetricHistogram::new(MetricScope::Infra, "processing_times", "Test processing time histogram");
 
-const TEST_QUEUEING_TIMES: MetricHistogram =
+const TEST_QUEUEING_TIMES_SECS: MetricHistogram =
     MetricHistogram::new(MetricScope::Infra, "queueing_times", "Test queueing time histogram");
 
 pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
     &TEST_MSGS_RECEIVED,
     &TEST_MSGS_PROCESSED,
     &TEST_QUEUE_DEPTH,
-    &TEST_PROCESSING_TIMES,
-    &TEST_QUEUEING_TIMES,
+    &TEST_PROCESSING_TIMES_SECS,
+    &TEST_QUEUEING_TIMES_SECS,
 );
 
 const REMOTE_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(

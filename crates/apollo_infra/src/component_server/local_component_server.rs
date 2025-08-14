@@ -391,11 +391,11 @@ async fn process_request<Request, Response, Component>(
     let start = Instant::now();
     let response = component.handle_request(request).await;
     let elapsed = start.elapsed();
-    let elapsed_ms = elapsed.as_millis();
+    metrics.record_processing_time(elapsed.as_secs());
     // TODO(Tsabary): add a test for the processing time metric.
-    metrics.record_processing_time(elapsed_ms);
 
-    if elapsed.as_millis() > processing_time_warning_threshold_ms {
+    let elapsed_ms = elapsed.as_millis();
+    if elapsed_ms > processing_time_warning_threshold_ms {
         warn!(
             "Component {component_name} took {elapsed_ms} ms to process request {request_info:?}, \
              exceeding the {processing_time_warning_threshold_ms} ms threshold.",
@@ -451,7 +451,7 @@ where
         "Component {component_name} received request {request:?} that was created at \
          {creation_time:?}",
     );
-    metrics.record_queueing_time(creation_time.elapsed().as_millis());
+    metrics.record_queueing_time(creation_time.elapsed().as_secs());
 
     (request, tx)
 }

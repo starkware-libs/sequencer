@@ -2,8 +2,8 @@ use apollo_infra::metrics::{
     MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
     MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
     MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
-    MEMPOOL_P2P_PROCESSING_TIMES,
-    MEMPOOL_P2P_QUEUEING_TIMES,
+    MEMPOOL_P2P_PROCESSING_TIMES_SECS,
+    MEMPOOL_P2P_QUEUEING_TIMES_SECS,
     MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
     MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
     MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
@@ -62,10 +62,10 @@ fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(MEMPOOL_P2P_PROCESSING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(MEMPOOL_P2P_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
 }
 fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(MEMPOOL_P2P_QUEUEING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(MEMPOOL_P2P_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
 
 pub(crate) fn get_mempool_p2p_row() -> Row {
