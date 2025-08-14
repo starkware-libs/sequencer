@@ -611,7 +611,7 @@ fn get_txs_identical_timestamps() {
     // Can get only one tx out of the two with the same timestamp.
     assert_eq!(
         l1_provider_builder.clone().build_into_l1_provider().get_txs(1, BlockNumber(0)).unwrap(),
-        [tx_1.clone()]
+        std::slice::from_ref(&tx_1)
     );
 
     assert_eq!(
