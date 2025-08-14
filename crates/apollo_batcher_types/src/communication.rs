@@ -2,14 +2,16 @@ use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
+use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_metrics::generate_permutation_labels;
 use apollo_proc_macros::handle_all_response_variants;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use strum::EnumVariantNames;
+use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
@@ -99,6 +101,11 @@ pub enum BatcherRequest {
 impl_debug_for_infra_requests_and_responses!(BatcherRequest);
 impl_labeled_request!(BatcherRequest, BatcherRequestLabelValue);
 impl PrioritizedRequest for BatcherRequest {}
+
+generate_permutation_labels! {
+    BATCHER_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, BatcherRequestLabelValue),
+}
 
 #[derive(Serialize, Deserialize, AsRefStr)]
 pub enum BatcherResponse {
