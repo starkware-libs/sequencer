@@ -9,6 +9,7 @@ from imports.com.google.cloud import (
     BackendConfigSpec,
     BackendConfigSpecConnectionDraining,
     BackendConfigSpecHealthCheck,
+    BackendConfigSpecSecurityPolicy,
 )
 from imports.com.googleapis.monitoring import (
     PodMonitoring,
@@ -91,17 +92,22 @@ class ServiceApp(Construct):
                 key="cloud.google.com/neg", value='{"ingress": true}'
             )
             self.ingress = self._get_ingress()
-
-            if not self.service_topology.ingress["internal"]:
-                self.backend_config = self._get_backend_config()
-                self.service.metadata.add_annotation(
-                    key="cloud.google.com/backend-config",
-                    value=json.dumps(
-                        {
-                            "default": f"{self.node.id}-backend-config",
-                        }
-                    ),
-                )
+            cloud_armor_policy_name = (
+                None
+                if self.service_topology.ingress.get("internal")
+                else self.service_topology.ingress.get("cloud_armor_policy_name")
+            )
+            self.backend_config = self._get_backend_config(
+                security_policy_name=cloud_armor_policy_name
+            )
+            self.service.metadata.add_annotation(
+                key="cloud.google.com/backend-config",
+                value=json.dumps(
+                    {
+                        "default": f"{self.node.id}-backend-config",
+                    }
+                ),
+            )
 
         if self.service_topology.storage is not None:
             self.pvc = self._get_persistent_volume_claim()
@@ -608,7 +614,7 @@ class ServiceApp(Construct):
             ),
         )
 
-    def _get_backend_config(self) -> BackendConfig:
+    def _get_backend_config(self, security_policy_name: typing.Optional[str]) -> BackendConfig:
         return BackendConfig(
             self,
             "backend-config",
@@ -619,6 +625,11 @@ class ServiceApp(Construct):
             spec=BackendConfigSpec(
                 connection_draining=BackendConfigSpecConnectionDraining(
                     draining_timeout_sec=const.BACKEND_CONFIG_CONNECTION_DRAINING_SECONDS
+                ),
+                security_policy=(
+                    BackendConfigSpecSecurityPolicy(name=security_policy_name)
+                    if security_policy_name
+                    else None
                 ),
                 timeout_sec=const.BACKEND_CONFIG_TIMEOUT_SECONDS,
                 health_check=BackendConfigSpecHealthCheck(

@@ -49,6 +49,11 @@
                   "alternative_names": {
                     "type": "array",
                     "items": { "type": "string" }
+                  },
+                  "cloud_armor_policy_name": {
+                    "anyOf": [
+                      { "type": "string" }
+                    ]
                   }
                 },
                 "required": ["domain", "internal", "rules"]
