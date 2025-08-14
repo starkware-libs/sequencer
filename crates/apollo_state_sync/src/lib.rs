@@ -121,7 +121,6 @@ impl ComponentRequestHandler<StateSyncRequest, StateSyncResponse> for StateSync 
 }
 
 impl StateSync {
-<<<<<<< HEAD
     fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
         let txn = self.storage_reader.begin_ro_txn()?;
 
@@ -133,27 +132,6 @@ impl StateSync {
             .ok_or(StateSyncError::BlockNotFound(block_number))?;
         let thin_state_diff =
             txn.get_state_diff(block_number)?.ok_or(StateSyncError::BlockNotFound(block_number))?;
-||||||| 38f03e1d0
-    fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<Option<SyncBlock>> {
-        let txn = self.storage_reader.begin_ro_txn()?;
-        let block_header = txn.get_block_header(block_number)?;
-        let Some(block_transactions_with_hash) =
-            txn.get_block_transactions_with_hash(block_number)?
-        else {
-            return Ok(None);
-        };
-        let Some(thin_state_diff) = txn.get_state_diff(block_number)? else {
-            return Ok(None);
-        };
-        let Some(block_header) = block_header else {
-            return Ok(None);
-        };
-=======
-    async fn get_block(&self, block_number: BlockNumber) -> StateSyncResult<SyncBlock> {
-        let storage_reader = self.storage_reader.clone();
-        tokio::task::spawn_blocking(move || {
-            let txn = storage_reader.begin_ro_txn()?;
->>>>>>> origin/main-v0.14.0
 
             let block_not_found_err = Err(StateSyncError::BlockNotFound(block_number));
             let Some(block_header) = txn.get_block_header(block_number)? else {
@@ -177,7 +155,6 @@ impl StateSync {
                 }
             }
 
-<<<<<<< HEAD
         Ok(SyncBlock {
             state_diff: thin_state_diff,
             block_header_without_hash: block_header.block_header_without_hash,
@@ -192,23 +169,6 @@ impl StateSync {
             .get_block_header(block_number)?
             .ok_or(StateSyncError::BlockNotFound(block_number))?;
         Ok(block_header.block_hash)
-||||||| 38f03e1d0
-        Ok(Some(SyncBlock {
-            state_diff: thin_state_diff,
-            block_header_without_hash: block_header.block_header_without_hash,
-            account_transaction_hashes,
-            l1_transaction_hashes,
-        }))
-=======
-            Ok(SyncBlock {
-                state_diff: thin_state_diff,
-                block_header_without_hash: block_header.block_header_without_hash,
-                account_transaction_hashes,
-                l1_transaction_hashes,
-            })
-        })
-        .await?
->>>>>>> origin/main-v0.14.0
     }
 
     async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncResult<BlockHash> {
