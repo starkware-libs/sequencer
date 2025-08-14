@@ -164,7 +164,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-general-service",
+      "toleration": "apollo-l1-service",
       "resources": {
         "requests": {
           "cpu": 1,
@@ -178,7 +178,7 @@
       "external_secret": {
         "gcsm_key": "apollo-mainnet-test-0"
       },
-      "anti_affinity": false,
+      "anti_affinity": true,
       "update_strategy_type": "RollingUpdate",
       "ports": {
         "L1EndpointMonitor": 55005,
@@ -210,7 +210,7 @@
       "autoscale": false,
       "replicas": 1,
       "storage": null,
-      "toleration": "apollo-core-service",
+      "toleration": "apollo-mempool-service",
       "resources": {
         "requests": {
           "cpu": 1,
