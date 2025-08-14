@@ -192,22 +192,6 @@ async fn poll_running_nodes_received_more_txs(
         start.elapsed().as_secs()
     );
     for (node_idx, curr_n_processed) in curr_txs {
-<<<<<<< HEAD
-        let prev_n_processed =
-            prev_txs.insert(node_idx, curr_n_processed).expect("Num txs not found");
-        info!("Node {} processed {} transactions", node_idx, curr_n_processed);
-        assert!(
-            curr_n_processed > prev_n_processed,
-            "Node {node_idx} did not process more transactions"
-||||||| 38f03e1d0
-        let prev_n_processed =
-            prev_txs.insert(node_idx, curr_n_processed).expect("Num txs not found");
-        info!("Node {} processed {} transactions", node_idx, curr_n_processed);
-        assert!(
-            curr_n_processed > prev_n_processed,
-            "Node {} did not process more transactions",
-            node_idx
-=======
         let prev_n_processed = prev_txs.get(node_idx).expect("Num txs not found");
         info!(
             "Node {} processed {} -> {} transactions",
@@ -219,7 +203,6 @@ async fn poll_running_nodes_received_more_txs(
         panic!(
             "Not all running nodes processed more transactions in the last {} seconds",
             timeout.as_secs()
->>>>>>> origin/main-v0.14.0
         );
     }
 }

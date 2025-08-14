@@ -41,17 +41,6 @@
         "gcsm_key": "apollo-mainnet-0"
       },
       "anti_affinity": true,
-<<<<<<< HEAD
-      "ports": {
-        "Batcher": 55000,
-        "ClassManager": 55001,
-        "StateSync": 55009,
-        "ConsensusP2p": 53080,
-        "MonitoringEndpoint": 8082
-      }
-||||||| 38f03e1d0
-      "ports": {}
-=======
       "update_strategy_type": "Recreate",
       "ports": {
         "Batcher": 55000,
@@ -60,7 +49,6 @@
         "ConsensusP2P": 53080,
         "MonitoringEndpoint": 8082
       }
->>>>>>> origin/main-v0.14.0
     },
     {
       "name": "HttpServer",
@@ -108,20 +96,11 @@
         "gcsm_key": "apollo-mainnet-0"
       },
       "anti_affinity": false,
-<<<<<<< HEAD
-      "ports": {
-        "HttpServer": 8080,
-        "MonitoringEndpoint": 8082
-      }
-||||||| 38f03e1d0
-      "ports": {}
-=======
       "update_strategy_type": "RollingUpdate",
       "ports": {
         "HttpServer": 8080,
         "MonitoringEndpoint": 8082
       }
->>>>>>> origin/main-v0.14.0
     },
     {
       "name": "Gateway",
@@ -156,20 +135,11 @@
         "gcsm_key": "apollo-mainnet-0"
       },
       "anti_affinity": false,
-<<<<<<< HEAD
-      "ports": {
-        "Gateway": 55002,
-        "MonitoringEndpoint": 8082
-      }
-||||||| 38f03e1d0
-      "ports": {}
-=======
       "update_strategy_type": "RollingUpdate",
       "ports": {
         "Gateway": 55002,
         "MonitoringEndpoint": 8082
       }
->>>>>>> origin/main-v0.14.0
     },
     {
       "name": "L1",
@@ -209,16 +179,6 @@
         "gcsm_key": "apollo-mainnet-0"
       },
       "anti_affinity": false,
-<<<<<<< HEAD
-      "ports": {
-        "L1EndpointMonitor": 55005,
-        "L1GasPriceProvider": 55003,
-        "L1Provider": 55004,
-        "MonitoringEndpoint": 8082
-      }
-||||||| 38f03e1d0
-      "ports": {}
-=======
       "update_strategy_type": "RollingUpdate",
       "ports": {
         "L1EndpointMonitor": 55005,
@@ -226,7 +186,6 @@
         "L1Provider": 55004,
         "MonitoringEndpoint": 8082
       }
->>>>>>> origin/main-v0.14.0
     },
     {
       "name": "Mempool",
@@ -266,20 +225,11 @@
         "gcsm_key": "apollo-mainnet-0"
       },
       "anti_affinity": true,
-<<<<<<< HEAD
-      "ports": {
-        "Mempool": 55006,
-        "MonitoringEndpoint": 8082
-      }
-||||||| 38f03e1d0
-      "ports": {}
-=======
       "update_strategy_type": "Recreate",
       "ports": {
         "Mempool": 55006,
         "MonitoringEndpoint": 8082
       }
->>>>>>> origin/main-v0.14.0
     },
     {
       "name": "SierraCompiler",
@@ -314,20 +264,11 @@
         "gcsm_key": "apollo-mainnet-0"
       },
       "anti_affinity": false,
-<<<<<<< HEAD
-      "ports": {
-        "SierraCompiler": 55007,
-        "MonitoringEndpoint": 8082
-      }
-||||||| 38f03e1d0
-      "ports": {}
-=======
       "update_strategy_type": "RollingUpdate",
       "ports": {
         "SierraCompiler": 55007,
         "MonitoringEndpoint": 8082
       }
->>>>>>> origin/main-v0.14.0
     }
   ]
 }

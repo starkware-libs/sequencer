@@ -2,29 +2,16 @@ use std::fmt::{Display, Formatter, Result};
 use std::fs::read_to_string;
 use std::path::PathBuf;
 
-<<<<<<< HEAD
-use apollo_http_server::config::HTTP_SERVER_PORT;
-||||||| 38f03e1d0
-=======
 use alloy::primitives::Address as EthereumContractAddress;
 use apollo_http_server::config::HTTP_SERVER_PORT;
->>>>>>> origin/main-v0.14.0
 use apollo_infra_utils::template::Template;
 use apollo_monitoring_endpoint::config::MONITORING_ENDPOINT_DEFAULT_PORT;
 use serde::{Deserialize, Serialize};
 use serde_json::from_str;
 use starknet_api::block::BlockNumber;
-<<<<<<< HEAD
-use strum::{EnumIter, IntoEnumIterator};
-use strum_macros::{Display, EnumDiscriminants, EnumString};
-||||||| 38f03e1d0
-use strum::EnumIter;
-use strum_macros::{Display, EnumString};
-=======
 use starknet_api::core::ContractAddress;
 use strum::{EnumDiscriminants, EnumIter, IntoEnumIterator};
 use strum_macros::{Display, EnumString};
->>>>>>> origin/main-v0.14.0
 use url::Url;
 
 use crate::deployment::{Deployment, P2PCommunicationType};
@@ -40,7 +27,6 @@ mod upgrade_test;
 
 type DeploymentFn = fn() -> Vec<Deployment>;
 
-<<<<<<< HEAD
 const BATCHER_PORT: u16 = 55000;
 const CLASS_MANAGER_PORT: u16 = 55001;
 const CONSENSUS_P2P_PORT: u16 = 53080;
@@ -54,21 +40,6 @@ const SIERRA_COMPILER_PORT: u16 = 55007;
 const SIGNATURE_MANAGER_PORT: u16 = 55008;
 const STATE_SYNC_PORT: u16 = 55009;
 
-||||||| 38f03e1d0
-=======
-const BATCHER_PORT: u16 = 55000;
-const CLASS_MANAGER_PORT: u16 = 55001;
-const CONSENSUS_P2P_PORT: u16 = 53080;
-const GATEWAY_PORT: u16 = 55002;
-const L1_ENDPOINT_MONITOR_PORT: u16 = 55005;
-const L1_GAS_PRICE_PROVIDER_PORT: u16 = 55003;
-const L1_PROVIDER_PORT: u16 = 55004;
-const MEMPOOL_PORT: u16 = 55006;
-const MEMPOOL_P2P_PORT: u16 = 53200;
-const SIERRA_COMPILER_PORT: u16 = 55007;
-const STATE_SYNC_PORT: u16 = 55009;
-
->>>>>>> origin/main-v0.14.0
 pub const DEPLOYMENTS: &[DeploymentFn] = &[
     || load_and_create_hybrid_deployments(POTC2_DEPLOYMENT_INPUTS_PATH),
     || load_and_create_hybrid_deployments(MAINNET_DEPLOYMENT_INPUTS_PATH),
@@ -198,34 +169,6 @@ impl StateSyncType {
     }
 }
 
-<<<<<<< HEAD
-#[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
-pub enum BusinessLogicServicePort {
-    ConsensusP2p,
-    HttpServer,
-    MempoolP2p,
-    MonitoringEndpoint,
-}
-
-impl BusinessLogicServicePort {
-    pub fn get_port(&self) -> u16 {
-        match self {
-            BusinessLogicServicePort::ConsensusP2p => CONSENSUS_P2P_PORT,
-            BusinessLogicServicePort::HttpServer => HTTP_SERVER_PORT,
-            BusinessLogicServicePort::MempoolP2p => MEMPOOL_P2P_PORT,
-            BusinessLogicServicePort::MonitoringEndpoint => MONITORING_ENDPOINT_DEFAULT_PORT,
-        }
-    }
-}
-
-// TODO(Nadin): Integrate this logic with `ComponentConfigInService` once the merge from main-14.0
-// is complete.
-#[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
-pub enum InfraServicePort {
-||||||| 38f03e1d0
-#[derive(Clone, Debug, Display, Serialize, PartialEq)]
-pub enum ServicePort {
-=======
 #[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
 pub enum BusinessLogicServicePort {
     ConsensusP2P,
@@ -249,7 +192,6 @@ impl BusinessLogicServicePort {
 // is complete.
 #[derive(Clone, Copy, Debug, EnumIter, Display, Serialize, Ord, PartialEq, Eq, PartialOrd)]
 pub enum InfraServicePort {
->>>>>>> origin/main-v0.14.0
     Batcher,
     ClassManager,
     Gateway,
@@ -260,11 +202,6 @@ pub enum InfraServicePort {
     SierraCompiler,
     SignatureManager,
     StateSync,
-<<<<<<< HEAD
-||||||| 38f03e1d0
-    HttpServer,
-    MonitoringEndpoint,
-=======
 }
 
 impl InfraServicePort {
@@ -314,7 +251,6 @@ impl ServicePort {
             .map(ServicePort::Infra)
             .chain(BusinessLogicServicePort::iter().map(ServicePort::BusinessLogic))
     }
->>>>>>> origin/main-v0.14.0
 }
 
 impl InfraServicePort {
