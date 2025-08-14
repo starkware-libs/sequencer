@@ -9,6 +9,8 @@ pub mod communication;
 pub mod config;
 pub mod metrics;
 pub mod pre_confirmed_block_writer;
+#[cfg(test)]
+mod pre_confirmed_block_writer_test;
 pub mod pre_confirmed_cende_client;
 #[cfg(test)]
 mod test_utils;
