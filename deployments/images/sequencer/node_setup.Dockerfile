@@ -18,7 +18,7 @@ RUN curl -L https://github.com/foundry-rs/foundry/releases/download/v0.3.0/found
 COPY --from=planner /app/recipe.json recipe.json
 RUN cargo chef cook --recipe-path recipe.json
 COPY . .
-RUN cargo build --bin sequencer_node_setup
+RUN SKIP_NATIVE_COMPILE_VALIDATION=1 SKIP_SIERRA_COMPILE_VALIDATION=1 cargo build --bin sequencer_node_setup
 
 FROM ubuntu:24.04 AS final_stage
 
