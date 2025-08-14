@@ -9,6 +9,7 @@ use cairo_vm::types::relocatable::Relocatable;
 use cairo_vm::vm::errors::memory_errors::MemoryError;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use cairo_vm::vm::vm_core::VirtualMachine;
+use serde::Serialize;
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::transaction::TransactionHash;
 
@@ -82,6 +83,7 @@ pub trait ResourceFinalizer {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize, Debug, Clone))]
 pub struct SyscallTrace {
     selector: SyscallSelector,
     is_deprecated: bool,
@@ -142,6 +144,7 @@ impl TryFrom<&SyscallTrace> for String {
     }
 }
 
+#[cfg_attr(any(test, feature = "testing"), derive(Serialize, Debug, Clone))]
 pub struct OsTransactionTrace {
     tx_type: TransactionType,
     tx_hash: TransactionHash,
@@ -507,5 +510,9 @@ impl OsLogger {
         self.log(&format!("Exiting {}.", String::try_from(&current_tx)?), false);
         self.txs.push(current_tx);
         Ok(())
+    }
+
+    pub fn get_txs(&self) -> &Vec<OsTransactionTrace> {
+        &self.txs
     }
 }
