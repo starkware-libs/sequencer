@@ -844,6 +844,7 @@ name = "apollo_batcher_types"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
  "apollo_proc_macros",
  "apollo_state_sync_types",
  "async-trait",
@@ -929,6 +930,7 @@ version = "0.15.0-rc.2"
 dependencies = [
  "apollo_compile_to_casm_types",
  "apollo_infra",
+ "apollo_metrics",
  "apollo_proc_macros",
  "async-trait",
  "mockall",
@@ -988,6 +990,7 @@ name = "apollo_compile_to_casm_types"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
  "apollo_proc_macros",
  "async-trait",
  "mockall",
@@ -1269,6 +1272,7 @@ name = "apollo_gateway_types"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
  "apollo_network_types",
  "apollo_proc_macros",
  "apollo_rpc",
@@ -1499,6 +1503,7 @@ name = "apollo_l1_gas_price_types"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
  "apollo_proc_macros",
  "async-trait",
  "mockall",
@@ -1547,6 +1552,7 @@ name = "apollo_l1_provider_types"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
  "apollo_proc_macros",
  "async-trait",
  "indexmap 2.9.0",
@@ -1626,6 +1632,7 @@ name = "apollo_mempool_p2p_types"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
  "apollo_network_types",
  "apollo_proc_macros",
  "async-trait",
@@ -1642,6 +1649,7 @@ name = "apollo_mempool_types"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
  "apollo_network_types",
  "apollo_proc_macros",
  "async-trait",
@@ -2077,6 +2085,7 @@ name = "apollo_state_sync_metrics"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_metrics",
+ "apollo_state_sync_types",
  "apollo_storage",
  "starknet_api",
 ]
@@ -2086,6 +2095,7 @@ name = "apollo_state_sync_types"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
  "apollo_proc_macros",
  "apollo_starknet_client",
  "apollo_storage",

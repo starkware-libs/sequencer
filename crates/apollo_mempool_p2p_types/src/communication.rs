@@ -2,13 +2,15 @@ use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
 use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest, RequestWrapper};
+use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_metrics::generate_permutation_labels;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::rpc_transaction::InternalRpcTransaction;
-use strum::EnumVariantNames;
+use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
@@ -120,4 +122,9 @@ where
             Direct
         )
     }
+}
+
+generate_permutation_labels! {
+    MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, MempoolP2pPropagatorRequestLabelValue),
 }

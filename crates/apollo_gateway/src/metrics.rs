@@ -6,6 +6,8 @@ use starknet_api::rpc_transaction::{RpcTransaction, RpcTransactionLabelValue};
 use strum::{EnumVariantNames, VariantNames};
 use strum_macros::IntoStaticStr;
 
+use crate::communication::GATEWAY_REQUEST_LABELS;
+
 pub const LABEL_NAME_TX_TYPE: &str = "tx_type";
 pub const LABEL_NAME_SOURCE: &str = "source";
 
@@ -22,6 +24,14 @@ define_metrics!(
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
         MetricHistogram { GATEWAY_VALIDATE_TX_LATENCY, "gateway_validate_tx_latency", "Latency of gateway validate function in secs" },
+    },
+    Infra => {
+        LabeledMetricHistogram {
+            GATEWAY_LABELED_PROCESSING_TIMES_SECS,
+            "gateway_labeled_processing_times_secs",
+            "Request processing times of the gateway, per label (secs)",
+            labels = GATEWAY_REQUEST_LABELS
+        },
     },
 );
 

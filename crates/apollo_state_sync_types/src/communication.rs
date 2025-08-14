@@ -7,7 +7,9 @@ use apollo_infra::component_definitions::{
     RequestPriority,
     RequestWrapper,
 };
+use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_metrics::generate_permutation_labels;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
@@ -17,7 +19,7 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
-use strum::EnumVariantNames;
+use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
@@ -259,4 +261,9 @@ where
             Direct
         )
     }
+}
+
+generate_permutation_labels! {
+    STATE_SYNC_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, StateSyncRequestLabelValue),
 }

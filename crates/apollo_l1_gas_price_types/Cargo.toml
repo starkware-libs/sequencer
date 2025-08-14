@@ -7,6 +7,7 @@ license.workspace = true
 
 [dependencies]
 apollo_infra.workspace = true
+apollo_metrics.workspace = true
 apollo_proc_macros.workspace = true
 async-trait.workspace = true
 mockall.workspace = true
@@ -14,7 +15,7 @@ papyrus_base_layer.workspace = true
 reqwest.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
-strum.workspace = true
+strum = { workspace = true, features = ["derive"] }
 strum_macros.workspace = true
 thiserror.workspace = true
 tracing.workspace = true
