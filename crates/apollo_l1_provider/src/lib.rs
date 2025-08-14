@@ -123,7 +123,7 @@ impl Default for L1ProviderConfig {
             bootstrap_catch_up_height_override: None,
             startup_sync_sleep_retry_interval_seconds: Duration::from_secs(2),
             l1_handler_cancellation_timelock_seconds: Duration::from_secs(5 * 60),
-            new_l1_handler_cooldown_seconds: Duration::from_secs(4 * 60 + 5),
+            new_l1_handler_cooldown_seconds: Duration::from_secs(340), // 336 secs case observed.
             dummy_mode: false,
         }
     }
