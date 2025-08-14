@@ -44,6 +44,10 @@ pub struct AggregatorInput {
     pub full_output: bool,
     pub da: DataAvailability,
     pub debug_mode: bool,
+    pub fee_token_address: Felt,
+    pub chain_id: Felt,
+    pub public_key_x: Felt,
+    pub public_key_y: Felt,
 }
 
 impl AggregatorInput {
