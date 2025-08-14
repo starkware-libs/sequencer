@@ -9,6 +9,7 @@
     "0.13.5": 1300000,
     "first_0.13.5_rpc_v0_8": 1400000,
     "second_0.13.5_rpc_v0_8": 1450000,
+    "0.13.6_rpc_v0_8": 1600000,
     "example_invoke_with_replace_class_syscall": 780008,
     "example_invoke_with_deploy_syscall": 870136,
     "example_deploy_account_v1": 837408,
