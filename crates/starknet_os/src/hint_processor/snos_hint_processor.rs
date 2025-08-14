@@ -137,9 +137,7 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     da_segment: Option<Vec<Felt>>,
     // Indicates wether to create pages or not when serializing data-availability.
     pub(crate) serialize_data_availability_create_pages: bool,
-    #[allow(dead_code)]
     pub(crate) public_key_x: Felt,
-    #[allow(dead_code)]
     pub(crate) public_key_y: Felt,
     // For testing, track hint coverage.
     #[cfg(any(test, feature = "testing"))]

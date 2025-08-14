@@ -2,6 +2,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
 from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
+from starkware.cairo.common.ec_point import EcPoint
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.segments import relocate_segment
 from starkware.cairo.common.serialize import serialize_word
@@ -77,7 +78,7 @@ struct OsCarriedOutputs {
 }
 
 func serialize_os_output{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*}(
-    os_output: OsOutput*, replace_keys_with_aliases: felt
+    os_output: OsOutput*, replace_keys_with_aliases: felt, public_key: EcPoint*
 ) {
     alloc_locals;
 
