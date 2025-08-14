@@ -309,6 +309,8 @@ async fn proposal_fin_mismatch() {
     let n_executed = 0;
     // Setup batcher to validate the block.
     proposal_args.deps.batcher.expect_validate_block().returning(|_| Ok(()));
+    // Allow dump_block to be called.
+    proposal_args.deps.batcher.expect_dump_block().returning(|_proposal_id| Ok(()));
     // Batcher returns a different block hash than the one received in Fin.
     let built_block = StateDiffCommitment(PoseidonHash(Felt::ONE));
     proposal_args
