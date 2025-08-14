@@ -1,3 +1,4 @@
+use apollo_l1_gas_price_types::L1_GAS_PRICE_REQUEST_LABELS;
 use apollo_metrics::define_metrics;
 
 define_metrics!(
@@ -12,7 +13,15 @@ define_metrics!(
         MetricGauge { ETH_TO_STRK_RATE, "eth_to_strk_rate", "The current rate of ETH to STRK conversion" },
         MetricGauge { L1_GAS_PRICE_LATEST_MEAN_VALUE, "l1_gas_price_latest_mean_value", "The latest L1 gas price, calculated as an average by the provider client" },
         MetricGauge { L1_DATA_GAS_PRICE_LATEST_MEAN_VALUE, "l1_data_gas_price_latest_mean_value", "The latest L1 data gas price, calculated as an average by the provider client" }
-    }
+    },
+    Infra => {
+        LabeledMetricHistogram {
+            L1_GAS_PRICE_LABELED_PROCESSING_TIMES_SECS,
+            "l1_gas_price_labeled_processing_times_secs",
+            "Request processing times of the L1 gas price, per label (secs)",
+            labels = L1_GAS_PRICE_REQUEST_LABELS
+        },
+    },
 );
 
 pub(crate) fn register_provider_metrics() {
