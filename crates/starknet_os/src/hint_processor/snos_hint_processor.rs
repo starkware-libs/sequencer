@@ -137,6 +137,10 @@ pub struct SnosHintProcessor<'a, S: StateReader> {
     da_segment: Option<Vec<Felt>>,
     // Indicates wether to create pages or not when serializing data-availability.
     pub(crate) serialize_data_availability_create_pages: bool,
+    #[allow(dead_code)]
+    pub(crate) public_key_x: Felt,
+    #[allow(dead_code)]
+    pub(crate) public_key_y: Felt,
     // For testing, track hint coverage.
     #[cfg(any(test, feature = "testing"))]
     pub unused_hints: HashSet<AllHints>,
@@ -152,6 +156,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
         deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
         compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
         state_readers: Vec<S>,
+        public_key_x: Felt,
+        public_key_y: Felt,
     ) -> Result<Self, StarknetOsError> {
         if state_readers.len() != os_block_inputs.len() {
             return Err(OsInputError::InvalidLengthOfStateReaders(
@@ -185,6 +191,8 @@ impl<'a, S: StateReader> SnosHintProcessor<'a, S> {
             state_update_pointers: None,
             commitment_type: CommitmentType::State,
             serialize_data_availability_create_pages: false,
+            public_key_x,
+            public_key_y,
             #[cfg(any(test, feature = "testing"))]
             unused_hints: AllHints::all_iter().collect(),
         })
@@ -349,6 +357,8 @@ impl<'a> SnosHintProcessor<'a, DictStateReader> {
             BTreeMap::new(),
             BTreeMap::new(),
             vec![state_reader],
+            Felt::from(0),
+            Felt::from(0),
         )?;
         hint_processor.execution_helpers_manager.increment_current_helper_index();
         Ok(hint_processor)
