@@ -16,6 +16,7 @@ use apollo_infra::metrics::{
     BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
     BATCHER_REMOTE_MSGS_PROCESSED,
     BATCHER_REMOTE_MSGS_RECEIVED,
+    BATCHER_REMOTE_NUMBER_OF_CONNECTIONS,
     BATCHER_REMOTE_VALID_MSGS_RECEIVED,
 };
 
@@ -50,6 +51,9 @@ fn get_panel_remote_valid_msgs_received() -> Panel {
 }
 fn get_panel_remote_msgs_processed() -> Panel {
     Panel::from_counter(BATCHER_REMOTE_MSGS_PROCESSED, PanelType::TimeSeries)
+}
+fn get_panel_remote_number_of_connections() -> Panel {
+    Panel::from_gauge(BATCHER_REMOTE_NUMBER_OF_CONNECTIONS, PanelType::TimeSeries)
 }
 fn get_panel_local_queue_depth() -> Panel {
     Panel::from_gauge(BATCHER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
@@ -107,6 +111,7 @@ pub(crate) fn get_batcher_infra_row() -> Row {
             get_panel_remote_msgs_received(),
             get_panel_remote_valid_msgs_received(),
             get_panel_remote_msgs_processed(),
+            get_panel_remote_number_of_connections(),
             get_panel_remote_client_send_attempts(),
             get_panel_processing_times(),
             get_panel_queueing_times(),
