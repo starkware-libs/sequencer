@@ -5,6 +5,7 @@ use std::convert::TryFrom;
 use std::path::PathBuf;
 
 use apollo_storage::class::ClassStorageWriter;
+use apollo_storage::class_hash::ClassHashStorageWriter;
 use apollo_storage::compiled_class::CasmStorageWriter;
 use apollo_storage::header::{HeaderStorageReader, HeaderStorageWriter};
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
@@ -12,6 +13,7 @@ use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use pyo3::prelude::*;
 use starknet_api::block::{BlockHash, BlockHeader, BlockHeaderWithoutHash, BlockNumber};
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash};
 use starknet_api::deprecated_contract_class::ContractClass as DeprecatedContractClass;
 use starknet_api::hash::StarkHash;
@@ -154,7 +156,7 @@ impl Storage for PapyrusStorage {
 
         let mut declared_classes =
             IndexMap::<ClassHash, (CompiledClassHash, SierraContractClass)>::new();
-        let mut undeclared_casm_contracts = Vec::<(ClassHash, CasmContractClass)>::new();
+        let mut undeclared_casm_contracts = Vec::<(ClassHash, CasmContractClass, CompiledClassHash)>::new();
         for (class_hash, (raw_sierra, (compiled_class_hash, raw_casm))) in
             declared_class_hash_to_class
         {
@@ -173,13 +175,15 @@ impl Storage for PapyrusStorage {
                     (CompiledClassHash(compiled_class_hash.0), sierra_contract_class),
                 );
                 let casm_contract_class: CasmContractClass = serde_json::from_str(&raw_casm)?;
-                undeclared_casm_contracts.push((class_hash, casm_contract_class));
+                let compiled_class_hash_v2 = casm_contract_class.hash(&HashVersion::V2);
+                undeclared_casm_contracts.push((class_hash, casm_contract_class, compiled_class_hash_v2));
             }
         }
 
         let mut append_txn = self.writer().begin_rw_txn()?;
-        for (class_hash, contract_class) in undeclared_casm_contracts {
-            append_txn = append_txn.append_casm(&class_hash, &contract_class)?;
+        for (class_hash, casm_contract_class, compiled_class_hash_v2) in undeclared_casm_contracts {
+            append_txn = append_txn.append_casm(&class_hash, &casm_contract_class)?;
+            append_txn = append_txn.set_executable_class_hash_v2(&class_hash, compiled_class_hash_v2)?;
         }
 
         // Construct state diff; manually add declared classes.
