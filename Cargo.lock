@@ -9231,6 +9231,7 @@ dependencies = [
  "alloy",
  "apollo_config",
  "apollo_l1_endpoint_monitor_types",
+ "apollo_time",
  "assert_matches",
  "async-trait",
  "colored 3.0.0",

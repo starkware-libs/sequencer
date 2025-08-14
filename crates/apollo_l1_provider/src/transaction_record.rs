@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use indexmap::map::Entry;
 use indexmap::IndexMap;
-use starknet_api::block::BlockTimestamp;
+use starknet_api::block::{BlockTimestamp, UnixTimestamp};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 use tracing::{debug, info, warn};
@@ -206,12 +206,21 @@ impl From<TransactionPayload> for TransactionRecord {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TransactionPayload {
     HashOnly(TransactionHash),
-    Full { tx: L1HandlerTransaction, created_at_block_timestamp: BlockTimestamp },
+    Full {
+        tx: L1HandlerTransaction,
+        created_at_block_timestamp: BlockTimestamp,
+        logged_at: UnixTimestamp,
+    },
 }
 
 impl TransactionPayload {
-    pub fn set(&mut self, tx: L1HandlerTransaction, created_at_block_timestamp: BlockTimestamp) {
-        *self = TransactionPayload::Full { tx, created_at_block_timestamp };
+    pub fn set(
+        &mut self,
+        tx: L1HandlerTransaction,
+        created_at_block_timestamp: BlockTimestamp,
+        logged_at: UnixTimestamp,
+    ) {
+        *self = TransactionPayload::Full { tx, created_at_block_timestamp, logged_at };
     }
 
     pub fn tx_hash(&self) -> TransactionHash {

@@ -13,7 +13,7 @@ use indexmap::IndexSet;
 use mockall::automock;
 use papyrus_base_layer::{EventData, L1Event};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockNumber, BlockTimestamp, UnixTimestamp};
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::{
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
@@ -241,7 +241,8 @@ where
 pub enum Event {
     L1HandlerTransaction {
         l1_handler_tx: L1HandlerTransaction,
-        timestamp: BlockTimestamp,
+        block_timestamp: BlockTimestamp,
+        log_timestamp: UnixTimestamp,
     },
     TransactionCanceled(EventData),
     TransactionCancellationStarted {
@@ -257,9 +258,9 @@ pub enum Event {
 impl Event {
     pub fn from_l1_event(chain_id: &ChainId, l1_event: L1Event) -> Result<Self, StarknetApiError> {
         Ok(match l1_event {
-            L1Event::LogMessageToL2 { tx, fee, timestamp, .. } => {
+            L1Event::LogMessageToL2 { tx, fee, block_timestamp, log_timestamp, .. } => {
                 let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)?;
-                Self::L1HandlerTransaction { l1_handler_tx: tx, timestamp }
+                Self::L1HandlerTransaction { l1_handler_tx: tx, block_timestamp, log_timestamp }
             }
             L1Event::MessageToL2CancellationStarted {
                 cancelled_tx,
@@ -285,11 +286,11 @@ impl Event {
 impl Display for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Event::L1HandlerTransaction { l1_handler_tx: tx, timestamp } => {
+            Event::L1HandlerTransaction { l1_handler_tx: tx, block_timestamp, log_timestamp } => {
                 write!(
                     f,
-                    "L1HandlerTransaction(tx_hash={}, block_timestamp={})",
-                    tx.tx_hash, timestamp
+                    "L1HandlerTransaction(tx_hash={}, block_timestamp={}, log_timestamp={})",
+                    tx.tx_hash, block_timestamp, log_timestamp
                 )
             }
             Event::TransactionCanceled(data) => write!(f, "TransactionCanceled({})", data),

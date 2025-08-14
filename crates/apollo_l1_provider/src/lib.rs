@@ -126,7 +126,7 @@ impl Default for L1ProviderConfig {
             startup_sync_sleep_retry_interval_seconds: Duration::from_secs(2),
             l1_handler_cancellation_timelock_seconds: Duration::from_secs(5 * 60),
             l1_handler_consumption_timelock_seconds: Duration::from_secs(5 * 60),
-            new_l1_handler_cooldown_seconds: Duration::from_secs(4 * 60 + 5),
+            new_l1_handler_cooldown_seconds: Duration::from_secs(70),
             dummy_mode: false,
         }
     }
@@ -170,7 +170,7 @@ impl SerializeConfig for L1ProviderConfig {
                 "new_l1_handler_cooldown_seconds",
                 &self.new_l1_handler_cooldown_seconds.as_secs(),
                 "How long to wait before allowing new L1 handler transactions to be proposed \
-                 (validation is available immediately).",
+                 (validation is available immediately), from the moment they are logged.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(

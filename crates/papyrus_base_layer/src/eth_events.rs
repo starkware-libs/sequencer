@@ -3,7 +3,7 @@ use std::sync::Arc;
 use alloy::primitives::{Address as EthereumContractAddress, U256};
 use alloy::rpc::types::Log;
 use alloy::sol_types::SolEventInterface;
-use starknet_api::block::BlockTimestamp;
+use starknet_api::block::{BlockTimestamp, UnixTimestamp};
 use starknet_api::core::{EntryPointSelector, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
@@ -18,7 +18,11 @@ use crate::{EventData, L1Event};
 
 // Note: don't move as method for L1Event, we don't want to expose alloy's inner type Log to our
 // base layer's API.
-pub fn parse_event(log: Log, block_timestamp: BlockTimestamp) -> EthereumBaseLayerResult<L1Event> {
+pub fn parse_event(
+    log: Log,
+    block_timestamp: BlockTimestamp,
+    log_timestamp: UnixTimestamp,
+) -> EthereumBaseLayerResult<L1Event> {
     let validate = true;
     let l1_tx_hash = log.transaction_hash;
     let log = log.inner;
@@ -29,7 +33,13 @@ pub fn parse_event(log: Log, block_timestamp: BlockTimestamp) -> EthereumBaseLay
             let fee = Fee(event.fee.try_into().map_err(EthereumBaseLayerError::FeeOutOfRange)?);
             let event_data = EventData::try_from(event)?;
             let tx = L1HandlerTransaction::from(event_data);
-            Ok(L1Event::LogMessageToL2 { tx, fee, l1_tx_hash, timestamp: block_timestamp })
+            Ok(L1Event::LogMessageToL2 {
+                tx,
+                fee,
+                l1_tx_hash,
+                block_timestamp,
+                log_timestamp,
+            })
         }
         Starknet::StarknetEvents::ConsumedMessageToL2(event) => {
             let event_data = EventData::try_from(event)?;

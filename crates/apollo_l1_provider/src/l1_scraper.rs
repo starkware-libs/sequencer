@@ -119,8 +119,8 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let l1_messages_info = l1_events
             .iter()
             .filter_map(|event| match event {
-                L1Event::LogMessageToL2 { l1_tx_hash, timestamp, .. } => {
-                    Some((*l1_tx_hash, *timestamp))
+                L1Event::LogMessageToL2 { l1_tx_hash, block_timestamp, .. } => {
+                    Some((*l1_tx_hash, *block_timestamp))
                 }
                 _ => None,
             })
@@ -142,7 +142,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         let formatted_pairs = zip_eq(l1_messages_info, l2_hashes)
             .map(|((l1_hash, timestamp), l2_hash)| {
-                format!("L1 hash: {l1_hash:?}, L1 timestamp: {timestamp}, L2 hash: {l2_hash}")
+                format!("L1 hash: {l1_hash:?}, L2 hash: {l2_hash}, L1 timestamp: {timestamp}.")
             })
             .collect::<Vec<_>>();
         if formatted_pairs.is_empty() {

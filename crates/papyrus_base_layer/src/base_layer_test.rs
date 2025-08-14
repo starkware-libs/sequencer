@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use alloy::consensus::Header;
 use alloy::primitives::B256;
 use alloy::providers::mock::Asserter;
 use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::types::{Block, BlockTransactions, Header as AlloyRpcHeader};
+use apollo_time::time::DefaultClock;
 use assert_matches::assert_matches;
 use pretty_assertions::assert_eq;
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
@@ -36,7 +39,11 @@ fn base_layer_with_mocked_provider() -> (EthereumBaseLayerContract, Asserter) {
 
     let provider = ProviderBuilder::new().on_mocked_client(asserter.clone()).root().clone();
     let contract = Starknet::new(Default::default(), provider);
-    let base_layer = EthereumBaseLayerContract { contract, config: Default::default() };
+    let base_layer = EthereumBaseLayerContract {
+        contract,
+        config: Default::default(),
+        clock: Arc::new(DefaultClock),
+    };
 
     (base_layer, asserter)
 }

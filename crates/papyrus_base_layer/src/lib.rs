@@ -8,7 +8,7 @@ use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockHashAndNumber, BlockTimestamp};
+use starknet_api::block::{BlockHashAndNumber, BlockTimestamp, UnixTimestamp};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
@@ -124,7 +124,10 @@ pub enum L1Event {
         tx: L1HandlerTransaction,
         fee: Fee,
         l1_tx_hash: Option<FixedBytes<32>>,
-        timestamp: BlockTimestamp,
+        // The timestamp of the L1 block that this event was emitted in.
+        block_timestamp: BlockTimestamp,
+        // The timestamp of the time this event was logged by this base layer.
+        log_timestamp: UnixTimestamp,
     },
     MessageToL2CancellationStarted {
         cancelled_tx: L1HandlerTransaction,

@@ -179,9 +179,10 @@ impl L1Provider {
 
         for event in events {
             match event {
-                Event::L1HandlerTransaction { l1_handler_tx, timestamp } => {
+                Event::L1HandlerTransaction { l1_handler_tx, block_timestamp, log_timestamp } => {
                     let tx_hash = l1_handler_tx.tx_hash;
-                    let successfully_inserted = self.tx_manager.add_tx(l1_handler_tx, timestamp);
+                    let successfully_inserted =
+                        self.tx_manager.add_tx(l1_handler_tx, block_timestamp, log_timestamp);
                     if !successfully_inserted {
                         debug!(
                             "Unexpected L1 Handler transaction with hash: {tx_hash}, already \

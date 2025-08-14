@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use itertools::{chain, Itertools};
 use pretty_assertions::assert_eq;
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockNumber, BlockTimestamp, UnixTimestamp};
 use starknet_api::executable_transaction::{
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
     L1HandlerTransaction,
@@ -325,13 +325,13 @@ impl From<TransactionManagerContent> for TransactionManager {
             pending.len() + rejected.len() + committed.len() + cancel_requested.len(),
         );
 
-        let mut proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>> = BTreeMap::new();
+        let mut proposable_index: BTreeMap<UnixTimestamp, Vec<TransactionHash>> = BTreeMap::new();
         for timed_tx in pending {
             let tx_hash = timed_tx.tx.tx_hash;
             let block_timestamp = timed_tx.timestamp;
             let record = TransactionRecord::from(timed_tx);
             assert_eq!(records.insert(tx_hash, record), None);
-            proposable_index.entry(block_timestamp).or_default().push(tx_hash);
+            proposable_index.entry(block_timestamp.0).or_default().push(tx_hash);
         }
 
         for rejected_tx in rejected {
@@ -340,6 +340,7 @@ impl From<TransactionManagerContent> for TransactionManager {
                 tx: rejected_tx,
                 created_at_block_timestamp: 0.into(), /* timestamps are irrelevant for txs once
                                                        * rejected. */
+                logged_at: 0,
             });
             record.mark_rejected();
             assert_eq!(records.insert(tx_hash, record), None);
@@ -357,6 +358,7 @@ impl From<TransactionManagerContent> for TransactionManager {
                 tx: cancel_requested_tx.tx,
                 // Transaction "created_at" irrelevant after cancellation request.
                 created_at_block_timestamp: 0.into(),
+                logged_at: 0,
             });
             record.mark_cancellation_request(cancel_requested_tx.timestamp);
             assert_eq!(records.insert(tx_hash, record), None);
@@ -413,7 +415,7 @@ impl TransactionManagerContentBuilder {
             committed
                 .into_iter()
                 // created at block is irrelevant for committed txs.
-                .map(|tx| (tx.tx_hash, TransactionPayload::Full { tx, created_at_block_timestamp: 0.into() })),
+                .map(|tx| (tx.tx_hash, TransactionPayload::Full { tx, created_at_block_timestamp: 0.into(), logged_at: 0 })),
         );
         self
     }
@@ -428,6 +430,7 @@ impl TransactionManagerContentBuilder {
                 TransactionPayload::Full {
                     tx: timed_tx.tx,
                     created_at_block_timestamp: timed_tx.timestamp,
+                    logged_at: timed_tx.timestamp.0,
                 },
             )
         }));
@@ -448,7 +451,10 @@ impl TransactionManagerContentBuilder {
 
     fn with_consumed(mut self, consumed: impl IntoIterator<Item = L1HandlerTransaction>) -> Self {
         self.consumed.get_or_insert_default().extend(consumed.into_iter().map(|tx| {
-            (tx.tx_hash, TransactionPayload::Full { tx, created_at_block_timestamp: 0.into() })
+            (
+                tx.tx_hash,
+                TransactionPayload::Full { tx, created_at_block_timestamp: 0.into(), logged_at: 0 },
+            )
         }));
         self
     }
@@ -583,6 +589,7 @@ impl From<TimedL1HandlerTransaction> for TransactionRecord {
         TransactionRecord::new(TransactionPayload::Full {
             tx: timed_tx.tx,
             created_at_block_timestamp: timed_tx.timestamp,
+            logged_at: timed_tx.timestamp.0,
         })
     }
 }

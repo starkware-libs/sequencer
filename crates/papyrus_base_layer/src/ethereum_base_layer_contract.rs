@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::future::IntoFuture;
 use std::ops::RangeInclusive;
+use std::sync::Arc;
 use std::time::Duration;
 
 use alloy::dyn_abi::SolType;
@@ -15,6 +16,7 @@ use alloy::transports::TransportErrorKind;
 use apollo_config::converters::deserialize_milliseconds_to_duration;
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_time::time::{Clock, DefaultClock};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
@@ -97,6 +99,7 @@ impl StarknetL1Contract {
 pub struct EthereumBaseLayerContract {
     pub config: EthereumBaseLayerConfig,
     pub contract: StarknetL1Contract,
+    pub clock: Arc<dyn Clock>,
 }
 
 impl EthereumBaseLayerContract {
@@ -104,7 +107,8 @@ impl EthereumBaseLayerContract {
         let current_node_url = config.node_url.clone();
         let contract =
             build_contract_instance(config.starknet_contract_address, current_node_url.clone());
-        Self { contract, config }
+        let clock = Arc::new(DefaultClock);
+        Self { contract, config, clock }
     }
 }
 
@@ -166,6 +170,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             self.contract.provider().get_logs(&filter),
         )
         .await??;
+        let log_timestamp = self.clock.unix_now();
 
         // Debugging.
         let hashes: Vec<_> = matching_logs.iter().filter_map(|log| log.transaction_hash).collect();
@@ -175,7 +180,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
             let block_number = log.block_number.unwrap();
             async move {
                 let header = self.get_block_header(block_number).await?.unwrap();
-                parse_event(log, header.timestamp)
+                parse_event(log, header.timestamp, log_timestamp)
             }
         });
 
