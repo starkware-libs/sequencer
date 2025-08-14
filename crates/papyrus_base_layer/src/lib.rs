@@ -124,7 +124,8 @@ pub enum L1Event {
         tx: L1HandlerTransaction,
         fee: Fee,
         l1_tx_hash: Option<FixedBytes<32>>,
-        timestamp: BlockTimestamp,
+        // The timestamp of the L1 block that this event was emitted in.
+        block_timestamp: BlockTimestamp,
     },
     MessageToL2CancellationStarted {
         cancelled_tx: L1HandlerTransaction,

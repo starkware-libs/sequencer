@@ -83,14 +83,16 @@ fn l1_handler_event(tx_hash: TransactionHash) -> Event {
     let default_timestamp = 0.into();
     Event::L1HandlerTransaction {
         l1_handler_tx: executable_l1_handler_tx(L1HandlerTxArgs { tx_hash, ..Default::default() }),
-        timestamp: default_timestamp,
+        block_timestamp: default_timestamp,
+        scrape_timestamp: default_timestamp.0,
     }
 }
 
 fn timed_l1_handler_event(tx_hash: TransactionHash, timestamp: BlockTimestamp) -> Event {
     Event::L1HandlerTransaction {
         l1_handler_tx: executable_l1_handler_tx(L1HandlerTxArgs { tx_hash, ..Default::default() }),
-        timestamp,
+        block_timestamp: timestamp,
+        scrape_timestamp: timestamp.0,
     }
 }
 
