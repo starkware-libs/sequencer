@@ -7,18 +7,26 @@ mod server_metrics_test;
 use std::sync::Arc;
 
 use apollo_infra_utils::test_utils::{AvailablePorts, TestIdentifier};
-use apollo_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram, MetricScope};
+use apollo_metrics::generate_permutation_labels;
+use apollo_metrics::metrics::{
+    LabeledMetricHistogram,
+    MetricCounter,
+    MetricGauge,
+    MetricHistogram,
+    MetricScope,
+};
 use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
-use strum::EnumVariantNames;
+use strum::{EnumVariantNames, VariantNames};
 use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tokio::sync::{Mutex, Semaphore};
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
 use crate::metrics::{LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics};
+use crate::requests::LABEL_NAME_REQUEST_VARIANT;
 use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 
 pub(crate) type ValueA = Felt;
@@ -47,8 +55,36 @@ const TEST_QUEUE_DEPTH: MetricGauge =
 const TEST_PROCESSING_TIMES_SECS: MetricHistogram =
     MetricHistogram::new(MetricScope::Infra, "processing_times", "Test processing time histogram");
 
+const _TEST_PROCESSING_TIMES_SECS_LABELLED_A: LabeledMetricHistogram = LabeledMetricHistogram::new(
+    MetricScope::Infra,
+    "labeled_processing_times_a",
+    "Test processing time histogram for component A",
+    COMPONENT_A_REQUEST_LABELS,
+);
+
+const _TEST_PROCESSING_TIMES_SECS_LABELLED_B: LabeledMetricHistogram = LabeledMetricHistogram::new(
+    MetricScope::Infra,
+    "labeled_processing_times_b",
+    "Test processing time histogram for component B",
+    COMPONENT_B_REQUEST_LABELS,
+);
+
 const TEST_QUEUEING_TIMES_SECS: MetricHistogram =
     MetricHistogram::new(MetricScope::Infra, "queueing_times", "Test queueing time histogram");
+
+const _TEST_QUEUEING_TIMES_SECS_LABELLED_A: LabeledMetricHistogram = LabeledMetricHistogram::new(
+    MetricScope::Infra,
+    "labeled_queueing_times_a",
+    "Test queueing time histogram for component A",
+    COMPONENT_A_REQUEST_LABELS,
+);
+
+const _TEST_QUEUEING_TIMES_SECS_LABELLED_B: LabeledMetricHistogram = LabeledMetricHistogram::new(
+    MetricScope::Infra,
+    "labeled_queueing_times_b",
+    "Test queueing time histogram for component B",
+    COMPONENT_B_REQUEST_LABELS,
+);
 
 pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
     &TEST_MSGS_RECEIVED,
@@ -116,6 +152,12 @@ pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
 pub enum ComponentARequest {
     AGetValue,
 }
+
+generate_permutation_labels! {
+    COMPONENT_A_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, ComponentARequestLabelValue),
+}
+
 impl_debug_for_infra_requests_and_responses!(ComponentARequest);
 impl_labeled_request!(ComponentARequest, ComponentARequestLabelValue);
 impl PrioritizedRequest for ComponentARequest {}
@@ -135,6 +177,12 @@ pub enum ComponentBRequest {
     BGetValue,
     BSetValue(ValueB),
 }
+
+generate_permutation_labels! {
+    COMPONENT_B_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, ComponentBRequestLabelValue),
+}
+
 impl_debug_for_infra_requests_and_responses!(ComponentBRequest);
 impl_labeled_request!(ComponentBRequest, ComponentBRequestLabelValue);
 impl PrioritizedRequest for ComponentBRequest {}

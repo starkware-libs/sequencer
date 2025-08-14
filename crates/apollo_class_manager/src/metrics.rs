@@ -2,6 +2,8 @@ use apollo_compile_to_casm_types::SerializedClass;
 use apollo_metrics::{define_metrics, generate_permutation_labels};
 use strum::VariantNames;
 
+use crate::communication::CLASS_MANAGER_REQUEST_LABELS;
+
 const CAIRO_CLASS_TYPE_LABEL: &str = "class_type";
 
 #[derive(strum_macros::EnumVariantNames, strum_macros::IntoStaticStr)]
@@ -46,6 +48,14 @@ define_metrics!(
             "class_manager_class_sizes",
             "Size of the classes in bytes, labeled by type (sierra, casm, deprecated casm)",
             labels = CLASS_OBJECT_TYPE_LABELS
+        },
+    },
+    Infra => {
+        LabeledMetricHistogram {
+            CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
+            "class_manager_labeled_processing_times_secs",
+            "Request processing times of the class manager, per label (secs)",
+            labels = CLASS_MANAGER_REQUEST_LABELS
         },
     },
 );

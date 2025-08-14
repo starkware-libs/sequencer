@@ -141,7 +141,6 @@ pub struct LocalServerMetrics {
     received_msgs: &'static MetricCounter,
     processed_msgs: &'static MetricCounter,
     queue_depth: &'static MetricGauge,
-    // TODO(Tsabary): should be labelled according to request type.
     processing_times: &'static MetricHistogram,
     queueing_times: &'static MetricHistogram,
 }
