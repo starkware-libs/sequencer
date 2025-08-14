@@ -23,7 +23,7 @@ use crate::serde_utils::SerdeWrapper;
 const DEFAULT_RETRIES: usize = 150;
 const DEFAULT_IDLE_CONNECTIONS: usize = 10;
 const DEFAULT_IDLE_TIMEOUT_MS: u64 = 30000;
-const DEFAULT_RETRY_INTERVAL_MS: u64 = 1000;
+const DEFAULT_MAX_RETRY_INTERVAL_MS: u64 = 1000;
 const DEFAULT_INITIAL_RETRY_DELAY_MS: u64 = 1;
 const DEFAULT_LOG_ATTEMPT_INTERVAL_MS: usize = 10;
 
@@ -36,7 +36,7 @@ pub struct RemoteClientConfig {
     pub idle_timeout_ms: u64,
     pub log_attempt_interval_ms: usize,
     pub initial_retry_delay_ms: u64,
-    pub retry_interval_ms: u64,
+    pub max_retry_interval_ms: u64,
 }
 
 impl Default for RemoteClientConfig {
@@ -47,7 +47,7 @@ impl Default for RemoteClientConfig {
             idle_timeout_ms: DEFAULT_IDLE_TIMEOUT_MS,
             initial_retry_delay_ms: DEFAULT_INITIAL_RETRY_DELAY_MS,
             log_attempt_interval_ms: DEFAULT_LOG_ATTEMPT_INTERVAL_MS,
-            retry_interval_ms: DEFAULT_RETRY_INTERVAL_MS,
+            max_retry_interval_ms: DEFAULT_MAX_RETRY_INTERVAL_MS,
         }
     }
 }
@@ -86,9 +86,9 @@ impl SerializeConfig for RemoteClientConfig {
                 ParamPrivacyInput::Public,
             ),
             ser_param(
-                "retry_interval_ms",
-                &self.retry_interval_ms,
-                "The duration in milliseconds to wait between remote connection retries.",
+                "max_retry_interval_ms",
+                &self.max_retry_interval_ms,
+                "The maximal duration in milliseconds to wait between remote connection retries.",
                 ParamPrivacyInput::Public,
             ),
         ])
@@ -229,8 +229,7 @@ where
             }
             tokio::time::sleep(Duration::from_millis(retry_interval_ms)).await;
             // Exponential backoff, capped by the configured retry interval.
-            // TODO(Tsabary): rename the config value to indicate this is the max retry interval.
-            retry_interval_ms = (retry_interval_ms * 2).min(self.config.retry_interval_ms);
+            retry_interval_ms = (retry_interval_ms * 2).min(self.config.max_retry_interval_ms);
         }
         unreachable!("Guaranteed to return a response before reaching this point.");
     }

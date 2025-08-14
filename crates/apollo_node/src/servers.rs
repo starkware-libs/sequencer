@@ -271,6 +271,7 @@ macro_rules! create_remote_server {
 ///   &ReactiveComponentExecutionMode.
 /// * $component - The component that will be taken to initialize the server if the execution mode
 ///   is enabled(LocalExecutionWithRemoteDisabled / LocalExecutionWithRemoteEnabled).
+/// * $local_server_config - The component's local server configuration.
 /// * $receiver - receiver side for the server.
 /// * $server_metrics - The metrics for the server.
 /// * $max_concurrency - The maximum number of concurrent requests the server will handle. Only
@@ -290,6 +291,7 @@ macro_rules! create_remote_server {
 ///     REGULAR_LOCAL_SERVER,
 ///     &config.components.batcher.execution_mode,
 ///     components.batcher,
+///     &config.components.batcher.local_server_config,
 ///     communication.take_batcher_rx(),
 ///     batcher_metrics
 /// );
@@ -299,7 +301,15 @@ macro_rules! create_remote_server {
 /// }
 /// ```
 macro_rules! create_local_server {
-    ($server_type:tt, $execution_mode:expr, $component:expr, $receiver:expr, $server_metrics:expr  $(, $max_concurrency:expr)? ) => {
+    (
+        $server_type:tt,
+        $execution_mode:expr,
+        $component:expr,
+        $local_server_config:expr,
+        $receiver:expr,
+        $server_metrics:expr
+        $(, $max_concurrency:expr)?
+    ) => {
         match *$execution_mode {
             ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
             | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => {
@@ -307,6 +317,7 @@ macro_rules! create_local_server {
                     $component
                         .take()
                         .expect(concat!(stringify!($component), " is not initialized.")),
+                    $local_server_config,
                     $receiver,
                     $( $max_concurrency,)?
                     $server_metrics,
@@ -383,9 +394,11 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.batcher.execution_mode,
         &mut components.batcher,
+        &config.components.batcher.local_server_config,
         communication.take_batcher_rx(),
         &BATCHER_METRICS
     );
+
     const CLASS_MANAGER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
         &CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
@@ -397,10 +410,12 @@ fn create_local_servers(
         CONCURRENT_LOCAL_SERVER,
         &config.components.class_manager.execution_mode,
         &mut components.class_manager,
+        &config.components.class_manager.local_server_config,
         communication.take_class_manager_rx(),
         &CLASS_MANAGER_METRICS,
         config.components.class_manager.max_concurrency
     );
+
     const GATEWAY_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &GATEWAY_LOCAL_MSGS_RECEIVED,
         &GATEWAY_LOCAL_MSGS_PROCESSED,
@@ -412,6 +427,7 @@ fn create_local_servers(
         CONCURRENT_LOCAL_SERVER,
         &config.components.gateway.execution_mode,
         &mut components.gateway,
+        &config.components.gateway.local_server_config,
         communication.take_gateway_rx(),
         &GATEWAY_METRICS,
         config.components.gateway.max_concurrency
@@ -428,8 +444,25 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.l1_endpoint_monitor.execution_mode,
         &mut components.l1_endpoint_monitor,
+        &config.components.l1_endpoint_monitor.local_server_config,
         communication.take_l1_endpoint_monitor_rx(),
         &L1_ENDPOINT_MONITOR_METRICS
+    );
+
+    const L1_GAS_PRICE_PROVIDER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
+        &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
+        &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
+        &L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
+        &L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES,
+        &L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES,
+    );
+    let l1_gas_price_provider_server = create_local_server!(
+        REGULAR_LOCAL_SERVER,
+        &config.components.l1_gas_price_provider.execution_mode,
+        &mut components.l1_gas_price_provider,
+        &config.components.l1_gas_price_provider.local_server_config,
+        communication.take_l1_gas_price_rx(),
+        &L1_GAS_PRICE_PROVIDER_METRICS
     );
 
     const L1_PROVIDER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
@@ -443,23 +476,11 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.l1_provider.execution_mode,
         &mut components.l1_provider,
+        &config.components.l1_provider.local_server_config,
         communication.take_l1_provider_rx(),
         &L1_PROVIDER_METRICS
     );
-    const L1_GAS_PRICE_PROVIDER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
-        &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
-        &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
-        &L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
-        &L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES,
-        &L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES,
-    );
-    let l1_gas_price_provider_server = create_local_server!(
-        REGULAR_LOCAL_SERVER,
-        &config.components.l1_gas_price_provider.execution_mode,
-        &mut components.l1_gas_price_provider,
-        communication.take_l1_gas_price_rx(),
-        &L1_GAS_PRICE_PROVIDER_METRICS
-    );
+
     const MEMPOOL_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &MEMPOOL_LOCAL_MSGS_RECEIVED,
         &MEMPOOL_LOCAL_MSGS_PROCESSED,
@@ -471,9 +492,11 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.mempool.execution_mode,
         &mut components.mempool,
+        &config.components.mempool.local_server_config,
         communication.take_mempool_rx(),
         &MEMPOOL_METRICS
     );
+
     const MEMPOOL_P2P_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
         &MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
@@ -485,9 +508,11 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.mempool_p2p.execution_mode,
         &mut components.mempool_p2p_propagator,
+        &config.components.mempool_p2p.local_server_config,
         communication.take_mempool_p2p_propagator_rx(),
         &MEMPOOL_P2P_METRICS
     );
+
     const SIERRA_COMPILER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
         &SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
@@ -499,10 +524,12 @@ fn create_local_servers(
         CONCURRENT_LOCAL_SERVER,
         &config.components.sierra_compiler.execution_mode,
         &mut components.sierra_compiler,
+        &config.components.sierra_compiler.local_server_config,
         communication.take_sierra_compiler_rx(),
         &SIERRA_COMPILER_METRICS,
         config.components.sierra_compiler.max_concurrency
     );
+
     const STATE_SYNC_METRICS: LocalServerMetrics = LocalServerMetrics::new(
         &STATE_SYNC_LOCAL_MSGS_RECEIVED,
         &STATE_SYNC_LOCAL_MSGS_PROCESSED,
@@ -514,6 +541,7 @@ fn create_local_servers(
         CONCURRENT_LOCAL_SERVER,
         &config.components.state_sync.execution_mode,
         &mut components.state_sync,
+        &config.components.state_sync.local_server_config,
         communication.take_state_sync_rx(),
         &STATE_SYNC_METRICS,
         config.components.state_sync.max_concurrency

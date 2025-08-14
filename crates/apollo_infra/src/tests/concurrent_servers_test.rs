@@ -27,6 +27,7 @@ use crate::component_definitions::{
 use crate::component_server::{
     ComponentServerStarter,
     ConcurrentLocalComponentServer,
+    LocalServerConfig,
     RemoteComponentServer,
 };
 use crate::tests::{
@@ -136,10 +137,11 @@ async fn setup_concurrent_local_test() -> LocalConcurrentComponentClient {
         channel::<RequestWrapper<ConcurrentComponentRequest, ConcurrentComponentResponse>>(32);
 
     let local_client = LocalConcurrentComponentClient::new(tx_a);
-
+    let local_server_config = LocalServerConfig::default();
     let max_concurrency = 10;
     let mut concurrent_local_server = ConcurrentLocalComponentServer::new(
         component,
+        &local_server_config,
         rx_a,
         max_concurrency,
         &TEST_LOCAL_SERVER_METRICS,

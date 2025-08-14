@@ -33,6 +33,7 @@ use crate::component_definitions::{
 use crate::component_server::{
     ComponentServerStarter,
     LocalComponentServer,
+    LocalServerConfig,
     RemoteComponentServer,
 };
 use crate::metrics::RemoteClientMetrics;
@@ -71,7 +72,7 @@ const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     retries: 0,
     idle_connections: 0,
     idle_timeout_ms: 0,
-    retry_interval_ms: 0,
+    max_retry_interval_ms: 0,
     initial_retry_delay_ms: 0,
     log_attempt_interval_ms: 1,
 };
@@ -259,10 +260,11 @@ async fn setup_for_tests(
     let a_local_client = LocalComponentClient::<ComponentARequest, ComponentAResponse>::new(tx_a);
     let b_local_client = LocalComponentClient::<ComponentBRequest, ComponentBResponse>::new(tx_b);
 
+    let config = LocalServerConfig::default();
     let mut component_a_local_server =
-        LocalComponentServer::new(component_a, rx_a, &TEST_LOCAL_SERVER_METRICS);
+        LocalComponentServer::new(component_a, &config, rx_a, &TEST_LOCAL_SERVER_METRICS);
     let mut component_b_local_server =
-        LocalComponentServer::new(component_b, rx_b, &TEST_LOCAL_SERVER_METRICS);
+        LocalComponentServer::new(component_b, &config, rx_b, &TEST_LOCAL_SERVER_METRICS);
 
     let mut component_a_remote_server = RemoteComponentServer::new(
         a_local_client,
