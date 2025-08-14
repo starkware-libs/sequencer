@@ -11,8 +11,8 @@ use apollo_infra::metrics::{
     GATEWAY_LOCAL_MSGS_PROCESSED,
     GATEWAY_LOCAL_MSGS_RECEIVED,
     GATEWAY_LOCAL_QUEUE_DEPTH,
-    GATEWAY_PROCESSING_TIMES,
-    GATEWAY_QUEUEING_TIMES,
+    GATEWAY_PROCESSING_TIMES_SECS,
+    GATEWAY_QUEUEING_TIMES_SECS,
     GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
     GATEWAY_REMOTE_MSGS_PROCESSED,
     GATEWAY_REMOTE_MSGS_RECEIVED,
@@ -56,10 +56,10 @@ fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(GATEWAY_PROCESSING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(GATEWAY_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
 }
 fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(GATEWAY_QUEUEING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(GATEWAY_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
 
 fn get_panel_gateway_transactions_received_by_source() -> Panel {
