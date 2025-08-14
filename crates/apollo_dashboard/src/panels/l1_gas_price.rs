@@ -2,8 +2,8 @@ use apollo_infra::metrics::{
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
     L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
-    L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES,
-    L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES,
+    L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES_SECS,
+    L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES_SECS,
     L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
     L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
@@ -43,10 +43,10 @@ fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
 fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
 }
 fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES, PanelType::TimeSeries)
+    Panel::from_hist(L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
 
 fn get_panel_insufficient_history() -> Panel {

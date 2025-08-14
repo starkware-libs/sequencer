@@ -1046,22 +1046,22 @@
         "extra_params": {}
       },
       {
-        "title": "batcher_processing_times",
-        "description": "Request processing times of the batcher",
+        "title": "batcher_processing_times_secs",
+        "description": "Request processing times of the batcher (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(batcher_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(batcher_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(batcher_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
       {
-        "title": "batcher_queueing_times",
-        "description": "Request queueing times of the batcher",
+        "title": "batcher_queueing_times_secs",
+        "description": "Request queueing times of the batcher (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(batcher_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(batcher_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(batcher_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1132,22 +1132,22 @@
         "extra_params": {}
       },
       {
-        "title": "state_sync_processing_times",
-        "description": "Request processing times of the state sync",
+        "title": "state_sync_processing_times_secs",
+        "description": "Request processing times of the state sync (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(state_sync_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(state_sync_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(state_sync_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
       {
-        "title": "state_sync_queueing_times",
-        "description": "Request queueing times of the state sync",
+        "title": "state_sync_queueing_times_secs",
+        "description": "Request queueing times of the state sync (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(state_sync_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(state_sync_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(state_sync_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1218,22 +1218,22 @@
         "extra_params": {}
       },
       {
-        "title": "gateway_processing_times",
-        "description": "Request processing times of the gateway",
+        "title": "gateway_processing_times_secs",
+        "description": "Request processing times of the gateway (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(gateway_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(gateway_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(gateway_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(gateway_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
       {
-        "title": "gateway_queueing_times",
-        "description": "Request queueing times of the gateway",
+        "title": "gateway_queueing_times_secs",
+        "description": "Request queueing times of the gateway (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(gateway_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(gateway_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(gateway_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(gateway_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1304,22 +1304,22 @@
         "extra_params": {}
       },
       {
-        "title": "mempool_processing_times",
-        "description": "Request processing times of the mempool",
+        "title": "mempool_processing_times_secs",
+        "description": "Request processing times of the mempool (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(mempool_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(mempool_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(mempool_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
       {
-        "title": "mempool_queueing_times",
-        "description": "Request queueing times of the mempool",
+        "title": "mempool_queueing_times_secs",
+        "description": "Request queueing times of the mempool (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(mempool_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(mempool_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(mempool_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1390,22 +1390,22 @@
         "extra_params": {}
       },
       {
-        "title": "mempool_p2p_propagator_processing_times",
-        "description": "Request processing times of the mempool p2p",
+        "title": "mempool_p2p_propagator_processing_times_secs",
+        "description": "Request processing times of the mempool p2p (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(mempool_p2p_propagator_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(mempool_p2p_propagator_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(mempool_p2p_propagator_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(mempool_p2p_propagator_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
       {
-        "title": "mempool_p2p_propagator_queueing_times",
-        "description": "Request queueing times of the mempool p2p",
+        "title": "mempool_p2p_propagator_queueing_times_secs",
+        "description": "Request queueing times of the mempool p2p (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(mempool_p2p_propagator_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(mempool_p2p_propagator_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(mempool_p2p_propagator_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(mempool_p2p_propagator_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1476,22 +1476,22 @@
         "extra_params": {}
       },
       {
-        "title": "l1_provider_processing_times",
-        "description": "Request processing times of the L1 provider",
+        "title": "l1_provider_processing_times_secs",
+        "description": "Request processing times of the L1 provider (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(l1_provider_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(l1_provider_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(l1_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
       {
-        "title": "l1_provider_queueing_times",
-        "description": "Request queueing times of the L1 provider",
+        "title": "l1_provider_queueing_times_secs",
+        "description": "Request queueing times of the L1 provider (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(l1_provider_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(l1_provider_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(l1_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1562,22 +1562,22 @@
         "extra_params": {}
       },
       {
-        "title": "l1_gas_price_provider_processing_times",
-        "description": "Request processing times of the L1 gas price provider",
+        "title": "l1_gas_price_provider_processing_times_secs",
+        "description": "Request processing times of the L1 gas price provider (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(l1_gas_price_provider_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(l1_gas_price_provider_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(l1_gas_price_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(l1_gas_price_provider_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
       {
-        "title": "l1_gas_price_provider_queueing_times",
-        "description": "Request queueing times of the L1 gas price provider",
+        "title": "l1_gas_price_provider_queueing_times_secs",
+        "description": "Request queueing times of the L1 gas price provider (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(l1_gas_price_provider_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(l1_gas_price_provider_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(l1_gas_price_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(l1_gas_price_provider_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1648,22 +1648,22 @@
         "extra_params": {}
       },
       {
-        "title": "class_manager_processing_times",
-        "description": "Request processing times of the class manager",
+        "title": "class_manager_processing_times_secs",
+        "description": "Request processing times of the class manager (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(class_manager_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(class_manager_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(class_manager_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
       {
-        "title": "class_manager_queueing_times",
-        "description": "Request queueing times of the class manager",
+        "title": "class_manager_queueing_times_secs",
+        "description": "Request queueing times of the class manager (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(class_manager_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(class_manager_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(class_manager_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
@@ -1734,22 +1734,22 @@
         "extra_params": {}
       },
       {
-        "title": "sierra_compiler_processing_times",
-        "description": "Request processing times of the sierra compiler",
+        "title": "sierra_compiler_processing_times_secs",
+        "description": "Request processing times of the sierra compiler (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(sierra_compiler_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(sierra_compiler_processing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(sierra_compiler_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(sierra_compiler_processing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       },
       {
-        "title": "sierra_compiler_queueing_times",
-        "description": "Request queueing times of the sierra compiler",
+        "title": "sierra_compiler_queueing_times_secs",
+        "description": "Request queueing times of the sierra compiler (secs)",
         "type": "timeseries",
         "exprs": [
-          "histogram_quantile(0.50, sum(rate(sierra_compiler_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
-          "histogram_quantile(0.95, sum(rate(sierra_compiler_queueing_times_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
+          "histogram_quantile(0.50, sum(rate(sierra_compiler_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))",
+          "histogram_quantile(0.95, sum(rate(sierra_compiler_queueing_times_secs_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])) by (le))"
         ],
         "extra_params": {}
       }
