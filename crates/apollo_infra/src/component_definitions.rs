@@ -11,6 +11,7 @@ use tracing::{error, info};
 use crate::component_client::ClientResult;
 
 pub(crate) const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
+pub const BUSY_PREVIOUS_REQUESTS_MSG: &str = "Server is busy addressing previous requests";
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -90,4 +91,18 @@ where
 pub enum ServerError {
     #[error("Could not deserialize client request: {0}")]
     RequestDeserializationFailure(String),
+}
+
+#[derive(Debug)]
+pub enum RequestPriority {
+    High,
+    Normal,
+}
+
+pub trait PrioritizedRequest {
+    // TODO(Tsabary): Default implementation to avoid applying this trait to all request types. Need
+    // to remove this out later on.
+    fn priority(&self) -> RequestPriority {
+        RequestPriority::Normal
+    }
 }

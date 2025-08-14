@@ -1,8 +1,13 @@
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::component_definitions::{
+    ComponentClient,
+    ComponentRequestAndResponseSender,
+    PrioritizedRequest,
+    RequestPriority,
+};
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
@@ -12,7 +17,8 @@ use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
-use strum_macros::AsRefStr;
+use strum::EnumVariantNames;
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::StateSyncError;
@@ -98,7 +104,12 @@ pub type SharedStateSyncClient = Arc<dyn StateSyncClient>;
 pub type StateSyncRequestAndResponseSender =
     ComponentRequestAndResponseSender<StateSyncRequest, StateSyncResponse>;
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(StateSyncRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum StateSyncRequest {
     GetBlock(BlockNumber),
     GetBlockHash(BlockNumber),
@@ -110,6 +121,22 @@ pub enum StateSyncRequest {
     IsClassDeclaredAt(BlockNumber, ClassHash),
 }
 impl_debug_for_infra_requests_and_responses!(StateSyncRequest);
+impl_labeled_request!(StateSyncRequest, StateSyncRequestLabelValue);
+impl PrioritizedRequest for StateSyncRequest {
+    fn priority(&self) -> RequestPriority {
+        match self {
+            StateSyncRequest::GetBlock(_) | StateSyncRequest::GetBlockHash(_) => {
+                RequestPriority::High
+            }
+            StateSyncRequest::GetStorageAt(_, _, _)
+            | StateSyncRequest::GetNonceAt(_, _)
+            | StateSyncRequest::GetClassHashAt(_, _)
+            | StateSyncRequest::AddNewBlock(_)
+            | StateSyncRequest::GetLatestBlockNumber()
+            | StateSyncRequest::IsClassDeclaredAt(_, _) => RequestPriority::Normal,
+        }
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum StateSyncResponse {

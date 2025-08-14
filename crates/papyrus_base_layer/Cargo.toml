@@ -19,6 +19,7 @@ async-trait.workspace = true
 colored = { workspace = true, optional = true }
 ethers.workspace = true
 futures.workspace = true
+hex.workspace = true
 mockall.workspace = true
 serde.workspace = true
 starknet-types-core.workspace = true

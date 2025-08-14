@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use apollo_class_manager_types::SharedClassManagerClient;
 use blockifier::blockifier::transaction_executor::CompiledClassHashesForMigration;
 use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
@@ -314,8 +312,8 @@ impl TryFrom<(InternalRpcDeclareTransactionV3, &SierraContractClass, Transaction
             account_deployment_data: tx.account_deployment_data,
             sierra_program_size: sierra.sierra_program.len(),
             abi_size: sierra.abi.len(),
-            sierra_version: into_string_tuple(SierraVersion::from_str(
-                &sierra.contract_class_version,
+            sierra_version: into_string_tuple(SierraVersion::extract_from_program(
+                &sierra.sierra_program,
             )?),
             hash_value,
         })

@@ -1,5 +1,6 @@
 mod concurrent_servers_test;
 mod local_component_client_server_test;
+mod local_request_prioritization;
 mod remote_component_client_server_test;
 mod server_metrics_test;
 
@@ -11,10 +12,11 @@ use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use starknet_types_core::felt::Felt;
-use tokio::sync::Mutex;
+use strum_macros::AsRefStr;
+use tokio::sync::{Mutex, Semaphore};
 
 use crate::component_client::ClientResult;
-use crate::component_definitions::{ComponentRequestHandler, ComponentStarter};
+use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
 use crate::metrics::{LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics};
 
 pub(crate) type ValueA = Felt;
@@ -46,8 +48,34 @@ const TEST_QUEUE_DEPTH: MetricGauge = MetricGauge::new(
     "Test channel queue depth gauge",
 );
 
-pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics =
-    LocalServerMetrics::new(&TEST_MSGS_RECEIVED, &TEST_MSGS_PROCESSED, &TEST_QUEUE_DEPTH);
+const TEST_PROCESSING_TIMES: MetricHistogram = MetricHistogram::new(
+    MetricScope::Infra,
+    "processing_times",
+    "processing_times_filter",
+    "processing_times_sum_filter",
+    "processing_times_count_filter",
+    "Test processing time histogram",
+);
+
+const TEST_QUEUEING_TIMES: MetricHistogram = MetricHistogram::new(
+    MetricScope::Infra,
+    "queueing_times",
+    "queueing_times_filter",
+    "queueing_times_sum_filter",
+    "queueing_times_count_filter",
+    "Test queueing time histogram",
+);
+
+// TODO(Tsabary): remove redundant args from metrics constructor, specifically, the "with_filter"
+// args.
+
+pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
+    &TEST_MSGS_RECEIVED,
+    &TEST_MSGS_PROCESSED,
+    &TEST_QUEUE_DEPTH,
+    &TEST_PROCESSING_TIMES,
+    &TEST_QUEUEING_TIMES,
+);
 
 const REMOTE_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(
     MetricScope::Infra,
@@ -73,6 +101,13 @@ const REMOTE_TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
     0,
 );
 
+const REMOTE_NUMBER_OF_CONNECTIONS: MetricGauge = MetricGauge::new(
+    MetricScope::Infra,
+    "remote_number_of_connections",
+    "remote_number_of_connections_filter",
+    "Remote number of connections gauge",
+);
+
 const EXAMPLE_HISTOGRAM_METRIC: MetricHistogram = MetricHistogram::new(
     MetricScope::Infra,
     "example_histogram_metric",
@@ -86,6 +121,7 @@ pub(crate) const TEST_REMOTE_SERVER_METRICS: RemoteServerMetrics = RemoteServerM
     &REMOTE_TEST_MSGS_RECEIVED,
     &REMOTE_VALID_TEST_MSGS_RECEIVED,
     &REMOTE_TEST_MSGS_PROCESSED,
+    &REMOTE_NUMBER_OF_CONNECTIONS,
 );
 
 pub(crate) const TEST_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
@@ -97,7 +133,7 @@ pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
     Arc::new(Mutex::new(available_ports))
 });
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, AsRefStr)]
 pub enum ComponentARequest {
     AGetValue,
 }
@@ -107,7 +143,7 @@ pub enum ComponentAResponse {
     AGetValue(ValueA),
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, AsRefStr)]
 pub enum ComponentBRequest {
     BGetValue,
     BSetValue(ValueB),
@@ -132,19 +168,25 @@ pub(crate) trait ComponentBClientTrait: Send + Sync {
 
 pub(crate) struct ComponentA {
     b: Box<dyn ComponentBClientTrait>,
+    sem: Option<Arc<Semaphore>>,
 }
 
 impl ComponentA {
     pub fn new(b: Box<dyn ComponentBClientTrait>) -> Self {
-        Self { b }
+        Self { b, sem: None }
     }
 
     pub async fn a_get_value(&self) -> ValueA {
         self.b.b_get_value().await.unwrap()
     }
+
+    pub fn with_semaphore(b: Box<dyn ComponentBClientTrait>, sem: Arc<Semaphore>) -> Self {
+        Self { b, sem: Some(sem) }
+    }
 }
 
 impl ComponentStarter for ComponentA {}
+impl PrioritizedRequest for ComponentARequest {}
 
 pub(crate) struct ComponentB {
     value: ValueB,
@@ -166,6 +208,7 @@ impl ComponentB {
 }
 
 impl ComponentStarter for ComponentB {}
+impl PrioritizedRequest for ComponentBRequest {}
 
 pub(crate) async fn test_a_b_functionality(
     a_client: impl ComponentAClientTrait,
@@ -186,7 +229,15 @@ pub(crate) async fn test_a_b_functionality(
 impl ComponentRequestHandler<ComponentARequest, ComponentAResponse> for ComponentA {
     async fn handle_request(&mut self, request: ComponentARequest) -> ComponentAResponse {
         match request {
-            ComponentARequest::AGetValue => ComponentAResponse::AGetValue(self.a_get_value().await),
+            ComponentARequest::AGetValue => {
+                if let Some(sem) = &self.sem {
+                    let _permit = sem.clone().acquire_owned().await.unwrap();
+                    let v = self.a_get_value().await;
+                    ComponentAResponse::AGetValue(v)
+                } else {
+                    ComponentAResponse::AGetValue(self.a_get_value().await)
+                }
+            }
         }
     }
 }

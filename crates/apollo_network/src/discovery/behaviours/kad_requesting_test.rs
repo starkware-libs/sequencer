@@ -50,7 +50,7 @@ fn poll_swarm(
 }
 
 pub fn create_kad_requesting_swarm(heartbeat_interval: Duration) -> Swarm<KadRequestingBehaviour> {
-    Swarm::new_ephemeral(move |_| KadRequestingBehaviour::new(heartbeat_interval))
+    Swarm::new_ephemeral_tokio(move |_| KadRequestingBehaviour::new(heartbeat_interval))
 }
 
 const HEARBEAT_INTERVAL: Duration = Duration::from_secs(5);

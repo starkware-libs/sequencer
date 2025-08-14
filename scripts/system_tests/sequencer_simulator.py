@@ -1,8 +1,10 @@
 import argparse
 import json
 import os
+import socket
 import subprocess
 from enum import Enum
+import time
 
 
 class NodeType(Enum):
@@ -57,9 +59,27 @@ def get_pod_name(service_label):
     return subprocess.run(cmd, capture_output=True, check=True, text=True).stdout.strip()
 
 
-def port_forward(pod_name, local_port, remote_port):
+def port_forward(pod_name, local_port, remote_port, wait_ready=True, max_attempts=25):
     cmd = ["kubectl", "port-forward", pod_name, f"{local_port}:{remote_port}"]
     subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if not wait_ready:
+        return
+    for attempt in range(max_attempts):
+        try:
+            with socket.create_connection(("localhost", local_port), timeout=1):
+                print(
+                    f"✅ Port-forward to {pod_name}:{remote_port} is ready on localhost:{local_port}"
+                )
+                return
+        except Exception:
+            print(
+                f"🔄 Port-forward to {pod_name}:{remote_port} failed, attempt: {attempt}/{max_attempts}"
+            )
+            time.sleep(1)
+
+    raise RuntimeError(
+        f"❌ Port-forward to {pod_name}:{remote_port} failed after {max_attempts} attempts."
+    )
 
 
 def run_simulator(http_port, monitoring_port, sender_address, receiver_address):

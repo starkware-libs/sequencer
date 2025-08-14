@@ -1169,6 +1169,7 @@ fn metrics_correctness() {
     //    declare_2 |    7    | Delayed declare
     //    invoke_7  |    8    | Evicted
     //    invoke_8  |    9    | Pending queue
+    //    invoke_9  |    10   | Committed
 
     let invoke_1 = add_tx_input!(tx_hash: 1, address: "0x0", tx_nonce: 0, account_nonce: 0);
     let invoke_2 = add_tx_input!(tx_hash: 2, address: "0x1", tx_nonce: 0, account_nonce: 0);
@@ -1225,24 +1226,36 @@ fn metrics_correctness() {
     mempool.config.capacity_in_bytes = capacity;
     add_tx(&mut mempool, &invoke_8);
 
+    // Add a long-delayed transaction to test time spent until committed.
+    let invoke_9 = add_tx_input!(tx_hash: 10, address: "0x9", tx_nonce: 0, account_nonce: 0);
+    mempool.config.capacity_in_bytes = mempool.size_in_bytes() + invoke_9.tx.total_bytes();
+    add_tx(&mut mempool, &invoke_9);
+    fake_clock.advance(Duration::from_secs(20));
+    commit_block(&mut mempool, [("0x9", 1)], []);
+
     let expected_metrics = MempoolMetrics {
-        txs_received_invoke: 8,
+        txs_received_invoke: 9,
         txs_received_declare: 2,
         txs_received_deploy_account: 0,
-        txs_committed: 1,
+        txs_committed: 2,
         txs_dropped_expired: 1,
         txs_dropped_failed_add_tx_checks: 1,
         txs_dropped_rejected: 1,
         pool_size: 4,
-        priority_queue_size: 2,
+        priority_queue_size: 3,
         pending_queue_size: 1,
         get_txs_size: 1,
         delayed_declares_size: 1,
         total_size_in_bytes: 1952,
         evictions_count: 1,
         transaction_time_spent_in_mempool: HistogramValue {
-            sum: 65.0,
-            count: 4,
+            sum: 85.0,
+            count: 5,
+            ..Default::default()
+        },
+        transaction_time_spent_until_committed: HistogramValue {
+            sum: 20.0,
+            count: 2,
             ..Default::default()
         },
     };

@@ -609,7 +609,7 @@ impl Default for BlockBuilderConfig {
             execute_config: WorkerPoolConfig::default(),
             bouncer_config: BouncerConfig::default(),
             n_concurrent_txs: 100,
-            tx_polling_interval_millis: 1,
+            tx_polling_interval_millis: 10,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
@@ -658,6 +658,10 @@ impl BlockBuilderFactory {
     ) -> BlockBuilderResult<
         ConcurrentTransactionExecutor<StateReaderAndContractManager<PapyrusReader>>,
     > {
+        info!(
+            "preprocess and create transaction executor for block {}",
+            block_metadata.block_info.block_number
+        );
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(

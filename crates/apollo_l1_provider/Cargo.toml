@@ -23,7 +23,6 @@ apollo_metrics.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_time.workspace = true
 async-trait.workspace = true
-hex.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 papyrus_base_layer.workspace = true

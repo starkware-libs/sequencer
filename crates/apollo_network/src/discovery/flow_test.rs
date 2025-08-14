@@ -48,7 +48,7 @@ async fn all_nodes_have_same_bootstrap_peer() {
     const NUM_NODES: usize = 2;
 
     let mut bootstrap_swarm =
-        Swarm::new_ephemeral(|keypair| DiscoveryMixedBehaviour::new(keypair, None));
+        Swarm::new_ephemeral_tokio(|keypair| DiscoveryMixedBehaviour::new(keypair, None));
     bootstrap_swarm.listen().with_memory_addr_external().await;
 
     let bootstrap_peer_id = *bootstrap_swarm.local_peer_id();
@@ -61,7 +61,7 @@ async fn all_nodes_have_same_bootstrap_peer() {
         .unwrap();
 
     let swarms = (0..NUM_NODES).map(|_| {
-        Swarm::new_ephemeral(|keypair| {
+        Swarm::new_ephemeral_tokio(|keypair| {
             DiscoveryMixedBehaviour::new(keypair, Some(vec![bootstrap_peer_multiaddr.clone()]))
         })
     });

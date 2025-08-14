@@ -27,7 +27,20 @@ pub mod test_utils;
 mod base_layer_test;
 
 pub type L1BlockNumber = u64;
-pub type L1BlockHash = [u8; 32];
+#[derive(Clone, Copy, Default, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub struct L1BlockHash(pub [u8; 32]);
+
+impl std::fmt::Debug for L1BlockHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{}", hex::encode(self.0))
+    }
+}
+
+impl std::fmt::Display for L1BlockHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{}", hex::encode(self.0))
+    }
+}
 
 #[cfg(any(feature = "testing", test))]
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]

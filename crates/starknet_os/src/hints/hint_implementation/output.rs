@@ -13,7 +13,7 @@ use crate::hints::types::HintArgs;
 use crate::hints::vars::{Const, Ids, Scope};
 
 const MAX_PAGE_SIZE: usize = 3800;
-const OUTPUT_ATTRIBUTE_FACT_TOPOLOGY: &str = "gps_fact_topology";
+pub(crate) const OUTPUT_ATTRIBUTE_FACT_TOPOLOGY: &str = "gps_fact_topology";
 
 pub(crate) fn set_tree_structure<'program, CHP: CommonHintProcessor<'program>>(
     hint_processor: &mut CHP,
