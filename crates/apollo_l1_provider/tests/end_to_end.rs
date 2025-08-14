@@ -32,7 +32,8 @@ fn message_to_l2(index: u64) -> Event {
             tx_hash: tx_hash!(index),
             ..Default::default()
         }),
-        timestamp: index.into(),
+        block_timestamp: index.into(),
+        scrape_timestamp: index,
     }
 }
 

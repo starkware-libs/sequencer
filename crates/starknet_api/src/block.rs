@@ -551,11 +551,15 @@ impl GasPrices {
     }
 }
 
+// TODO(Arni): replace all relevant instances of `u64` with UnixTimestamp.
+/// A Unix timestamp in seconds since the Unix epoch (January 1, 1970).
+pub type UnixTimestamp = u64;
+
 /// The timestamp of a [Block](`crate::block::Block`).
 #[derive(
     Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
-pub struct BlockTimestamp(pub u64);
+pub struct BlockTimestamp(pub UnixTimestamp);
 
 impl BlockTimestamp {
     pub fn saturating_add(self, rhs: &u64) -> Self {
