@@ -14,6 +14,7 @@ use crate::state_reader::utils::{get_block_numbers_for_reexecution, reexecute_bl
 #[case::v_0_13_5(1300000)]
 #[case::first_v_0_13_5_rpc_v8(1400000)]
 #[case::second_v_0_13_5_rpc_v8(1450000)]
+#[case::v_0_13_6_rpc_v8(1600000)]
 #[case::invoke_with_replace_class_syscall(780008)]
 #[case::invoke_with_deploy_syscall(870136)]
 #[case::example_deploy_account_v1(837408)]
