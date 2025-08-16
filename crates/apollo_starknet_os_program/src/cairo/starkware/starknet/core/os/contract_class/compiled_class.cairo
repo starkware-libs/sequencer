@@ -90,6 +90,11 @@ func guess_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}
             get_compiled_class_struct,
         )
 
+        from starkware.starknet.core.os.contract_class.compiled_class_hash import (
+            BytecodeAccessOracle,
+        )
+
+        bytecode_segment_structures = {}
         ids.n_compiled_class_facts = len(os_input.compiled_classes)
         ids.compiled_class_facts = segments.add()
         for i, (compiled_class_hash, compiled_class) in enumerate(
@@ -119,6 +124,13 @@ func guess_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}
             # Load hints and debug info.
             vm_load_program(
                 compiled_class.get_runnable_program(entrypoint_builtins=[]), bytecode_ptr)
+
+            bytecode_segment_structures[compiled_class_hash] = create_bytecode_segment_structure(
+                bytecode=compiled_class.bytecode,
+                bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
+            )
+
+        is_segment_used_callback = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)
     %}
 
     return (
@@ -133,30 +145,13 @@ func guess_compiled_class_facts{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}
 func validate_compiled_class_facts_post_execution{poseidon_ptr: PoseidonBuiltin*, range_check_ptr}(
     n_compiled_class_facts, compiled_class_facts: CompiledClassFact*, builtin_costs: felt*
 ) {
-    %{
-        from starkware.starknet.core.os.contract_class.compiled_class_hash import (
-            BytecodeAccessOracle,
-        )
 
-        # Build the bytecode segment structures.
-        bytecode_segment_structures = {
-            compiled_hash: create_bytecode_segment_structure(
-                bytecode=compiled_class.bytecode,
-                bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
-            ) for compiled_hash, compiled_class in sorted(os_input.compiled_classes.items())
-        }
-        bytecode_segment_access_oracle = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)
-        vm_enter_scope({
-            "bytecode_segment_structures": bytecode_segment_structures,
-            "is_segment_used_callback": bytecode_segment_access_oracle.is_segment_used
-        })
-    %}
     validate_compiled_class_facts(
         n_compiled_class_facts=n_compiled_class_facts,
         compiled_class_facts=compiled_class_facts,
         builtin_costs=builtin_costs,
     );
-    %{ vm_exit_scope() %}
+
 
     return ();
 }

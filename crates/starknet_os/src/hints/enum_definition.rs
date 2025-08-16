@@ -57,7 +57,6 @@ use crate::hints::hint_implementation::compiled_class::implementation::{
     load_class,
     load_class_inner,
     set_ap_to_segment_hash,
-    validate_compiled_class_facts_post_execution,
 };
 use crate::hints::hint_implementation::deprecated_compiled_class::implementation::{
     load_deprecated_class,
@@ -1131,27 +1130,6 @@ define_hint_enum!(
         "storage.write(key=ids.storage_key, value=ids.value)"
     ),
     (
-        ValidateCompiledClassFactsPostExecution,
-        validate_compiled_class_facts_post_execution,
-        indoc! {r#"
-    from starkware.starknet.core.os.contract_class.compiled_class_hash import (
-        BytecodeAccessOracle,
-    )
-
-    # Build the bytecode segment structures.
-    bytecode_segment_structures = {
-        compiled_hash: create_bytecode_segment_structure(
-            bytecode=compiled_class.bytecode,
-            bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
-        ) for compiled_hash, compiled_class in sorted(os_input.compiled_classes.items())
-    }
-    bytecode_segment_access_oracle = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)
-    vm_enter_scope({
-        "bytecode_segment_structures": bytecode_segment_structures,
-        "is_segment_used_callback": bytecode_segment_access_oracle.is_segment_used
-    })"#}
-    ),
-    (
         ReadAliasFromKey,
         read_alias_from_key,
         "memory[fp + 0] = to_felt_or_relocatable(aliases.read(key=ids.key))"
@@ -1944,41 +1922,53 @@ define_hint_extension_enum!(
         LoadClassInner,
         load_class_inner,
         indoc! {r#"
-    from starkware.starknet.core.os.contract_class.compiled_class_hash import (
-        create_bytecode_segment_structure,
-    )
-    from starkware.starknet.core.os.contract_class.compiled_class_hash_cairo_hints import (
-        get_compiled_class_struct,
-    )
-
-    ids.n_compiled_class_facts = len(os_input.compiled_classes)
-    ids.compiled_class_facts = segments.add()
-    for i, (compiled_class_hash, compiled_class) in enumerate(
-        sorted(os_input.compiled_classes.items())
-    ):
-        # Load the compiled class.
-        cairo_contract = get_compiled_class_struct(
-            identifiers=ids._context.identifiers,
-            compiled_class=compiled_class,
-            # Load the entire bytecode - the unaccessed segments will be overriden and skipped
-            # after the execution, in `validate_compiled_class_facts_post_execution`.
-            bytecode=compiled_class.bytecode,
+        from starkware.starknet.core.os.contract_class.compiled_class_hash import (
+            create_bytecode_segment_structure,
         )
-        segments.load_data(
-            ptr=ids.compiled_class_facts[i].address_,
-            data=(compiled_class_hash, segments.gen_arg(cairo_contract))
+        from starkware.starknet.core.os.contract_class.compiled_class_hash_cairo_hints import (
+            get_compiled_class_struct,
         )
 
-        bytecode_ptr = ids.compiled_class_facts[i].compiled_class.bytecode_ptr
-        # Compiled classes are expected to end with a `ret` opcode followed by a pointer to
-        # the builtin costs.
-        segments.load_data(
-            ptr=bytecode_ptr + cairo_contract.bytecode_length,
-            data=[0x208b7fff7fff7ffe, ids.builtin_costs]
+        from starkware.starknet.core.os.contract_class.compiled_class_hash import (
+            BytecodeAccessOracle,
         )
 
-        # Load hints and debug info.
-        vm_load_program(
-            compiled_class.get_runnable_program(entrypoint_builtins=[]), bytecode_ptr)"#}
+        bytecode_segment_structures = {}
+        ids.n_compiled_class_facts = len(os_input.compiled_classes)
+        ids.compiled_class_facts = segments.add()
+        for i, (compiled_class_hash, compiled_class) in enumerate(
+            sorted(os_input.compiled_classes.items())
+        ):
+            # Load the compiled class.
+            cairo_contract = get_compiled_class_struct(
+                identifiers=ids._context.identifiers,
+                compiled_class=compiled_class,
+                # Load the entire bytecode - the unaccessed segments will be overriden and skipped
+                # after the execution, in `validate_compiled_class_facts_post_execution`.
+                bytecode=compiled_class.bytecode,
+            )
+            segments.load_data(
+                ptr=ids.compiled_class_facts[i].address_,
+                data=(compiled_class_hash, segments.gen_arg(cairo_contract))
+            )
+
+            bytecode_ptr = ids.compiled_class_facts[i].compiled_class.bytecode_ptr
+            # Compiled classes are expected to end with a `ret` opcode followed by a pointer to
+            # the builtin costs.
+            segments.load_data(
+                ptr=bytecode_ptr + cairo_contract.bytecode_length,
+                data=[0x208b7fff7fff7ffe, ids.builtin_costs]
+            )
+
+            # Load hints and debug info.
+            vm_load_program(
+                compiled_class.get_runnable_program(entrypoint_builtins=[]), bytecode_ptr)
+
+            bytecode_segment_structures[compiled_class_hash] = create_bytecode_segment_structure(
+                bytecode=compiled_class.bytecode,
+                bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
+            )
+
+        is_segment_used_callback = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)"#}
     ),
 );

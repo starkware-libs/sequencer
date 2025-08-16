@@ -304,7 +304,6 @@ func execute_blocks{
             block_input=block_input,
         ))
     %}
-
     let (squashed_os_state_update, state_update_output) = state_update{hash_ptr=pedersen_ptr}(
         os_state_update=OsStateUpdate(
             contract_state_changes_start=contract_state_changes_start,
@@ -454,25 +453,34 @@ func migrate_classes_to_v2_casm_hash{
     // Guess the class hash and compiled class hash v2.
     local class_hash;
     local expected_casm_hash_v2;
-
     %{ GetClassHashAndCompiledClassHashV2 %}
 
     // Find the compiled class fact using the guessed v2 hash.
     static_assert CompiledClassFact.hash == 0;
-    let (compiled_class_fact: CompiledClassFact*) = find_element(
+    let (compiled_class_fact_ref: CompiledClassFact*) = find_element(
         array_ptr=block_context.compiled_class_facts,
         elm_size=CompiledClassFact.SIZE,
         n_elms=block_context.n_compiled_class_facts,
         key=expected_casm_hash_v2,
     );
-    let compiled_class: CompiledClass* = compiled_class_fact.compiled_class;
+    let compiled_class: CompiledClass* = compiled_class_fact_ref.compiled_class;
+    let compiled_class_fact = [compiled_class_fact_ref];
     // Compute the full compiled class hash, both v1 and v2,
     // using the compiled class from the block context:
     // The full hash is needed to verify the migration;
     // taking the class from the block context is not necessary,
+    %{
+        vm_enter_scope({
+            "bytecode_segment_structure": bytecode_segment_structures[ids.compiled_class_fact.hash],
+            "is_segment_used_callback": is_segment_used_callback
+        })
+    %}
     // it's for future optimization (to skip the additional hash on these classes at the end).
     let (casm_hash_v1) = poseidon_compiled_class_hash(compiled_class, full_contract=TRUE);
     let (casm_hash_v2) = blake_compiled_class_hash(compiled_class, full_contract=TRUE);
+    %{
+        vm_exit_scope()
+    %}
     // Verify the guessed v2 hash.
     assert expected_casm_hash_v2 = casm_hash_v2;
     // Update the casm hash from v1 to v2.
