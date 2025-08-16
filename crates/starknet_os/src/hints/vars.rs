@@ -390,6 +390,10 @@ define_string_enum! {
             CompiledClassFact,
             "starkware.starknet.core.os.contract_class.compiled_class_struct.CompiledClassFact"
         ),
+        (
+            CompiledClassFactPtr,
+            "starkware.starknet.core.os.contract_class.compiled_class_struct.CompiledClassFact*"
+        ),
         (DeployResponse, "starkware.starknet.common.new_syscalls.DeployResponse"),
         (DeprecatedCallContractResponse, "starkware.starknet.common.syscalls.CallContractResponse"),
         (
