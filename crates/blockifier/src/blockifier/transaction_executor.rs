@@ -280,6 +280,8 @@ pub(crate) fn finalize_block<S: StateReader>(
             .collect::<std::collections::HashSet<_>>()
     );
 
+    println!("state_diff class_hashes: {:?}", state_diff.compiled_class_hashes);
+
     Ok(BlockExecutionSummary {
         state_diff: state_diff.into(),
         compressed_state_diff,
@@ -297,6 +299,7 @@ fn update_compiled_class_hash_migration_in_state<S: StateReader>(
     block_state: &mut CachedState<S>,
 ) -> StateResult<CompiledClassHashesForMigration> {
     let mut compiled_class_hashes_v2_to_v1: CompiledClassHashesForMigration = Vec::new();
+    println!("class hashes for migration {:?}", bouncer.class_hashes_to_migrate());
     for &class_hash in bouncer.class_hashes_to_migrate() {
         let compiled_class_hash_v1 = block_state
             .get_compiled_class_hash(class_hash)

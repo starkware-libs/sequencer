@@ -909,6 +909,7 @@ fn get_migration_data<S: StateReader>(
     versioned_constants: &VersionedConstants,
     blake_weight: usize,
 ) -> (HashSet<ClassHash>, GasAmount, BuiltinCounterMap) {
+    println!("executed_class_hashes: {executed_class_hashes:?}");
     executed_class_hashes
         .iter()
         .filter(|&class_hash_ref| should_migrate(state_reader, *class_hash_ref))
