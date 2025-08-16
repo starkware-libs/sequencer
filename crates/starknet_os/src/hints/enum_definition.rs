@@ -55,9 +55,8 @@ use crate::hints::hint_implementation::compiled_class::implementation::{
     is_leaf,
     iter_current_segment_info,
     load_class,
-    load_class_inner,
+    load_class_inner_and_build_bytecode_segment_structures,
     set_ap_to_segment_hash,
-    validate_compiled_class_facts_post_execution,
 };
 use crate::hints::hint_implementation::deprecated_compiled_class::implementation::{
     load_deprecated_class,
@@ -1051,15 +1050,7 @@ define_hint_enum!(
         f"Computed hash = {computed_hash}, Expected hash = {expected_hash}.")"#
         }
     ),
-    (
-        BytecodeSegmentStructure,
-        bytecode_segment_structure,
-        indoc! {r#"
-    vm_enter_scope({
-        "bytecode_segment_structure": bytecode_segment_structures[ids.compiled_class_fact.hash],
-        "is_segment_used_callback": is_segment_used_callback
-    })"#}
-    ),
+    (BytecodeSegmentStructure, bytecode_segment_structure, indoc! {r#"BytecodeSegmentStructure"#}),
     (
         BlockNumber,
         block_number,
@@ -1126,27 +1117,6 @@ define_hint_enum!(
         WriteStorageKeyForRevert,
         write_storage_key_for_revert,
         "storage.write(key=ids.storage_key, value=ids.value)"
-    ),
-    (
-        ValidateCompiledClassFactsPostExecution,
-        validate_compiled_class_facts_post_execution,
-        indoc! {r#"
-    from starkware.starknet.core.os.contract_class.compiled_class_hash import (
-        BytecodeAccessOracle,
-    )
-
-    # Build the bytecode segment structures.
-    bytecode_segment_structures = {
-        compiled_hash: create_bytecode_segment_structure(
-            bytecode=compiled_class.bytecode,
-            bytecode_segment_lengths=compiled_class.bytecode_segment_lengths,
-        ) for compiled_hash, compiled_class in sorted(os_input.compiled_classes.items())
-    }
-    bytecode_segment_access_oracle = BytecodeAccessOracle(is_pc_accessed_callback=is_accessed)
-    vm_enter_scope({
-        "bytecode_segment_structures": bytecode_segment_structures,
-        "is_segment_used_callback": bytecode_segment_access_oracle.is_segment_used
-    })"#}
     ),
     (
         ReadAliasFromKey,
@@ -1938,44 +1908,8 @@ define_hint_extension_enum!(
         }
     ),
     (
-        LoadClassInner,
-        load_class_inner,
-        indoc! {r#"
-    from starkware.starknet.core.os.contract_class.compiled_class_hash import (
-        create_bytecode_segment_structure,
-    )
-    from starkware.starknet.core.os.contract_class.compiled_class_hash_cairo_hints import (
-        get_compiled_class_struct,
-    )
-
-    ids.n_compiled_class_facts = len(os_input.compiled_classes)
-    ids.compiled_class_facts = segments.add()
-    for i, (compiled_class_hash, compiled_class) in enumerate(
-        sorted(os_input.compiled_classes.items())
-    ):
-        # Load the compiled class.
-        cairo_contract = get_compiled_class_struct(
-            identifiers=ids._context.identifiers,
-            compiled_class=compiled_class,
-            # Load the entire bytecode - the unaccessed segments will be overriden and skipped
-            # after the execution, in `validate_compiled_class_facts_post_execution`.
-            bytecode=compiled_class.bytecode,
-        )
-        segments.load_data(
-            ptr=ids.compiled_class_facts[i].address_,
-            data=(compiled_class_hash, segments.gen_arg(cairo_contract))
-        )
-
-        bytecode_ptr = ids.compiled_class_facts[i].compiled_class.bytecode_ptr
-        # Compiled classes are expected to end with a `ret` opcode followed by a pointer to
-        # the builtin costs.
-        segments.load_data(
-            ptr=bytecode_ptr + cairo_contract.bytecode_length,
-            data=[0x208b7fff7fff7ffe, ids.builtin_costs]
-        )
-
-        # Load hints and debug info.
-        vm_load_program(
-            compiled_class.get_runnable_program(entrypoint_builtins=[]), bytecode_ptr)"#}
+        LoadClassInnerAndBuildBytecodeSegmentStructures,
+        load_class_inner_and_build_bytecode_segment_structures,
+        indoc! {r#"LoadClassInnerAndBuildBytecodeSegmentStructures"#}
     ),
 );

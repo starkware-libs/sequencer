@@ -217,36 +217,15 @@ pub(crate) fn set_ap_to_segment_hash<H: HashFunction>(
     Ok(insert_value_into_ap(vm, bytecode_segment_structure.hash::<H>())?)
 }
 
-pub(crate) fn validate_compiled_class_facts_post_execution<S: StateReader>(
-    hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { exec_scopes, .. }: HintArgs<'_>,
-) -> OsHintResult {
-    let mut bytecode_segment_structures = BTreeMap::new();
-    for (compiled_hash, compiled_class) in hint_processor.compiled_classes.iter() {
-        bytecode_segment_structures.insert(
-            *compiled_hash,
-            create_bytecode_segment_structure(
-                &compiled_class.bytecode.iter().map(|x| Felt::from(&x.value)).collect::<Vec<_>>(),
-                compiled_class.get_bytecode_segment_lengths(),
-            )?,
-        );
-    }
-    // No need for is_segment_used callback: use the VM's `MemoryCell::is_accessed`.
-    exec_scopes.enter_scope(HashMap::from([(
-        Scope::BytecodeSegmentStructures.into(),
-        any_box!(bytecode_segment_structures),
-    )]));
-    Ok(())
-}
-
 // Hint extensions.
-pub(crate) fn load_class_inner<S: StateReader>(
+pub(crate) fn load_class_inner_and_build_bytecode_segment_structures<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
-    HintArgs { constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
+    HintArgs { exec_scopes, constants, vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintExtensionResult {
     let identifier_getter = hint_processor.program;
     let mut hint_extension = HintExtension::new();
     let mut compiled_class_facts_ptr = vm.add_memory_segment();
+    let mut bytecode_segment_structures = BTreeMap::new();
     // Insert n_compiled_class_facts, compiled_class_facts.
     insert_value_from_var_name(
         Ids::CompiledClassFacts.into(),
@@ -287,6 +266,7 @@ pub(crate) fn load_class_inner<S: StateReader>(
             get_ptr_from_var_name(Ids::BuiltinCosts.into(), vm, ids_data, ap_tracking)?;
         let encoded_ret_opcode = 0x208b7fff7fff7ffe;
         let data = [encoded_ret_opcode.into(), builtin_costs.into()];
+
         vm.load_data((bytecode_ptr + class.bytecode.len())?, &data)?;
 
         // Extend hints.
@@ -295,8 +275,19 @@ pub(crate) fn load_class_inner<S: StateReader>(
             hint_extension.insert(abs_pc, hints.iter().map(|h| any_box!(h.clone())).collect());
         }
 
+        bytecode_segment_structures.insert(
+            *class_hash,
+            create_bytecode_segment_structure(
+                &class.bytecode.iter().map(|x| Felt::from(&x.value)).collect::<Vec<_>>(),
+                class.get_bytecode_segment_lengths(),
+            )?,
+        );
+
         compiled_class_facts_ptr += CompiledClassFact::size(identifier_getter)?;
     }
 
+    // No need for is_segment_used callback: use the VM's `MemoryCell::is_accessed`.
+    exec_scopes
+        .insert_box(Scope::BytecodeSegmentStructures.into(), any_box!(bytecode_segment_structures));
     Ok(hint_extension)
 }
