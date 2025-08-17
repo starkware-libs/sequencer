@@ -31,6 +31,7 @@ use crate::hints::hint_implementation::block_context::{
     chain_id,
     fee_token_address,
     get_block_mapping,
+    public_key_hash,
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
@@ -1081,6 +1082,11 @@ define_hint_enum!(
         FeeTokenAddress,
         fee_token_address,
         "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.fee_token_address)"
+    ),
+    (
+        PublicKeyHash,
+        public_key_hash,
+        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.public_key_hash)"
     ),
     (
         SequencerAddress,
