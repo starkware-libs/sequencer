@@ -611,16 +611,7 @@ pub fn estimate_casm_blake_hash_computation_resources(
     // TODO(AvivG): Missing base overhead estimation for compiled_class_hash.
 
     // Basic frame overhead.
-    // TODO(AvivG): Once compiled_class_hash estimation is complete,
-    // revisit whether this should be moved into cost_of_encode_felt252_data_and_calc_blake_hash.
-    let mut resources = EstimatedExecutionResources::from((
-        ExecutionResources {
-            n_steps: 0,
-            n_memory_holes: 0,
-            builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
-        },
-        HashVersion::V2,
-    ));
+    let mut resources = EstimatedExecutionResources::new(HashVersion::V2);
 
     // Add leaf vs node cost
     let added_resources = match &bytecode_segment_lengths {
