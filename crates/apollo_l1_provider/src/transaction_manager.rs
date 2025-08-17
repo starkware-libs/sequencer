@@ -4,7 +4,7 @@ use std::ops::{Deref, Sub};
 use std::time::Duration;
 
 use apollo_l1_provider_types::{InvalidValidationStatus, ValidationStatus};
-use starknet_api::block::BlockTimestamp;
+use starknet_api::block::{BlockTimestamp, UnixTimestamp};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
 
@@ -22,12 +22,12 @@ pub struct TransactionManager {
     /// removed, like when they are consumed on L1, or fully cancelled on L1.
     pub records: Records,
     pub config: TransactionManagerConfig,
-    /// Ordered lexicographically by block timestamp, then order-of-arrival for
+    /// Ordered lexicographically by scraping moment timestamp, then order-of-arrival for
     /// identical timestamps, also at any point the staged transactions are a prefix of the
     /// structure under this order.
     /// Invariant: contains all hashes of transactions that are proposable, and only them.
     /// Invarariant 2: Once removed from this index, a transaction will never be proposed again.
-    proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>>,
+    proposable_index: BTreeMap<UnixTimestamp, Vec<TransactionHash>>,
     /// Generation counter used to prevent double usage of an l1 handler transaction in a single
     /// block.
     /// Calling `get_txs` or `validate_tx` tags the touched transactions with the current block
@@ -60,13 +60,14 @@ impl TransactionManager {
         self.rollback_staging();
     }
 
+    // TODO(Arni): use created_at_block_timestamp in addition to scrape_timestamp.
     pub fn get_txs(&mut self, n_txs: usize, now: u64) -> Vec<L1HandlerTransaction> {
         // Oldest        Now.sub(timelock)     Newest       Now
         //  |<---  passed  --->|                 |           |
         //  |<--- cooldown --->|                 |           |
         // t-------------------------------------------------->
         let cutoff = now.saturating_sub(self.config.new_l1_handler_tx_cooldown_secs.as_secs());
-        let past_cooldown_txs = self.proposable_index.range(..BlockTimestamp(cutoff));
+        let past_cooldown_txs = self.proposable_index.range(..cutoff);
 
         // Linear scan, but we expect this to be a small number of transactions (< 10 roughly).
         let unstaged_tx_hashes: Vec<_> = past_cooldown_txs
@@ -149,11 +150,16 @@ impl TransactionManager {
     /// committed, it will not be added, and false will be returned.
     // Note: if only the committed hash was known, the transaction will "fill in the blank" in the
     // committed txs storage, to account for commit-before-add tx scenario.
-    pub fn add_tx(&mut self, tx: L1HandlerTransaction, block_timestamp: BlockTimestamp) -> bool {
+    pub fn add_tx(
+        &mut self,
+        tx: L1HandlerTransaction,
+        block_timestamp: BlockTimestamp,
+        scrape_timestamp: UnixTimestamp,
+    ) -> bool {
         let tx_hash = tx.tx_hash;
         let is_new_record = self.create_record_if_not_exist(tx_hash);
         self.with_record(tx_hash, move |record| {
-            record.tx.set(tx, block_timestamp);
+            record.tx.set(tx, block_timestamp, scrape_timestamp);
         });
 
         is_new_record
@@ -238,8 +244,7 @@ impl TransactionManager {
 
     fn maintain_index(&mut self, hash: TransactionHash) {
         if let Some(record) = self.records.get(&hash) {
-            let TransactionPayload::Full { created_at_block_timestamp: created_at, .. } = record.tx
-            else {
+            let TransactionPayload::Full { scrape_timestamp, .. } = record.tx else {
                 // We haven't scraped this tx yet, so it isn't indexed.
                 return;
             };
@@ -248,13 +253,13 @@ impl TransactionManager {
             if record.is_proposable() {
                 // Assumption: txs will only be added to the index once, on arrival, so this
                 // preserves arrival order.
-                let tx_hashes = self.proposable_index.entry(created_at).or_default();
+                let tx_hashes = self.proposable_index.entry(scrape_timestamp).or_default();
                 if !tx_hashes.contains(&tx_hash) {
                     tx_hashes.push(tx_hash);
                 }
             } else {
                 // Remove from the vec for this timestamp, and drop the entry if it becomes empty.
-                match self.proposable_index.entry(created_at) {
+                match self.proposable_index.entry(scrape_timestamp) {
                     Entry::Occupied(mut entry) => {
                         let tx_hashes = entry.get_mut();
                         if let Some(index_in_vec) = tx_hashes.iter().position(|&h| h == tx_hash) {
@@ -273,7 +278,7 @@ impl TransactionManager {
     #[cfg(any(feature = "testing", test))]
     pub fn create_for_testing(
         records: Records,
-        proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>>,
+        proposable_index: BTreeMap<UnixTimestamp, Vec<TransactionHash>>,
         current_epoch: StagingEpoch,
         config: TransactionManagerConfig,
     ) -> Self {
@@ -363,7 +368,7 @@ impl Sub<u128> for StagingEpoch {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TransactionManagerConfig {
     // How long to wait before allowing new L1 handler transactions to be proposed (validation is
-    // available immediately).
+    // available immediately), from the moment they are scraped.
     pub new_l1_handler_tx_cooldown_secs: Duration,
     /// How long to allow a transaction requested for cancellation to be validated against
     /// (proposals are banned upon receiving a cancellation request).
