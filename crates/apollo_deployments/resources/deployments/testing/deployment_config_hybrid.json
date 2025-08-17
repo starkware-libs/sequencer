@@ -57,18 +57,7 @@
         "deployments/testing/hybrid.json",
         "services/hybrid/http_server.json"
       ],
-      "ingress": {
-        "domain": "sw-dev.io",
-        "alternative_names": [],
-        "internal": true,
-        "rules": [
-          {
-            "path": "/gateway",
-            "port": 8080,
-            "backend": null
-          }
-        ]
-      },
+      "ingress": null,
       "k8s_service_config": null,
       "autoscale": false,
       "replicas": 1,
