@@ -860,6 +860,42 @@ dependencies = [
 ]
 
 [[package]]
+name = "apollo_block_hash_calculator"
+version = "0.0.0"
+dependencies = [
+ "apollo_block_hash_calculator_types",
+ "apollo_config",
+ "apollo_infra",
+ "apollo_infra_utils",
+ "apollo_metrics",
+ "apollo_test_utils",
+ "async-trait",
+ "futures",
+ "mockall",
+ "rstest",
+ "serde",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-test",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_block_hash_calculator_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_infra",
+ "apollo_proc_macros",
+ "async-trait",
+ "mockall",
+ "serde",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "apollo_central_sync"
 version = "0.0.0"
 dependencies = [
@@ -937,6 +973,86 @@ dependencies = [
  "starknet_api",
  "strum_macros 0.25.3",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_commitment_sync"
+version = "0.0.0"
+dependencies = [
+ "apollo_commitment_sync_types",
+ "apollo_committer_types",
+ "apollo_config",
+ "apollo_infra",
+ "apollo_infra_utils",
+ "apollo_metrics",
+ "apollo_test_utils",
+ "async-trait",
+ "futures",
+ "mockall",
+ "rstest",
+ "serde",
+ "starknet_api",
+ "thiserror 1.0.69",
+ "tokio",
+ "tokio-test",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_commitment_sync_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_committer_types",
+ "apollo_infra",
+ "apollo_proc_macros",
+ "async-trait",
+ "mockall",
+ "serde",
+ "starknet_api",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "apollo_committer"
+version = "0.0.0"
+dependencies = [
+ "apollo_committer_types",
+ "apollo_config",
+ "apollo_infra",
+ "apollo_infra_utils",
+ "apollo_metrics",
+ "apollo_storage",
+ "async-trait",
+ "chrono",
+ "futures",
+ "serde",
+ "starknet_api",
+ "starknet_committer",
+ "starknet_patricia_storage",
+ "thiserror 1.0.69",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "apollo_committer_types"
+version = "0.0.0"
+dependencies = [
+ "apollo_infra",
+ "apollo_proc_macros",
+ "async-trait",
+ "chrono",
+ "derive_more 0.99.18",
+ "mockall",
+ "serde",
+ "starknet-types-core",
+ "starknet_api",
+ "starknet_committer",
+ "starknet_patricia",
+ "strum_macros 0.25.3",
+ "thiserror 1.0.69",
+ "tokio",
 ]
 
 [[package]]

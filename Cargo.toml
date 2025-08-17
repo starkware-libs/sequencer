@@ -6,6 +6,8 @@ resolver = "2"
 members = [
   "crates/apollo_batcher",
   "crates/apollo_batcher_types",
+  "crates/apollo_block_hash_calculator",
+  "crates/apollo_block_hash_calculator_types",
   "crates/apollo_central_sync",
   "crates/apollo_class_manager",
   "crates/apollo_class_manager_types",
@@ -14,6 +16,10 @@ members = [
   "crates/apollo_compile_to_casm_types",
   "crates/apollo_compile_to_native",
   "crates/apollo_compile_to_native_types",
+  "crates/apollo_commitment_sync",
+  "crates/apollo_commitment_sync_types",
+  "crates/apollo_committer",
+  "crates/apollo_committer_types",
   "crates/apollo_config",
   "crates/apollo_consensus",
   "crates/apollo_consensus_manager",
@@ -97,6 +103,8 @@ alloy = "0.12"
 anyhow = "1.0.44"
 apollo_batcher.path = "crates/apollo_batcher"
 apollo_batcher_types.path = "crates/apollo_batcher_types"
+apollo_block_hash_calculator.path = "crates/apollo_block_hash_calculator"
+apollo_block_hash_calculator_types.path = "crates/apollo_block_hash_calculator_types"
 apollo_central_sync.path = "crates/apollo_central_sync"
 apollo_class_manager.path = "crates/apollo_class_manager"
 apollo_class_manager_types.path = "crates/apollo_class_manager_types"
@@ -105,6 +113,10 @@ apollo_compile_to_casm.path = "crates/apollo_compile_to_casm"
 apollo_compile_to_casm_types.path = "crates/apollo_compile_to_casm_types"
 apollo_compile_to_native = { path = "crates/apollo_compile_to_native", version = "0.0.0" }
 apollo_compile_to_native_types = { path = "crates/apollo_compile_to_native_types", version = "0.0.0" }
+apollo_commitment_sync.path = "crates/apollo_commitment_sync"
+apollo_commitment_sync_types.path = "crates/apollo_commitment_sync_types"
+apollo_committer.path = "crates/apollo_committer"
+apollo_committer_types.path = "crates/apollo_committer_types"
 apollo_config = { path = "crates/apollo_config", version = "0.0.0" }
 apollo_consensus.path = "crates/apollo_consensus"
 apollo_consensus_manager.path = "crates/apollo_consensus_manager"
