@@ -206,14 +206,17 @@ impl ServiceNameInner for HybridNodeServiceName {
         ingress_params: IngressParams,
     ) -> Option<Ingress> {
         match self {
-            HybridNodeServiceName::Core => None,
-            HybridNodeServiceName::HttpServer => {
-                get_ingress(ingress_params, get_environment_ingress_internal(environment))
-            }
-            HybridNodeServiceName::Gateway => None,
-            HybridNodeServiceName::L1 => None,
-            HybridNodeServiceName::Mempool => None,
-            HybridNodeServiceName::SierraCompiler => None,
+            HybridNodeServiceName::Core
+            | HybridNodeServiceName::Gateway
+            | HybridNodeServiceName::L1
+            | HybridNodeServiceName::Mempool
+            | HybridNodeServiceName::SierraCompiler => None,
+            HybridNodeServiceName::HttpServer => match &environment {
+                Environment::CloudK8s(_) => {
+                    get_ingress(ingress_params, get_environment_ingress_internal(environment))
+                }
+                Environment::LocalK8s => None,
+            },
         }
     }
 
