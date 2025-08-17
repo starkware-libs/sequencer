@@ -24,6 +24,7 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::contract_class::compiled_class_hash::{
     EntryPointHashable,
+    HashVersion,
     HashableCompiledClass,
     HashableNestedIntList,
 };
@@ -42,6 +43,7 @@ use crate::abi::constants::{self};
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::BuiltinCounterMap;
+use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{
@@ -451,8 +453,10 @@ impl CompiledClassV1 {
         versioned_constants: &VersionedConstants,
         blake_weight: usize,
     ) -> (GasAmount, BuiltinCounterMap) {
-        let blake_hash_gas = estimate_casm_blake_hash_computation_resources(
-            &self.bytecode_segment_felt_sizes,
+        let blake_hash_resources =
+            estimate_casm_blake_hash_computation_resources(&self.bytecode_segment_felt_sizes);
+        let blake_hash_gas = blake_execution_resources_estimation_to_gas(
+            blake_hash_resources,
             versioned_constants,
             blake_weight,
         );
@@ -566,43 +570,26 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
 }
 
 /// Cost to hash a single flat segment of `len` felts.
-fn leaf_cost(
-    felt_size_groups: &FeltSizeCount,
-    versioned_constants: &VersionedConstants,
-    blake_opcode_gas: usize,
-) -> GasAmount {
+fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
     // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    // TODO(AvivG): Call `encode_and_blake_hash_resources` directly, and perform the resource→gas
-    // conversion only after `estimate_casm_blake_hash_computation_resources` executes.
-    blake_execution_resources_estimation_to_gas(
-        encode_and_blake_hash_resources(felt_size_groups.large, felt_size_groups.small),
-        versioned_constants,
-        blake_opcode_gas,
-    )
+    encode_and_blake_hash_resources(felt_size_groups.large, felt_size_groups.small)
 }
 
 /// Cost to hash a multi-segment contract:
-fn node_cost(
-    segs: &[NestedFeltCounts],
-    versioned_constants: &VersionedConstants,
-    blake_opcode_gas: usize,
-) -> GasAmount {
+fn node_cost(segs: &[NestedFeltCounts]) -> EstimatedExecutionResources {
     // TODO(AvivG): Add base estimation for node.
-    let mut gas = GasAmount::ZERO;
+    let mut resources =
+        EstimatedExecutionResources::from((ExecutionResources::default(), HashVersion::V2));
 
     // TODO(AvivG): Add base estimation of each segment. Could this be part of 'leaf_cost'?
-    let segment_overhead = GasAmount::ZERO;
+    let segment_overhead = ExecutionResources::default();
 
     // For each segment, hash its felts.
     for seg in segs {
         match seg {
             NestedFeltCounts::Leaf(_, felt_size_groups) => {
-                gas = gas.checked_add_panic_on_overflow(segment_overhead);
-                gas = gas.checked_add_panic_on_overflow(leaf_cost(
-                    felt_size_groups,
-                    versioned_constants,
-                    blake_opcode_gas,
-                ));
+                resources += &segment_overhead;
+                resources += &leaf_cost(felt_size_groups);
             }
             _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
         }
@@ -610,47 +597,41 @@ fn node_cost(
 
     // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
     // and one segment length (“small” felt) per segment.
-    // TODO(AvivG): Call `encode_and_blake_hash_resources` directly, and perform the resource→gas
-    // conversion only after `estimate_casm_blake_hash_computation_resources` executes.
-    let node_hash_cost = blake_execution_resources_estimation_to_gas(
-        encode_and_blake_hash_resources(segs.len(), segs.len()),
-        versioned_constants,
-        blake_opcode_gas,
-    );
+    resources += &encode_and_blake_hash_resources(segs.len(), segs.len());
 
-    gas.checked_add_panic_on_overflow(node_hash_cost)
+    resources
 }
 
 /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
 /// - Uses only bytecode size.
 pub fn estimate_casm_blake_hash_computation_resources(
     bytecode_segment_lengths: &NestedFeltCounts,
-    versioned_constants: &VersionedConstants,
-    blake_opcode_gas: usize,
-) -> GasAmount {
+) -> EstimatedExecutionResources {
     // TODO(AvivG): Currently ignores entry-point hashing costs.
     // TODO(AvivG): Missing base overhead estimation for compiled_class_hash.
 
     // Basic frame overhead.
     // TODO(AvivG): Once compiled_class_hash estimation is complete,
     // revisit whether this should be moved into cost_of_encode_felt252_data_and_calc_blake_hash.
-    let resources = ExecutionResources {
-        n_steps: 0,
-        n_memory_holes: 0,
-        builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
-    };
-    let gas = vm_resources_to_sierra_gas(&resources, versioned_constants);
+    let mut resources = EstimatedExecutionResources::from((
+        ExecutionResources {
+            n_steps: 0,
+            n_memory_holes: 0,
+            builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
+        },
+        HashVersion::V2,
+    ));
 
     // Add leaf vs node cost
-    let added_gas = match &bytecode_segment_lengths {
+    let added_resources = match &bytecode_segment_lengths {
         // Single-segment contract (e.g., older Sierra contracts).
-        NestedFeltCounts::Leaf(_, felt_size_groups) => {
-            leaf_cost(felt_size_groups, versioned_constants, blake_opcode_gas)
-        }
-        NestedFeltCounts::Node(segs) => node_cost(segs, versioned_constants, blake_opcode_gas),
+        NestedFeltCounts::Leaf(_, felt_size_groups) => leaf_cost(felt_size_groups),
+        NestedFeltCounts::Node(segs) => node_cost(segs),
     };
 
-    gas.checked_add_panic_on_overflow(added_gas)
+    resources += &added_resources;
+
+    resources
 }
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
