@@ -54,7 +54,7 @@ def add_shared_args_to_parser(parser: argparse.ArgumentParser):
         "--tcp",
         help="Sets the multi-addresses to use TCP instead of UDP/QUIC",
         action="store_true",
-        default=True,
+        default=False,
     )
     parser.add_argument(
         "--explore-cool-down-duration-seconds",
