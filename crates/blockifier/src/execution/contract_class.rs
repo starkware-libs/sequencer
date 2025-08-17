@@ -44,7 +44,7 @@ use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{
-    cost_of_encode_felt252_data_and_calc_blake_hash,
+    cost_of_encode_felt252_data_and_calc_blake_hash_gas,
     poseidon_hash_many_cost,
     sn_api_to_cairo_vm_program,
 };
@@ -540,7 +540,7 @@ fn leaf_cost(
     blake_opcode_gas: usize,
 ) -> GasAmount {
     // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    cost_of_encode_felt252_data_and_calc_blake_hash(
+    cost_of_encode_felt252_data_and_calc_blake_hash_gas(
         felt_size_groups.large,
         felt_size_groups.small,
         versioned_constants,
@@ -577,7 +577,7 @@ fn node_cost(
 
     // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
     // and one segment length (“small” felt) per segment.
-    let node_hash_cost = cost_of_encode_felt252_data_and_calc_blake_hash(
+    let node_hash_cost = cost_of_encode_felt252_data_and_calc_blake_hash_gas(
         segs.len(),
         segs.len(),
         versioned_constants,

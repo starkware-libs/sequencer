@@ -459,55 +459,58 @@ fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
     total_u32s.div_ceil(blake_encoding::N_U32S_MESSAGE)
 }
 
-pub fn encode_and_blake_hash_execution_resources(
-    n_big_felts: usize,
-    n_small_felts: usize,
-) -> ExecutionResources {
-    let n_steps = compute_blake_hash_steps(n_big_felts, n_small_felts);
-    let n_felts =
-        n_big_felts.checked_add(n_small_felts).expect("Overflow computing total number of felts");
-
-    let builtin_instance_counter = match n_felts {
-        // The empty case does not use builtins at all.
-        0 => HashMap::new(),
-        // One `range_check` per input felt to validate its size + Overhead for the non empty case.
-        _ => HashMap::from([(
-            BuiltinName::range_check,
-            n_felts + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
-        )]),
-    };
-
-    ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter }
-}
-
-/// Estimates the L2 gas for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
-///
-/// This includes:
-/// - Gas derived from `ExecutionResources`
-/// - Additional gas for Blake opcodes (which is **not** part of `ExecutionResources`)
+/// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
 ///
 /// # Encoding Details
 /// - Small felts → 2 `u32`s each; Big felts → 8 `u32`s each.
 /// - Each felt requires one `range_check` operation.
 ///
-/// # Compatibility Assumptions
-/// This function is used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations.
-/// This unified logic is valid because the only builtin involved is `range_check`, which has
-/// the same cost in both provers (see usage in `bouncer.get_tx_weights`).
-///
-/// # Notes
-/// The Blake opcode gas is separated because it is not reported via `ExecutionResources`,
-/// and must be accounted for explicitly.
-// TODO(AvivG): Consider separating `encode_felt252_to_u32s` and `blake_with_opcode` costs for
-// improved granularity and testability.
+/// # Returns:
+/// - `ExecutionResources`: VM resource usage (e.g., n_steps, range checks).
+/// - `usize`: number of Blake opcodes used, accounted for separately as those are not reported via
+///   `ExecutionResources`.
 pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
-    // TODO(AvivG): Consider refactoring to use FeltSizeCount.
+    // TODO(AvivG): Refactor to use `FeltSizeCount`.
+    n_big_felts: usize,
+    n_small_felts: usize,
+) -> (ExecutionResources, usize) {
+    let n_felts =
+        n_big_felts.checked_add(n_small_felts).expect("Overflow computing total number of felts");
+
+    let resources = ExecutionResources {
+        n_steps: compute_blake_hash_steps(n_big_felts, n_small_felts),
+        n_memory_holes: 0,
+        builtin_instance_counter: match n_felts {
+            // The empty case does not use builtins at all.
+            0 => HashMap::new(),
+            // One `range_check` per input felt to validate its size + Overhead for the non empty
+            // case.
+            _ => HashMap::from([(
+                BuiltinName::range_check,
+                n_felts + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
+            )]),
+        },
+    };
+
+    let blake_opcode_count = count_blake_opcode(n_big_felts, n_small_felts);
+
+    (resources, blake_opcode_count)
+}
+
+/// Estimates the L2 gas for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
+///
+/// Used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations, which differ in
+/// builtin costs. This unified logic is valid because only the `range_check` builtin is used,
+/// and its cost is identical across provers (see `bouncer.get_tx_weights`).
+// TODO(AvivG): Remove this once estimation logic is moved to trait.
+pub fn cost_of_encode_felt252_data_and_calc_blake_hash_gas(
     n_big_felts: usize,
     n_small_felts: usize,
     versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
 ) -> GasAmount {
-    let vm_resources = encode_and_blake_hash_execution_resources(n_big_felts, n_small_felts);
+    let (vm_resources, blake_opcode_count) =
+        cost_of_encode_felt252_data_and_calc_blake_hash(n_big_felts, n_small_felts);
 
     assert!(
         vm_resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
@@ -518,7 +521,6 @@ pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
 
     let vm_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
 
-    let blake_opcode_count = count_blake_opcode(n_big_felts, n_small_felts);
     let blake_opcode_gas = blake_opcode_count
         .checked_mul(blake_opcode_gas)
         .map(u64_from_usize)
