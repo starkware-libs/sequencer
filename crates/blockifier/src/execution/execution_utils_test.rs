@@ -38,11 +38,11 @@ fn test_zero_inputs() {
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
     // Should result in base cost only (no opcode cost).
-    let (resources, blake_opcode_count) = encode_and_blake_hash_resources(0, 0);
+    let resources = encode_and_blake_hash_resources(0, 0);
     let expected_resources =
         ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
-    assert_eq!(resources, expected_resources, "Unexpected resources values for zero-input hash");
-    assert_eq!(blake_opcode_count, 0, "Expected zero BLAKE opcodes for zero inputs");
+    assert_eq!(resources.resources(), &expected_resources, "Unexpected resources values for zero-input hash");
+    assert_eq!(resources.blake_count(), 0, "Expected zero BLAKE opcodes for zero inputs");
 }
 
 // TODO(AvivG): Add tests for:
