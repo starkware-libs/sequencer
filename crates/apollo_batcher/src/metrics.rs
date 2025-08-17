@@ -27,6 +27,7 @@ define_metrics!(
     Infra => {
         // Batcher request labels
         LabeledMetricHistogram { BATCHER_LABELED_PROCESSING_TIMES_SECS, "batcher_labeled_processing_times_secs", "Request processing times of the batcher, per label (secs)", labels = BATCHER_REQUEST_LABELS},
+        LabeledMetricHistogram { BATCHER_LABELED_QUEUEING_TIMES_SECS, "batcher_labeled_queueing_times_secs", "Request queueing times of the batcher, per label (secs)", labels = BATCHER_REQUEST_LABELS},
     },
 );
 

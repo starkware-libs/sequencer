@@ -21,6 +21,12 @@ define_metrics!(
             "Request processing times of the L1 gas price, per label (secs)",
             labels = L1_GAS_PRICE_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            L1_GAS_PRICE_LABELED_QUEUEING_TIMES_SECS,
+            "l1_gas_price_labeled_queueing_times_secs",
+            "Request queueing times of the L1 gas price, per label (secs)",
+            labels = L1_GAS_PRICE_REQUEST_LABELS
+        },
     },
 );
 
