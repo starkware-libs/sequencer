@@ -295,7 +295,10 @@ macro_rules! create_client {
             }
             ReactiveComponentExecutionMode::Remote => {
                 let remote_client = Some(<$remote_client_type>::new(
-                    $remote_client_config.clone(),
+                    $remote_client_config
+                        .as_ref()
+                        .expect("Remote client config should be available")
+                        .clone(),
                     $url,
                     $port,
                     $metrics,
