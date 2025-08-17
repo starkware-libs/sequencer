@@ -1458,6 +1458,7 @@ name = "apollo_l1_endpoint_monitor_types"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_infra",
+ "apollo_metrics",
  "apollo_proc_macros",
  "async-trait",
  "mockall",
