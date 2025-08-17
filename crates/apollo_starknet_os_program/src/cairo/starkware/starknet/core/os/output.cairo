@@ -1,8 +1,8 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin
+from starkware.cairo.common.cairo_builtins import EcOpBuiltin, PoseidonBuiltin
 from starkware.cairo.common.dict import DictAccess
-from starkware.cairo.common.ec import StarkCurve
+from starkware.cairo.common.ec import ec_mul, StarkCurve
 from starkware.cairo.common.ec_point import EcPoint
 from starkware.cairo.common.math import assert_le_felt, assert_not_zero
 from starkware.cairo.common.registers import get_fp_and_pc
@@ -79,9 +79,9 @@ struct OsCarriedOutputs {
     messages_to_l2: MessageToL2Header*,
 }
 
-func serialize_os_output{range_check_ptr, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*}(
-    os_output: OsOutput*, replace_keys_with_aliases: felt, public_key: EcPoint*
-) {
+func serialize_os_output{
+    range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*, output_ptr: felt*
+}(os_output: OsOutput*, replace_keys_with_aliases: felt, public_key: EcPoint*) {
     alloc_locals;
 
     local use_kzg_da = os_output.header.use_kzg_da;
@@ -233,7 +233,7 @@ func serialize_os_kzg_commitment_info{output_ptr: felt*}(
 }
 
 // Returns the final data-availability to output.
-func process_data_availability{range_check_ptr}(
+func process_data_availability{range_check_ptr, ec_op_ptr: EcOpBuiltin*}(
     state_updates_start: felt*,
     state_updates_end: felt*,
     compress_state_updates: felt,
@@ -266,6 +266,8 @@ func process_data_availability{range_check_ptr}(
     %{ generate_keys_from_hash(ids.compressed_start, ids.compressed_dst) %}
     assert_le_felt(sn_private_key_1, StarkCurve.ORDER);
     assert_not_zero(sn_private_key_1);
+    tempvar generator: EcPoint* = new EcPoint(x=StarkCurve.GEN_X, y=StarkCurve.GEN_Y);
+    let (sn_public_key_1) = ec_mul(sn_private_key_1, [generator]);
 
     // TODO(Einat): encrypt the data with the symmetric key.
     return (da_start=compressed_start, da_end=compressed_dst);
