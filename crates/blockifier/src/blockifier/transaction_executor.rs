@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::mem;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
@@ -6,7 +7,7 @@ use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
 use starknet_api::block::BlockHashAndNumber;
-use starknet_api::core::CompiledClassHash;
+use starknet_api::core::{ClassHash, CompiledClassHash};
 use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;
@@ -245,14 +246,17 @@ pub(crate) fn finalize_block<S: StateReader>(
         allocate_aliases_in_storage(block_state, alias_contract_address)?;
     }
 
+    let mut bouncer = bouncer;
+    let class_hashes_to_migrate = mem::take(bouncer.get_mut_class_hashes_to_migrate());
     if !block_context.versioned_constants.enable_casm_hash_migration {
         assert!(
-            bouncer.class_hashes_to_migrate().is_empty(),
+            class_hashes_to_migrate.is_empty(),
             "Class hashes to migrate should be empty when migration is disabled"
         );
     }
     let compiled_class_hashes_for_migration =
-        update_compiled_class_hash_migration_in_state(&bouncer, block_state)?;
+        update_compiled_class_hash_migration_in_state(class_hashes_to_migrate, block_state)?;
+
     let state_diff = block_state.to_state_diff()?.state_maps;
 
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
@@ -263,7 +267,6 @@ pub(crate) fn finalize_block<S: StateReader>(
 
     // Take CasmHashComputationData from bouncer,
     // and verify that class hashes are the same.
-    let mut bouncer = bouncer;
     let casm_hash_computation_data_sierra_gas =
         mem::take(bouncer.get_mut_casm_hash_computation_data_sierra_gas());
     let casm_hash_computation_data_proving_gas =
@@ -292,12 +295,10 @@ pub(crate) fn finalize_block<S: StateReader>(
 // Gathers the new compiled class hashes for the class hashes that need to be migrated,
 // and adds the corresponding mappings to the block state's write set.
 fn update_compiled_class_hash_migration_in_state<S: StateReader>(
-    bouncer: &Bouncer,
+    class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
     block_state: &mut CachedState<S>,
 ) -> StateResult<CompiledClassHashesForMigration> {
-    for (class_hash, (compiled_class_hash_v2, compiled_class_hash_v1)) in
-        bouncer.class_hashes_to_migrate()
-    {
+    for (class_hash, (compiled_class_hash_v2, compiled_class_hash_v1)) in &class_hashes_to_migrate {
         // Sanity check: the compiled class hashes should not be equal.
         assert_ne!(
             compiled_class_hash_v1, compiled_class_hash_v2,
@@ -307,8 +308,7 @@ fn update_compiled_class_hash_migration_in_state<S: StateReader>(
         // TODO(Meshi): Consider panic here instead of returning an error.
         block_state.set_compiled_class_hash(*class_hash, *compiled_class_hash_v2)?;
     }
-    // TODO(Aviv): Consider using mem take instead of cloning.
-    Ok(bouncer.class_hashes_to_migrate().values().cloned().collect())
+    Ok(class_hashes_to_migrate.into_values().collect())
 }
 
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
