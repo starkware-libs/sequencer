@@ -254,16 +254,56 @@ fn validate_max_concurrency(max_concurrency: usize) -> Result<(), ValidationErro
         Ok(())
     } else {
         Err(create_validation_error(
-            format!("Invalid max_concurrency: {}", max_concurrency),
+            format!("Invalid max_concurrency: {max_concurrency}"),
             "Invalid max concurrency",
             "Ensure the max concurrency is greater than 0.",
         ))
     }
 }
 
+fn check_expectation(
+    field: &'static str,
+    has: bool,
+    required: bool,
+    execution_mode: &ReactiveComponentExecutionMode,
+) -> Result<(), ValidationError> {
+    if required && !has {
+        return Err(create_validation_error(
+            format!("{field} config is required when execution mode is {execution_mode:?}."),
+            "Missing expected server config.",
+            "Ensure the server config is set.",
+        ));
+    }
+    if !required && has {
+        return Err(create_validation_error(
+            format!("{field} config should not be set when execution mode is {execution_mode:?}."),
+            "Unexpected server config.",
+            "Ensure the server config is not set.",
+        ));
+    }
+    Ok(())
+}
+
 fn validate_reactive_component_execution_config(
     component_config: &ReactiveComponentExecutionConfig,
 ) -> Result<(), ValidationError> {
+    // Validate the execution mode matches presence/absence of local and remote server configs.
+    let has_local = component_config.local_server_config.is_some();
+    let has_remote = component_config.remote_client_config.is_some();
+
+    // Expected local and remote server configs expected values based on the execution mode.
+    let (local_req, remote_req) = match &component_config.execution_mode {
+        ReactiveComponentExecutionMode::Disabled => (false, false),
+        ReactiveComponentExecutionMode::Remote => (false, true),
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => (true, false),
+    };
+    check_expectation("local server", has_local, local_req, &component_config.execution_mode)?;
+    check_expectation("remote client", has_remote, remote_req, &component_config.execution_mode)?;
+
+    // TODO make sure this works, i.e., add a test that fails on invalid config.
+
+    // Validate the execution mode matches socket validity.
     match (&component_config.execution_mode, component_config.is_valid_socket()) {
         (ReactiveComponentExecutionMode::Disabled, _) => Ok(()),
         (ReactiveComponentExecutionMode::Remote, true)
