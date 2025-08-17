@@ -52,10 +52,10 @@ const TEST_MSGS_PROCESSED: MetricCounter = MetricCounter::new(
 const TEST_QUEUE_DEPTH: MetricGauge =
     MetricGauge::new(MetricScope::Infra, "queue_queue_depth", "Test channel queue depth gauge");
 
-const TEST_PROCESSING_TIMES_SECS: MetricHistogram =
+const _TEST_PROCESSING_TIMES_SECS: MetricHistogram =
     MetricHistogram::new(MetricScope::Infra, "processing_times", "Test processing time histogram");
 
-const _TEST_PROCESSING_TIMES_SECS_LABELLED_A: LabeledMetricHistogram = LabeledMetricHistogram::new(
+const TEST_PROCESSING_TIMES_SECS_LABELLED_A: LabeledMetricHistogram = LabeledMetricHistogram::new(
     MetricScope::Infra,
     "labeled_processing_times_a",
     "Test processing time histogram for component A",
@@ -69,10 +69,10 @@ const _TEST_PROCESSING_TIMES_SECS_LABELLED_B: LabeledMetricHistogram = LabeledMe
     COMPONENT_B_REQUEST_LABELS,
 );
 
-const TEST_QUEUEING_TIMES_SECS: MetricHistogram =
+const _TEST_QUEUEING_TIMES_SECS: MetricHistogram =
     MetricHistogram::new(MetricScope::Infra, "queueing_times", "Test queueing time histogram");
 
-const _TEST_QUEUEING_TIMES_SECS_LABELLED_A: LabeledMetricHistogram = LabeledMetricHistogram::new(
+const TEST_QUEUEING_TIMES_SECS_LABELLED_A: LabeledMetricHistogram = LabeledMetricHistogram::new(
     MetricScope::Infra,
     "labeled_queueing_times_a",
     "Test queueing time histogram for component A",
@@ -86,12 +86,13 @@ const _TEST_QUEUEING_TIMES_SECS_LABELLED_B: LabeledMetricHistogram = LabeledMetr
     COMPONENT_B_REQUEST_LABELS,
 );
 
+// TODO(alonl): Fix only using component A metrics.
 pub(crate) const TEST_LOCAL_SERVER_METRICS: LocalServerMetrics = LocalServerMetrics::new(
     &TEST_MSGS_RECEIVED,
     &TEST_MSGS_PROCESSED,
     &TEST_QUEUE_DEPTH,
-    &TEST_PROCESSING_TIMES_SECS,
-    &TEST_QUEUEING_TIMES_SECS,
+    &TEST_PROCESSING_TIMES_SECS_LABELLED_A,
+    &TEST_QUEUEING_TIMES_SECS_LABELLED_A,
 );
 
 const REMOTE_TEST_MSGS_RECEIVED: MetricCounter = MetricCounter::new(

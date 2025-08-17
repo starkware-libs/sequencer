@@ -384,6 +384,7 @@ async fn process_request<Request, Response, Component>(
 {
     let component_name = short_type_name::<Component>();
     let request_info = format!("{:?}", request);
+    let request_label = request.disc().into();
 
     trace!("Component {component_name} is starting to process request {request_info:?}",);
     // Please note that the we're measuring the time of an asynchronous request processing, which
@@ -391,7 +392,7 @@ async fn process_request<Request, Response, Component>(
     let start = Instant::now();
     let response = component.handle_request(request).await;
     let elapsed = start.elapsed();
-    metrics.record_processing_time(elapsed.as_secs_f64());
+    metrics.record_processing_time(elapsed.as_secs_f64(), request_label);
     // TODO(Tsabary): add a test for the processing time metric.
 
     let elapsed_ms = elapsed.as_millis();
@@ -431,7 +432,7 @@ async fn get_next_request_for_processing<Request, Response>(
     metrics: &'static LocalServerMetrics,
 ) -> (Request, Sender<Response>)
 where
-    Request: Send + Debug,
+    Request: Send + Debug + LabeledRequest,
     Response: Send,
 {
     let request_wrapper = tokio::select! {
@@ -451,7 +452,7 @@ where
         "Component {component_name} received request {request:?} that was created at \
          {creation_time:?}",
     );
-    metrics.record_queueing_time(creation_time.elapsed().as_secs_f64());
+    metrics.record_queueing_time(creation_time.elapsed().as_secs_f64(), request.disc().into());
 
     (request, tx)
 }

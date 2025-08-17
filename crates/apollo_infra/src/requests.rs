@@ -1,5 +1,5 @@
 pub trait LabeledRequest {
-    type Disc: Send + Sync + 'static;
+    type Disc: Send + Sync + 'static + Into<&'static str>;
     fn disc(&self) -> Self::Disc;
 }
 
