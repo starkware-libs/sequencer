@@ -163,3 +163,11 @@ pub(crate) fn get_symmetric_key(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResu
     let symmetric_key = Felt::from_bytes_be_slice(&bytes);
     Ok(insert_value_into_ap(vm, symmetric_key)?)
 }
+
+pub(crate) fn get_rand(HintArgs { vm, .. }: HintArgs<'_>) -> OsHintResult {
+    let mut bytes = [0u8; 32];
+    OsRng.fill_bytes(&mut bytes);
+    bytes[0] &= 0b0000_1111;
+    let rand = Felt::from_bytes_be_slice(&bytes);
+    Ok(insert_value_into_ap(vm, rand)?)
+}
