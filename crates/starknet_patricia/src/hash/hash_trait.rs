@@ -2,7 +2,7 @@ use starknet_types_core::felt::{Felt, FromStrError};
 
 use crate::impl_from_hex_for_felt_wrapper;
 
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
+#[cfg_attr(feature = "deserialize", derive(serde::Deserialize, serde::Serialize))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct HashOutput(pub Felt);
 
