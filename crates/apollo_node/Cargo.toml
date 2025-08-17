@@ -40,6 +40,7 @@ apollo_mempool_types.workspace = true
 apollo_monitoring_endpoint.workspace = true
 apollo_reverts.workspace = true
 apollo_state_sync.workspace = true
+apollo_state_sync_metrics.workspace = true
 apollo_state_sync_types.workspace = true
 clap.workspace = true
 const_format.workspace = true
