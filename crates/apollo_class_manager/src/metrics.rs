@@ -57,6 +57,12 @@ define_metrics!(
             "Request processing times of the class manager, per label (secs)",
             labels = CLASS_MANAGER_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            CLASS_MANAGER_LABELED_QUEUEING_TIMES_SECS,
+            "class_manager_labeled_queueing_times_secs",
+            "Request queueing times of the class manager, per label (secs)",
+            labels = CLASS_MANAGER_REQUEST_LABELS
+        },
     },
 );
 
