@@ -304,6 +304,10 @@ pub struct EntryPointSelector(pub StarkHash);
     derive_more::Display,
 )]
 pub struct GlobalRoot(pub StarkHash);
+impl GlobalRoot {
+    pub const STATE_VERSION: Felt =
+        Felt::from_hex_unchecked("0x535441524B4E45545F53544154455F5630"); // 'STARKNET_STATE_V0'.
+}
 
 /// The commitment on the transactions in a [Block](`crate::block::Block`).
 #[derive(

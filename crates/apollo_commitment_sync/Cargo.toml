@@ -1,0 +1,36 @@
+[package]
+name = "apollo_commitment_sync"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_commitment_sync_types.workspace = true
+apollo_committer_types.workspace = true
+apollo_config.workspace = true
+apollo_infra.workspace = true
+apollo_infra_utils.workspace = true
+apollo_metrics.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+apollo_commitment_sync_types = { workspace = true, features = ["testing"] }
+apollo_committer_types = { workspace = true, features = ["testing"] }
+apollo_infra = { workspace = true, features = ["testing"] }
+apollo_test_utils.workspace = true
+mockall.workspace = true
+rstest.workspace = true
+tokio-test.workspace = true

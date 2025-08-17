@@ -1,0 +1,32 @@
+[package]
+name = "apollo_committer"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+testing = []
+
+[lints]
+workspace = true
+
+[dependencies]
+apollo_committer_types.workspace = true
+apollo_config.workspace = true
+apollo_infra.workspace = true
+apollo_infra_utils.workspace = true
+apollo_metrics.workspace = true
+apollo_storage.workspace = true
+async-trait.workspace = true
+chrono.workspace = true
+futures.workspace = true
+serde.workspace = true
+starknet_api.workspace = true
+starknet_committer.workspace = true
+starknet_patricia_storage.workspace = true
+thiserror.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+
