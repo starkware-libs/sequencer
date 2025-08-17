@@ -29,6 +29,12 @@ define_metrics!(
             "Request processing times of the mempool, per label (secs)",
             labels = MEMPOOL_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
+            "mempool_labeled_queueing_times_secs",
+            "Request queueing times of the mempool, per label (secs)",
+            labels = MEMPOOL_REQUEST_LABELS
+        },
     },
 );
 
