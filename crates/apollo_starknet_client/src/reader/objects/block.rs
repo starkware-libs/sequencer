@@ -42,6 +42,10 @@ fn default_next_l2_gas_price() -> GasPrice {
     GasPrice(1)
 }
 
+fn default_old_starknet_version() -> StarknetVersion {
+    StarknetVersion::V0_0_0
+}
+
 /// A block as returned by the starknet gateway since V0.13.1.
 #[derive(Debug, Default, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(deny_unknown_fields)]
@@ -57,8 +61,8 @@ pub struct BlockPostV0_13_1 {
     pub timestamp: BlockTimestamp,
     pub transactions: Vec<Transaction>,
     pub transaction_receipts: Vec<TransactionReceipt>,
-    // Default since old blocks don't include this field.
-    #[serde(default)]
+    // Default to V0_0_0 for compatibility with old blocks that don't include this field.
+    #[serde(default = "default_old_starknet_version")]
     pub starknet_version: StarknetVersion,
     // Additions to the block structure in V0.13.1.
     pub l1_da_mode: L1DataAvailabilityMode,
