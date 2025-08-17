@@ -82,6 +82,13 @@ jobs:
             --wait
             --timeout 120s
 
+      - name: Install crds
+        working-directory: deployments/sequencer
+        run: |
+          echo "🔧 Installing CRDs..."
+          kubectl apply -R -f ./resources/crds
+          echo "✅ CRDs installed successfully."
+
       # Install rust components.
       - uses: ./.github/actions/bootstrap
         with:
