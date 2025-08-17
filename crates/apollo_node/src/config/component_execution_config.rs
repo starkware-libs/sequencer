@@ -10,6 +10,8 @@ use tracing::error;
 use validator::{Validate, ValidationError};
 
 use crate::config::config_utils::create_validation_error;
+use crate::config::definitions::ConfigExpectation::{self, Redundant, Required};
+use crate::config::definitions::ConfigPresence::{self, Absent, Present};
 
 const DEFAULT_URL: &str = "localhost";
 const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
@@ -254,16 +256,52 @@ fn validate_max_concurrency(max_concurrency: usize) -> Result<(), ValidationErro
         Ok(())
     } else {
         Err(create_validation_error(
-            format!("Invalid max_concurrency: {}", max_concurrency),
+            format!("Invalid max_concurrency: {max_concurrency}"),
             "Invalid max concurrency",
             "Ensure the max concurrency is greater than 0.",
         ))
     }
 }
 
+fn check_presence(
+    field: &str,
+    presence: ConfigPresence,
+    config_expectation: ConfigExpectation,
+    execution_mode: &ReactiveComponentExecutionMode,
+) -> Result<(), ValidationError> {
+    match (presence, config_expectation) {
+        (Absent, Required) => Err(create_validation_error(
+            format!("{field} config is required when execution mode is {execution_mode:?}."),
+            "Missing expected server config.",
+            "Ensure the server config is set.",
+        )),
+        (Present, Redundant) => Err(create_validation_error(
+            format!("{field} config should not be set when execution mode is {execution_mode:?}."),
+            "Unexpected server config.",
+            "Ensure the server config is not set.",
+        )),
+        _ => Ok(()),
+    }
+}
+
 fn validate_reactive_component_execution_config(
     component_config: &ReactiveComponentExecutionConfig,
 ) -> Result<(), ValidationError> {
+    // Validate the execution mode matches presence/absence of local and remote server configs.
+    let has_local: ConfigPresence = (&component_config.local_server_config).into();
+    let has_remote: ConfigPresence = (&component_config.remote_client_config).into();
+
+    // Which local/remote server configs are required or redundent for each execution mode.
+    let (local_req, remote_req) = match &component_config.execution_mode {
+        ReactiveComponentExecutionMode::Disabled => (Redundant, Redundant),
+        ReactiveComponentExecutionMode::Remote => (Redundant, Required),
+        ReactiveComponentExecutionMode::LocalExecutionWithRemoteDisabled
+        | ReactiveComponentExecutionMode::LocalExecutionWithRemoteEnabled => (Required, Redundant),
+    };
+    check_presence("local server", has_local, local_req, &component_config.execution_mode)?;
+    check_presence("remote client", has_remote, remote_req, &component_config.execution_mode)?;
+
+    // Validate the execution mode matches socket validity.
     match (&component_config.execution_mode, component_config.is_valid_socket()) {
         (ReactiveComponentExecutionMode::Disabled, _) => Ok(()),
         (ReactiveComponentExecutionMode::Remote, true)
