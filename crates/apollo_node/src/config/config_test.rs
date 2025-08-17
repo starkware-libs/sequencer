@@ -37,48 +37,48 @@ const VALID_PORT: u16 = 8080;
 #[rstest]
 #[case::local(
     ReactiveComponentExecutionMode::Disabled,
-    LocalServerConfig::default(),
-    RemoteClientConfig::default(),
+    None,
+    None,
     VALID_URL,
     VALID_IP,
     VALID_PORT
 )]
 #[case::local(
     ReactiveComponentExecutionMode::Remote,
-    LocalServerConfig::default(),
-    RemoteClientConfig::default(),
+    None,
+    Some(RemoteClientConfig::default()),
     VALID_URL,
     VALID_IP,
     VALID_PORT
 )]
 #[case::local(
     LOCAL_EXECUTION_MODE,
-    LocalServerConfig::default(),
-    RemoteClientConfig::default(),
+    Some(LocalServerConfig::default()),
+    None,
     VALID_URL,
     VALID_IP,
     VALID_PORT
 )]
 #[case::remote(
     ENABLE_REMOTE_CONNECTION_MODE,
-    LocalServerConfig::default(),
-    RemoteClientConfig::default(),
+    Some(LocalServerConfig::default()),
+    None,
     VALID_URL,
     VALID_IP,
     VALID_PORT
 )]
 fn valid_component_execution_config(
     #[case] execution_mode: ReactiveComponentExecutionMode,
-    #[case] local_server_config: LocalServerConfig,
-    #[case] remote_client_config: RemoteClientConfig,
+    #[case] local_server_config: Option<LocalServerConfig>,
+    #[case] remote_client_config: Option<RemoteClientConfig>,
     #[case] url: &str,
     #[case] ip: IpAddr,
     #[case] port: u16,
 ) {
     let component_exe_config = ReactiveComponentExecutionConfig {
         execution_mode,
-        local_server_config: Some(local_server_config),
-        remote_client_config: Some(remote_client_config),
+        local_server_config,
+        remote_client_config,
         max_concurrency: 1,
         url: url.to_string(),
         ip,
