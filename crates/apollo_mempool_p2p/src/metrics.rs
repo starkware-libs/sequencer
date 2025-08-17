@@ -15,5 +15,6 @@ define_metrics!(
     Infra => {
         // MempoolP2p request labels
         LabeledMetricHistogram { MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS, "mempool_p2p_labeled_processing_times_secs", "Request processing times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
+        LabeledMetricHistogram { MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS, "mempool_p2p_labeled_queueing_times_secs", "Request queueing times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
     },
 );

@@ -14,6 +14,12 @@ define_metrics!(
             "Request processing times of the L1 provider, per label (secs)",
             labels = L1_PROVIDER_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+            "l1_provider_labeled_queueing_times_secs",
+            "Request queueing times of the L1 provider, per label (secs)",
+            labels = L1_PROVIDER_REQUEST_LABELS
+        },
     },
 );
 
