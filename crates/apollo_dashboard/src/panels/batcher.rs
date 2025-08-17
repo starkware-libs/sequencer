@@ -107,6 +107,18 @@ fn get_panel_reverted_transaction_ratio() -> Panel {
     )
 }
 
+fn get_panel_batched_transactions_rate() -> Panel {
+    Panel::new(
+        "batched_transactions_rate (TPS)",
+        "The rate of transactions batched by the Batcher during the last minute",
+        vec![format!(
+            "sum(rate({}[1m])) or vector(0)",
+            BATCHED_TRANSACTIONS.get_name_with_filter()
+        )],
+        PanelType::TimeSeries,
+    )
+}
+
 fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
         BATCHER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
@@ -118,6 +130,7 @@ pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
         vec![
+            get_panel_batched_transactions_rate(),
             get_panel_proposal_started(),
             get_panel_proposal_succeeded(),
             get_panel_proposal_failed(),
