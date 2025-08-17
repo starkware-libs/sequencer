@@ -503,23 +503,20 @@ pub fn encode_and_blake_hash_resources(
 /// builtin costs. This unified logic is valid because only the `range_check` builtin is used,
 /// and its cost is identical across provers (see `bouncer.get_tx_weights`).
 // TODO(AvivG): Remove this once estimation logic is moved to trait.
-pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
-    n_big_felts: usize,
-    n_small_felts: usize,
+pub fn blake_execution_resources_estimation_to_gas(
+    resources: ExecutionResources,
+    blake_opcode_count: usize,
     versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
 ) -> GasAmount {
-    let (vm_resources, blake_opcode_count) =
-        encode_and_blake_hash_resources(n_big_felts, n_small_felts);
-
     assert!(
-        vm_resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
+        resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
         "Expected either empty builtins or only `range_check` builtin, got: {:?}. This breaks the \
          assumption that builtin costs are identical between provers.",
-        vm_resources.builtin_instance_counter.keys().collect::<Vec<_>>()
+        resources.builtin_instance_counter.keys().collect::<Vec<_>>()
     );
 
-    let vm_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
+    let vm_gas = vm_resources_to_sierra_gas(&resources, versioned_constants);
 
     let blake_opcode_gas = blake_opcode_count
         .checked_mul(blake_opcode_gas)
