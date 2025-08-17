@@ -3,13 +3,11 @@ use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use pretty_assertions::assert_eq;
 use starknet_types_core::felt::Felt;
 
-use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::bouncer::{vm_resources_to_sierra_gas, BouncerConfig};
 use crate::execution::execution_utils::blake_encoding::{N_U32S_BIG_FELT, N_U32S_SMALL_FELT};
 use crate::execution::execution_utils::blake_estimation::STEPS_EMPTY_INPUT;
 use crate::execution::execution_utils::{
     compute_blake_hash_steps,
-    cost_of_encode_felt252_data_and_calc_blake_hash,
+    encode_and_blake_hash_resources,
     count_blake_opcode,
 };
 
@@ -39,18 +37,12 @@ fn test_zero_inputs() {
     let opcodes = count_blake_opcode(0, 0);
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
-    // Should result in base cost gas only (no opcode gas).
-    let gas = cost_of_encode_felt252_data_and_calc_blake_hash(
-        0,
-        0,
-        VersionedConstants::latest_constants(),
-        BouncerConfig::default().blake_weight,
-    );
-    let expected_gas = {
-        let resources = ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
-        vm_resources_to_sierra_gas(&resources, VersionedConstants::latest_constants())
-    };
-    assert_eq!(gas, expected_gas, "Unexpected gas value for zero-input hash");
+    // Should result in base cost only (no opcode cost).
+    let (resources, blake_opcode_count) = encode_and_blake_hash_resources(0, 0);
+    let expected_resources =
+        ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
+    assert_eq!(resources, expected_resources, "Unexpected resources values for zero-input hash");
+    assert_eq!(blake_opcode_count, 0, "Expected zero BLAKE opcodes for zero inputs");
 }
 
 // TODO(AvivG): Add tests for:
