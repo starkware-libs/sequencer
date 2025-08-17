@@ -280,9 +280,7 @@ impl Default for SequencerNodeConfig {
 
 macro_rules! ensure_component_config_matches_mode {
     ($self:ident, $component_field:ident, $config_field:ident) => {{
-        if $self.components.$component_field.is_component_config_expected()
-            != $self.$config_field.is_some()
-        {
+        if $self.components.$component_field.is_running_locally() != $self.$config_field.is_some() {
             let execution_mode = &$self.components.$component_field.execution_mode;
             let component_config_availability =
                 if $self.$config_field.is_some() { "available" } else { "not available" };
