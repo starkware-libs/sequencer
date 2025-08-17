@@ -394,7 +394,12 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.batcher.execution_mode,
         &mut components.batcher,
-        &config.components.batcher.local_server_config,
+        &config
+            .components
+            .batcher
+            .local_server_config
+            .as_ref()
+            .expect("Local server config should be available"),
         communication.take_batcher_rx(),
         &BATCHER_METRICS
     );
@@ -410,7 +415,12 @@ fn create_local_servers(
         CONCURRENT_LOCAL_SERVER,
         &config.components.class_manager.execution_mode,
         &mut components.class_manager,
-        &config.components.class_manager.local_server_config,
+        &config
+            .components
+            .class_manager
+            .local_server_config
+            .as_ref()
+            .expect("Local server config should be available"),
         communication.take_class_manager_rx(),
         &CLASS_MANAGER_METRICS,
         config.components.class_manager.max_concurrency
@@ -427,7 +437,12 @@ fn create_local_servers(
         CONCURRENT_LOCAL_SERVER,
         &config.components.gateway.execution_mode,
         &mut components.gateway,
-        &config.components.gateway.local_server_config,
+        &config
+            .components
+            .gateway
+            .local_server_config
+            .as_ref()
+            .expect("Local server config should be available"),
         communication.take_gateway_rx(),
         &GATEWAY_METRICS,
         config.components.gateway.max_concurrency
@@ -444,7 +459,12 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.l1_endpoint_monitor.execution_mode,
         &mut components.l1_endpoint_monitor,
-        &config.components.l1_endpoint_monitor.local_server_config,
+        &config
+            .components
+            .l1_endpoint_monitor
+            .local_server_config
+            .as_ref()
+            .expect("Local server config should be available"),
         communication.take_l1_endpoint_monitor_rx(),
         &L1_ENDPOINT_MONITOR_METRICS
     );
@@ -460,7 +480,12 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.l1_gas_price_provider.execution_mode,
         &mut components.l1_gas_price_provider,
-        &config.components.l1_gas_price_provider.local_server_config,
+        &config
+            .components
+            .l1_gas_price_provider
+            .local_server_config
+            .as_ref()
+            .expect("Local server config should be available"),
         communication.take_l1_gas_price_rx(),
         &L1_GAS_PRICE_PROVIDER_METRICS
     );
@@ -476,7 +501,12 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.l1_provider.execution_mode,
         &mut components.l1_provider,
-        &config.components.l1_provider.local_server_config,
+        &config
+            .components
+            .l1_provider
+            .local_server_config
+            .as_ref()
+            .expect("Local server config should be available"),
         communication.take_l1_provider_rx(),
         &L1_PROVIDER_METRICS
     );
@@ -492,7 +522,12 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.mempool.execution_mode,
         &mut components.mempool,
-        &config.components.mempool.local_server_config,
+        &config
+            .components
+            .mempool
+            .local_server_config
+            .as_ref()
+            .expect("Local server config should be available"),
         communication.take_mempool_rx(),
         &MEMPOOL_METRICS
     );
@@ -508,7 +543,12 @@ fn create_local_servers(
         REGULAR_LOCAL_SERVER,
         &config.components.mempool_p2p.execution_mode,
         &mut components.mempool_p2p_propagator,
-        &config.components.mempool_p2p.local_server_config,
+        &config
+            .components
+            .mempool_p2p
+            .local_server_config
+            .as_ref()
+            .expect("Local server config should be available"),
         communication.take_mempool_p2p_propagator_rx(),
         &MEMPOOL_P2P_METRICS
     );
@@ -524,7 +564,12 @@ fn create_local_servers(
         CONCURRENT_LOCAL_SERVER,
         &config.components.sierra_compiler.execution_mode,
         &mut components.sierra_compiler,
-        &config.components.sierra_compiler.local_server_config,
+        &config
+            .components
+            .sierra_compiler
+            .local_server_config
+            .as_ref()
+            .expect("Local server config should be available"),
         communication.take_sierra_compiler_rx(),
         &SIERRA_COMPILER_METRICS,
         config.components.sierra_compiler.max_concurrency
@@ -541,7 +586,12 @@ fn create_local_servers(
         CONCURRENT_LOCAL_SERVER,
         &config.components.state_sync.execution_mode,
         &mut components.state_sync,
-        &config.components.state_sync.local_server_config,
+        &config
+            .components
+            .state_sync
+            .local_server_config
+            .as_ref()
+            .expect("Local server config should be available"),
         communication.take_state_sync_rx(),
         &STATE_SYNC_METRICS,
         config.components.state_sync.max_concurrency
