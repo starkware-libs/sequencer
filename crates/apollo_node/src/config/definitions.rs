@@ -25,3 +25,15 @@ impl From<ConfigPointersMap> for ConfigPointers {
         config_pointers_map.0.into_iter().map(|(k, (v, p))| ((k, v), p)).collect()
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub enum Expected {
+    Required,
+    Forbidden,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Presence {
+    Present,
+    Absent,
+}

@@ -278,8 +278,9 @@ impl Default for SequencerNodeConfig {
     }
 }
 
-macro_rules! ensure_component_config_matches_mode {
+macro_rules! validate_component_config_is_set_iff_running_locally {
     ($self:ident, $component_field:ident, $config_field:ident) => {{
+        // The component config should be set iff its running locally.
         if $self.components.$component_field.is_running_locally() != $self.$config_field.is_some() {
             let execution_mode = &$self.components.$component_field.execution_mode;
             let component_config_availability =
@@ -314,33 +315,57 @@ impl SequencerNodeConfig {
 
     fn cross_member_validations(&self) -> Result<(), ConfigError> {
         // TODO(Tsabary): should be based on iteration of `ComponentConfig` fields.
-        ensure_component_config_matches_mode!(self, batcher, batcher_config);
-        ensure_component_config_matches_mode!(self, class_manager, class_manager_config);
-        ensure_component_config_matches_mode!(self, gateway, gateway_config);
-        ensure_component_config_matches_mode!(
+        validate_component_config_is_set_iff_running_locally!(self, batcher, batcher_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            class_manager,
+            class_manager_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, gateway, gateway_config);
+        validate_component_config_is_set_iff_running_locally!(
             self,
             l1_endpoint_monitor,
             l1_endpoint_monitor_config
         );
-        ensure_component_config_matches_mode!(self, l1_provider, l1_provider_config);
-        ensure_component_config_matches_mode!(
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            l1_provider,
+            l1_provider_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
             self,
             l1_gas_price_provider,
             l1_gas_price_provider_config
         );
-        ensure_component_config_matches_mode!(self, mempool, mempool_config);
-        ensure_component_config_matches_mode!(self, mempool_p2p, mempool_p2p_config);
-        ensure_component_config_matches_mode!(self, sierra_compiler, sierra_compiler_config);
-        ensure_component_config_matches_mode!(self, state_sync, state_sync_config);
-        ensure_component_config_matches_mode!(self, consensus_manager, consensus_manager_config);
-        ensure_component_config_matches_mode!(self, http_server, http_server_config);
-        ensure_component_config_matches_mode!(self, l1_scraper, l1_scraper_config);
-        ensure_component_config_matches_mode!(
+        validate_component_config_is_set_iff_running_locally!(self, mempool, mempool_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            mempool_p2p,
+            mempool_p2p_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            sierra_compiler,
+            sierra_compiler_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, state_sync, state_sync_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            consensus_manager,
+            consensus_manager_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            http_server,
+            http_server_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, l1_scraper, l1_scraper_config);
+        validate_component_config_is_set_iff_running_locally!(
             self,
             l1_gas_price_scraper,
             l1_gas_price_scraper_config
         );
-        ensure_component_config_matches_mode!(
+        validate_component_config_is_set_iff_running_locally!(
             self,
             monitoring_endpoint,
             monitoring_endpoint_config
