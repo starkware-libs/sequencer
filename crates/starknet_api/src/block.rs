@@ -91,6 +91,7 @@ macro_rules! starknet_version_enum {
 }
 
 starknet_version_enum! {
+    (V0_0_0, 0, 0, 0),
     (V0_9_1, 0, 9, 1),
     (V0_10_0, 0, 10, 0),
     (V0_10_1, 0, 10, 1),
