@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use blake2s::encode_felt252_data_and_calc_blake_hash;
-use blockifier::execution::execution_utils::encode_and_blake_hash_execution_resources;
+use blockifier::execution::execution_utils::encode_and_blake_hash_resources;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
@@ -31,12 +31,12 @@ fn data_to_felt_count(data: &[Felt]) -> (usize, usize) {
 /// Return the estimated execution resources for Blake2s hashing.
 fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> ExecutionResources {
     let (n_small_felts, n_big_felts) = data_to_felt_count(data);
-    let mut estimated = encode_and_blake_hash_execution_resources(n_big_felts, n_small_felts);
+    let estimated = encode_and_blake_hash_resources(n_big_felts, n_small_felts);
 
-    // TODO(AvivG): Investigate the discrepancies.
-    estimated.n_steps -= 1;
+    let mut resources = estimated.resources().clone();
+    resources.n_steps -= 1;
 
-    estimated
+    resources
 }
 
 /// Test that compares Cairo and Rust implementations of
