@@ -62,6 +62,7 @@ pub fn create_p2p_propagator_and_runner(
             .register_broadcast_topic(
                 Topic::new(MEMPOOL_TOPIC),
                 mempool_p2p_config.network_buffer_size,
+                mempool_p2p_config.network_buffer_size,
             )
             .expect("Failed to register broadcast topic");
     let network_future = network_manager.run().instrument(info_span!("[Mempool network]"));

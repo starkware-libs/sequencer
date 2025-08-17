@@ -338,7 +338,7 @@ async fn broadcast_message() {
     );
 
     let mut broadcast_topic_client = network_manager
-        .register_broadcast_topic(topic.clone(), BUFFER_SIZE)
+        .register_broadcast_topic(topic.clone(), BUFFER_SIZE, BUFFER_SIZE)
         .unwrap()
         .broadcast_topic_client;
     broadcast_topic_client.broadcast_message(message.clone()).await.unwrap();
@@ -383,7 +383,7 @@ async fn receive_broadcasted_message_and_report_it() {
         mut broadcast_topic_client,
         mut broadcasted_messages_receiver,
         ..
-    } = network_manager.register_broadcast_topic::<Bytes>(topic.clone(), BUFFER_SIZE).unwrap();
+    } = network_manager.register_broadcast_topic::<Bytes>(topic.clone(), BUFFER_SIZE, BUFFER_SIZE).unwrap();
 
     tokio::select! {
         _ = network_manager.run() => panic!("network manager ended"),

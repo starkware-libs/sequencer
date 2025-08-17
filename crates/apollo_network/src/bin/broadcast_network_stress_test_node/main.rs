@@ -200,7 +200,7 @@ async fn main() {
     info!("My PeerId: {peer_id}");
 
     let network_channels = network_manager
-        .register_broadcast_topic::<StressTestMessage>(TOPIC.clone(), args.buffer_size)
+        .register_broadcast_topic::<StressTestMessage>(TOPIC.clone(), args.buffer_size, args.buffer_size)
         .unwrap();
     let BroadcastTopicChannels { broadcasted_messages_receiver, broadcast_topic_client } =
         network_channels;
