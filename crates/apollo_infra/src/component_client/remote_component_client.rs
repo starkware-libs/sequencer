@@ -7,6 +7,7 @@ use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use async_trait::async_trait;
 use hyper::body::{to_bytes, Bytes};
+use hyper::client::HttpConnector;
 use hyper::header::CONTENT_TYPE;
 use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, StatusCode, Uri};
 use serde::de::DeserializeOwned;
@@ -128,11 +129,14 @@ where
         metrics: RemoteClientMetrics,
     ) -> Self {
         let uri = format!("http://{url}:{port}/").parse().unwrap();
+        let mut http = HttpConnector::new();
+        http.set_nodelay(true); // enable TCP_NODELAY to minimize latency
+
         let client = Client::builder()
             .http2_only(true)
             .pool_max_idle_per_host(config.idle_connections)
             .pool_idle_timeout(Duration::from_millis(config.idle_timeout_ms))
-            .build_http();
+            .build(http);
         debug!("RemoteComponentClient created with URI: {uri:?}");
         Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
     }

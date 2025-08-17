@@ -206,6 +206,7 @@ where
         });
 
         Server::bind(&self.socket)
+            .tcp_nodelay(true)        // enable TCP_NODELAY for accepted connections
             .serve(make_svc)
             .await
             .unwrap_or_else(|e| panic!("Remote component server start error: {}", e));
