@@ -21,7 +21,7 @@ use futures::{pin_mut, FutureExt, Sink, SinkExt, StreamExt};
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
-use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
+use libp2p::{Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
@@ -796,6 +796,38 @@ fn send_now<Item>(
     }
 }
 
+
+use std::fs;
+use std::io;
+
+fn read_sysctl_value(path: &str) -> io::Result<u64> {
+    // Read the file's content into a string
+    let content = fs::read_to_string(path)?;
+
+    // Trim whitespace (like the trailing newline)
+    let value_str = content.trim();
+
+    // Parse the string into a u64 integer
+    match value_str.parse::<u64>() {
+        Ok(value) => Ok(value),
+        Err(e) => Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            format!("Failed to parse value '{}': {}", value_str, e),
+        )),
+    }
+}
+
+fn check_udp_buffer_size(desired_buffer_size: u32) {
+    let rmem_max = read_sysctl_value("/proc/sys/net/core/rmem_max").unwrap();
+    let wmem_max = read_sysctl_value("/proc/sys/net/core/wmem_max").unwrap();
+    assert!(rmem_max >= desired_buffer_size.into(), "rmem_max is {rmem_max} less than {desired_buffer_size}");
+    assert!(wmem_max >= desired_buffer_size.into(), "wmem_max is {wmem_max} less than {desired_buffer_size}");
+
+    if rmem_max < desired_buffer_size.into()  || wmem_max < desired_buffer_size.into() {
+        panic!("UDP buffer size is less than desired buffer size. rmem_max: {rmem_max}, wmem_max: {wmem_max}, desired_buffer_size: {desired_buffer_size}. This runs the risk of packet loss in high latency lines");
+    }
+}
+
 pub type NetworkManager = GenericNetworkManager<Swarm<mixed_behaviour::MixedBehaviour>>;
 
 impl NetworkManager {
@@ -829,11 +861,40 @@ impl NetworkManager {
             }
             None => Keypair::generate_ed25519(),
         };
+
+        const BYTES_IN_THE_AIR: u32 = 1 << 30;
+        // check_udp_buffer_size(BYTES_IN_THE_AIR);
+
         let mut swarm = SwarmBuilder::with_existing_identity(key_pair)
         .with_tokio()
         // TODO(AndrewL): .with_quic()
-        .with_tcp(Default::default(), noise::Config::new, yamux::Config::default)
-        .expect("Error building TCP transport")
+        .with_quic_config( |mut quic_config| {
+            // HIGH THROUGHPUT, HIGH LATENCY OPTIMIZATION:
+            // Maximize data flow and minimize waiting for acknowledgements
+            
+            // Set maximum data per stream and connection to allow unlimited flow
+            quic_config.send_window = Some(BYTES_IN_THE_AIR.into());
+            quic_config.max_stream_data = BYTES_IN_THE_AIR;
+            quic_config.max_connection_data = BYTES_IN_THE_AIR;
+            quic_config.congestion_controller = Some(libp2p::quic::CongestionController::Bbr {
+                initial_window: Some(BYTES_IN_THE_AIR.into())
+            }); 
+            
+            // // Set handshake timeout to allow time for DNS resolution and connection establishment
+            // quic_config.handshake_timeout = std::time::Duration::from_secs(10);
+            
+            // // Reduce idle timeout to prevent connections from lingering
+            // // but still allow for high-latency scenarios
+            // quic_config.max_idle_timeout = 30000; // 30 seconds instead of 3000
+            
+            // // Set aggressive keep-alive to maintain connections over high-latency links
+            // quic_config.keep_alive_interval = std::time::Duration::from_secs(10);
+            
+            // // Allow maximum concurrent streams for parallel data transmission
+            // quic_config.max_concurrent_stream_limit = u32::MAX;
+            
+            quic_config
+        })
         .with_dns()
         .expect("Error building DNS transport")
         .with_behaviour(|key| mixed_behaviour::MixedBehaviour::new(
@@ -857,9 +918,7 @@ impl NetworkManager {
         .with_swarm_config(|cfg| cfg.with_idle_connection_timeout(idle_connection_timeout))
         .build();
 
-        swarm
-            .listen_on(listen_address.clone())
-            .unwrap_or_else(|_| panic!("Error while binding to {listen_address}"));
+        let _ = swarm.listen_on(listen_address.clone());
 
         let advertised_multiaddr = advertised_multiaddr.map(|address| {
             address
