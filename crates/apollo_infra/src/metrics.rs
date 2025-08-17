@@ -1,5 +1,12 @@
 use apollo_metrics::define_metrics;
-use apollo_metrics::metrics::{MetricCounter, MetricGauge, MetricHistogram};
+use apollo_metrics::metrics::{
+    LabeledMetricHistogram,
+    MetricCounter,
+    MetricGauge,
+    MetricHistogram,
+};
+
+use crate::requests::LABEL_NAME_REQUEST_VARIANT;
 
 define_metrics!(
     Infra => {
@@ -142,8 +149,8 @@ pub struct LocalServerMetrics {
     processed_msgs: &'static MetricCounter,
     queue_depth: &'static MetricGauge,
     // TODO(Tsabary): should be labelled according to request type.
-    processing_times: &'static MetricHistogram,
-    queueing_times: &'static MetricHistogram,
+    processing_times: &'static LabeledMetricHistogram,
+    queueing_times: &'static LabeledMetricHistogram,
 }
 
 impl LocalServerMetrics {
@@ -151,8 +158,8 @@ impl LocalServerMetrics {
         received_msgs: &'static MetricCounter,
         processed_msgs: &'static MetricCounter,
         queue_depth: &'static MetricGauge,
-        processing_times: &'static MetricHistogram,
-        queueing_times: &'static MetricHistogram,
+        processing_times: &'static LabeledMetricHistogram,
+        queueing_times: &'static LabeledMetricHistogram,
     ) -> Self {
         Self { received_msgs, processed_msgs, queue_depth, processing_times, queueing_times }
     }
@@ -199,12 +206,12 @@ impl LocalServerMetrics {
     }
 
     // TODO(Tsabary): add the getter fns for tests.
-    pub fn record_processing_time(&self, duration_secs: f64) {
-        self.processing_times.record(duration_secs);
+    pub fn record_processing_time(&self, duration_secs: f64, request_label: &'static str) {
+        self.processing_times.record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
     }
 
-    pub fn record_queueing_time(&self, duration_secs: f64) {
-        self.queueing_times.record(duration_secs);
+    pub fn record_queueing_time(&self, duration_secs: f64, request_label: &'static str) {
+        self.queueing_times.record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
     }
 }
 

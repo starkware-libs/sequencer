@@ -2,13 +2,29 @@ use std::future::pending;
 use std::pin::Pin;
 
 use apollo_batcher::communication::{LocalBatcherServer, RemoteBatcherServer};
+use apollo_batcher::metrics::{
+    BATCHER_LABELED_PROCESSING_TIMES_SECS,
+    BATCHER_LABELED_QUEUEING_TIMES_SECS,
+};
 use apollo_class_manager::communication::{LocalClassManagerServer, RemoteClassManagerServer};
+use apollo_class_manager::metrics::{
+    CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
+    CLASS_MANAGER_LABELED_QUEUEING_TIMES_SECS,
+};
 use apollo_compile_to_casm::communication::{
     LocalSierraCompilerServer,
     RemoteSierraCompilerServer,
 };
+use apollo_compile_to_casm::metrics::{
+    SIERRA_COMPILER_LABELED_PROCESSING_TIMES_SECS,
+    SIERRA_COMPILER_LABELED_QUEUEING_TIMES_SECS,
+};
 use apollo_consensus_manager::communication::ConsensusManagerServer;
 use apollo_gateway::communication::{LocalGatewayServer, RemoteGatewayServer};
+use apollo_gateway::metrics::{
+    GATEWAY_LABELED_PROCESSING_TIMES_SECS,
+    GATEWAY_LABELED_QUEUEING_TIMES_SECS,
+};
 use apollo_http_server::communication::HttpServer;
 use apollo_infra::component_server::{
     ComponentServerStarter,
@@ -23,8 +39,6 @@ use apollo_infra::metrics::{
     BATCHER_LOCAL_MSGS_PROCESSED,
     BATCHER_LOCAL_MSGS_RECEIVED,
     BATCHER_LOCAL_QUEUE_DEPTH,
-    BATCHER_PROCESSING_TIMES_SECS,
-    BATCHER_QUEUEING_TIMES_SECS,
     BATCHER_REMOTE_MSGS_PROCESSED,
     BATCHER_REMOTE_MSGS_RECEIVED,
     BATCHER_REMOTE_NUMBER_OF_CONNECTIONS,
@@ -32,8 +46,6 @@ use apollo_infra::metrics::{
     CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
     CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
     CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
-    CLASS_MANAGER_PROCESSING_TIMES_SECS,
-    CLASS_MANAGER_QUEUEING_TIMES_SECS,
     CLASS_MANAGER_REMOTE_MSGS_PROCESSED,
     CLASS_MANAGER_REMOTE_MSGS_RECEIVED,
     CLASS_MANAGER_REMOTE_NUMBER_OF_CONNECTIONS,
@@ -41,8 +53,6 @@ use apollo_infra::metrics::{
     GATEWAY_LOCAL_MSGS_PROCESSED,
     GATEWAY_LOCAL_MSGS_RECEIVED,
     GATEWAY_LOCAL_QUEUE_DEPTH,
-    GATEWAY_PROCESSING_TIMES_SECS,
-    GATEWAY_QUEUEING_TIMES_SECS,
     GATEWAY_REMOTE_MSGS_PROCESSED,
     GATEWAY_REMOTE_MSGS_RECEIVED,
     GATEWAY_REMOTE_NUMBER_OF_CONNECTIONS,
@@ -50,8 +60,6 @@ use apollo_infra::metrics::{
     L1_ENDPOINT_MONITOR_LOCAL_MSGS_PROCESSED,
     L1_ENDPOINT_MONITOR_LOCAL_MSGS_RECEIVED,
     L1_ENDPOINT_MONITOR_LOCAL_QUEUE_DEPTH,
-    L1_ENDPOINT_MONITOR_PROCESSING_TIMES_SECS,
-    L1_ENDPOINT_MONITOR_QUEUEING_TIMES_SECS,
     L1_ENDPOINT_MONITOR_REMOTE_MSGS_PROCESSED,
     L1_ENDPOINT_MONITOR_REMOTE_MSGS_RECEIVED,
     L1_ENDPOINT_MONITOR_REMOTE_NUMBER_OF_CONNECTIONS,
@@ -59,8 +67,6 @@ use apollo_infra::metrics::{
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
     L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
-    L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES_SECS,
-    L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES_SECS,
     L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_PROCESSED,
     L1_GAS_PRICE_PROVIDER_REMOTE_MSGS_RECEIVED,
     L1_GAS_PRICE_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
@@ -68,8 +74,6 @@ use apollo_infra::metrics::{
     L1_PROVIDER_LOCAL_MSGS_PROCESSED,
     L1_PROVIDER_LOCAL_MSGS_RECEIVED,
     L1_PROVIDER_LOCAL_QUEUE_DEPTH,
-    L1_PROVIDER_PROCESSING_TIMES_SECS,
-    L1_PROVIDER_QUEUEING_TIMES_SECS,
     L1_PROVIDER_REMOTE_MSGS_PROCESSED,
     L1_PROVIDER_REMOTE_MSGS_RECEIVED,
     L1_PROVIDER_REMOTE_NUMBER_OF_CONNECTIONS,
@@ -80,14 +84,10 @@ use apollo_infra::metrics::{
     MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
     MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
     MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
-    MEMPOOL_P2P_PROCESSING_TIMES_SECS,
-    MEMPOOL_P2P_QUEUEING_TIMES_SECS,
     MEMPOOL_P2P_REMOTE_MSGS_PROCESSED,
     MEMPOOL_P2P_REMOTE_MSGS_RECEIVED,
     MEMPOOL_P2P_REMOTE_NUMBER_OF_CONNECTIONS,
     MEMPOOL_P2P_REMOTE_VALID_MSGS_RECEIVED,
-    MEMPOOL_PROCESSING_TIMES_SECS,
-    MEMPOOL_QUEUEING_TIMES_SECS,
     MEMPOOL_REMOTE_MSGS_PROCESSED,
     MEMPOOL_REMOTE_MSGS_RECEIVED,
     MEMPOOL_REMOTE_NUMBER_OF_CONNECTIONS,
@@ -95,8 +95,6 @@ use apollo_infra::metrics::{
     SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
     SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
     SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
-    SIERRA_COMPILER_PROCESSING_TIMES_SECS,
-    SIERRA_COMPILER_QUEUEING_TIMES_SECS,
     SIERRA_COMPILER_REMOTE_MSGS_PROCESSED,
     SIERRA_COMPILER_REMOTE_MSGS_RECEIVED,
     SIERRA_COMPILER_REMOTE_NUMBER_OF_CONNECTIONS,
@@ -104,8 +102,6 @@ use apollo_infra::metrics::{
     STATE_SYNC_LOCAL_MSGS_PROCESSED,
     STATE_SYNC_LOCAL_MSGS_RECEIVED,
     STATE_SYNC_LOCAL_QUEUE_DEPTH,
-    STATE_SYNC_PROCESSING_TIMES_SECS,
-    STATE_SYNC_QUEUEING_TIMES_SECS,
     STATE_SYNC_REMOTE_MSGS_PROCESSED,
     STATE_SYNC_REMOTE_MSGS_RECEIVED,
     STATE_SYNC_REMOTE_NUMBER_OF_CONNECTIONS,
@@ -115,17 +111,37 @@ use apollo_l1_endpoint_monitor::communication::{
     LocalL1EndpointMonitorServer,
     RemoteL1EndpointMonitorServer,
 };
+use apollo_l1_endpoint_monitor_types::{
+    L1_ENDPOINT_MONITOR_PROCESSING_TIMES_SECS,
+    L1_ENDPOINT_MONITOR_QUEUEING_TIMES_SECS,
+};
 use apollo_l1_gas_price::communication::{
     L1GasPriceScraperServer,
     LocalL1GasPriceServer,
     RemoteL1GasPriceServer,
+};
+use apollo_l1_gas_price::metrics::{
+    L1_GAS_PRICE_LABELED_PROCESSING_TIMES_SECS,
+    L1_GAS_PRICE_LABELED_QUEUEING_TIMES_SECS,
 };
 use apollo_l1_provider::communication::{
     L1ScraperServer,
     LocalL1ProviderServer,
     RemoteL1ProviderServer,
 };
+use apollo_l1_provider::metrics::{
+    L1_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
+    L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+};
 use apollo_mempool::communication::{LocalMempoolServer, RemoteMempoolServer};
+use apollo_mempool::metrics::{
+    MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
+    MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
+};
+use apollo_mempool_p2p::metrics::{
+    MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS,
+    MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS,
+};
 use apollo_mempool_p2p::propagator::{
     LocalMempoolP2pPropagatorServer,
     RemoteMempoolP2pPropagatorServer,
@@ -134,6 +150,10 @@ use apollo_mempool_p2p::runner::MempoolP2pRunnerServer;
 use apollo_monitoring_endpoint::communication::MonitoringEndpointServer;
 use apollo_state_sync::runner::StateSyncRunnerServer;
 use apollo_state_sync::{LocalStateSyncServer, RemoteStateSyncServer};
+use apollo_state_sync_metrics::metrics::{
+    STATE_SYNC_LABELED_PROCESSING_TIMES_SECS,
+    STATE_SYNC_LABELED_QUEUEING_TIMES_SECS,
+};
 use futures::stream::FuturesUnordered;
 use futures::{Future, FutureExt, StreamExt};
 use papyrus_base_layer::ethereum_base_layer_contract::EthereumBaseLayerContract;
@@ -387,8 +407,8 @@ fn create_local_servers(
         &BATCHER_LOCAL_MSGS_RECEIVED,
         &BATCHER_LOCAL_MSGS_PROCESSED,
         &BATCHER_LOCAL_QUEUE_DEPTH,
-        &BATCHER_PROCESSING_TIMES_SECS,
-        &BATCHER_QUEUEING_TIMES_SECS,
+        &BATCHER_LABELED_PROCESSING_TIMES_SECS,
+        &BATCHER_LABELED_QUEUEING_TIMES_SECS,
     );
     let batcher_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
@@ -403,8 +423,8 @@ fn create_local_servers(
         &CLASS_MANAGER_LOCAL_MSGS_RECEIVED,
         &CLASS_MANAGER_LOCAL_MSGS_PROCESSED,
         &CLASS_MANAGER_LOCAL_QUEUE_DEPTH,
-        &CLASS_MANAGER_PROCESSING_TIMES_SECS,
-        &CLASS_MANAGER_QUEUEING_TIMES_SECS,
+        &CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
+        &CLASS_MANAGER_LABELED_QUEUEING_TIMES_SECS,
     );
     let class_manager_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
@@ -420,8 +440,8 @@ fn create_local_servers(
         &GATEWAY_LOCAL_MSGS_RECEIVED,
         &GATEWAY_LOCAL_MSGS_PROCESSED,
         &GATEWAY_LOCAL_QUEUE_DEPTH,
-        &GATEWAY_PROCESSING_TIMES_SECS,
-        &GATEWAY_QUEUEING_TIMES_SECS,
+        &GATEWAY_LABELED_PROCESSING_TIMES_SECS,
+        &GATEWAY_LABELED_QUEUEING_TIMES_SECS,
     );
     let gateway_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
@@ -453,8 +473,8 @@ fn create_local_servers(
         &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
         &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
         &L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
-        &L1_GAS_PRICE_PROVIDER_PROCESSING_TIMES_SECS,
-        &L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES_SECS,
+        &L1_GAS_PRICE_LABELED_PROCESSING_TIMES_SECS,
+        &L1_GAS_PRICE_LABELED_QUEUEING_TIMES_SECS,
     );
     let l1_gas_price_provider_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
@@ -469,8 +489,8 @@ fn create_local_servers(
         &L1_PROVIDER_LOCAL_MSGS_RECEIVED,
         &L1_PROVIDER_LOCAL_MSGS_PROCESSED,
         &L1_PROVIDER_LOCAL_QUEUE_DEPTH,
-        &L1_PROVIDER_PROCESSING_TIMES_SECS,
-        &L1_PROVIDER_QUEUEING_TIMES_SECS,
+        &L1_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
+        &L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
     );
     let l1_provider_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
@@ -485,8 +505,8 @@ fn create_local_servers(
         &MEMPOOL_LOCAL_MSGS_RECEIVED,
         &MEMPOOL_LOCAL_MSGS_PROCESSED,
         &MEMPOOL_LOCAL_QUEUE_DEPTH,
-        &MEMPOOL_PROCESSING_TIMES_SECS,
-        &MEMPOOL_QUEUEING_TIMES_SECS,
+        &MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
+        &MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
     );
     let mempool_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
@@ -501,8 +521,8 @@ fn create_local_servers(
         &MEMPOOL_P2P_LOCAL_MSGS_RECEIVED,
         &MEMPOOL_P2P_LOCAL_MSGS_PROCESSED,
         &MEMPOOL_P2P_LOCAL_QUEUE_DEPTH,
-        &MEMPOOL_P2P_PROCESSING_TIMES_SECS,
-        &MEMPOOL_P2P_QUEUEING_TIMES_SECS,
+        &MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS,
+        &MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS,
     );
     let mempool_p2p_propagator_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
@@ -517,8 +537,8 @@ fn create_local_servers(
         &SIERRA_COMPILER_LOCAL_MSGS_RECEIVED,
         &SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
         &SIERRA_COMPILER_LOCAL_QUEUE_DEPTH,
-        &SIERRA_COMPILER_PROCESSING_TIMES_SECS,
-        &SIERRA_COMPILER_QUEUEING_TIMES_SECS,
+        &SIERRA_COMPILER_LABELED_PROCESSING_TIMES_SECS,
+        &SIERRA_COMPILER_LABELED_QUEUEING_TIMES_SECS,
     );
     let sierra_compiler_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
@@ -534,8 +554,8 @@ fn create_local_servers(
         &STATE_SYNC_LOCAL_MSGS_RECEIVED,
         &STATE_SYNC_LOCAL_MSGS_PROCESSED,
         &STATE_SYNC_LOCAL_QUEUE_DEPTH,
-        &STATE_SYNC_PROCESSING_TIMES_SECS,
-        &STATE_SYNC_QUEUEING_TIMES_SECS,
+        &STATE_SYNC_LABELED_PROCESSING_TIMES_SECS,
+        &STATE_SYNC_LABELED_QUEUEING_TIMES_SECS,
     );
     let state_sync_server = create_local_server!(
         CONCURRENT_LOCAL_SERVER,
