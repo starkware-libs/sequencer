@@ -1,5 +1,7 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
+    BATCHER_LABELED_PROCESSING_TIMES_SECS,
+    BATCHER_LABELED_QUEUEING_TIMES_SECS,
     LAST_BATCHED_BLOCK,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
@@ -11,15 +13,13 @@ use apollo_infra::metrics::{
     BATCHER_LOCAL_MSGS_PROCESSED,
     BATCHER_LOCAL_MSGS_RECEIVED,
     BATCHER_LOCAL_QUEUE_DEPTH,
-    BATCHER_PROCESSING_TIMES_SECS,
-    BATCHER_QUEUEING_TIMES_SECS,
     BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
     BATCHER_REMOTE_MSGS_PROCESSED,
     BATCHER_REMOTE_MSGS_RECEIVED,
     BATCHER_REMOTE_VALID_MSGS_RECEIVED,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{create_request_type_labeled_hist_panels, Panel, PanelType, Row};
 
 fn get_panel_proposal_started() -> Panel {
     Panel::from_counter(PROPOSAL_STARTED, PanelType::Stat)
@@ -54,11 +54,17 @@ fn get_panel_remote_msgs_processed() -> Panel {
 fn get_panel_local_queue_depth() -> Panel {
     Panel::from_gauge(BATCHER_LOCAL_QUEUE_DEPTH, PanelType::TimeSeries)
 }
-fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(BATCHER_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
+fn get_processing_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        BATCHER_LABELED_PROCESSING_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
 }
-fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(BATCHER_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
+fn get_queueing_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        BATCHER_LABELED_QUEUEING_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
 }
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
@@ -97,6 +103,7 @@ pub(crate) fn get_batcher_row() -> Row {
     )
 }
 
+// TODO(Tsabary): this can be a macro used across all infra component panels.
 pub(crate) fn get_batcher_infra_row() -> Row {
     Row::new(
         "Batcher Infra",
@@ -108,8 +115,10 @@ pub(crate) fn get_batcher_infra_row() -> Row {
             get_panel_remote_valid_msgs_received(),
             get_panel_remote_msgs_processed(),
             get_panel_remote_client_send_attempts(),
-            get_panel_processing_times(),
-            get_panel_queueing_times(),
-        ],
+        ]
+        .into_iter()
+        .chain(get_processing_times_panels())
+        .chain(get_queueing_times_panels())
+        .collect::<Vec<_>>(),
     )
 }
