@@ -515,10 +515,7 @@ define_stateless_hint_enum!(
     (
         SetApToSegmentHashPoseidon,
         set_ap_to_segment_hash::<Poseidon>,
-        indoc! {r#"from starkware.cairo.lang.vm.crypto import poseidon_hash_many
-                ids.local_current_segment_hash = bytecode_segment_structure.hash(
-                    hash_function=poseidon_hash_many
-                )"#
+        indoc! {r#"memory[ap] = to_felt_or_relocatable(bytecode_segment_structure.poseidon_hash())"#
         }
     ),
     (
