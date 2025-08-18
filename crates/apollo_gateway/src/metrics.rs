@@ -20,6 +20,7 @@ generate_permutation_labels! {
 define_metrics!(
     Gateway => {
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_RECEIVED, "gateway_transactions_received", "Counter of transactions received", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
+        LabeledMetricCounter { GATEWAY_TRANSACTIONS_PROCESSED_SUCCESSFULLY, "gateway_transactions_processed_successfully", "Counter of transactions processed successfully", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_FAILED, "gateway_transactions_failed", "Counter of failed transactions", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         LabeledMetricCounter { GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL, "gateway_transactions_sent_to_mempool", "Counter of transactions sent to the mempool", init = 0 , labels = TRANSACTION_TYPE_AND_SOURCE_LABELS},
         MetricHistogram { GATEWAY_ADD_TX_LATENCY, "gateway_add_tx_latency", "Latency of gateway add_tx function in secs" },
@@ -78,6 +79,10 @@ impl GatewayMetricHandle {
 
     pub fn count_transaction_received(&self) {
         GATEWAY_TRANSACTIONS_RECEIVED.increment(1, &self.label());
+    }
+
+    pub fn count_transaction_processed_successfully(&self) {
+        GATEWAY_TRANSACTIONS_PROCESSED_SUCCESSFULLY.increment(1, &self.label());
     }
 
     pub fn transaction_sent_to_mempool(&mut self) {
