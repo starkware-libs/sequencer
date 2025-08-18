@@ -228,6 +228,17 @@ impl Storage for PapyrusStorage {
         Ok(())
     }
 
+    fn set_executable_class_hash_v2(
+        &mut self,
+        class_hash: &ClassHash,
+        compiled_class_hash_v2: CompiledClassHash,
+    ) -> NativeBlockifierResult<()> {
+        self.writer()
+            .begin_rw_txn()?
+            .set_executable_class_hash_v2(class_hash, compiled_class_hash_v2)?;
+        Ok(())
+    }
+
     fn validate_aligned(&self, source_block_number: u64) {
         let header_marker = self.get_header_marker().expect("Should have a header marker");
         let state_marker = self.get_state_marker().expect("Should have a state marker");
@@ -305,4 +316,10 @@ pub trait Storage {
     fn writer(&mut self) -> &mut apollo_storage::StorageWriter;
 
     fn close(&mut self);
+
+    fn set_executable_class_hash_v2(
+        &mut self,
+        class_hash: &ClassHash,
+        compiled_class_hash_v2: CompiledClassHash,
+    ) -> NativeBlockifierResult<()>;
 }
