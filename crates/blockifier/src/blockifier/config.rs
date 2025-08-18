@@ -3,6 +3,8 @@ use std::collections::BTreeMap;
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::de::{self, Deserializer};
+use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
 
@@ -180,10 +182,32 @@ impl SerializeConfig for ContractClassManagerConfig {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum NativeClassesWhitelist {
     All,
     Limited(Vec<ClassHash>),
+}
+
+impl<'de> Deserialize<'de> for NativeClassesWhitelist {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw: String = <String as serde::Deserialize>::deserialize(deserializer)?;
+
+        if raw == "All" {
+            return Ok(NativeClassesWhitelist::All);
+        }
+        // Support stringified JSON array: "[\"0x..\", \"0x..\"]"
+        match serde_json::from_str::<Vec<ClassHash>>(&raw) {
+            Ok(vec) => Ok(NativeClassesWhitelist::Limited(vec)),
+            Err(_) => Err(de::Error::custom(format!(
+                "invalid native_classes_whitelist string: expected \"All\" or stringified JSON \
+                 array, got: {}",
+                raw
+            ))),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -212,6 +236,15 @@ impl Default for CairoNativeRunConfig {
 
 impl SerializeConfig for CairoNativeRunConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        // For schema compatibility: serialize whitelist as a string.
+        // - All => "All"
+        // - Limited(vec) => stringified JSON array
+        let whitelist_dump: String = match &self.native_classes_whitelist {
+            NativeClassesWhitelist::All => "All".to_string(),
+            NativeClassesWhitelist::Limited(vec) => {
+                serde_json::to_string(vec).expect("Should stringify whitelist as JSON array")
+            }
+        };
         BTreeMap::from_iter([
             ser_param(
                 "run_cairo_native",
@@ -233,7 +266,7 @@ impl SerializeConfig for CairoNativeRunConfig {
             ),
             ser_param(
                 "native_classes_whitelist",
-                &self.native_classes_whitelist,
+                &whitelist_dump,
                 "Contracts for Cairo Specifies whether to execute all class hashes or only a \
                  limited selection using Cairo native contracts. If limited, a specific list of \
                  class hashes is provided. compilation.",
