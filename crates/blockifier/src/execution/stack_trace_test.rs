@@ -46,7 +46,7 @@ use crate::execution::stack_trace::{
     MIN_CAIRO1_FRAME_LENGTH,
     TRACE_LENGTH_CAP,
 };
-use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR;
+use crate::execution::syscalls::hint_processor::ENTRYPOINT_FAILED_ERROR_FELT;
 use crate::test_utils::initial_test_state::{fund_account, test_state};
 use crate::test_utils::test_templates::cairo_version;
 use crate::test_utils::BALANCE;
@@ -864,7 +864,7 @@ fn test_min_cairo1_frame_length() {
             ..Default::default()
         },
         execution: CallExecution {
-            retdata: Retdata(vec![felt!(failure_hex), felt!(ENTRYPOINT_FAILED_ERROR)]),
+            retdata: Retdata(vec![felt!(failure_hex), ENTRYPOINT_FAILED_ERROR_FELT]),
             failed: true,
             ..Default::default()
         },
@@ -905,7 +905,7 @@ fn test_cairo1_revert_error_truncation(
         ..Default::default()
     };
     for _ in 1..n_frames {
-        retdata.0.push(felt!(ENTRYPOINT_FAILED_ERROR));
+        retdata.0.push(ENTRYPOINT_FAILED_ERROR_FELT);
         next_call_info = CallInfo {
             call: call.clone(),
             inner_calls: vec![next_call_info],
@@ -993,7 +993,7 @@ Error in contract (contract address: {:#064x}, class hash: _, selector: {:#064x}
 fn test_ambiguous_inner_cairo1_failure() {
     let (failure_reason_0, failure_reason_1) = (Felt::ONE, Felt::TWO);
     let outer_retdata =
-        Retdata(vec![failure_reason_0, failure_reason_1, felt!(ENTRYPOINT_FAILED_ERROR)]);
+        Retdata(vec![failure_reason_0, failure_reason_1, ENTRYPOINT_FAILED_ERROR_FELT]);
     let inner_call_info = CallInfo {
         execution: CallExecution {
             retdata: Retdata(vec![failure_reason_0, failure_reason_1]),
@@ -1023,7 +1023,7 @@ fn test_ambiguous_inner_cairo1_failure() {
 fn test_inner_cairo1_failure_not_last(#[values(true, false)] last_is_failed: bool) {
     let (failure_reason_0, failure_reason_1) = (Felt::ONE, Felt::TWO);
     let outer_retdata =
-        Retdata(vec![failure_reason_0, failure_reason_1, felt!(ENTRYPOINT_FAILED_ERROR)]);
+        Retdata(vec![failure_reason_0, failure_reason_1, ENTRYPOINT_FAILED_ERROR_FELT]);
     let first_inner_retdata = Retdata(outer_retdata.0[..outer_retdata.0.len() - 1].into());
     let first_inner_call_info = CallInfo {
         execution: CallExecution {
@@ -1037,7 +1037,7 @@ fn test_inner_cairo1_failure_not_last(#[values(true, false)] last_is_failed: boo
         execution: CallExecution {
             retdata: Retdata(
                 // Not a prefix of the outer retdata. Should not be selected as inner failure.
-                vec![failure_reason_1, felt!(ENTRYPOINT_FAILED_ERROR)],
+                vec![failure_reason_1, ENTRYPOINT_FAILED_ERROR_FELT],
             ),
             failed: last_is_failed,
             ..Default::default()

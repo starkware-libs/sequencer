@@ -1,7 +1,10 @@
 use blockifier::abi::constants::STORED_BLOCK_HASH_BUFFER;
 use blockifier::blockifier_versioned_constants::{GasCosts, VersionedConstants};
 use blockifier::execution::execution_utils::ReadOnlySegment;
-use blockifier::execution::syscalls::hint_processor::{ENTRYPOINT_FAILED_ERROR, INVALID_ARGUMENT};
+use blockifier::execution::syscalls::hint_processor::{
+    ENTRYPOINT_FAILED_ERROR_FELT,
+    INVALID_ARGUMENT_FELT,
+};
 use blockifier::execution::syscalls::secp::SecpHintProcessor;
 use blockifier::execution::syscalls::syscall_executor::SyscallExecutor;
 use blockifier::execution::syscalls::vm_syscall_utils::{
@@ -173,7 +176,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         remaining_gas: &mut u64,
     ) -> Result<CallContractResponse, Self::Error> {
         if request.function_selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
-            return Err(handle_failure(Felt::from_hex_unchecked(INVALID_ARGUMENT)));
+            return Err(handle_failure(INVALID_ARGUMENT_FELT));
         }
         call_contract_helper(vm, syscall_handler, remaining_gas)
     }
@@ -302,7 +305,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         remaining_gas: &mut u64,
     ) -> Result<MetaTxV0Response, Self::Error> {
         if request.entry_point_selector != selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
-            return Err(handle_failure(Felt::from_hex_unchecked(INVALID_ARGUMENT)));
+            return Err(handle_failure(INVALID_ARGUMENT_FELT));
         }
         call_contract_helper(vm, syscall_handler, remaining_gas)
     }
@@ -453,10 +456,9 @@ fn call_contract_helper(
     let next_call_execution = syscall_handler.get_next_call_execution()?;
     *remaining_gas -= next_call_execution.gas_consumed;
     let retdata = &next_call_execution.retdata.0;
-    let revert_error_code = Felt::from_hex_unchecked(ENTRYPOINT_FAILED_ERROR);
     if next_call_execution.failed {
         let mut retdata = retdata.clone();
-        retdata.push(revert_error_code);
+        retdata.push(ENTRYPOINT_FAILED_ERROR_FELT);
         let revert_data = RevertData::new_temp(retdata);
         return Err(SnosSyscallError::Revert(revert_data));
     };

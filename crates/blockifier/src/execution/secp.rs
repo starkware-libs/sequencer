@@ -1,8 +1,7 @@
 use ark_ec::short_weierstrass::{Affine, SWCurveConfig};
 use ark_ff::{BigInteger, PrimeField, Zero};
-use starknet_types_core::felt::Felt;
 
-use crate::execution::syscalls::hint_processor::INVALID_ARGUMENT;
+use crate::execution::syscalls::hint_processor::INVALID_ARGUMENT_FELT;
 use crate::execution::syscalls::vm_syscall_utils::SyscallExecutorBaseError;
 
 pub fn get_point_from_x<Curve: SWCurveConfig>(
@@ -47,9 +46,7 @@ where
     let modulus = Curve::BaseField::MODULUS.into();
 
     if bounds.iter().any(|p| **p >= modulus) {
-        return Err(SyscallExecutorBaseError::Revert {
-            error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
-        });
+        return Err(SyscallExecutorBaseError::Revert { error_data: vec![INVALID_ARGUMENT_FELT] });
     }
 
     Ok(())
