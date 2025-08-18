@@ -31,11 +31,12 @@ fn data_to_felt_count(data: &[Felt]) -> (usize, usize) {
 /// Return the estimated execution resources for Blake2s hashing.
 fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> ExecutionResources {
     let (n_small_felts, n_big_felts) = data_to_felt_count(data);
-    let (mut estimated_resources, _) = encode_and_blake_hash_resources(n_big_felts, n_small_felts);
+    let estimated_resources = encode_and_blake_hash_resources(n_big_felts, n_small_felts);
 
-    estimated_resources.n_steps -= 1;
+    let mut resources = estimated_resources.resources().clone();
+    resources.n_steps -= 1;
 
-    estimated_resources
+    resources
 }
 
 /// Test that compares Cairo and Rust implementations of
