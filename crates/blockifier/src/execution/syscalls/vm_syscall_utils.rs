@@ -37,7 +37,7 @@ use crate::execution::syscalls::hint_processor::{
     read_felt_array,
     write_segment,
     EmitEventError,
-    OUT_OF_GAS_ERROR,
+    OUT_OF_GAS_ERROR_FELT,
 };
 use crate::execution::syscalls::syscall_executor::SyscallExecutor;
 use crate::utils::u64_from_usize;
@@ -687,11 +687,9 @@ where
 
     if gas_counter < required_gas {
         //  Out of gas failure.
-        let out_of_gas_error =
-            Felt::from_hex(OUT_OF_GAS_ERROR).map_err(SyscallExecutorBaseError::from)?;
         let response: SyscallResponseWrapper<Response> = SyscallResponseWrapper::Failure {
             gas_counter,
-            revert_data: RevertData::new_normal(vec![out_of_gas_error]),
+            revert_data: RevertData::new_normal(vec![OUT_OF_GAS_ERROR_FELT]),
         };
         response.write(vm, syscall_executor.get_mut_syscall_ptr())?;
 

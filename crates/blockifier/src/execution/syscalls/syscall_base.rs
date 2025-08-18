@@ -47,9 +47,9 @@ use crate::execution::entry_point::{
 use crate::execution::execution_utils::execute_deployment;
 use crate::execution::syscalls::hint_processor::{
     SyscallExecutionError,
-    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
-    ENTRYPOINT_FAILED_ERROR,
-    INVALID_ARGUMENT,
+    BLOCK_NUMBER_OUT_OF_RANGE_ERROR_FELT,
+    ENTRYPOINT_FAILED_ERROR_FELT,
+    INVALID_ARGUMENT_FELT,
 };
 use crate::execution::syscalls::vm_syscall_utils::{
     exceeds_event_size_limit,
@@ -129,12 +129,8 @@ impl<'state> SyscallHandlerBase<'state> {
             match self.context.execution_mode {
                 ExecutionMode::Execute => {
                     // Revert the syscall.
-                    let out_of_range_error = Felt::from_hex(BLOCK_NUMBER_OUT_OF_RANGE_ERROR)
-                        .expect(
-                            "Converting BLOCK_NUMBER_OUT_OF_RANGE_ERROR to Felt should not fail.",
-                        );
                     return Err(SyscallExecutionError::Revert {
-                        error_data: vec![out_of_range_error],
+                        error_data: vec![BLOCK_NUMBER_OUT_OF_RANGE_ERROR_FELT],
                     });
                 }
                 ExecutionMode::Validate => {
@@ -264,9 +260,7 @@ impl<'state> SyscallHandlerBase<'state> {
             self.reject_syscall_in_validate_mode("meta_tx_v0")?;
         }
         if entry_point_selector != selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
-            return Err(SyscallExecutionError::Revert {
-                error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
-            });
+            return Err(SyscallExecutionError::Revert { error_data: vec![INVALID_ARGUMENT_FELT] });
         }
         let entry_point = CallEntryPoint {
             class_hash: None,
@@ -434,9 +428,7 @@ impl<'state> SyscallHandlerBase<'state> {
                 );
             }
 
-            raw_retdata.push(
-                Felt::from_hex(ENTRYPOINT_FAILED_ERROR).map_err(SyscallExecutionError::from)?,
-            );
+            raw_retdata.push(ENTRYPOINT_FAILED_ERROR_FELT);
             return Err(SyscallExecutionError::Revert { error_data: raw_retdata });
         }
 
@@ -460,9 +452,7 @@ impl<'state> SyscallHandlerBase<'state> {
         if versioned_constants.block_direct_execute_call
             && selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME)
         {
-            return Err(SyscallExecutionError::Revert {
-                error_data: vec![Felt::from_hex(INVALID_ARGUMENT).unwrap()],
-            });
+            return Err(SyscallExecutionError::Revert { error_data: vec![INVALID_ARGUMENT_FELT] });
         }
         Ok(())
     }

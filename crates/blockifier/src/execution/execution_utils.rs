@@ -43,7 +43,10 @@ use crate::execution::errors::{
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::entry_point_execution as native_entry_point_execution;
 use crate::execution::stack_trace::{extract_trailing_cairo1_revert_trace, Cairo1RevertHeader};
-use crate::execution::syscalls::hint_processor::{ENTRYPOINT_NOT_FOUND_ERROR, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::hint_processor::{
+    ENTRYPOINT_NOT_FOUND_ERROR_FELT,
+    OUT_OF_GAS_ERROR_FELT,
+};
 use crate::execution::{deprecated_entry_point_execution, entry_point_execution};
 use crate::state::errors::StateError;
 use crate::state::state_api::State;
@@ -96,14 +99,14 @@ pub fn execute_entry_point_call_wrapper(
         {
             let error_code = match err {
                 PreExecutionError::EntryPointNotFound(_)
-                | PreExecutionError::NoEntryPointOfTypeFound(_) => ENTRYPOINT_NOT_FOUND_ERROR,
-                PreExecutionError::InsufficientEntryPointGas => OUT_OF_GAS_ERROR,
+                | PreExecutionError::NoEntryPointOfTypeFound(_) => ENTRYPOINT_NOT_FOUND_ERROR_FELT,
+                PreExecutionError::InsufficientEntryPointGas => OUT_OF_GAS_ERROR_FELT,
                 _ => return Err(err.into()),
             };
             Ok(CallInfo {
                 call: orig_call.into(),
                 execution: CallExecution {
-                    retdata: Retdata(vec![Felt::from_hex(error_code).unwrap()]),
+                    retdata: Retdata(vec![error_code]),
                     // FIXME: Should we get the `is_cairo_native` bool?
                     failed: true,
                     gas_consumed: 0,
