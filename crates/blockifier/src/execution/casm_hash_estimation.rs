@@ -1,6 +1,7 @@
 use std::ops::AddAssign;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
+use starknet_api::contract_class::compiled_class_hash::HashVersion;
 
 #[cfg(test)]
 #[path = "casm_hash_estimation_test.rs"]
@@ -56,6 +57,31 @@ impl AddAssign<&EstimatedExecutionResources> for EstimatedExecutionResources {
             }
             // Any mismatched variant
             _ => panic!("Cannot add EstimatedExecutionResources of different variants"),
+        }
+    }
+}
+
+impl From<(ExecutionResources, HashVersion)> for EstimatedExecutionResources {
+    fn from((resources, hash_version): (ExecutionResources, HashVersion)) -> Self {
+        match hash_version {
+            HashVersion::V1 => EstimatedExecutionResources::V1Hash { resources },
+            HashVersion::V2 => EstimatedExecutionResources::V2Hash { resources, blake_count: 0 },
+        }
+    }
+}
+
+impl EstimatedExecutionResources {
+    pub fn resources(&self) -> &ExecutionResources {
+        match self {
+            EstimatedExecutionResources::V1Hash { resources } => resources,
+            EstimatedExecutionResources::V2Hash { resources, .. } => resources,
+        }
+    }
+
+    pub fn blake_count(&self) -> usize {
+        match self {
+            EstimatedExecutionResources::V2Hash { blake_count, .. } => *blake_count,
+            _ => panic!("Cannot get blake count from V1Hash"),
         }
     }
 }
