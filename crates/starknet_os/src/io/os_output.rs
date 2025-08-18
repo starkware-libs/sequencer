@@ -6,7 +6,7 @@ use cairo_vm::vm::runners::builtin_runner::BuiltinRunner;
 use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use num_traits::ToPrimitive;
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{prev_block_number_try_from_felt, BlockNumber};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::transaction::{L1ToL2Payload, L2ToL1Payload, MessageToL1};
@@ -154,8 +154,15 @@ impl TryFromOutputIter for OutputIterParsedData {
     ) -> Result<Self, OsOutputError> {
         let initial_root = wrap_missing(output_iter.next(), "initial_root")?;
         let final_root = wrap_missing(output_iter.next(), "final_root")?;
+        let prev_block_number_felt = wrap_missing(output_iter.next(), "prev_block_number")?;
         let prev_block_number =
-            BlockNumber(wrap_missing_as(output_iter.next(), "prev_block_number")?);
+            prev_block_number_try_from_felt(prev_block_number_felt).map_err(|e| {
+                OsOutputError::InvalidOsOutputField {
+                    value_name: "prev_block_number".to_string(),
+                    val: prev_block_number_felt,
+                    message: e.to_string(),
+                }
+            })?;
         let new_block_number =
             BlockNumber(wrap_missing_as(output_iter.next(), "new_block_number")?);
         let prev_block_hash = wrap_missing(output_iter.next(), "prev_block_hash")?;
@@ -229,7 +236,7 @@ pub struct CommonOsOutput {
     // The root after.
     pub final_root: StarkHash,
     // The previous block number.
-    pub prev_block_number: BlockNumber,
+    pub prev_block_number: Option<BlockNumber>,
     // The new block number.
     pub new_block_number: BlockNumber,
     // The previous block hash.

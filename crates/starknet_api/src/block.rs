@@ -312,6 +312,33 @@ impl BlockNumber {
     }
 }
 
+pub type PreviousBlockNumber = Option<BlockNumber>;
+
+/// Converts a Felt representation of a previous block number into a
+/// [PreviousBlockNumber](`crate::block::PreviousBlockNumber`).
+pub fn prev_block_number_try_from_felt(
+    value: Felt,
+) -> Result<PreviousBlockNumber, StarknetApiError> {
+    // -1 in the Field (Felt::MAX) represents the previous block number for the first block.
+    if value == Felt::MAX {
+        Ok(None)
+    } else {
+        Ok(Some(BlockNumber(value.try_into().map_err(|_| StarknetApiError::OutOfRange {
+            string: format!("Block number {value} is out of range"),
+        })?)))
+    }
+}
+
+/// Returns a the Felt representation of the given previous block number.
+/// Returns Felt::MAX (-1 in the field) if the previous block number is None, which means the
+/// current block is the first block.
+pub fn prev_block_number_into_felt(value: PreviousBlockNumber) -> Felt {
+    match value {
+        Some(block_number) => Felt::from(block_number.0),
+        None => Felt::MAX,
+    }
+}
+
 /// A pair of a [BlockHash](`crate::block::BlockHash`) and a
 /// [BlockNumber](`crate::block::BlockNumber`).
 #[derive(Copy, Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]

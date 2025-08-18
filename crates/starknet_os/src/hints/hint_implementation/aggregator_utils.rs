@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use cairo_vm::types::errors::math_errors::MathError;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
 use cairo_vm::vm::vm_core::VirtualMachine;
+use starknet_api::block::prev_block_number_into_felt;
 use starknet_api::core::{ClassHash, Nonce};
 use starknet_api::transaction::MessageToL1;
 use starknet_types_core::felt::Felt;
@@ -257,7 +258,7 @@ fn write_full_os_output(
 
     let header = vm.gen_arg(&vec![
         state_update_output,
-        Felt::from(common_os_output.prev_block_number.0).into(),
+        prev_block_number_into_felt(common_os_output.prev_block_number).into(),
         Felt::from(common_os_output.new_block_number.0).into(),
         common_os_output.prev_block_hash.into(),
         common_os_output.new_block_hash.into(),
