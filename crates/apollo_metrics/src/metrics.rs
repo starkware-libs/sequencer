@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fmt::Debug;
 #[cfg(any(feature = "testing", test))]
 use std::str::FromStr;
@@ -440,6 +441,19 @@ impl LabeledMetricHistogram {
 
     pub const fn get_description(&self) -> &'static str {
         self.description
+    }
+
+    // Returns a flattened and sorted list of the unique label values across all label permutations.
+    // The flattening makes this mostly useful for a single labeled histograms, as otherwise
+    // different domain values are mixed together.
+    pub fn get_flat_label_values(&self) -> Vec<&str> {
+        self
+            .label_permutations
+            .iter()
+            .flat_map(|pairs| pairs.iter().map(|(_, v)| *v))
+               .collect::<BTreeSet<_>>()   // unique + sorted
+        .into_iter()
+    .collect()
     }
 
     pub fn register(&self) {
