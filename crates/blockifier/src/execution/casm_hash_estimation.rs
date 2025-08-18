@@ -1,5 +1,7 @@
+use std::collections::HashMap;
 use std::ops::AddAssign;
 
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 
@@ -41,7 +43,7 @@ impl EstimatedExecutionResources {
             },
         }
     }
-    
+
     pub fn resources(&self) -> &ExecutionResources {
         match self {
             EstimatedExecutionResources::V1Hash { resources } => resources,
@@ -140,7 +142,55 @@ trait EstimateCasmHashResources {
 
 // TODO(AvivG): Remove allow once used.
 #[allow(unused)]
-struct CasmV1HashResourceEstimate {}
+pub (crate) struct CasmV1HashResourceEstimate {}
+
+impl CasmV1HashResourceEstimate {
+    /// Returns the estimated VM resources required for computing Casm hash (for Cairo 1 contracts).
+    ///
+    /// Note: the function focuses on the bytecode size, and currently ignores the cost handling the
+    /// class entry points.
+    /// Also, this function is not backward compatible.
+    pub fn estimate_casm_poseidon_hash_computation_resources(
+        bytecode_segment_lengths: &NestedFeltCounts,
+    ) -> ExecutionResources {
+        // The constants in this function were computed by running the Casm code on a few values
+        // of `bytecode_segment_lengths`.
+        match bytecode_segment_lengths {
+            NestedFeltCounts::Leaf(length, _) => {
+                // The entire contract is a single segment (old Sierra contracts).
+                &ExecutionResources {
+                    n_steps: 464,
+                    n_memory_holes: 0,
+                    builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 10)]),
+                } + &poseidon_hash_many_cost(*length)
+            }
+            NestedFeltCounts::Node(segments) => {
+                // The contract code is segmented by its functions.
+                let mut execution_resources = ExecutionResources {
+                    n_steps: 482,
+                    n_memory_holes: 0,
+                    builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 11)]),
+                };
+                let base_segment_cost = ExecutionResources {
+                    n_steps: 25,
+                    n_memory_holes: 2,
+                    builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, 1)]),
+                };
+                for segment in segments {
+                    let NestedFeltCounts::Leaf(length, _) = segment else {
+                        panic!(
+                            "Estimating hash cost is only supported for segmentation depth at \
+                             most 1."
+                        );
+                    };
+                    execution_resources += &poseidon_hash_many_cost(*length);
+                    execution_resources += &base_segment_cost;
+                }
+                execution_resources
+            }
+        }
+    }
+}
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     fn hash_version(&self) -> HashVersion {

@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
-use blockifier::execution::contract_class::{
-    estimate_casm_poseidon_hash_computation_resources,
-    NestedFeltCounts,
-};
+use blockifier::execution::casm_hash_estimation::CasmV1HashResourceEstimate;
+use blockifier::execution::contract_class::NestedFeltCounts;
 use blockifier::test_utils::contracts::FeatureContractTrait;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -303,10 +301,12 @@ fn test_compiled_class_hash_resources_estimation() {
 
     // Compare the actual execution resources with the estimation with some allowed margin.
     let mut execution_resources_estimation =
-        estimate_casm_poseidon_hash_computation_resources(&NestedFeltCounts::new(
-            &contract_class.get_bytecode_segment_lengths(),
-            &contract_class.bytecode,
-        ));
+        CasmV1HashResourceEstimate::estimate_casm_poseidon_hash_computation_resources(
+            &NestedFeltCounts::new(
+                &contract_class.get_bytecode_segment_lengths(),
+                &contract_class.bytecode,
+            ),
+        );
     let margin_n_steps =
         execution_resources_estimation.n_steps.abs_diff(actual_execution_resources.n_steps);
     assert!(
