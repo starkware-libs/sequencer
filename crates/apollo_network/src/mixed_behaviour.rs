@@ -1,17 +1,19 @@
 // TODO(shahak): Erase main_behaviour and make this a separate module.
 
+use std::convert::Infallible;
+
+use libp2p::connection_limits::ConnectionLimits;
 use libp2p::identity::Keypair;
 use libp2p::kad::store::MemoryStore;
 use libp2p::swarm::behaviour::toggle::Toggle;
 use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::swarm::NetworkBehaviour;
-use libp2p::{gossipsub, identify, kad, Multiaddr, PeerId, StreamProtocol};
+use libp2p::{connection_limits, gossipsub, identify, kad, Multiaddr, PeerId, StreamProtocol};
 use starknet_api::core::ChainId;
 
 use crate::discovery::identify_impl::{IdentifyToOtherBehaviourEvent, IDENTIFY_PROTOCOL_VERSION};
 use crate::discovery::kad_impl::KadToOtherBehaviourEvent;
 use crate::discovery::DiscoveryConfig;
-use crate::misc_behaviours::OneConnectionPerPeerBehaviour;
 use crate::peer_manager::PeerManagerConfig;
 use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 
@@ -19,7 +21,7 @@ use crate::{discovery, gossipsub_impl, peer_manager, sqmr};
 #[derive(NetworkBehaviour)]
 #[behaviour(out_event = "Event")]
 pub struct MixedBehaviour {
-    pub one_connection_per_peer: OneConnectionPerPeerBehaviour,
+    pub limits: connection_limits::Behaviour,
     pub peer_manager: peer_manager::PeerManager,
     pub discovery: Toggle<discovery::Behaviour>,
     pub identify: identify::Behaviour,
@@ -74,9 +76,10 @@ impl MixedBehaviour {
             StreamProtocol::try_from_owned(format!("/starknet/kad/{chain_id}/1.0.0"))
                 .expect("Failed to create StreamProtocol from a string that starts with /");
         let kademlia_config = kad::Config::new(protocol_name);
+        let connection_limits = ConnectionLimits::default().with_max_established_per_peer(Some(1));
 
         Self {
-            one_connection_per_peer: OneConnectionPerPeerBehaviour::default(),
+            limits: connection_limits::Behaviour::new(connection_limits),
             peer_manager: peer_manager::PeerManager::new(peer_manager_config),
             discovery: bootstrap_peers_multiaddrs
                 .map(|bootstrap_peer_multiaddr| {
@@ -128,5 +131,11 @@ impl MixedBehaviour {
                 )
             }),
         }
+    }
+}
+
+impl From<Infallible> for Event {
+    fn from(infallible: Infallible) -> Self {
+        match infallible {}
     }
 }
