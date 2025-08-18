@@ -2,8 +2,6 @@ use apollo_infra::metrics::{
     MEMPOOL_LOCAL_MSGS_PROCESSED,
     MEMPOOL_LOCAL_MSGS_RECEIVED,
     MEMPOOL_LOCAL_QUEUE_DEPTH,
-    MEMPOOL_PROCESSING_TIMES_SECS,
-    MEMPOOL_QUEUEING_TIMES_SECS,
     MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
     MEMPOOL_REMOTE_MSGS_PROCESSED,
     MEMPOOL_REMOTE_MSGS_RECEIVED,
@@ -15,6 +13,8 @@ use apollo_mempool::metrics::{
     LABEL_NAME_TX_TYPE as MEMPOOL_LABEL_NAME_TX_TYPE,
     MEMPOOL_DELAYED_DECLARES_SIZE,
     MEMPOOL_GET_TXS_SIZE,
+    MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
+    MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
@@ -26,7 +26,7 @@ use apollo_mempool::metrics::{
     TRANSACTION_TIME_SPENT_UNTIL_COMMITTED,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{create_request_type_labeled_hist_panels, Panel, PanelType, Row};
 
 fn get_panel_local_msgs_received() -> Panel {
     Panel::from_counter(MEMPOOL_LOCAL_MSGS_RECEIVED, PanelType::TimeSeries)
@@ -52,11 +52,17 @@ fn get_panel_local_queue_depth() -> Panel {
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
-fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(MEMPOOL_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
+fn get_processing_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
 }
-fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(MEMPOOL_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
+fn get_queueing_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
 }
 
 fn get_panel_mempool_transactions_received() -> Panel {
@@ -187,8 +193,10 @@ pub(crate) fn get_mempool_infra_row() -> Row {
             get_panel_remote_msgs_processed(),
             get_panel_remote_number_of_connections(),
             get_panel_remote_client_send_attempts(),
-            get_panel_processing_times(),
-            get_panel_queueing_times(),
-        ],
+        ]
+        .into_iter()
+        .chain(get_processing_times_panels())
+        .chain(get_queueing_times_panels())
+        .collect::<Vec<_>>(),
     )
 }

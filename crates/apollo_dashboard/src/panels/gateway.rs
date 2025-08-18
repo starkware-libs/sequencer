@@ -1,5 +1,7 @@
 use apollo_gateway::metrics::{
     GATEWAY_ADD_TX_LATENCY,
+    GATEWAY_LABELED_PROCESSING_TIMES_SECS,
+    GATEWAY_LABELED_QUEUEING_TIMES_SECS,
     GATEWAY_TRANSACTIONS_FAILED,
     GATEWAY_TRANSACTIONS_RECEIVED,
     GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
@@ -11,8 +13,6 @@ use apollo_infra::metrics::{
     GATEWAY_LOCAL_MSGS_PROCESSED,
     GATEWAY_LOCAL_MSGS_RECEIVED,
     GATEWAY_LOCAL_QUEUE_DEPTH,
-    GATEWAY_PROCESSING_TIMES_SECS,
-    GATEWAY_QUEUEING_TIMES_SECS,
     GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
     GATEWAY_REMOTE_MSGS_PROCESSED,
     GATEWAY_REMOTE_MSGS_RECEIVED,
@@ -20,7 +20,7 @@ use apollo_infra::metrics::{
     GATEWAY_REMOTE_VALID_MSGS_RECEIVED,
 };
 
-use crate::dashboard::{Panel, PanelType, Row};
+use crate::dashboard::{create_request_type_labeled_hist_panels, Panel, PanelType, Row};
 
 fn get_panel_gateway_transactions_received_by_type() -> Panel {
     Panel::new(
@@ -59,11 +59,17 @@ fn get_panel_local_queue_depth() -> Panel {
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
-fn get_panel_processing_times() -> Panel {
-    Panel::from_hist(GATEWAY_PROCESSING_TIMES_SECS, PanelType::TimeSeries)
+fn get_processing_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        GATEWAY_LABELED_PROCESSING_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
 }
-fn get_panel_queueing_times() -> Panel {
-    Panel::from_hist(GATEWAY_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
+fn get_queueing_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        GATEWAY_LABELED_QUEUEING_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
 }
 
 fn get_panel_gateway_transactions_received_by_source() -> Panel {
@@ -152,8 +158,10 @@ pub(crate) fn get_gateway_infra_row() -> Row {
             get_panel_remote_msgs_processed(),
             get_panel_remote_number_of_connections(),
             get_panel_remote_client_send_attempts(),
-            get_panel_processing_times(),
-            get_panel_queueing_times(),
-        ],
+        ]
+        .into_iter()
+        .chain(get_processing_times_panels())
+        .chain(get_queueing_times_panels())
+        .collect::<Vec<_>>(),
     )
 }
