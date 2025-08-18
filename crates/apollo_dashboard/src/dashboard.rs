@@ -119,9 +119,8 @@ impl Panel {
         )
     }
 
-    // TODO(Tsabary): remove the preceding underscore when the function is used.
     // TODO(Tsabary): unify relevant parts with `from_hist` to avoid code duplication.
-    pub(crate) fn _from_request_type_labeled_hist(
+    pub(crate) fn from_request_type_labeled_hist(
         metric: &LabeledMetricHistogram,
         panel_type: PanelType,
         request_label: &str,
@@ -172,8 +171,7 @@ impl Panel {
     }
 }
 
-// TODO(Tsabary): remove the preceding underscore when the function is used.
-pub(crate) fn _create_request_type_labeled_hist_panels(
+pub(crate) fn create_request_type_labeled_hist_panels(
     metric: LabeledMetricHistogram,
     panel_type: PanelType,
 ) -> Vec<Panel> {
@@ -181,7 +179,7 @@ pub(crate) fn _create_request_type_labeled_hist_panels(
         .get_flat_label_values()
         .into_iter()
         .map(|request_label| {
-            Panel::_from_request_type_labeled_hist(&metric, panel_type, request_label)
+            Panel::from_request_type_labeled_hist(&metric, panel_type, request_label)
         })
         .collect()
 }
