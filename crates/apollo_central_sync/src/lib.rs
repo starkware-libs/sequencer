@@ -590,6 +590,8 @@ impl<
             txn = txn.append_state_diff(block_number, thin_state_diff)?;
             // Old classes must be stored for later use since we will only be be adding them to the
             // class manager later, once we have their compiled classes.
+            //
+            // TODO(guy.f): Properly fix handling old classes.
             if store_sierras_and_casms || block_contains_old_classes {
                 txn = txn.append_classes(
                     block_number,
