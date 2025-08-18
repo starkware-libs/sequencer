@@ -442,6 +442,21 @@ impl LabeledMetricHistogram {
         self.description
     }
 
+    // Returns a flattened and sorted list of the unique label values across all label permutations.
+    // The flattening makes this mostly useful for a single labeled histograms, as otherwise
+    // different domain values are mixed together.
+    pub fn get_flat_label_values(&self) -> Vec<&str> {
+        let mut values: Vec<&'static str> = self
+            .label_permutations
+            .iter()
+            .flat_map(|pairs| pairs.iter().map(|(_, v)| *v))
+            .collect();
+
+        values.sort();
+        values.dedup();
+        values
+    }
+
     pub fn register(&self) {
         self.label_permutations.iter().map(|&slice| slice.to_vec()).for_each(|labels| {
             let _ = histogram!(self.name, &labels);
