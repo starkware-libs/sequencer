@@ -86,5 +86,7 @@ define_metrics!(
     Infra => {
         LabeledMetricHistogram { L1_ENDPOINT_MONITOR_PROCESSING_TIMES_SECS, "l1_endpoint_monitor_processing_times_secs", "Request processing times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
         LabeledMetricHistogram { L1_ENDPOINT_MONITOR_QUEUEING_TIMES_SECS, "l1_endpoint_monitor_queueing_times_secs", "Request queueing times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
+        LabeledMetricHistogram { L1_ENDPOINT_MONITOR_LOCAL_RESPONSE_TIMES_SECS, "l1_endpoint_monitor_local_response_times_secs", "Request local response times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
+        LabeledMetricHistogram { L1_ENDPOINT_MONITOR_REMOTE_RESPONSE_TIMES_SECS, "l1_endpoint_monitor_remote_response_times_secs", "Request remote response times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
     },
 );
