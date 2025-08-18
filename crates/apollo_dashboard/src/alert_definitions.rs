@@ -57,7 +57,7 @@ use crate::alert_scenarios::preconfirmed::get_preconfirmed_block_not_written_vec
 use crate::alert_scenarios::sync_halt::{get_state_sync_lag_vec, get_state_sync_stuck_vec};
 use crate::alert_scenarios::tps::{
     get_gateway_add_tx_idle,
-    get_http_server_low_successful_transaction_rate_vec,
+    get_gateway_low_successful_transaction_rate_vec,
     get_http_server_no_successful_transactions,
     get_mempool_add_tx_idle,
 };
@@ -459,7 +459,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     alerts.append(&mut get_http_server_avg_add_tx_latency_alert_vec());
     alerts.append(&mut get_http_server_high_transaction_failure_ratio_vec());
     alerts.append(&mut get_http_server_internal_error_ratio_vec());
-    alerts.append(&mut get_http_server_low_successful_transaction_rate_vec());
+    alerts.append(&mut get_gateway_low_successful_transaction_rate_vec());
     alerts.append(&mut get_http_server_p95_add_tx_latency_alert_vec());
     alerts.append(&mut get_l1_gas_price_provider_insufficient_history_alert_vec());
     alerts.append(&mut get_l1_gas_price_scraper_success_count_alert_vec());

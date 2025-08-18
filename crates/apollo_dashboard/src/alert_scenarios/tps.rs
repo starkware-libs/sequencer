@@ -1,6 +1,9 @@
 use std::time::Duration;
 
-use apollo_gateway::metrics::GATEWAY_TRANSACTIONS_RECEIVED;
+use apollo_gateway::metrics::{
+    GATEWAY_TRANSACTIONS_RECEIVED,
+    GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL,
+};
 use apollo_http_server::metrics::ADDED_TRANSACTIONS_SUCCESS;
 use apollo_mempool::metrics::MEMPOOL_TRANSACTIONS_RECEIVED;
 
@@ -71,17 +74,17 @@ pub(crate) fn get_mempool_add_tx_idle() -> Alert {
     )
 }
 
-fn get_http_server_low_successful_transaction_rate(
+fn get_gateway_low_successful_transaction_rate(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
 ) -> Alert {
     Alert::new(
-        "http_server_low_successful_transaction_rate",
-        "http server low successful transaction rate",
-        AlertGroup::HttpServer,
+        "gateway_low_successful_transaction_rate",
+        "gateway low successful transaction rate",
+        AlertGroup::Gateway,
         format!(
             "sum(increase({}[10m])) or vector(0)",
-            ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter()
+            GATEWAY_TRANSACTIONS_SENT_TO_MEMPOOL.get_name_with_filter()
         ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::LessThan,
@@ -95,13 +98,13 @@ fn get_http_server_low_successful_transaction_rate(
     )
 }
 
-pub(crate) fn get_http_server_low_successful_transaction_rate_vec() -> Vec<Alert> {
+pub(crate) fn get_gateway_low_successful_transaction_rate_vec() -> Vec<Alert> {
     vec![
-        get_http_server_low_successful_transaction_rate(
+        get_gateway_low_successful_transaction_rate(
             AlertEnvFiltering::MainnetStyleAlerts,
             AlertSeverity::DayOnly,
         ),
-        get_http_server_low_successful_transaction_rate(
+        get_gateway_low_successful_transaction_rate(
             AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::WorkingHours,
         ),
