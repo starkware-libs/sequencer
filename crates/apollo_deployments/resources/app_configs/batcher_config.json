@@ -23,7 +23,7 @@
   "batcher_config.contract_class_manager_config.cairo_native_run_config.channel_size": 2000,
   "batcher_config.contract_class_manager_config.cairo_native_run_config.native_classes_whitelist": "All",
   "batcher_config.contract_class_manager_config.cairo_native_run_config.panic_on_compilation_failure": false,
-  "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": false,
+  "batcher_config.contract_class_manager_config.cairo_native_run_config.run_cairo_native": true,
   "batcher_config.contract_class_manager_config.cairo_native_run_config.wait_on_native_compilation": false,
   "batcher_config.contract_class_manager_config.contract_cache_size": 2000,
   "batcher_config.contract_class_manager_config.native_compiler_config.compiler_binary_path": "",
