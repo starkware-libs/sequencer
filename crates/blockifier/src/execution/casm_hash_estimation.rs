@@ -11,7 +11,7 @@ use crate::execution::contract_class::{
     FeltSizeCount,
     NestedFeltCounts,
 };
-use crate::execution::execution_utils::poseidon_hash_many_cost;
+use crate::execution::execution_utils::{encode_and_blake_hash_resources, poseidon_hash_many_cost};
 
 #[cfg(test)]
 #[path = "casm_hash_estimation_test.rs"]
@@ -142,7 +142,7 @@ trait EstimateCasmHashResources {
 
 // TODO(AvivG): Remove allow once used.
 #[allow(unused)]
-pub (crate) struct CasmV1HashResourceEstimate {}
+pub(crate) struct CasmV1HashResourceEstimate {}
 
 impl CasmV1HashResourceEstimate {
     /// Returns the estimated VM resources required for computing Casm hash (for Cairo 1 contracts).
@@ -210,7 +210,77 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
 
 // TODO(AvivG): Remove allow once used.
 #[allow(unused)]
-struct CasmV2HashResourceEstimate {}
+pub(crate) struct CasmV2HashResourceEstimate {}
+
+impl CasmV2HashResourceEstimate {
+    /// Cost to hash a single flat segment of `len` felts.
+    fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
+        // All `len` inputs treated as “big” felts; no small-felt optimization here.
+        encode_and_blake_hash_resources(felt_size_groups.large, felt_size_groups.small)
+    }
+
+    /// Cost to hash a multi-segment contract:
+    fn node_cost(segs: &[NestedFeltCounts]) -> EstimatedExecutionResources {
+        // TODO(AvivG): Add base estimation for node.
+        let mut resources =
+            EstimatedExecutionResources::from((ExecutionResources::default(), HashVersion::V2));
+
+        // TODO(AvivG): Add base estimation of each segment. Could this be part of 'leaf_cost'?
+        let segment_overhead = ExecutionResources::default();
+
+        // For each segment, hash its felts.
+        for seg in segs {
+            match seg {
+                NestedFeltCounts::Leaf(_, felt_size_groups) => {
+                    resources += &segment_overhead;
+                    resources += &Self::leaf_cost(felt_size_groups);
+                }
+                _ => {
+                    panic!("Estimating hash cost only supports at most one level of segmentation.")
+                }
+            }
+        }
+
+        // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
+        // and one segment length (“small” felt) per segment.
+        resources += &encode_and_blake_hash_resources(segs.len(), segs.len());
+
+        resources
+    }
+
+    /// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
+    /// - Uses only bytecode size.
+    pub fn estimate_casm_blake_hash_computation_resources(
+        bytecode_segment_lengths: &NestedFeltCounts,
+    ) -> EstimatedExecutionResources {
+        // TODO(AvivG): Currently ignores entry-point hashing costs.
+        // TODO(AvivG): Missing base overhead estimation for compiled_class_hash.
+
+        // Basic frame overhead.
+        // TODO(AvivG): Once compiled_class_hash estimation is complete,
+        // revisit whether this should be moved into
+        // cost_of_encode_felt252_data_and_calc_blake_hash.
+        let mut resources = EstimatedExecutionResources::from((
+            ExecutionResources {
+                n_steps: 0,
+                n_memory_holes: 0,
+                builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
+            },
+            HashVersion::V2,
+        ));
+
+        // Add leaf vs node cost
+        let added_resources = match &bytecode_segment_lengths {
+            // Single-segment contract (e.g., older Sierra contracts).
+            NestedFeltCounts::Leaf(_, felt_size_groups) => Self::leaf_cost(felt_size_groups),
+            NestedFeltCounts::Node(segs) => Self::node_cost(segs),
+        };
+
+        resources += &added_resources;
+
+        resources
+    }
+}
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn hash_version(&self) -> HashVersion {

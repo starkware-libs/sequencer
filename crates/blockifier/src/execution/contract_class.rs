@@ -24,7 +24,6 @@ use serde::de::Error as DeserializationError;
 use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::contract_class::compiled_class_hash::{
     EntryPointHashable,
-    HashVersion,
     HashableCompiledClass,
     HashableNestedIntList,
 };
@@ -45,13 +44,12 @@ use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
     CasmV1HashResourceEstimate,
-    EstimatedExecutionResources,
+    CasmV2HashResourceEstimate,
 };
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{
     blake_execution_resources_estimation_to_gas,
-    encode_and_blake_hash_resources,
     sn_api_to_cairo_vm_program,
 };
 #[cfg(feature = "cairo_native")]
@@ -458,7 +456,9 @@ impl CompiledClassV1 {
         blake_weight: usize,
     ) -> (GasAmount, BuiltinCounterMap) {
         let blake_hash_resources =
-            estimate_casm_blake_hash_computation_resources(&self.bytecode_segment_felt_sizes);
+            CasmV2HashResourceEstimate::estimate_casm_blake_hash_computation_resources(
+                &self.bytecode_segment_felt_sizes,
+            );
         let blake_hash_gas = blake_execution_resources_estimation_to_gas(
             blake_hash_resources,
             versioned_constants,
@@ -528,71 +528,6 @@ impl HashableCompiledClass<EntryPointV1, NestedFeltCounts> for CompiledClassV1 {
     fn get_bytecode_segment_lengths(&self) -> Cow<'_, NestedFeltCounts> {
         Cow::Borrowed(&self.bytecode_segment_felt_sizes)
     }
-}
-
-/// Cost to hash a single flat segment of `len` felts.
-fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
-    // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    encode_and_blake_hash_resources(felt_size_groups.large, felt_size_groups.small)
-}
-
-/// Cost to hash a multi-segment contract:
-fn node_cost(segs: &[NestedFeltCounts]) -> EstimatedExecutionResources {
-    // TODO(AvivG): Add base estimation for node.
-    let mut resources =
-        EstimatedExecutionResources::from((ExecutionResources::default(), HashVersion::V2));
-
-    // TODO(AvivG): Add base estimation of each segment. Could this be part of 'leaf_cost'?
-    let segment_overhead = ExecutionResources::default();
-
-    // For each segment, hash its felts.
-    for seg in segs {
-        match seg {
-            NestedFeltCounts::Leaf(_, felt_size_groups) => {
-                resources += &segment_overhead;
-                resources += &leaf_cost(felt_size_groups);
-            }
-            _ => panic!("Estimating hash cost only supports at most one level of segmentation."),
-        }
-    }
-
-    // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
-    // and one segment length (“small” felt) per segment.
-    resources += &encode_and_blake_hash_resources(segs.len(), segs.len());
-
-    resources
-}
-
-/// Estimates the VM resources to compute the CASM Blake hash for a Cairo-1 contract:
-/// - Uses only bytecode size.
-pub fn estimate_casm_blake_hash_computation_resources(
-    bytecode_segment_lengths: &NestedFeltCounts,
-) -> EstimatedExecutionResources {
-    // TODO(AvivG): Currently ignores entry-point hashing costs.
-    // TODO(AvivG): Missing base overhead estimation for compiled_class_hash.
-
-    // Basic frame overhead.
-    // TODO(AvivG): Once compiled_class_hash estimation is complete,
-    // revisit whether this should be moved into cost_of_encode_felt252_data_and_calc_blake_hash.
-    let mut resources = EstimatedExecutionResources::from((
-        ExecutionResources {
-            n_steps: 0,
-            n_memory_holes: 0,
-            builtin_instance_counter: HashMap::from([(BuiltinName::range_check, 3)]),
-        },
-        HashVersion::V2,
-    ));
-
-    // Add leaf vs node cost
-    let added_resources = match &bytecode_segment_lengths {
-        // Single-segment contract (e.g., older Sierra contracts).
-        NestedFeltCounts::Leaf(_, felt_size_groups) => leaf_cost(felt_size_groups),
-        NestedFeltCounts::Node(segs) => node_cost(segs),
-    };
-
-    resources += &added_resources;
-
-    resources
 }
 
 // Returns the set of segments that were visited according to the given visited PCs and segment
