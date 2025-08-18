@@ -1,4 +1,5 @@
 use apollo_metrics::define_metrics;
+use apollo_state_sync_types::communication::STATE_SYNC_REQUEST_LABELS;
 use apollo_storage::body::BodyStorageReader;
 use apollo_storage::class_manager::ClassManagerStorageReader;
 use apollo_storage::compiled_class::CasmStorageReader;
@@ -28,6 +29,9 @@ define_metrics!(
         MetricGauge { STATE_SYNC_HEADER_LATENCY_SEC, "apollo_state_sync_header_latency", "The latency, in seconds, between a block timestamp (as state in its header) and the time the state sync component stores the header" },
         MetricCounter { STATE_SYNC_PROCESSED_TRANSACTIONS, "apollo_state_sync_processed_transactions", "The number of transactions processed by the state sync component", init = 0 },
         MetricCounter { STATE_SYNC_REVERTED_TRANSACTIONS, "apollo_state_sync_reverted_transactions", "The number of transactions reverted by the state sync component", init = 0 },
+    },
+    Infra => {
+        LabeledMetricHistogram { STATE_SYNC_LABELED_PROCESSING_TIMES_SECS, "state_sync_labeled_processing_times_secs", "Request processing times of the state sync, per label (secs)", labels = STATE_SYNC_REQUEST_LABELS },
     },
 );
 
