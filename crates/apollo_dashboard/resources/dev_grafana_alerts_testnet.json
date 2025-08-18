@@ -463,7 +463,7 @@
       "name": "http_server_no_successful_transactions",
       "title": "http server no successful transactions",
       "ruleGroup": "http_server",
-      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[600s])) or vector(0)",
+      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1800s])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
@@ -1216,10 +1216,10 @@
       "severity": "p4"
     },
     {
-      "name": "http_server_low_successful_transaction_rate",
-      "title": "http server low successful transaction rate",
-      "ruleGroup": "http_server",
-      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)",
+      "name": "gateway_low_successful_transaction_rate",
+      "title": "gateway low successful transaction rate",
+      "ruleGroup": "gateway",
+      "expr": "sum(increase(gateway_transactions_processed_successfully{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
