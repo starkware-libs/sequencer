@@ -19,7 +19,7 @@ use starknet_api::block::BlockNumber;
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
-use tracing::{error, info};
+use tracing::{debug, error, info};
 
 use crate::cende_client_types::{
     CendeBlockMetadata,
@@ -154,14 +154,18 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                 _ = write_pre_confirmed_txs_timer.tick() => {
                     // Only send if there are pending changes to avoid unnecessary calls
                     if pending_changes {
-                        // TODO(noamsp): Extract to a function.
-                        let pre_confirmed_block = self.create_pre_confirmed_block(
-                            &transactions_map,
-                            next_write_iteration,
-                        );
-                        pending_tasks.push(self.cende_client.write_pre_confirmed_block(pre_confirmed_block));
-                        next_write_iteration += 1;
-                        pending_changes = false;
+                        // Check if there are any ongoing write tasks to avoid contention
+                        if pending_tasks.is_empty() {
+                            let pre_confirmed_block = self.create_pre_confirmed_block(
+                                &transactions_map,
+                                next_write_iteration,
+                            );
+                            pending_tasks.push(self.cende_client.write_pre_confirmed_block(pre_confirmed_block));
+                            next_write_iteration += 1;
+                            pending_changes = false;
+                        } else {
+                            debug!("Waiting another write cycle because write iteration {} is still ongoing", next_write_iteration - 1);
+                        }
                     }
                 }
 
@@ -182,8 +186,11 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                             pending_changes = true;
                         }
                         None => {
-                            info!("Pre confirmed tx channel closed");
-                            break;
+                            // TODO(noamsp): Improve logging to indicate that the channel is closed regardless of the checks below.
+                            if !pending_changes && pending_tasks.is_empty() {
+                                debug!("Pre confirmed tx channel closed");
+                                break;
+                            }
                         }
                     }
                 }
@@ -203,27 +210,13 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
                             }
                         }
                         None => {
-                            info!("Candidate tx channel closed");
-                            break;
+                            // TODO(noamsp): Improve logging to indicate that the channel is closed regardless of the checks below.
+                            if !pending_changes && pending_tasks.is_empty() {
+                                debug!("Candidate tx channel closed");
+                                break;
+                            }
                         }
                     }
-                }
-            }
-        }
-
-        if pending_changes {
-            let pre_confirmed_block =
-                self.create_pre_confirmed_block(&transactions_map, next_write_iteration);
-            self.cende_client.write_pre_confirmed_block(pre_confirmed_block).await?
-        }
-
-        // Wait for all pending tasks to complete gracefully.
-        // TODO(noamsp): Add timeout.
-        while let Some(result) = pending_tasks.next().await {
-            if let Err(error) = result {
-                if is_round_mismatch_error(&error, next_write_iteration) {
-                    pending_tasks.clear();
-                    return Err(error.into());
                 }
             }
         }
@@ -233,6 +226,7 @@ impl PreconfirmedBlockWriterTrait for PreconfirmedBlockWriter {
     }
 }
 
+// TODO(noamsp): Remove this since we only have one ongoing write task.
 fn is_round_mismatch_error(
     error: &PreconfirmedCendeClientError,
     next_write_iteration: u64,
