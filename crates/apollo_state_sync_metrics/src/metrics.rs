@@ -32,6 +32,7 @@ define_metrics!(
     },
     Infra => {
         LabeledMetricHistogram { STATE_SYNC_LABELED_PROCESSING_TIMES_SECS, "state_sync_labeled_processing_times_secs", "Request processing times of the state sync, per label (secs)", labels = STATE_SYNC_REQUEST_LABELS },
+        LabeledMetricHistogram { STATE_SYNC_LABELED_QUEUEING_TIMES_SECS, "state_sync_labeled_queueing_times_secs", "Request queueing times of the state sync, per label (secs)", labels = STATE_SYNC_REQUEST_LABELS },
     },
 );
 

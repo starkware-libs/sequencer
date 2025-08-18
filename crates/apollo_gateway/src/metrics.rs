@@ -32,6 +32,12 @@ define_metrics!(
             "Request processing times of the gateway, per label (secs)",
             labels = GATEWAY_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            GATEWAY_LABELED_QUEUEING_TIMES_SECS,
+            "gateway_labeled_queueing_times_secs",
+            "Request queueing times of the gateway, per label (secs)",
+            labels = GATEWAY_REQUEST_LABELS
+        },
     },
 );
 
