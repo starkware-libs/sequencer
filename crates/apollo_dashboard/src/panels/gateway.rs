@@ -65,6 +65,12 @@ fn get_panel_processing_times() -> Panel {
 fn get_panel_queueing_times() -> Panel {
     Panel::from_hist(GATEWAY_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
+fn get_panel_local_response_times() -> Panel {
+    todo!();
+}
+fn get_panel_remote_response_times() -> Panel {
+    todo!();
+}
 
 fn get_panel_gateway_transactions_received_by_source() -> Panel {
     Panel::new(
@@ -154,6 +160,8 @@ pub(crate) fn get_gateway_infra_row() -> Row {
             get_panel_remote_client_send_attempts(),
             get_panel_processing_times(),
             get_panel_queueing_times(),
+            get_panel_local_response_times(),
+            get_panel_remote_response_times(),
         ],
     )
 }

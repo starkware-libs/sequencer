@@ -45,6 +45,12 @@ fn get_panel_processing_times() -> Panel {
 fn get_panel_queueing_times() -> Panel {
     Panel::from_hist(L1_PROVIDER_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
+fn get_panel_local_response_times() -> Panel {
+    todo!();
+}
+fn get_panel_remote_response_times() -> Panel {
+    todo!();
+}
 
 fn get_panel_l1_message_scraper_success_count() -> Panel {
     Panel::from_counter(L1_MESSAGE_SCRAPER_SUCCESS_COUNT, PanelType::TimeSeries)
@@ -85,6 +91,8 @@ pub(crate) fn get_l1_provider_infra_row() -> Row {
             get_panel_remote_client_send_attempts(),
             get_panel_processing_times(),
             get_panel_queueing_times(),
+            get_panel_local_response_times(),
+            get_panel_remote_response_times(),
         ],
     )
 }

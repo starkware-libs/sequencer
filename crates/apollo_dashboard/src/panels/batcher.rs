@@ -86,6 +86,14 @@ fn get_panel_reverted_transaction_ratio() -> Panel {
     )
 }
 
+fn get_panel_local_response_times() -> Panel {
+    todo!();
+}
+
+fn get_panel_remote_response_times() -> Panel {
+    todo!();
+}
+
 pub(crate) fn get_batcher_row() -> Row {
     Row::new(
         "Batcher",
@@ -115,6 +123,8 @@ pub(crate) fn get_batcher_infra_row() -> Row {
             get_panel_remote_client_send_attempts(),
             get_panel_processing_times(),
             get_panel_queueing_times(),
+            get_panel_local_response_times(),
+            get_panel_remote_response_times(),
         ],
     )
 }

@@ -52,6 +52,12 @@ fn get_panel_processing_times() -> Panel {
 fn get_panel_queueing_times() -> Panel {
     Panel::from_hist(L1_GAS_PRICE_PROVIDER_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
+fn get_panel_local_response_times() -> Panel {
+    todo!();
+}
+fn get_panel_remote_response_times() -> Panel {
+    todo!();
+}
 
 fn get_panel_insufficient_history() -> Panel {
     Panel::from_counter(L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY, PanelType::Stat)
@@ -130,6 +136,8 @@ pub(crate) fn get_l1_gas_price_infra_row() -> Row {
             get_panel_remote_client_send_attempts(),
             get_panel_processing_times(),
             get_panel_queueing_times(),
+            get_panel_local_response_times(),
+            get_panel_remote_response_times(),
         ],
     )
 }

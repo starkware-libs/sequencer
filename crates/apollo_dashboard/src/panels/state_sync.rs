@@ -55,6 +55,12 @@ fn get_panel_processing_times() -> Panel {
 fn get_panel_queueing_times() -> Panel {
     Panel::from_hist(STATE_SYNC_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
+fn get_panel_local_response_times() -> Panel {
+    todo!();
+}
+fn get_panel_remote_response_times() -> Panel {
+    todo!();
+}
 
 fn get_panel_p2p_sync_num_connected_peers() -> Panel {
     Panel::from_gauge(P2P_SYNC_NUM_CONNECTED_PEERS, PanelType::Stat)
@@ -116,6 +122,8 @@ pub(crate) fn get_state_sync_infra_row() -> Row {
             get_panel_remote_client_send_attempts(),
             get_panel_processing_times(),
             get_panel_queueing_times(),
+            get_panel_local_response_times(),
+            get_panel_remote_response_times(),
         ],
     )
 }

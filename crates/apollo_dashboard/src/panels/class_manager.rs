@@ -43,6 +43,12 @@ fn get_panel_processing_times() -> Panel {
 fn get_panel_queueing_times() -> Panel {
     Panel::from_hist(CLASS_MANAGER_QUEUEING_TIMES_SECS, PanelType::TimeSeries)
 }
+fn get_panel_local_response_times() -> Panel {
+    todo!();
+}
+fn get_panel_remote_response_times() -> Panel {
+    todo!();
+}
 pub(crate) fn get_class_manager_infra_row() -> Row {
     Row::new(
         "Class Manager Infra",
@@ -57,6 +63,8 @@ pub(crate) fn get_class_manager_infra_row() -> Row {
             get_panel_remote_client_send_attempts(),
             get_panel_processing_times(),
             get_panel_queueing_times(),
+            get_panel_local_response_times(),
+            get_panel_remote_response_times(),
         ],
     )
 }
