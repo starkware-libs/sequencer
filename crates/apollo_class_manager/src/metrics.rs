@@ -63,6 +63,18 @@ define_metrics!(
             "Request queueing times of the class manager, per label (secs)",
             labels = CLASS_MANAGER_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+            "class_manager_labeled_local_response_times_secs",
+            "Request local response times of the class manager, per label (secs)",
+            labels = CLASS_MANAGER_REQUEST_LABELS
+        },
+        LabeledMetricHistogram {
+            CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+            "class_manager_labeled_remote_response_times_secs",
+            "Request remote response times of the class manager, per label (secs)",
+            labels = CLASS_MANAGER_REQUEST_LABELS
+        },
     },
 );
 

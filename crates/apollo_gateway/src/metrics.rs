@@ -38,6 +38,18 @@ define_metrics!(
             "Request queueing times of the gateway, per label (secs)",
             labels = GATEWAY_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+            "gateway_labeled_local_response_times_secs",
+            "Request local response times of the gateway, per label (secs)",
+            labels = GATEWAY_REQUEST_LABELS
+        },
+        LabeledMetricHistogram {
+            GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+            "gateway_labeled_remote_response_times_secs",
+            "Request remote response times of the gateway, per label (secs)",
+            labels = GATEWAY_REQUEST_LABELS
+        },
     },
 );
 

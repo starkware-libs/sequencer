@@ -8,6 +8,8 @@ define_metrics!(
     Infra => {
         LabeledMetricHistogram { SIERRA_COMPILER_LABELED_PROCESSING_TIMES_SECS, "sierra_compiler_labeled_processing_times_secs", "Request processing times of the sierra compiler, per label (secs)", labels = SIERRA_COMPILER_REQUEST_LABELS },
         LabeledMetricHistogram { SIERRA_COMPILER_LABELED_QUEUEING_TIMES_SECS, "sierra_compiler_labeled_queueing_times_secs", "Request queueing times of the sierra compiler, per label (secs)", labels = SIERRA_COMPILER_REQUEST_LABELS },
+        LabeledMetricHistogram { SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS, "sierra_compiler_labeled_local_response_times_secs", "Request local response times of the sierra compiler, per label (secs)", labels = SIERRA_COMPILER_REQUEST_LABELS },
+        LabeledMetricHistogram { SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS, "sierra_compiler_labeled_remote_response_times_secs", "Request remote response times of the sierra compiler, per label (secs)", labels = SIERRA_COMPILER_REQUEST_LABELS },
     },
 );
 
