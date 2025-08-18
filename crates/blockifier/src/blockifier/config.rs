@@ -1,10 +1,14 @@
 use std::collections::BTreeMap;
+use std::fmt;
 
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::de::value::{MapAccessDeserializer, SeqAccessDeserializer};
+use serde::de::{self, Deserializer, MapAccess, SeqAccess, Visitor};
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
+use starknet_types_core::felt::Felt;
 
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
@@ -180,10 +184,85 @@ impl SerializeConfig for ContractClassManagerConfig {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Serialize)]
 pub enum NativeClassesWhitelist {
     All,
     Limited(Vec<ClassHash>),
+}
+
+impl<'de> Deserialize<'de> for NativeClassesWhitelist {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct WhitelistVisitor;
+
+        impl<'de> Visitor<'de> for WhitelistVisitor {
+            type Value = NativeClassesWhitelist;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("\"All\" or a list of class hashes or {\"Limited\": [...]}")
+            }
+
+            fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                if v == "All" {
+                    Ok(NativeClassesWhitelist::All)
+                } else {
+                    Err(E::custom(format!(
+                        "invalid string for native_classes_whitelist: {} (expected \"All\")",
+                        v
+                    )))
+                }
+            }
+
+            fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                self.visit_str(&v)
+            }
+
+            fn visit_seq<A>(self, seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let vec: Vec<ClassHash> =
+                    Deserialize::deserialize(SeqAccessDeserializer::new(seq))?;
+                Ok(NativeClassesWhitelist::Limited(vec))
+            }
+
+            fn visit_map<M>(self, map: M) -> Result<Self::Value, M::Error>
+            where
+                M: MapAccess<'de>,
+            {
+                // Support legacy externally tagged enum form: { "Limited": [...] } or { "All": null
+                // }
+                #[derive(Deserialize)]
+                #[serde(untagged)]
+                enum Helper {
+                    All {
+                        #[serde(rename = "All")]
+                        _all: Option<serde::de::IgnoredAny>,
+                    },
+                    Limited {
+                        #[serde(rename = "Limited")]
+                        limited: Vec<ClassHash>,
+                    },
+                }
+
+                let helper = Helper::deserialize(MapAccessDeserializer::new(map))?;
+                match helper {
+                    Helper::All { .. } => Ok(NativeClassesWhitelist::All),
+                    Helper::Limited { limited } => Ok(NativeClassesWhitelist::Limited(limited)),
+                }
+            }
+        }
+
+        deserializer.deserialize_any(WhitelistVisitor)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
