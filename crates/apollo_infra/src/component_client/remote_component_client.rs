@@ -125,7 +125,7 @@ where
         config: RemoteClientConfig,
         url: &str,
         port: u16,
-        metrics: RemoteClientMetrics,
+        metrics: &'static RemoteClientMetrics,
     ) -> Self {
         let uri = format!("http://{url}:{port}/").parse().unwrap();
         let client = Client::builder()
@@ -134,7 +134,7 @@ where
             .pool_idle_timeout(Duration::from_millis(config.idle_timeout_ms))
             .build_http();
         debug!("RemoteComponentClient created with URI: {uri:?}");
-        Self { uri, client, config, metrics, _req: PhantomData, _res: PhantomData }
+        Self { uri, client, config, metrics: metrics.clone(), _req: PhantomData, _res: PhantomData }
     }
 
     fn construct_http_request(&self, serialized_request: Bytes) -> HyperRequest<Body> {

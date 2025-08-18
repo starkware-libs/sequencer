@@ -188,7 +188,7 @@ async fn setup_remote_server_test(
         config,
         &socket.ip().to_string(),
         socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
 
     (test_sem, remote_client)
