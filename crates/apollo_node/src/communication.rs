@@ -113,10 +113,16 @@ impl SequencerNodeCommunication {
 pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommunication {
     info!("Creating node channels.");
     let (tx_batcher, rx_batcher) =
-        match config.components.batcher.execution_mode.is_component_config_expected() {
+        match config.components.batcher.execution_mode.is_running_locally() {
             true => {
                 let (tx_batcher, rx_batcher) = channel::<BatcherRequestWrapper>(
-                    config.components.batcher.local_server_config.inbound_requests_channel_capacity,
+                    config
+                        .components
+                        .batcher
+                        .local_server_config
+                        .as_ref()
+                        .expect("Batcher local server config should be available.")
+                        .inbound_requests_channel_capacity,
                 );
                 (Some(tx_batcher), Some(rx_batcher))
             }
@@ -124,13 +130,15 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
         };
 
     let (tx_class_manager, rx_class_manager) =
-        match config.components.class_manager.execution_mode.is_component_config_expected() {
+        match config.components.class_manager.execution_mode.is_running_locally() {
             true => {
                 let (tx_class_manager, rx_class_manager) = channel::<ClassManagerRequestWrapper>(
                     config
                         .components
                         .class_manager
                         .local_server_config
+                        .as_ref()
+                        .expect("Class manager local server config should be available.")
                         .inbound_requests_channel_capacity,
                 );
                 (Some(tx_class_manager), Some(rx_class_manager))
@@ -139,10 +147,16 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
         };
 
     let (tx_gateway, rx_gateway) =
-        match config.components.gateway.execution_mode.is_component_config_expected() {
+        match config.components.gateway.execution_mode.is_running_locally() {
             true => {
                 let (tx_gateway, rx_gateway) = channel::<GatewayRequestWrapper>(
-                    config.components.gateway.local_server_config.inbound_requests_channel_capacity,
+                    config
+                        .components
+                        .gateway
+                        .local_server_config
+                        .as_ref()
+                        .expect("Gateway local server config should be available.")
+                        .inbound_requests_channel_capacity,
                 );
                 (Some(tx_gateway), Some(rx_gateway))
             }
@@ -150,7 +164,7 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
         };
 
     let (tx_l1_endpoint_monitor, rx_l1_endpoint_monitor) =
-        match config.components.l1_endpoint_monitor.execution_mode.is_component_config_expected() {
+        match config.components.l1_endpoint_monitor.execution_mode.is_running_locally() {
             true => {
                 let (tx_l1_endpoint_monitor, rx_l1_endpoint_monitor) =
                     channel::<L1EndpointMonitorRequestWrapper>(
@@ -158,6 +172,8 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
                             .components
                             .l1_endpoint_monitor
                             .local_server_config
+                            .as_ref()
+                            .expect("L1 endpoint monitor local server config should be available.")
                             .inbound_requests_channel_capacity,
                     );
                 (Some(tx_l1_endpoint_monitor), Some(rx_l1_endpoint_monitor))
@@ -165,30 +181,33 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             false => (None, None),
         };
 
-    let (tx_l1_provider, rx_l1_provider) = match config
-        .components
-        .l1_provider
-        .execution_mode
-        .is_component_config_expected()
-    {
-        true => {
-            let (tx_l1_provider, rx_l1_provider) = channel::<L1ProviderRequestWrapper>(
-                config.components.l1_provider.local_server_config.inbound_requests_channel_capacity,
-            );
-            (Some(tx_l1_provider), Some(rx_l1_provider))
-        }
-        false => (None, None),
-    };
+    let (tx_l1_provider, rx_l1_provider) =
+        match config.components.l1_provider.execution_mode.is_running_locally() {
+            true => {
+                let (tx_l1_provider, rx_l1_provider) = channel::<L1ProviderRequestWrapper>(
+                    config
+                        .components
+                        .l1_provider
+                        .local_server_config
+                        .as_ref()
+                        .expect("L1 provider local server config should be available.")
+                        .inbound_requests_channel_capacity,
+                );
+                (Some(tx_l1_provider), Some(rx_l1_provider))
+            }
+            false => (None, None),
+        };
 
     let (tx_l1_gas_price, rx_l1_gas_price) =
-        match config.components.l1_gas_price_provider.execution_mode.is_component_config_expected()
-        {
+        match config.components.l1_gas_price_provider.execution_mode.is_running_locally() {
             true => {
                 let (tx_l1_gas_price, rx_l1_gas_price) = channel::<L1GasPriceRequestWrapper>(
                     config
                         .components
                         .l1_gas_price_provider
                         .local_server_config
+                        .as_ref()
+                        .expect("L1 gas price_provider local server config should be available.")
                         .inbound_requests_channel_capacity,
                 );
                 (Some(tx_l1_gas_price), Some(rx_l1_gas_price))
@@ -197,10 +216,16 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
         };
 
     let (tx_mempool, rx_mempool) =
-        match config.components.mempool.execution_mode.is_component_config_expected() {
+        match config.components.mempool.execution_mode.is_running_locally() {
             true => {
                 let (tx_mempool, rx_mempool) = channel::<MempoolRequestWrapper>(
-                    config.components.mempool.local_server_config.inbound_requests_channel_capacity,
+                    config
+                        .components
+                        .mempool
+                        .local_server_config
+                        .as_ref()
+                        .expect("Mempool local server config should be available.")
+                        .inbound_requests_channel_capacity,
                 );
                 (Some(tx_mempool), Some(rx_mempool))
             }
@@ -208,7 +233,7 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
         };
 
     let (tx_mempool_p2p_propagator, rx_mempool_p2p_propagator) =
-        match config.components.mempool_p2p.execution_mode.is_component_config_expected() {
+        match config.components.mempool_p2p.execution_mode.is_running_locally() {
             true => {
                 let (tx_mempool_p2p_propagator, rx_mempool_p2p_propagator) =
                     channel::<MempoolP2pPropagatorRequestWrapper>(
@@ -216,6 +241,8 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
                             .components
                             .mempool_p2p
                             .local_server_config
+                            .as_ref()
+                            .expect("Mempool p2p local server config should be available.")
                             .inbound_requests_channel_capacity,
                     );
                 (Some(tx_mempool_p2p_propagator), Some(rx_mempool_p2p_propagator))
@@ -224,7 +251,7 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
         };
 
     let (tx_sierra_compiler, rx_sierra_compiler) =
-        match config.components.sierra_compiler.execution_mode.is_component_config_expected() {
+        match config.components.sierra_compiler.execution_mode.is_running_locally() {
             true => {
                 let (tx_sierra_compiler, rx_sierra_compiler) =
                     channel::<SierraCompilerRequestWrapper>(
@@ -232,6 +259,8 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
                             .components
                             .sierra_compiler
                             .local_server_config
+                            .as_ref()
+                            .expect("Sierra compiler local server config should be available.")
                             .inbound_requests_channel_capacity,
                     );
                 (Some(tx_sierra_compiler), Some(rx_sierra_compiler))
@@ -239,20 +268,22 @@ pub fn create_node_channels(config: &SequencerNodeConfig) -> SequencerNodeCommun
             false => (None, None),
         };
 
-    let (tx_state_sync, rx_state_sync) = match config
-        .components
-        .state_sync
-        .execution_mode
-        .is_component_config_expected()
-    {
-        true => {
-            let (tx_state_sync, rx_state_sync) = channel::<StateSyncRequestWrapper>(
-                config.components.state_sync.local_server_config.inbound_requests_channel_capacity,
-            );
-            (Some(tx_state_sync), Some(rx_state_sync))
-        }
-        false => (None, None),
-    };
+    let (tx_state_sync, rx_state_sync) =
+        match config.components.state_sync.execution_mode.is_running_locally() {
+            true => {
+                let (tx_state_sync, rx_state_sync) = channel::<StateSyncRequestWrapper>(
+                    config
+                        .components
+                        .state_sync
+                        .local_server_config
+                        .as_ref()
+                        .expect("State sync local server config should be available.")
+                        .inbound_requests_channel_capacity,
+                );
+                (Some(tx_state_sync), Some(rx_state_sync))
+            }
+            false => (None, None),
+        };
 
     SequencerNodeCommunication {
         batcher_channel: ComponentCommunication::new(tx_batcher, rx_batcher),
