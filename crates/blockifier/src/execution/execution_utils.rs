@@ -502,20 +502,17 @@ pub fn encode_and_blake_hash_resources(
     }
 }
 
-/// Estimates the L2 gas for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
+/// Converts the execution resources and blake opcode count to L2 gas.
 ///
 /// Used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations, which differ in
 /// builtin costs. This unified logic is valid because only the `range_check` builtin is used,
 /// and its cost is identical across provers (see `bouncer.get_tx_weights`).
-// TODO(AvivG): Remove this once estimation logic is moved to trait.
-pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
-    n_big_felts: usize,
-    n_small_felts: usize,
+// TODO(AvivG): Move inside blake estimation struct.
+pub fn blake_execution_resources_estimation_to_gas(
+    resources: EstimatedExecutionResources,
     versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
 ) -> GasAmount {
-    let resources = encode_and_blake_hash_resources(n_big_felts, n_small_felts);
-
     assert!(
         resources
             .resources()
