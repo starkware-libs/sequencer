@@ -122,6 +122,25 @@ define_metrics!(
     },
 );
 
+/// Metrics of a local client.
+#[derive(Clone)]
+pub struct LocalClientMetrics {
+    response_times: &'static LabeledMetricHistogram,
+}
+
+impl LocalClientMetrics {
+    pub const fn new(response_times: &'static LabeledMetricHistogram) -> Self {
+        Self { response_times }
+    }
+    pub fn register(&self) {
+        self.response_times.register();
+    }
+
+    pub fn record_response_time(&self, duration_secs: f64, request_label: &'static str) {
+        self.response_times.record(duration_secs, &[(LABEL_NAME_REQUEST_VARIANT, request_label)]);
+    }
+}
+
 /// Metrics of a remote client.
 #[derive(Clone)]
 pub struct RemoteClientMetrics {
