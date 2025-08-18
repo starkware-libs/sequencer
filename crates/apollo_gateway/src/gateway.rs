@@ -123,6 +123,8 @@ impl Gateway {
             self.mempool_client.add_tx(add_tx_args).await,
         )?;
 
+        metric_counters.count_transaction_processed_successfully();
+
         metric_counters.transaction_sent_to_mempool();
 
         Ok(gateway_output)
