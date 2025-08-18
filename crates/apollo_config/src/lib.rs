@@ -161,6 +161,7 @@ pub struct SerializedParam {
 impl SerializedParam {
     /// Whether the parameter is required.
     // TODO(yair): Find a better way to identify required params - maybe add to the dump.
+    // TODO(Tsabary): all params are required, and this mechanism needs to be removed.
     pub fn is_required(&self) -> bool {
         self.description.starts_with(REQUIRED_PARAM_DESCRIPTION_PREFIX)
     }

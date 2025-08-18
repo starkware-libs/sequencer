@@ -409,6 +409,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.batcher.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.batcher.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
@@ -438,6 +443,11 @@
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
+  },
+  "components.batcher.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.batcher.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -484,6 +494,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.class_manager.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.class_manager.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
@@ -513,6 +528,11 @@
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
+  },
+  "components.class_manager.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.class_manager.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -564,6 +584,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.gateway.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.gateway.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
@@ -593,6 +618,11 @@
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
+  },
+  "components.gateway.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.gateway.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -644,6 +674,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.l1_endpoint_monitor.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.l1_endpoint_monitor.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
@@ -673,6 +708,11 @@
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
+  },
+  "components.l1_endpoint_monitor.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.l1_endpoint_monitor.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -719,6 +759,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.l1_gas_price_provider.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.l1_gas_price_provider.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
@@ -748,6 +793,11 @@
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
+  },
+  "components.l1_gas_price_provider.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.l1_gas_price_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -799,6 +849,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.l1_provider.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
@@ -828,6 +883,11 @@
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
+  },
+  "components.l1_provider.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.l1_provider.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -879,6 +939,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.mempool.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.mempool.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
@@ -908,6 +973,11 @@
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
+  },
+  "components.mempool.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.mempool.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -954,6 +1024,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.mempool_p2p.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.mempool_p2p.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
@@ -983,6 +1058,11 @@
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
+  },
+  "components.mempool_p2p.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.mempool_p2p.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -1034,6 +1114,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.sierra_compiler.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.sierra_compiler.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
@@ -1063,6 +1148,11 @@
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
+  },
+  "components.sierra_compiler.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.sierra_compiler.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",
@@ -1109,6 +1199,11 @@
     "privacy": "Public",
     "value": "0.0.0.0"
   },
+  "components.state_sync.local_server_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": false
+  },
   "components.state_sync.local_server_config.high_priority_requests_channel_capacity": {
     "description": "The high priority requests channel capacity.",
     "privacy": "Public",
@@ -1138,6 +1233,11 @@
     "description": "Listening port of the remote component server.",
     "privacy": "Public",
     "value": 0
+  },
+  "components.state_sync.remote_client_config.#is_none": {
+    "description": "Flag for an optional field.",
+    "privacy": "TemporaryValue",
+    "value": true
   },
   "components.state_sync.remote_client_config.idle_connections": {
     "description": "The maximum number of idle connections to keep alive.",

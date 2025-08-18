@@ -385,9 +385,34 @@ impl NodeType {
         let component_configs = self.get_component_configs(ports);
         for (node_service, component_config) in component_configs {
             let components_in_service = node_service.get_components_in_service();
+
             let wrapper =
                 ComponentConfigsSerializationWrapper::new(component_config, components_in_service);
+
+            if node_service == NodeService::Hybrid(HybridNodeServiceName::L1) {
+                println!("\nITAY DEBUG: Dumping L1 component config wrapper\n {wrapper:#?}");
+            }
+
+            if node_service == NodeService::Hybrid(HybridNodeServiceName::L1) {
+                println!(
+                    "\nITAY DEBUG: Dumping L1 component config wrapper dumped\n {:#?}",
+                    wrapper.dump()
+                );
+            }
+
+            if node_service == NodeService::Hybrid(HybridNodeServiceName::L1) {
+                println!(
+                    "\nITAY DEBUG: Dumping L1 component config wrapper dumped json\n {:#?}",
+                    &json!(wrapper.dump())
+                );
+            }
+
             let flattened = config_to_preset(&json!(wrapper.dump()));
+
+            if node_service == NodeService::Hybrid(HybridNodeServiceName::L1) {
+                println!("ITAY DEBUG: Dumping L1 component config\n {flattened:?}");
+            }
+
             let file_path = node_service.get_service_file_path();
             writer(&flattened, &file_path);
         }
@@ -443,10 +468,47 @@ impl ComponentConfigsSerializationWrapper {
         ComponentConfigsSerializationWrapper { component_config, components_in_service }
     }
 }
+// prepend_sub_config_name(self.components.dump(), "components"),
+
+// TODO figure out why this doesn't delete the redundant values from the dumped configs.
 
 impl SerializeConfig for ComponentConfigsSerializationWrapper {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let mut map = prepend_sub_config_name(self.component_config.dump(), "components");
+
+        // println!("\nITAY DEBUG: before removing\n {:#?}", map);
+
+        // local_server_config.#is_none
+
+        // TODO(Tsabary): find a nicer way to drop the redundant values from the dumped configs.
+        let keys_to_potentially_drop = vec!["local_server_config", "remote_server_config"];
+
+        for key in keys_to_potentially_drop {
+            let potential_optional_entry_suffix = format!("{key}{FIELD_SEPARATOR}{IS_NONE_MARK}");
+            for (k, v) in map.iter() {
+                println!("key = {k}, value = {v:?}");
+                if k.ends_with(potential_optional_entry_suffix.as_str()) {
+                    println!("matches {potential_optional_entry_suffix}");
+                }
+            }
+        }
+
+        // for key in keys_to_potentially_drop {
+        //     let is_none_entry = format!("{key}{FIELD_SEPARATOR}{IS_NONE_MARK}");
+
+        //     let value = map.get(&is_none_entry);
+        //     if value.is_none() {
+
+        //         map.retain(|k, _| !(k.starts_with(key) && k != key));
+
+        //     }
+
+        // }
+
+        // println!("\nITAY DEBUG: after removing\n {:#?}", map);
+
+        // panic!("ITAY DEBUG: dumping component configs with map {:#?}", map);
+
         for component_config_in_service in ComponentConfigInService::iter() {
             if component_config_in_service == ComponentConfigInService::General {
                 // General configs are not toggle-able, i.e., no need to add their existence to the

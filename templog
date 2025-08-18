@@ -1,0 +1,3719 @@
+   Compiling apollo_deployments v0.15.0-rc.2 (/home/itay/workspace/sequencer4/crates/apollo_deployments)
+warning: unreachable statement
+   --> crates/apollo_deployments/src/service.rs:522:9
+    |
+520 |           panic!("ITAY DEBUG: dumping component configs with map {:#?}", map);
+    |           ------------------------------------------------------------------- any code following this expression is unreachable
+521 |           
+522 | /         for component_config_in_service in ComponentConfigInService::iter() {
+523 | |             if component_config_in_service == ComponentConfigInService::General {
+...   |
+539 | |         }
+    | |_________^ unreachable statement
+    |
+    = note: `-W unreachable-code` implied by `-W unused`
+    = help: to override `-W unused` add `#[allow(unreachable_code)]`
+
+warning: `apollo_deployments` (lib) generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 36.97s
+warning: the following packages contain code that will be rejected by a future version of Rust: size-of v0.1.5
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running `target/debug/deployment_generator`
+
+ITAY DEBUG: before removing
+ {
+    "components.batcher.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.batcher.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.batcher.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.class_manager.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.class_manager.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.consensus_manager.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.gateway.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.gateway.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.http_server.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_endpoint_monitor.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_gas_price_provider.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_gas_price_provider.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_scraper.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_provider.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_scraper.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool_p2p.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool_p2p.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.monitoring_endpoint.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.sierra_compiler.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.sierra_compiler.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.state_sync.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.state_sync.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+}
+key = components.batcher.local_server_config.#is_none, value = SerializedParam { description: "Flag for an optional field.", content: DefaultValue(Bool(false)), privacy: TemporaryValue }
+key = components.class_manager.local_server_config.#is_none, value = SerializedParam { description: "Flag for an optional field.", content: DefaultValue(Bool(false)), privacy: TemporaryValue }
+key = components.gateway.local_server_config.#is_none, value = SerializedParam { description: "Flag for an optional field.", content: DefaultValue(Bool(false)), privacy: TemporaryValue }
+key = components.l1_endpoint_monitor.local_server_config.#is_none, value = SerializedParam { description: "Flag for an optional field.", content: DefaultValue(Bool(false)), privacy: TemporaryValue }
+key = components.l1_gas_price_provider.local_server_config.#is_none, value = SerializedParam { description: "Flag for an optional field.", content: DefaultValue(Bool(false)), privacy: TemporaryValue }
+key = components.l1_provider.local_server_config.#is_none, value = SerializedParam { description: "Flag for an optional field.", content: DefaultValue(Bool(false)), privacy: TemporaryValue }
+key = components.mempool.local_server_config.#is_none, value = SerializedParam { description: "Flag for an optional field.", content: DefaultValue(Bool(false)), privacy: TemporaryValue }
+key = components.mempool_p2p.local_server_config.#is_none, value = SerializedParam { description: "Flag for an optional field.", content: DefaultValue(Bool(false)), privacy: TemporaryValue }
+key = components.sierra_compiler.local_server_config.#is_none, value = SerializedParam { description: "Flag for an optional field.", content: DefaultValue(Bool(false)), privacy: TemporaryValue }
+key = components.state_sync.local_server_config.#is_none, value = SerializedParam { description: "Flag for an optional field.", content: DefaultValue(Bool(false)), privacy: TemporaryValue }
+
+ITAY DEBUG: after removing
+ {
+    "components.batcher.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.batcher.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.batcher.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.class_manager.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.class_manager.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.consensus_manager.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.gateway.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.gateway.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.http_server.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_endpoint_monitor.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_gas_price_provider.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_gas_price_provider.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_scraper.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_provider.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_scraper.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool_p2p.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool_p2p.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.monitoring_endpoint.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.sierra_compiler.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.sierra_compiler.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.state_sync.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.state_sync.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+}
+
+thread 'main' panicked at crates/apollo_deployments/src/service.rs:520:9:
+ITAY DEBUG: dumping component configs with map {
+    "components.batcher.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.batcher.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.batcher.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.batcher.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.class_manager.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.class_manager.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.class_manager.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.consensus_manager.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.gateway.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.gateway.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.gateway.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.http_server.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_endpoint_monitor.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_endpoint_monitor.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_gas_price_provider.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_gas_price_provider.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_provider.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_gas_price_scraper.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_provider.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.l1_provider.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.l1_provider.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.l1_scraper.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.mempool.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool_p2p.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.mempool_p2p.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.mempool_p2p.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.monitoring_endpoint.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("Enabled"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.sierra_compiler.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.sierra_compiler.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.sierra_compiler.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.execution_mode": SerializedParam {
+        description: "The component execution mode.",
+        content: DefaultValue(
+            String("LocalExecutionWithRemoteDisabled"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.ip": SerializedParam {
+        description: "Binding address of the remote component server.",
+        content: DefaultValue(
+            String("0.0.0.0"),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(false),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.state_sync.local_server_config.high_priority_requests_channel_capacity": SerializedParam {
+        description: "The high priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.inbound_requests_channel_capacity": SerializedParam {
+        description: "The inbound requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.normal_priority_requests_channel_capacity": SerializedParam {
+        description: "The normal priority requests channel capacity.",
+        content: DefaultValue(
+            Number(1024),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.local_server_config.processing_time_warning_threshold_ms": SerializedParam {
+        description: "Request processing threshold time in ms after which a warning message is logged.",
+        content: DefaultValue(
+            Number(3000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.max_concurrency": SerializedParam {
+        description: "The maximum number of concurrent requests handling.",
+        content: DefaultValue(
+            Number(128),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.port": SerializedParam {
+        description: "Listening port of the remote component server.",
+        content: DefaultValue(
+            Number(0),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.#is_none": SerializedParam {
+        description: "Flag for an optional field.",
+        content: DefaultValue(
+            Bool(true),
+        ),
+        privacy: TemporaryValue,
+    },
+    "components.state_sync.remote_client_config.idle_connections": SerializedParam {
+        description: "The maximum number of idle connections to keep alive.",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.idle_timeout_ms": SerializedParam {
+        description: "The duration in milliseconds to keep an idle connection open before closing.",
+        content: DefaultValue(
+            Number(30000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.initial_retry_delay_ms": SerializedParam {
+        description: "Initial delay before first retry in milliseconds",
+        content: DefaultValue(
+            Number(1),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.log_attempt_interval_ms": SerializedParam {
+        description: "Number of attempts between failure log messages",
+        content: DefaultValue(
+            Number(10),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.max_retry_interval_ms": SerializedParam {
+        description: "The maximal duration in milliseconds to wait between remote connection retries.",
+        content: DefaultValue(
+            Number(1000),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.remote_client_config.retries": SerializedParam {
+        description: "The max number of retries for sending a message.",
+        content: DefaultValue(
+            Number(150),
+        ),
+        privacy: Public,
+    },
+    "components.state_sync.url": SerializedParam {
+        description: "URL of the remote component server.",
+        content: DefaultValue(
+            String("localhost"),
+        ),
+        privacy: Public,
+    },
+}
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
