@@ -5,6 +5,7 @@ use tokio::sync::mpsc::{channel, Sender};
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentClient, RequestWrapper};
+use crate::metrics::LocalClientMetrics;
 
 /// The `LocalComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously using Tokio mspc channels.
@@ -14,6 +15,7 @@ where
     Response: Send,
 {
     tx: Sender<RequestWrapper<Request, Response>>,
+    metrics: &'static LocalClientMetrics,
 }
 
 impl<Request, Response> LocalComponentClient<Request, Response>
@@ -21,8 +23,11 @@ where
     Request: Send,
     Response: Send,
 {
-    pub fn new(tx: Sender<RequestWrapper<Request, Response>>) -> Self {
-        Self { tx }
+    pub fn new(
+        tx: Sender<RequestWrapper<Request, Response>>,
+        metrics: &'static LocalClientMetrics,
+    ) -> Self {
+        Self { tx, metrics }
     }
 }
 
@@ -49,6 +54,6 @@ where
     Response: Send,
 {
     fn clone(&self) -> Self {
-        Self { tx: self.tx.clone() }
+        Self { tx: self.tx.clone(), metrics: self.metrics }
     }
 }

@@ -25,7 +25,12 @@ use tokio::sync::{Mutex, Semaphore};
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentRequestHandler, ComponentStarter, PrioritizedRequest};
-use crate::metrics::{LocalServerMetrics, RemoteClientMetrics, RemoteServerMetrics};
+use crate::metrics::{
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+};
 use crate::requests::LABEL_NAME_REQUEST_VARIANT;
 use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 
@@ -137,6 +142,17 @@ pub(crate) const TEST_REMOTE_SERVER_METRICS: RemoteServerMetrics = RemoteServerM
 
 pub(crate) const TEST_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
     RemoteClientMetrics::new(&EXAMPLE_HISTOGRAM_METRIC);
+
+// Define mock local client metrics.
+const TEST_LOCAL_CLIENT_RESPONSE_TIMES: LabeledMetricHistogram = LabeledMetricHistogram::new(
+    MetricScope::Infra,
+    "test_local_client_response_times",
+    "Test local client response times histogram",
+    COMPONENT_A_REQUEST_LABELS,
+);
+
+pub(crate) const TEST_LOCAL_CLIENT_METRICS: LocalClientMetrics =
+    LocalClientMetrics::new(&TEST_LOCAL_CLIENT_RESPONSE_TIMES);
 
 // Define the shared fixture
 pub static AVAILABLE_PORTS: Lazy<Arc<Mutex<AvailablePorts>>> = Lazy::new(|| {
