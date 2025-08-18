@@ -25,6 +25,7 @@ use starknet_types_core::felt::Felt;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
@@ -476,7 +477,7 @@ pub fn encode_and_blake_hash_resources(
     // TODO(AvivG): Refactor to use `FeltSizeCount`.
     n_big_felts: usize,
     n_small_felts: usize,
-) -> (ExecutionResources, usize) {
+) -> EstimatedExecutionResources {
     let n_felts =
         n_big_felts.checked_add(n_small_felts).expect("Overflow computing total number of felts");
 
@@ -495,9 +496,10 @@ pub fn encode_and_blake_hash_resources(
         },
     };
 
-    let blake_opcode_count = count_blake_opcode(n_big_felts, n_small_felts);
-
-    (resources, blake_opcode_count)
+    EstimatedExecutionResources::V2Hash {
+        resources,
+        blake_count: count_blake_opcode(n_big_felts, n_small_felts),
+    }
 }
 
 /// Estimates the L2 gas for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
@@ -512,19 +514,23 @@ pub fn cost_of_encode_felt252_data_and_calc_blake_hash(
     versioned_constants: &VersionedConstants,
     blake_opcode_gas: usize,
 ) -> GasAmount {
-    let (vm_resources, blake_opcode_count) =
-        encode_and_blake_hash_resources(n_big_felts, n_small_felts);
+    let resources = encode_and_blake_hash_resources(n_big_felts, n_small_felts);
 
     assert!(
-        vm_resources.builtin_instance_counter.keys().all(|&k| k == BuiltinName::range_check),
+        resources
+            .resources()
+            .builtin_instance_counter
+            .keys()
+            .all(|&k| k == BuiltinName::range_check),
         "Expected either empty builtins or only `range_check` builtin, got: {:?}. This breaks the \
          assumption that builtin costs are identical between provers.",
-        vm_resources.builtin_instance_counter.keys().collect::<Vec<_>>()
+        resources.resources().builtin_instance_counter.keys().collect::<Vec<_>>()
     );
 
-    let vm_gas = vm_resources_to_sierra_gas(&vm_resources, versioned_constants);
+    let vm_gas = vm_resources_to_sierra_gas(resources.resources(), versioned_constants);
 
-    let blake_opcode_gas = blake_opcode_count
+    let blake_opcode_gas = resources
+        .blake_count()
         .checked_mul(blake_opcode_gas)
         .map(u64_from_usize)
         .map(GasAmount)
