@@ -4,6 +4,7 @@ from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE, TRUE
 from starkware.cairo.common.cairo_builtins import (
     BitwiseBuiltin,
+    EcOpBuiltin,
     HashBuiltin,
     KeccakBuiltin,
     ModBuiltin,
@@ -71,7 +72,7 @@ func main{
     range_check_ptr,
     ecdsa_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    ec_op_ptr,
+    ec_op_ptr: EcOpBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
@@ -229,7 +230,7 @@ func execute_blocks{
     range_check_ptr,
     ecdsa_ptr,
     bitwise_ptr: BitwiseBuiltin*,
-    ec_op_ptr,
+    ec_op_ptr: EcOpBuiltin*,
     keccak_ptr: KeccakBuiltin*,
     poseidon_ptr: PoseidonBuiltin*,
     range_check96_ptr: felt*,
