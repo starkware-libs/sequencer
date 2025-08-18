@@ -55,6 +55,7 @@ use crate::tests::{
     ValueA,
     ValueB,
     AVAILABLE_PORTS,
+    TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
     TEST_REMOTE_CLIENT_METRICS,
     TEST_REMOTE_SERVER_METRICS,
@@ -345,8 +346,14 @@ async fn setup_for_tests(
     let (tx_a, rx_a) = channel::<RequestWrapper<ComponentARequest, ComponentAResponse>>(32);
     let (tx_b, rx_b) = channel::<RequestWrapper<ComponentBRequest, ComponentBResponse>>(32);
 
-    let a_local_client = LocalComponentClient::<ComponentARequest, ComponentAResponse>::new(tx_a);
-    let b_local_client = LocalComponentClient::<ComponentBRequest, ComponentBResponse>::new(tx_b);
+    let a_local_client = LocalComponentClient::<ComponentARequest, ComponentAResponse>::new(
+        tx_a,
+        &TEST_LOCAL_CLIENT_METRICS,
+    );
+    let b_local_client = LocalComponentClient::<ComponentBRequest, ComponentBResponse>::new(
+        tx_b,
+        &TEST_LOCAL_CLIENT_METRICS,
+    );
 
     let config = LocalServerConfig::default();
     let mut component_a_local_server =
