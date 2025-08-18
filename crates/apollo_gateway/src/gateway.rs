@@ -116,6 +116,8 @@ impl Gateway {
                     );
                 })?;
 
+        metric_counters.count_transaction_processed_successfully();
+
         let gateway_output = create_gateway_output(&add_tx_args.tx);
 
         let add_tx_args = AddTransactionArgsWrapper { args: add_tx_args, p2p_message_metadata };
