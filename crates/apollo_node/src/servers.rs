@@ -121,8 +121,8 @@ use apollo_l1_gas_price::communication::{
     RemoteL1GasPriceServer,
 };
 use apollo_l1_gas_price::metrics::{
-    L1_GAS_PRICE_LABELED_PROCESSING_TIMES_SECS,
-    L1_GAS_PRICE_LABELED_QUEUEING_TIMES_SECS,
+    L1_GAS_PRICE_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
+    L1_GAS_PRICE_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
 };
 use apollo_l1_provider::communication::{
     L1ScraperServer,
@@ -493,8 +493,8 @@ fn create_local_servers(
         &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_RECEIVED,
         &L1_GAS_PRICE_PROVIDER_LOCAL_MSGS_PROCESSED,
         &L1_GAS_PRICE_PROVIDER_LOCAL_QUEUE_DEPTH,
-        &L1_GAS_PRICE_LABELED_PROCESSING_TIMES_SECS,
-        &L1_GAS_PRICE_LABELED_QUEUEING_TIMES_SECS,
+        &L1_GAS_PRICE_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
+        &L1_GAS_PRICE_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
     );
     let l1_gas_price_provider_server = create_local_server!(
         REGULAR_LOCAL_SERVER,
