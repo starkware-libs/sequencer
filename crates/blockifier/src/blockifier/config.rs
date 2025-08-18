@@ -3,8 +3,11 @@ use std::collections::BTreeMap;
 use apollo_compile_to_native_types::SierraCompilationConfig;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use serde::de::{self, Deserializer};
+use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::core::ClassHash;
+use starknet_types_core::felt::Felt;
 
 use crate::blockifier::transaction_executor::DEFAULT_STACK_SIZE;
 use crate::state::contract_class_manager::DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE;
@@ -180,10 +183,82 @@ impl SerializeConfig for ContractClassManagerConfig {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum NativeClassesWhitelist {
     All,
     Limited(Vec<ClassHash>),
+}
+
+impl<'de> Deserialize<'de> for NativeClassesWhitelist {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw: String = <String as serde::Deserialize>::deserialize(deserializer)?;
+
+        if raw == "All" {
+            return Ok(NativeClassesWhitelist::All);
+        }
+
+        // Accept a stringified list of hex values, e.g. "[0x1234, 0x5678]".
+        // Also tolerate quotes around individual items: "[\"0x1234\", 0x5678]".
+        let trimmed = raw.trim();
+        if !(trimmed.starts_with('[') && trimmed.ends_with(']')) {
+            return Err(de::Error::custom(format!(
+                "invalid native_classes_whitelist string: expected \"All\" or stringified list like \"[0x.., 0x..]\", got: {}",
+                raw
+            )));
+        }
+
+        let inner = &trimmed[1..trimmed.len() - 1];
+        let mut hashes: Vec<ClassHash> = Vec::new();
+        let inner = inner.trim();
+        if inner.is_empty() {
+            return Ok(NativeClassesWhitelist::Limited(hashes));
+        }
+
+        for part in inner.split(',') {
+            let token = part.trim();
+            if token.is_empty() {
+                return Err(de::Error::custom(
+                    "invalid native_classes_whitelist string: empty element in list",
+                ));
+            }
+            // Expect hex values with 0x/0X prefix.
+            if !(token.starts_with("0x") || token.starts_with("0X")) {
+                return Err(de::Error::custom(format!(
+                    "invalid class hash (missing 0x prefix): {}",
+                    token
+                )));
+            }
+            let felt = Felt::from_hex(token)
+                .map_err(|_| de::Error::custom(format!("invalid hex in class hash: {}", token)))?;
+            hashes.push(ClassHash(felt));
+        }
+
+        Ok(NativeClassesWhitelist::Limited(hashes))
+    }
+}
+
+impl Serialize for NativeClassesWhitelist {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            NativeClassesWhitelist::All => serializer.serialize_str("All"),
+            NativeClassesWhitelist::Limited(vec) => {
+                // Serialize as stringified list of bare hexes: "[0x..., 0x...]"
+                let joined = vec
+                    .iter()
+                    .map(|h| h.0.to_hex_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let s = format!("[{}]", joined);
+                serializer.serialize_str(&s)
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
@@ -212,6 +287,14 @@ impl Default for CairoNativeRunConfig {
 
 impl SerializeConfig for CairoNativeRunConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        // For schema compatibility: serialize whitelist as a string by reusing Serialize.
+        // The Serialize impl returns a string; extract it from serde_json::Value to avoid
+        // double-quoting that serde_json::to_string would introduce.
+        let whitelist_dump: String = serde_json::to_value(&self.native_classes_whitelist)
+            .expect("Should serialize whitelist to a JSON value")
+            .as_str()
+            .expect("Whitelist should serialize to a JSON string")
+            .to_owned();
         BTreeMap::from_iter([
             ser_param(
                 "run_cairo_native",
@@ -233,7 +316,7 @@ impl SerializeConfig for CairoNativeRunConfig {
             ),
             ser_param(
                 "native_classes_whitelist",
-                &self.native_classes_whitelist,
+                &whitelist_dump,
                 "Contracts for Cairo Specifies whether to execute all class hashes or only a \
                  limited selection using Cairo native contracts. If limited, a specific list of \
                  class hashes is provided. compilation.",
@@ -246,5 +329,82 @@ impl SerializeConfig for CairoNativeRunConfig {
                 ParamPrivacyInput::Public,
             ),
         ])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json;
+
+    #[test]
+    fn round_trip_all_serializes_as_string_and_back() {
+        let value = NativeClassesWhitelist::All;
+        let json = serde_json::to_string(&value).expect("serialize");
+        assert_eq!(json, "\"All\"");
+        let back: NativeClassesWhitelist = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back, value);
+    }
+
+    #[test]
+    fn round_trip_limited_serializes_and_back() {
+        let hashes = vec![
+            ClassHash(Felt::from_hex_unchecked("0x1234")),
+            ClassHash(Felt::from_hex_unchecked("0x5678")),
+        ];
+        let value = NativeClassesWhitelist::Limited(hashes.clone());
+        let json = serde_json::to_string(&value).expect("serialize");
+        let back: NativeClassesWhitelist = serde_json::from_str(&json).expect("deserialize");
+        assert_eq!(back, value);
+    }
+
+    #[test]
+    fn deserialize_stringified_bare_hex_list_into_limited() {
+        let json = "\"[0x1234, 0x5678]\"";
+        let value: NativeClassesWhitelist = serde_json::from_str(json).expect("deserialize");
+        match value {
+            NativeClassesWhitelist::Limited(vec) => {
+                assert_eq!(
+                    vec,
+                    vec![
+                        ClassHash(Felt::from_hex_unchecked("0x1234")),
+                        ClassHash(Felt::from_hex_unchecked("0x5678")),
+                    ]
+                );
+            }
+            _ => panic!("expected Limited variant"),
+        }
+    }
+
+    #[test]
+    fn reject_legacy_object_all() {
+        let json = "{\"All\": null}";
+        let res: Result<NativeClassesWhitelist, _> = serde_json::from_str(json);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn reject_legacy_object_limited() {
+        let json = "{\"Limited\": [\"0x1234\"]}";
+        let res: Result<NativeClassesWhitelist, _> = serde_json::from_str(json);
+        assert!(res.is_err());
+    }
+
+    #[test]
+    fn deserialize_stringified_array_into_limited() {
+        let json = "\"[0x1234, 0x5678]\"";
+        let value: NativeClassesWhitelist = serde_json::from_str(json).expect("deserialize");
+        match value {
+            NativeClassesWhitelist::Limited(vec) => {
+                assert_eq!(
+                    vec,
+                    vec![
+                        ClassHash(Felt::from_hex_unchecked("0x1234")),
+                        ClassHash(Felt::from_hex_unchecked("0x5678")),
+                    ]
+                );
+            }
+            _ => panic!("expected Limited variant"),
+        }
     }
 }
