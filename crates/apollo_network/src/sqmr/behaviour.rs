@@ -101,10 +101,6 @@ pub enum Event {
 #[error("The given session ID doesn't exist.")]
 pub struct SessionIdNotFoundError;
 
-#[derive(thiserror::Error, Debug)]
-#[error("We are not connected to the given peer. Dial to the given peer and try again.")]
-pub struct PeerNotConnected;
-
 pub struct Behaviour {
     config: Config,
     pending_events: VecDeque<ToSwarm<Event, RequestFromBehaviourEvent>>,
