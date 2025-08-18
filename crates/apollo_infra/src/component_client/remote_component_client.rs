@@ -105,7 +105,7 @@ where
     uri: Uri,
     client: Client<hyper::client::HttpConnector>,
     config: RemoteClientConfig,
-    metrics: RemoteClientMetrics,
+    metrics: &'static RemoteClientMetrics,
     // [`RemoteComponentClient<Request,Response>`] should be [`Send + Sync`] while [`Request`] and
     // [`Response`] are only [`Send`]. [`Phantom<T>`] is [`Send + Sync`] only if [`T`] is, despite
     // this bound making no sense as the phantom data field is unused. As such, we wrap it as
@@ -125,7 +125,7 @@ where
         config: RemoteClientConfig,
         url: &str,
         port: u16,
-        metrics: RemoteClientMetrics,
+        metrics: &'static RemoteClientMetrics,
     ) -> Self {
         let uri = format!("http://{url}:{port}/").parse().unwrap();
         let client = Client::builder()
@@ -259,7 +259,7 @@ where
             uri: self.uri.clone(),
             client: self.client.clone(),
             config: self.config.clone(),
-            metrics: self.metrics.clone(),
+            metrics: self.metrics,
             _req: PhantomData,
             _res: PhantomData,
         }
