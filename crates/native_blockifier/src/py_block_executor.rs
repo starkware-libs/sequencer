@@ -13,7 +13,9 @@ use blockifier::blockifier_versioned_constants::VersionedConstants;
 use blockifier::bouncer::BouncerConfig;
 use blockifier::context::{BlockContext, ChainInfo, FeeTokenAddresses};
 use blockifier::state::contract_class_manager::ContractClassManager;
+use blockifier::state::state_api::StateReader;
 use blockifier::state::state_reader_and_contract_manager::StateReaderAndContractManager;
+use blockifier::transaction::account_transaction::AccountTransaction;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use blockifier::transaction::transaction_execution::Transaction;
 use pyo3::prelude::*;
@@ -21,8 +23,10 @@ use pyo3::types::{PyBytes, PyList};
 use pyo3::{FromPyObject, PyAny, Python};
 use shared_execution_objects::central_objects::CentralTransactionExecutionInfo;
 use starknet_api::block::BlockNumber;
-use starknet_api::contract_class::SierraVersion;
-use starknet_api::core::{ChainId, ContractAddress};
+use starknet_api::contract_class::compiled_class_hash::{HashVersion, HashableCompiledClass};
+use starknet_api::contract_class::{ContractClass, SierraVersion};
+use starknet_api::core::{ChainId, CompiledClassHash, ContractAddress};
+use starknet_api::executable_transaction::AccountTransaction as ExecTx;
 use starknet_types_core::felt::Felt;
 
 use crate::errors::{NativeBlockifierError, NativeBlockifierResult};
@@ -181,6 +185,9 @@ impl PyBlockExecutor {
                 py_tx(tx, optional_py_class_info).expect(PY_TX_PARSING_ERR)
             })
             .collect();
+
+        // store compiled_class_hash_v2 for every declared class.
+        self.store_declared_compiled_class_hashes_v2(&txs);
 
         // Run.
         let results =
@@ -407,6 +414,50 @@ impl PyBlockExecutor {
                 ContractClassManagerConfig::default(),
             ),
         }
+    }
+
+    fn store_declared_compiled_class_hashes_v2(&mut self, txs: &[Transaction]) {
+        txs.iter()
+            .filter_map(|tx| {
+                let Transaction::Account(AccountTransaction {
+                    tx: ExecTx::Declare(declare_tx),
+                    ..
+                }) = tx
+                else {
+                    return None;
+                };
+                let ContractClass::V1((casm, _)) = &declare_tx.class_info.contract_class else {
+                    return None;
+                };
+                Some((declare_tx.class_hash(), casm.hash(&HashVersion::V2)))
+            })
+            .for_each(|(class_hash, compiled_v2)| {
+                self.storage.set_executable_class_hash_v2(&class_hash, compiled_v2).unwrap_or_else(
+                    |e| panic!("set_executable_class_hash_v2 failed for {class_hash:?}: {e}"),
+                );
+
+                // Print and assert the result for every class hash of declare tx
+                let actual_compiled_v2 = self
+                    .tx_executor
+                    .as_ref()
+                    .unwrap()
+                    .block_state
+                    .as_ref()
+                    .unwrap()
+                    .get_compiled_class_hash_v2(class_hash)
+                    .unwrap();
+
+                assert_ne!(
+                    actual_compiled_v2,
+                    CompiledClassHash::default(),
+                    "Compiled class hash should not be default for class hash {class_hash:?}",
+                );
+                assert_eq!(
+                    actual_compiled_v2, compiled_v2,
+                    "Compiled class hash should be the same for class hash {class_hash:?} got: \
+                     {actual_compiled_v2:?} expected: {compiled_v2:?}",
+                );
+            });
     }
 
     #[cfg(test)]

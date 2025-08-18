@@ -118,7 +118,8 @@ impl<S: FetchCompiledClasses> StateReader for StateReaderAndContractManager<S> {
                     compiled_class_hash,
                     CompiledClassHash::default(),
                     "Default compiled class hash is for marking classes that are not declared or \
-                     cairo0 classes."
+                     cairo0 classes. class_hash: {class_hash:?} state_reader: {}",
+                    std::any::type_name_of_val(&self.state_reader)
                 );
                 // Store in cache.
                 self.contract_class_manager
