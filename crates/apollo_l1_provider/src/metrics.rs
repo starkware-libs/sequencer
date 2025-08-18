@@ -20,6 +20,18 @@ define_metrics!(
             "Request queueing times of the L1 provider, per label (secs)",
             labels = L1_PROVIDER_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+            "l1_provider_labeled_local_response_times_secs",
+            "Request local response times of the L1 provider, per label (secs)",
+            labels = L1_PROVIDER_REQUEST_LABELS
+        },
+        LabeledMetricHistogram {
+            L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+            "l1_provider_labeled_remote_response_times_secs",
+            "Request remote response times of the L1 provider, per label (secs)",
+            labels = L1_PROVIDER_REQUEST_LABELS
+        },
     },
 );
 

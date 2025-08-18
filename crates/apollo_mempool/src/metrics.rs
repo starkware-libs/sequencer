@@ -35,6 +35,18 @@ define_metrics!(
             "Request queueing times of the mempool, per label (secs)",
             labels = MEMPOOL_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+            "mempool_labeled_local_response_times_secs",
+            "Request local response times of the mempool, per label (secs)",
+            labels = MEMPOOL_REQUEST_LABELS
+        },
+        LabeledMetricHistogram {
+            MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+            "mempool_labeled_remote_response_times_secs",
+            "Request remote response times of the mempool, per label (secs)",
+            labels = MEMPOOL_REQUEST_LABELS
+        },
     },
 );
 
