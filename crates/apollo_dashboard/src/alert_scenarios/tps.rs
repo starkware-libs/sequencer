@@ -47,7 +47,7 @@ pub(crate) fn get_http_server_no_successful_transactions() -> Alert {
         "http server no successful transactions",
         AlertGroup::HttpServer,
         &ADDED_TRANSACTIONS_SUCCESS.get_name_with_filter(),
-        Duration::from_secs(10 * SECS_IN_MIN),
+        Duration::from_secs(30 * SECS_IN_MIN),
     )
 }
 
