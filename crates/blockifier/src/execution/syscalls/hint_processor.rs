@@ -205,33 +205,51 @@ impl SyscallExecutionError {
 }
 
 /// Error codes returned by Cairo 1.0 code.
+///
+/// Utility macro to define a constant Felt error value and its string representation.
+/// Example: `const_felt_error!(MY_ERR, "0xbee")` will output
+/// ```
+/// pub const MY_ERR: &str = "0xbee";
+/// pub const MY_ERR_FELT: starknet_types_core::felt::Felt =
+///     starknet_types_core::felt::Felt::from_hex_unchecked(MY_ERR);
+/// ```
+macro_rules! const_felt_error {
+    ($name:ident, $value:expr) => {
+        pub const $name: &str = $value;
+        paste::paste! { pub const [<$name _FELT>]: Felt = Felt::from_hex_unchecked($name); }
+    };
+}
+
 // "Out of gas";
-pub const OUT_OF_GAS_ERROR: &str =
-    "0x000000000000000000000000000000000000000000004f7574206f6620676173";
-pub const OUT_OF_GAS_ERROR_FELT: Felt = Felt::from_hex_unchecked(OUT_OF_GAS_ERROR);
+const_felt_error!(
+    OUT_OF_GAS_ERROR,
+    "0x000000000000000000000000000000000000000000004f7574206f6620676173"
+);
 // "Block number out of range";
-pub const BLOCK_NUMBER_OUT_OF_RANGE_ERROR: &str =
-    "0x00000000000000426c6f636b206e756d626572206f7574206f662072616e6765";
-pub const BLOCK_NUMBER_OUT_OF_RANGE_ERROR_FELT: Felt =
-    Felt::from_hex_unchecked(BLOCK_NUMBER_OUT_OF_RANGE_ERROR);
+const_felt_error!(
+    BLOCK_NUMBER_OUT_OF_RANGE_ERROR,
+    "0x00000000000000426c6f636b206e756d626572206f7574206f662072616e6765"
+);
 // "ENTRYPOINT_NOT_FOUND";
-pub const ENTRYPOINT_NOT_FOUND_ERROR: &str =
-    "0x000000000000000000000000454e545259504f494e545f4e4f545f464f554e44";
-pub const ENTRYPOINT_NOT_FOUND_ERROR_FELT: Felt =
-    Felt::from_hex_unchecked(ENTRYPOINT_NOT_FOUND_ERROR);
+const_felt_error!(
+    ENTRYPOINT_NOT_FOUND_ERROR,
+    "0x000000000000000000000000454e545259504f494e545f4e4f545f464f554e44"
+);
 // "ENTRYPOINT_FAILED";
-pub const ENTRYPOINT_FAILED_ERROR: &str =
-    "0x000000000000000000000000000000454e545259504f494e545f4641494c4544";
-pub const ENTRYPOINT_FAILED_ERROR_FELT: Felt = Felt::from_hex_unchecked(ENTRYPOINT_FAILED_ERROR);
+const_felt_error!(
+    ENTRYPOINT_FAILED_ERROR,
+    "0x000000000000000000000000000000454e545259504f494e545f4641494c4544"
+);
 // "Invalid input length";
-pub const INVALID_INPUT_LENGTH_ERROR: &str =
-    "0x000000000000000000000000496e76616c696420696e707574206c656e677468";
-pub const INVALID_INPUT_LENGTH_ERROR_FELT: Felt =
-    Felt::from_hex_unchecked(INVALID_INPUT_LENGTH_ERROR);
+const_felt_error!(
+    INVALID_INPUT_LENGTH_ERROR,
+    "0x000000000000000000000000496e76616c696420696e707574206c656e677468"
+);
 // "Invalid argument";
-pub const INVALID_ARGUMENT: &str =
-    "0x00000000000000000000000000000000496e76616c696420617267756d656e74";
-pub const INVALID_ARGUMENT_FELT: Felt = Felt::from_hex_unchecked(INVALID_ARGUMENT);
+const_felt_error!(
+    INVALID_ARGUMENT,
+    "0x00000000000000000000000000000000496e76616c696420617267756d656e74"
+);
 
 /// Executes Starknet syscalls (stateful protocol hints) during the execution of an entry point
 /// call.
