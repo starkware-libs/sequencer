@@ -38,7 +38,7 @@ use crate::execution::errors::EntryPointExecutionError;
 use crate::execution::native::utils::{calculate_resource_bounds, default_tx_v2_info};
 use crate::execution::secp;
 use crate::execution::syscalls::common_syscall_logic::base_keccak;
-use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR};
+use crate::execution::syscalls::hint_processor::{SyscallExecutionError, OUT_OF_GAS_ERROR_FELT};
 use crate::execution::syscalls::syscall_base::SyscallHandlerBase;
 use crate::execution::syscalls::vm_syscall_utils::{
     SelfOrRevert,
@@ -110,10 +110,7 @@ impl<'state> NativeSyscallHandler<'state> {
 
         if *remaining_gas < required_gas {
             // Out of gas failure.
-            return Err(vec![
-                Felt::from_hex(OUT_OF_GAS_ERROR)
-                    .expect("Failed to parse OUT_OF_GAS_ERROR hex string"),
-            ]);
+            return Err(vec![OUT_OF_GAS_ERROR_FELT]);
         }
 
         *remaining_gas -= required_gas;
