@@ -112,8 +112,6 @@ pub struct NodeSetup {
     storage_handles: StorageTestHandles,
 }
 
-// TODO(Nadin): reduce the number of arguments.
-#[allow(clippy::too_many_arguments)]
 impl NodeSetup {
     pub fn new(
         executables: Vec<ExecutableSetup>,
