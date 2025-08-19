@@ -1,9 +1,13 @@
+use std::collections::HashMap;
 use std::ops::AddAssign;
 
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
 use starknet_api::execution_resources::GasAmount;
 
+use crate::blockifier_versioned_constants::VersionedConstants;
+use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::contract_class::{
     EntryPointV1,
     EntryPointsByType,
@@ -199,4 +203,126 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     ) -> EstimatedExecutionResources {
         encode_and_blake_hash_resources(felt_size_groups)
     }
+}
+
+// Constants used for estimating the cost of BLAKE hashing inside Starknet OS.
+// These values are based on empirical measurement by running
+// `encode_felt252_data_and_calc_blake_hash` on various combinations of big and small felts.
+mod blake_estimation {
+    // Per-felt step cost (measured).
+    pub const STEPS_BIG_FELT: usize = 45;
+    pub const STEPS_SMALL_FELT: usize = 15;
+
+    // One-time overhead.
+    // Overhead when input fills a full Blake message (16 u32s).
+    pub const BASE_STEPS_FULL_MSG: usize = 217;
+    // Overhead when input results in a partial message (remainder < 16 u32s).
+    pub const BASE_STEPS_PARTIAL_MSG: usize = 195;
+    // Extra steps per 2-u32 remainder in partial messages.
+    pub const STEPS_PER_2_U32_REMINDER: usize = 3;
+    // Overhead when input for `encode_felt252_data_and_calc_blake_hash` is non-empty.
+    pub const BASE_RANGE_CHECK_NON_EMPTY: usize = 3;
+    // Empty input steps.
+    pub const STEPS_EMPTY_INPUT: usize = 170;
+}
+
+fn base_steps_for_blake_hash(n_u32s: usize) -> usize {
+    let rem_u32s = n_u32s % FeltSizeCount::U32_WORDS_PER_MESSAGE;
+    if rem_u32s == 0 {
+        blake_estimation::BASE_STEPS_FULL_MSG
+    } else {
+        // This computation is based on running blake2s with different inputs.
+        // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
+        blake_estimation::BASE_STEPS_PARTIAL_MSG
+            + (rem_u32s / 2) * blake_estimation::STEPS_PER_2_U32_REMINDER
+    }
+}
+
+fn felts_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
+    let big_steps = n_big_felts
+        .checked_mul(blake_estimation::STEPS_BIG_FELT)
+        .expect("Overflow computing big felt steps");
+    let small_steps = n_small_felts
+        .checked_mul(blake_estimation::STEPS_SMALL_FELT)
+        .expect("Overflow computing small felt steps");
+    big_steps.checked_add(small_steps).expect("Overflow computing total felt steps")
+}
+
+/// Estimates the number of VM steps needed to hash the given felts with Blake in Starknet OS.
+/// Each small felt unpacks into 2 u32s, and each big felt into 8 u32s.
+/// Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
+fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
+    felt_size_groups: &FeltSizeCount,
+) -> usize {
+    let total_u32s = felt_size_groups.encoded_u32_len();
+    if total_u32s == 0 {
+        // The empty input case is a special case.
+        return blake_estimation::STEPS_EMPTY_INPUT;
+    }
+
+    let base_steps = base_steps_for_blake_hash(total_u32s);
+    let felt_steps = felts_steps(felt_size_groups.large, felt_size_groups.small);
+
+    base_steps.checked_add(felt_steps).expect("Overflow computing total Blake hash steps")
+}
+
+/// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
+///
+/// # Encoding Details
+/// - Small felts → 2 `u32`s each; Big felts → 8 `u32`s each.
+/// - Each felt requires one `range_check` operation.
+///
+/// # Returns:
+/// - `ExecutionResources`: VM resource usage (e.g., n_steps, range checks).
+/// - `usize`: number of Blake opcodes used, accounted for separately as those are not reported via
+///   `ExecutionResources`.
+pub fn encode_and_blake_hash_resources(
+    felt_size_groups: &FeltSizeCount,
+) -> EstimatedExecutionResources {
+    let n_steps = estimate_steps_of_encode_felt252_data_and_calc_blake_hash(felt_size_groups);
+    let builtin_instance_counter = match felt_size_groups.n_felts() {
+        // The empty case does not use builtins at all.
+        0 => HashMap::new(),
+        // One `range_check` per input felt to validate its size + Overhead for the non empty case.
+        _ => HashMap::from([(
+            BuiltinName::range_check,
+            felt_size_groups.n_felts() + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
+        )]),
+    };
+
+    let resources = ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter };
+
+    EstimatedExecutionResources::V2Hash {
+        resources,
+        blake_count: felt_size_groups.blake_opcode_count(),
+    }
+}
+
+/// Converts the execution resources and blake opcode count to L2 gas.
+///
+/// Used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations, which differ in
+/// builtin costs. This unified logic is valid because only the `range_check` builtin is used,
+/// and its cost is identical across provers (see `bouncer.get_tx_weights`).
+// TODO(AvivG): Move inside blake estimation struct.
+pub fn blake_execution_resources_estimation_to_gas(
+    resources: EstimatedExecutionResources,
+    versioned_constants: &VersionedConstants,
+    blake_opcode_gas: usize,
+) -> GasAmount {
+    // TODO(AvivG): Remove this once gas computation is separated from resource estimation.
+    assert!(
+        resources
+            .resources()
+            .builtin_instance_counter
+            .keys()
+            .all(|&k| k == BuiltinName::range_check),
+        "Expected either empty builtins or only `range_check` builtin, got: {:?}. This breaks the \
+         assumption that builtin costs are identical between provers.",
+        resources.resources().builtin_instance_counter.keys().collect::<Vec<_>>()
+    );
+
+    resources.to_sierra_gas(
+        |resources| vm_resources_to_sierra_gas(resources, versioned_constants),
+        Some(blake_opcode_gas),
+    )
 }
