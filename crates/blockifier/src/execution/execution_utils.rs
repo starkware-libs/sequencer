@@ -386,7 +386,7 @@ mod blake_encoding {
 // Constants used for estimating the cost of BLAKE hashing inside Starknet OS.
 // These values are based on empirical measurement by running
 // `encode_felt252_data_and_calc_blake_hash` on various combinations of big and small felts.
-mod blake_estimation {
+pub(crate) mod blake_estimation {
     // Per-felt step cost (measured).
     pub const STEPS_BIG_FELT: usize = 45;
     pub const STEPS_SMALL_FELT: usize = 15;
@@ -441,7 +441,7 @@ fn felts_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
 /// Estimates the number of VM steps needed to hash the given felts with Blake in Starknet OS.
 /// Each small felt unpacks into 2 u32s, and each big felt into 8 u32s.
 /// Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
-fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
+pub(crate) fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
     felt_size_groups: &FeltSizeCount,
 ) -> usize {
     let total_u32s = total_u32s_from_felts(felt_size_groups.large, felt_size_groups.small);
@@ -458,42 +458,10 @@ fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
 
 /// Returns the number of BLAKE opcodes needed to hash the given felts.
 /// Each BLAKE opcode processes 16 u32s (partial messages are padded).
-fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
+pub(crate) fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
     // Count the total number of u32s to be hashed.
     let total_u32s = total_u32s_from_felts(n_big_felts, n_small_felts);
     total_u32s.div_ceil(blake_encoding::N_U32S_MESSAGE)
-}
-
-/// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
-///
-/// # Encoding Details
-/// - Small felts → 2 `u32`s each; Big felts → 8 `u32`s each.
-/// - Each felt requires one `range_check` operation.
-///
-/// # Returns:
-/// - `ExecutionResources`: VM resource usage (e.g., n_steps, range checks).
-/// - `usize`: number of Blake opcodes used, accounted for separately as those are not reported via
-///   `ExecutionResources`.
-pub fn encode_and_blake_hash_resources(
-    felt_size_groups: &FeltSizeCount,
-) -> EstimatedExecutionResources {
-    let n_steps = estimate_steps_of_encode_felt252_data_and_calc_blake_hash(felt_size_groups);
-    let builtin_instance_counter = match felt_size_groups.n_felts() {
-        // The empty case does not use builtins at all.
-        0 => HashMap::new(),
-        // One `range_check` per input felt to validate its size + Overhead for the non empty case.
-        _ => HashMap::from([(
-            BuiltinName::range_check,
-            felt_size_groups.n_felts() + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
-        )]),
-    };
-
-    let resources = ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter };
-
-    EstimatedExecutionResources::V2Hash {
-        resources,
-        blake_count: count_blake_opcode(felt_size_groups.large, felt_size_groups.small),
-    }
 }
 
 /// Converts the execution resources and blake opcode count to L2 gas.
