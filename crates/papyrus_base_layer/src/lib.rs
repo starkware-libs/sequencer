@@ -115,10 +115,7 @@ pub struct L1BlockHeader {
 /// Wraps Starknet L1 events with Starknet API types.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum L1Event {
-    ConsumedMessageToL2 {
-        tx: L1HandlerTransaction,
-        timestamp: BlockTimestamp,
-    },
+    ConsumedMessageToL2(L1HandlerTransaction),
     // TODO(Arni): Consider adding the l1_tx_hash to all variants of L1 Event.
     LogMessageToL2 {
         tx: L1HandlerTransaction,
