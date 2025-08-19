@@ -575,7 +575,7 @@ fn leaf_cost(
     // TODO(AvivG): Call `encode_and_blake_hash_resources` directly, and perform the resource→gas
     // conversion only after `estimate_casm_blake_hash_computation_resources` executes.
     blake_execution_resources_estimation_to_gas(
-        encode_and_blake_hash_resources(felt_size_groups.large, felt_size_groups.small),
+        encode_and_blake_hash_resources(felt_size_groups),
         versioned_constants,
         blake_opcode_gas,
     )
@@ -613,7 +613,7 @@ fn node_cost(
     // TODO(AvivG): Call `encode_and_blake_hash_resources` directly, and perform the resource→gas
     // conversion only after `estimate_casm_blake_hash_computation_resources` executes.
     let node_hash_cost = blake_execution_resources_estimation_to_gas(
-        encode_and_blake_hash_resources(segs.len(), segs.len()),
+        encode_and_blake_hash_resources(&FeltSizeCount { large: segs.len(), small: segs.len() }),
         versioned_constants,
         blake_opcode_gas,
     );
