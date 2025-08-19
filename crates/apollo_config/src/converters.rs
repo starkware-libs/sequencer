@@ -152,6 +152,11 @@ impl UrlAndHeaders {
         }
         Ok(())
     }
+
+    /// Print the URL but not the headers, so we don't leak keys when logging.
+    pub fn safe_print(&self) -> String {
+        self.url.to_string()
+    }
 }
 
 /// Serializes a vector containing the UrlAndHeaders struct into a space-separated string.

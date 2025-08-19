@@ -137,8 +137,12 @@ pub struct EthToStrkOracleClient {
 impl EthToStrkOracleClient {
     pub fn new(config: EthToStrkOracleConfig) -> Self {
         info!(
-            "Creating EthToStrkOracleClient with: url_header_list={:?} lag_interval_seconds={}",
-            config.url_header_list, config.lag_interval_seconds
+            "Creating EthToStrkOracleClient with: urls={:?} lag_interval_seconds={}",
+            config
+                .url_header_list
+                .as_ref()
+                .map_or_else(Vec::new, |v| v.iter().map(|uh| uh.safe_print()).collect()),
+            config.lag_interval_seconds
         );
         register_eth_to_strk_metrics();
         let url_header_list = config
