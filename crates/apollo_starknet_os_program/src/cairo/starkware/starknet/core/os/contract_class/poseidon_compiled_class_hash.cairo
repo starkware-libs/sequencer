@@ -195,14 +195,7 @@ func bytecode_hash_internal_node{
             assert [range_check_ptr] = segment_length;
             tempvar range_check_ptr = range_check_ptr + 1;
             tempvar poseidon_ptr = poseidon_ptr;
-            local local_current_segment_hash;
-            %{
-                from starkware.cairo.lang.vm.crypto import poseidon_hash_many
-                ids.local_current_segment_hash = bytecode_segment_structure.hash(
-                    hash_function=poseidon_hash_many
-                )
-            %}
-            tempvar current_segment_hash = local_current_segment_hash;
+            tempvar current_segment_hash = nondet %{ bytecode_segment_structure.poseidon_hash() %};
         }
     }
 
