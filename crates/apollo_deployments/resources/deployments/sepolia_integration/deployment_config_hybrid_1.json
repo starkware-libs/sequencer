@@ -175,7 +175,7 @@
         "gcsm_key": "apollo-sepolia-integration-1"
       },
       "anti_affinity": true,
-      "update_strategy_type": "RollingUpdate",
+      "update_strategy_type": "Recreate",
       "ports": {
         "L1EndpointMonitor": 55005,
         "L1GasPriceProvider": 55003,
