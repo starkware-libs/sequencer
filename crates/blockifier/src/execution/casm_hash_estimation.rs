@@ -55,7 +55,8 @@ impl EstimatedExecutionResources {
     ///
     /// This is only defined for the V2 (Blake) variant.
     // TODO(AvivG): Consider returning 0 for V1 instead of panicking.
-    pub fn blake_count(&self) -> usize {
+    // TODO(AvivG): When all estimation logic is moved to this module, make this private.
+    pub(crate) fn blake_count(&self) -> usize {
         match self {
             EstimatedExecutionResources::V2Hash { blake_count, .. } => *blake_count,
             _ => panic!("Cannot get blake count from V1Hash"),
