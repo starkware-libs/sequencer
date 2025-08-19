@@ -2,10 +2,12 @@ use async_trait::async_trait;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use tokio::sync::mpsc::{channel, Sender};
+use tokio::time::Instant;
 
 use crate::component_client::ClientResult;
 use crate::component_definitions::{ComponentClient, RequestWrapper};
 use crate::metrics::LocalClientMetrics;
+use crate::requests::LabeledRequest;
 
 /// The `LocalComponentClient` struct is a generic client for sending component requests and
 /// receiving responses asynchronously using Tokio mspc channels.
@@ -35,14 +37,20 @@ where
 impl<Request, Response> ComponentClient<Request, Response>
     for LocalComponentClient<Request, Response>
 where
-    Request: Send + Serialize + DeserializeOwned,
+    Request: Send + Serialize + DeserializeOwned + LabeledRequest,
     Response: Send + Serialize + DeserializeOwned,
 {
     async fn send(&self, request: Request) -> ClientResult<Response> {
+        let request_label = request.request_label();
         let (res_tx, mut res_rx) = channel::<Response>(1);
         let request_wrapper = RequestWrapper::new(request, res_tx);
+        // should sending the request be included in the response time?
         self.tx.send(request_wrapper).await.expect("Outbound connection should be open.");
-        Ok(res_rx.recv().await.expect("Inbound connection should be open."))
+        let start = Instant::now();
+        let response = res_rx.recv().await.expect("Inbound connection should be open.");
+        let elapsed = start.elapsed();
+        self.metrics.record_response_time(elapsed.as_secs_f64(), request_label);
+        Ok(response)
     }
 }
 

@@ -10,6 +10,7 @@ use tokio::time::Instant;
 use tracing::{error, info};
 
 use crate::component_client::ClientResult;
+use crate::requests::LabeledRequest;
 
 pub(crate) const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
 pub const BUSY_PREVIOUS_REQUESTS_MSG: &str = "Server is busy addressing previous requests";
@@ -22,7 +23,7 @@ pub trait ComponentRequestHandler<Request, Response> {
 #[async_trait]
 pub trait ComponentClient<Request, Response>
 where
-    Request: Send + Serialize + DeserializeOwned,
+    Request: Send + Serialize + DeserializeOwned + LabeledRequest,
     Response: Send + Serialize + DeserializeOwned,
 {
     async fn send(&self, request: Request) -> ClientResult<Response>;
