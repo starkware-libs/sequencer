@@ -24,6 +24,7 @@ use crate::component_definitions::{
 };
 use crate::component_server::ComponentServerStarter;
 use crate::metrics::RemoteServerMetrics;
+use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
 
 /// The `RemoteComponentServer` struct is a generic server that receives requests and returns
@@ -42,7 +43,7 @@ where
 
 impl<Request, Response> RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Debug + Send + 'static,
+    Request: Serialize + DeserializeOwned + Debug + Send + LabeledRequest + 'static,
     Response: Serialize + DeserializeOwned + Debug + Send + 'static,
 {
     pub fn new(
@@ -126,7 +127,7 @@ where
 #[async_trait]
 impl<Request, Response> ComponentServerStarter for RemoteComponentServer<Request, Response>
 where
-    Request: Serialize + DeserializeOwned + Send + Debug + 'static,
+    Request: Serialize + DeserializeOwned + Send + Debug + LabeledRequest + 'static,
     Response: Serialize + DeserializeOwned + Send + Debug + 'static,
 {
     async fn start(&mut self) {

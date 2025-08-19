@@ -12,12 +12,14 @@ use hyper::{Body, Client, Request as HyperRequest, Response as HyperResponse, St
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::Mutex;
+use tokio::time::Instant;
 use tracing::{debug, trace, warn};
 use validator::Validate;
 
 use super::definitions::{ClientError, ClientResult};
 use crate::component_definitions::{ComponentClient, ServerError, APPLICATION_OCTET_STREAM};
 use crate::metrics::RemoteClientMetrics;
+use crate::requests::LabeledRequest;
 use crate::serde_utils::SerdeWrapper;
 
 const DEFAULT_RETRIES: usize = 150;
@@ -188,11 +190,12 @@ where
 impl<Request, Response> ComponentClient<Request, Response>
     for RemoteComponentClient<Request, Response>
 where
-    Request: Send + Serialize + DeserializeOwned + Debug + AsRef<str>,
+    Request: Send + Serialize + DeserializeOwned + Debug + AsRef<str> + LabeledRequest,
     Response: Send + Serialize + DeserializeOwned + Debug,
 {
     async fn send(&self, component_request: Request) -> ClientResult<Response> {
         let log_message = format!("{} to {}", component_request.as_ref(), self.uri);
+        let request_label = component_request.request_label();
 
         // Serialize the request.
         let serialized_request = SerdeWrapper::new(component_request)
@@ -213,10 +216,13 @@ where
         for attempt in 1..max_attempts + 1 {
             trace!("Request {log_message} attempt {attempt} of {max_attempts}");
             let http_request = self.construct_http_request(serialized_request_bytes.clone());
+            let start = Instant::now();
             let res = self.try_send(http_request).await;
+            let elapsed = start.elapsed();
             if res.is_ok() {
                 trace!("Request {log_message} successful on attempt {attempt}/{max_attempts}");
                 self.metrics.record_attempt(attempt);
+                self.metrics.record_response_time(elapsed.as_secs_f64(), request_label);
                 return res;
             }
             let log_attempt_interval_ms = self.config.log_attempt_interval_ms;
