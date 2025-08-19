@@ -26,7 +26,7 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
 use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
-use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
+use crate::execution::contract_class::{FeltSizeCount, RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
     ConstructorContext,
@@ -473,19 +473,16 @@ fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
 /// - `usize`: number of Blake opcodes used, accounted for separately as those are not reported via
 ///   `ExecutionResources`.
 pub fn encode_and_blake_hash_resources(
-    // TODO(AvivG): Refactor to use `FeltSizeCount`.
-    n_big_felts: usize,
-    n_small_felts: usize,
+    felt_size_groups: &FeltSizeCount,
 ) -> EstimatedExecutionResources {
-    let n_steps = compute_blake_hash_steps(n_big_felts, n_small_felts);
-    let n_felts = n_big_felts + n_small_felts;
-    let builtin_instance_counter = match n_felts {
+    let n_steps = compute_blake_hash_steps(felt_size_groups.large, felt_size_groups.small);
+    let builtin_instance_counter = match felt_size_groups.n_felts() {
         // The empty case does not use builtins at all.
         0 => HashMap::new(),
         // One `range_check` per input felt to validate its size + Overhead for the non empty case.
         _ => HashMap::from([(
             BuiltinName::range_check,
-            n_felts + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
+            felt_size_groups.n_felts() + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
         )]),
     };
 
@@ -493,7 +490,7 @@ pub fn encode_and_blake_hash_resources(
 
     EstimatedExecutionResources::V2Hash {
         resources,
-        blake_count: count_blake_opcode(n_big_felts, n_small_felts),
+        blake_count: count_blake_opcode(felt_size_groups.large, felt_size_groups.small),
     }
 }
 
