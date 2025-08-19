@@ -72,7 +72,16 @@ impl L1EndpointMonitor {
             }
         }
 
-        error!("No operational L1 endpoints found in {:?}", self.config.ordered_l1_endpoint_urls);
+        error!(
+            "No operational L1 endpoints found in {:?}",
+            self.config
+                .ordered_l1_endpoint_urls
+                .iter()
+                .map(|url| url
+                    .host()
+                    .map_or_else(|| "no host in url!".to_string(), |host| host.to_string()))
+                .collect::<Vec<_>>()
+        );
         Err(L1EndpointMonitorError::NoActiveL1Endpoint)
     }
 
