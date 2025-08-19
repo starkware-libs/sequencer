@@ -12,6 +12,7 @@ use cairo_vm::vm::runners::cairo_pie::CairoPie;
 use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use starknet_api::core::CompiledClassHash;
 use starknet_api::deprecated_contract_class::ContractClass;
+#[cfg(feature = "include_program_output")]
 use starknet_types_core::felt::Felt;
 
 use crate::errors::StarknetOsError;
@@ -111,8 +112,6 @@ pub fn run_os<S: StateReader>(
                 cached_state_inputs,
                 deprecated_compiled_classes,
                 compiled_classes,
-                public_key_x,
-                public_key_y,
             },
     }: OsHints,
     state_readers: Vec<S>,
@@ -125,8 +124,6 @@ pub fn run_os<S: StateReader>(
         deprecated_compiled_classes,
         compiled_classes,
         state_readers,
-        public_key_x,
-        public_key_y,
     )?;
 
     generate_os_output(runner_output, snos_hint_processor)
@@ -141,8 +138,6 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
     deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
     compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
     state_readers: Vec<S>,
-    public_key_x: Felt,
-    public_key_y: Felt,
 ) -> Result<(RunnerReturnObject, SnosHintProcessor<'a, S>), StarknetOsError> {
     // Create the hint processor.
     let mut snos_hint_processor = SnosHintProcessor::new(
@@ -153,8 +148,6 @@ fn create_hint_processor_and_run_os<'a, S: StateReader>(
         deprecated_compiled_classes,
         compiled_classes,
         state_readers,
-        public_key_x,
-        public_key_y,
     )?;
 
     // Run the OS program.
@@ -203,8 +196,6 @@ pub fn run_os_for_testing<S: StateReader>(
                 cached_state_inputs,
                 deprecated_compiled_classes,
                 compiled_classes,
-                public_key_x,
-                public_key_y,
             },
     }: OsHints,
     state_readers: Vec<S>,
@@ -217,8 +208,6 @@ pub fn run_os_for_testing<S: StateReader>(
         deprecated_compiled_classes,
         compiled_classes,
         state_readers,
-        public_key_x,
-        public_key_y,
     )?;
 
     let txs_trace: Vec<OsTransactionTrace> =

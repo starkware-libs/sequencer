@@ -57,6 +57,7 @@ func get_block_context{range_check_ptr}(
     execute_syscalls_ptr: felt*,
     execute_deprecated_syscalls_ptr: felt*,
     compiled_class_facts_bundle: CompiledClassFactsBundle*,
+    public_key_hash: felt,
 ) -> (block_context: BlockContext*) {
     alloc_locals;
     let (builtin_params) = get_builtin_params();
@@ -87,7 +88,7 @@ func get_block_context{range_check_ptr}(
         starknet_os_config=StarknetOsConfig(
             chain_id=nondet %{ os_hints_config.starknet_os_config.chain_id %},
             fee_token_address=nondet %{ os_hints_config.starknet_os_config.fee_token_address %},
-            public_key_hash=nondet %{ os_hints_config.starknet_os_config.public_key_hash %},
+            public_key_hash=public_key_hash,
         ),
         execute_syscalls_ptr=execute_syscalls_ptr,
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
