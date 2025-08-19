@@ -93,6 +93,13 @@ impl FeltSizeCount {
             + self.small * CasmV2HashResourceEstimate::U32_WORDS_PER_SMALL_FELT
     }
 
+    /// Returns the number of BLAKE opcodes required to hash the felts.
+    /// Each BLAKE opcode processes one message block of `U32_WORDS_PER_MESSAGE` `u32`s
+    /// (partial messages are padded).
+    pub(crate) fn blake_opcode_count(&self) -> usize {
+        self.encoded_u32_len().div_ceil(CasmV2HashResourceEstimate::U32_WORDS_PER_MESSAGE)
+    }
+
     /// Creates a `FeltSizeCount` by counting how many items in the slice are "small" or "large".
     /// The `is_small` function determines whether each item is considered small (`true`) or large
     /// (`false`).

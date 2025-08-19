@@ -25,11 +25,8 @@ use starknet_types_core::felt::Felt;
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_gas;
 use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
-use crate::execution::casm_hash_estimation::{
-    CasmV2HashResourceEstimate,
-    EstimatedExecutionResources,
-};
-use crate::execution::contract_class::{FeltSizeCount, RunnableCompiledClass, TrackedResource};
+use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
+use crate::execution::contract_class::{RunnableCompiledClass, TrackedResource};
 use crate::execution::entry_point::{
     execute_constructor_entry_point,
     ConstructorContext,
@@ -374,14 +371,6 @@ pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
         n_memory_holes: 0,
         builtin_instance_counter: HashMap::from([(BuiltinName::poseidon, data_length / 2 + 1)]),
     }
-}
-
-/// Returns the number of BLAKE opcodes needed to hash the given felts.
-/// Each BLAKE opcode processes 16 u32s (partial messages are padded).
-pub(crate) fn count_blake_opcode(felt_size_groups: &FeltSizeCount) -> usize {
-    // Count the total number of u32s to be hashed.
-    let total_u32s = felt_size_groups.encoded_u32_len();
-    total_u32s.div_ceil(CasmV2HashResourceEstimate::U32_WORDS_PER_MESSAGE)
 }
 
 /// Converts the execution resources and blake opcode count to L2 gas.

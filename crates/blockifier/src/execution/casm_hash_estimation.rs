@@ -12,7 +12,7 @@ use crate::execution::contract_class::{
     FeltSizeCount,
     NestedFeltCounts,
 };
-use crate::execution::execution_utils::{count_blake_opcode, poseidon_hash_many_cost};
+use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::utils::u64_from_usize;
 
 #[cfg(test)]
@@ -285,7 +285,7 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
 
         EstimatedExecutionResources::V2Hash {
             resources,
-            blake_count: count_blake_opcode(felt_size_groups),
+            blake_count: felt_size_groups.blake_opcode_count(),
         }
     }
 }
