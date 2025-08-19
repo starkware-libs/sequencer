@@ -111,7 +111,6 @@ impl TransactionManager {
                     TransactionState::CancelledOnL2 => {
                         InvalidValidationStatus::CancelledOnL2.into()
                     }
-                    TransactionState::Consumed => InvalidValidationStatus::ConsumedOnL1.into(),
                     _ => unreachable!(),
                 }
             } else if record.try_mark_staged(current_staging_epoch_cloned) {
@@ -121,7 +120,7 @@ impl TransactionManager {
             }
         });
 
-        validation_status.unwrap_or(InvalidValidationStatus::NotFound.into())
+        validation_status.unwrap_or(InvalidValidationStatus::ConsumedOnL1OrUnknown.into())
     }
 
     pub fn commit_txs(
@@ -206,9 +205,6 @@ impl TransactionManager {
                 }
                 TransactionState::CancelledOnL2 => {
                     snapshot.cancelled_on_l2.push(tx_hash);
-                }
-                TransactionState::Consumed => {
-                    snapshot.consumed.push(tx_hash);
                 }
             }
         }
@@ -302,9 +298,6 @@ pub(crate) struct TransactionManagerSnapshot {
     // NOTE: transition from cancellation-started into cancelled state is done LAZILY only when
     // validation requests are processed against a record.
     pub cancelled_on_l2: Vec<TransactionHash>,
-    // NOTE: consumed transactions are removed from the transaction manager LAZILY only when the
-    // next consume_tx request is processed (and the timelock has passed).
-    pub consumed: Vec<TransactionHash>,
 }
 
 #[cfg(any(test, feature = "testing"))]
@@ -317,7 +310,6 @@ impl TransactionManagerSnapshot {
             && self.committed.is_empty()
             && self.cancellation_started_on_l2.is_empty()
             && self.cancelled_on_l2.is_empty()
-            && self.consumed.is_empty()
     }
 }
 
