@@ -394,18 +394,6 @@ mod blake_estimation {
     pub const STEPS_EMPTY_INPUT: usize = 170;
 }
 
-/// Calculates the total number of u32s required to encode the given number of big and small felts.
-/// Big felts encode to 8 u32s each, small felts encode to 2 u32s each.
-fn total_u32s_from_felts(n_big_felts: usize, n_small_felts: usize) -> usize {
-    let big_u32s = n_big_felts
-        .checked_mul(FeltSizeCount::U32_WORDS_PER_LARGE_FELT)
-        .expect("Overflow computing big felts u32s");
-    let small_u32s = n_small_felts
-        .checked_mul(FeltSizeCount::U32_WORDS_PER_SMALL_FELT)
-        .expect("Overflow computing small felts u32s");
-    big_u32s.checked_add(small_u32s).expect("Overflow computing total u32s")
-}
-
 fn base_steps_for_blake_hash(n_u32s: usize) -> usize {
     let rem_u32s = n_u32s % FeltSizeCount::U32_WORDS_PER_MESSAGE;
     if rem_u32s == 0 {
@@ -446,14 +434,6 @@ fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
     base_steps.checked_add(felt_steps).expect("Overflow computing total Blake hash steps")
 }
 
-/// Returns the number of BLAKE opcodes needed to hash the given felts.
-/// Each BLAKE opcode processes 16 u32s (partial messages are padded).
-fn count_blake_opcode(felt_size_groups: &FeltSizeCount) -> usize {
-    // Count the total number of u32s to be hashed.
-    let total_u32s = total_u32s_from_felts(felt_size_groups.large, felt_size_groups.small);
-    total_u32s.div_ceil(FeltSizeCount::U32_WORDS_PER_MESSAGE)
-}
-
 /// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
 ///
 /// # Encoding Details
@@ -482,7 +462,7 @@ pub fn encode_and_blake_hash_resources(
 
     EstimatedExecutionResources::V2Hash {
         resources,
-        blake_count: count_blake_opcode(felt_size_groups),
+        blake_count: felt_size_groups.blake_opcode_count(),
     }
 }
 
