@@ -1,9 +1,12 @@
+use std::collections::HashMap;
+
 use starknet_api::abi::abi_utils::get_fee_token_var_address;
 use starknet_api::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
 
 use super::cached_state::{ContractClassMapping, StateMaps};
+use crate::blockifier::transaction_executor::CompiledClassHashV2ToV1;
 use crate::execution::contract_class::RunnableCompiledClass;
 use crate::state::errors::StateError;
 
@@ -112,6 +115,26 @@ pub trait State: StateReader {
         class_hash: ClassHash,
         compiled_class_hash: CompiledClassHash,
     ) -> StateResult<()>;
+
+    // Sets the new compiled class hashes for the class hashes that need to be migrated.
+    fn set_compiled_class_hash_migration(
+        &mut self,
+        class_hashes_to_migrate: &HashMap<ClassHash, CompiledClassHashV2ToV1>,
+    ) -> StateResult<()> {
+        for (class_hash, (compiled_class_hash_v2, compiled_class_hash_v1)) in
+            class_hashes_to_migrate
+        {
+            // Sanity check: the compiled class hashes should not be equal.
+            assert_ne!(
+                compiled_class_hash_v1, compiled_class_hash_v2,
+                "Classes for migration should hold v1 (Poseidon) hash in the state."
+            );
+
+            // TODO(Meshi): Consider panic here instead of returning an error.
+            self.set_compiled_class_hash(*class_hash, *compiled_class_hash_v2)?;
+        }
+        Ok(())
+    }
 }
 
 /// A class defining the API for updating a state with transactions writes.
