@@ -92,3 +92,39 @@ pub(crate) fn set_state_update_pointers_to_none<'program, CHP: CommonHintProcess
     *hint_processor.get_mut_state_update_pointers() = None;
     Ok(())
 }
+
+pub(crate) fn get_chain_id_from_input(
+    hint_processor: &mut AggregatorHintProcessor<'_>,
+    HintArgs { vm, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let chain_id: Felt = hint_processor.input.chain_id;
+    insert_value_into_ap(vm, chain_id)?;
+    Ok(())
+}
+
+pub(crate) fn get_fee_token_address_from_input(
+    hint_processor: &mut AggregatorHintProcessor<'_>,
+    HintArgs { vm, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let fee_token_address: Felt = hint_processor.input.fee_token_address;
+    insert_value_into_ap(vm, fee_token_address)?;
+    Ok(())
+}
+
+pub(crate) fn get_public_key_x_from_aggregator_input(
+    hint_processor: &mut AggregatorHintProcessor<'_>,
+    HintArgs { vm, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let public_key_x: Felt = hint_processor.input.public_key_x;
+    insert_value_into_ap(vm, public_key_x)?;
+    Ok(())
+}
+
+pub(crate) fn get_public_key_y_from_aggregator_input(
+    hint_processor: &mut AggregatorHintProcessor<'_>,
+    HintArgs { vm, .. }: HintArgs<'_>,
+) -> OsHintResult {
+    let public_key_y: Felt = hint_processor.input.public_key_y;
+    insert_value_into_ap(vm, public_key_y)?;
+    Ok(())
+}
