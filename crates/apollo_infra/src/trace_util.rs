@@ -3,7 +3,8 @@ use tokio::sync::OnceCell;
 use tracing::metadata::LevelFilter;
 use tracing_subscriber::fmt::time::UtcTime;
 use tracing_subscriber::prelude::*;
-use tracing_subscriber::{fmt, EnvFilter};
+use tracing_subscriber::{fmt, EnvFilter, filter::{FilterFn, FilterExt}};
+use std::io;
 
 const DEFAULT_LEVEL: LevelFilter = LevelFilter::INFO;
 // Define a OnceCell to ensure the configuration is initialized only once
@@ -18,17 +19,30 @@ pub async fn configure_tracing() {
             let time_format = format_description!(
                 "[year]-[month]-[day]T[hour]:[minute]:[second].[subsecond digits:3]Z"
             );
-            let timer = UtcTime::new(time_format);
 
-            let fmt_layer = fmt::layer()
+            // Create formatter for stdout (info, warn, debug, trace)
+            let stdout_fmt = fmt::layer()
                 .compact()
-                .with_timer(timer)
+                .with_timer(UtcTime::new(time_format))
                 .with_target(false) // No module name.
                 // Instead, file name and line number.
                 .with_file(true)
-                .with_line_number(true);
+                .with_line_number(true)
+                .with_ansi(false)
+                .with_writer(io::stdout);
 
-            let level_filter_layer = EnvFilter::builder()
+            // Create formatter for stderr (error only)
+            let stderr_fmt = fmt::layer()
+                .compact()
+                .with_timer(UtcTime::new(time_format))
+                .with_target(false)
+                .with_file(true)
+                .with_line_number(true)
+                .with_ansi(false)
+                .with_writer(io::stderr);
+
+            // Create filter for stdout (excludes ERROR level)
+            let stdout_filter = EnvFilter::builder()
                 .with_default_directive(DEFAULT_LEVEL.into())
                 .from_env_lossy()
                 .add_directive("alloy_provider=info".parse().unwrap())
@@ -43,12 +57,24 @@ pub async fn configure_tracing() {
                 .add_directive("multistream_select=info".parse().unwrap())
                 .add_directive("netlink_proto=info".parse().unwrap())
                 .add_directive("reqwest=info".parse().unwrap())
-                .add_directive("yamux=info".parse().unwrap());
+                .add_directive("yamux=info".parse().unwrap())
+                .and(FilterFn::new(|metadata| {
+                    metadata.level() != &tracing::Level::ERROR
+                }));
+
+            // Create filter for stderr (only ERROR level)
+            let stderr_filter = FilterFn::new(|metadata| {
+                metadata.level() == &tracing::Level::ERROR
+            });
 
             // This sets a single subscriber to all of the threads. We may want to implement
             // different subscriber for some threads and use set_global_default instead
             // of init.
-            tracing_subscriber::registry().with(fmt_layer).with(level_filter_layer).init();
+            tracing_subscriber::registry()
+                .with(stdout_fmt.with_filter(stdout_filter))
+                .with(stderr_fmt.with_filter(stderr_filter))
+                .init();
+
             tracing::info!("Tracing has been successfully initialized.");
         })
         .await;
