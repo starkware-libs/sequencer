@@ -503,7 +503,7 @@ impl StateStorageWriter for StorageTxn<'_, RW> {
         write_nonces(&thin_state_diff.nonces, &self.txn, block_number, &nonces_table)?;
 
         for (class_hash, _) in &thin_state_diff.declared_classes {
-            declared_classes_block_table.insert(&self.txn, class_hash, &block_number)?;
+            declared_classes_block_table.upsert(&self.txn, class_hash, &block_number)?;
         }
 
         write_compiled_class_hashes(
