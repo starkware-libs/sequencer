@@ -230,3 +230,63 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
         }
     }
 }
+
+mod cairo_functions_step_estimation {
+    // Call functions steps.
+    const CALL_COMPILED_CLASS_HASH: usize = 10;
+    const CALL_BYTECODE_HASH_NODE: usize = 3;
+    const CALL_BYTECODE_HASH_INTERNAL_NODE: usize = 3;
+    const CALL_HASH_FINALIZE: usize = 2;
+    // Q(AvivG): if return val is none - does it still take 1 step? no --> 2
+    // Q(AvivG): if arg is pointer - does it take 1 step or number of elements? if more than 1 -->
+    // change
+    const CALL_HASH_ENTRY_POINTS: usize = 2;
+    const CALL_HASH_ENTRY_POINTS_INNER: usize = 2;
+
+    const CALL_HASH_UPDATE_SINGLE: usize = 2;
+    const CALL_HASH_UPDATE_WITH_NESTED_HASH: usize = 2;
+
+    // Cairo commands steps.
+    const ALLOC_LOCAL: usize = 1;
+    const ASSERT: usize = 2;
+    const TEMPVAR: usize = 1;
+    const LET: usize = 1; // not sure
+    const RETURN: usize = 1; // not sure
+    const CREATE_HASH_STATE: usize = 2; // not sure
+    const IF: usize = 2;
+
+    // Fixed function total steps.
+    const HASH_UPDATE_SINGLE: usize =
+        CALL_HASH_UPDATE_SINGLE + ASSERT + LET + RETURN + CREATE_HASH_STATE;
+    const HASH_INIT: usize = ALLOC_LOCAL + CREATE_HASH_STATE + RETURN; // not sure, should be 6.
+
+    // Base steps.
+    const BASE_COMPILED_CLASS_HASH: usize = CALL_COMPILED_CLASS_HASH
+        + ALLOC_LOCAL
+        + ASSERT
+        + RETURN
+        + CREATE_HASH_STATE
+        + HASH_UPDATE_SINGLE * 2
+        + CALL_HASH_ENTRY_POINTS * 3
+        + CALL_BYTECODE_HASH_NODE
+        + CALL_HASH_FINALIZE;
+
+    const BASE_BYTECODE_HASH_NODE: usize = ALLOC_LOCAL + IF + RETURN;
+    const BASE_BYTECODE_HASH_NODE_LEAF: usize = BASE_BYTECODE_HASH_NODE;
+    const BASE_BYTECODE_HASH_NODE_NODE: usize =
+        BASE_BYTECODE_HASH_NODE + HASH_INIT + CALL_BYTECODE_HASH_INTERNAL_NODE + CALL_HASH_FINALIZE;
+    // Assuming 1 segmantation layer (inner node is a leaf).
+    const BASE_BYTECODE_HASH_INTERNAL_NODE: usize = IF * 2
+        + ALLOC_LOCAL
+        + LET
+        + RETURN
+        + TEMPVAR * 2
+        + HASH_UPDATE_SINGLE * 2
+        + CALL_BYTECODE_HASH_INTERNAL_NODE;
+    const BASE_HASH_FINALIZE: usize = 0; // need ?
+    const BASE_HASH_ENTRY_POINTS: usize =
+        CALL_HASH_ENTRY_POINTS_INNER + CALL_HASH_FINALIZE + HASH_UPDATE_SINGLE + RETURN;
+    const BASE_HASH_ENTRY_POINTS_INNER: usize =
+        HASH_UPDATE_SINGLE * 2 + CALL_HASH_UPDATE_WITH_NESTED_HASH + CALL_HASH_ENTRY_POINTS_INNER;
+    const BASE_HASH_UPDATE_NESTED_HASH: usize = CALL_HASH_UPDATE_SINGLE + RETURN;
+}
