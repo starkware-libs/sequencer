@@ -1216,10 +1216,10 @@
       "severity": "p4"
     },
     {
-      "name": "http_server_low_successful_transaction_rate",
-      "title": "http server low successful transaction rate",
-      "ruleGroup": "http_server",
-      "expr": "sum(increase(http_server_added_transactions_success{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)",
+      "name": "gateway_low_successful_transaction_rate",
+      "title": "gateway low successful transaction rate",
+      "ruleGroup": "gateway",
+      "expr": "sum(increase(gateway_transactions_sent_to_mempool{cluster=~\"$cluster\", namespace=~\"$namespace\"}[10m])) or vector(0)",
       "conditions": [
         {
           "evaluator": {
