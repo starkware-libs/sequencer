@@ -12,6 +12,8 @@ use apollo_l1_gas_price::metrics::{
     ETH_TO_STRK_ERROR_COUNT,
     ETH_TO_STRK_RATE,
     ETH_TO_STRK_SUCCESS_COUNT,
+    L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     L1_GAS_PRICE_PROVIDER_INSUFFICIENT_HISTORY,
     L1_GAS_PRICE_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
     L1_GAS_PRICE_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
@@ -45,6 +47,18 @@ fn get_panel_local_queue_depth() -> Panel {
 }
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
+}
+fn get_panel_local_client_response_times() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_panel_remote_client_response_times() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
 }
 fn get_processing_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
@@ -138,6 +152,8 @@ pub(crate) fn get_l1_gas_price_infra_row() -> Row {
         .into_iter()
         .chain(get_processing_times_panels())
         .chain(get_queueing_times_panels())
+        .chain(get_panel_local_client_response_times())
+        .chain(get_panel_remote_client_response_times())
         .collect::<Vec<_>>(),
     )
 }

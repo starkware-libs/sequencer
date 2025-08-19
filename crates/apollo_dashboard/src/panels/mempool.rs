@@ -13,8 +13,10 @@ use apollo_mempool::metrics::{
     LABEL_NAME_TX_TYPE as MEMPOOL_LABEL_NAME_TX_TYPE,
     MEMPOOL_DELAYED_DECLARES_SIZE,
     MEMPOOL_GET_TXS_SIZE,
+    MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     MEMPOOL_LABELED_PROCESSING_TIMES_SECS,
     MEMPOOL_LABELED_QUEUEING_TIMES_SECS,
+    MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     MEMPOOL_PENDING_QUEUE_SIZE,
     MEMPOOL_POOL_SIZE,
     MEMPOOL_PRIORITY_QUEUE_SIZE,
@@ -64,7 +66,18 @@ fn get_queueing_times_panels() -> Vec<Panel> {
         PanelType::TimeSeries,
     )
 }
-
+fn get_panel_local_client_response_times() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_panel_remote_client_response_times() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
 fn get_panel_mempool_transactions_received() -> Panel {
     Panel::new(
         MEMPOOL_TRANSACTIONS_RECEIVED.get_name(),
@@ -197,6 +210,8 @@ pub(crate) fn get_mempool_infra_row() -> Row {
         .into_iter()
         .chain(get_processing_times_panels())
         .chain(get_queueing_times_panels())
+        .chain(get_panel_local_client_response_times())
+        .chain(get_panel_remote_client_response_times())
         .collect::<Vec<_>>(),
     )
 }

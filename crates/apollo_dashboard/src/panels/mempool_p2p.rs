@@ -10,8 +10,10 @@ use apollo_infra::metrics::{
 };
 use apollo_mempool_p2p::metrics::{
     MEMPOOL_P2P_BROADCASTED_BATCH_SIZE,
+    MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS,
     MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS,
+    MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     MEMPOOL_P2P_NUM_CONNECTED_PEERS,
     MEMPOOL_P2P_NUM_RECEIVED_MESSAGES,
     MEMPOOL_P2P_NUM_SENT_MESSAGES,
@@ -67,6 +69,18 @@ fn get_panel_local_queue_depth() -> Panel {
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
+fn get_panel_local_client_response_times() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_panel_remote_client_response_times() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
 fn get_processing_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
         MEMPOOL_P2P_LABELED_PROCESSING_TIMES_SECS,
@@ -108,6 +122,8 @@ pub(crate) fn get_mempool_p2p_infra_row() -> Row {
         .into_iter()
         .chain(get_processing_times_panels())
         .chain(get_queueing_times_panels())
+        .chain(get_panel_local_client_response_times())
+        .chain(get_panel_remote_client_response_times())
         .collect::<Vec<_>>(),
     )
 }
