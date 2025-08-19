@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::mem;
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Instant;
@@ -7,7 +6,7 @@ use apollo_infra_utils::tracing::LogCompatibleToStringExt;
 use itertools::FoldWhile::{Continue, Done};
 use itertools::Itertools;
 use starknet_api::block::BlockHashAndNumber;
-use starknet_api::core::{ClassHash, CompiledClassHash};
+use starknet_api::core::CompiledClassHash;
 use thiserror::Error;
 
 use crate::blockifier::block::pre_process_block;
@@ -254,7 +253,7 @@ pub(crate) fn finalize_block<S: StateReader>(
             "Class hashes to migrate should be empty when migration is disabled"
         );
     }
-    update_compiled_class_hash_migration_in_state(&class_hashes_to_migrate, block_state)?;
+    <dyn State>::set_compiled_class_hash_migration(block_state, &class_hashes_to_migrate)?;
 
     let state_diff = block_state.to_state_diff()?.state_maps;
 
@@ -290,26 +289,6 @@ pub(crate) fn finalize_block<S: StateReader>(
         casm_hash_computation_data_proving_gas,
         compiled_class_hashes_for_migration: class_hashes_to_migrate.into_values().collect(),
     })
-}
-
-// Gathers the new compiled class hashes for the class hashes that need to be migrated,
-// and adds the corresponding mappings to the block state's write set.
-fn update_compiled_class_hash_migration_in_state<S: StateReader>(
-    class_hashes_to_migrate: &HashMap<ClassHash, CompiledClassHashV2ToV1>,
-    block_state: &mut CachedState<S>,
-) -> StateResult<()> {
-    for (class_hash, (compiled_class_hash_v2, compiled_class_hash_v1)) in class_hashes_to_migrate {
-        // Sanity check: the compiled class hashes should not be equal.
-        assert_ne!(
-            compiled_class_hash_v1, compiled_class_hash_v2,
-            "Classes for migration should hold v1 (Poseidon) hash in the state."
-        );
-
-        // TODO(Meshi): Consider panic here instead of returning an error.
-        block_state.set_compiled_class_hash(*class_hash, *compiled_class_hash_v2)?;
-    }
-
-    Ok(())
 }
 
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
