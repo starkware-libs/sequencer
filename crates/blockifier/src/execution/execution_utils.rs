@@ -444,14 +444,6 @@ pub(crate) fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
     base_steps.checked_add(felt_steps).expect("Overflow computing total Blake hash steps")
 }
 
-/// Returns the number of BLAKE opcodes needed to hash the given felts.
-/// Each BLAKE opcode processes 16 u32s (partial messages are padded).
-pub(crate) fn count_blake_opcode(felt_size_groups: &FeltSizeCount) -> usize {
-    // Count the total number of u32s to be hashed.
-    let total_u32s = felt_size_groups.encoded_u32_len();
-    total_u32s.div_ceil(blake_encoding::U32_WORDS_PER_MESSAGE)
-}
-
 /// Converts the execution resources and blake opcode count to L2 gas.
 ///
 /// Used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations, which differ in

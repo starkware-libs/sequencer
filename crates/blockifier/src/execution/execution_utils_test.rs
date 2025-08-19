@@ -11,7 +11,6 @@ use crate::execution::contract_class::FeltSizeCount;
 use crate::execution::execution_utils::blake_estimation::STEPS_EMPTY_INPUT;
 use crate::execution::execution_utils::{
     blake_encoding,
-    count_blake_opcode,
     estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
 };
 
@@ -39,7 +38,7 @@ fn test_zero_inputs() {
     assert_eq!(steps, STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
 
     // No opcodes should be emitted.
-    let opcodes = count_blake_opcode(&FeltSizeCount::default());
+    let opcodes = FeltSizeCount::default().blake_opcode_count();
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
     // Should result in base cost only (no opcode cost).
@@ -52,7 +51,7 @@ fn test_zero_inputs() {
 
 // TODO(AvivG): Add tests for:
 // - `estimate_steps_of_encode_felt252_data_and_calc_blake_hash` simple cases (felts input).
-// - `count_blake_opcode` simple cases (felts input).
+// - `blake_opcode_count` simple cases (felts input).
 // - `cost_of_encode_felt252_data_and_calc_blake_hash` simple cases (felts input) (including partial
 //   remainder).
 // - `cost_of_encode_felt252_data_and_calc_blake_hash` compare against actual execution resources
