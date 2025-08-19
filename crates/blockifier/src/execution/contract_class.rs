@@ -86,7 +86,7 @@ impl FeltSizeCount {
     }
 
     /// Returns the total number of `u32` words required to encode all felts
-    /// according to the small/large felt encoding scheme.
+    /// according to `encode_felts_to_u32s` function.
     pub(crate) fn encoded_u32_len(&self) -> usize {
         self.large * Self::U32_WORDS_PER_LARGE_FELT + self.small * Self::U32_WORDS_PER_SMALL_FELT
     }
