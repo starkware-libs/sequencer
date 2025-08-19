@@ -6,7 +6,7 @@ use indexmap::IndexMap;
 use starknet_api::block::{BlockTimestamp, UnixTimestamp};
 use starknet_api::executable_transaction::L1HandlerTransaction;
 use starknet_api::transaction::TransactionHash;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::transaction_manager::StagingEpoch;
 
@@ -26,7 +26,6 @@ pub struct TransactionRecord {
     committed: bool,
     rejected: bool,
     cancellation_requested_at: Option<BlockTimestamp>,
-    consumed_at: Option<BlockTimestamp>,
     /// A record is staged iff its epoch equals the record owner's (tx manager) epoch counter.
     staged_epoch: StagingEpoch,
 }
@@ -100,37 +99,6 @@ impl TransactionRecord {
         }
     }
 
-    /// Mark a transaction as consumed on L1.
-    /// If tx was not already consumed (expected result), return None.
-    /// If tx was already consumed (double consumption), return the time when it was previously
-    /// consumed. Note that double consumption is a bug.
-    pub fn mark_consumed(&mut self, timestamp: BlockTimestamp) -> Option<BlockTimestamp> {
-        if self.is_committed() {
-            debug!("Marking a committed transaction {} as consumed.", self.tx.tx_hash());
-        } else {
-            // TODO(guyn): check if this situation should be an error.
-            // TODO(guyn): check other state combinations that may be worth an error/warning/debug
-            // log.
-            debug!(
-                "Marking a non-committed transaction {} as consumed. Previous state: {:?}",
-                self.tx.tx_hash(),
-                self.state
-            );
-        }
-        self.state = TransactionState::Consumed;
-        // First check if the tx was already consumed. Double consumption is a bug!
-        // If None, it wasn't previously consumed: mark the time and return None to signal
-        // everything is ok. If Some, it was already consumed: report the time when it was
-        // previously consumed, the caller decides what to do.
-        match self.consumed_at {
-            Some(existing) => Some(existing),
-            None => {
-                self.consumed_at = Some(timestamp);
-                None
-            }
-        }
-    }
-
     /// Try to stage an l1 handler transaction, which means that we allow to include it in the
     /// current proposed or validated block. If already included in a block, this test will return
     /// false, thus preventing double-inclusion in the block. Staging is reset at the start of every
@@ -157,10 +125,6 @@ impl TransactionRecord {
         matches!(self.state, TransactionState::CancelledOnL2)
     }
 
-    pub fn is_consumed(&self) -> bool {
-        matches!(self.state, TransactionState::Consumed)
-    }
-
     /// Answers whether any node can include this transaction in a block. This is generally possible
     /// in all states in its lifecycle, except after it had already been added to block, or a short
     /// time after it's cancellation was requested on L1. In particular, this includes states
@@ -168,7 +132,7 @@ impl TransactionRecord {
     /// transaction whose cancellation was requested on L1 too recently (there will be a
     /// timelock for this).
     pub fn is_validatable(&self) -> bool {
-        !self.is_committed() && !self.is_cancelled() && !self.is_consumed()
+        !self.is_committed() && !self.is_cancelled()
     }
 
     pub fn is_staged(&self, epoch: StagingEpoch) -> bool {
