@@ -15,6 +15,7 @@ use apollo_test_utils::get_rng;
 use futures::FutureExt;
 use indexmap::indexmap;
 use starknet_api::block::BlockNumber;
+use starknet_api::compiled_class_hash;
 use starknet_api::core::{ascii_as_felt, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::state::{StorageKey, ThinStateDiff};
 use starknet_types_core::felt::Felt;
@@ -282,11 +283,11 @@ async fn state_diff_conflicting() {
         vec![
             Some(StateDiffChunk::DeclaredClass(DeclaredClass {
                 class_hash: ClassHash::default(),
-                compiled_class_hash: CompiledClassHash::default(),
+                compiled_class_hash: compiled_class_hash!(1_u8),
             })),
             Some(StateDiffChunk::DeclaredClass(DeclaredClass {
                 class_hash: ClassHash::default(),
-                compiled_class_hash: CompiledClassHash::default(),
+                compiled_class_hash: compiled_class_hash!(2_u8),
             })),
         ],
     )

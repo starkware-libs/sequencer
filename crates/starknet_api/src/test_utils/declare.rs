@@ -1,5 +1,4 @@
 use super::TestingTxArgs;
-use crate::contract_address;
 use crate::contract_class::ClassInfo;
 use crate::core::{ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use crate::data_availability::DataAvailabilityMode;
@@ -32,6 +31,7 @@ use crate::transaction::{
     TransactionHash,
     TransactionVersion,
 };
+use crate::{compiled_class_hash, contract_address};
 
 pub const TEST_SENDER_ADDRESS: u128 = 0x1000;
 
@@ -69,7 +69,7 @@ impl Default for DeclareTxArgs {
             account_deployment_data: AccountDeploymentData::default(),
             nonce: Nonce::default(),
             class_hash: ClassHash::default(),
-            compiled_class_hash: CompiledClassHash::default(),
+            compiled_class_hash: compiled_class_hash!(123),
             tx_hash: TransactionHash::default(),
         }
     }
