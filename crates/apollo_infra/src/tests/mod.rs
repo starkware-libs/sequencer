@@ -140,8 +140,16 @@ pub(crate) const TEST_REMOTE_SERVER_METRICS: RemoteServerMetrics = RemoteServerM
     &REMOTE_NUMBER_OF_CONNECTIONS,
 );
 
+pub(crate) const TEST_REMOTE_CLIENT_RESPONSE_TIMES: LabeledMetricHistogram =
+    LabeledMetricHistogram::new(
+        MetricScope::Infra,
+        "test_remote_client_response_times",
+        "Test remote client response times histogram",
+        COMPONENT_A_REQUEST_LABELS,
+    );
+
 pub(crate) const TEST_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&EXAMPLE_HISTOGRAM_METRIC);
+    RemoteClientMetrics::new(&EXAMPLE_HISTOGRAM_METRIC, &TEST_REMOTE_CLIENT_RESPONSE_TIMES);
 
 // Define mock local client metrics.
 const TEST_LOCAL_CLIENT_RESPONSE_TIMES: LabeledMetricHistogram = LabeledMetricHistogram::new(
