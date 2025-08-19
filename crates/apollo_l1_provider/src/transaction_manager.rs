@@ -42,13 +42,11 @@ impl TransactionManager {
     pub fn new(
         new_l1_handler_tx_cooldown_secs: Duration,
         l1_handler_cancellation_timelock_seconds: Duration,
-        l1_handler_consumption_timelock_seconds: Duration,
     ) -> Self {
         Self {
             config: TransactionManagerConfig {
                 new_l1_handler_tx_cooldown_secs,
                 l1_handler_cancellation_timelock_seconds,
-                l1_handler_consumption_timelock_seconds,
             },
             records: Default::default(),
             proposable_index: Default::default(),
@@ -290,7 +288,7 @@ impl Default for TransactionManager {
     // Note that new will init the epoch at 1, not 0, this is because a 0 epoch in the transaction
     // manager will make new transactions automatically staged by default in the first block.
     fn default() -> Self {
-        Self::new(Duration::from_secs(0), Duration::from_secs(0), Duration::from_secs(0))
+        Self::new(Duration::from_secs(0), Duration::from_secs(0))
     }
 }
 #[derive(Debug, Default)]
@@ -373,10 +371,4 @@ pub struct TransactionManagerConfig {
     /// How long to allow a transaction requested for cancellation to be validated against
     /// (proposals are banned upon receiving a cancellation request).
     pub l1_handler_cancellation_timelock_seconds: Duration,
-    /// How long to wait before allowing a transaction that was consumed on L1 to be removed from
-    /// the transaction managers records.
-    // The motivation behind this timelock is to make debugging easier and to be more careful
-    // about permanently deleting information.
-    // This only delays a cleanup action, so the duration of the timelock wouldn't affect the UX.
-    pub l1_handler_consumption_timelock_seconds: Duration,
 }
