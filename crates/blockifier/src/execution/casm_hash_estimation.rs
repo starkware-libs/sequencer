@@ -2,6 +2,7 @@ use std::ops::AddAssign;
 
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::contract_class::compiled_class_hash::HashVersion;
+use starknet_api::execution_resources::GasAmount;
 
 use crate::execution::contract_class::{
     EntryPointV1,
@@ -10,6 +11,7 @@ use crate::execution::contract_class::{
     NestedFeltCounts,
 };
 use crate::execution::execution_utils::poseidon_hash_many_cost;
+use crate::utils::u64_from_usize;
 
 #[cfg(test)]
 #[path = "casm_hash_estimation_test.rs"]
@@ -39,6 +41,47 @@ impl EstimatedExecutionResources {
                 resources: ExecutionResources::default(),
                 blake_count: 0,
             },
+        }
+    }
+
+    pub fn resources(&self) -> &ExecutionResources {
+        match self {
+            EstimatedExecutionResources::V1Hash { resources } => resources,
+            EstimatedExecutionResources::V2Hash { resources, .. } => resources,
+        }
+    }
+
+    /// Returns the Blake opcode count.
+    ///
+    /// This is only defined for the V2 (Blake) variant.
+    // TODO(AvivG): Consider returning 0 for V1 instead of panicking.
+    pub fn blake_count(&self) -> usize {
+        match self {
+            EstimatedExecutionResources::V2Hash { blake_count, .. } => *blake_count,
+            _ => panic!("Cannot get blake count from V1Hash"),
+        }
+    }
+
+    pub fn to_sierra_gas<F>(
+        &self,
+        resources_to_gas_fn: F,
+        blake_opcode_gas: Option<usize>,
+    ) -> GasAmount
+    where
+        F: Fn(&ExecutionResources) -> GasAmount,
+    {
+        match self {
+            EstimatedExecutionResources::V1Hash { resources } => resources_to_gas_fn(resources),
+            EstimatedExecutionResources::V2Hash { resources, blake_count } => {
+                let resources_gas = resources_to_gas_fn(resources);
+                let blake_gas = blake_count
+                    .checked_mul(blake_opcode_gas.unwrap())
+                    .map(u64_from_usize)
+                    .map(GasAmount)
+                    .expect("Overflow computing Blake opcode gas.");
+
+                resources_gas.checked_add_panic_on_overflow(blake_gas)
+            }
         }
     }
 }
@@ -79,6 +122,15 @@ impl AddAssign<&EstimatedExecutionResources> for EstimatedExecutionResources {
             }
             // Any mismatched variant
             _ => panic!("Cannot add EstimatedExecutionResources of different variants"),
+        }
+    }
+}
+
+impl From<(ExecutionResources, HashVersion)> for EstimatedExecutionResources {
+    fn from((resources, hash_version): (ExecutionResources, HashVersion)) -> Self {
+        match hash_version {
+            HashVersion::V1 => EstimatedExecutionResources::V1Hash { resources },
+            HashVersion::V2 => EstimatedExecutionResources::V2Hash { resources, blake_count: 0 },
         }
     }
 }
