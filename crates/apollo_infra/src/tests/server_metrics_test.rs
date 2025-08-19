@@ -34,6 +34,7 @@ use crate::component_server::{
 };
 use crate::tests::{
     AVAILABLE_PORTS,
+    TEST_LOCAL_CLIENT_METRICS,
     TEST_LOCAL_SERVER_METRICS,
     TEST_REMOTE_CLIENT_METRICS,
     TEST_REMOTE_SERVER_METRICS,
@@ -128,7 +129,7 @@ fn basic_test_setup() -> BasicSetup {
 
     let (tx, rx) = channel::<RequestWrapper<TestComponentRequest, TestComponentResponse>>(32);
 
-    let local_client = LocalTestComponentClient::new(tx);
+    let local_client = LocalTestComponentClient::new(tx, &TEST_LOCAL_CLIENT_METRICS);
 
     BasicSetup { component, local_client, rx, test_sem, local_server_config }
 }

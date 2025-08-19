@@ -15,7 +15,7 @@ use crate::component_definitions::{
     RequestWrapper,
 };
 use crate::component_server::{ComponentServerStarter, LocalComponentServer, LocalServerConfig};
-use crate::tests::TEST_LOCAL_SERVER_METRICS;
+use crate::tests::{TEST_LOCAL_CLIENT_METRICS, TEST_LOCAL_SERVER_METRICS};
 use crate::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
 
 #[async_trait]
@@ -91,7 +91,7 @@ async fn request_prioritization() {
 
     // Create the channel, a client, a component, and a server.
     let (tx, rx) = channel::<RequestWrapper<PriorityTestRequest, PriorityTestResponse>>(32);
-    let client = LocalComponentClient::new(tx);
+    let client = LocalComponentClient::new(tx, &TEST_LOCAL_CLIENT_METRICS);
     let component = PriorityTestComponent::new();
     let local_server_config = LocalServerConfig::default();
     let mut component_server =
