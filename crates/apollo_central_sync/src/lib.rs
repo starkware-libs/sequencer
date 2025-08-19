@@ -150,8 +150,10 @@ impl SerializeConfig for SyncConfig {
             ser_param(
                 "store_sierras_and_casms",
                 &self.store_sierras_and_casms,
-                "Whether to store sierras and casms to the storage. This allows maintaining \
-                 backward-compatibility with native-blockifier",
+                "Whether to store sierras and casms to the local storage. This allows maintaining \
+                 backward-compatibility with native-blockifier. Note even with this set to false \
+                 we will still store sierra and casm for old classes, i.e. compiled with a \
+                 version lower than STARKNET_VERSION_TO_COMPILE_FROM.",
                 ParamPrivacyInput::Public,
             ),
         ])
