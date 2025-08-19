@@ -22,12 +22,7 @@ use starknet_api::tx_hash;
 
 use crate::bootstrapper::{Bootstrapper, CommitBlockBacklog, SyncTaskHandle};
 use crate::l1_provider::L1Provider;
-use crate::test_utils::{
-    l1_handler,
-    ConsumedTransaction,
-    FakeL1ProviderClient,
-    L1ProviderContentBuilder,
-};
+use crate::test_utils::{l1_handler, FakeL1ProviderClient, L1ProviderContentBuilder};
 use crate::{L1ProviderConfig, ProviderState};
 
 fn commit_block_no_rejected(
@@ -130,7 +125,7 @@ fn validate_happy_flow() {
     let mut l1_provider = L1ProviderContentBuilder::new()
         .with_txs([l1_handler(1)])
         .with_committed([l1_handler(2)])
-        .with_consumed_txs([ConsumedTransaction { tx: l1_handler(3), timestamp: 0.into() }])
+        .with_consumed([l1_handler(3)])
         .with_state(ProviderState::Validate)
         .build_into_l1_provider();
 

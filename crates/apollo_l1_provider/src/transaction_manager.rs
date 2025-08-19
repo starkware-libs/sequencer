@@ -36,11 +36,6 @@ pub struct TransactionManager {
     /// all tagged transactions from the previous block attempt.
     // TODO(Gilad): remove "for rejected" from name when uncommitted is migrated to records DS.
     current_staging_epoch: StagingEpoch,
-    /// All consumed transactions that are waiting to be removed from the transaction manager.
-    /// Invariant: Ordered lexicographically by the block timestamp where they were marked as
-    /// consumed, then order-of-arrival for identical timestamps.
-    /// Invariant 2: A transaction is in the queue iff it is in the records and marked as consumed.
-    consumed_queue: BTreeMap<BlockTimestamp, Vec<TransactionHash>>,
 }
 
 impl TransactionManager {
@@ -58,7 +53,6 @@ impl TransactionManager {
             records: Default::default(),
             proposable_index: Default::default(),
             current_staging_epoch: StagingEpoch::new(),
-            consumed_queue: Default::default(),
         }
     }
 
@@ -287,15 +281,8 @@ impl TransactionManager {
         proposable_index: BTreeMap<UnixTimestamp, Vec<TransactionHash>>,
         current_epoch: StagingEpoch,
         config: TransactionManagerConfig,
-        consumed_queue: BTreeMap<BlockTimestamp, Vec<TransactionHash>>,
     ) -> Self {
-        Self {
-            records,
-            proposable_index,
-            current_staging_epoch: current_epoch,
-            config,
-            consumed_queue,
-        }
+        Self { records, proposable_index, current_staging_epoch: current_epoch, config }
     }
 }
 
