@@ -4,6 +4,7 @@ use apollo_storage::{StorageReader, StorageResult};
 use serde::ser::Serializer;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
+use tracing::debug;
 
 /// Represents the syncing status of the node.
 #[derive(Copy, Clone, Debug, Deserialize, Eq, PartialEq)]
@@ -48,11 +49,20 @@ pub struct SyncStatus {
 pub(crate) fn get_last_synced_block(
     storage_reader: StorageReader,
 ) -> StorageResult<BlockHashAndNumber> {
+    debug!("Started get_last_synced_block");
     let txn = storage_reader.begin_ro_txn()?;
     let Some(block_number) = txn.get_compiled_class_marker()?.prev() else {
+        debug!(
+            "Finishing get_last_synced_block with default value {:?}",
+            BlockHashAndNumber::default()
+        );
         return Ok(BlockHashAndNumber::default());
     };
     let block_hash =
         txn.get_block_header(block_number)?.expect("No header for last compiled class").block_hash;
+    debug!(
+        "Finishing get_last_synced_block, found block number {block_number:?} with hash \
+         {block_hash:?}"
+    );
     Ok(BlockHashAndNumber { hash: block_hash, number: block_number })
 }
