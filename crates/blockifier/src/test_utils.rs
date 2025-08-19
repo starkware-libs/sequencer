@@ -10,6 +10,7 @@ pub mod test_templates;
 pub mod transfers_generator;
 use std::collections::HashMap;
 use std::slice::Iter;
+use std::sync::LazyLock;
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -17,7 +18,7 @@ use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::abi::abi_utils::{get_fee_token_var_address, selector_from_name};
 use starknet_api::block::{BlockHash, BlockHashAndNumber, BlockNumber};
-use starknet_api::core::{ClassHash, ContractAddress};
+use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::TransactionType;
 use starknet_api::execution_resources::{GasAmount, GasVector};
 use starknet_api::hash::StarkHash;
@@ -65,6 +66,9 @@ pub const ERC20_CONTRACT_PATH: &str = "../blockifier_test_utils/resources/ERC20/
                                        ERC20_without_some_syscalls/ERC20/\
                                        erc20_contract_without_some_syscalls_compiled.json";
 
+pub static ALIAS_CONTRACT_ADDRESS: LazyLock<ContractAddress> =
+    LazyLock::new(|| ContractAddress(PatriciaKey::try_from(Felt::TWO).unwrap()));
+
 #[derive(Clone, Copy, EnumCountMacro, PartialEq, Eq, Debug)]
 pub enum CompilerBasedVersion {
     CairoVersion(CairoVersion),
@@ -108,6 +112,13 @@ impl CompilerBasedVersion {
             CompilerBasedVersion::CairoVersion(CairoVersion::Cairo1(RunnableCairo1::Casm)),
         ];
         VERSIONS.iter()
+    }
+
+    pub fn is_cairo_native(&self) -> bool {
+        match self {
+            Self::CairoVersion(version) => version.is_cairo_native(),
+            Self::OldCairo1 => false,
+        }
     }
 }
 

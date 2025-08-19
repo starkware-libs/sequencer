@@ -67,15 +67,16 @@ use crate::metrics::{
     LAST_SYNCED_BLOCK,
     REJECTED_TRANSACTIONS,
     REVERTED_BLOCKS,
+    REVERTED_TRANSACTIONS,
     STORAGE_HEIGHT,
     SYNCED_TRANSACTIONS,
 };
 use crate::pre_confirmed_block_writer::{
-    PreConfirmedBlockWriterFactory,
-    PreConfirmedBlockWriterFactoryTrait,
-    PreConfirmedBlockWriterTrait,
+    PreconfirmedBlockWriterFactory,
+    PreconfirmedBlockWriterFactoryTrait,
+    PreconfirmedBlockWriterTrait,
 };
-use crate::pre_confirmed_cende_client::PreConfirmedCendeClientTrait;
+use crate::pre_confirmed_cende_client::PreconfirmedCendeClientTrait;
 use crate::transaction_provider::{ProposeTransactionProvider, ValidateTransactionProvider};
 use crate::utils::{
     deadline_as_instant,
@@ -101,7 +102,7 @@ pub struct Batcher {
     block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
 
     /// Used to create pre-confirmed block writers.
-    pre_confirmed_block_writer_factory: Box<dyn PreConfirmedBlockWriterFactoryTrait>,
+    pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
 
     /// The height that the batcher is currently working on.
     /// All proposals are considered to be at this height.
@@ -137,7 +138,7 @@ impl Batcher {
         mempool_client: SharedMempoolClient,
         transaction_converter: TransactionConverter,
         block_builder_factory: Box<dyn BlockBuilderFactoryTrait>,
-        pre_confirmed_block_writer_factory: Box<dyn PreConfirmedBlockWriterFactoryTrait>,
+        pre_confirmed_block_writer_factory: Box<dyn PreconfirmedBlockWriterFactoryTrait>,
     ) -> Self {
         Self {
             config,
@@ -194,6 +195,10 @@ impl Batcher {
         )?;
 
         // TODO(yair): extract function for the following calls, use join_all.
+        info!(
+            "Committing block {}, round {} in Mempool client",
+            block_number, propose_block_input.proposal_round
+        );
         self.mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
             error!(
                 "Mempool is not ready to start proposal {}: {}.",
@@ -201,6 +206,10 @@ impl Batcher {
             );
             BatcherError::NotReady
         })?;
+        info!(
+            "Updating gas price for block {}, round {} in Mempool client",
+            block_number, propose_block_input.proposal_round
+        );
         self.mempool_client
             .update_gas_price(
                 propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
@@ -318,7 +327,6 @@ impl Batcher {
             self.l1_provider_client.clone(),
             validate_block_input.block_info.block_number,
         );
-
         let (block_builder, abort_signal_sender) = self
             .block_builder_factory
             .create_block_builder(
@@ -426,7 +434,10 @@ impl Batcher {
         proposal_id: ProposalId,
         final_n_executed_txs: usize,
     ) -> BatcherResult<SendProposalContentResponse> {
-        debug!("Send proposal content done for {}", proposal_id);
+        info!(
+            "BATCHER_FIN_VALIDATOR: Send proposal content done for {}. n_txs: {}",
+            proposal_id, final_n_executed_txs
+        );
 
         self.validate_tx_streams.remove(&proposal_id).expect("validate tx stream should exist.");
         if self.is_active(proposal_id).await {
@@ -505,7 +516,10 @@ impl Batcher {
                 error!("Failed to get commitment: {}", err);
                 BatcherError::InternalError
             })?;
-
+        info!(
+            "BATCHER_FIN_PROPOSER: Finished building proposal {proposal_id} with \
+             {final_n_executed_txs} transactions."
+        );
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished { id: commitment, final_n_executed_txs },
         })
@@ -572,6 +586,15 @@ impl Batcher {
         let n_rejected_txs =
             u64::try_from(block_execution_artifacts.execution_data.rejected_tx_hashes.len())
                 .expect("Number of rejected transactions should fit in u64");
+        let n_reverted_count = u64::try_from(
+            block_execution_artifacts
+                .execution_data
+                .execution_infos
+                .values()
+                .filter(|info| info.revert_error.is_some())
+                .count(),
+        )
+        .expect("Number of reverted transactions should fit in u64");
         self.commit_proposal_and_block(
             height,
             state_diff.clone(),
@@ -580,16 +603,12 @@ impl Batcher {
             block_execution_artifacts.execution_data.rejected_tx_hashes,
         )
         .await?;
-        let execution_infos: Vec<_> = block_execution_artifacts
-            .execution_data
-            .execution_infos
-            .into_iter()
-            .map(|(_, info)| info)
-            .collect();
+        let execution_infos = block_execution_artifacts.execution_data.execution_infos;
 
         LAST_BATCHED_BLOCK.set_lossy(height.0);
         BATCHED_TRANSACTIONS.increment(n_txs);
         REJECTED_TRANSACTIONS.increment(n_rejected_txs);
+        REVERTED_TRANSACTIONS.increment(n_reverted_count);
 
         Ok(DecisionReachedResponse {
             state_diff,
@@ -598,7 +617,10 @@ impl Batcher {
                 execution_infos,
                 bouncer_weights: block_execution_artifacts.bouncer_weights,
                 compressed_state_diff: block_execution_artifacts.compressed_state_diff,
-                casm_hash_computation_data: block_execution_artifacts.casm_hash_computation_data,
+                casm_hash_computation_data_sierra_gas: block_execution_artifacts
+                    .casm_hash_computation_data_sierra_gas,
+                casm_hash_computation_data_proving_gas: block_execution_artifacts
+                    .casm_hash_computation_data_proving_gas,
             },
         })
     }
@@ -667,8 +689,8 @@ impl Batcher {
             .await;
 
         if let Err(mempool_err) = mempool_result {
+            // Recoverable error, mempool won't be updated with the new block.
             error!("Failed to commit block to mempool: {}", mempool_err);
-            // TODO(AlonH): Should we rollback the state diff and return an error?
         };
 
         STORAGE_HEIGHT.increment(1);
@@ -708,7 +730,7 @@ impl Batcher {
         mut block_builder: Box<dyn BlockBuilderTrait>,
         abort_signal_sender: tokio::sync::oneshot::Sender<()>,
         final_n_executed_txs_sender: Option<tokio::sync::oneshot::Sender<usize>>,
-        pre_confirmed_block_writer: Option<Box<dyn PreConfirmedBlockWriterTrait>>,
+        pre_confirmed_block_writer: Option<Box<dyn PreconfirmedBlockWriterTrait>>,
         mut proposal_metrics_handle: ProposalMetricsHandle,
     ) -> BatcherResult<()> {
         self.set_active_proposal(proposal_id).await?;
@@ -859,14 +881,14 @@ pub fn create_batcher(
     mempool_client: SharedMempoolClient,
     l1_provider_client: SharedL1ProviderClient,
     class_manager_client: SharedClassManagerClient,
-    pre_confirmed_cende_client: Arc<dyn PreConfirmedCendeClientTrait>,
+    pre_confirmed_cende_client: Arc<dyn PreconfirmedCendeClientTrait>,
 ) -> Batcher {
     let (storage_reader, storage_writer) = apollo_storage::open_storage(config.storage.clone())
         .expect("Failed to open batcher's storage");
 
     let execute_config = &config.block_builder_config.execute_config;
     let worker_pool = Arc::new(WorkerPool::start(execute_config));
-    let pre_confirmed_block_writer_factory = Box::new(PreConfirmedBlockWriterFactory {
+    let pre_confirmed_block_writer_factory = Box::new(PreconfirmedBlockWriterFactory {
         config: config.pre_confirmed_block_writer_config,
         cende_client: pre_confirmed_cende_client,
     });
@@ -926,7 +948,11 @@ impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
         state_diff: ThinStateDiff,
     ) -> apollo_storage::StorageResult<()> {
         // TODO(AlonH): write casms.
-        self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
+        let mut txn = self.begin_rw_txn()?;
+        info!("Appending state diff for height {}", height.0);
+        txn = txn.append_state_diff(height, state_diff)?;
+        info!("Committing state diff for height {}", height.0);
+        txn.commit()
     }
 
     // This function will panic if there is a storage failure to revert the block.

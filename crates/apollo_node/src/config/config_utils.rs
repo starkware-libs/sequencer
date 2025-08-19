@@ -1,22 +1,54 @@
+use std::collections::BTreeSet;
+use std::fs::File;
 use std::path::Path;
 
 use apollo_config::dumping::{combine_config_map_and_pointers, Pointers, SerializeConfig};
-use apollo_config::CONFIG_FILE_ARG;
+use apollo_config::{ParamPath, SerializedParam};
 use apollo_infra_utils::dumping::serialize_to_file;
-use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
-use serde_json::{to_value, Map, Value};
+use apollo_infra_utils::path::resolve_project_relative_path;
+use serde_json::{Map, Value};
 use tracing::error;
 use validator::ValidationError;
 
-use crate::config::component_config::ComponentConfig;
 use crate::config::definitions::ConfigPointersMap;
 use crate::config::node_config::{
     SequencerNodeConfig,
-    CONFIG_NON_POINTERS_WHITELIST,
     CONFIG_POINTERS,
+    CONFIG_SCHEMA_PATH,
     POINTER_TARGET_VALUE,
 };
-use crate::utils::load_and_validate_config;
+
+/// Returns the set of all non-pointer private parameters and all pointer target parameters pointed
+/// by private parameters.
+pub fn private_parameters() -> BTreeSet<ParamPath> {
+    let config_file_name = &resolve_project_relative_path(CONFIG_SCHEMA_PATH).unwrap();
+    let config_schema_file = File::open(config_file_name).unwrap();
+    let deserialized_config_schema: Map<ParamPath, Value> =
+        serde_json::from_reader(config_schema_file).unwrap();
+
+    let mut private_values = BTreeSet::new();
+    for (param_path, stored_param) in deserialized_config_schema.into_iter() {
+        let ser_param = serde_json::from_value::<SerializedParam>(stored_param).unwrap();
+        // Find all private parameters.
+        if ser_param.is_private() {
+            let mut included_as_a_pointer = false;
+            for ((pointer_target_param_path, _ser_param), pointing_params) in CONFIG_POINTERS.iter()
+            {
+                // If the parameter is a pointer, add its pointer target value.
+                if pointing_params.contains(&param_path) {
+                    private_values.insert(pointer_target_param_path.clone());
+                    included_as_a_pointer = true;
+                    continue;
+                }
+            }
+            if !included_as_a_pointer {
+                // If the parameter is not a pointer, add it directly.
+                private_values.insert(param_path);
+            }
+        }
+    }
+    private_values
+}
 
 pub(crate) fn create_validation_error(
     error_msg: String,
@@ -87,20 +119,6 @@ fn validate_all_pointer_targets_set(preset: Value) -> Result<(), ValidationError
     }
 }
 
-pub struct BaseAppConfigOverride {
-    component_config: ComponentConfig,
-    monitoring_endpoint_config: MonitoringEndpointConfig,
-}
-
-impl BaseAppConfigOverride {
-    pub fn new(
-        component_config: ComponentConfig,
-        monitoring_endpoint_config: MonitoringEndpointConfig,
-    ) -> Self {
-        Self { component_config, monitoring_endpoint_config }
-    }
-}
-
 #[derive(Debug, Clone, Default)]
 pub struct DeploymentBaseAppConfig {
     pub config: SequencerNodeConfig,
@@ -139,12 +157,6 @@ impl DeploymentBaseAppConfig {
         modify_config_pointers_fn(&mut self.config_pointers_map);
     }
 
-    pub fn override_base_app_config(&mut self, base_app_config_override: BaseAppConfigOverride) {
-        self.config.components = base_app_config_override.component_config;
-        self.config.monitoring_endpoint_config =
-            base_app_config_override.monitoring_endpoint_config;
-    }
-
     pub fn as_value(&self) -> Value {
         // Create the entire mapping of the config and the pointers, without the required params.
         let config_as_map = combine_config_map_and_pointers(
@@ -169,63 +181,4 @@ impl DeploymentBaseAppConfig {
             config_path.to_str().expect("Should be able to convert path to string"),
         );
     }
-}
-
-pub fn get_deployment_from_config_path(config_path: &str) -> DeploymentBaseAppConfig {
-    // TODO(Nadin): simplify this by using only config_path and removing the extra strings.
-    let config = load_and_validate_config(vec![
-        "deployment_from_config_path".to_string(),
-        CONFIG_FILE_ARG.to_string(),
-        config_path.to_string(),
-    ])
-    .unwrap();
-
-    let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
-
-    config_pointers_map.change_target_value(
-        "chain_id",
-        to_value(config.batcher_config.block_builder_config.chain_info.chain_id.clone())
-            .expect("Failed to serialize ChainId"),
-    );
-    config_pointers_map.change_target_value(
-        "eth_fee_token_address",
-        to_value(
-            config
-                .batcher_config
-                .block_builder_config
-                .chain_info
-                .fee_token_addresses
-                .eth_fee_token_address,
-        )
-        .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "strk_fee_token_address",
-        to_value(
-            config
-                .batcher_config
-                .block_builder_config
-                .chain_info
-                .fee_token_addresses
-                .strk_fee_token_address,
-        )
-        .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "validator_id",
-        to_value(config.consensus_manager_config.consensus_config.validator_id)
-            .expect("Failed to serialize ContractAddress"),
-    );
-    config_pointers_map.change_target_value(
-        "recorder_url",
-        to_value(config.consensus_manager_config.cende_config.recorder_url.clone())
-            .expect("Failed to serialize Url"),
-    );
-    config_pointers_map.change_target_value(
-        "starknet_url",
-        to_value(config.state_sync_config.rpc_config.starknet_url.clone())
-            .expect("Failed to serialize starknet_url"),
-    );
-
-    DeploymentBaseAppConfig::new(config, config_pointers_map, CONFIG_NON_POINTERS_WHITELIST.clone())
 }

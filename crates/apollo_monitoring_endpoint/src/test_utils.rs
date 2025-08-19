@@ -1,6 +1,7 @@
 use std::net::{IpAddr, SocketAddr};
 use std::str::FromStr;
 
+use anyhow::Result;
 use apollo_infra_utils::run_until::run_until;
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_metrics::metrics::parse_numeric_metric;
@@ -63,25 +64,40 @@ impl MonitoringClient {
     }
 
     pub async fn get_metrics(&self) -> Result<String, MonitoringClientError> {
-        // Query the server for metrics.
-        let response = self
-            .client
-            .request(build_request(&self.socket.ip(), self.socket.port(), METRICS))
-            .await
-            .map_err(|err| MonitoringClientError::ConnectionError {
-                connection_error: err.to_string(),
-            })?;
+        let interval_ms = 200;
+        let max_attempts = 25;
 
-        // Check response status.
-        if !response.status().is_success() {
-            return Err(MonitoringClientError::ResponseStatusError {
-                status: format!("{:?}", response.status()),
-            });
+        let logger =
+            CustomLogger::new(TraceLevel::Info, Some("Polling metrics endpoint".to_string()));
+
+        let result = run_until(
+            interval_ms,
+            max_attempts,
+            || async {
+                self.client
+                    .request(build_request(&self.socket.ip(), self.socket.port(), METRICS))
+                    .await
+            },
+            |response_result| {
+                response_result.as_ref().map(|res| res.status().is_success()).unwrap_or(false)
+            },
+            Some(logger),
+        )
+        .await;
+
+        match result {
+            Some(Ok(response)) => {
+                // Parse the response body.
+                let body_bytes = to_bytes(response.into_body()).await.unwrap();
+                Ok(String::from_utf8(body_bytes.to_vec()).unwrap())
+            }
+            Some(Err(err)) => {
+                Err(MonitoringClientError::ConnectionError { connection_error: err.to_string() })
+            }
+            None => Err(MonitoringClientError::ResponseStatusError {
+                status: "Timeout or condition not met".into(),
+            }),
         }
-
-        // Parse the response body.
-        let body_bytes = to_bytes(response.into_body()).await.unwrap();
-        Ok(String::from_utf8(body_bytes.to_vec()).unwrap())
     }
 
     // TODO(Yael/Itay): add labels support
@@ -98,7 +114,6 @@ impl MonitoringClient {
     }
 }
 
-// TODO(Tsabary): use socket instead of ip and port.
 pub(crate) fn build_request(ip: &IpAddr, port: u16, method: &str) -> Request<Body> {
     Request::builder()
         .uri(format!("http://{ip}:{port}/{MONITORING_PREFIX}/{method}").as_str())

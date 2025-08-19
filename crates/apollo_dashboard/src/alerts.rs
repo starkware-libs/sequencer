@@ -1,32 +1,92 @@
+use std::collections::HashSet;
+use std::fmt;
+
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
+use strum_macros::EnumIter;
+
+pub(crate) const PENDING_DURATION_DEFAULT: &str = "30s";
+pub(crate) const EVALUATION_INTERVAL_SEC_DEFAULT: u64 = 30;
+pub(crate) const SECS_IN_MIN: u64 = 60;
+
+/// Alerts to be configured in the dashboard.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+pub struct Alerts {
+    alerts: Vec<Alert>,
+}
+
+impl Alerts {
+    pub(crate) fn new(alerts: Vec<Alert>, alert_env_filtering: AlertEnvFiltering) -> Self {
+        let filtered_alerts: Vec<Alert> = alerts
+            .into_iter()
+            .filter(|alert| alert.alert_env_filtering.matches(&alert_env_filtering))
+            .collect();
+        let mut alert_names: HashSet<&str> = HashSet::new();
+
+        for alert in &filtered_alerts {
+            if !alert_names.insert(alert.name.as_str()) {
+                panic!(
+                    "Duplicate alert name found: {} for env: {}",
+                    alert.name, alert.alert_env_filtering
+                );
+            }
+        }
+        Self { alerts: filtered_alerts }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, EnumIter)]
+pub enum AlertEnvFiltering {
+    All,
+    MainnetStyleAlerts,
+    TestnetStyleAlerts,
+}
+
+impl AlertEnvFiltering {
+    pub fn matches(&self, target: &AlertEnvFiltering) -> bool {
+        self == target || *self == AlertEnvFiltering::All
+    }
+}
+
+impl fmt::Display for AlertEnvFiltering {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            AlertEnvFiltering::All => {
+                unreachable!()
+            } // This variant is used for internal logic and should not be displayed.
+            AlertEnvFiltering::MainnetStyleAlerts => "mainnet",
+            AlertEnvFiltering::TestnetStyleAlerts => "testnet",
+        };
+        write!(f, "{}", s)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub enum AlertSeverity {
-    // Critical issues that demand immediate attention. These are high-impact incidents that
-    // affect the system's availability.
+pub(crate) enum AlertSeverity {
+    /// Critical issues that demand immediate attention. These are high-impact incidents that
+    /// affect the system's availability.
     #[serde(rename = "p1")]
-    SOS,
-    // Standard alerts for production issues that require attention around the clock but are not
-    // as time-sensitive as SOS alerts.
+    Sos,
+    /// Standard alerts for production issues that require attention around the clock but are not
+    /// as time-sensitive as SOS alerts.
     #[serde(rename = "p2")]
     Regular,
-    // Important alerts that do not require overnight attention. These are delayed during night
-    // hours to reduce unnecessary off-hours noise.
+    /// Important alerts that do not require overnight attention. These are delayed during night
+    /// hours to reduce unnecessary off-hours noise.
     #[serde(rename = "p3")]
     DayOnly,
-    // Alerts that are only triggered during official business hours. These do not trigger during
-    // holidays.
+    /// Alerts that are only triggered during official business hours. These do not trigger during
+    /// holidays.
     #[serde(rename = "p4")]
     WorkingHours,
-    // Non-critical alerts, meant purely for information. These are not intended to wake anyone up
-    // and are monitored only by the development team.
+    /// Non-critical alerts, meant purely for information. These are not intended to wake anyone up
+    /// and are monitored only by the development team.
     #[serde(rename = "p5")]
     Informational,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub enum AlertComparisonOp {
+pub(crate) enum AlertComparisonOp {
     #[serde(rename = "gt")]
     GreaterThan,
     #[serde(rename = "lt")]
@@ -35,22 +95,24 @@ pub enum AlertComparisonOp {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AlertLogicalOp {
+pub(crate) enum AlertLogicalOp {
     And,
+    // TODO(Tsabary): remove the `allow(dead_code)` once this variant is used.
+    #[allow(dead_code)]
     Or,
 }
 
 /// Defines the condition to trigger the alert.
 #[derive(Clone, Debug, PartialEq)]
-pub struct AlertCondition {
+pub(crate) struct AlertCondition {
     // The comparison operator to use when comparing the expression to the value.
-    pub comparison_op: AlertComparisonOp,
+    pub(crate) comparison_op: AlertComparisonOp,
     // The value to compare the expression to.
-    pub comparison_value: f64,
+    pub(crate) comparison_value: f64,
     // The logical operator between this condition and other conditions.
     // TODO(Yael): Consider moving this field to the be one per alert to avoid ambiguity when
     // trying to use a combination of `and` and `or` operators.
-    pub logical_op: AlertLogicalOp,
+    pub(crate) logical_op: AlertLogicalOp,
 }
 
 impl Serialize for AlertCondition {
@@ -91,10 +153,11 @@ impl Serialize for AlertCondition {
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AlertGroup {
+pub(crate) enum AlertGroup {
     Batcher,
     Consensus,
     Gateway,
+    General,
     HttpServer,
     L1GasPrice,
     L1Messages,
@@ -104,36 +167,53 @@ pub enum AlertGroup {
 
 /// Describes the properties of an alert defined in grafana.
 #[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct Alert {
+pub(crate) struct Alert {
     // The name of the alert.
-    pub name: &'static str,
+    name: String,
     // The title that will be displayed.
-    pub title: &'static str,
+    title: String,
     // The group that the alert will be displayed under.
     #[serde(rename = "ruleGroup")]
-    pub alert_group: AlertGroup,
+    alert_group: AlertGroup,
     // The expression to evaluate for the alert.
-    pub expr: String,
+    expr: String,
     // The conditions that must be met for the alert to be triggered.
-    pub conditions: &'static [AlertCondition],
+    conditions: Vec<AlertCondition>,
     // The time duration for which the alert conditions must be true before an alert is triggered.
     #[serde(rename = "for")]
-    pub pending_duration: &'static str,
+    pending_duration: String,
     // The interval in sec between evaluations of the alert.
     #[serde(rename = "intervalSec")]
-    pub evaluation_interval_sec: u64,
+    evaluation_interval_sec: u64,
     // The severity level of the alert.
-    pub severity: AlertSeverity,
+    severity: AlertSeverity,
+    #[serde(skip)]
+    alert_env_filtering: AlertEnvFiltering,
 }
 
-/// Description of the alerts to be configured in the dashboard.
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct Alerts {
-    alerts: Vec<Alert>,
-}
-
-impl Alerts {
-    pub const fn new(alerts: Vec<Alert>) -> Self {
-        Self { alerts }
+impl Alert {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        name: impl ToString,
+        title: impl ToString,
+        alert_group: AlertGroup,
+        expr: impl ToString,
+        conditions: Vec<AlertCondition>,
+        pending_duration: impl ToString,
+        evaluation_interval_sec: u64,
+        severity: AlertSeverity,
+        alert_env_filtering: AlertEnvFiltering,
+    ) -> Self {
+        Self {
+            name: name.to_string(),
+            title: title.to_string(),
+            alert_group,
+            expr: expr.to_string(),
+            conditions,
+            pending_duration: pending_duration.to_string(),
+            evaluation_interval_sec,
+            severity,
+            alert_env_filtering,
+        }
     }
 }

@@ -7,10 +7,7 @@ use starknet_api::contract_class::EntryPointType;
 use starknet_api::deprecated_contract_class::{ContractClass, EntryPointV0};
 use starknet_types_core::felt::Felt;
 
-use crate::hints::class_hash::hinted_class_hash::{
-    compute_cairo_hinted_class_hash,
-    CairoContractDefinition,
-};
+use crate::hints::class_hash::hinted_class_hash::compute_cairo_hinted_class_hash;
 use crate::hints::vars::{CairoStruct, Const};
 use crate::vm_utils::{
     insert_values_to_fields,
@@ -21,6 +18,13 @@ use crate::vm_utils::{
     VmUtilsResult,
 };
 
+impl<IG: IdentifierGetter> CairoSized<IG> for ContractClass {
+    fn cairo_struct() -> CairoStruct {
+        CairoStruct::DeprecatedCompiledClass
+    }
+}
+
+/// Corresponds to the DeprecatedCompiledClass struct in Cairo.
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
     fn load_into(
         &self,
@@ -28,7 +32,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
         identifier_getter: &IG,
         address: Relocatable,
         constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()> {
+    ) -> VmUtilsResult<Relocatable> {
         // Insert compiled class version field.
         let compiled_class_version = Const::DeprecatedCompiledClassVersion.fetch(constants)?;
 
@@ -71,11 +75,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
         vm.load_data(builtin_list_base, &builtins)?;
 
         // Insert hinted class hash.
-        let contract_definition_vec = serde_json::to_vec(&self)?;
-        let contract_definition: CairoContractDefinition<'_> =
-            serde_json::from_slice(&contract_definition_vec).map_err(VmUtilsError::SerdeJson)?;
-
-        let hinted_class_hash = compute_cairo_hinted_class_hash(&contract_definition)?;
+        let hinted_class_hash = compute_cairo_hinted_class_hash(self)?;
 
         // Insert bytecode_ptr.
         let bytecode_ptr = deserialize_array_of_bigint_hex(&self.program.data)?;
@@ -106,7 +106,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for ContractClass {
             identifier_getter,
         )?;
 
-        Ok(())
+        Ok((address + Self::size(identifier_getter)?)?)
     }
 }
 
@@ -129,6 +129,7 @@ fn insert_entry_points<IG: IdentifierGetter>(
     Ok((list_base, n_entry_points))
 }
 
+/// Corresponds to the DeprecatedContractEntryPoint struct in Cairo.
 impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV0 {
     fn load_into(
         &self,
@@ -136,7 +137,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV0 {
         identifier_getter: &IG,
         address: Relocatable,
         _constants: &HashMap<String, Felt>,
-    ) -> VmUtilsResult<()> {
+    ) -> VmUtilsResult<Relocatable> {
         // Insert the fields.
         let nested_fields_and_value =
             [("selector", self.selector.0.into()), ("offset", self.offset.0.into())];
@@ -148,7 +149,7 @@ impl<IG: IdentifierGetter> LoadCairoObject<IG> for EntryPointV0 {
             identifier_getter,
         )?;
 
-        Ok(())
+        Ok((address + Self::size(identifier_getter)?)?)
     }
 }
 

@@ -1,7 +1,8 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::iter::Sum;
 use std::ops::{Add, AddAssign};
 
+use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use serde::Serialize;
 use starknet_api::block::{BlockHash, BlockNumber};
@@ -62,6 +63,7 @@ pub struct CallExecution {
     pub retdata: Retdata,
     pub events: Vec<OrderedEvent>,
     pub l2_to_l1_messages: Vec<OrderedL2ToL1Message>,
+    pub cairo_native: bool,
     pub failed: bool,
     pub gas_consumed: u64,
 }
@@ -93,6 +95,14 @@ impl EventSummary {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, derive_more::AddAssign, PartialEq)]
+pub struct CallSummary {
+    pub n_calls: u64,
+    pub n_calls_running_native: u64,
+}
+
+pub type BuiltinCounterMap = HashMap<BuiltinName, usize>;
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExecutionSummary {
     pub charged_resources: ChargedResources,
@@ -100,6 +110,7 @@ pub struct ExecutionSummary {
     pub visited_storage_entries: HashSet<StorageEntry>,
     pub l2_to_l1_payload_lengths: Vec<usize>,
     pub event_summary: EventSummary,
+    pub call_summary: CallSummary,
 }
 
 impl Add for ExecutionSummary {
@@ -111,6 +122,7 @@ impl Add for ExecutionSummary {
         self.visited_storage_entries.extend(other.visited_storage_entries);
         self.l2_to_l1_payload_lengths.extend(other.l2_to_l1_payload_lengths);
         self.event_summary += other.event_summary;
+        self.call_summary += other.call_summary;
         self
     }
 }
@@ -136,7 +148,8 @@ impl ExecutionSummary {
         use crate::fee::resources::{ComputationResources, MessageResources};
 
         let computation_resources = ComputationResources {
-            vm_resources: self.charged_resources.vm_resources,
+            tx_vm_resources: self.charged_resources.vm_resources,
+            os_vm_resources: ExecutionResources::default(),
             n_reverted_steps: 0,
             sierra_gas: self.charged_resources.gas_consumed,
             reverted_sierra_gas: 0u64.into(),
@@ -224,6 +237,9 @@ pub struct CallInfo {
 
     // Additional information gathered during execution.
     pub storage_access_tracker: StorageAccessTracker,
+    // Tracks how many times each builtin was called during execution (excluding inner calls).
+    // Used by the bouncer to decide when to close a block.
+    pub builtin_counters: BuiltinCounterMap,
 }
 
 impl CallInfo {
@@ -247,6 +263,7 @@ impl CallInfo {
         let mut visited_storage_entries: HashSet<StorageEntry> = HashSet::new();
         let mut event_summary = EventSummary::default();
         let mut l2_to_l1_payload_lengths = Vec::new();
+        let mut call_summary = CallSummary::default();
 
         for call_info in self.iter() {
             // Class hashes.
@@ -275,6 +292,10 @@ impl CallInfo {
             if !versioned_constants.ignore_inner_event_resources {
                 event_summary += call_info.specific_event_summary();
             }
+            call_summary.n_calls += 1;
+            if call_info.execution.cairo_native {
+                call_summary.n_calls_running_native += 1;
+            }
         }
 
         if versioned_constants.ignore_inner_event_resources {
@@ -294,6 +315,7 @@ impl CallInfo {
             visited_storage_entries,
             l2_to_l1_payload_lengths,
             event_summary,
+            call_summary,
         }
     }
 

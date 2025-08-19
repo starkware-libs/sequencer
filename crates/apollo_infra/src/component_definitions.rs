@@ -6,12 +6,13 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::time::Instant;
 use tracing::{error, info};
 
 use crate::component_client::ClientResult;
 
 pub(crate) const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
-pub(crate) const DEFAULT_CHANNEL_BUFFER_SIZE: usize = 32;
+pub const BUSY_PREVIOUS_REQUESTS_MSG: &str = "Server is busy addressing previous requests";
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -78,17 +79,42 @@ impl<T: Send> ComponentCommunication<T> {
     }
 }
 
-pub struct ComponentRequestAndResponseSender<Request, Response>
+pub struct RequestWrapper<Request, Response>
 where
     Request: Send,
     Response: Send,
 {
     pub request: Request,
     pub tx: Sender<Response>,
+    pub creation_time: Instant,
+}
+
+impl<Request, Response> RequestWrapper<Request, Response>
+where
+    Request: Send,
+    Response: Send,
+{
+    pub fn new(request: Request, tx: Sender<Response>) -> Self {
+        Self { request, tx, creation_time: Instant::now() }
+    }
 }
 
 #[derive(Debug, Error, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub enum ServerError {
     #[error("Could not deserialize client request: {0}")]
     RequestDeserializationFailure(String),
+}
+
+#[derive(Debug)]
+pub enum RequestPriority {
+    High,
+    Normal,
+}
+
+pub trait PrioritizedRequest {
+    // TODO(Tsabary): Default implementation to avoid applying this trait to all request types. Need
+    // to remove this out later on.
+    fn priority(&self) -> RequestPriority {
+        RequestPriority::Normal
+    }
 }

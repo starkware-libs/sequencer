@@ -1,3 +1,4 @@
+use apollo_starknet_client::reader::ReaderClientError;
 use apollo_storage::StorageError;
 use futures::channel::mpsc::SendError;
 use serde::{Deserialize, Serialize};
@@ -5,12 +6,13 @@ use starknet_api::block::BlockNumber;
 use starknet_api::core::{ClassHash, ContractAddress};
 use starknet_api::StarknetApiError;
 use thiserror::Error;
+use tokio::task::JoinError;
 
 #[derive(Debug, Error, Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub enum StateSyncError {
     #[error("Communication error between StateSync and StateSyncRunner")]
     RunnerCommunicationError,
-    #[error("Block number {0} was not found")]
+    #[error("Block number {0} was not found. State sync might not be synced up to this block.")]
     BlockNotFound(BlockNumber),
     #[error("Contract address {0} was not found")]
     ContractNotFound(ContractAddress),
@@ -28,6 +30,10 @@ pub enum StateSyncError {
     StarknetApiError(String),
     #[error("State is empty, latest block returned None")]
     EmptyState,
+    #[error("Error while trying to communicate with feeder gateway: {0}")]
+    ReaderClientError(String),
+    #[error("Error while trying to join a task: {0}")]
+    JoinError(String),
 }
 
 impl From<StorageError> for StateSyncError {
@@ -45,5 +51,17 @@ impl From<StarknetApiError> for StateSyncError {
 impl From<SendError> for StateSyncError {
     fn from(error: SendError) -> Self {
         StateSyncError::SendError(error.to_string())
+    }
+}
+
+impl From<ReaderClientError> for StateSyncError {
+    fn from(error: ReaderClientError) -> Self {
+        StateSyncError::ReaderClientError(error.to_string())
+    }
+}
+
+impl From<JoinError> for StateSyncError {
+    fn from(error: JoinError) -> Self {
+        StateSyncError::JoinError(error.to_string())
     }
 }

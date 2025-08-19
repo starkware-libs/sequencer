@@ -23,6 +23,7 @@ use blockifier::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertData,
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
@@ -70,7 +71,7 @@ pub enum SnosSyscallError {
     #[error(transparent)]
     Memory(#[from] MemoryError),
     #[error("Syscall revert.")]
-    Revert { error_data: Vec<Felt> },
+    Revert(RevertData),
     #[error(transparent)]
     SyscallExecutorBase(#[from] SyscallExecutorBaseError),
     #[error(transparent)]
@@ -93,7 +94,7 @@ impl TryExtractRevert for SnosSyscallError {
             Self::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
-            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            Self::Revert(revert_data) => SelfOrRevert::Revert(revert_data),
             Self::ExecutionHelper(_)
             | Self::Math(_)
             | Self::InvalidResourceBounds(_)
@@ -102,8 +103,8 @@ impl TryExtractRevert for SnosSyscallError {
         }
     }
 
-    fn as_revert(error_data: Vec<Felt>) -> Self {
-        SyscallExecutorBaseError::Revert { error_data }.into()
+    fn as_revert(revert_data: RevertData) -> Self {
+        Self::Revert(revert_data)
     }
 }
 
@@ -114,21 +115,51 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         &self.versioned_constants().os_constants.gas_costs
     }
 
-    fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
-        &mut self.syscall_hint_processor.secp256k1_hint_processor
+    fn get_secpk1_hint_processor_and_base(
+        &mut self,
+    ) -> (&mut SecpHintProcessor<ark_secp256k1::Config>, &mut Option<Relocatable>) {
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Execution helper must be set.");
+        (
+            &mut current_execution_helper.syscall_hint_processor.secp256k1_hint_processor,
+            &mut current_execution_helper.syscall_hint_processor.secp_points_segment_base,
+        )
     }
 
-    fn get_secpr1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256r1::Config> {
-        &mut self.syscall_hint_processor.secp256r1_hint_processor
+    fn get_secpr1_hint_processor_and_base(
+        &mut self,
+    ) -> (&mut SecpHintProcessor<ark_secp256r1::Config>, &mut Option<Relocatable>) {
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Execution helper must be set.");
+        (
+            &mut current_execution_helper.syscall_hint_processor.secp256r1_hint_processor,
+            &mut current_execution_helper.syscall_hint_processor.secp_points_segment_base,
+        )
+    }
+
+    fn get_secp_id(&self) -> usize {
+        let current_execution_helper =
+            self.get_current_execution_helper().expect("Execution helper must be set.");
+        current_execution_helper.syscall_hint_processor.secp256k1_hint_processor.points.len()
+            + current_execution_helper.syscall_hint_processor.secp256r1_hint_processor.points.len()
     }
 
     fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize) {
-        let syscall_usage = self.syscall_hint_processor.syscall_usage.entry(*selector).or_default();
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Execution helper must be set.");
+        let syscall_usage = current_execution_helper
+            .syscall_hint_processor
+            .syscall_usage
+            .entry(*selector)
+            .or_default();
         syscall_usage.call_count += count;
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
-        self.syscall_hint_processor
+        let current_execution_helper =
+            self.get_mut_current_execution_helper().expect("Execution helper must be set.");
+        current_execution_helper
+            .syscall_hint_processor
             .get_mut_syscall_ptr()
             .expect("Syscall pointer is not initialized.")
     }
@@ -142,9 +173,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         remaining_gas: &mut u64,
     ) -> Result<CallContractResponse, Self::Error> {
         if request.function_selector == selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
-            return Err(Self::Error::Revert {
-                error_data: vec![Felt::from_hex_unchecked(INVALID_ARGUMENT)],
-            });
+            return Err(handle_failure(Felt::from_hex_unchecked(INVALID_ARGUMENT)));
         }
         call_contract_helper(vm, syscall_handler, remaining_gas)
     }
@@ -170,9 +199,8 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         let retdata_base = vm.add_temporary_segment();
         vm.load_data(retdata_base, &retdata).map_err(SyscallExecutorBaseError::from)?;
         if execution.failed {
-            return Err(Self::Error::from(SyscallExecutorBaseError::Revert {
-                error_data: execution.retdata.0.clone(),
-            }));
+            let revert_data = RevertData::new_temp(execution.retdata.0.clone());
+            return Err(SnosSyscallError::Revert(revert_data));
         };
         Ok(DeployResponse {
             contract_address: deployed_contract_address,
@@ -274,9 +302,7 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         remaining_gas: &mut u64,
     ) -> Result<MetaTxV0Response, Self::Error> {
         if request.entry_point_selector != selector_from_name(EXECUTE_ENTRY_POINT_NAME) {
-            return Err(Self::Error::Revert {
-                error_data: vec![Felt::from_hex_unchecked(INVALID_ARGUMENT)],
-            });
+            return Err(handle_failure(Felt::from_hex_unchecked(INVALID_ARGUMENT)));
         }
         call_contract_helper(vm, syscall_handler, remaining_gas)
     }
@@ -334,19 +360,20 @@ impl<S: StateReader> SyscallExecutor for SnosHintProcessor<'_, S> {
         state: &[MaybeRelocatable],
         vm: &mut VirtualMachine,
     ) -> Result<Relocatable, Self::Error> {
-        let segment_start =
-            self.syscall_hint_processor.sha256_segment.expect("SHA256 segment must be set in OS.");
-        let entries_offset =
-            get_size_of_cairo_struct(CairoStruct::Sha256ProcessBlock, self.program)?
-                * self.syscall_hint_processor.sha256_block_count;
+        let block_size = get_size_of_cairo_struct(CairoStruct::Sha256ProcessBlock, self.program)?;
         let out_state_offset =
             get_field_offset(CairoStruct::Sha256ProcessBlock, "out_state", self.program)?;
+        let syscall_hint_processor =
+            &mut self.get_mut_current_execution_helper()?.syscall_hint_processor;
+        let segment_start =
+            syscall_hint_processor.sha256_segment.expect("SHA256 segment must be set in OS.");
+        let entries_offset = block_size * syscall_hint_processor.sha256_block_count;
         let total_offset = entries_offset + out_state_offset;
         let state_start = (segment_start + total_offset)?;
         vm.load_data(state_start, state)?;
 
         // Increment the block count for the next call.
-        self.syscall_hint_processor.sha256_block_count += 1;
+        syscall_hint_processor.sha256_block_count += 1;
         Ok(state_start)
     }
 }
@@ -430,8 +457,14 @@ fn call_contract_helper(
     if next_call_execution.failed {
         let mut retdata = retdata.clone();
         retdata.push(revert_error_code);
-        return Err(SnosSyscallError::Revert { error_data: retdata });
+        let revert_data = RevertData::new_temp(retdata);
+        return Err(SnosSyscallError::Revert(revert_data));
     };
 
     Ok(CallContractResponse { segment: write_to_temp_segment(retdata, vm)? })
+}
+
+/// Returns an revert error with the given error code which will be written to a normal segment.
+fn handle_failure(error_code: Felt) -> SnosSyscallError {
+    SnosSyscallError::Revert(RevertData::new_normal(vec![error_code]))
 }

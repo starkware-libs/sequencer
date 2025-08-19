@@ -1,17 +1,19 @@
-use std::path::PathBuf;
+use starknet_api::block::BlockNumber;
+use url::Url;
 
-use crate::deployment::{
+use crate::config_override::{
     ConfigOverride,
-    Deployment,
     DeploymentConfigOverride,
-    DeploymentType,
     InstanceConfigOverride,
-    PragmaDomain,
+    NetworkConfigOverride,
 };
-use crate::deployment_definitions::{Environment, BASE_APP_CONFIG_PATH};
-use crate::service::{DeploymentName, IngressParams};
+use crate::deployment::Deployment;
+use crate::deployment_definitions::{Environment, StateSyncType};
+use crate::k8s::IngressParams;
+use crate::service::NodeType;
 
 const TESTING_INGRESS_DOMAIN: &str = "sw-dev.io";
+const TESTING_NODE_IDS: [usize; 1] = [0];
 
 pub(crate) fn system_test_deployments() -> Vec<Deployment> {
     vec![
@@ -26,22 +28,19 @@ fn testing_deployment_config_override() -> DeploymentConfigOverride {
         "0x5FbDB2315678afecb367f032d93F642f64180aa3",
         "CHAIN_ID_SUBDIR",
         "0x1001",
-        "https://integration-sepolia.starknet.io/",
+        Url::parse("https://integration-sepolia.starknet.io/").expect("Invalid URL"),
         "0x1002",
-        PragmaDomain::Dev,
+        Some(BlockNumber(1)),
+        TESTING_NODE_IDS.len(),
+        StateSyncType::P2P,
     )
 }
 
 fn testing_instance_config_override() -> InstanceConfigOverride {
     InstanceConfigOverride::new(
-        "",
-        true,
-        "0x0101010101010101010101010101010101010101010101010101010101010101",
-        "",
-        true,
-        "0x0101010101010101010101010101010101010101010101010101010101010101",
+        NetworkConfigOverride::new(None, None),
+        NetworkConfigOverride::new(None, None),
         "0x64",
-        DeploymentType::Operational.get_deployment_type_config_override(),
     )
 }
 
@@ -55,36 +54,36 @@ fn get_ingress_params() -> IngressParams {
 
 fn system_test_distributed_deployment() -> Deployment {
     Deployment::new(
-        DeploymentName::DistributedNode,
-        Environment::Testing,
-        "deployment_test_distributed",
+        NodeType::Distributed,
+        Environment::LocalK8s,
+        "distributed",
         None,
-        PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
+        None,
     )
 }
 
 fn system_test_hybrid_deployment() -> Deployment {
     Deployment::new(
-        DeploymentName::HybridNode,
-        Environment::Testing,
-        "deployment_test_hybrid",
+        NodeType::Hybrid,
+        Environment::LocalK8s,
+        "hybrid",
         None,
-        PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
+        None,
     )
 }
 
 fn system_test_consolidated_deployment() -> Deployment {
     Deployment::new(
-        DeploymentName::ConsolidatedNode,
-        Environment::Testing,
-        "deployment_test_consolidated",
+        NodeType::Consolidated,
+        Environment::LocalK8s,
+        "consolidated",
         None,
-        PathBuf::from(BASE_APP_CONFIG_PATH),
         testing_config_override(),
         get_ingress_params(),
+        None,
     )
 }

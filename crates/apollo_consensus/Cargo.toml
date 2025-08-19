@@ -15,15 +15,11 @@ apollo_metrics.workspace = true
 apollo_network.workspace = true
 apollo_network_types.workspace = true
 apollo_protobuf.workspace = true
+apollo_time = { workspace = true, features = ["tokio"] }
 async-trait.workspace = true
-clap = { workspace = true, features = ["derive"] }
-fs2.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
 lru.workspace = true
-metrics.workspace = true
-nix.workspace = true
-papyrus_common.workspace = true
 prost.workspace = true
 serde = { workspace = true, features = ["derive"] }
 starknet-types-core.workspace = true

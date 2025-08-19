@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use indexmap::{IndexMap, IndexSet};
 use itertools::{chain, Itertools};
 use pretty_assertions::assert_eq;
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockNumber, BlockTimestamp, UnixTimestamp};
 use starknet_api::executable_transaction::{
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
     L1HandlerTransaction,
@@ -53,6 +53,8 @@ impl L1ProviderContent {
     pub fn assert_eq(&self, l1_provider: &L1Provider) {
         if let Some(tx_manager_content) = &self.tx_manager_content {
             tx_manager_content.assert_eq(&l1_provider.tx_manager);
+        } else {
+            assert!(l1_provider.tx_manager.snapshot().is_empty());
         }
 
         if let Some(state) = &self.state {
@@ -74,6 +76,7 @@ impl From<L1ProviderContent> for L1Provider {
             // is functionally equivalent to Pending for testing purposes.
             state: content.state.unwrap_or(ProviderState::Pending),
             current_height: content.current_height.unwrap_or_default(),
+            start_height: content.current_height.unwrap_or_default(),
             clock: content.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
         }
     }
@@ -94,15 +97,6 @@ impl L1ProviderContentBuilder {
     }
 
     pub fn with_config(mut self, config: L1ProviderConfig) -> Self {
-        let new_l1_handler_tx_cooldown_secs = config.new_l1_handler_cooldown_seconds;
-        let l1_handler_cancellation_timelock_seconds =
-            config.l1_handler_cancellation_timelock_seconds;
-        self.tx_manager_content_builder =
-            self.tx_manager_content_builder.with_config(TransactionManagerConfig {
-                new_l1_handler_tx_cooldown_secs,
-                l1_handler_cancellation_timelock_seconds,
-            });
-
         self.config = Some(config);
         self
     }
@@ -168,7 +162,7 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn with_cancel_requested_txs(
+    pub fn with_timed_cancel_requested_txs(
         mut self,
         cancel_requested: impl IntoIterator<Item = (L1HandlerTransaction, u64)>,
     ) -> Self {
@@ -176,6 +170,36 @@ impl L1ProviderContentBuilder {
         self.tx_manager_content_builder =
             self.tx_manager_content_builder.with_cancel_requested_txs(cancel_requested);
         self
+    }
+
+    pub fn with_cancel_requested_txs(
+        mut self,
+        cancel_requested: impl IntoIterator<Item = L1HandlerTransaction>,
+    ) -> Self {
+        self = self.with_nonzero_timelock_setup();
+
+        let now = self.clock.as_ref().unwrap().unix_now();
+        let cancellation_request_timestamp = now;
+        let cancel_requested =
+            cancel_requested.into_iter().map(|tx| (tx, cancellation_request_timestamp));
+        self.with_timed_cancel_requested_txs(cancel_requested)
+    }
+
+    pub fn with_cancelled_txs(
+        mut self,
+        cancelled: impl IntoIterator<Item = L1HandlerTransaction>,
+    ) -> Self {
+        self = self.with_nonzero_timelock_setup();
+
+        let now = self.clock.as_ref().unwrap().unix_now();
+        let cancellation_timelock =
+            self.config.unwrap().l1_handler_cancellation_timelock_seconds.as_secs();
+        // If a tx's timestamp is OLDER than the timelock, then it's timeout is expired and it's
+        // considered fully cancelled on L2.
+        let cancellation_expired = now - (cancellation_timelock + 1);
+        let cancelled = cancelled.into_iter().map(|tx| (tx, cancellation_expired));
+
+        self.with_timed_cancel_requested_txs(cancelled)
     }
 
     /// Use to test timelocking of new l1-handler transactions, if you don't care about the actual
@@ -189,7 +213,7 @@ impl L1ProviderContentBuilder {
     ) -> Self {
         self = self.with_nonzero_timelock_setup();
 
-        let now = u64::try_from(self.clock.as_ref().unwrap().now().timestamp()).unwrap();
+        let now = self.clock.as_ref().unwrap().unix_now();
         // An l1-handler is timelocked if if was created less than `cooldown` seconds ago. Since
         // timelock is nonzero, all txs created `now` are trivially timelocked.
         let timelocked_tx_timestamp = now;
@@ -200,7 +224,21 @@ impl L1ProviderContentBuilder {
         self
     }
 
-    pub fn build(self) -> L1ProviderContent {
+    pub fn with_consumed_txs(
+        mut self,
+        consumed: impl IntoIterator<Item = ConsumedTransaction>,
+    ) -> Self {
+        self.tx_manager_content_builder =
+            self.tx_manager_content_builder.with_consumed_txs(consumed);
+        self
+    }
+
+    pub fn build(mut self) -> L1ProviderContent {
+        if let Some(config) = self.config {
+            self.tx_manager_content_builder =
+                self.tx_manager_content_builder.with_config(config.into());
+        }
+
         L1ProviderContent {
             config: self.config,
             tx_manager_content: self.tx_manager_content_builder.build(),
@@ -223,6 +261,7 @@ impl L1ProviderContentBuilder {
         self.with_config(L1ProviderConfig {
             new_l1_handler_cooldown_seconds: nonzero_timelock,
             l1_handler_cancellation_timelock_seconds: nonzero_timelock,
+            l1_handler_consumption_timelock_seconds: nonzero_timelock,
             ..config
         })
     }
@@ -235,6 +274,7 @@ struct TransactionManagerContent {
     pub uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     pub rejected: Option<Vec<L1HandlerTransaction>>,
     pub committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    pub consumed: Option<Vec<ConsumedTransaction>>,
     pub cancel_requested: Option<Vec<CancellationRequest>>,
     pub config: Option<TransactionManagerConfig>,
 }
@@ -271,6 +311,13 @@ impl TransactionManagerContent {
                 chain!(snapshot.cancellation_started_on_l2, snapshot.cancelled_on_l2).collect_vec(),
             );
         }
+
+        // The consumed transactions should be regarded as unordered for comparison purposes.
+        if let Some(consumed) = &self.consumed {
+            let sorted_consumed = consumed.iter().map(|tx| &tx.tx.tx_hash).sorted().collect_vec();
+            let sorted_snapshot_consumed = snapshot.consumed.iter().sorted().collect_vec();
+            assert_eq!(sorted_consumed, sorted_snapshot_consumed);
+        }
     }
 }
 
@@ -278,20 +325,26 @@ impl From<TransactionManagerContent> for TransactionManager {
     fn from(mut content: TransactionManagerContent) -> TransactionManager {
         let pending: Vec<_> = mem::take(&mut content.uncommitted).unwrap_or_default();
         let rejected: Vec<_> = mem::take(&mut content.rejected).unwrap_or_default();
+        // TODO(guyn): make this a vector too.
         let committed: IndexMap<_, _> = mem::take(&mut content.committed).unwrap_or_default();
+        let consumed: Vec<_> = mem::take(&mut content.consumed).unwrap_or_default();
         let cancel_requested: Vec<_> = mem::take(&mut content.cancel_requested).unwrap_or_default();
 
         let mut records = IndexMap::with_capacity(
-            pending.len() + rejected.len() + committed.len() + cancel_requested.len(),
+            pending.len()
+                + rejected.len()
+                + committed.len()
+                + cancel_requested.len()
+                + consumed.len(),
         );
 
-        let mut proposable_index: BTreeMap<BlockTimestamp, Vec<TransactionHash>> = BTreeMap::new();
+        let mut proposable_index: BTreeMap<UnixTimestamp, Vec<TransactionHash>> = BTreeMap::new();
         for timed_tx in pending {
             let tx_hash = timed_tx.tx.tx_hash;
             let block_timestamp = timed_tx.timestamp;
             let record = TransactionRecord::from(timed_tx);
             assert_eq!(records.insert(tx_hash, record), None);
-            proposable_index.entry(block_timestamp).or_default().push(tx_hash);
+            proposable_index.entry(block_timestamp.0).or_default().push(tx_hash);
         }
 
         for rejected_tx in rejected {
@@ -300,6 +353,7 @@ impl From<TransactionManagerContent> for TransactionManager {
                 tx: rejected_tx,
                 created_at_block_timestamp: 0.into(), /* timestamps are irrelevant for txs once
                                                        * rejected. */
+                scrape_timestamp: 0,
             });
             record.mark_rejected();
             assert_eq!(records.insert(tx_hash, record), None);
@@ -317,9 +371,25 @@ impl From<TransactionManagerContent> for TransactionManager {
                 tx: cancel_requested_tx.tx,
                 // Transaction "created_at" irrelevant after cancellation request.
                 created_at_block_timestamp: 0.into(),
+                scrape_timestamp: 0,
             });
             record.mark_cancellation_request(cancel_requested_tx.timestamp);
             assert_eq!(records.insert(tx_hash, record), None);
+        }
+
+        let mut consumed_queue: BTreeMap<BlockTimestamp, Vec<TransactionHash>> = BTreeMap::new();
+        for consumed_tx in consumed {
+            let ConsumedTransaction { tx, timestamp } = consumed_tx;
+            let tx_hash = tx.tx_hash;
+            let mut record = TransactionRecord::new(TransactionPayload::Full {
+                tx,
+                created_at_block_timestamp: timestamp,
+                scrape_timestamp: 0,
+            });
+            let output = record.mark_consumed(consumed_tx.timestamp);
+            assert_eq!(output, None);
+            assert_eq!(records.insert(tx_hash, record), None);
+            consumed_queue.entry(timestamp).or_default().push(tx_hash);
         }
 
         let current_epoch = StagingEpoch::new();
@@ -328,6 +398,7 @@ impl From<TransactionManagerContent> for TransactionManager {
             proposable_index,
             current_epoch,
             content.config.unwrap_or_default(),
+            consumed_queue,
         )
     }
 }
@@ -337,6 +408,7 @@ struct TransactionManagerContentBuilder {
     uncommitted: Option<Vec<TimedL1HandlerTransaction>>,
     rejected: Option<Vec<L1HandlerTransaction>>,
     committed: Option<IndexMap<TransactionHash, TransactionPayload>>,
+    consumed: Option<Vec<ConsumedTransaction>>,
     config: Option<TransactionManagerConfig>,
     cancel_requested: Option<Vec<CancellationRequest>>,
 }
@@ -365,8 +437,16 @@ impl TransactionManagerContentBuilder {
             committed
                 .into_iter()
                 // created at block is irrelevant for committed txs.
-                .map(|tx| (tx.tx_hash, TransactionPayload::Full { tx, created_at_block_timestamp: 0.into() })),
+                .map(|tx| (tx.tx_hash, TransactionPayload::Full { tx, created_at_block_timestamp: 0.into(), scrape_timestamp: 0 })),
         );
+        self
+    }
+
+    fn with_consumed_txs(
+        mut self,
+        consumed: impl IntoIterator<Item = ConsumedTransaction>,
+    ) -> Self {
+        self.consumed.get_or_insert_default().extend(consumed.into_iter().collect_vec());
         self
     }
 
@@ -380,6 +460,7 @@ impl TransactionManagerContentBuilder {
                 TransactionPayload::Full {
                     tx: timed_tx.tx,
                     created_at_block_timestamp: timed_tx.timestamp,
+                    scrape_timestamp: timed_tx.timestamp.0,
                 },
             )
         }));
@@ -419,6 +500,7 @@ impl TransactionManagerContentBuilder {
         Some(TransactionManagerContent {
             uncommitted: self.uncommitted,
             committed: self.committed,
+            consumed: self.consumed,
             rejected: self.rejected,
             cancel_requested: self.cancel_requested,
             config: self.config,
@@ -426,7 +508,11 @@ impl TransactionManagerContentBuilder {
     }
 
     fn is_default(&self) -> bool {
-        self.uncommitted.is_none() && self.committed.is_none() && self.cancel_requested.is_none()
+        self.uncommitted.is_none()
+            && self.committed.is_none()
+            && self.cancel_requested.is_none()
+            && self.consumed.is_none()
+            && self.rejected.is_none()
     }
 }
 
@@ -527,6 +613,7 @@ impl From<TimedL1HandlerTransaction> for TransactionRecord {
         TransactionRecord::new(TransactionPayload::Full {
             tx: timed_tx.tx,
             created_at_block_timestamp: timed_tx.timestamp,
+            scrape_timestamp: timed_tx.timestamp.0,
         })
     }
 }
@@ -538,6 +625,19 @@ struct CancellationRequest {
 }
 
 impl From<(L1HandlerTransaction, u64)> for CancellationRequest {
+    fn from((tx, timestamp): (L1HandlerTransaction, u64)) -> Self {
+        Self { tx, timestamp: timestamp.into() }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConsumedTransaction {
+    pub tx: L1HandlerTransaction,
+    // The block where the transaction was consumed.
+    pub timestamp: BlockTimestamp,
+}
+
+impl From<(L1HandlerTransaction, u64)> for ConsumedTransaction {
     fn from((tx, timestamp): (L1HandlerTransaction, u64)) -> Self {
         Self { tx, timestamp: timestamp.into() }
     }

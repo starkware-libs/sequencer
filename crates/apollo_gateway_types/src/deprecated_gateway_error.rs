@@ -55,6 +55,8 @@ pub enum KnownStarknetErrorCode {
     ValidateFailure,
     #[serde(rename = "StarknetErrorCode.TRANSACTION_LIMIT_EXCEEDED")]
     TransactionLimitExceeded,
+    #[serde(rename = "StarknetErrorCode.UNAUTHORIZED_DECLARE")]
+    UnauthorizedDeclare,
 }
 
 /// A client error wrapping error codes returned by the starknet gateway.
@@ -66,12 +68,15 @@ pub struct StarknetError {
 
 impl StarknetError {
     pub fn internal(message: &str) -> Self {
-        Self {
-            code: StarknetErrorCode::UnknownErrorCode(
-                "StarknetErrorCode.InternalError".to_string(),
-            ),
-            message: message.to_string(),
-        }
+        Self { code: Self::internal_error_code(), message: message.to_string() }
+    }
+
+    pub fn is_internal(&self) -> bool {
+        self.code == Self::internal_error_code()
+    }
+
+    fn internal_error_code() -> StarknetErrorCode {
+        StarknetErrorCode::UnknownErrorCode("StarknetErrorCode.InternalError".to_string())
     }
 }
 

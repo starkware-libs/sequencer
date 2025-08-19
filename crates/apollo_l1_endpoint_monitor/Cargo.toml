@@ -7,14 +7,20 @@ license.workspace = true
 
 [dependencies]
 alloy.workspace = true
+apollo_config.workspace = true
+apollo_infra.workspace = true
+apollo_l1_endpoint_monitor_types.workspace = true
+async-trait.workspace = true
 serde.workspace = true
-thiserror.workspace = true
+tokio.workspace = true
 tracing.workspace = true
 url = { workspace = true, features = ["serde"] }
+validator.workspace = true
 
 [dev-dependencies]
+alloy = { workspace = true, features = ["node-bindings"] }
 mockito.workspace = true
-tokio.workspace = true
+papyrus_base_layer = { workspace = true, features = ["testing"] }
 
 [lints]
 workspace = true

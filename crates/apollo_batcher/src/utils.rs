@@ -5,6 +5,7 @@ use apollo_batcher_types::errors::BatcherError;
 use blockifier::abi::constants;
 use chrono::Utc;
 use starknet_api::block::{BlockHashAndNumber, BlockNumber};
+use tracing::info;
 
 use crate::block_builder::BlockBuilderError;
 
@@ -36,6 +37,7 @@ pub(crate) fn verify_block_input(
     block_number: BlockNumber,
     retrospective_block_hash: Option<BlockHashAndNumber>,
 ) -> BatcherResult<()> {
+    info!("Verify block input for block number {block_number}, at height {height}");
     verify_non_empty_retrospective_block_hash(height, retrospective_block_hash)?;
     verify_block_number(height, block_number)?;
     Ok(())
@@ -67,10 +69,10 @@ pub(crate) fn verify_block_number(
 pub(crate) fn proposal_status_from(
     block_builder_error: Arc<BlockBuilderError>,
 ) -> BatcherResult<ProposalStatus> {
-    match *block_builder_error {
+    match block_builder_error.as_ref() {
         // FailOnError means the proposal either failed due to bad input (e.g. invalid
         // transactions), or couldn't finish in time.
-        BlockBuilderError::FailOnError(_) => Ok(ProposalStatus::InvalidProposal),
+        BlockBuilderError::FailOnError(err) => Ok(ProposalStatus::InvalidProposal(err.to_string())),
         BlockBuilderError::Aborted => Err(BatcherError::ProposalAborted),
         _ => {
             tracing::error!("Unexpected error: {}", block_builder_error);

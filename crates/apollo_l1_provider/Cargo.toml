@@ -6,18 +6,23 @@ repository.workspace = true
 license.workspace = true
 
 [features]
-testing = ["apollo_batcher_types/testing", "pretty_assertions", "starknet_api/testing"]
+testing = [
+  "apollo_batcher_types/testing",
+  "apollo_time/testing",
+  "pretty_assertions",
+  "starknet_api/testing",
+]
 
 [dependencies]
 apollo_batcher_types.workspace = true
 apollo_config.workspace = true
 apollo_infra.workspace = true
+apollo_infra_utils.workspace = true
 apollo_l1_provider_types.workspace = true
 apollo_metrics.workspace = true
 apollo_state_sync_types.workspace = true
 apollo_time.workspace = true
 async-trait.workspace = true
-hex.workspace = true
 indexmap.workspace = true
 itertools.workspace = true
 papyrus_base_layer.workspace = true
@@ -32,6 +37,7 @@ validator.workspace = true
 [dev-dependencies]
 alloy.workspace = true
 apollo_batcher_types = { workspace = true, features = ["testing"] }
+apollo_l1_endpoint_monitor_types = { workspace = true, features = ["testing"] }
 apollo_l1_provider_types = { workspace = true, features = ["testing"] }
 apollo_state_sync_types = { workspace = true, features = ["testing"] }
 apollo_time = { workspace = true, features = ["testing"] }

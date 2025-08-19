@@ -12,19 +12,19 @@ use crate::state::state_api::{StateReader, StateResult};
 #[path = "state_reader_and_contract_manager_test.rs"]
 pub mod state_reader_and_contract_manager_test;
 
-pub trait FetchCompiliedClasses: StateReader {
+pub trait FetchCompiledClasses: StateReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses>;
 
     /// Returns whether the given Cairo1 class is declared.
     fn is_declared(&self, class_hash: ClassHash) -> StateResult<bool>;
 }
 
-pub struct StateReaderAndContractManager<S: FetchCompiliedClasses> {
+pub struct StateReaderAndContractManager<S: FetchCompiledClasses> {
     pub state_reader: S,
     pub contract_class_manager: ContractClassManager,
 }
 
-impl<S: FetchCompiliedClasses> StateReaderAndContractManager<S> {
+impl<S: FetchCompiledClasses> StateReaderAndContractManager<S> {
     fn get_compiled_from_class_manager(
         &self,
         class_hash: ClassHash,
@@ -71,7 +71,7 @@ impl<S: FetchCompiliedClasses> StateReaderAndContractManager<S> {
     }
 }
 
-impl<S: FetchCompiliedClasses> StateReader for StateReaderAndContractManager<S> {
+impl<S: FetchCompiledClasses> StateReader for StateReaderAndContractManager<S> {
     fn get_storage_at(
         &self,
         contract_address: starknet_api::core::ContractAddress,

@@ -21,6 +21,7 @@ use apollo_starknet_client::reader::PendingData;
 use apollo_state_sync_metrics::metrics::{
     CENTRAL_SYNC_BASE_LAYER_MARKER,
     CENTRAL_SYNC_CENTRAL_BLOCK_MARKER,
+    CENTRAL_SYNC_FORKS_FROM_FEEDER,
     STATE_SYNC_BODY_MARKER,
     STATE_SYNC_CLASS_MANAGER_MARKER,
     STATE_SYNC_COMPILED_CLASS_MARKER,
@@ -526,13 +527,15 @@ impl<
         deployed_contract_class_definitions: IndexMap<ClassHash, DeprecatedContractClass>,
     ) -> StateSyncResult {
         // TODO(dan): verifications - verify state diff against stored header.
-        debug!("Storing state diff. StateDiff data: {state_diff:#?}");
+        debug!("Storing state diff.");
+        trace!("StateDiff data: {state_diff:#?}");
 
         // TODO(shahak): split the state diff stream to 2 separate streams for blocks and for
         // classes.
         let (thin_state_diff, classes, deprecated_classes) =
             ThinStateDiff::from_state_diff(state_diff);
 
+        let mut block_contains_old_classes = false;
         // Sending to class manager before updating the storage so that if the class manager send
         // fails we retry the same block.
         if let Some(class_manager_client) = &self.class_manager_client {
@@ -550,6 +553,8 @@ impl<
             let compiler_backward_compatibility_marker =
                 self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
 
+            // A block contains only classes with either STARKNET_VERSION_TO_COMPILE_FROM or higher
+            // or only classes below STARKNET_VERSION_TO_COMPILE_FROM, not both.
             if compiler_backward_compatibility_marker <= block_number {
                 for (expected_class_hash, class) in &classes {
                     let class_hash =
@@ -561,6 +566,8 @@ impl<
                         );
                     }
                 }
+            } else {
+                block_contains_old_classes = true;
             }
 
             for (class_hash, deprecated_class) in &deprecated_classes {
@@ -581,7 +588,11 @@ impl<
             }
             let mut txn = writer.begin_rw_txn()?;
             txn = txn.append_state_diff(block_number, thin_state_diff)?;
-            if store_sierras_and_casms {
+            // Old classes must be stored for later use since we will only be be adding them to the
+            // class manager later, once we have their compiled classes.
+            //
+            // TODO(guy.f): Properly fix handling old classes.
+            if store_sierras_and_casms || block_contains_old_classes {
                 txn = txn.append_classes(
                     block_number,
                     &classes
@@ -729,11 +740,12 @@ impl<
 
         if prev_hash != block.header.block_header_without_hash.parent_hash {
             // A revert detected, log and restart sync loop.
-            info!(
+            warn!(
                 "Detected revert while processing block {}. Parent hash of the incoming block is \
                  {}, current block hash is {}.",
                 block_number, block.header.block_header_without_hash.parent_hash, prev_hash
             );
+            CENTRAL_SYNC_FORKS_FROM_FEEDER.increment(1);
             return Err(StateSyncError::ParentBlockHashMismatch {
                 block_number,
                 expected_parent_block_hash: block.header.block_header_without_hash.parent_hash,
@@ -862,7 +874,7 @@ fn stream_new_blocks<
                     ).await?;
                 }
                 else{
-                    debug!("Blocks syncing reached the last known block {:?}, waiting for blockchain to advance.", header_marker.prev());
+                    trace!("Blocks syncing reached the last known block {:?}, waiting for blockchain to advance.", header_marker.prev());
                     tokio::time::sleep(block_propagation_sleep_duration).await;
                 };
                 continue;
@@ -893,7 +905,7 @@ fn stream_new_state_diffs<TCentralSource: CentralSourceTrait + Sync + Send>(
             let last_block_number = txn.get_header_marker()?;
             drop(txn);
             if state_marker == last_block_number {
-                debug!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
+                trace!("State updates syncing reached the last downloaded block {:?}, waiting for more blocks.", state_marker.prev());
                 tokio::time::sleep(block_propagation_sleep_duration).await;
                 continue;
             }

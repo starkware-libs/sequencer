@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::vm::runners::cairo_runner::ExecutionResources;
 use starknet_api::block::{BlockInfo, FeeType};
 use starknet_api::core::{ContractAddress, Nonce};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::execution_resources::GasVector;
+use starknet_api::transaction::constants::VALIDATE_DEPLOY_ENTRY_POINT_SELECTOR;
 use starknet_api::transaction::fields::{
     AccountDeploymentData,
     Fee,
@@ -24,12 +23,13 @@ use starknet_api::transaction::{
 
 use crate::abi::constants as abi_constants;
 use crate::blockifier_versioned_constants::VersionedConstants;
-use crate::execution::call_info::{CallInfo, ExecutionSummary};
+use crate::execution::call_info::{BuiltinCounterMap, CallInfo, ExecutionSummary};
 use crate::execution::stack_trace::ErrorStack;
 use crate::fee::fee_checks::FeeCheckError;
 use crate::fee::fee_utils::get_fee_by_gas_vector;
 use crate::fee::receipt::TransactionReceipt;
 use crate::transaction::errors::{TransactionExecutionError, TransactionPreValidationError};
+use crate::utils::add_maps;
 
 #[cfg(test)]
 #[path = "objects_test.rs"]
@@ -201,13 +201,32 @@ pub struct TransactionExecutionInfo {
 }
 
 impl TransactionExecutionInfo {
-    // TODO(Arni): Add a flag to non_optional_call_infos to indicate the transaction
-    // type. Change the iteration order for `deploy_account` transactions.
     pub fn non_optional_call_infos(&self) -> impl Iterator<Item = &CallInfo> {
-        self.validate_call_info
-            .iter()
-            .chain(self.execute_call_info.iter())
-            .chain(self.fee_transfer_call_info.iter())
+        let execute_call_info = self.execute_call_info.as_ref().into_iter();
+        let validate_call_info = self.validate_call_info.as_ref().into_iter();
+        let fee_transfer_call_info = self.fee_transfer_call_info.as_ref().into_iter();
+
+        if self.is_deploy_account() {
+            // For deploy account transactions, the order is `execute`, `validate`, `fee_transfer`.
+            execute_call_info.chain(validate_call_info).chain(fee_transfer_call_info)
+        } else {
+            // For other transactions, the order is `validate`, `execute`, `fee_transfer`.
+            validate_call_info.chain(execute_call_info).chain(fee_transfer_call_info)
+        }
+    }
+
+    fn is_deploy_account(&self) -> bool {
+        if let Some(call_info) = self.validate_call_info.as_ref() {
+            call_info.call.entry_point_selector == *VALIDATE_DEPLOY_ENTRY_POINT_SELECTOR
+        } else {
+            false
+        }
+    }
+
+    /// Returns call infos excluding fee transfer (to avoid double-counting in bouncer
+    /// calculations).
+    pub fn non_optional_call_infos_without_fee_transfer(&self) -> impl Iterator<Item = &CallInfo> {
+        self.validate_call_info.iter().chain(self.execute_call_info.iter())
     }
 
     pub fn is_reverted(&self) -> bool {
@@ -219,21 +238,28 @@ impl TransactionExecutionInfo {
     pub fn summarize(&self, versioned_constants: &VersionedConstants) -> ExecutionSummary {
         CallInfo::summarize_many(self.non_optional_call_infos(), versioned_constants)
     }
+
+    pub fn summarize_builtins(&self) -> BuiltinCounterMap {
+        let mut builtin_counters = BuiltinCounterMap::new();
+        // Remove fee transfer builtins to avoid double-counting in `get_tx_weights`
+        // in bouncer.rs (already included in os_vm_resources).
+        for call_info_iter in self.non_optional_call_infos_without_fee_transfer() {
+            for call_info in call_info_iter.iter() {
+                add_maps(&mut builtin_counters, &call_info.builtin_counters);
+            }
+        }
+        builtin_counters
+    }
 }
 pub trait ExecutionResourcesTraits {
     fn total_n_steps(&self) -> usize;
-    fn prover_builtins(&self) -> HashMap<BuiltinName, usize>;
+    fn prover_builtins(&self) -> BuiltinCounterMap;
     fn div_ceil(&self, rhs: usize) -> ExecutionResources;
 }
 
 impl ExecutionResourcesTraits for ExecutionResources {
     fn total_n_steps(&self) -> usize {
         self.n_steps
-            // Memory holes are slightly cheaper than actual steps, but we count them as such
-            // for simplicity.
-            // TODO(AvivG): Compute memory_holes gas accurately while maintaining backward compatibility.
-            // Define memory_holes_gas version_constants as 100 gas (1 step) for previous versions.
-            + self.n_memory_holes
             // The "segment arena" builtin is not part of the prover (not in any proof layout);
             // It is transformed into regular steps by the OS program - each instance requires
             // approximately 10 steps.
@@ -245,7 +271,7 @@ impl ExecutionResourcesTraits for ExecutionResources {
                     .unwrap_or_default()
     }
 
-    fn prover_builtins(&self) -> HashMap<BuiltinName, usize> {
+    fn prover_builtins(&self) -> BuiltinCounterMap {
         let mut builtins = self.builtin_instance_counter.clone();
 
         // See "total_n_steps" documentation.

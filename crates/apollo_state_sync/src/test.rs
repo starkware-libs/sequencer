@@ -20,7 +20,8 @@ use crate::StateSync;
 
 fn setup() -> (StateSync, StorageWriter) {
     let ((storage_reader, storage_writer), _) = get_test_storage();
-    let state_sync = StateSync { storage_reader, new_block_sender: channel(0).0 };
+    let state_sync =
+        StateSync { storage_reader, new_block_sender: channel(0).0, starknet_client: None };
     (state_sync, storage_writer)
 }
 
@@ -53,11 +54,8 @@ async fn test_get_block() {
             expected_header.block_header_without_hash.block_number,
         ))
         .await;
-    let StateSyncResponse::GetBlock(Ok(boxed_sync_block)) = response else {
-        panic!("Expected StateSyncResponse::GetBlock::Ok(Box(Some(_))), but got {:?}", response);
-    };
-    let Some(block) = *boxed_sync_block else {
-        panic!("Expected Box(Some(_)), but got {:?}", boxed_sync_block);
+    let StateSyncResponse::GetBlock(Ok(block)) = response else {
+        panic!("Expected StateSyncResponse::GetBlock::Ok(Box(_)), but got {response:?}");
     };
 
     assert_eq!(block.block_header_without_hash, expected_header.block_header_without_hash);
@@ -197,11 +195,14 @@ async fn test_block_not_found() {
 
     let response =
         state_sync.handle_request(StateSyncRequest::GetBlock(non_existing_block_number)).await;
-    let StateSyncResponse::GetBlock(Ok(maybe_block)) = response else {
-        panic!("Expected StateSyncResponse::GetBlock::Ok(_), but got {:?}", response);
+    let StateSyncResponse::GetBlock(get_block_result) = response else {
+        panic!("Expected StateSyncResponse::GetBlock(_), but got {response:?}");
     };
 
-    assert!(maybe_block.is_none());
+    assert_eq!(
+        get_block_result.unwrap_err(),
+        StateSyncError::BlockNotFound(non_existing_block_number)
+    );
 
     let response = state_sync
         .handle_request(StateSyncRequest::GetStorageAt(

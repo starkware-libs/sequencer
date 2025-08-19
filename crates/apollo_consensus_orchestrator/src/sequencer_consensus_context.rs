@@ -14,11 +14,7 @@ use apollo_batcher_types::batcher_types::{
     DecisionReachedInput,
     DecisionReachedResponse,
     ProposalId,
-    ProposalStatus,
-    SendProposalContent,
-    SendProposalContentInput,
     StartHeightInput,
-    ValidateBlockInput,
 };
 use apollo_batcher_types::communication::{BatcherClient, BatcherClientError};
 use apollo_class_manager_types::transaction_converter::TransactionConverterTrait;
@@ -29,8 +25,7 @@ use apollo_consensus::types::{
     Round,
     ValidatorId,
 };
-use apollo_l1_gas_price_types::errors::{EthToStrkOracleClientError, L1GasPriceClientError};
-use apollo_l1_gas_price_types::{EthToStrkOracleClientTrait, L1GasPriceProviderClient};
+use apollo_l1_gas_price_types::{L1GasPriceProviderClient, DEFAULT_ETH_TO_FRI_RATE};
 use apollo_network::network_manager::{BroadcastTopicClient, BroadcastTopicClientTrait};
 use apollo_protobuf::consensus::{
     ConsensusBlockInfo,
@@ -43,14 +38,14 @@ use apollo_protobuf::consensus::{
     DEFAULT_VALIDATOR_ID,
 };
 use apollo_state_sync_types::communication::{StateSyncClient, StateSyncClientError};
+use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
-use apollo_time::time::{sleep_until, Clock, DateTime};
+use apollo_time::time::Clock;
 use async_trait::async_trait;
 use futures::channel::{mpsc, oneshot};
-use futures::{SinkExt, StreamExt};
+use futures::SinkExt;
 use num_rational::Ratio;
 use starknet_api::block::{
-    BlockHash,
     BlockHeaderWithoutHash,
     BlockNumber,
     BlockTimestamp,
@@ -61,67 +56,27 @@ use starknet_api::block::{
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::SequencerContractAddress;
 use starknet_api::data_availability::L1DataAvailabilityMode;
-use starknet_api::execution_resources::GasAmount;
 use starknet_api::transaction::TransactionHash;
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::AbortOnDropHandle;
-use tracing::{debug, error, error_span, info, instrument, trace, warn, Instrument};
+use tracing::{error, error_span, info, instrument, trace, warn, Instrument};
 
-use crate::build_proposal::{build_proposal, ProposalBuildArguments};
+use crate::build_proposal::{build_proposal, BuildProposalError, ProposalBuildArguments};
 use crate::cende::{BlobParameters, CendeContext};
 use crate::config::ContextConfig;
 use crate::fee_market::{calculate_next_base_gas_price, FeeMarketInfo};
-use crate::metrics::{
-    register_metrics,
-    CONSENSUS_L1_DATA_GAS_MISMATCH,
-    CONSENSUS_L1_GAS_MISMATCH,
-    CONSENSUS_L2_GAS_PRICE,
-    CONSENSUS_NUM_BATCHES_IN_PROPOSAL,
-    CONSENSUS_NUM_TXS_IN_PROPOSAL,
-};
+use crate::metrics::{register_metrics, CONSENSUS_L2_GAS_PRICE};
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::utils::{
-    convert_to_sn_api_block_info,
-    get_oracle_rate_and_prices,
-    retrospective_block_hash,
-    truncate_to_executed_txs,
-    GasPriceParams,
+use crate::utils::{convert_to_sn_api_block_info, GasPriceParams, StreamSender};
+use crate::validate_proposal::{
+    validate_proposal,
+    BlockInfoValidation,
+    ProposalValidateArguments,
+    ValidateProposalError,
 };
-
-// Contains parameters required for validating block info.
-#[derive(Clone, Debug)]
-struct BlockInfoValidation {
-    height: BlockNumber,
-    block_timestamp_window_seconds: u64,
-    previous_block_info: Option<ConsensusBlockInfo>,
-    l1_da_mode: L1DataAvailabilityMode,
-    l2_gas_price_fri: GasPrice,
-}
 
 type ValidationParams = (BlockNumber, ValidatorId, Duration, mpsc::Receiver<ProposalPart>);
-pub(crate) type ProposalResult<T> = Result<T, BuildProposalError>;
-
-enum HandledProposalPart {
-    Continue,
-    Invalid,
-    Finished(ProposalCommitment, ProposalFin),
-    Failed(String),
-}
-
-#[derive(Debug, thiserror::Error)]
-pub(crate) enum BuildProposalError {
-    #[error("Batcher error: {0}")]
-    Batcher(#[from] BatcherClientError),
-    #[error("State sync client error: {0}")]
-    StateSyncClientError(#[from] StateSyncClientError),
-    #[error("State sync is not ready: {0}")]
-    StateSyncNotReady(String),
-    #[error("EthToStrkOracle error: {0}")]
-    EthToStrkOracle(#[from] EthToStrkOracleClientError),
-    #[error("L1GasPriceProvider error: {0}")]
-    L1GasPriceProvider(#[from] L1GasPriceClientError),
-}
 
 type HeightToIdToContent = BTreeMap<
     BlockNumber,
@@ -143,7 +98,7 @@ pub(crate) struct BuiltProposals {
 }
 
 impl BuiltProposals {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self { data: HeightToIdToContent::default() }
     }
 
@@ -210,7 +165,6 @@ pub struct SequencerConsensusContextDeps {
     pub state_sync_client: Arc<dyn StateSyncClient>,
     pub batcher: Arc<dyn BatcherClient>,
     pub cende_ambassador: Arc<dyn CendeContext>,
-    pub eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
     pub l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
     /// Use DefaultClock if you don't want to inject timestamps.
     pub clock: Arc<dyn Clock>,
@@ -247,18 +201,16 @@ impl SequencerConsensusContext {
             previous_block_info: None,
         }
     }
-}
-struct ProposalValidateArguments {
-    deps: SequencerConsensusContextDeps,
-    block_info_validation: BlockInfoValidation,
-    proposal_id: ProposalId,
-    timeout: Duration,
-    batcher_timeout_margin: Duration,
-    valid_proposals: Arc<Mutex<BuiltProposals>>,
-    content_receiver: mpsc::Receiver<ProposalPart>,
-    fin_sender: oneshot::Sender<ProposalCommitment>,
-    gas_price_params: GasPriceParams,
-    cancel_token: CancellationToken,
+
+    async fn start_stream(&mut self, stream_id: HeightAndRound) -> StreamSender {
+        let (proposal_sender, proposal_receiver) = mpsc::channel(self.config.proposal_buffer_size);
+        self.deps
+            .outbound_proposal_sender
+            .send((stream_id, proposal_receiver))
+            .await
+            .expect("Failed to send proposal receiver");
+        StreamSender { proposal_sender }
+    }
 }
 
 #[async_trait]
@@ -289,13 +241,8 @@ impl ConsensusContext for SequencerConsensusContext {
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
         assert!(timeout > self.config.build_proposal_margin_millis);
-        let (proposal_sender, proposal_receiver) = mpsc::channel(self.config.proposal_buffer_size);
         let stream_id = HeightAndRound(proposal_init.height.0, proposal_init.round);
-        self.deps
-            .outbound_proposal_sender
-            .send((stream_id, proposal_receiver))
-            .await
-            .expect("Failed to send proposal receiver");
+        let stream_sender = self.start_stream(stream_id).await;
 
         info!(?proposal_init, ?timeout, %proposal_id, "Building proposal");
         let cancel_token = CancellationToken::new();
@@ -316,8 +263,7 @@ impl ConsensusContext for SequencerConsensusContext {
             batcher_timeout: timeout - self.config.build_proposal_margin_millis,
             proposal_init,
             l1_da_mode: self.l1_da_mode,
-            proposal_sender,
-            fin_sender,
+            stream_sender,
             gas_price_params,
             valid_proposals: Arc::clone(&self.valid_proposals),
             proposal_id,
@@ -330,7 +276,20 @@ impl ConsensusContext for SequencerConsensusContext {
         };
         let handle = tokio::spawn(
             async move {
-                build_proposal(args).await;
+                let res = build_proposal(args).await.map(|proposal_commitment| {
+                    fin_sender
+                        .send(proposal_commitment)
+                        .map_err(|_| BuildProposalError::SendError(proposal_commitment))?;
+                    Ok::<_, BuildProposalError>(proposal_commitment)
+                });
+                match res {
+                    Ok(proposal_commitment) => {
+                        info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.");
+                    }
+                    Err(e) => {
+                        warn!("PROPOSAL_FAILED: Proposal failed as proposer. Error: {e:?}");
+                    }
+                }
             }
             .instrument(
                 error_span!("consensus_build_proposal", %proposal_id, round=proposal_init.round),
@@ -400,21 +359,14 @@ impl ConsensusContext for SequencerConsensusContext {
             .clone();
 
         let transaction_converter = self.deps.transaction_converter.clone();
-        let mut outbound_proposal_sender = self.deps.outbound_proposal_sender.clone();
-        let channel_size = self.config.proposal_buffer_size;
+        let mut stream_sender = self.start_stream(HeightAndRound(height.0, init.round)).await;
         tokio::spawn(
             async move {
-                let (mut proposal_sender, proposal_receiver) = mpsc::channel(channel_size);
-                let stream_id = HeightAndRound(height.0, init.round);
-                outbound_proposal_sender
-                    .send((stream_id, proposal_receiver))
-                    .await
-                    .expect("Failed to send proposal receiver");
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::Init(init))
                     .await
                     .expect("Failed to send proposal init");
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::BlockInfo(block_info.clone()))
                     .await
                     .expect("Failed to send block info");
@@ -426,16 +378,21 @@ impl ConsensusContext for SequencerConsensusContext {
                     }))
                     .await
                     .into_iter()
-                    .collect::<Result<Vec<_>, _>>()
-                    .expect("Failed converting transaction during repropose");
+                    .collect::<Result<Vec<_>, _>>();
+                    let Ok(transactions) = transactions else {
+                        // transaction_converter is an external dependency (class manager) and so
+                        // we can't assume success on reproposal.
+                        error!("Failed converting transaction during repropose: {transactions:?}");
+                        return;
+                    };
 
-                    proposal_sender
+                    stream_sender
                         .send(ProposalPart::Transactions(TransactionBatch { transactions }))
                         .await
                         .expect("Failed to broadcast proposal content");
                     n_executed_txs += batch.len();
                 }
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::ExecutedTransactionCount(
                         n_executed_txs
                             .try_into()
@@ -443,7 +400,7 @@ impl ConsensusContext for SequencerConsensusContext {
                     ))
                     .await
                     .expect("Failed to broadcast executed transaction count");
-                proposal_sender
+                stream_sender
                     .send(ProposalPart::Fin(ProposalFin { proposal_commitment: id }))
                     .await
                     .expect("Failed to broadcast proposal fin");
@@ -485,33 +442,40 @@ impl ConsensusContext for SequencerConsensusContext {
         let block_info;
         {
             let height = BlockNumber(height);
-            let mut proposals = self
-                .valid_proposals
-                .lock()
-                .expect("Lock on active proposals was poisoned due to a previous panic");
+            let mut proposals = self.valid_proposals.lock().unwrap();
             (block_info, transactions, proposal_id) =
                 proposals.get_proposal(&height, &block).clone();
 
             proposals.remove_proposals_below_or_at_height(&height);
         }
-        let transactions = transactions.concat();
+
         // TODO(dvir): return from the batcher's 'decision_reached' function the relevant data to
         // build a blob.
-        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } = self
-            .deps
-            .batcher
-            .decision_reached(DecisionReachedInput { proposal_id })
-            .await
-            .expect("Failed to get state diff.");
+        let DecisionReachedResponse { state_diff, l2_gas_used, central_objects } =
+            self.batcher_decision_reached(proposal_id).await;
 
-        let gas_target = GasAmount(VersionedConstants::latest_constants().max_block_size.0 / 2);
-        self.l2_gas_price =
-            calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
+        // Remove transactions that were not accepted by the Batcher, so `transactions` and
+        // `central_objects.execution_infos` correspond to the same list of (only accepted)
+        // transactions.
+        let transactions: Vec<InternalConsensusTransaction> = transactions
+            .concat()
+            .into_iter()
+            .filter(|tx| central_objects.execution_infos.contains_key(&tx.tx_hash()))
+            .collect();
+
+        let gas_target = VersionedConstants::latest_constants().gas_target;
+        if self.config.constant_l2_gas_price {
+            self.l2_gas_price = VersionedConstants::latest_constants().min_gas_price;
+        } else {
+            self.l2_gas_price =
+                calculate_next_base_gas_price(self.l2_gas_price, l2_gas_used, gas_target);
+        }
 
         let gas_price_u64 = u64::try_from(self.l2_gas_price.0).unwrap_or(u64::MAX);
         CONSENSUS_L2_GAS_PRICE.set_lossy(gas_price_u64);
 
-        let cende_block_info = convert_to_sn_api_block_info(&block_info);
+        // The conversion should never fail, if we already managed to get a decision.
+        let cende_block_info = convert_to_sn_api_block_info(&block_info)?;
         let l1_gas_price = GasPricePerToken {
             price_in_fri: cende_block_info.gas_prices.strk_gas_prices.l1_gas_price.get(),
             price_in_wei: cende_block_info.gas_prices.eth_gas_prices.l1_gas_price.get(),
@@ -562,9 +526,12 @@ impl ConsensusContext for SequencerConsensusContext {
             l1_transaction_hashes,
             block_header_without_hash,
         };
-        let state_sync_client = self.deps.state_sync_client.clone();
-        // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
-        state_sync_client.add_new_block(sync_block).await.expect("Failed to add new block.");
+        self.sync_add_new_block(sync_block).await;
+
+        // Strip the transaction hashes from `execution_infos`, since we don't use it in the blob
+        // version of `execution_infos`.
+        let stripped_execution_infos =
+            central_objects.execution_infos.into_iter().map(|(_, info)| info).collect();
 
         // TODO(dvir): pass here real `BlobParameters` info.
         // TODO(dvir): when passing here the correct `BlobParameters`, also test that
@@ -577,9 +544,12 @@ impl ConsensusContext for SequencerConsensusContext {
                 state_diff,
                 compressed_state_diff: central_objects.compressed_state_diff,
                 transactions,
-                execution_infos: central_objects.execution_infos,
+                execution_infos: stripped_execution_infos,
                 bouncer_weights: central_objects.bouncer_weights,
-                casm_hash_computation_data: central_objects.casm_hash_computation_data,
+                casm_hash_computation_data_sierra_gas: central_objects
+                    .casm_hash_computation_data_sierra_gas,
+                casm_hash_computation_data_proving_gas: central_objects
+                    .casm_hash_computation_data_proving_gas,
                 fee_market_info: FeeMarketInfo {
                     l2_gas_consumed: l2_gas_used,
                     next_l2_gas_price: self.l2_gas_price,
@@ -595,12 +565,14 @@ impl ConsensusContext for SequencerConsensusContext {
 
     async fn try_sync(&mut self, height: BlockNumber) -> bool {
         let sync_block = match self.deps.state_sync_client.get_block(height).await {
+            Err(StateSyncClientError::StateSyncError(StateSyncError::BlockNotFound(_))) => {
+                return false;
+            }
             Err(e) => {
                 error!("Sync returned an error: {e:?}");
                 return false;
             }
-            Ok(None) => return false,
-            Ok(Some(block)) => block,
+            Ok(block) => block,
         };
         // May be default for blocks older than 0.14.0, ensure min gas price is met.
         self.l2_gas_price = max(
@@ -628,15 +600,7 @@ impl ConsensusContext for SequencerConsensusContext {
             );
             return false;
         }
-        let eth_to_fri_rate = sync_block
-            .block_header_without_hash
-            .l1_gas_price
-            .price_in_fri
-            .checked_mul_u128(WEI_PER_ETH)
-            .expect("Gas price overflow")
-            .checked_div(sync_block.block_header_without_hash.l1_gas_price.price_in_wei.0)
-            .expect("Price in wei should be non-zero")
-            .0;
+        let eth_to_fri_rate = get_eth_to_fri_rate(&sync_block);
         self.previous_block_info = Some(ConsensusBlockInfo {
             height,
             timestamp: timestamp.0,
@@ -651,7 +615,7 @@ impl ConsensusContext for SequencerConsensusContext {
             eth_to_fri_rate,
         });
         self.interrupt_active_proposal().await;
-        self.deps.batcher.add_sync_block(sync_block).await.unwrap();
+        self.batcher_add_sync_block(sync_block).await;
         true
     }
 
@@ -665,11 +629,7 @@ impl ConsensusContext for SequencerConsensusContext {
             // that consensus works on a given height until it is done (either a decision is reached
             // or sync causes us to move on) and then moves on to a different height, never to
             // return to the old height.
-            self.deps
-                .batcher
-                .start_height(StartHeightInput { height })
-                .await
-                .expect("Batcher should be ready to start the next height");
+            self.batcher_start_height(height).await;
             return;
         }
         assert_eq!(Some(height), self.current_height);
@@ -725,13 +685,12 @@ impl SequencerConsensusContext {
         content_receiver: mpsc::Receiver<ProposalPart>,
         fin_sender: oneshot::Sender<ProposalCommitment>,
     ) {
-        let cancel_token = CancellationToken::new();
-        let cancel_token_clone = cancel_token.clone();
-        let l1_gas_tip_wei = GasPrice(self.config.l1_gas_tip_wei);
-        let valid_proposals = Arc::clone(&self.valid_proposals);
         let proposal_id = ProposalId(self.proposal_id);
         self.proposal_id += 1;
-        let deps = self.deps.clone();
+        info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
+
+        let cancel_token = CancellationToken::new();
+        let cancel_token_clone = cancel_token.clone();
         let gas_price_params = GasPriceParams {
             min_l1_gas_price_wei: GasPrice(self.config.min_l1_gas_price_wei),
             max_l1_gas_price_wei: GasPrice(self.config.max_l1_gas_price_wei),
@@ -741,25 +700,30 @@ impl SequencerConsensusContext {
                 self.config.l1_data_gas_price_multiplier_ppt,
                 1000,
             ),
-            l1_gas_tip_wei,
+            l1_gas_tip_wei: GasPrice(self.config.l1_gas_tip_wei),
+        };
+        let args = ProposalValidateArguments {
+            deps: self.deps.clone(),
+            block_info_validation,
+            proposal_id,
+            timeout,
+            batcher_timeout_margin,
+            valid_proposals: Arc::clone(&self.valid_proposals),
+            content_receiver,
+            gas_price_params,
+            cancel_token: cancel_token_clone,
         };
 
-        info!(?timeout, %proposal_id, %proposer, round=self.current_round, "Validating proposal.");
         let handle = tokio::spawn(
             async move {
-                validate_proposal(ProposalValidateArguments {
-                    deps,
-                    block_info_validation,
-                    proposal_id,
-                    timeout,
-                    batcher_timeout_margin,
-                    valid_proposals,
-                    content_receiver,
-                    fin_sender,
-                    gas_price_params,
-                    cancel_token: cancel_token_clone,
-                })
-                .await
+                match validate_and_send(args, fin_sender).await {
+                    Ok(proposal_commitment) => {
+                        info!(?proposal_id, ?proposal_commitment, "Proposal succeeded.");
+                    }
+                    Err(e) => {
+                        warn!("PROPOSAL_FAILED: Proposal failed as validator. Error: {e:?}");
+                    }
+                }
             }
             .instrument(
                 error_span!("consensus_validate_proposal", %proposal_id, round=self.current_round),
@@ -771,376 +735,105 @@ impl SequencerConsensusContext {
     async fn interrupt_active_proposal(&mut self) {
         if let Some((token, handle)) = self.active_proposal.take() {
             token.cancel();
-            handle.await.expect("Proposal task failed");
+            handle.await.expect("Proposal task failed, propogating panic");
         }
     }
-}
 
-async fn validate_proposal(mut args: ProposalValidateArguments) {
-    let mut content = Vec::new();
-    let mut final_n_executed_txs: Option<usize> = None;
-    let now = args.deps.clock.now();
-
-    let Some(deadline) = now.checked_add_signed(chrono::TimeDelta::from_std(args.timeout).unwrap())
-    else {
-        warn!("Cannot calculate deadline. Timeout: {:?}, now: {:?}", args.timeout, now);
-        return;
-    };
-
-    let Some((block_info, fin_sender)) = await_second_proposal_part(
-        &args.cancel_token,
-        deadline,
-        &mut args.content_receiver,
-        args.fin_sender,
-        args.deps.clock.as_ref(),
-    )
-    .await
-    else {
-        return;
-    };
-    if !is_block_info_valid(
-        args.block_info_validation.clone(),
-        block_info.clone(),
-        args.deps.eth_to_strk_oracle_client,
-        args.deps.clock.as_ref(),
-        args.deps.l1_gas_price_provider,
-        &args.gas_price_params,
-    )
-    .await
-    {
-        return;
-    }
-    if let Err(e) = initiate_validation(
-        args.deps.batcher.as_ref(),
-        args.deps.state_sync_client,
-        block_info.clone(),
-        args.proposal_id,
-        args.timeout + args.batcher_timeout_margin,
-        args.deps.clock.as_ref(),
-    )
-    .await
-    {
-        error!("Failed to initiate proposal validation. {e:?}");
-        return;
-    }
-    // Validating the rest of the proposal parts.
-    let (built_block, received_fin) = loop {
-        tokio::select! {
-            _ = args.cancel_token.cancelled() => {
-                warn!("Proposal interrupted during validation.");
-                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                return;
-            }
-            _ = sleep_until(deadline, args.deps.clock.as_ref()) => {
-                warn!("Validation timed out.");
-                batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                return;
-            }
-            proposal_part = args.content_receiver.next() => {
-                match handle_proposal_part(
-                    args.proposal_id,
-                    args.deps.batcher.as_ref(),
-                    proposal_part,
-                    &mut content,
-                    &mut final_n_executed_txs,
-                    args.deps.transaction_converter.clone(),
-                ).await {
-                    HandledProposalPart::Finished(built_block, received_fin) => {
-                        break (built_block, received_fin);
-                    }
-                    HandledProposalPart::Continue => {continue;}
-                    HandledProposalPart::Invalid => {
-                        warn!("Invalid proposal.");
-                        // No need to abort since the Batcher is the source of this info.
-                        return;
-                    }
-                    HandledProposalPart::Failed(fail_reason) => {
-                        warn!("Failed to handle proposal part. {fail_reason}");
-                        batcher_abort_proposal(args.deps.batcher.as_ref(), args.proposal_id).await;
-                        return;
-                    }
+    async fn batcher_decision_reached(
+        &mut self,
+        proposal_id: ProposalId,
+    ) -> DecisionReachedResponse {
+        loop {
+            let input = DecisionReachedInput { proposal_id };
+            match self.deps.batcher.decision_reached(input).await {
+                Ok(response) => break response,
+                Err(BatcherClientError::BatcherError(e)) => {
+                    panic!("Failed to add decision due to batcher error: {e:?}");
+                }
+                Err(BatcherClientError::ClientError(e)) => {
+                    error!("Failed to add decision due to client error: {e:?}");
                 }
             }
+            tokio::task::yield_now().await;
         }
-    };
-
-    let n_executed_txs = content.iter().map(|batch| batch.len()).sum::<usize>();
-    CONSENSUS_NUM_BATCHES_IN_PROPOSAL.set_lossy(content.len());
-    CONSENSUS_NUM_TXS_IN_PROPOSAL.set_lossy(n_executed_txs);
-
-    // Update valid_proposals before sending fin to avoid a race condition
-    // with `repropose` being called before `valid_proposals` is updated.
-    let mut valid_proposals = args.valid_proposals.lock().unwrap();
-    valid_proposals.insert_proposal_for_height(
-        &args.block_info_validation.height,
-        &built_block,
-        block_info,
-        content,
-        &args.proposal_id,
-    );
-
-    // TODO(matan): Switch to signature validation.
-    if built_block != received_fin.proposal_commitment {
-        warn!("proposal_id built from content received does not match fin.");
-        return;
     }
 
-    if fin_sender.send(built_block).is_err() {
-        // Consensus may exit early (e.g. sync).
-        warn!("Failed to send proposal content ids");
-    }
-}
-
-#[instrument(level = "warn", skip_all, fields(?block_info_validation, ?block_info_proposed))]
-async fn is_block_info_valid(
-    block_info_validation: BlockInfoValidation,
-    block_info_proposed: ConsensusBlockInfo,
-    eth_to_strk_oracle_client: Arc<dyn EthToStrkOracleClientTrait>,
-    clock: &dyn Clock,
-    l1_gas_price_provider: Arc<dyn L1GasPriceProviderClient>,
-    gas_price_params: &GasPriceParams,
-) -> bool {
-    let now: u64 = clock.unix_now();
-    let last_block_timestamp =
-        block_info_validation.previous_block_info.as_ref().map_or(0, |info| info.timestamp);
-    if !(block_info_proposed.height == block_info_validation.height
-        && block_info_proposed.timestamp >= last_block_timestamp
-        // Check timestamp isn't in the future (allowing for clock disagreement).
-        && block_info_proposed.timestamp <= now + block_info_validation.block_timestamp_window_seconds
-        && block_info_proposed.l1_da_mode == block_info_validation.l1_da_mode
-        && block_info_proposed.l2_gas_price_fri == block_info_validation.l2_gas_price_fri)
-    {
-        warn!("Invalid BlockInfo. local_timestamp={now}");
-        return false;
-    }
-    let (eth_to_fri_rate, l1_gas_prices) = get_oracle_rate_and_prices(
-        eth_to_strk_oracle_client,
-        l1_gas_price_provider,
-        block_info_proposed.timestamp,
-        block_info_validation.previous_block_info.as_ref(),
-        gas_price_params,
-    )
-    .await;
-    let l1_gas_price_margin_percent =
-        VersionedConstants::latest_constants().l1_gas_price_margin_percent.into();
-    debug!("L1 price info: {l1_gas_prices:?}");
-
-    let l1_gas_price_fri = l1_gas_prices.base_fee_per_gas.wei_to_fri(eth_to_fri_rate);
-    let l1_data_gas_price_fri = l1_gas_prices.blob_fee.wei_to_fri(eth_to_fri_rate);
-    let l1_gas_price_fri_proposed =
-        block_info_proposed.l1_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate);
-    let l1_data_gas_price_fri_proposed =
-        block_info_proposed.l1_data_gas_price_wei.wei_to_fri(block_info_proposed.eth_to_fri_rate);
-    if !(within_margin(l1_gas_price_fri_proposed, l1_gas_price_fri, l1_gas_price_margin_percent)
-        && within_margin(
-            l1_data_gas_price_fri_proposed,
-            l1_data_gas_price_fri,
-            l1_gas_price_margin_percent,
-        ))
-    {
-        warn!(
-            %l1_gas_price_fri_proposed,
-            %l1_gas_price_fri,
-            %l1_data_gas_price_fri_proposed,
-            %l1_data_gas_price_fri,
-            %l1_gas_price_margin_percent,
-            "Invalid L1 gas price proposed.",
+    async fn batcher_add_sync_block(&mut self, sync_block: SyncBlock) {
+        info!(
+            "Adding sync block to Batcher for height {}",
+            sync_block.block_header_without_hash.block_number,
         );
-        return false;
+        loop {
+            match self.deps.batcher.add_sync_block(sync_block.clone()).await {
+                Ok(_) => break,
+                Err(BatcherClientError::BatcherError(e)) => {
+                    panic!("Failed to add sync block due to batcher error: {e:?}");
+                }
+                Err(BatcherClientError::ClientError(e)) => {
+                    error!("Failed to add sync block due to client error: {e:?}");
+                }
+            }
+            tokio::task::yield_now().await;
+        }
     }
-    if l1_gas_price_fri_proposed != l1_gas_price_fri {
-        CONSENSUS_L1_GAS_MISMATCH.increment(1);
+
+    // `add_new_block` returns immediately, it doesn't wait for sync to fully process the block.
+    async fn sync_add_new_block(&mut self, sync_block: SyncBlock) {
+        loop {
+            match self.deps.state_sync_client.add_new_block(sync_block.clone()).await {
+                Ok(_) => break,
+                Err(StateSyncClientError::StateSyncError(e)) => {
+                    panic!("Failed to add new block due to sync error: {e:?}");
+                }
+                Err(StateSyncClientError::ClientError(e)) => {
+                    error!("Failed to add new block due to client error: {e:?}");
+                }
+            }
+            tokio::task::yield_now().await;
+        }
     }
-    if l1_data_gas_price_fri_proposed != l1_data_gas_price_fri {
-        CONSENSUS_L1_DATA_GAS_MISMATCH.increment(1);
+
+    async fn batcher_start_height(&mut self, height: BlockNumber) {
+        loop {
+            let input = StartHeightInput { height };
+            match self.deps.batcher.start_height(input).await {
+                Ok(_) => break,
+                Err(BatcherClientError::BatcherError(e)) => {
+                    panic!("Failed to start height due to batcher error: height={height} {e:?}");
+                }
+                Err(BatcherClientError::ClientError(e)) => {
+                    error!("Failed to start height due to client error: height={height} {e:?}");
+                }
+            }
+            tokio::task::yield_now().await;
+        }
     }
-    true
 }
 
-fn within_margin(number1: GasPrice, number2: GasPrice, margin_percent: u128) -> bool {
-    let margin = (number1.0 * margin_percent) / 100;
-    number1.0.abs_diff(number2.0) <= margin
-}
-
-// The second proposal part when validating a proposal must be:
-// 1. Fin - empty proposal.
-// 2. BlockInfo - required to begin executing TX batches.
-async fn await_second_proposal_part(
-    cancel_token: &CancellationToken,
-    deadline: DateTime,
-    content_receiver: &mut mpsc::Receiver<ProposalPart>,
+async fn validate_and_send(
+    args: ProposalValidateArguments,
     fin_sender: oneshot::Sender<ProposalCommitment>,
-    clock: &dyn Clock,
-) -> Option<(ConsensusBlockInfo, oneshot::Sender<ProposalCommitment>)> {
-    tokio::select! {
-        _ = cancel_token.cancelled() => {
-            warn!("Proposal interrupted");
-            None
-        }
-        _ = sleep_until(deadline, clock) => {
-            warn!("Validation timed out.");
-            None
-        }
-        proposal_part = content_receiver.next() => {
-            match proposal_part {
-                Some(ProposalPart::BlockInfo(block_info)) => {
-                    Some((block_info, fin_sender))
-                }
-                Some(ProposalPart::Fin(ProposalFin { proposal_commitment })) => {
-                    warn!("Received an empty proposal.");
-                    if fin_sender
-                        .send(proposal_commitment)
-                        .is_err()
-                    {
-                        // Consensus may exit early (e.g. sync).
-                        warn!("Failed to send proposal content ids");
-                    }
-                    None
-                }
-                x => {
-                    warn!("Invalid second proposal part: {x:?}");
-                    None
-                }
-            }
-        }
-    }
+) -> Result<ProposalCommitment, ValidateProposalError> {
+    let proposal_commitment = validate_proposal(args).await?;
+    fin_sender
+        .send(proposal_commitment)
+        .map_err(|_| ValidateProposalError::SendError(proposal_commitment))?;
+    Ok(proposal_commitment)
 }
 
-async fn initiate_validation(
-    batcher: &dyn BatcherClient,
-    state_sync_client: Arc<dyn StateSyncClient>,
-    block_info: ConsensusBlockInfo,
-    proposal_id: ProposalId,
-    timeout_plus_margin: Duration,
-    clock: &dyn Clock,
-) -> ProposalResult<()> {
-    let chrono_timeout = chrono::Duration::from_std(timeout_plus_margin)
-        .expect("Can't convert timeout to chrono::Duration");
-
-    let input = ValidateBlockInput {
-        proposal_id,
-        deadline: clock.now() + chrono_timeout,
-        retrospective_block_hash: retrospective_block_hash(state_sync_client, &block_info).await?,
-        block_info: convert_to_sn_api_block_info(&block_info),
-    };
-    debug!("Initiating validate proposal: input={input:?}");
-    batcher.validate_block(input).await?;
-    Ok(())
-}
-
-/// Handles receiving a proposal from another node without blocking consensus:
-/// 1. Receives the proposal part from the network.
-/// 2. Pass this to the batcher.
-/// 3. Once finished, receive the commitment from the batcher.
-async fn handle_proposal_part(
-    proposal_id: ProposalId,
-    batcher: &dyn BatcherClient,
-    proposal_part: Option<ProposalPart>,
-    content: &mut Vec<Vec<InternalConsensusTransaction>>,
-    final_n_executed_txs: &mut Option<usize>,
-    transaction_converter: Arc<dyn TransactionConverterTrait>,
-) -> HandledProposalPart {
-    match proposal_part {
-        None => HandledProposalPart::Failed("Failed to receive proposal content".to_string()),
-        Some(ProposalPart::Fin(fin)) => {
-            info!("Received fin={fin:?}");
-            let Some(final_n_executed_txs_nonopt) = *final_n_executed_txs else {
-                return HandledProposalPart::Failed(
-                    "Received Fin without executed transaction count".to_string(),
-                );
-            };
-            // Output this along with the ID from batcher, to compare them.
-            let input = SendProposalContentInput {
-                proposal_id,
-                content: SendProposalContent::Finish(final_n_executed_txs_nonopt),
-            };
-            let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
-                panic!("Failed to send Fin to batcher: {proposal_id:?}. {e:?}")
-            });
-            let response_id = match response.response {
-                ProposalStatus::Finished(id) => id,
-                ProposalStatus::InvalidProposal => return HandledProposalPart::Invalid,
-                status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
-            };
-            let batcher_block_id = BlockHash(response_id.state_diff_commitment.0.0);
-
-            info!(
-                network_block_id = ?fin.proposal_commitment,
-                ?batcher_block_id,
-                final_n_executed_txs_nonopt,
-                "Finished validating proposal."
-            );
-            if final_n_executed_txs_nonopt == 0 {
-                warn!("Validated an empty proposal.");
-            }
-            HandledProposalPart::Finished(batcher_block_id, fin)
-        }
-        Some(ProposalPart::Transactions(TransactionBatch { transactions: txs })) => {
-            debug!("Received transaction batch with {} txs", txs.len());
-            if final_n_executed_txs.is_some() {
-                return HandledProposalPart::Failed(
-                    "Received transactions after executed transaction count".to_string(),
-                );
-            }
-            let txs =
-                futures::future::join_all(txs.into_iter().map(|tx| {
-                    transaction_converter.convert_consensus_tx_to_internal_consensus_tx(tx)
-                }))
-                .await
-                .into_iter()
-                .collect::<Result<Vec<_>, _>>();
-            let txs = match txs {
-                Ok(txs) => txs,
-                Err(e) => {
-                    return HandledProposalPart::Failed(format!(
-                        "Failed to convert transactions. Stopping the build of the current \
-                         proposal. {e:?}"
-                    ));
-                }
-            };
-            debug!(
-                "Converted transactions to internal representation. hashes={:?}",
-                txs.iter().map(|tx| tx.tx_hash()).collect::<Vec<TransactionHash>>()
-            );
-
-            content.push(txs.clone());
-            let input =
-                SendProposalContentInput { proposal_id, content: SendProposalContent::Txs(txs) };
-            let response = batcher.send_proposal_content(input).await.unwrap_or_else(|e| {
-                panic!("Failed to send proposal content to batcher: {proposal_id:?}. {e:?}")
-            });
-            match response.response {
-                ProposalStatus::Processing => HandledProposalPart::Continue,
-                ProposalStatus::InvalidProposal => HandledProposalPart::Invalid,
-                status => panic!("Unexpected status: for {proposal_id:?}, {status:?}"),
-            }
-        }
-        Some(ProposalPart::ExecutedTransactionCount(executed_txs_count)) => {
-            debug!("Received executed transaction count: {executed_txs_count}");
-            if final_n_executed_txs.is_some() {
-                return HandledProposalPart::Failed(
-                    "Received executed transaction count more than once".to_string(),
-                );
-            }
-            let executed_txs_count_usize_res: Result<usize, _> = executed_txs_count.try_into();
-            let Ok(executed_txs_count_usize) = executed_txs_count_usize_res else {
-                return HandledProposalPart::Failed(
-                    "Number of executed transactions should fit in usize".to_string(),
-                );
-            };
-            *final_n_executed_txs = Some(executed_txs_count_usize);
-            *content = truncate_to_executed_txs(content, executed_txs_count_usize);
-
-            HandledProposalPart::Continue
-        }
-        _ => HandledProposalPart::Failed("Invalid proposal part".to_string()),
-    }
-}
-
-async fn batcher_abort_proposal(batcher: &dyn BatcherClient, proposal_id: ProposalId) {
-    let input = SendProposalContentInput { proposal_id, content: SendProposalContent::Abort };
-    batcher
-        .send_proposal_content(input)
-        .await
-        .unwrap_or_else(|e| panic!("Failed to send Abort to batcher: {proposal_id:?}. {e:?}"));
+fn get_eth_to_fri_rate(sync_block: &SyncBlock) -> u128 {
+    let price_in_fri = sync_block.block_header_without_hash.l1_gas_price.price_in_fri;
+    let price_in_wei = sync_block.block_header_without_hash.l1_gas_price.price_in_wei.0;
+    price_in_fri
+        .checked_mul_u128(WEI_PER_ETH)
+        .map(|x| x.0)
+        .unwrap_or_else(|| {
+            error!("Gas price overflow");
+            u128::MAX
+        })
+        .checked_div(price_in_wei)
+        .unwrap_or_else(|| {
+            error!("Zero gas price");
+            DEFAULT_ETH_TO_FRI_RATE
+        })
 }

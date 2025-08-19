@@ -16,13 +16,16 @@ use apollo_gateway_types::gateway_types::{
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
+use apollo_proc_macros::sequencer_latency_histogram;
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::routing::{get, post};
 use axum::{async_trait, Json, Router};
+use blockifier_reexecution::state_reader::serde_utils::deserialize_transaction_json_to_starknet_api_tx;
 use serde::de::Error;
 use starknet_api::rpc_transaction::RpcTransaction;
 use starknet_api::serde_utils::bytes_from_hex_str;
+use starknet_api::transaction::fields::ValidResourceBounds;
 use tracing::{debug, info, instrument};
 
 use crate::config::HttpServerConfig;
@@ -30,9 +33,12 @@ use crate::deprecated_gateway_transaction::DeprecatedGatewayTransactionV3;
 use crate::errors::{HttpServerError, HttpServerRunError};
 use crate::metrics::{
     init_metrics,
+    ADDED_TRANSACTIONS_DEPRECATED_ERROR,
     ADDED_TRANSACTIONS_FAILURE,
+    ADDED_TRANSACTIONS_INTERNAL_ERROR,
     ADDED_TRANSACTIONS_SUCCESS,
     ADDED_TRANSACTIONS_TOTAL,
+    HTTP_SERVER_ADD_TX_LATENCY,
 };
 
 #[cfg(test)]
@@ -102,24 +108,27 @@ async fn add_rpc_tx(
     headers: HeaderMap,
     Json(tx): Json<RpcTransaction>,
 ) -> HttpServerResult<Json<GatewayOutput>> {
+    debug!("ADD_TX_START: Http server received a new transaction.");
     ADDED_TRANSACTIONS_TOTAL.increment(1);
     add_tx_inner(app_state, headers, tx).await
 }
 
 #[instrument(skip(app_state))]
+#[sequencer_latency_histogram(HTTP_SERVER_ADD_TX_LATENCY, true)]
 async fn add_tx(
     State(app_state): State<AppState>,
     headers: HeaderMap,
     tx: String,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     ADDED_TRANSACTIONS_TOTAL.increment(1);
+    debug!("ADD_TX_START: Http server received a new transaction.");
     validate_supported_tx_version(&tx).inspect_err(|e| {
         debug!("Error while validating transaction version: {}", e);
-        ADDED_TRANSACTIONS_FAILURE.increment(1);
+        increment_failure_metrics(e);
     })?;
     let tx: DeprecatedGatewayTransactionV3 = serde_json::from_str(&tx).inspect_err(|e| {
         debug!("Error while parsing transaction: {}", e);
-        ADDED_TRANSACTIONS_FAILURE.increment(1);
+        check_supported_resource_bounds_and_increment_metrics(&tx);
     })?;
     let rpc_tx = tx.try_into().inspect_err(|e| {
         debug!("Error while converting deprecated gateway transaction into RPC transaction: {}", e);
@@ -144,6 +153,7 @@ fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
             ))
         })?);
     if !SUPPORTED_TRANSACTION_VERSIONS.contains(&tx_version) {
+        ADDED_TRANSACTIONS_DEPRECATED_ERROR.increment(1);
         return Err(HttpServerError::GatewayClientError(GatewayClientError::GatewayError(
             GatewayError::DeprecatedGatewayError {
                 source: StarknetError {
@@ -162,16 +172,34 @@ fn validate_supported_tx_version(tx: &str) -> HttpServerResult<()> {
     Ok(())
 }
 
+fn check_supported_resource_bounds_and_increment_metrics(tx: &str) {
+    if let Ok(tx_json_value) = serde_json::from_str(tx) {
+        if let Ok(transaction) = deserialize_transaction_json_to_starknet_api_tx(tx_json_value) {
+            if let Some(ValidResourceBounds::L1Gas(_)) = transaction.resource_bounds() {
+                ADDED_TRANSACTIONS_DEPRECATED_ERROR.increment(1);
+            }
+        }
+    }
+    ADDED_TRANSACTIONS_FAILURE.increment(1);
+}
+
 async fn add_tx_inner(
     app_state: AppState,
     headers: HeaderMap,
     tx: RpcTransaction,
 ) -> HttpServerResult<Json<GatewayOutput>> {
     let gateway_input: GatewayInput = GatewayInput { rpc_tx: tx, message_metadata: None };
-    let add_tx_result = app_state.gateway_client.add_tx(gateway_input).await.map_err(|e| {
-        debug!("Error while adding transaction: {}", e);
-        HttpServerError::from(e)
-    });
+    // Wrap the gateway client interaction with a tokio::spawn as it is NOT cancel-safe.
+    // Even if the current task is cancelled, e.g., when a request is dropped while still being
+    // processed, the inner task will continue to run.
+    let add_tx_result =
+        tokio::spawn(async move { app_state.gateway_client.add_tx(gateway_input).await })
+            .await
+            .expect("Should be able to get add_tx result")
+            .map_err(|e| {
+                debug!("Error while adding transaction: {}", e);
+                HttpServerError::from(e)
+            });
 
     let region =
         headers.get(CLIENT_REGION_HEADER).and_then(|region| region.to_str().ok()).unwrap_or("N/A");
@@ -180,16 +208,17 @@ async fn add_tx_inner(
 }
 
 fn record_added_transactions(add_tx_result: &HttpServerResult<GatewayOutput>, region: &str) {
-    if let Ok(gateway_output) = add_tx_result {
-        // TODO(Arni): Reconsider the tracing level for this log.
-        info!(
-            transaction_hash = %gateway_output.transaction_hash(),
-            region = %region,
-            "Recorded transaction"
-        );
-        ADDED_TRANSACTIONS_SUCCESS.increment(1);
-    } else {
-        ADDED_TRANSACTIONS_FAILURE.increment(1);
+    match add_tx_result {
+        Ok(gateway_output) => {
+            // TODO(Arni): Reconsider the tracing level for this log.
+            info!(
+                transaction_hash = %gateway_output.transaction_hash(),
+                region = %region,
+                "Recorded transaction"
+            );
+            ADDED_TRANSACTIONS_SUCCESS.increment(1);
+        }
+        Err(err) => increment_failure_metrics(err),
     }
 }
 
@@ -205,5 +234,19 @@ impl ComponentStarter for HttpServer {
     async fn start(&mut self) {
         info!("Starting component {}.", short_type_name::<Self>());
         self.run().await.unwrap_or_else(|e| panic!("Failed to start HttpServer component: {:?}", e))
+    }
+}
+
+fn increment_failure_metrics(err: &HttpServerError) {
+    ADDED_TRANSACTIONS_FAILURE.increment(1);
+    let HttpServerError::GatewayClientError(gateway_client_error) = err else {
+        return;
+    };
+    // TODO(shahak): add unit test for ADDED_TRANSACTIONS_INTERNAL_ERROR
+    if matches!(gateway_client_error, GatewayClientError::ClientError(_))
+        || matches!(gateway_client_error, GatewayClientError::GatewayError(
+            GatewayError::DeprecatedGatewayError { source, .. }) if source.is_internal())
+    {
+        ADDED_TRANSACTIONS_INTERNAL_ERROR.increment(1);
     }
 }

@@ -47,7 +47,7 @@ impl StatelessTransactionValidator {
         &self,
         tx: &RpcTransaction,
     ) -> StatelessTransactionValidatorResult<()> {
-        if !self.config.validate_non_zero_resource_bounds {
+        if !self.config.validate_resource_bounds {
             return Ok(());
         }
 
@@ -56,6 +56,13 @@ impl StatelessTransactionValidator {
         if ValidResourceBounds::AllResources(resource_bounds).max_possible_fee(Tip::ZERO) == Fee(0)
         {
             return Err(StatelessTransactionValidatorError::ZeroResourceBounds { resource_bounds });
+        }
+
+        if resource_bounds.l2_gas.max_price_per_unit.0 < self.config.min_gas_price {
+            return Err(StatelessTransactionValidatorError::MaxGasPriceTooLow {
+                gas_price: resource_bounds.l2_gas.max_price_per_unit,
+                min_gas_price: self.config.min_gas_price,
+            });
         }
 
         Ok(())

@@ -13,6 +13,7 @@ members = [
   "crates/apollo_compile_to_casm",
   "crates/apollo_compile_to_casm_types",
   "crates/apollo_compile_to_native",
+  "crates/apollo_compile_to_native_types",
   "crates/apollo_config",
   "crates/apollo_consensus",
   "crates/apollo_consensus_manager",
@@ -26,6 +27,7 @@ members = [
   "crates/apollo_infra_utils",
   "crates/apollo_integration_tests",
   "crates/apollo_l1_endpoint_monitor",
+  "crates/apollo_l1_endpoint_monitor_types",
   "crates/apollo_l1_gas_price",
   "crates/apollo_l1_gas_price_types",
   "crates/apollo_l1_provider",
@@ -41,6 +43,7 @@ members = [
   "crates/apollo_node",
   "crates/apollo_p2p_sync",
   "crates/apollo_proc_macros",
+  "crates/apollo_proc_macros_tests",
   "crates/apollo_protobuf",
   "crates/apollo_reverts",
   "crates/apollo_rpc",
@@ -67,6 +70,7 @@ members = [
   "crates/papyrus_monitoring_gateway",
   "crates/papyrus_node",
   "crates/shared_execution_objects",
+  "crates/sizeof/sizeof_internal",
   "crates/starknet_api",
   "crates/starknet_committer",
   "crates/starknet_committer_and_os_cli",
@@ -96,6 +100,7 @@ apollo_compilation_utils = { path = "crates/apollo_compilation_utils", version =
 apollo_compile_to_casm.path = "crates/apollo_compile_to_casm"
 apollo_compile_to_casm_types.path = "crates/apollo_compile_to_casm_types"
 apollo_compile_to_native = { path = "crates/apollo_compile_to_native", version = "0.15.0-rc.2" }
+apollo_compile_to_native_types = { path = "crates/apollo_compile_to_native_types", version = "0.15.0-rc.2" }
 apollo_config = { path = "crates/apollo_config", version = "0.15.0-rc.2" }
 apollo_consensus.path = "crates/apollo_consensus"
 apollo_consensus_manager.path = "crates/apollo_consensus_manager"
@@ -109,6 +114,7 @@ apollo_infra.path = "crates/apollo_infra"
 apollo_infra_utils = { path = "crates/apollo_infra_utils", version = "0.15.0-rc.2" }
 apollo_integration_tests.path = "crates/apollo_integration_tests"
 apollo_l1_endpoint_monitor.path = "crates/apollo_l1_endpoint_monitor"
+apollo_l1_endpoint_monitor_types.path = "crates/apollo_l1_endpoint_monitor_types"
 apollo_l1_gas_price.path = "crates/apollo_l1_gas_price"
 apollo_l1_gas_price_types.path = "crates/apollo_l1_gas_price_types"
 apollo_l1_provider.path = "crates/apollo_l1_provider"
@@ -123,7 +129,8 @@ apollo_network.path = "crates/apollo_network"
 apollo_network_types.path = "crates/apollo_network_types"
 apollo_node.path = "crates/apollo_node"
 apollo_p2p_sync.path = "crates/apollo_p2p_sync"
-apollo_proc_macros.path = "crates/apollo_proc_macros"
+apollo_proc_macros = { path = "crates/apollo_proc_macros", version = "0.15.0-rc.2" }
+apollo_proc_macros_tests.path = "crates/apollo_proc_macros_tests"
 apollo_protobuf.path = "crates/apollo_protobuf"
 apollo_reverts.path = "crates/apollo_reverts"
 apollo_rpc.path = "crates/apollo_rpc"
@@ -171,8 +178,8 @@ cairo-lang-sierra = "2.12.0-dev.1"
 cairo-lang-sierra-to-casm = "2.12.0-dev.1"
 cairo-lang-starknet-classes = "2.12.0-dev.1"
 cairo-lang-utils = "2.12.0-dev.1"
-cairo-native = "0.5.0-rc.6"
-cairo-vm = "2.2.0"
+cairo-native = "0.6.0"
+cairo-vm = "2.3.1"
 camelpaste = "0.1.0"
 chrono = "0.4.26"
 clap = "4.5.4"
@@ -214,8 +221,8 @@ jsonschema = "0.17.0"
 keccak = "0.1.3"
 lazy_static = "1.5.0"
 libmdbx = "0.3.5"
-libp2p = "0.53.2"
-libp2p-swarm-test = "0.3.0"
+libp2p = "0.56.0"
+libp2p-swarm-test = "0.6.0"
 log = "0.4"
 lru = "0.12.0"
 memmap2 = "0.8.0"
@@ -246,6 +253,7 @@ paste = "1.0.15"
 phf = "0.11"
 pretty_assertions = "1.4.0"
 primitive-types = "0.12.1"
+proc-macro2 = "1.0"
 prometheus-parse = "0.2.4"
 prost = "0.12.1"
 prost-build = "0.12.1"
@@ -270,12 +278,14 @@ semver = "1.0.23"
 serde = "1.0.197"
 serde_json = "1.0.116"
 serde_repr = "0.1.19"
+serde_with = "3.12.0"
 serde_yaml = "0.9.16"
 sha2 = "0.10.8"
 sha3 = "0.10.8"
 shared_execution_objects.path = "crates/shared_execution_objects"
 simple_logger = "4.0.0"
 size-of = "0.1.5"
+sizeof_internal = { path = "crates/sizeof/sizeof_internal" }
 socket2 = "0.5.8"
 starknet-core = "0.12.1"
 starknet-crypto = "0.7.1"

@@ -61,8 +61,10 @@ pub const CONFIG_FILE_ARG_NAME: &str = "config_file";
 /// The config file arg name prepended with a double dash.
 pub const CONFIG_FILE_ARG: &str = formatcp!("--{}", CONFIG_FILE_ARG_NAME);
 
-pub(crate) const IS_NONE_MARK: &str = "#is_none";
-pub(crate) const FIELD_SEPARATOR: &str = ".";
+/// A config indicator for optional parameters.
+pub const IS_NONE_MARK: &str = "#is_none";
+/// A config indicator for a sub config.
+pub const FIELD_SEPARATOR: &str = ".";
 
 /// A nested path of a configuration parameter.
 pub type ParamPath = String;
@@ -162,6 +164,11 @@ impl SerializedParam {
     pub fn is_required(&self) -> bool {
         self.description.starts_with(REQUIRED_PARAM_DESCRIPTION_PREFIX)
     }
+
+    /// Whether the parameter is private.
+    pub fn is_private(&self) -> bool {
+        self.privacy == ParamPrivacy::Private
+    }
 }
 
 /// A serialized type of a configuration parameter.
@@ -179,24 +186,26 @@ pub enum SerializationType {
 #[allow(missing_docs)]
 #[derive(thiserror::Error, Debug)]
 pub enum ConfigError {
-    #[error(transparent)]
-    CommandInput(#[from] clap::error::Error),
-    #[error(transparent)]
-    MissingParam(#[from] serde_json::Error),
-    #[error(transparent)]
-    CommandMatches(#[from] MatchesError),
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
-    #[error("Param does not exist: {param_path}.")]
-    ParamNotFound { param_path: String },
-    #[error("{target_param} is not found.")]
-    PointerTargetNotFound { target_param: String },
-    #[error("{pointing_param} is not found.")]
-    PointerSourceNotFound { pointing_param: String },
     #[error("Changing {param_path} from required type {required} to {given} is not allowed.")]
     ChangeRequiredParamType { param_path: String, required: SerializationType, given: Value },
     #[error(transparent)]
-    ValidationError(#[from] ValidationError),
+    CommandInput(#[from] clap::error::Error),
+    #[error(transparent)]
+    CommandMatches(#[from] MatchesError),
+    #[error("{component_config_mismatch}")]
+    ComponentConfigMismatch { component_config_mismatch: String },
     #[error(transparent)]
     ConfigValidationError(#[from] ParsedValidationErrors),
+    #[error(transparent)]
+    IOError(#[from] std::io::Error),
+    #[error(transparent)]
+    MissingParam(#[from] serde_json::Error),
+    #[error("{pointing_param} is not found.")]
+    PointerSourceNotFound { pointing_param: String },
+    #[error("{target_param} is not found.")]
+    PointerTargetNotFound { target_param: String },
+    #[error("Received an unexpected parameter: {param_path}.")]
+    UnexpectedParam { param_path: String },
+    #[error(transparent)]
+    ValidationError(#[from] ValidationError),
 }

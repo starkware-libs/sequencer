@@ -1,11 +1,17 @@
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::time::Instant;
+
+use lazy_static::lazy_static;
 use proc_macro::TokenStream;
 use quote::{quote, ToTokens};
 use syn::parse::{Parse, ParseStream};
+use syn::punctuated::Punctuated;
 use syn::{
     parse,
     parse2,
     parse_macro_input,
     parse_str,
+    Expr,
     ExprLit,
     Ident,
     ItemFn,
@@ -385,6 +391,145 @@ pub fn handle_all_response_variants(input: TokenStream) -> TokenStream {
                 }
                 unexpected_response => Err(#component_client_error::ClientError(ClientError::UnexpectedResponse(format!("{unexpected_response:?}")))),
             }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+fn get_uniq_identifier_for_call_site(identifier_prefix: &str) -> Ident {
+    // Use call site span for uniqueness
+    let span = proc_macro::Span::call_site();
+    let span_str = format!("{:?}", span);
+
+    let mut hasher = DefaultHasher::new();
+    span_str.hash(&mut hasher);
+
+    let hash_id = format!("{:x}", hasher.finish()); // short identifier
+    let ident_str = format!("__{}_{}", identifier_prefix, hash_id);
+    Ident::new(&ident_str, proc_macro2::Span::call_site())
+}
+
+struct LogEveryNMacroInput {
+    log_macro: syn::Path,
+    n: Expr,
+    args: Punctuated<Expr, Token![,]>,
+}
+
+impl Parse for LogEveryNMacroInput {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let log_macro: syn::Path = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let n: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let args: Punctuated<Expr, Token![,]> = Punctuated::parse_terminated(input)?;
+
+        Ok(LogEveryNMacroInput { log_macro, n, args })
+    }
+}
+
+/// An internal helper macro for logging a message every `n` calls to the macro.
+/// Do not use this directly. Instead use the `info_every_n!`, `debug_every_n!`, etc. macros.
+#[proc_macro]
+pub fn log_every_n(input: TokenStream) -> TokenStream {
+    let LogEveryNMacroInput { log_macro, n, args, .. } =
+        parse_macro_input!(input as LogEveryNMacroInput);
+
+    let ident = get_uniq_identifier_for_call_site("TRACING_COUNT");
+
+    let args = args.into_iter().collect::<Vec<_>>();
+
+    let expanded = quote! {
+        {
+            static #ident: ::std::sync::OnceLock<::std::sync::atomic::AtomicUsize> = ::std::sync::OnceLock::new();
+            let counter = #ident.get_or_init(|| ::std::sync::atomic::AtomicUsize::new(0));
+            let current_count = counter.fetch_add(1, ::std::sync::atomic::Ordering::Relaxed);
+
+            if current_count % (#n) == 0 {
+                #log_macro!(#(#args),*);
+            }
+        }
+    };
+
+    TokenStream::from(expanded)
+}
+
+struct LogEveryNSecMacroInput {
+    log_macro: syn::Path,
+    n: Expr,
+    args: Punctuated<Expr, Token![,]>,
+}
+
+impl Parse for LogEveryNSecMacroInput {
+    fn parse(input: ParseStream<'_>) -> syn::Result<Self> {
+        let log_macro: syn::Path = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let n: Expr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let args: Punctuated<Expr, Token![,]> = Punctuated::parse_terminated(input)?;
+
+        Ok(LogEveryNSecMacroInput { log_macro, n, args })
+    }
+}
+
+lazy_static! {
+    static ref LOG_EVERY_N_SEC_CLOCK_START: Instant = Instant::now();
+}
+
+/// An internal helper macro for logging a message at most once every `n` seconds.
+/// Do not use this directly. Instead use the `info_every_n_sec!`, `debug_every_n_sec!`, etc.
+/// macros.
+#[proc_macro]
+pub fn log_every_n_sec(input: TokenStream) -> TokenStream {
+    let LogEveryNSecMacroInput { log_macro, n, args, .. } =
+        parse_macro_input!(input as LogEveryNSecMacroInput);
+
+    let ident_last_log_time = get_uniq_identifier_for_call_site("TRACING_LAST_LOG_TIME");
+    let ident_start_time = get_uniq_identifier_for_call_site("TRACING_START_TIME");
+
+    let args = args.into_iter().collect::<Vec<_>>();
+
+    let expanded = quote! {
+        {
+            // We use this to measure the passage of time. We don't use the system time since
+            // it can go backwards (e.g. when the system clock is updated).
+            static #ident_start_time: ::std::sync::OnceLock<::std::time::Instant> = ::std::sync::OnceLock::new();
+
+            static #ident_last_log_time: ::std::sync::OnceLock<::std::sync::atomic::AtomicU64> = ::std::sync::OnceLock::new();
+            let last_log_u64 = #ident_last_log_time.get_or_init(|| ::std::sync::atomic::AtomicU64::new(0));
+
+            match last_log_u64.fetch_update(
+                ::std::sync::atomic::Ordering::Relaxed,
+                ::std::sync::atomic::Ordering::Relaxed,
+                |curr_val : u64| {
+                    // We use millis and not secs to avoid having any rounding issues (e.g. 1.9
+                    // seconds).
+                    let now_with_zero : u64 = #ident_start_time.get_or_init(|| ::std::time::Instant::now())
+                        .elapsed().as_millis().try_into()
+                        .expect("Timestamp in millis is larger than u64::MAX");
+                    // We add +1 to avoid having a value of 0 which can be confused with the first
+                    // call.
+                    let now : u64 = now_with_zero + 1;
+
+                    if curr_val == 0 {
+                        // First call, update the time to start counting from now.
+                        return Some(now);
+                    }
+                    if curr_val + (#n * 1000) <= now {
+                        // We should log. Next log should be after n seconds from now.
+                        return Some(now);
+                    }
+                    None
+                }
+            ) {
+                Ok(old_now) => {
+                    // We updated the last log time, meaning we should log.
+                    #log_macro!(#(#args),*);
+                }
+                Err(_) => {
+                    // We should not log.
+                }
+            };
         }
     };
 

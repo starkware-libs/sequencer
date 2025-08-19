@@ -1,4 +1,3 @@
-use apollo_deployments::deployment_definitions::Environment;
 use apollo_deployments::deployments::distributed::{
     DistributedNodeServiceName,
     DISTRIBUTED_NODE_REQUIRED_PORTS_NUM,
@@ -7,7 +6,7 @@ use apollo_deployments::deployments::hybrid::{
     HybridNodeServiceName,
     HYBRID_NODE_REQUIRED_PORTS_NUM,
 };
-use apollo_deployments::service::{DeploymentName, ServiceName};
+use apollo_deployments::service::{NodeService, NodeType};
 use apollo_infra_utils::test_utils::AvailablePortsGenerator;
 use apollo_node::config::component_config::{set_urls_to_localhost, ComponentConfig};
 
@@ -18,6 +17,7 @@ pub struct NodeComponentConfigs {
     http_server_index: usize,
     state_sync_index: usize,
     class_manager_index: usize,
+    consensus_manager_index: usize,
 }
 
 impl NodeComponentConfigs {
@@ -27,6 +27,7 @@ impl NodeComponentConfigs {
         http_server_index: usize,
         state_sync_index: usize,
         class_manager_index: usize,
+        consensus_manager_index: usize,
     ) -> Self {
         Self {
             component_configs,
@@ -34,6 +35,7 @@ impl NodeComponentConfigs {
             http_server_index,
             state_sync_index,
             class_manager_index,
+            consensus_manager_index,
         }
     }
 
@@ -60,6 +62,10 @@ impl NodeComponentConfigs {
     pub fn get_class_manager_index(&self) -> usize {
         self.class_manager_index
     }
+
+    pub fn get_consensus_manager_index(&self) -> usize {
+        self.consensus_manager_index
+    }
 }
 
 impl IntoIterator for NodeComponentConfigs {
@@ -74,10 +80,8 @@ impl IntoIterator for NodeComponentConfigs {
 pub fn create_consolidated_component_configs() -> NodeComponentConfigs {
     // All components are in executable index 0.
     NodeComponentConfigs::new(
-        DeploymentName::ConsolidatedNode
-            .get_component_configs(None, &Environment::Testing)
-            .into_values()
-            .collect(),
+        NodeType::Consolidated.get_component_configs(None).into_values().collect(),
+        0,
         0,
         0,
         0,
@@ -93,8 +97,7 @@ pub fn create_distributed_component_configs(
         .expect("Failed to get an AvailablePorts instance for distributed node configs");
 
     let ports = available_ports.get_next_ports(DISTRIBUTED_NODE_REQUIRED_PORTS_NUM);
-    let services_component_config =
-        DeploymentName::DistributedNode.get_component_configs(Some(ports), &Environment::Testing);
+    let services_component_config = NodeType::Distributed.get_component_configs(Some(ports));
 
     let mut component_configs: Vec<ComponentConfig> =
         services_component_config.values().cloned().collect();
@@ -105,16 +108,19 @@ pub fn create_distributed_component_configs(
     NodeComponentConfigs::new(
         component_configs,
         services_component_config
-            .get_index_of::<ServiceName>(&DistributedNodeServiceName::Batcher.into())
+            .get_index_of::<NodeService>(&DistributedNodeServiceName::Batcher.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&DistributedNodeServiceName::HttpServer.into())
+            .get_index_of::<NodeService>(&DistributedNodeServiceName::HttpServer.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&DistributedNodeServiceName::StateSync.into())
+            .get_index_of::<NodeService>(&DistributedNodeServiceName::StateSync.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&DistributedNodeServiceName::ClassManager.into())
+            .get_index_of::<NodeService>(&DistributedNodeServiceName::ClassManager.into())
+            .unwrap(),
+        services_component_config
+            .get_index_of::<NodeService>(&DistributedNodeServiceName::ConsensusManager.into())
             .unwrap(),
     )
 }
@@ -127,8 +133,7 @@ pub fn create_hybrid_component_configs(
         .expect("Failed to get an AvailablePorts instance for distributed node configs");
 
     let ports = available_ports.get_next_ports(HYBRID_NODE_REQUIRED_PORTS_NUM);
-    let services_component_config =
-        DeploymentName::HybridNode.get_component_configs(Some(ports), &Environment::Testing);
+    let services_component_config = NodeType::Hybrid.get_component_configs(Some(ports));
 
     let mut component_configs: Vec<ComponentConfig> =
         services_component_config.values().cloned().collect();
@@ -139,16 +144,19 @@ pub fn create_hybrid_component_configs(
     NodeComponentConfigs::new(
         component_configs,
         services_component_config
-            .get_index_of::<ServiceName>(&HybridNodeServiceName::Core.into())
+            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&HybridNodeServiceName::HttpServer.into())
+            .get_index_of::<NodeService>(&HybridNodeServiceName::HttpServer.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&HybridNodeServiceName::Core.into())
+            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
             .unwrap(),
         services_component_config
-            .get_index_of::<ServiceName>(&HybridNodeServiceName::Core.into())
+            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
+            .unwrap(),
+        services_component_config
+            .get_index_of::<NodeService>(&HybridNodeServiceName::Core.into())
             .unwrap(),
     )
 }

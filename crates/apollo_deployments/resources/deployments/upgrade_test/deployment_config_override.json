@@ -1,0 +1,13 @@
+{
+  "base_layer_config.starknet_contract_address": "0x9A24bE2884FE593dFA951eE19C751e3a7c89fECd",
+  "chain_id": "SN_GOERLI",
+  "consensus_manager_config.context_config.num_validators": 3,
+  "eth_fee_token_address": "0x4475715fa6768670bb310eab072171856c94c1a04fa78be2370513aa2a87dc4",
+  "l1_provider_config.provider_startup_height_override": 0,
+  "l1_provider_config.provider_startup_height_override.#is_none": true,
+  "starknet_url": "https://feeder.sn-mainnet-test-upgrade.gateway-proxy.sw-dev.io/",
+  "state_sync_config.central_sync_client_config.#is_none": false,
+  "state_sync_config.network_config.#is_none": true,
+  "state_sync_config.p2p_sync_client_config.#is_none": true,
+  "strk_fee_token_address": "0x6cd5b5125491c4bccec3d3b8635cbd98542c1d91a134541eca6e108cf0639f6"
+}

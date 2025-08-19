@@ -16,11 +16,10 @@ use apollo_network::network_manager::BroadcastTopicClientTrait;
 use apollo_network_types::network_types::BroadcastedMessageMetadata;
 use apollo_protobuf::consensus::{ProposalInit, Vote};
 use apollo_protobuf::converters::ProtobufConversionError;
+use apollo_time::time::{sleep_until, Clock, DefaultClock};
 use futures::channel::mpsc;
 use futures::stream::FuturesUnordered;
 use futures::{FutureExt, StreamExt};
-use metrics::counter;
-use papyrus_common::metrics::{PAPYRUS_CONSENSUS_HEIGHT, PAPYRUS_CONSENSUS_SYNC_COUNT};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, error, info, instrument, trace};
 
@@ -93,10 +92,8 @@ where
         run_consensus_args.quorum_type,
         run_consensus_args.timeouts,
     );
-    #[allow(clippy::as_conversions)] // FIXME: use int metrics so `as f64` may be removed.
     loop {
         let must_observer = current_height < run_consensus_args.start_active_height;
-        metrics::gauge!(PAPYRUS_CONSENSUS_HEIGHT).set(current_height.0 as f64);
         match manager
             .run_height(
                 &mut context,
@@ -122,7 +119,6 @@ where
             RunHeightRes::Sync => {
                 info!(height = current_height.0, "Decision learned via sync protocol.");
                 CONSENSUS_DECISIONS_REACHED_BY_SYNC.increment(1);
-                counter!(PAPYRUS_CONSENSUS_SYNC_COUNT).increment(1);
             }
         }
         current_height = current_height.unchecked_next();
@@ -195,6 +191,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
+        info!("Running consensus for height {}.", height);
         let res = self
             .run_height_inner(
                 context,
@@ -240,6 +237,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         broadcast_channels: &mut BroadcastVoteChannel,
         proposals_receiver: &mut mpsc::Receiver<mpsc::Receiver<ContextT::ProposalPart>>,
     ) -> Result<RunHeightRes, ConsensusError> {
+        CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
         self.report_max_cached_block_number_metric(height);
         if context.try_sync(height).await {
             return Ok(RunHeightRes::Sync);
@@ -251,7 +249,6 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             "START_HEIGHT: running consensus for height {:?}. is_observer: {}, validators: {:?}",
             height, is_observer, validators,
         );
-        CONSENSUS_BLOCK_NUMBER.set_lossy(height.0);
 
         let mut shc = SingleHeightConsensus::new(
             height,
@@ -275,7 +272,8 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         }
 
         // Loop over incoming proposals, messages, and self generated events.
-        let mut sync_poll_deadline = tokio::time::Instant::now() + self.sync_retry_interval;
+        let clock = DefaultClock;
+        let mut sync_poll_deadline = clock.now() + self.sync_retry_interval;
         loop {
             self.report_max_cached_block_number_metric(height);
             let shc_return = tokio::select! {
@@ -291,7 +289,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 },
                 // Using sleep_until to make sure that we won't restart the sleep due to other
                 // events occuring.
-                _ = tokio::time::sleep_until(sync_poll_deadline) => {
+                _ = sleep_until(sync_poll_deadline, &clock) => {
                     sync_poll_deadline += self.sync_retry_interval;
                     if context.try_sync(height).await {
                         return Ok(RunHeightRes::Sync);
@@ -454,7 +452,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         // 2. Parallel proposals - we may send/receive a proposal for (H+1, 0).
         match message.height.cmp(&height.0) {
             std::cmp::Ordering::Greater => {
-                debug!("Cache message for a future height. {:?}", message);
+                trace!("Cache message for a future height. {:?}", message);
                 self.future_votes.entry(message.height).or_default().push(message);
                 Ok(ShcReturn::Tasks(Vec::new()))
             }

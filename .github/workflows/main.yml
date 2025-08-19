@@ -13,7 +13,6 @@ on:
       - opened
       - reopened
       - synchronize
-      - auto_merge_enabled
       - edited
 
 env:

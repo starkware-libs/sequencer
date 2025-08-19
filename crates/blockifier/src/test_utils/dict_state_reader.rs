@@ -10,7 +10,7 @@ use crate::state::cached_state::StorageEntry;
 use crate::state::errors::StateError;
 use crate::state::global_cache::CompiledClasses;
 use crate::state::state_api::{StateReader, StateResult};
-use crate::state::state_reader_and_contract_manager::FetchCompiliedClasses;
+use crate::state::state_reader_and_contract_manager::FetchCompiledClasses;
 use crate::test_utils::contracts::FeatureContractData;
 
 /// A simple implementation of `StateReader` using `HashMap`s as storage.
@@ -88,7 +88,7 @@ impl StateReader for DictStateReader {
     }
 }
 
-impl FetchCompiliedClasses for DictStateReader {
+impl FetchCompiledClasses for DictStateReader {
     fn get_compiled_classes(&self, class_hash: ClassHash) -> StateResult<CompiledClasses> {
         match self.get_compiled_class(class_hash)? {
             RunnableCompiledClass::V0(class) => Ok(CompiledClasses::V0(class)),

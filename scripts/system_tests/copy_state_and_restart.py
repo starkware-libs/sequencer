@@ -2,6 +2,7 @@ import json
 import subprocess
 import sys
 from typing import List, Tuple
+
 from kubernetes import config
 
 
@@ -27,7 +28,7 @@ def copy_state(pod_name: str, data_dir: str) -> None:
             [
                 "kubectl",
                 "cp",
-                data_dir,
+                f"{data_dir}/.",
                 f"{pod_name}:/data",
                 "--retries=3",
             ]
@@ -130,6 +131,9 @@ def main(deployment_config_path: str, data_dir: str) -> None:
     for controller, resource_name in resources_to_wait_for:
         wait_for_resource(controller=controller, name=resource_name)
         print(f"✅ {controller}/{resource_name} is ready!")
+
+    print("\n📦 Current pod status:")
+    run(["kubectl", "get", "pods", "-o", "wide"])
 
     print("\n✅ All services are ready!")
 

@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::fmt::Debug;
 #[cfg(any(feature = "testing", test))]
 use std::str::FromStr;
@@ -18,6 +19,8 @@ use num_traits::Num;
 #[cfg(any(feature = "testing", test))]
 use regex::{escape, Regex};
 
+use crate::metric_label_filter;
+
 #[cfg(test)]
 #[path = "metrics_test.rs"]
 mod metrics_tests;
@@ -32,10 +35,13 @@ pub enum MetricScope {
     Blockifier,
     ClassManager,
     Consensus,
+    ConsensusManager,
+    ConsensusOrchestrator,
     Gateway,
     HttpServer,
     Infra,
-    L1ToL2Message,
+    L1GasPrice,
+    L1Provider,
     Mempool,
     MempoolP2p,
     CompileToCasm,
@@ -45,7 +51,6 @@ pub enum MetricScope {
 pub struct MetricCounter {
     scope: MetricScope,
     name: &'static str,
-    name_with_filter: &'static str,
     description: &'static str,
     initial_value: u64,
 }
@@ -54,19 +59,18 @@ impl MetricCounter {
     pub const fn new(
         scope: MetricScope,
         name: &'static str,
-        name_with_filter: &'static str,
         description: &'static str,
         initial_value: u64,
     ) -> Self {
-        Self { scope, name, name_with_filter, description, initial_value }
+        Self { scope, name, description, initial_value }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
     }
 
-    pub const fn get_name_with_filter(&self) -> &'static str {
-        self.name_with_filter
+    pub fn get_name_with_filter(&self) -> String {
+        format!("{}{}", self.name, metric_label_filter!())
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -102,7 +106,6 @@ impl MetricCounter {
 pub struct LabeledMetricCounter {
     scope: MetricScope,
     name: &'static str,
-    name_with_filter: &'static str,
     description: &'static str,
     initial_value: u64,
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
@@ -112,20 +115,19 @@ impl LabeledMetricCounter {
     pub const fn new(
         scope: MetricScope,
         name: &'static str,
-        name_with_filter: &'static str,
         description: &'static str,
         initial_value: u64,
         label_permutations: &'static [&'static [(&'static str, &'static str)]],
     ) -> Self {
-        Self { scope, name, name_with_filter, description, initial_value, label_permutations }
+        Self { scope, name, description, initial_value, label_permutations }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
     }
 
-    pub const fn get_name_with_filter(&self) -> &'static str {
-        self.name_with_filter
+    pub fn get_name_with_filter(&self) -> String {
+        format!("{}{}", self.name, metric_label_filter!())
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -172,26 +174,20 @@ impl LabeledMetricCounter {
 pub struct MetricGauge {
     scope: MetricScope,
     name: &'static str,
-    name_with_filter: &'static str,
     description: &'static str,
 }
 
 impl MetricGauge {
-    pub const fn new(
-        scope: MetricScope,
-        name: &'static str,
-        name_with_filter: &'static str,
-        description: &'static str,
-    ) -> Self {
-        Self { scope, name, name_with_filter, description }
+    pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
+        Self { scope, name, description }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
     }
 
-    pub const fn get_name_with_filter(&self) -> &'static str {
-        self.name_with_filter
+    pub fn get_name_with_filter(&self) -> String {
+        format!("{}{}", self.name, metric_label_filter!())
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -259,12 +255,11 @@ macro_rules! into_f64 {
         )*
     };
 }
-into_f64!(u64, usize, i64);
+into_f64!(u64, usize, i64, u128);
 
 pub struct LabeledMetricGauge {
     scope: MetricScope,
-    name: &'static str,
-    name_with_filter: &'static str,
+    name: &'static str, // TODO(Tsabary): remove the _name_with_filter field, it is not used.
     description: &'static str,
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
 }
@@ -273,19 +268,18 @@ impl LabeledMetricGauge {
     pub const fn new(
         scope: MetricScope,
         name: &'static str,
-        name_with_filter: &'static str,
         description: &'static str,
         label_permutations: &'static [&'static [(&'static str, &'static str)]],
     ) -> Self {
-        Self { scope, name, name_with_filter, description, label_permutations }
+        Self { scope, name, description, label_permutations }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
     }
 
-    pub const fn get_name_with_filter(&self) -> &'static str {
-        self.name_with_filter
+    pub fn get_name_with_filter(&self) -> String {
+        format!("{}{}", self.name, metric_label_filter!())
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -341,9 +335,6 @@ impl LabeledMetricGauge {
 pub struct MetricHistogram {
     scope: MetricScope,
     name: &'static str,
-    name_with_filter: &'static str,
-    name_sum_with_filter: &'static str,
-    name_count_with_filter: &'static str,
     description: &'static str,
 }
 
@@ -361,38 +352,24 @@ impl PartialEq for HistogramValue {
 }
 
 impl MetricHistogram {
-    pub const fn new(
-        scope: MetricScope,
-        name: &'static str,
-        name_with_filter: &'static str,
-        name_sum_with_filter: &'static str,
-        name_count_with_filter: &'static str,
-        description: &'static str,
-    ) -> Self {
-        Self {
-            scope,
-            name,
-            name_with_filter,
-            name_sum_with_filter,
-            name_count_with_filter,
-            description,
-        }
+    pub const fn new(scope: MetricScope, name: &'static str, description: &'static str) -> Self {
+        Self { scope, name, description }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
     }
 
-    pub const fn get_name_with_filter(&self) -> &'static str {
-        self.name_with_filter
+    pub fn get_name_with_filter(&self) -> String {
+        format!("{}_bucket{}", self.name, metric_label_filter!())
     }
 
-    pub const fn get_name_sum_with_filter(&self) -> &'static str {
-        self.name_sum_with_filter
+    pub fn get_name_sum_with_filter(&self) -> String {
+        format!("{}_sum{}", self.name, metric_label_filter!())
     }
 
-    pub const fn get_name_count_with_filter(&self) -> &'static str {
-        self.name_count_with_filter
+    pub fn get_name_count_with_filter(&self) -> String {
+        format!("{}_count{}", self.name, metric_label_filter!())
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -436,7 +413,6 @@ impl MetricHistogram {
 pub struct LabeledMetricHistogram {
     scope: MetricScope,
     name: &'static str,
-    name_with_filter: &'static str,
     description: &'static str,
     label_permutations: &'static [&'static [(&'static str, &'static str)]],
 }
@@ -445,19 +421,18 @@ impl LabeledMetricHistogram {
     pub const fn new(
         scope: MetricScope,
         name: &'static str,
-        name_with_filter: &'static str,
         description: &'static str,
         label_permutations: &'static [&'static [(&'static str, &'static str)]],
     ) -> Self {
-        Self { scope, name, name_with_filter, description, label_permutations }
+        Self { scope, name, description, label_permutations }
     }
 
     pub const fn get_name(&self) -> &'static str {
         self.name
     }
 
-    pub const fn get_name_with_filter(&self) -> &'static str {
-        self.name_with_filter
+    pub fn get_name_with_filter(&self) -> String {
+        format!("{}_bucket{}", self.name, metric_label_filter!())
     }
 
     pub const fn get_scope(&self) -> MetricScope {
@@ -466,6 +441,19 @@ impl LabeledMetricHistogram {
 
     pub const fn get_description(&self) -> &'static str {
         self.description
+    }
+
+    // Returns a flattened and sorted list of the unique label values across all label permutations.
+    // The flattening makes this mostly useful for a single labeled histograms, as otherwise
+    // different domain values are mixed together.
+    pub fn get_flat_label_values(&self) -> Vec<&str> {
+        self
+            .label_permutations
+            .iter()
+            .flat_map(|pairs| pairs.iter().map(|(_, v)| *v))
+               .collect::<BTreeSet<_>>()   // unique + sorted
+        .into_iter()
+    .collect()
     }
 
     pub fn register(&self) {

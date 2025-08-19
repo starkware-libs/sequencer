@@ -6,12 +6,13 @@ repository.workspace = true
 license-file.workspace = true
 
 [features]
-testing = ["apollo_metrics/testing", "num-traits", "thiserror", "tokio", "tower"]
+testing = ["apollo_metrics/testing", "num-traits", "thiserror", "tower"]
 
 [lints]
 workspace = true
 
 [dependencies]
+anyhow.workspace = true
 apollo_config.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
@@ -24,7 +25,7 @@ metrics-exporter-prometheus.workspace = true
 num-traits = { workspace = true, optional = true }
 serde.workspace = true
 thiserror = { workspace = true, optional = true }
-tokio = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["rt"] }
 tower = { workspace = true, optional = true }
 tracing.workspace = true
 validator.workspace = true

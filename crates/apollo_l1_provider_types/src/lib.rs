@@ -4,8 +4,10 @@ use std::fmt::Display;
 use std::sync::Arc;
 
 use apollo_infra::component_client::ClientError;
-use apollo_infra::component_definitions::ComponentClient;
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::component_definitions::{ComponentClient, PrioritizedRequest};
+use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_metrics::generate_permutation_labels;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 use indexmap::IndexSet;
@@ -13,7 +15,7 @@ use indexmap::IndexSet;
 use mockall::automock;
 use papyrus_base_layer::{EventData, L1Event};
 use serde::{Deserialize, Serialize};
-use starknet_api::block::{BlockNumber, BlockTimestamp};
+use starknet_api::block::{BlockNumber, BlockTimestamp, UnixTimestamp};
 use starknet_api::core::ChainId;
 use starknet_api::executable_transaction::{
     L1HandlerTransaction as ExecutableL1HandlerTransaction,
@@ -21,7 +23,8 @@ use starknet_api::executable_transaction::{
 };
 use starknet_api::transaction::{TransactionHash, TransactionHasher};
 use starknet_api::StarknetApiError;
-use strum_macros::AsRefStr;
+use strum::{EnumVariantNames, VariantNames};
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use tracing::instrument;
 
 use crate::errors::{L1ProviderClientError, L1ProviderError};
@@ -47,10 +50,18 @@ pub enum InvalidValidationStatus {
     AlreadyIncludedInProposedBlock,
     AlreadyIncludedOnL2,
     CancelledOnL2,
-    ConsumedOnL1OrUnknown,
+    // This tx can be safely deleted from the records.
+    ConsumedOnL1,
+    // This tx is either never been seen or was seen, consumed, and deleted.
+    NotFound,
 }
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(L1ProviderRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum L1ProviderRequest {
     AddEvents(Vec<Event>),
     CommitBlock {
@@ -74,6 +85,8 @@ pub enum L1ProviderRequest {
     GetL1ProviderSnapshot,
 }
 impl_debug_for_infra_requests_and_responses!(L1ProviderRequest);
+impl_labeled_request!(L1ProviderRequest, L1ProviderRequestLabelValue);
+impl PrioritizedRequest for L1ProviderRequest {}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum L1ProviderResponse {
@@ -230,22 +243,30 @@ where
 pub enum Event {
     L1HandlerTransaction {
         l1_handler_tx: L1HandlerTransaction,
-        timestamp: BlockTimestamp,
+        block_timestamp: BlockTimestamp,
+        scrape_timestamp: UnixTimestamp,
     },
     TransactionCanceled(EventData),
     TransactionCancellationStarted {
         tx_hash: TransactionHash,
         cancellation_request_timestamp: BlockTimestamp,
     },
-    TransactionConsumed(EventData),
+    TransactionConsumed {
+        tx_hash: TransactionHash,
+        timestamp: BlockTimestamp,
+    },
 }
 
 impl Event {
-    pub fn from_l1_event(chain_id: &ChainId, l1_event: L1Event) -> Result<Self, StarknetApiError> {
+    pub fn from_l1_event(
+        chain_id: &ChainId,
+        l1_event: L1Event,
+        scrape_timestamp: UnixTimestamp,
+    ) -> Result<Self, StarknetApiError> {
         Ok(match l1_event {
-            L1Event::LogMessageToL2 { tx, fee, timestamp, .. } => {
+            L1Event::LogMessageToL2 { tx, fee, block_timestamp, .. } => {
                 let tx = ExecutableL1HandlerTransaction::create(tx, chain_id, fee)?;
-                Self::L1HandlerTransaction { l1_handler_tx: tx, timestamp }
+                Self::L1HandlerTransaction { l1_handler_tx: tx, block_timestamp, scrape_timestamp }
             }
             L1Event::MessageToL2CancellationStarted {
                 cancelled_tx,
@@ -257,7 +278,13 @@ impl Event {
                 Self::TransactionCancellationStarted { tx_hash, cancellation_request_timestamp }
             }
             L1Event::MessageToL2Canceled(event_data) => Self::TransactionCanceled(event_data),
-            L1Event::ConsumedMessageToL2(event_data) => Self::TransactionConsumed(event_data),
+            L1Event::ConsumedMessageToL2 { tx, timestamp } => {
+                let tx_hash = tx.calculate_transaction_hash(
+                    chain_id,
+                    &starknet_api::transaction::L1HandlerTransaction::VERSION,
+                )?;
+                Self::TransactionConsumed { tx_hash, timestamp }
+            }
         })
     }
 }
@@ -265,11 +292,15 @@ impl Event {
 impl Display for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Event::L1HandlerTransaction { l1_handler_tx: tx, timestamp } => {
+            Event::L1HandlerTransaction {
+                l1_handler_tx: tx,
+                block_timestamp,
+                scrape_timestamp,
+            } => {
                 write!(
                     f,
-                    "L1HandlerTransaction(tx_hash={}, block_timestamp={})",
-                    tx.tx_hash, timestamp
+                    "L1HandlerTransaction(tx_hash={}, block_timestamp={}, scrape_timestamp={})",
+                    tx.tx_hash, block_timestamp, scrape_timestamp
                 )
             }
             Event::TransactionCanceled(data) => write!(f, "TransactionCanceled({})", data),
@@ -281,7 +312,9 @@ impl Display for Event {
                     tx_hash, cancellation_request_timestamp
                 )
             }
-            Event::TransactionConsumed(data) => write!(f, "TransactionConsumed({})", data),
+            Event::TransactionConsumed { tx_hash, timestamp } => {
+                write!(f, "TransactionConsumed(tx_hash={}, block_timestamp={})", tx_hash, timestamp)
+            }
         }
     }
 }
@@ -301,4 +334,9 @@ pub struct L1ProviderSnapshot {
     pub committed_transactions: Vec<TransactionHash>,
     pub l1_provider_state: String,
     pub current_height: BlockNumber,
+}
+
+generate_permutation_labels! {
+    L1_PROVIDER_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, L1ProviderRequestLabelValue),
 }

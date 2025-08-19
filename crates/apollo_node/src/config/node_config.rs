@@ -10,6 +10,7 @@ use apollo_compile_to_casm::config::SierraCompilationConfig;
 use apollo_config::dumping::{
     generate_struct_pointer,
     prepend_sub_config_name,
+    ser_optional_sub_config,
     ser_pointer_target_param,
     set_pointing_param_paths,
     ConfigPointers,
@@ -17,11 +18,13 @@ use apollo_config::dumping::{
     SerializeConfig,
 };
 use apollo_config::loading::load_and_process_config;
+use apollo_config::validators::config_validate;
 use apollo_config::{ConfigError, ParamPath, SerializedParam};
 use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_gateway::config::GatewayConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_infra_utils::path::resolve_project_relative_path;
+use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
 use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
@@ -37,12 +40,18 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::config::component_config::ComponentConfig;
+use crate::config::component_execution_config::ExpectedComponentConfig;
 use crate::config::monitoring::MonitoringConfig;
 use crate::version::VERSION_FULL;
 
-// The path of the default configuration file, provided as part of the crate.
-pub const DEFAULT_CONFIG_PATH: &str = "config/sequencer/default_config.json";
-pub const POINTER_TARGET_VALUE: &str = "PointerTarget";
+// The path of the configuration schema file, provided as part of the crate.
+pub const CONFIG_SCHEMA_PATH: &str = "crates/apollo_node/resources/config_schema.json";
+pub const CONFIG_SECRETS_SCHEMA_PATH: &str =
+    "crates/apollo_node/resources/config_secrets_schema.json";
+pub(crate) const POINTER_TARGET_VALUE: &str = "PointerTarget";
+
+// TODO(Tsabary): move metrics recorder to the node level, like tracing, instead of being
+// initialized as part of the endpoint.
 
 // Configuration parameters that share the same value across multiple components.
 pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
@@ -111,7 +120,7 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
                 "The ID of the validator. \
                  Also the address of this validator as a starknet contract.",
             ),
-            set_pointing_param_paths(&["consensus_manager_config.consensus_config.validator_id"]),
+            set_pointing_param_paths(&["consensus_manager_config.consensus_manager_config.validator_id"]),
         ),
         (
             ser_pointer_target_param(
@@ -122,6 +131,19 @@ pub static CONFIG_POINTERS: LazyLock<ConfigPointers> = LazyLock::new(|| {
             set_pointing_param_paths(&[
                 "consensus_manager_config.cende_config.recorder_url",
                 "batcher_config.pre_confirmed_cende_config.recorder_url",
+            ]),
+        ),
+        (
+            ser_pointer_target_param(
+                "validate_resource_bounds",
+                &true,
+                "Indicates that validations related to resource bounds are applied. \
+                It should be set to false during a system bootstrap.",
+            ),
+            set_pointing_param_paths(&[
+                "gateway_config.stateful_tx_validator_config.validate_resource_bounds",
+                "gateway_config.stateless_tx_validator_config.validate_resource_bounds",
+                "mempool_config.validate_resource_bounds",
             ]),
         ),
     ];
@@ -152,92 +174,204 @@ pub static CONFIG_NON_POINTERS_WHITELIST: LazyLock<Pointers> =
     LazyLock::new(HashSet::<ParamPath>::new);
 
 /// The configurations of the various components of the node.
-#[derive(Debug, Default, Deserialize, Serialize, Clone, PartialEq, Validate)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, Validate)]
 pub struct SequencerNodeConfig {
     // Infra related configs.
     #[validate]
     pub components: ComponentConfig,
     #[validate]
     pub monitoring_config: MonitoringConfig,
-
     // Business-logic component configs.
     #[validate]
-    pub base_layer_config: EthereumBaseLayerConfig,
+    pub base_layer_config: Option<EthereumBaseLayerConfig>,
     #[validate]
-    pub batcher_config: BatcherConfig,
+    pub batcher_config: Option<BatcherConfig>,
     #[validate]
-    pub class_manager_config: FsClassManagerConfig,
+    pub class_manager_config: Option<FsClassManagerConfig>,
     #[validate]
-    pub consensus_manager_config: ConsensusManagerConfig,
+    pub consensus_manager_config: Option<ConsensusManagerConfig>,
     #[validate]
-    pub gateway_config: GatewayConfig,
+    pub gateway_config: Option<GatewayConfig>,
     #[validate]
-    pub http_server_config: HttpServerConfig,
+    pub http_server_config: Option<HttpServerConfig>,
     #[validate]
-    pub compiler_config: SierraCompilationConfig,
+    pub l1_endpoint_monitor_config: Option<L1EndpointMonitorConfig>,
     #[validate]
-    pub l1_provider_config: L1ProviderConfig,
+    pub l1_gas_price_provider_config: Option<L1GasPriceProviderConfig>,
     #[validate]
-    pub l1_gas_price_provider_config: L1GasPriceProviderConfig,
+    pub l1_gas_price_scraper_config: Option<L1GasPriceScraperConfig>,
     #[validate]
-    pub l1_scraper_config: L1ScraperConfig,
+    pub l1_provider_config: Option<L1ProviderConfig>,
     #[validate]
-    pub mempool_config: MempoolConfig,
+    pub l1_scraper_config: Option<L1ScraperConfig>,
     #[validate]
-    pub l1_gas_price_scraper_config: L1GasPriceScraperConfig,
+    pub mempool_config: Option<MempoolConfig>,
     #[validate]
-    pub mempool_p2p_config: MempoolP2pConfig,
+    pub mempool_p2p_config: Option<MempoolP2pConfig>,
     #[validate]
-    pub monitoring_endpoint_config: MonitoringEndpointConfig,
+    pub monitoring_endpoint_config: Option<MonitoringEndpointConfig>,
     #[validate]
-    pub state_sync_config: StateSyncConfig,
+    pub sierra_compiler_config: Option<SierraCompilationConfig>,
+    #[validate]
+    pub state_sync_config: Option<StateSyncConfig>,
 }
 
 impl SerializeConfig for SequencerNodeConfig {
     fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
         let sub_configs = vec![
+            // Infra related configs.
             prepend_sub_config_name(self.components.dump(), "components"),
             prepend_sub_config_name(self.monitoring_config.dump(), "monitoring_config"),
-            prepend_sub_config_name(self.base_layer_config.dump(), "base_layer_config"),
-            prepend_sub_config_name(self.batcher_config.dump(), "batcher_config"),
-            prepend_sub_config_name(self.class_manager_config.dump(), "class_manager_config"),
-            prepend_sub_config_name(
-                self.consensus_manager_config.dump(),
-                "consensus_manager_config",
-            ),
-            prepend_sub_config_name(self.gateway_config.dump(), "gateway_config"),
-            prepend_sub_config_name(self.http_server_config.dump(), "http_server_config"),
-            prepend_sub_config_name(self.compiler_config.dump(), "compiler_config"),
-            prepend_sub_config_name(self.mempool_config.dump(), "mempool_config"),
-            prepend_sub_config_name(self.mempool_p2p_config.dump(), "mempool_p2p_config"),
-            prepend_sub_config_name(
-                self.monitoring_endpoint_config.dump(),
-                "monitoring_endpoint_config",
-            ),
-            prepend_sub_config_name(self.state_sync_config.dump(), "state_sync_config"),
-            prepend_sub_config_name(self.l1_provider_config.dump(), "l1_provider_config"),
-            prepend_sub_config_name(self.l1_scraper_config.dump(), "l1_scraper_config"),
-            prepend_sub_config_name(
-                self.l1_gas_price_provider_config.dump(),
+            // Business-logic component configs.
+            ser_optional_sub_config(&self.base_layer_config, "base_layer_config"),
+            ser_optional_sub_config(&self.batcher_config, "batcher_config"),
+            ser_optional_sub_config(&self.class_manager_config, "class_manager_config"),
+            ser_optional_sub_config(&self.consensus_manager_config, "consensus_manager_config"),
+            ser_optional_sub_config(&self.gateway_config, "gateway_config"),
+            ser_optional_sub_config(&self.http_server_config, "http_server_config"),
+            ser_optional_sub_config(&self.mempool_config, "mempool_config"),
+            ser_optional_sub_config(&self.mempool_p2p_config, "mempool_p2p_config"),
+            ser_optional_sub_config(&self.monitoring_endpoint_config, "monitoring_endpoint_config"),
+            ser_optional_sub_config(&self.l1_endpoint_monitor_config, "l1_endpoint_monitor_config"),
+            ser_optional_sub_config(
+                &self.l1_gas_price_provider_config,
                 "l1_gas_price_provider_config",
             ),
-            prepend_sub_config_name(
-                self.l1_gas_price_scraper_config.dump(),
+            ser_optional_sub_config(
+                &self.l1_gas_price_scraper_config,
                 "l1_gas_price_scraper_config",
             ),
+            ser_optional_sub_config(&self.l1_provider_config, "l1_provider_config"),
+            ser_optional_sub_config(&self.l1_scraper_config, "l1_scraper_config"),
+            ser_optional_sub_config(&self.sierra_compiler_config, "sierra_compiler_config"),
+            ser_optional_sub_config(&self.state_sync_config, "state_sync_config"),
         ];
 
         sub_configs.into_iter().flatten().collect()
     }
 }
 
+impl Default for SequencerNodeConfig {
+    fn default() -> Self {
+        Self {
+            // Infra related configs.
+            components: ComponentConfig::default(),
+            monitoring_config: MonitoringConfig::default(),
+            // Business-logic component configs.
+            base_layer_config: Some(EthereumBaseLayerConfig::default()),
+            batcher_config: Some(BatcherConfig::default()),
+            class_manager_config: Some(FsClassManagerConfig::default()),
+            consensus_manager_config: Some(ConsensusManagerConfig::default()),
+            gateway_config: Some(GatewayConfig::default()),
+            http_server_config: Some(HttpServerConfig::default()),
+            l1_endpoint_monitor_config: Some(L1EndpointMonitorConfig::default()),
+            l1_gas_price_provider_config: Some(L1GasPriceProviderConfig::default()),
+            l1_gas_price_scraper_config: Some(L1GasPriceScraperConfig::default()),
+            l1_provider_config: Some(L1ProviderConfig::default()),
+            l1_scraper_config: Some(L1ScraperConfig::default()),
+            mempool_config: Some(MempoolConfig::default()),
+            mempool_p2p_config: Some(MempoolP2pConfig::default()),
+            monitoring_endpoint_config: Some(MonitoringEndpointConfig::default()),
+            sierra_compiler_config: Some(SierraCompilationConfig::default()),
+            state_sync_config: Some(StateSyncConfig::default()),
+        }
+    }
+}
+
+macro_rules! validate_component_config_is_set_iff_running_locally {
+    ($self:ident, $component_field:ident, $config_field:ident) => {{
+        // The component config should be set iff its running locally.
+        if $self.components.$component_field.is_running_locally() != $self.$config_field.is_some() {
+            let execution_mode = &$self.components.$component_field.execution_mode;
+            let component_config_availability =
+                if $self.$config_field.is_some() { "available" } else { "not available" };
+            return Err(ConfigError::ComponentConfigMismatch {
+                component_config_mismatch: format!(
+                    "{} component configs mismatch: execution mode {:?} while config is {}",
+                    stringify!($component_field),
+                    execution_mode,
+                    component_config_availability
+                ),
+            });
+        }
+    }};
+}
+
 impl SequencerNodeConfig {
-    /// Creates a config object. Selects the values from the default file and from resources with
-    /// higher priority.
+    /// Creates a config object, using the config schema and provided resources.
     pub fn load_and_process(args: Vec<String>) -> Result<Self, ConfigError> {
-        let config_file_name = &resolve_project_relative_path(DEFAULT_CONFIG_PATH)?;
+        let config_file_name = &resolve_project_relative_path(CONFIG_SCHEMA_PATH)?;
         let default_config_file = File::open(config_file_name)?;
         load_and_process_config(default_config_file, node_command(), args, true)
+    }
+
+    pub fn validate_node_config(&self) -> Result<(), ConfigError> {
+        // Validate each config member using its `Validate` trait derivation.
+        config_validate(self)?;
+
+        // Custom cross member validations.
+        self.cross_member_validations()
+    }
+
+    fn cross_member_validations(&self) -> Result<(), ConfigError> {
+        // TODO(Tsabary): should be based on iteration of `ComponentConfig` fields.
+        validate_component_config_is_set_iff_running_locally!(self, batcher, batcher_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            class_manager,
+            class_manager_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, gateway, gateway_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            l1_endpoint_monitor,
+            l1_endpoint_monitor_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            l1_provider,
+            l1_provider_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            l1_gas_price_provider,
+            l1_gas_price_provider_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, mempool, mempool_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            mempool_p2p,
+            mempool_p2p_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            sierra_compiler,
+            sierra_compiler_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, state_sync, state_sync_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            consensus_manager,
+            consensus_manager_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            http_server,
+            http_server_config
+        );
+        validate_component_config_is_set_iff_running_locally!(self, l1_scraper, l1_scraper_config);
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            l1_gas_price_scraper,
+            l1_gas_price_scraper_config
+        );
+        validate_component_config_is_set_iff_running_locally!(
+            self,
+            monitoring_endpoint,
+            monitoring_endpoint_config
+        );
+
+        Ok(())
     }
 }
 

@@ -54,7 +54,8 @@ pub struct BlockExecutionSummary {
     pub state_diff: CommitmentStateDiff,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
-    pub casm_hash_computation_data: CasmHashComputationData,
+    pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
+    pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
 }
 
 /// A transaction executor, used for building a single block.
@@ -160,6 +161,7 @@ impl<S: StateReader> TransactionExecutor<S> {
                     &transactional_state,
                     &tx_state_changes_keys,
                     &tx_execution_info.summarize(&self.block_context.versioned_constants),
+                    &tx_execution_info.summarize_builtins(),
                     &tx_execution_info.receipt.resources,
                     &self.block_context.versioned_constants,
                 )?;
@@ -232,7 +234,11 @@ pub(crate) fn finalize_block<S: StateReader>(
     block_state: &mut CachedState<S>,
     block_context: &BlockContext,
 ) -> TransactionExecutorResult<BlockExecutionSummary> {
-    log::debug!("Final block weights: {:?}.", lock_bouncer(bouncer).get_accumulated_weights());
+    log::info!(
+        "Block {} final weights: {:?}.",
+        block_context.block_info.block_number,
+        lock_bouncer(bouncer).get_accumulated_weights()
+    );
     let alias_contract_address = block_context
         .versioned_constants
         .os_constants
@@ -248,12 +254,30 @@ pub(crate) fn finalize_block<S: StateReader>(
         None
     };
 
+    // Take CasmHashComputationData from bouncer,
+    // and verify that class hashes are the same.
     let mut bouncer = lock_bouncer(bouncer);
+    let casm_hash_computation_data_sierra_gas =
+        mem::take(&mut bouncer.casm_hash_computation_data_sierra_gas);
+    let casm_hash_computation_data_proving_gas =
+        mem::take(&mut bouncer.casm_hash_computation_data_proving_gas);
+    assert_eq!(
+        casm_hash_computation_data_sierra_gas
+            .class_hash_to_casm_hash_computation_gas
+            .keys()
+            .collect::<std::collections::HashSet<_>>(),
+        casm_hash_computation_data_proving_gas
+            .class_hash_to_casm_hash_computation_gas
+            .keys()
+            .collect::<std::collections::HashSet<_>>()
+    );
+
     Ok(BlockExecutionSummary {
         state_diff: state_diff.into(),
         compressed_state_diff,
         bouncer_weights: *bouncer.get_accumulated_weights(),
-        casm_hash_computation_data: mem::take(&mut bouncer.casm_hash_computation_data),
+        casm_hash_computation_data_sierra_gas,
+        casm_hash_computation_data_proving_gas,
     })
 }
 

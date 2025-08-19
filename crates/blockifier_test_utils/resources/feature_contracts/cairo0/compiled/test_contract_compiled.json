@@ -930,7 +930,7 @@
             "bitwise",
             "ec_op"
         ],
-        "compiler_version": "0.14.0a1",
+        "compiler_version": "0.14.0.1",
         "data": [
             "0x40780017fff7fff",
             "0x1",

@@ -7,11 +7,12 @@ license.workspace = true
 
 [features]
 testing = ["mockall"]
+tokio = ["dep:tokio"]
 
 [dependencies]
 chrono.workspace = true
 mockall = { workspace = true, optional = true }
-tokio = { workspace = true, features = ["time"] }
+tokio = { workspace = true, features = ["time"], optional = true }
 
 
 [dev-dependencies]

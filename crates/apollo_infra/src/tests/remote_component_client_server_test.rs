@@ -1,18 +1,22 @@
 use std::fmt::Debug;
-use std::net::SocketAddr;
+use std::future::ready;
+use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
+use apollo_infra_utils::run_until::run_until;
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Client, Request, Response, Server, StatusCode, Uri};
+use metrics::set_default_local_recorder;
+use metrics_exporter_prometheus::PrometheusBuilder;
 use rstest::rstest;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use starknet_types_core::felt::Felt;
 use tokio::sync::mpsc::channel;
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 use tokio::task;
 
 use crate::component_client::{
@@ -24,13 +28,15 @@ use crate::component_client::{
 };
 use crate::component_definitions::{
     ComponentClient,
-    ComponentRequestAndResponseSender,
+    RequestWrapper,
     ServerError,
     APPLICATION_OCTET_STREAM,
+    BUSY_PREVIOUS_REQUESTS_MSG,
 };
 use crate::component_server::{
     ComponentServerStarter,
     LocalComponentServer,
+    LocalServerConfig,
     RemoteComponentServer,
 };
 use crate::serde_utils::SerdeWrapper;
@@ -57,15 +63,21 @@ use crate::tests::{
 type ComponentAClient = RemoteComponentClient<ComponentARequest, ComponentAResponse>;
 type ComponentBClient = RemoteComponentClient<ComponentBRequest, ComponentBResponse>;
 
-const MAX_IDLE_CONNECTION: usize = usize::MAX;
-const IDLE_TIMEOUT: u64 = 90;
 const MOCK_SERVER_ERROR: &str = "mock server error";
 const ARBITRARY_DATA: &str = "arbitrary data";
 // ServerError::RequestDeserializationFailure error message.
 const DESERIALIZE_REQ_ERROR_MESSAGE: &str = "Could not deserialize client request";
-// ClientError::ResponseDeserializationFailure error message.
-const DESERIALIZE_RES_ERROR_MESSAGE: &str = "Could not deserialize server response";
+const BAD_REQUEST_ERROR_MESSAGE: &str = "Got status code: 400 Bad Request";
 const VALID_VALUE_A: ValueA = Felt::ONE;
+const MAX_CONCURRENCY: usize = 10;
+const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
+    retries: 0,
+    idle_connections: 0,
+    idle_timeout_ms: 0,
+    max_retry_interval_ms: 0,
+    initial_retry_delay_ms: 0,
+    log_attempt_interval_ms: 1,
+};
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
@@ -141,20 +153,172 @@ where
         Server::bind(&socket).serve(make_svc).await.unwrap();
     });
 
-    // Todo(uriel): Get rid of this
     // Ensure the server starts running.
     task::yield_now().await;
 
-    let config = RemoteClientConfig::default();
     ComponentAClient::new(
-        config,
+        FAST_FAILING_CLIENT_CONFIG,
         &socket.ip().to_string(),
         socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     )
 }
 
-async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: SocketAddr) {
+/// Ensures the remote client respects the server’s concurrency cap:
+/// - Two in-flight requests exhaust the limit and a third is **immediately rejected** with `503
+///   Service Unavailable` and the message `"Server is busy addressing previous requests"`.
+/// - After releasing permits on the shared semaphore, a subsequent request succeeds.
+/// This test also verifies that the number of connections to the remote server metric is updated
+/// correctly.
+#[tokio::test]
+async fn remote_connection_concurrency() {
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = set_default_local_recorder(&recorder);
+    TEST_REMOTE_SERVER_METRICS.register();
+    const METRIC_SAMPLING_INTERVAL_MILLIS: u64 = 5;
+    const MAX_ATTEMPTS: usize = 50;
+
+    let setup_value: ValueB = Felt::from(90);
+    let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+    let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
+
+    // Shared semaphore used inside ComponentA::handle_request
+    let semaphore = Arc::new(Semaphore::new(0));
+
+    // pass the semaphore into the server’s ComponentA
+    setup_for_tests(setup_value, a_socket, b_socket, 2, Some(semaphore.clone())).await;
+
+    let client1 = RemoteComponentClient::<ComponentARequest, ComponentAResponse>::new(
+        FAST_FAILING_CLIENT_CONFIG,
+        &Ipv4Addr::LOCALHOST.to_string(),
+        a_socket.port(),
+        &TEST_REMOTE_CLIENT_METRICS,
+    );
+    let client2 = client1.clone();
+    let client3 = client1.clone();
+    let client4 = client1.clone();
+
+    // First two requests will block on the semaphore inside ComponentA
+    let fut1 =
+        tokio::spawn(async move { client1.send(ComponentARequest::AGetValue).await.unwrap() });
+
+    tokio::task::yield_now().await;
+    run_until(
+        METRIC_SAMPLING_INTERVAL_MILLIS,
+        MAX_ATTEMPTS,
+        || {
+            let metric_recorder = recorder.handle().render();
+            ready(
+                TEST_REMOTE_SERVER_METRICS
+                    .get_number_of_connections_value(metric_recorder.as_str()),
+            )
+        },
+        |connections| *connections == 1,
+        None,
+    )
+    .await
+    .unwrap();
+
+    let _fut2 =
+        tokio::spawn(async move { client2.send(ComponentARequest::AGetValue).await.unwrap() });
+
+    tokio::task::yield_now().await;
+    run_until(
+        METRIC_SAMPLING_INTERVAL_MILLIS,
+        MAX_ATTEMPTS,
+        || {
+            let metric_recorder = recorder.handle().render();
+            ready(
+                TEST_REMOTE_SERVER_METRICS
+                    .get_number_of_connections_value(metric_recorder.as_str()),
+            )
+        },
+        |connections| *connections == 2,
+        None,
+    )
+    .await
+    .unwrap();
+
+    let err = client3
+        .send(ComponentARequest::AGetValue)
+        .await
+        .expect_err("third request should be rejected when max concurrency is reached");
+
+    match err {
+        ClientError::ResponseError(status, server_err) => {
+            assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+            let msg = server_err.to_string();
+            assert!(
+                msg.contains(BUSY_PREVIOUS_REQUESTS_MSG),
+                "unexpected server error body: {msg:?}"
+            );
+        }
+        other => panic!("expected ResponseError(503, _), got: {other:?}"),
+    }
+
+    run_until(
+        METRIC_SAMPLING_INTERVAL_MILLIS,
+        MAX_ATTEMPTS,
+        || {
+            let metric_recorder = recorder.handle().render();
+            ready(
+                TEST_REMOTE_SERVER_METRICS
+                    .get_number_of_connections_value(metric_recorder.as_str()),
+            )
+        },
+        |connections| *connections == 2,
+        None,
+    )
+    .await
+    .unwrap();
+
+    // Release one slot
+    semaphore.add_permits(1);
+    fut1.await.unwrap();
+
+    run_until(
+        METRIC_SAMPLING_INTERVAL_MILLIS,
+        MAX_ATTEMPTS,
+        || {
+            let metric_recorder = recorder.handle().render();
+            ready(
+                TEST_REMOTE_SERVER_METRICS
+                    .get_number_of_connections_value(metric_recorder.as_str()),
+            )
+        },
+        |connections| *connections == 1,
+        None,
+    )
+    .await
+    .unwrap();
+
+    let result4 = client4.send(ComponentARequest::AGetValue).await;
+    assert!(result4.is_ok(), "Expected client4 to succeed after one slot was freed");
+
+    run_until(
+        METRIC_SAMPLING_INTERVAL_MILLIS,
+        MAX_ATTEMPTS,
+        || {
+            let metric_recorder = recorder.handle().render();
+            ready(
+                TEST_REMOTE_SERVER_METRICS
+                    .get_number_of_connections_value(metric_recorder.as_str()),
+            )
+        },
+        |connections| *connections == 2,
+        None,
+    )
+    .await
+    .unwrap();
+}
+
+async fn setup_for_tests(
+    setup_value: ValueB,
+    a_socket: SocketAddr,
+    b_socket: SocketAddr,
+    max_concurrency: usize,
+    sem: Option<Arc<Semaphore>>,
+) {
     let a_config = RemoteClientConfig::default();
     let b_config = RemoteClientConfig::default();
 
@@ -162,32 +326,34 @@ async fn setup_for_tests(setup_value: ValueB, a_socket: SocketAddr, b_socket: So
         a_config,
         &a_socket.ip().to_string(),
         a_socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     let b_remote_client = ComponentBClient::new(
         b_config,
         &b_socket.ip().to_string(),
         b_socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
 
-    let component_a = ComponentA::new(Box::new(b_remote_client));
+    let component_a = match sem {
+        Some(s) => ComponentA::with_semaphore(Box::new(b_remote_client), s),
+        None => ComponentA::new(Box::new(b_remote_client)),
+    };
+
     let component_b = ComponentB::new(setup_value, Box::new(a_remote_client.clone()));
 
-    let (tx_a, rx_a) =
-        channel::<ComponentRequestAndResponseSender<ComponentARequest, ComponentAResponse>>(32);
-    let (tx_b, rx_b) =
-        channel::<ComponentRequestAndResponseSender<ComponentBRequest, ComponentBResponse>>(32);
+    let (tx_a, rx_a) = channel::<RequestWrapper<ComponentARequest, ComponentAResponse>>(32);
+    let (tx_b, rx_b) = channel::<RequestWrapper<ComponentBRequest, ComponentBResponse>>(32);
 
     let a_local_client = LocalComponentClient::<ComponentARequest, ComponentAResponse>::new(tx_a);
     let b_local_client = LocalComponentClient::<ComponentBRequest, ComponentBResponse>::new(tx_b);
 
+    let config = LocalServerConfig::default();
     let mut component_a_local_server =
-        LocalComponentServer::new(component_a, rx_a, TEST_LOCAL_SERVER_METRICS);
+        LocalComponentServer::new(component_a, &config, rx_a, &TEST_LOCAL_SERVER_METRICS);
     let mut component_b_local_server =
-        LocalComponentServer::new(component_b, rx_b, TEST_LOCAL_SERVER_METRICS);
+        LocalComponentServer::new(component_b, &config, rx_b, &TEST_LOCAL_SERVER_METRICS);
 
-    let max_concurrency = 10;
     let mut component_a_remote_server = RemoteComponentServer::new(
         a_local_client,
         a_socket.ip(),
@@ -228,7 +394,7 @@ async fn proper_setup() {
     let a_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
 
-    setup_for_tests(setup_value, a_socket, b_socket).await;
+    setup_for_tests(setup_value, a_socket, b_socket, MAX_CONCURRENCY, None).await;
     let a_client_config = RemoteClientConfig::default();
     let b_client_config = RemoteClientConfig::default();
 
@@ -236,13 +402,13 @@ async fn proper_setup() {
         a_client_config,
         &a_socket.ip().to_string(),
         a_socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     let b_remote_client = ComponentBClient::new(
         b_client_config,
         &b_socket.ip().to_string(),
         b_socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
 
     test_a_b_functionality(a_remote_client, b_remote_client, setup_value).await;
@@ -254,7 +420,7 @@ async fn faulty_client_setup() {
     let b_socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
     // Todo(uriel): Find a better way to pass expected value to the setup
     // 123 is some arbitrary value, we don't check it anyway.
-    setup_for_tests(Felt::from(123), a_socket, b_socket).await;
+    setup_for_tests(Felt::from(123), a_socket, b_socket, MAX_CONCURRENCY, None).await;
 
     struct FaultyAClient {
         socket: SocketAddr,
@@ -286,12 +452,11 @@ async fn faulty_client_setup() {
 #[tokio::test]
 async fn unconnected_server() {
     let socket = AVAILABLE_PORTS.lock().await.get_next_local_host_socket();
-    let client_config = RemoteClientConfig::default();
     let client = ComponentAClient::new(
-        client_config,
+        FAST_FAILING_CLIENT_CONFIG,
         &socket.ip().to_string(),
         socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     let expected_error_contained_keywords = ["Connection refused"];
     verify_error(client, &expected_error_contained_keywords).await;
@@ -307,7 +472,7 @@ async fn unconnected_server() {
 )]
 #[case::response_deserialization_failure(
     create_client_and_faulty_server(ARBITRARY_DATA.to_string()).await,
-    &[DESERIALIZE_RES_ERROR_MESSAGE],
+    &[BAD_REQUEST_ERROR_MESSAGE],
 )]
 #[tokio::test]
 async fn faulty_server(
@@ -361,32 +526,22 @@ async fn retry_request() {
     // The initial server state is 'false', hence the first attempt returns an error and
     // sets the server state to 'true'. The second attempt (first retry) therefore returns a
     // 'success', while setting the server state to 'false' yet again.
-    let retry_config = RemoteClientConfig {
-        retries: 1,
-        idle_connections: MAX_IDLE_CONNECTION,
-        idle_timeout: IDLE_TIMEOUT,
-        ..Default::default()
-    };
+    let retry_config = RemoteClientConfig { retries: 1, ..Default::default() };
     let a_client_retry = ComponentAClient::new(
         retry_config,
         &socket.ip().to_string(),
         socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
     // The current server state is 'false', hence the first and only attempt returns an error.
-    let no_retry_config = RemoteClientConfig {
-        retries: 0,
-        idle_connections: MAX_IDLE_CONNECTION,
-        idle_timeout: IDLE_TIMEOUT,
-        ..Default::default()
-    };
+    let no_retry_config = RemoteClientConfig { retries: 0, ..Default::default() };
     let a_client_no_retry = ComponentAClient::new(
         no_retry_config,
         &socket.ip().to_string(),
         socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     let expected_error_contained_keywords = [StatusCode::IM_A_TEAPOT.as_str()];
     verify_error(a_client_no_retry.clone(), &expected_error_contained_keywords).await;

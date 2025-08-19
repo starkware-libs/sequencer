@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use apollo_class_manager_types::transaction_converter::{
     TransactionConverter,
-    TransactionConverterError,
     TransactionConverterTrait,
 };
 use apollo_class_manager_types::SharedClassManagerClient;
@@ -26,16 +25,20 @@ use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_state_sync_types::communication::SharedStateSyncClient;
 use axum::async_trait;
 use blockifier::context::ChainInfo;
-use starknet_api::executable_transaction::ValidateCompiledClassHashError;
 use starknet_api::rpc_transaction::{
     InternalRpcTransaction,
     InternalRpcTransactionWithoutTxHash,
+    RpcDeclareTransaction,
     RpcTransaction,
 };
 use tracing::{debug, error, info, instrument, warn, Span};
 
 use crate::config::GatewayConfig;
-use crate::errors::{mempool_client_result_to_deprecated_gw_result, GatewayResult};
+use crate::errors::{
+    mempool_client_result_to_deprecated_gw_result,
+    transaction_converter_err_to_deprecated_gw_err,
+    GatewayResult,
+};
 use crate::metrics::{register_metrics, GatewayMetricHandle, GATEWAY_ADD_TX_LATENCY};
 use crate::state_reader::StateReaderFactory;
 use crate::stateful_transaction_validator::StatefulTransactionValidator;
@@ -46,14 +49,15 @@ use crate::sync_state_reader::SyncStateReaderFactory;
 #[path = "gateway_test.rs"]
 pub mod gateway_test;
 
+#[derive(Clone)]
 pub struct Gateway {
-    pub config: GatewayConfig,
+    pub config: Arc<GatewayConfig>,
     pub stateless_tx_validator: Arc<StatelessTransactionValidator>,
     pub stateful_tx_validator: Arc<StatefulTransactionValidator>,
     pub state_reader_factory: Arc<dyn StateReaderFactory>,
     pub mempool_client: SharedMempoolClient,
-    pub transaction_converter: TransactionConverter,
-    pub chain_info: ChainInfo,
+    pub transaction_converter: Arc<TransactionConverter>,
+    pub chain_info: Arc<ChainInfo>,
 }
 
 impl Gateway {
@@ -64,7 +68,7 @@ impl Gateway {
         transaction_converter: TransactionConverter,
     ) -> Self {
         Self {
-            config: config.clone(),
+            config: Arc::new(config.clone()),
             stateless_tx_validator: Arc::new(StatelessTransactionValidator {
                 config: config.stateless_tx_validator_config.clone(),
             }),
@@ -73,8 +77,8 @@ impl Gateway {
             }),
             state_reader_factory,
             mempool_client,
-            chain_info: config.chain_info.clone(),
-            transaction_converter,
+            chain_info: Arc::new(config.chain_info.clone()),
+            transaction_converter: Arc::new(transaction_converter),
         }
     }
 
@@ -87,16 +91,8 @@ impl Gateway {
     ) -> GatewayResult<GatewayOutput> {
         debug!("Processing tx: {:?}", tx);
 
-        // TODO(noamsp): Return same error as in Python gateway.
-        if self.config.block_declare {
-            if let RpcTransaction::Declare(_) = &tx {
-                return Err(StarknetError {
-                    code: StarknetErrorCode::UnknownErrorCode(
-                        "StarknetErrorCode.BLOCKED_TRANSACTION_TYPE".to_string(),
-                    ),
-                    message: "Transaction type is temporarily blocked.".to_string(),
-                });
-            }
+        if let RpcTransaction::Declare(ref declare_tx) = tx {
+            self.check_declare_permissions(declare_tx)?;
         }
 
         let mut metric_counters = GatewayMetricHandle::new(&tx, &p2p_message_metadata);
@@ -131,6 +127,34 @@ impl Gateway {
 
         Ok(gateway_output)
     }
+
+    fn check_declare_permissions(
+        &self,
+        declare_tx: &RpcDeclareTransaction,
+    ) -> Result<(), StarknetError> {
+        // TODO(noamsp): Return same error as in Python gateway.
+        if self.config.block_declare {
+            return Err(StarknetError {
+                code: StarknetErrorCode::UnknownErrorCode(
+                    "StarknetErrorCode.BLOCKED_TRANSACTION_TYPE".to_string(),
+                ),
+                message: "Transaction type is temporarily blocked.".to_string(),
+            });
+        }
+        let RpcDeclareTransaction::V3(declare_v3_tx) = declare_tx;
+        if !self.config.is_authorized_declarer(&declare_v3_tx.sender_address) {
+            return Err(StarknetError {
+                code: StarknetErrorCode::KnownErrorCode(
+                    KnownStarknetErrorCode::UnauthorizedDeclare,
+                ),
+                message: format!(
+                    "Account address {} is not allowed to declare contracts.",
+                    &declare_v3_tx.sender_address
+                ),
+            });
+        }
+        Ok(())
+    }
 }
 
 /// CPU-intensive transaction processing, spawned in a blocking thread to avoid blocking other tasks
@@ -140,9 +164,9 @@ struct ProcessTxBlockingTask {
     stateful_tx_validator: Arc<StatefulTransactionValidator>,
     state_reader_factory: Arc<dyn StateReaderFactory>,
     mempool_client: SharedMempoolClient,
-    chain_info: ChainInfo,
+    chain_info: Arc<ChainInfo>,
     tx: RpcTransaction,
-    transaction_converter: TransactionConverter,
+    transaction_converter: Arc<TransactionConverter>,
     runtime: tokio::runtime::Handle,
 }
 
@@ -173,15 +197,7 @@ impl ProcessTxBlockingTask {
             .block_on(self.transaction_converter.convert_rpc_tx_to_internal_rpc_tx(self.tx))
             .map_err(|e| {
                 warn!("Failed to convert RPC transaction to internal RPC transaction: {}", e);
-                match e {
-                    TransactionConverterError::ValidateCompiledClassHashError(err) => {
-                        convert_compiled_class_hash_error(err)
-                    }
-                    other => {
-                        // TODO(yair): Fix this. Need to map the errors better.
-                        StarknetError::internal(&other.to_string())
-                    }
-                }
+                transaction_converter_err_to_deprecated_gw_err(e)
             })?;
 
         let executable_tx = self
@@ -195,13 +211,13 @@ impl ProcessTxBlockingTask {
                     "Failed to convert internal RPC transaction to executable transaction: {}",
                     e
                 );
-                // TODO(yair): Fix this.
-                StarknetError::internal(&e.to_string())
+                transaction_converter_err_to_deprecated_gw_err(e)
             })?;
 
         let mut validator = self
             .stateful_tx_validator
             .instantiate_validator(self.state_reader_factory.as_ref(), &self.chain_info)?;
+
         let address = executable_tx.contract_address();
         let nonce = validator.get_nonce(address).map_err(|e| {
             error!("Failed to get nonce for sender address {}: {}", address, e);
@@ -210,7 +226,13 @@ impl ProcessTxBlockingTask {
         })?;
 
         self.stateful_tx_validator
-            .run_validate(&executable_tx, nonce, self.mempool_client, validator, self.runtime)
+            .run_transaction_validations(
+                &executable_tx,
+                nonce,
+                self.mempool_client,
+                validator,
+                self.runtime,
+            )
             .map_err(|e| StarknetError {
                 code: StarknetErrorCode::KnownErrorCode(KnownStarknetErrorCode::ValidateFailure),
                 message: e.to_string(),
@@ -218,22 +240,6 @@ impl ProcessTxBlockingTask {
 
         // TODO(Arni): Add the Sierra and the Casm to the mempool input.
         Ok(AddTransactionArgs { tx: internal_tx, account_state: AccountState { address, nonce } })
-    }
-}
-
-fn convert_compiled_class_hash_error(error: ValidateCompiledClassHashError) -> StarknetError {
-    let ValidateCompiledClassHashError::CompiledClassHashMismatch {
-        computed_class_hash,
-        supplied_class_hash,
-    } = error;
-    StarknetError {
-        code: StarknetErrorCode::UnknownErrorCode(
-            "StarknetErrorCode.INVALID_COMPILED_CLASS_HASH".to_string(),
-        ),
-        message: format!(
-            "Computed compiled class hash: {computed_class_hash} does not match the given value: \
-             {supplied_class_hash}.",
-        ),
     }
 }
 

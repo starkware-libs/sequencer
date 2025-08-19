@@ -66,6 +66,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     MetaTxV0Response,
     ReplaceClassRequest,
     ReplaceClassResponse,
+    RevertData,
     SelfOrRevert,
     SendMessageToL1Request,
     SendMessageToL1Response,
@@ -75,9 +76,7 @@ use crate::execution::syscalls::vm_syscall_utils::{
     StorageWriteResponse,
     SyscallBaseResult,
     SyscallExecutorBaseError,
-    SyscallRequest,
     SyscallSelector,
-    SyscallUsageMap,
     TryExtractRevert,
 };
 use crate::state::errors::StateError;
@@ -133,7 +132,7 @@ pub enum SyscallExecutionError {
 impl TryExtractRevert for SyscallExecutionError {
     fn try_extract_revert(self) -> SelfOrRevert<Self> {
         match self {
-            Self::Revert { error_data } => SelfOrRevert::Revert(error_data),
+            Self::Revert { error_data } => SelfOrRevert::Revert(RevertData::new_normal(error_data)),
             Self::SyscallExecutorBase(base_error) => {
                 base_error.try_extract_revert().map_original(Self::SyscallExecutorBase)
             }
@@ -141,8 +140,8 @@ impl TryExtractRevert for SyscallExecutionError {
         }
     }
 
-    fn as_revert(error_data: Vec<Felt>) -> Self {
-        Self::Revert { error_data }
+    fn as_revert(revert_data: RevertData) -> Self {
+        Self::Revert { error_data: revert_data.error_data }
     }
 }
 
@@ -228,9 +227,6 @@ pub const INVALID_ARGUMENT: &str =
 pub struct SyscallHintProcessor<'a> {
     pub base: Box<SyscallHandlerBase<'a>>,
 
-    // VM-specific fields.
-    pub syscalls_usage: SyscallUsageMap,
-
     // Fields needed for execution and validation.
     pub read_only_segments: ReadOnlySegments,
     pub syscall_ptr: Relocatable,
@@ -238,6 +234,7 @@ pub struct SyscallHintProcessor<'a> {
     // Secp hint processors.
     pub secp256k1_hint_processor: SecpHintProcessor<ark_secp256k1::Config>,
     pub secp256r1_hint_processor: SecpHintProcessor<ark_secp256r1::Config>,
+    pub secp_points_segment_base: Option<Relocatable>,
 
     pub sha256_segment_end_ptr: Option<Relocatable>,
 
@@ -259,7 +256,6 @@ impl<'a> SyscallHintProcessor<'a> {
     ) -> Self {
         SyscallHintProcessor {
             base: Box::new(SyscallHandlerBase::new(call, state, context)),
-            syscalls_usage: SyscallUsageMap::default(),
             read_only_segments,
             syscall_ptr: initial_syscall_ptr,
             hints,
@@ -267,6 +263,7 @@ impl<'a> SyscallHintProcessor<'a> {
             secp256k1_hint_processor: SecpHintProcessor::new(),
             secp256r1_hint_processor: SecpHintProcessor::new(),
             sha256_segment_end_ptr: None,
+            secp_points_segment_base: None,
         }
     }
 
@@ -324,14 +321,6 @@ impl<'a> SyscallHintProcessor<'a> {
                 .collect();
 
         self.allocate_data_segment(vm, &flat_resource_bounds)
-    }
-
-    pub fn increment_linear_factor_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_usage = self
-            .syscalls_usage
-            .get_mut(selector)
-            .expect("syscalls_usage entry must be initialized before incrementing linear factor");
-        syscall_usage.linear_factor += n;
     }
 
     #[allow(clippy::result_large_err)]
@@ -466,17 +455,24 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         self.base.context.gas_costs()
     }
 
-    fn get_secpk1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256k1::Config> {
-        &mut self.secp256k1_hint_processor
+    fn get_secpk1_hint_processor_and_base(
+        &mut self,
+    ) -> (&mut SecpHintProcessor<ark_secp256k1::Config>, &mut Option<Relocatable>) {
+        (&mut self.secp256k1_hint_processor, &mut self.secp_points_segment_base)
     }
 
-    fn get_secpr1_hint_processor(&mut self) -> &mut SecpHintProcessor<ark_secp256r1::Config> {
-        &mut self.secp256r1_hint_processor
+    fn get_secpr1_hint_processor_and_base(
+        &mut self,
+    ) -> (&mut SecpHintProcessor<ark_secp256r1::Config>, &mut Option<Relocatable>) {
+        (&mut self.secp256r1_hint_processor, &mut self.secp_points_segment_base)
     }
 
-    fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, n: usize) {
-        let syscall_usage = self.syscalls_usage.entry(*selector).or_default();
-        syscall_usage.call_count += n;
+    fn get_secp_id(&self) -> usize {
+        self.secp256k1_hint_processor.points.len() + self.secp256r1_hint_processor.points.len()
+    }
+
+    fn increment_syscall_count_by(&mut self, selector: &SyscallSelector, count: usize) {
+        self.base.increment_syscall_count_by(*selector, count);
     }
 
     fn get_mut_syscall_ptr(&mut self) -> &mut Relocatable {
@@ -540,13 +536,6 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<DeployResponse, Self::Error> {
-        // Increment the Deploy syscall's linear cost counter by the number of elements in the
-        // constructor calldata.
-        syscall_handler.increment_linear_factor_by(
-            &SyscallSelector::Deploy,
-            request.constructor_calldata.0.len(),
-        );
-
         let (deployed_contract_address, call_info) = syscall_handler.base.deploy(
             request.class_hash,
             request.contract_address_salt,
@@ -651,13 +640,6 @@ impl SyscallExecutor for SyscallHintProcessor<'_> {
         syscall_handler: &mut Self,
         remaining_gas: &mut u64,
     ) -> Result<MetaTxV0Response, Self::Error> {
-        // Increment the MetaTxV0 syscall's linear cost counter by the number of elements in the
-        // calldata.
-        syscall_handler.increment_linear_factor_by(
-            &SyscallSelector::MetaTxV0,
-            request.get_linear_factor_length(),
-        );
-
         let storage_address = request.contract_address;
         let selector = request.entry_point_selector;
 

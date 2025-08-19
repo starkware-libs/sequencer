@@ -1,7 +1,8 @@
-use cairo_native::execution_result::ContractExecutionResult;
+use cairo_native::execution_result::{BuiltinStats, ContractExecutionResult};
 use cairo_native::utils::BuiltinCosts;
+use cairo_vm::types::builtin_name::BuiltinName;
 
-use crate::execution::call_info::{CallExecution, CallInfo, Retdata};
+use crate::execution::call_info::{BuiltinCounterMap, CallExecution, CallInfo, Retdata};
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{
     EntryPointExecutionContext,
@@ -12,6 +13,8 @@ use crate::execution::errors::{EntryPointExecutionError, PostExecutionError, Pre
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::execution::native::syscall_handler::NativeSyscallHandler;
 use crate::state::state_api::State;
+use crate::transaction::objects::ExecutionResourcesTraits;
+use crate::utils::add_maps;
 
 // todo(rodrigo): add an `entry point not found` test for Native
 #[allow(clippy::result_large_err)]
@@ -88,11 +91,22 @@ fn create_callinfo(
     let gas_consumed = syscall_handler.base.call.initial_gas - remaining_gas;
     let vm_resources = CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
 
+    // Retrieve the builtin counts from the syscall handler
+    let version_constants = syscall_handler.base.context.versioned_constants();
+    let syscall_builtin_counts = version_constants
+        .get_additional_os_syscall_resources(&syscall_handler.base.syscalls_usage)
+        .filter_unused_builtins()
+        .prover_builtins();
+    let entry_point_builtins = builtin_stats_to_builtin_counter_map(call_result.builtin_stats);
+    let mut builtin_counters = syscall_builtin_counts;
+    add_maps(&mut builtin_counters, &entry_point_builtins);
+
     Ok(CallInfo {
         call: syscall_handler.base.call.into(),
         execution: CallExecution {
             retdata: Retdata(call_result.return_values),
             events: syscall_handler.base.events,
+            cairo_native: true,
             l2_to_l1_messages: syscall_handler.base.l2_to_l1_messages,
             failed: call_result.failure_flag,
             gas_consumed,
@@ -101,5 +115,20 @@ fn create_callinfo(
         inner_calls: syscall_handler.base.inner_calls,
         storage_access_tracker: syscall_handler.base.storage_access_tracker,
         tracked_resource: TrackedResource::SierraGas,
+        builtin_counters,
     })
+}
+
+fn builtin_stats_to_builtin_counter_map(builtin_stats: BuiltinStats) -> BuiltinCounterMap {
+    let builtins = [
+        (BuiltinName::range_check, builtin_stats.range_check),
+        (BuiltinName::pedersen, builtin_stats.pedersen),
+        (BuiltinName::bitwise, builtin_stats.bitwise),
+        (BuiltinName::ec_op, builtin_stats.ec_op),
+        (BuiltinName::poseidon, builtin_stats.poseidon),
+        (BuiltinName::range_check96, builtin_stats.range_check96),
+        (BuiltinName::add_mod, builtin_stats.add_mod),
+        (BuiltinName::mul_mod, builtin_stats.mul_mod),
+    ];
+    builtins.into_iter().filter(|(_, count)| *count > 0).collect()
 }

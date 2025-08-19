@@ -28,6 +28,7 @@ use starknet_api::block::BlockNumber;
 use validator::Validate;
 
 use crate::bootstrapper::Bootstrapper;
+use crate::transaction_manager::TransactionManagerConfig;
 
 /// Current state of the provider, where pending means: idle, between proposal/validation cycles.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -95,7 +96,7 @@ impl std::fmt::Display for ProviderState {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, Validate, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1ProviderConfig {
     /// In most cases this can remain None: the provider defaults to using the
     /// LastStateUpdate height at the L1 Height that the L1Scraper is initialized on.
@@ -110,7 +111,36 @@ pub struct L1ProviderConfig {
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub l1_handler_cancellation_timelock_seconds: Duration,
     #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
+    pub l1_handler_consumption_timelock_seconds: Duration,
+    #[serde(deserialize_with = "deserialize_float_seconds_to_duration")]
     pub new_l1_handler_cooldown_seconds: Duration,
+    /// When true, the L1 provider operates in dummy mode.
+    pub dummy_mode: bool,
+}
+
+impl Default for L1ProviderConfig {
+    fn default() -> Self {
+        Self {
+            provider_startup_height_override: None,
+            bootstrap_catch_up_height_override: None,
+            startup_sync_sleep_retry_interval_seconds: Duration::from_secs(2),
+            l1_handler_cancellation_timelock_seconds: Duration::from_secs(5 * 60),
+            l1_handler_consumption_timelock_seconds: Duration::from_secs(5 * 60),
+            new_l1_handler_cooldown_seconds: Duration::from_secs(70),
+            dummy_mode: false,
+        }
+    }
+}
+
+impl From<L1ProviderConfig> for TransactionManagerConfig {
+    fn from(config: L1ProviderConfig) -> Self {
+        TransactionManagerConfig {
+            new_l1_handler_tx_cooldown_secs: config.new_l1_handler_cooldown_seconds,
+            l1_handler_cancellation_timelock_seconds: config
+                .l1_handler_cancellation_timelock_seconds,
+            l1_handler_consumption_timelock_seconds: config.l1_handler_consumption_timelock_seconds,
+        }
+    }
 }
 
 impl SerializeConfig for L1ProviderConfig {
@@ -118,22 +148,36 @@ impl SerializeConfig for L1ProviderConfig {
         let mut dump = BTreeMap::from([
             ser_param(
                 "startup_sync_sleep_retry_interval_seconds",
-                &self.startup_sync_sleep_retry_interval_seconds.as_secs_f64(),
+                &self.startup_sync_sleep_retry_interval_seconds.as_secs(),
                 "Interval in seconds between each retry of syncing with L2 during startup.",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
                 "l1_handler_cancellation_timelock_seconds",
-                &self.l1_handler_cancellation_timelock_seconds.as_secs_f64(),
+                &self.l1_handler_cancellation_timelock_seconds.as_secs(),
                 "How long to allow a transaction requested for cancellation to be validated \
                  against (proposals are banned upon receiving a cancellation request).",
                 ParamPrivacyInput::Public,
             ),
             ser_param(
+                "l1_handler_consumption_timelock_seconds",
+                &self.l1_handler_consumption_timelock_seconds.as_secs_f64(),
+                "How long to wait after a transaction is consumed on L1 before it can be cleared \
+                 from the transaction manager.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
                 "new_l1_handler_cooldown_seconds",
-                &self.new_l1_handler_cooldown_seconds.as_secs_f64(),
+                &self.new_l1_handler_cooldown_seconds.as_secs(),
                 "How long to wait before allowing new L1 handler transactions to be proposed \
-                 (validation is available immediately).",
+                 (validation is available immediately), from the moment they are scraped.",
+                ParamPrivacyInput::Public,
+            ),
+            ser_param(
+                "dummy_mode",
+                &self.dummy_mode,
+                "When true, the L1 provider operates in dummy mode, always responding with \
+                 trivial truthy responses without connecting to actual L1.",
                 ParamPrivacyInput::Public,
             ),
         ]);

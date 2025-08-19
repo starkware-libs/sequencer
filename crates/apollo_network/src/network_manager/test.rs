@@ -5,6 +5,7 @@ use std::task::{Context, Poll};
 use std::time::Duration;
 use std::vec;
 
+use apollo_network_types::test_utils::DUMMY_PEER_ID;
 use deadqueue::unlimited::Queue;
 use futures::channel::mpsc::{unbounded, UnboundedSender};
 use futures::channel::oneshot;
@@ -12,6 +13,7 @@ use futures::future::FutureExt;
 use futures::stream::Stream;
 use futures::{pin_mut, Future, SinkExt, StreamExt};
 use lazy_static::lazy_static;
+use libp2p::core::transport::PortUse;
 use libp2p::core::ConnectedPoint;
 use libp2p::gossipsub::{SubscriptionError, TopicHash};
 use libp2p::swarm::ConnectionId;
@@ -139,7 +141,7 @@ impl SwarmTrait for MockSwarm {
         self.create_response_events_for_query_each_num_becomes_response(
             query,
             outbound_session_id,
-            PeerId::random(),
+            *DUMMY_PEER_ID,
         );
         self.next_outbound_session_id += 1;
         outbound_session_id
@@ -194,7 +196,7 @@ impl SwarmTrait for MockSwarm {
         &self,
         _session_id: crate::sqmr::SessionId,
     ) -> Result<PeerId, SessionIdNotFoundError> {
-        Ok(PeerId::random())
+        Ok(*DUMMY_PEER_ID)
     }
 
     // TODO(shahak): Add test for continue propagation.
@@ -211,7 +213,7 @@ const MESSAGE_METADATA_BUFFER_SIZE: usize = 100000;
 async fn register_sqmr_protocol_client_and_use_channels() {
     // mock swarm to send and track connection established event
     let mut mock_swarm = MockSwarm::default();
-    let peer_id = PeerId::random();
+    let peer_id = *DUMMY_PEER_ID;
     mock_swarm.pending_events.push(get_test_connection_established_event(peer_id));
     let (event_notifier, first_event_listner) = oneshot::channel();
     mock_swarm.first_polled_event_notifier = Some(event_notifier);
@@ -275,7 +277,7 @@ async fn process_incoming_query() {
         mixed_behaviour::ExternalEvent::Sqmr(GenericEvent::NewInboundSession {
             query: query.clone(),
             inbound_session_id,
-            peer_id: PeerId::random(),
+            peer_id: *DUMMY_PEER_ID,
             protocol_name: protocol.clone(),
         }),
     )));
@@ -357,7 +359,7 @@ async fn broadcast_message() {
 async fn receive_broadcasted_message_and_report_it() {
     let topic = Topic::new("TOPIC");
     let message = vec![1u8, 2u8, 3u8];
-    let originated_peer_id = PeerId::random();
+    let originated_peer_id = *DUMMY_PEER_ID;
 
     let mut mock_swarm = MockSwarm::default();
     mock_swarm.pending_events.push(Event::Behaviour(mixed_behaviour::Event::ExternalEvent(
@@ -406,6 +408,7 @@ fn get_test_connection_established_event(mock_peer_id: PeerId) -> Event {
         endpoint: ConnectedPoint::Dialer {
             address: Multiaddr::empty(),
             role_override: libp2p::core::Endpoint::Dialer,
+            port_use: PortUse::Reuse,
         },
         num_established: std::num::NonZeroU32::new(1).unwrap(),
         concurrent_dial_errors: None,

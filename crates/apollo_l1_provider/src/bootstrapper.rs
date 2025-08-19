@@ -81,6 +81,7 @@ impl Bootstrapper {
             "Heights should be sequential."
         );
 
+        debug!("Adding future commit-block to backlog at height: {height}");
         self.commit_block_backlog
             .push(CommitBlockBacklog { height, committed_txs: committed_txs.clone() });
     }
@@ -189,7 +190,7 @@ async fn l2_sync_task(
         let block = sync_client.get_block(current_height).await.inspect_err(|err| debug!("{err}"));
 
         match block {
-            Ok(Some(block)) => {
+            Ok(block) => {
                 // No rejected txs in sync blocks.
                 let l1_handler_rejected_tx_hashes = Default::default();
 

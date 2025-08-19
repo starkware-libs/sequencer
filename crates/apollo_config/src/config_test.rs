@@ -12,10 +12,16 @@ use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tempfile::{NamedTempFile, TempDir};
+use url::Url;
 use validator::Validate;
 
 use crate::command::{get_command_matches, update_config_map_by_command_args};
-use crate::converters::deserialize_milliseconds_to_duration;
+use crate::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_optional_list_with_url_and_headers,
+    serialize_optional_list_with_url_and_headers,
+    UrlAndHeaders,
+};
 use crate::dumping::{
     combine_config_map_and_pointers,
     generate_struct_pointer,
@@ -904,5 +910,62 @@ fn deeply_nested_optionals() {
                 level2: Some(Level2 { level2_value: Some(1) }),
             }),
         }
+    );
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, Default)]
+struct TestConfigWithNestedJson {
+    #[serde(deserialize_with = "deserialize_optional_list_with_url_and_headers")]
+    list_of_maps: Option<Vec<UrlAndHeaders>>,
+}
+
+impl SerializeConfig for TestConfigWithNestedJson {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([ser_param(
+            "list_of_maps",
+            &serialize_optional_list_with_url_and_headers(&self.list_of_maps),
+            "A list of nested JSON values.",
+            ParamPrivacyInput::Public,
+        )])
+    }
+}
+
+#[test]
+fn optional_list_nested_btreemaps() {
+    let config = TestConfigWithNestedJson {
+        list_of_maps: Some(vec![
+            UrlAndHeaders {
+                url: Url::parse("http://a.com/").unwrap(),
+                headers: BTreeMap::from([
+                    ("key1".to_owned(), "value 1".to_owned()),
+                    ("key2".to_owned(), "value 2".to_owned()),
+                ]),
+            },
+            UrlAndHeaders {
+                url: Url::parse("http://b.com/").unwrap(),
+                headers: BTreeMap::from([
+                    ("key3".to_owned(), "value 3".to_owned()),
+                    ("key4".to_owned(), "value 4".to_owned()),
+                ]),
+            },
+            UrlAndHeaders {
+                url: Url::parse("http://c.com/").unwrap(),
+                headers: BTreeMap::from([]),
+            },
+            UrlAndHeaders {
+                url: Url::parse("http://d.com/").unwrap(),
+                headers: BTreeMap::from([("key5".to_owned(), "value 5".to_owned())]),
+            },
+        ]),
+    };
+    let dumped = config.dump();
+    let (config_map, _) = split_values_and_types(dumped);
+    let loaded_config = load::<TestConfigWithNestedJson>(&config_map).unwrap();
+    // println!("{:#?}", loaded_config);
+    assert_eq!(loaded_config.list_of_maps, config.list_of_maps);
+    let serialized = serde_json::to_string(&config_map).unwrap();
+    assert_eq!(
+        serialized,
+        r#"{"list_of_maps":"http://a.com/,key1^value 1,key2^value 2|http://b.com/,key3^value 3,key4^value 4|http://c.com/|http://d.com/,key5^value 5"}"# /* r#"{"list_of_maps":[{"url":"http://a.com/","headers":{"inner1":"1","inner2":"2"}},{"url":"http://b.com/","headers":{"inner3":"3","inner4":"4"}},{"url":"http://c.com/","headers":{}},{"url":"http://d.com/","headers":{"inner5":"5"}}]}"# */
     );
 }

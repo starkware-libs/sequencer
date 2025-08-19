@@ -11,6 +11,7 @@ testing = [
   "apollo_metrics/testing",
   "apollo_network/testing",
   "apollo_network_types/testing",
+  "apollo_time/testing",
   "starknet_api/testing",
 ]
 
@@ -24,8 +25,11 @@ apollo_mempool_p2p_types.workspace = true
 apollo_mempool_types.workspace = true
 apollo_metrics.workspace = true
 apollo_network_types.workspace = true
+apollo_time = { workspace = true }
 async-trait.workspace = true
 derive_more.workspace = true
+indexmap.workspace = true
+rand.workspace = true
 serde.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
@@ -39,6 +43,7 @@ apollo_metrics = { workspace = true, features = ["testing"] }
 apollo_network = { workspace = true, features = ["testing"] }
 apollo_network_types = { workspace = true, features = ["testing"] }
 apollo_test_utils.workspace = true
+apollo_time = { workspace = true, features = ["testing"] }
 assert_matches.workspace = true
 itertools.workspace = true
 mempool_test_utils.workspace = true

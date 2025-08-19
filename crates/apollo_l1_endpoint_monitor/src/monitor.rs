@@ -1,28 +1,51 @@
+use std::collections::BTreeMap;
+use std::time::Duration;
+
 use alloy::primitives::U64;
 use alloy::providers::{Provider, ProviderBuilder};
+use apollo_config::converters::{
+    deserialize_milliseconds_to_duration,
+    deserialize_vec,
+    serialize_slice,
+};
+use apollo_config::dumping::{ser_param, SerializeConfig};
+use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
+use apollo_infra::component_definitions::ComponentStarter;
+use apollo_l1_endpoint_monitor_types::{L1EndpointMonitorError, L1EndpointMonitorResult};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use tracing::{error, warn};
 use url::Url;
-
+use validator::Validate;
 #[cfg(test)]
 #[path = "l1_endpoint_monitor_tests.rs"]
 pub mod l1_endpoint_monitor_tests;
-
-type L1EndpointMonitorResult<T> = Result<T, L1EndpointMonitorError>;
 
 /// The JSON-RPC method used to check L1 endpoint health.
 // Note: is this fast enough? Alternatively, we can just check connectivity, but we already hit
 // a bug in infura where the connectivity was fine, but get_block_number() failed.
 pub const HEALTH_CHECK_RPC_METHOD: &str = "eth_blockNumber";
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct L1EndpointMonitor {
     pub current_l1_endpoint_index: usize,
     pub config: L1EndpointMonitorConfig,
 }
 
 impl L1EndpointMonitor {
+    pub fn new(
+        config: L1EndpointMonitorConfig,
+        initial_node_url: &Url,
+    ) -> L1EndpointMonitorResult<Self> {
+        let starting_l1_endpoint_index =
+            config.ordered_l1_endpoint_urls.iter().position(|url| url == initial_node_url).ok_or(
+                L1EndpointMonitorError::InitializationError {
+                    unknown_url: initial_node_url.clone(),
+                },
+            )?;
+
+        Ok(Self { current_l1_endpoint_index: starting_l1_endpoint_index, config })
+    }
+
     /// Returns a functional L1 endpoint, or fails if all configured endpoints are non-operational.
     /// The method cycles through the configured endpoints, starting from the currently selected one
     /// and returns the first one that is operational.
@@ -63,18 +86,66 @@ impl L1EndpointMonitor {
     async fn is_operational(&self, l1_endpoint_index: usize) -> bool {
         let l1_endpoint_url = self.get_node_url(l1_endpoint_index);
         let l1_client = ProviderBuilder::new().on_http(l1_endpoint_url.clone());
+
         // Note: response type annotation is coupled with the rpc method used.
-        l1_client.client().request_noparams::<U64>(HEALTH_CHECK_RPC_METHOD).await.is_ok()
+        let is_operational_result = tokio::time::timeout(
+            self.config.timeout_millis,
+            l1_client.client().request_noparams::<U64>(HEALTH_CHECK_RPC_METHOD),
+        )
+        .await;
+
+        match is_operational_result {
+            Err(_) => {
+                error!("timed-out while testing L1 endpoint {l1_endpoint_url}");
+                false
+            }
+            Ok(Err(e)) => {
+                error!("L1 endpoint {l1_endpoint_url} is not operational: {e}");
+                false
+            }
+            Ok(Ok(_)) => true,
+        }
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+impl ComponentStarter for L1EndpointMonitor {}
+
+#[derive(Clone, Debug, Serialize, Deserialize, Validate, PartialEq, Eq)]
 pub struct L1EndpointMonitorConfig {
+    #[serde(deserialize_with = "deserialize_vec")]
     pub ordered_l1_endpoint_urls: Vec<Url>,
+    #[serde(deserialize_with = "deserialize_milliseconds_to_duration")]
+    pub timeout_millis: Duration,
 }
 
-#[derive(Debug, Clone, Error, Serialize, Deserialize, PartialEq, Eq)]
-pub enum L1EndpointMonitorError {
-    #[error("All L1 endpoints are non-operational")]
-    NoActiveL1Endpoint,
+impl Default for L1EndpointMonitorConfig {
+    fn default() -> Self {
+        Self {
+            ordered_l1_endpoint_urls: vec![
+                Url::parse("https://mainnet.infura.io/v3/YOUR_INFURA_API_KEY").unwrap(),
+                Url::parse("https://eth-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY").unwrap(),
+            ],
+            timeout_millis: Duration::from_millis(1000),
+        }
+    }
+}
+
+impl SerializeConfig for L1EndpointMonitorConfig {
+    fn dump(&self) -> BTreeMap<ParamPath, SerializedParam> {
+        BTreeMap::from([
+            ser_param(
+                "ordered_l1_endpoint_urls",
+                &serialize_slice(&self.ordered_l1_endpoint_urls),
+                "Ordered list of L1 endpoint URLs, used in order, cyclically, switching if the \
+                 current one is non-operational.",
+                ParamPrivacyInput::Private,
+            ),
+            ser_param(
+                "timeout_millis",
+                &self.timeout_millis.as_millis(),
+                "The timeout (milliseconds) for a query of the L1 base layer",
+                ParamPrivacyInput::Public,
+            ),
+        ])
+    }
 }

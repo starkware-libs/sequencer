@@ -46,10 +46,4 @@ impl VotesThreshold {
         amount.checked_mul(self.denominator).expect("Numeric overflow")
             > total.checked_mul(self.numerator).expect("Numeric overflow")
     }
-
-    // TODO(guyn): Remove this method in favor of using is_met directly.
-    pub fn amount_required(&self, total: u64) -> u64 {
-        // The +1 ensures that the required amount is strictly greater than the threshold
-        total * self.numerator / self.denominator + 1
-    }
 }

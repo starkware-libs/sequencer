@@ -19,7 +19,6 @@ use apollo_consensus_orchestrator::sequencer_consensus_context::{
 };
 use apollo_infra::component_definitions::ComponentStarter;
 use apollo_infra_utils::type_name::short_type_name;
-use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleClient;
 use apollo_l1_gas_price_types::L1GasPriceProviderClient;
 use apollo_network::gossipsub_impl::Topic;
 use apollo_network::network_manager::metrics::{BroadcastNetworkMetrics, NetworkMetrics};
@@ -158,9 +157,6 @@ impl ConsensusManager {
                     self.config.cende_config.clone(),
                     Arc::clone(&self.class_manager_client),
                 )),
-                eth_to_strk_oracle_client: Arc::new(EthToStrkOracleClient::new(
-                    self.config.eth_to_strk_oracle_config.clone(),
-                )),
                 l1_gas_price_provider: self.l1_gas_price_provider.clone(),
                 clock: Arc::new(DefaultClock),
                 outbound_proposal_sender: outbound_internal_sender,
@@ -179,10 +175,10 @@ impl ConsensusManager {
         let run_consensus_args = apollo_consensus::RunConsensusArguments {
             start_active_height: active_height,
             start_observe_height: observer_height,
-            validator_id: self.config.consensus_config.validator_id,
-            consensus_delay: self.config.consensus_config.startup_delay,
-            timeouts: self.config.consensus_config.timeouts.clone(),
-            sync_retry_interval: self.config.consensus_config.sync_retry_interval,
+            validator_id: self.config.consensus_manager_config.validator_id,
+            consensus_delay: self.config.consensus_manager_config.startup_delay,
+            timeouts: self.config.consensus_manager_config.timeouts.clone(),
+            sync_retry_interval: self.config.consensus_manager_config.sync_retry_interval,
             quorum_type,
         };
         let consensus_fut = apollo_consensus::run_consensus(

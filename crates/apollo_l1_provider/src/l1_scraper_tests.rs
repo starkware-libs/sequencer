@@ -9,6 +9,7 @@ use apollo_infra::trace_util::configure_tracing;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{Event, L1ProviderClient, MockL1ProviderClient};
 use apollo_state_sync_types::communication::MockStateSyncClient;
+use apollo_state_sync_types::errors::StateSyncError;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use assert_matches::assert_matches;
 use indexmap::IndexSet;
@@ -22,7 +23,7 @@ use papyrus_base_layer::test_utils::{
     anvil_instance_from_config,
     ethereum_base_layer_config_for_anvil,
 };
-use papyrus_base_layer::{BaseLayerContract, L1BlockReference, MockBaseLayerContract};
+use papyrus_base_layer::{BaseLayerContract, L1BlockHash, L1BlockReference, MockBaseLayerContract};
 use rstest::{fixture, rstest};
 use starknet_api::block::{BlockNumber, BlockTimestamp};
 use starknet_api::contract_address;
@@ -39,7 +40,7 @@ use starknet_api::transaction::{
 
 use crate::bootstrapper::Bootstrapper;
 use crate::l1_provider::{L1Provider, L1ProviderBuilder};
-use crate::l1_scraper::{L1Scraper, L1ScraperConfig, L1ScraperError};
+use crate::l1_scraper::{fetch_start_block, L1Scraper, L1ScraperConfig, L1ScraperError};
 use crate::test_utils::FakeL1ProviderClient;
 use crate::{event_identifiers_to_track, L1ProviderConfig};
 
@@ -79,15 +80,18 @@ async fn scraper(
 ) -> (L1Scraper<EthereumBaseLayerContract>, Arc<FakeL1ProviderClient>) {
     let fake_client = Arc::new(FakeL1ProviderClient::default());
     let base_layer = EthereumBaseLayerContract::new(base_layer_config);
+    let l1_scraper_config = L1ScraperConfig::default();
 
+    let l1_start_block = fetch_start_block(&base_layer, &l1_scraper_config).await.unwrap();
     // Deploy a fresh Starknet contract on Anvil from the bytecode in the JSON file.
     Starknet::deploy(base_layer.contract.provider().clone()).await.unwrap();
 
     let scraper = L1Scraper::new(
-        L1ScraperConfig::default(),
+        l1_scraper_config,
         fake_client.clone(),
         base_layer,
         event_identifiers_to_track(),
+        l1_start_block,
     )
     .await
     .unwrap();
@@ -177,8 +181,11 @@ async fn txs_happy_flow() {
         tx: expected_internal_l1_tx,
         paid_fee_on_l1: Fee(0),
     };
-    let first_expected_log =
-        Event::L1HandlerTransaction { l1_handler_tx: tx.clone(), timestamp: block_timestamps[0] };
+    let first_expected_log = Event::L1HandlerTransaction {
+        l1_handler_tx: tx.clone(),
+        block_timestamp: block_timestamps[0],
+        scrape_timestamp: block_timestamps[0].0,
+    };
 
     let expected_internal_l1_tx_2 = L1HandlerTransaction {
         nonce: Nonce(StarkHash::ONE),
@@ -195,7 +202,8 @@ async fn txs_happy_flow() {
             tx: expected_internal_l1_tx_2,
             ..tx
         },
-        timestamp: block_timestamps[1],
+        block_timestamp: block_timestamps[1],
+        scrape_timestamp: block_timestamps[1].0,
     };
 
     let expected_cancel_message = Event::TransactionCancellationStarted {
@@ -239,9 +247,13 @@ async fn bootstrap_e2e() {
     let mut sync_client = MockStateSyncClient::default();
     let sync_response = Arc::new(Mutex::new(HashMap::<BlockNumber, SyncBlock>::new()));
     let sync_response_clone = sync_response.clone();
-    sync_client
-        .expect_get_block()
-        .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
+    sync_client.expect_get_block().returning(move |input| {
+        sync_response_clone
+            .lock()
+            .unwrap()
+            .remove(&input)
+            .ok_or(StateSyncError::BlockNotFound(input).into())
+    });
 
     let mut batcher_client = MockBatcherClient::default();
     batcher_client
@@ -429,9 +441,13 @@ async fn bootstrap_delayed_sync_state_with_sync_behind_batcher() {
     // Later in the test we modify it to become something else.
     let sync_block_response = Arc::new(Mutex::new(HashMap::<BlockNumber, SyncBlock>::new()));
     let sync_response_clone = sync_block_response.clone();
-    sync_client
-        .expect_get_block()
-        .returning(move |input| Ok(sync_response_clone.lock().unwrap().remove(&input)));
+    sync_client.expect_get_block().returning(move |input| {
+        sync_response_clone
+            .lock()
+            .unwrap()
+            .remove(&input)
+            .ok_or(StateSyncError::BlockNotFound(input).into())
+    });
 
     let mut batcher_client = MockBatcherClient::default();
     batcher_client
@@ -549,6 +565,7 @@ async fn provider_crash_should_crash_scraper(mut dummy_base_layer: MockBaseLayer
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
+        L1BlockReference::default(),
     )
     .await
     .unwrap();
@@ -584,6 +601,7 @@ async fn l1_reorg_block_hash(mut dummy_base_layer: MockBaseLayerContract) {
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
+        L1BlockReference::default(),
     )
     .await
     .unwrap();
@@ -593,7 +611,7 @@ async fn l1_reorg_block_hash(mut dummy_base_layer: MockBaseLayerContract) {
     assert_eq!(scraper.send_events_to_l1_provider().await, Ok(()));
 
     // Simulate an L1 fork: last block hash changed due to reorg.
-    let l1_block_hash_after_l1_reorg = [123; 32];
+    let l1_block_hash_after_l1_reorg = L1BlockHash([123; 32]);
     *l1_block_at_response.lock().unwrap() =
         Some(L1BlockReference { hash: l1_block_hash_after_l1_reorg, ..Default::default() });
 
@@ -621,6 +639,7 @@ async fn l1_reorg_block_number(mut dummy_base_layer: MockBaseLayerContract) {
         Arc::new(l1_provider_client),
         dummy_base_layer,
         event_identifiers_to_track(),
+        L1BlockReference::default(),
     )
     .await
     .unwrap();

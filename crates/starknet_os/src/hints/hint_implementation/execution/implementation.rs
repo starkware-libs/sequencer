@@ -14,7 +14,7 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_utils::{
 use cairo_vm::hint_processor::hint_processor_utils::felt_to_usize;
 use cairo_vm::types::relocatable::MaybeRelocatable;
 use starknet_api::block::BlockNumber;
-use starknet_api::core::{ClassHash, ContractAddress, PatriciaKey};
+use starknet_api::core::{CompiledClassHash, ContractAddress, PatriciaKey};
 use starknet_api::executable_transaction::{AccountTransaction, Transaction};
 use starknet_api::state::StorageKey;
 use starknet_api::transaction::fields::ValidResourceBounds;
@@ -261,7 +261,7 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { vm, ids_data, ap_tracking, exec_scopes, .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    let class_hash = ClassHash(
+    let compiled_class_hash = CompiledClassHash(
         *vm.get_integer(
             get_address_of_nested_fields(
                 ids_data,
@@ -278,7 +278,7 @@ pub(crate) fn check_is_deprecated<S: StateReader>(
 
     exec_scopes.insert_value(
         Scope::IsDeprecated.into(),
-        Felt::from(hint_processor.deprecated_class_hashes.contains(&class_hash)),
+        Felt::from(hint_processor.deprecated_class_hashes.contains(&compiled_class_hash)),
     );
 
     Ok(())
@@ -629,7 +629,9 @@ pub(crate) fn check_execution<S: StateReader>(
         hint_processor.program,
     )?;
     let syscall_ptr_end = vm.get_relocatable(syscall_ptr_end_address)?;
-    hint_processor.syscall_hint_processor.validate_and_discard_syscall_ptr(&syscall_ptr_end)?;
+    current_execution_helper
+        .syscall_hint_processor
+        .validate_and_discard_syscall_ptr(&syscall_ptr_end)?;
     current_execution_helper.tx_execution_iter.get_mut_tx_execution_info_ref()?.exit_call_info()?;
     Ok(())
 }

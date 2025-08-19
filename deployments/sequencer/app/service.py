@@ -9,6 +9,7 @@ from imports.com.google.cloud import (
     BackendConfigSpec,
     BackendConfigSpecConnectionDraining,
     BackendConfigSpecHealthCheck,
+    BackendConfigSpecSecurityPolicy,
 )
 from imports.com.googleapis.monitoring import (
     PodMonitoring,
@@ -70,10 +71,10 @@ class ServiceApp(Construct):
             "service",
             metadata=k8s.ObjectMeta(
                 labels=self.labels,
-                annotations={},
+                annotations=self._get_service_annotations(),
             ),
             spec=k8s.ServiceSpec(
-                type=const.K8SServiceType.CLUSTER_IP,
+                type=self._get_service_type(),
                 ports=self._get_service_ports(),
                 selector=self.labels,
             ),
@@ -91,17 +92,22 @@ class ServiceApp(Construct):
                 key="cloud.google.com/neg", value='{"ingress": true}'
             )
             self.ingress = self._get_ingress()
-
-            if not self.service_topology.ingress["internal"]:
-                self.backend_config = self._get_backend_config()
-                self.service.metadata.add_annotation(
-                    key="cloud.google.com/backend-config",
-                    value=json.dumps(
-                        {
-                            "default": f"{self.node.id}-backend-config",
-                        }
-                    ),
-                )
+            cloud_armor_policy_name = (
+                None
+                if self.service_topology.ingress.get("internal")
+                else self.service_topology.ingress.get("cloud_armor_policy_name")
+            )
+            self.backend_config = self._get_backend_config(
+                security_policy_name=cloud_armor_policy_name
+            )
+            self.service.metadata.add_annotation(
+                key="cloud.google.com/backend-config",
+                value=json.dumps(
+                    {
+                        "default": f"{self.node.id}-backend-config",
+                    }
+                ),
+            )
 
         if self.service_topology.storage is not None:
             self.pvc = self._get_persistent_volume_claim()
@@ -144,6 +150,9 @@ class ServiceApp(Construct):
             spec=k8s.DeploymentSpec(
                 replicas=self.service_topology.replicas,
                 selector=k8s.LabelSelector(match_labels=self.labels),
+                strategy=self._get_deployment_update_strategy(
+                    type=self.service_topology.update_strategy_type
+                ),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(
                         labels=self.labels,
@@ -167,11 +176,27 @@ class ServiceApp(Construct):
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(),
-                                readiness_probe=self._get_http_probe(
-                                    path=const.PROBE_MONITORING_READY_PATH
+                                startup_probe=self._get_http_probe(
+                                    success_threshold=const.STARTUP_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.STARTUP_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.STARTUP_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.STARTUP_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
                                 ),
-                                liveness_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(
+                                    success_threshold=const.READINESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.READINESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.READINESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.READINESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_READY_PATH,
+                                ),
+                                liveness_probe=self._get_http_probe(
+                                    success_threshold=const.LIVENESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.LIVENESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.LIVENESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.LIVENESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
+                                ),
                                 volume_mounts=self._get_volume_mounts(),
                                 resources=self._get_container_resources(),
                             )
@@ -190,6 +215,9 @@ class ServiceApp(Construct):
                 service_name=f"{self.node.id}-service",
                 replicas=self.service_topology.replicas,
                 selector=k8s.LabelSelector(match_labels=self.labels),
+                update_strategy=self._get_statefulset_update_strategy(
+                    type=self.service_topology.update_strategy_type
+                ),
                 template=k8s.PodTemplateSpec(
                     metadata=k8s.ObjectMeta(
                         labels=self.labels,
@@ -213,11 +241,27 @@ class ServiceApp(Construct):
                                 env=self._get_container_env(),
                                 args=self._get_container_args(),
                                 ports=self._get_container_ports(),
-                                startup_probe=self._get_http_probe(),
-                                readiness_probe=self._get_http_probe(
-                                    path=const.PROBE_MONITORING_READY_PATH
+                                startup_probe=self._get_http_probe(
+                                    success_threshold=const.STARTUP_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.STARTUP_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.STARTUP_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.STARTUP_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
                                 ),
-                                liveness_probe=self._get_http_probe(),
+                                readiness_probe=self._get_http_probe(
+                                    success_threshold=const.READINESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.READINESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.READINESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.READINESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_READY_PATH,
+                                ),
+                                liveness_probe=self._get_http_probe(
+                                    success_threshold=const.LIVENESS_PROBE_SUCCESS_THRESHOLD,
+                                    failure_threshold=const.LIVENESS_PROBE_FAILURE_THRESHOLD,
+                                    period_seconds=const.LIVENESS_PROBE_PERIOD_SECONDS,
+                                    timeout_seconds=const.LIVENESS_PROBE_TIMEOUT_SECONDS,
+                                    path=const.PROBE_MONITORING_ALIVE_PATH,
+                                ),
                                 volume_mounts=self._get_volume_mounts(),
                                 resources=self._get_container_resources(),
                             )
@@ -358,12 +402,50 @@ class ServiceApp(Construct):
             for attr in self._get_ports_subset_keys_from_config()
         ]
 
+    def _get_service_annotations(self) -> typing.Dict[str, str]:
+        annotations = {}
+        if self.service_topology.k8s_service_config is None:
+            return annotations
+        if (
+            self.service_topology.k8s_service_config.get("internal") is True
+            and self._get_service_type() == const.K8SServiceType.LOAD_BALANCER
+        ):
+            annotations.update(
+                {
+                    "cloud.google.com/load-balancer-type": "Internal",
+                    "networking.gke.io/internal-load-balancer-allow-global-access": "true",
+                }
+            )
+        if self.service_topology.k8s_service_config.get("external_dns_name"):
+            annotations.update(
+                {
+                    "external-dns.alpha.kubernetes.io/hostname": self.service_topology.k8s_service_config[
+                        "external_dns_name"
+                    ]
+                }
+            )
+        return annotations
+
+    def _get_service_type(self) -> const.K8SServiceType:
+        if self.service_topology.k8s_service_config is None:
+            return const.K8SServiceType.CLUSTER_IP
+        svc_type = self.service_topology.k8s_service_config.get("type")
+        if svc_type == "LoadBalancer":
+            return const.K8SServiceType.LOAD_BALANCER
+        elif svc_type == "NodePort":
+            return const.K8SServiceType.NODE_PORT
+        elif svc_type == "ClusterIP":
+            return const.K8SServiceType.CLUSTER_IP
+        else:
+            assert False, f"Unknown service type: {svc_type}"
+
     def _get_http_probe(
         self,
-        period_seconds: int = const.PROBE_PERIOD_SECONDS,
-        failure_threshold: int = const.PROBE_FAILURE_THRESHOLD,
-        timeout_seconds: int = const.PROBE_TIMEOUT_SECONDS,
-        path: str = const.PROBE_MONITORING_ALIVE_PATH,
+        success_threshold: int,
+        failure_threshold: int,
+        period_seconds: int,
+        timeout_seconds: int,
+        path: str,
     ) -> k8s.Probe:
 
         return k8s.Probe(
@@ -371,6 +453,7 @@ class ServiceApp(Construct):
                 path=path,
                 port=k8s.IntOrString.from_number(self.monitoring_endpoint_port),
             ),
+            success_threshold=success_threshold,
             period_seconds=period_seconds,
             failure_threshold=failure_threshold,
             timeout_seconds=timeout_seconds,
@@ -531,7 +614,7 @@ class ServiceApp(Construct):
             ),
         )
 
-    def _get_backend_config(self) -> BackendConfig:
+    def _get_backend_config(self, security_policy_name: typing.Optional[str]) -> BackendConfig:
         return BackendConfig(
             self,
             "backend-config",
@@ -542,6 +625,11 @@ class ServiceApp(Construct):
             spec=BackendConfigSpec(
                 connection_draining=BackendConfigSpecConnectionDraining(
                     draining_timeout_sec=const.BACKEND_CONFIG_CONNECTION_DRAINING_SECONDS
+                ),
+                security_policy=(
+                    BackendConfigSpecSecurityPolicy(name=security_policy_name)
+                    if security_policy_name
+                    else None
                 ),
                 timeout_sec=const.BACKEND_CONFIG_TIMEOUT_SECONDS,
                 health_check=BackendConfigSpecHealthCheck(
@@ -606,21 +694,102 @@ class ServiceApp(Construct):
             ]
         return None
 
+    def _get_pod_affinity_term(self, topology_key: str) -> k8s.PodAffinityTerm:
+        match_labels = {"service": Names.to_label_value(self, include_hash=False)}
+        return k8s.PodAffinityTerm(
+            label_selector=k8s.LabelSelector(
+                match_labels=match_labels,
+            ),
+            topology_key=topology_key,
+            namespace_selector={},
+        )
+
+    def _get_weighted_pod_affinity_term(
+        self, topology_key: str, weight: int
+    ) -> k8s.WeightedPodAffinityTerm:
+        return k8s.WeightedPodAffinityTerm(
+            weight=weight, pod_affinity_term=self._get_pod_affinity_term(topology_key=topology_key)
+        )
+
     def _get_affinity(self) -> k8s.Affinity:
         if self.service_topology.anti_affinity:
             return k8s.Affinity(
                 pod_anti_affinity=k8s.PodAntiAffinity(
-                    required_during_scheduling_ignored_during_execution=[
-                        k8s.PodAffinityTerm(
-                            label_selector=k8s.LabelSelector(
-                                match_labels={
-                                    "service": Names.to_label_value(self, include_hash=False)
-                                },
-                            ),
-                            topology_key="kubernetes.io/hostname",
-                            namespace_selector={},
+                    preferred_during_scheduling_ignored_during_execution=[
+                        self._get_weighted_pod_affinity_term(
+                            topology_key=const.AFFINITY_ZONE_TOPOLOGY["key"],
+                            weight=const.AFFINITY_ZONE_TOPOLOGY["weight"],
+                        ),
+                        self._get_weighted_pod_affinity_term(
+                            topology_key=const.AFFINITY_HOSTNAME_TOPOLOGY["key"],
+                            weight=const.AFFINITY_HOSTNAME_TOPOLOGY["weight"],
                         ),
                     ],
                 ),
             )
         return None
+
+    def _get_deployment_rolling_update(
+        self, max_surge: str, max_unavailable: str
+    ) -> k8s.RollingUpdateDeployment:
+        return k8s.RollingUpdateDeployment(
+            max_surge=k8s.IntOrString.from_string(max_surge),
+            max_unavailable=k8s.IntOrString.from_string(max_unavailable),
+        )
+
+    def _get_statefulset_rolling_update(
+        self,
+        max_unavailable: str,
+        partition: int,
+    ) -> k8s.RollingUpdateStatefulSetStrategy:
+        return k8s.RollingUpdateStatefulSetStrategy(
+            max_unavailable=k8s.IntOrString.from_string(max_unavailable),
+            partition=partition,
+        )
+
+    def _get_deployment_update_strategy(self, type: str) -> k8s.DeploymentStrategy:
+        assert type in [
+            "Recreate",
+            "RollingUpdate",
+        ], f"Deployment strategy type must be one of 'Recreate' or 'RollingUpdate', got {type}."
+
+        max_surge = const.DEFAULT_ROLLING_UPDATE_MAX_SURGE
+        max_unavailable = const.DEFAULT_ROLLING_UPDATE_MAX_UNAVAILABLE
+
+        return k8s.DeploymentStrategy(
+            type=type,
+            rolling_update=(
+                self._get_deployment_rolling_update(
+                    max_surge=max_surge, max_unavailable=max_unavailable
+                )
+                if type == "RollingUpdate"
+                else None
+            ),
+        )
+
+    def _get_statefulset_update_strategy(self, type: str) -> k8s.StatefulSetUpdateStrategy:
+        assert type in [
+            "OnDelete",
+            "RollingUpdate",
+            "Recreate",
+        ], f"StatefulSet strategy type must be one of 'OnDelete', 'Recreate' or 'RollingUpdate', got {type}."
+
+        max_unavailable = const.DEFAULT_ROLLING_UPDATE_MAX_UNAVAILABLE
+        partition = const.DEFAULT_ROLLING_UPDATE_PARTITION
+
+        if type == "Recreate":
+            type = "RollingUpdate"
+            max_unavailable = const.RECREATE_ROLLING_UPDATE_MAX_UNAVAILABLE
+        return k8s.StatefulSetUpdateStrategy(
+            type=type,
+            rolling_update=(
+                (
+                    self._get_statefulset_rolling_update(
+                        max_unavailable=max_unavailable,
+                        partition=partition,
+                    )
+                )
+                if type == "RollingUpdate"
+                else None
+            ),
+        )

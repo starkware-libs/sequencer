@@ -44,6 +44,7 @@ use crate::state::state_api::State;
 use crate::transaction::objects::{
     CurrentTransactionInfo,
     DeprecatedTransactionInfo,
+    TransactionExecutionInfo,
     TransactionInfo,
 };
 
@@ -132,6 +133,45 @@ impl CallInfo {
         self.call.class_hash = Some(ClassHash::default());
         self
     }
+
+    pub fn clear_nonessential_fields_for_comparison(&mut self) {
+        for inner_call in self.inner_calls.iter_mut() {
+            inner_call.clear_nonessential_fields_for_comparison();
+        }
+        self.execution.cairo_native = false;
+    }
+
+    pub fn check_native_execution(&self, cairo_native: bool) {
+        assert_eq!(
+            self.execution.cairo_native, cairo_native,
+            "CallInfo execution mode does not match expected native execution mode."
+        );
+        for inner_call in self.inner_calls.iter() {
+            inner_call.check_native_execution(cairo_native);
+        }
+    }
+}
+
+impl TransactionExecutionInfo {
+    pub fn clear_call_infos_nonessential_fields_for_comparison(&mut self) {
+        // Clear non-essential fields for comparison.
+        if let Some(call_info) = &mut self.validate_call_info {
+            call_info.clear_nonessential_fields_for_comparison();
+        }
+        if let Some(call_info) = &mut self.execute_call_info {
+            call_info.clear_nonessential_fields_for_comparison();
+        }
+        if let Some(call_info) = &mut self.fee_transfer_call_info {
+            call_info.clear_nonessential_fields_for_comparison();
+        }
+    }
+
+    pub fn check_call_infos_native_execution(&self, cairo_native: bool) {
+        // Check that the call infos are executed with cairo native.
+        for call_info in self.non_optional_call_infos() {
+            call_info.check_native_execution(cairo_native);
+        }
+    }
 }
 
 impl VersionedConstants {
@@ -178,6 +218,7 @@ impl BlockContext {
                     n_events: max_n_events_in_block,
                     ..BouncerWeights::max()
                 },
+                ..BouncerConfig::max()
             },
             ..Self::create_for_account_testing()
         }

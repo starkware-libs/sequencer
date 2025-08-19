@@ -1,12 +1,13 @@
 #!/usr/bin/env python3.9
 
 import argparse
+import asyncio
+import json
 import subprocess
 import sys
 from typing import List
+
 import toml
-import json
-import asyncio
 
 
 async def crate_version_exists(crate_name: str, version: str) -> bool:

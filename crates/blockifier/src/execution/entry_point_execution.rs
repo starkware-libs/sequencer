@@ -1,3 +1,4 @@
+use cairo_vm::hint_processor::hint_processor_definition::HintProcessor;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout::CairoLayoutParams;
 use cairo_vm::types::layout_name::LayoutName;
@@ -30,6 +31,7 @@ use crate::execution::execution_utils::{
 };
 use crate::execution::syscalls::hint_processor::SyscallHintProcessor;
 use crate::state::state_api::State;
+use crate::transaction::objects::ExecutionResourcesTraits;
 
 #[cfg(test)]
 #[path = "entry_point_execution_test.rs"]
@@ -160,7 +162,7 @@ pub fn initialize_execution_context_with_runner_mode<'a>(
     let mut read_only_segments = ReadOnlySegments::default();
     let program_extra_data_length = prepare_program_extra_data(
         &mut runner,
-        compiled_class,
+        compiled_class.bytecode_length(),
         &mut read_only_segments,
         &context.versioned_constants().os_constants.gas_costs,
     )?;
@@ -200,9 +202,9 @@ pub fn initialize_execution_context<'a>(
     )
 }
 
-fn prepare_program_extra_data(
+pub fn prepare_program_extra_data(
     runner: &mut CairoRunner,
-    contract_class: &CompiledClassV1,
+    bytecode_length: usize,
     read_only_segments: &mut ReadOnlySegments,
     gas_costs: &GasCosts,
 ) -> Result<usize, PreExecutionError> {
@@ -225,7 +227,7 @@ fn prepare_program_extra_data(
 
     // Put a pointer to the builtin cost segment at the end of the program (after the
     // additional `ret` statement).
-    let mut ptr = (runner.vm.get_pc() + contract_class.bytecode_length())?;
+    let mut ptr = (runner.vm.get_pc() + bytecode_length)?;
     // Push a `ret` opcode.
     write_felt(&mut runner.vm, &mut ptr, Felt::from(0x208b7fff7fff7ffe_u128))?;
     // Push a pointer to the builtin cost segment.
@@ -294,11 +296,12 @@ pub fn prepare_call_arguments(
 
     Ok(args)
 }
+
 /// Runs the runner from the given PC.
 #[allow(clippy::result_large_err)]
-pub fn run_entry_point(
+pub fn run_entry_point<HP: HintProcessor>(
     runner: &mut CairoRunner,
-    hint_processor: &mut SyscallHintProcessor<'_>,
+    hint_processor: &mut HP,
     entry_point: EntryPointV1,
     args: Args,
     program_segment_size: usize,
@@ -383,13 +386,11 @@ fn maybe_fill_holes(
     Ok(())
 }
 
-pub fn finalize_execution(
-    mut runner: CairoRunner,
-    mut syscall_handler: SyscallHintProcessor<'_>,
+pub fn finalize_runner(
+    runner: &mut CairoRunner,
     n_total_args: usize,
     program_extra_data_length: usize,
-    tracked_resource: TrackedResource,
-) -> Result<CallInfo, PostExecutionError> {
+) -> Result<(), PostExecutionError> {
     // Close memory holes in segments (OS code touches those memory cells, we simulate it).
     let program_start_ptr = runner
         .program_base
@@ -403,44 +404,76 @@ pub fn finalize_execution(
     // When execution starts the stack holds the EP arguments + [ret_fp, ret_pc].
     let args_ptr = (initial_fp - (n_total_args + 2))?;
     runner.vm.mark_address_range_as_accessed(args_ptr, n_total_args)?;
+    Ok(())
+}
+
+pub fn extract_vm_resources(
+    runner: &CairoRunner,
+    syscall_handler: &SyscallHintProcessor<'_>,
+) -> Result<ExecutionResources, PostExecutionError> {
+    // Take into account the resources of the current call, without inner calls.
+    // Has to happen after marking holes in segments as accessed.
+    let mut vm_resources_without_inner_calls = runner
+        .get_execution_resources()
+        .map_err(VirtualMachineError::RunnerError)?
+        .filter_unused_builtins();
+    let versioned_constants = syscall_handler.base.context.versioned_constants();
+    if versioned_constants.segment_arena_cells {
+        vm_resources_without_inner_calls
+            .builtin_instance_counter
+            .get_mut(&BuiltinName::segment_arena)
+            .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
+    }
+    // Take into account the syscall resources of the current call.
+    vm_resources_without_inner_calls += &versioned_constants
+        .get_additional_os_syscall_resources(&syscall_handler.base.syscalls_usage);
+    Ok(vm_resources_without_inner_calls)
+}
+
+pub fn total_vm_resources(
+    tracked_vm_resources_without_inner_calls: &ExecutionResources,
+    inner_calls: &[CallInfo],
+) -> ExecutionResources {
+    tracked_vm_resources_without_inner_calls + &CallInfo::summarize_vm_resources(inner_calls.iter())
+}
+
+pub fn finalize_execution(
+    mut runner: CairoRunner,
+    mut syscall_handler: SyscallHintProcessor<'_>,
+    n_total_args: usize,
+    program_extra_data_length: usize,
+    tracked_resource: TrackedResource,
+) -> Result<CallInfo, PostExecutionError> {
+    finalize_runner(&mut runner, n_total_args, program_extra_data_length)?;
     syscall_handler.read_only_segments.mark_as_accessed(&mut runner)?;
 
     let call_result = get_call_result(&runner, &syscall_handler, &tracked_resource)?;
 
-    let vm_resources_without_inner_calls = match tracked_resource {
-        TrackedResource::CairoSteps => {
-            // Take into account the resources of the current call, without inner calls.
-            // Has to happen after marking holes in segments as accessed.
-            let mut vm_resources_without_inner_calls = runner
-                .get_execution_resources()
-                .map_err(VirtualMachineError::RunnerError)?
-                .filter_unused_builtins();
-            let versioned_constants = syscall_handler.base.context.versioned_constants();
-            if versioned_constants.segment_arena_cells {
-                vm_resources_without_inner_calls
-                    .builtin_instance_counter
-                    .get_mut(&BuiltinName::segment_arena)
-                    .map_or_else(|| {}, |val| *val *= SEGMENT_ARENA_BUILTIN_SIZE);
-            }
-            // Take into account the syscall resources of the current call.
-            vm_resources_without_inner_calls += &versioned_constants
-                .get_additional_os_syscall_resources(&syscall_handler.syscalls_usage);
-            vm_resources_without_inner_calls
-        }
-        TrackedResource::SierraGas => ExecutionResources::default(),
+    // Take into account the resources of the current call, without inner calls.
+    // Has to happen after marking holes in segments as accessed.
+    let vm_resources_without_inner_calls = extract_vm_resources(&runner, &syscall_handler)?;
+
+    let tracked_vm_resources_without_inner_calls = match tracked_resource {
+        TrackedResource::CairoSteps => &vm_resources_without_inner_calls,
+        TrackedResource::SierraGas => &ExecutionResources::default(),
     };
 
     syscall_handler.finalize();
 
-    let vm_resources = &vm_resources_without_inner_calls
-        + &CallInfo::summarize_vm_resources(syscall_handler.base.inner_calls.iter());
+    let vm_resources = total_vm_resources(
+        tracked_vm_resources_without_inner_calls,
+        &syscall_handler.base.inner_calls,
+    );
+
     let syscall_handler_base = syscall_handler.base;
+
     Ok(CallInfo {
         call: syscall_handler_base.call.into(),
         execution: CallExecution {
             retdata: call_result.retdata,
             events: syscall_handler_base.events,
             l2_to_l1_messages: syscall_handler_base.l2_to_l1_messages,
+            cairo_native: false,
             failed: call_result.failed,
             gas_consumed: call_result.gas_consumed,
         },
@@ -448,10 +481,11 @@ pub fn finalize_execution(
         tracked_resource,
         resources: vm_resources,
         storage_access_tracker: syscall_handler_base.storage_access_tracker,
+        builtin_counters: vm_resources_without_inner_calls.prover_builtins(),
     })
 }
 
-fn get_call_result(
+pub fn get_call_result(
     runner: &CairoRunner,
     syscall_handler: &SyscallHintProcessor<'_>,
     tracked_resource: &TrackedResource,

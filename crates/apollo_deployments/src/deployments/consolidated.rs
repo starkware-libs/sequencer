@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use apollo_node::config::component_config::ComponentConfig;
 use apollo_node::config::component_execution_config::{
     ActiveComponentExecutionConfig,
@@ -5,24 +7,30 @@ use apollo_node::config::component_execution_config::{
 };
 use indexmap::IndexMap;
 use serde::Serialize;
-use strum::Display;
+use strum::{Display, IntoEnumIterator};
 use strum_macros::{AsRefStr, EnumIter};
 
-use crate::deployment_definitions::{Environment, EnvironmentComponentConfigModifications};
-use crate::service::{
+use crate::deployment_definitions::{
+    BusinessLogicServicePort,
+    ComponentConfigInService,
+    Environment,
+    InfraServicePort,
+    ServicePort,
+};
+use crate::k8s::{
     get_ingress,
     Controller,
-    GetComponentConfigs,
     Ingress,
     IngressParams,
     Resource,
     Resources,
-    ServiceName,
-    ServiceNameInner,
     Toleration,
 };
+use crate::service::{GetComponentConfigs, NodeService, ServiceNameInner};
+use crate::update_strategy::UpdateStrategy;
 
 const NODE_STORAGE: usize = 1000;
+const TESTING_NODE_STORAGE: usize = 1;
 
 #[derive(Clone, Copy, Debug, Display, PartialEq, Eq, Hash, Serialize, AsRefStr, EnumIter)]
 #[strum(serialize_all = "snake_case")]
@@ -30,21 +38,18 @@ pub enum ConsolidatedNodeServiceName {
     Node,
 }
 
-impl From<ConsolidatedNodeServiceName> for ServiceName {
+impl From<ConsolidatedNodeServiceName> for NodeService {
     fn from(service: ConsolidatedNodeServiceName) -> Self {
-        ServiceName::ConsolidatedNode(service)
+        NodeService::Consolidated(service)
     }
 }
 
 impl GetComponentConfigs for ConsolidatedNodeServiceName {
-    fn get_component_configs(
-        _ports: Option<Vec<u16>>,
-        environment: &Environment,
-    ) -> IndexMap<ServiceName, ComponentConfig> {
+    fn get_component_configs(_ports: Option<Vec<u16>>) -> IndexMap<NodeService, ComponentConfig> {
         let mut component_config_map = IndexMap::new();
         component_config_map.insert(
-            ServiceName::ConsolidatedNode(ConsolidatedNodeServiceName::Node),
-            get_consolidated_config(environment),
+            NodeService::Consolidated(ConsolidatedNodeServiceName::Node),
+            get_consolidated_config(),
         );
         component_config_map
     }
@@ -65,14 +70,8 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
 
     fn get_toleration(&self, environment: &Environment) -> Option<Toleration> {
         match environment {
-            Environment::Testing => None,
-            Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree
-            | Environment::StressTest => match self {
-                ConsolidatedNodeServiceName::Node => Some(Toleration::ApolloCoreService),
-            },
-            _ => unimplemented!(),
+            Environment::CloudK8s(_) => Some(Toleration::ApolloCoreService),
+            Environment::LocalK8s => None,
         }
     }
 
@@ -82,34 +81,26 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
         ingress_params: IngressParams,
     ) -> Option<Ingress> {
         match environment {
-            Environment::Testing => None,
-            Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree
-            | Environment::StressTest => get_ingress(ingress_params, false),
-            _ => unimplemented!(),
+            Environment::CloudK8s(_) => get_ingress(ingress_params, false),
+            Environment::LocalK8s => None,
         }
+    }
+
+    fn has_p2p_interface(&self) -> bool {
+        true
     }
 
     fn get_storage(&self, environment: &Environment) -> Option<usize> {
         match environment {
-            Environment::Testing => None,
-            Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree
-            | Environment::StressTest => Some(NODE_STORAGE),
-            _ => unimplemented!(),
+            Environment::CloudK8s(_) => Some(NODE_STORAGE),
+            Environment::LocalK8s => Some(TESTING_NODE_STORAGE),
         }
     }
 
     fn get_resources(&self, environment: &Environment) -> Resources {
         match environment {
-            Environment::Testing => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
-            Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree
-            | Environment::StressTest => Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
-            _ => unimplemented!(),
+            Environment::CloudK8s(_) => Resources::new(Resource::new(2, 4), Resource::new(4, 8)),
+            Environment::LocalK8s => Resources::new(Resource::new(1, 2), Resource::new(4, 8)),
         }
     }
 
@@ -119,25 +110,55 @@ impl ServiceNameInner for ConsolidatedNodeServiceName {
 
     fn get_anti_affinity(&self, environment: &Environment) -> bool {
         match environment {
-            Environment::Testing => false,
-            Environment::SepoliaIntegration
-            | Environment::TestingEnvTwo
-            | Environment::TestingEnvThree
-            | Environment::StressTest => true,
-            _ => unimplemented!(),
+            Environment::CloudK8s(_) => true,
+            Environment::LocalK8s => false,
+        }
+    }
+
+    fn get_service_ports(&self) -> BTreeSet<ServicePort> {
+        let mut service_ports = BTreeSet::new();
+        for service_port in ServicePort::iter() {
+            match service_port {
+                ServicePort::BusinessLogic(bl_port) => match bl_port {
+                    BusinessLogicServicePort::MonitoringEndpoint
+                    | BusinessLogicServicePort::HttpServer
+                    | BusinessLogicServicePort::ConsensusP2P
+                    | BusinessLogicServicePort::MempoolP2p => {
+                        service_ports.insert(service_port);
+                    }
+                },
+                ServicePort::Infra(infra_port) => match infra_port {
+                    InfraServicePort::Batcher
+                    | InfraServicePort::Mempool
+                    | InfraServicePort::ClassManager
+                    | InfraServicePort::Gateway
+                    | InfraServicePort::L1EndpointMonitor
+                    | InfraServicePort::L1GasPriceProvider
+                    | InfraServicePort::L1Provider
+                    | InfraServicePort::SierraCompiler
+                    | InfraServicePort::StateSync => {}
+                },
+            }
+        }
+
+        service_ports
+    }
+
+    fn get_components_in_service(&self) -> BTreeSet<ComponentConfigInService> {
+        match self {
+            ConsolidatedNodeServiceName::Node => ComponentConfigInService::iter().collect(),
+        }
+    }
+
+    fn get_update_strategy(&self) -> UpdateStrategy {
+        match self {
+            ConsolidatedNodeServiceName::Node => UpdateStrategy::RollingUpdate,
         }
     }
 }
 
-fn get_consolidated_config(environment: &Environment) -> ComponentConfig {
-    let mut base = ReactiveComponentExecutionConfig::local_with_remote_disabled();
-    let EnvironmentComponentConfigModifications {
-        local_server_config,
-        max_concurrency,
-        remote_client_config: _,
-    } = environment.get_component_config_modifications();
-    base.local_server_config = local_server_config;
-    base.max_concurrency = max_concurrency;
+fn get_consolidated_config() -> ComponentConfig {
+    let base = ReactiveComponentExecutionConfig::local_with_remote_disabled();
 
     ComponentConfig {
         batcher: base.clone(),
@@ -147,6 +168,7 @@ fn get_consolidated_config(environment: &Environment) -> ComponentConfig {
         mempool_p2p: base.clone(),
         sierra_compiler: base.clone(),
         state_sync: base.clone(),
+        l1_endpoint_monitor: base.clone(),
         l1_provider: base.clone(),
         l1_gas_price_provider: base.clone(),
         consensus_manager: ActiveComponentExecutionConfig::enabled(),

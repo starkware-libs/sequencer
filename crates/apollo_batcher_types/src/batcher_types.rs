@@ -4,12 +4,14 @@ use blockifier::bouncer::{BouncerWeights, CasmHashComputationData};
 use blockifier::state::cached_state::CommitmentStateDiff;
 use blockifier::transaction::objects::TransactionExecutionInfo;
 use chrono::prelude::*;
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use starknet_api::block::{BlockHashAndNumber, BlockInfo, BlockNumber};
 use starknet_api::consensus_transaction::InternalConsensusTransaction;
 use starknet_api::core::StateDiffCommitment;
 use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
+use starknet_api::transaction::TransactionHash;
 
 use crate::errors::BatcherError;
 
@@ -100,10 +102,11 @@ pub struct SendProposalContentResponse {
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 pub struct CentralObjects {
-    pub execution_infos: Vec<TransactionExecutionInfo>,
+    pub execution_infos: IndexMap<TransactionHash, TransactionExecutionInfo>,
     pub bouncer_weights: BouncerWeights,
     pub compressed_state_diff: Option<CommitmentStateDiff>,
-    pub casm_hash_computation_data: CasmHashComputationData,
+    pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
+    pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq)]
@@ -125,7 +128,7 @@ pub enum ProposalStatus {
     Aborted,
     // May be caused due to handling of a previous item of the new proposal.
     // In this case, the proposal is aborted and no additional content will be processed.
-    InvalidProposal,
+    InvalidProposal(String),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

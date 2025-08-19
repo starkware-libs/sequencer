@@ -4,12 +4,15 @@ use std::time::Duration;
 
 use apollo_batcher::block_builder::BlockBuilderConfig;
 use apollo_batcher::config::BatcherConfig;
+use apollo_batcher::pre_confirmed_cende_client::RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH;
 use apollo_class_manager::class_storage::CachedClassStorageConfig;
 use apollo_class_manager::config::{
     ClassManagerConfig,
     FsClassManagerConfig,
     FsClassStorageConfig,
 };
+use apollo_compile_to_casm::config::SierraCompilationConfig;
+use apollo_config::converters::UrlAndHeaders;
 use apollo_consensus::config::{ConsensusConfig, TimeoutsConfig};
 use apollo_consensus::types::ValidatorId;
 use apollo_consensus_manager::config::ConsensusManagerConfig;
@@ -22,8 +25,10 @@ use apollo_gateway::config::{
 };
 use apollo_http_server::test_utils::create_http_server_config;
 use apollo_infra_utils::test_utils::AvailablePorts;
+use apollo_l1_endpoint_monitor::monitor::L1EndpointMonitorConfig;
 use apollo_l1_gas_price::eth_to_strk_oracle::{EthToStrkOracleConfig, ETH_TO_STRK_QUANTIZATION};
 use apollo_l1_gas_price::l1_gas_price_provider::L1GasPriceProviderConfig;
+use apollo_l1_gas_price::l1_gas_price_scraper::L1GasPriceScraperConfig;
 use apollo_l1_gas_price_types::DEFAULT_ETH_TO_FRI_RATE;
 use apollo_l1_provider::l1_scraper::L1ScraperConfig;
 use apollo_l1_provider::L1ProviderConfig;
@@ -33,7 +38,9 @@ use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_network::network_manager::test_utils::create_connected_network_configs;
 use apollo_network::NetworkConfig;
 use apollo_node::config::component_config::ComponentConfig;
+use apollo_node::config::component_execution_config::ExpectedComponentConfig;
 use apollo_node::config::definitions::ConfigPointersMap;
+use apollo_node::config::monitoring::MonitoringConfig;
 use apollo_node::config::node_config::{SequencerNodeConfig, CONFIG_POINTERS};
 use apollo_rpc::RpcConfig;
 use apollo_state_sync::config::StateSyncConfig;
@@ -45,7 +52,7 @@ use axum::{Json, Router};
 use blockifier::blockifier::config::WorkerPoolConfig;
 #[cfg(feature = "cairo_native")]
 use blockifier::blockifier::config::{CairoNativeRunConfig, ContractClassManagerConfig};
-use blockifier::bouncer::{BouncerConfig, BouncerWeights};
+use blockifier::bouncer::{BouncerConfig, BouncerWeights, BuiltinWeights};
 use blockifier::context::ChainInfo;
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
@@ -157,7 +164,7 @@ impl TestScenario for DeployAndInvokeTxs {
     }
 }
 
-// TODO(Tsabary/Shahak/Yair/AlonH): this function needs a proper cleaning.
+// TODO(Tsabary): clean the passed args.
 #[allow(clippy::too_many_arguments)]
 pub fn create_node_config(
     available_ports: &mut AvailablePorts,
@@ -165,9 +172,10 @@ pub fn create_node_config(
     storage_config: StorageTestConfig,
     mut state_sync_config: StateSyncConfig,
     consensus_manager_config: ConsensusManagerConfig,
+    eth_to_strk_oracle_config: EthToStrkOracleConfig,
     mempool_p2p_config: MempoolP2pConfig,
     monitoring_endpoint_config: MonitoringEndpointConfig,
-    component_config: ComponentConfig,
+    components: ComponentConfig,
     base_layer_config: EthereumBaseLayerConfig,
     block_max_capacity_sierra_gas: GasAmount,
     validator_id: ValidatorId,
@@ -183,17 +191,32 @@ pub fn create_node_config(
     let validate_non_zero_resource_bounds = !allow_bootstrap_txs;
     let gateway_config =
         create_gateway_config(chain_info.clone(), validate_non_zero_resource_bounds);
-    let l1_scraper_config =
-        L1ScraperConfig { chain_id: chain_info.chain_id.clone(), ..Default::default() };
-    let l1_provider_config = L1ProviderConfig {
-        provider_startup_height_override: Some(BlockNumber(1)),
+    let l1_scraper_config = L1ScraperConfig {
+        chain_id: chain_info.chain_id.clone(),
+        startup_rewind_time_seconds: Duration::from_secs(0),
+        polling_interval_seconds: Duration::from_secs(0),
         ..Default::default()
     };
-    let override_gas_price_threshold_check = allow_bootstrap_txs;
-    let mempool_config = create_mempool_config(override_gas_price_threshold_check);
+    let l1_provider_config = L1ProviderConfig {
+        provider_startup_height_override: Some(BlockNumber(1)),
+        startup_sync_sleep_retry_interval_seconds: Duration::from_secs(0),
+        l1_handler_cancellation_timelock_seconds: Duration::from_secs(0),
+        l1_handler_consumption_timelock_seconds: Duration::from_secs(0),
+        new_l1_handler_cooldown_seconds: Duration::from_secs(0),
+        ..Default::default()
+    };
+    let l1_endpoint_monitor_config = L1EndpointMonitorConfig {
+        // This is the Anvil URL, initialized at the callsite.
+        // TODO(Gilad): make this explicit in the Anvil refactor.
+        ordered_l1_endpoint_urls: vec![base_layer_config.node_url.clone()],
+        ..Default::default()
+    };
+    let validate_resource_bounds = !allow_bootstrap_txs;
+    let mempool_config = create_mempool_config(validate_resource_bounds);
     let l1_gas_price_provider_config = L1GasPriceProviderConfig {
         // Use newly minted blocks on Anvil to be used for gas price calculations.
         lag_margin_seconds: 0,
+        eth_to_strk_oracle_config,
         ..Default::default()
     };
     let http_server_config =
@@ -203,6 +226,9 @@ pub fn create_node_config(
     state_sync_config.storage_config = storage_config.state_sync_storage_config;
     state_sync_config.rpc_config.chain_id = chain_info.chain_id.clone();
     let starknet_url = state_sync_config.rpc_config.starknet_url.clone();
+
+    let l1_gas_price_scraper_config = L1GasPriceScraperConfig::default();
+    let sierra_compiler_config = SierraCompilationConfig::default();
 
     // Update config pointer values.
     let mut config_pointers_map = ConfigPointersMap::new(CONFIG_POINTERS.clone());
@@ -232,26 +258,69 @@ pub fn create_node_config(
         "starknet_url",
         to_value(starknet_url).expect("Failed to serialize starknet_url"),
     );
-    (
-        SequencerNodeConfig {
-            base_layer_config,
-            batcher_config,
-            class_manager_config,
-            consensus_manager_config,
-            gateway_config,
-            http_server_config,
-            mempool_config,
-            mempool_p2p_config,
-            monitoring_endpoint_config,
-            state_sync_config,
-            components: component_config,
-            l1_scraper_config,
-            l1_provider_config,
-            l1_gas_price_provider_config,
-            ..Default::default()
-        },
-        config_pointers_map,
-    )
+
+    // A helper macro that wraps the config in `Some(...)` if `components.<field>` expects it;
+    // otherwise returns `None`. Assumes `components` is in scope.
+    macro_rules! wrap_if_component_config_expected {
+        ($component_field:ident, $config_field:expr) => {{
+            if components.$component_field.is_running_locally() {
+                Some($config_field)
+            } else {
+                None
+            }
+        }};
+    }
+
+    // Retain only the required configs.
+    let base_layer_config = Some(base_layer_config);
+    let batcher_config = wrap_if_component_config_expected!(batcher, batcher_config);
+    let class_manager_config =
+        wrap_if_component_config_expected!(class_manager, class_manager_config);
+    let consensus_manager_config =
+        wrap_if_component_config_expected!(consensus_manager, consensus_manager_config);
+    let gateway_config = wrap_if_component_config_expected!(gateway, gateway_config);
+    let http_server_config = wrap_if_component_config_expected!(http_server, http_server_config);
+    let l1_endpoint_monitor_config =
+        wrap_if_component_config_expected!(l1_endpoint_monitor, l1_endpoint_monitor_config);
+    let l1_gas_price_provider_config =
+        wrap_if_component_config_expected!(l1_gas_price_provider, l1_gas_price_provider_config);
+    let l1_gas_price_scraper_config =
+        wrap_if_component_config_expected!(l1_gas_price_scraper, l1_gas_price_scraper_config);
+    let l1_provider_config = wrap_if_component_config_expected!(l1_provider, l1_provider_config);
+    let l1_scraper_config = wrap_if_component_config_expected!(l1_scraper, l1_scraper_config);
+    let mempool_config = wrap_if_component_config_expected!(mempool, mempool_config);
+    let mempool_p2p_config = wrap_if_component_config_expected!(mempool_p2p, mempool_p2p_config);
+    let monitoring_endpoint_config =
+        wrap_if_component_config_expected!(monitoring_endpoint, monitoring_endpoint_config);
+    let monitoring_config = MonitoringConfig::default();
+    let sierra_compiler_config =
+        wrap_if_component_config_expected!(sierra_compiler, sierra_compiler_config);
+    let state_sync_config = wrap_if_component_config_expected!(state_sync, state_sync_config);
+
+    let sequencer_node_config = SequencerNodeConfig {
+        base_layer_config,
+        batcher_config,
+        class_manager_config,
+        components,
+        consensus_manager_config,
+        gateway_config,
+        http_server_config,
+        l1_endpoint_monitor_config,
+        l1_gas_price_provider_config,
+        l1_gas_price_scraper_config,
+        l1_provider_config,
+        l1_scraper_config,
+        mempool_config,
+        mempool_p2p_config,
+        monitoring_endpoint_config,
+        monitoring_config,
+        sierra_compiler_config,
+        state_sync_config,
+    };
+
+    sequencer_node_config.validate_node_config().expect("Generated node config should be valid.");
+
+    (sequencer_node_config, config_pointers_map)
 }
 
 pub(crate) fn create_consensus_manager_configs_from_network_configs(
@@ -273,7 +342,7 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
         .map(|network_config| ConsensusManagerConfig {
             network_config,
             immediate_active_height: BlockNumber(1),
-            consensus_config: ConsensusConfig {
+            consensus_manager_config: ConsensusConfig {
                 // TODO(Matan, Dan): Set the right amount
                 startup_delay: Duration::from_secs(15),
                 timeouts: timeouts.clone(),
@@ -285,15 +354,11 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
                 builder_address: ContractAddress::from(4_u128),
                 ..Default::default()
             },
-            cende_config: CendeConfig{
+            cende_config: CendeConfig {
                 skip_write_height: Some(BlockNumber(1)),
                 ..Default::default()
             },
-            eth_to_strk_oracle_config: EthToStrkOracleConfig {
-                base_url: Url::parse("https://eth_to_strk_oracle_url")
-                    .expect("Should be a valid URL"),
-                    ..Default::default()
-            },
+            assume_no_malicious_validators: true,
             ..Default::default()
         })
         .collect()
@@ -302,16 +367,27 @@ pub(crate) fn create_consensus_manager_configs_from_network_configs(
 // Creates a local recorder server that always returns a success status.
 pub fn spawn_success_recorder(socket_address: SocketAddr) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let router = Router::new().route(
-            RECORDER_WRITE_BLOB_PATH,
-            post(move || {
-                async {
-                    debug!("Received a request to write a blob.");
-                    StatusCode::OK.to_string()
-                }
-                .instrument(tracing::debug_span!("success recorder write_blob"))
-            }),
-        );
+        let router = Router::new()
+            .route(
+                RECORDER_WRITE_BLOB_PATH,
+                post(move || {
+                    async {
+                        debug!("Received a request to write a blob.");
+                        StatusCode::OK.to_string()
+                    }
+                    .instrument(tracing::debug_span!("success recorder write_blob"))
+                }),
+            )
+            .route(
+                RECORDER_WRITE_PRE_CONFIRMED_BLOCK_PATH,
+                post(move || {
+                    async {
+                        debug!("Received a request to write a pre-confirmed block.");
+                        StatusCode::OK.to_string()
+                    }
+                    .instrument(tracing::debug_span!("success recorder write_pre_confirmed_block"))
+                }),
+            );
         axum::Server::bind(&socket_address).serve(router.into_make_service()).await.unwrap();
     })
 }
@@ -356,11 +432,15 @@ pub fn spawn_eth_to_strk_oracle_server(socket_address: SocketAddr) -> JoinHandle
 }
 
 /// Starts the fake eth to fri oracle server and returns its URL and handle.
-pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (Url, JoinHandle<()>) {
+pub fn spawn_local_eth_to_strk_oracle(port: u16) -> (UrlAndHeaders, JoinHandle<()>) {
     let socket_address = SocketAddr::from(([127, 0, 0, 1], port));
     let url = Url::parse(&format!("http://{}{}", socket_address, ETH_TO_STRK_ORACLE_PATH)).unwrap();
+    let url_and_headers = UrlAndHeaders {
+        url,
+        headers: Default::default(), // No additional headers needed for this test.
+    };
     let join_handle = spawn_eth_to_strk_oracle_server(socket_address);
-    (url, join_handle)
+    (url_and_headers, join_handle)
 }
 
 pub fn create_mempool_p2p_configs(chain_id: ChainId, ports: Vec<u16>) -> Vec<MempoolP2pConfig> {
@@ -522,19 +602,23 @@ pub fn create_gateway_config(
     validate_non_zero_resource_bounds: bool,
 ) -> GatewayConfig {
     let stateless_tx_validator_config = StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds,
+        validate_resource_bounds: validate_non_zero_resource_bounds,
         max_calldata_length: 10,
         max_signature_length: 2,
         ..Default::default()
     };
-    let stateful_tx_validator_config =
-        StatefulTransactionValidatorConfig { max_allowed_nonce_gap: 1000, ..Default::default() };
+    let stateful_tx_validator_config = StatefulTransactionValidatorConfig {
+        max_allowed_nonce_gap: 1000,
+        validate_resource_bounds: validate_non_zero_resource_bounds,
+        ..Default::default()
+    };
 
     GatewayConfig {
         stateless_tx_validator_config,
         stateful_tx_validator_config,
         chain_info,
         block_declare: false,
+        authorized_declarer_accounts: None,
     }
 }
 
@@ -553,6 +637,7 @@ pub fn create_batcher_config(
                     sierra_gas: block_max_capacity_sierra_gas,
                     ..Default::default()
                 },
+                builtin_weights: BuiltinWeights::default(),
             },
             execute_config: WorkerPoolConfig::create_for_testing(),
             n_concurrent_txs: 3,
@@ -564,10 +649,10 @@ pub fn create_batcher_config(
     }
 }
 
-pub fn create_mempool_config(override_gas_price_threshold_check: bool) -> MempoolConfig {
+pub fn create_mempool_config(validate_resource_bounds: bool) -> MempoolConfig {
     MempoolConfig {
         transaction_ttl: Duration::from_secs(5 * 60),
-        override_gas_price_threshold_check,
+        validate_resource_bounds,
         ..Default::default()
     }
 }
@@ -587,10 +672,11 @@ pub fn set_validator_id(
     node_index: usize,
 ) -> ValidatorId {
     let validator_id = ValidatorId::try_from(
-        Felt::from(consensus_manager_config.consensus_config.validator_id) + Felt::from(node_index),
+        Felt::from(consensus_manager_config.consensus_manager_config.validator_id)
+            + Felt::from(node_index),
     )
     .unwrap();
-    consensus_manager_config.consensus_config.validator_id = validator_id;
+    consensus_manager_config.consensus_manager_config.validator_id = validator_id;
     validator_id
 }
 

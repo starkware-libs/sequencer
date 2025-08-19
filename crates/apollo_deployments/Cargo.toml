@@ -5,26 +5,28 @@ edition.workspace = true
 repository.workspace = true
 license.workspace = true
 
-
 [lints]
 workspace = true
 
-
 [dependencies]
+alloy.workspace = true
 apollo_config.workspace = true
-apollo_infra.workspace = true
+apollo_http_server.workspace = true
 apollo_infra_utils.workspace = true
+apollo_monitoring_endpoint.workspace = true
 apollo_node.workspace = true
 apollo_protobuf.workspace = true
-const_format.workspace = true
 indexmap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_with.workspace = true
 starknet_api.workspace = true
 strum.workspace = true
 strum_macros.workspace = true
+url.workspace = true
 
 [dev-dependencies]
-apollo_config.workspace = true
 apollo_infra_utils = { workspace = true, features = ["testing"] }
 apollo_node = { workspace = true, features = ["testing"] }
+tempfile.workspace = true
+url = { workspace = true, features = ["serde"] }

@@ -31,8 +31,11 @@ use crate::{impl_from_through_intermediate, StarknetApiError};
 pub type DeclaredClasses = IndexMap<ClassHash, SierraContractClass>;
 pub type DeprecatedDeclaredClasses = IndexMap<ClassHash, DeprecatedContractClass>;
 
-static API_VERSION: LazyLock<Felt> =
-    LazyLock::new(|| Felt::from_bytes_be_slice(b"CONTRACT_CLASS_V0.1.0"));
+pub const CONTRACT_CLASS_VERSION: &str = "0.1.0";
+
+static API_VERSION: LazyLock<Felt> = LazyLock::new(|| {
+    Felt::from_bytes_be_slice(format!("CONTRACT_CLASS_V{}", CONTRACT_CLASS_VERSION).as_bytes())
+});
 
 /// The differences between two states before and after a block with hash block_hash
 /// and their respective roots.
@@ -224,7 +227,7 @@ impl Default for SierraContractClass {
     fn default() -> Self {
         Self {
             sierra_program: [Felt::ONE, Felt::TWO, Felt::THREE].to_vec(),
-            contract_class_version: Default::default(),
+            contract_class_version: CONTRACT_CLASS_VERSION.to_string(),
             entry_points_by_type: Default::default(),
             abi: Default::default(),
         }
@@ -233,22 +236,52 @@ impl Default for SierraContractClass {
 
 impl SierraContractClass {
     pub fn calculate_class_hash(&self) -> ClassHash {
-        let external_entry_points_hash = entry_points_hash(self, &EntryPointType::External);
-        let l1_handler_entry_points_hash = entry_points_hash(self, &EntryPointType::L1Handler);
-        let constructor_entry_points_hash = entry_points_hash(self, &EntryPointType::Constructor);
+        let class_hash = Poseidon::hash_array(&self.get_component_hashes(*API_VERSION).flatten());
+        ClassHash(class_hash)
+    }
+
+    // TODO(Nimrod): Don't take `contract_class_version` as an argument, use the version of self.
+    pub fn get_component_hashes(
+        &self,
+        contract_class_version: Felt,
+    ) -> ContractClassComponentHashes {
+        let external_functions_hash = entry_points_hash(self, &EntryPointType::External);
+        let l1_handlers_hash = entry_points_hash(self, &EntryPointType::L1Handler);
+        let constructors_hash = entry_points_hash(self, &EntryPointType::Constructor);
         let abi_keccak = sha3::Keccak256::default().chain_update(self.abi.as_bytes()).finalize();
         let abi_hash = truncated_keccak(abi_keccak.into());
-        let program_hash = Poseidon::hash_array(self.sierra_program.as_slice());
-
-        let class_hash = Poseidon::hash_array(&[
-            *API_VERSION,
-            external_entry_points_hash.0,
-            l1_handler_entry_points_hash.0,
-            constructor_entry_points_hash.0,
+        let sierra_program_hash = Poseidon::hash_array(self.sierra_program.as_slice());
+        ContractClassComponentHashes {
+            contract_class_version,
+            external_functions_hash,
+            l1_handlers_hash,
+            constructors_hash,
             abi_hash,
-            program_hash,
-        ]);
-        ClassHash(class_hash)
+            sierra_program_hash,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct ContractClassComponentHashes {
+    contract_class_version: Felt,
+    external_functions_hash: PoseidonHash,
+    l1_handlers_hash: PoseidonHash,
+    constructors_hash: PoseidonHash,
+    abi_hash: Felt,
+    sierra_program_hash: Felt,
+}
+
+impl ContractClassComponentHashes {
+    pub fn flatten(&self) -> Vec<Felt> {
+        vec![
+            self.contract_class_version,
+            self.external_functions_hash.0,
+            self.l1_handlers_hash.0,
+            self.constructors_hash.0,
+            self.abi_hash,
+            self.sierra_program_hash,
+        ]
     }
 }
 

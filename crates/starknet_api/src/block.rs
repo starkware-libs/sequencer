@@ -11,6 +11,7 @@ use size_of::SizeOf;
 use starknet_types_core::felt::Felt;
 use starknet_types_core::hash::{Poseidon, StarkHash as CoreStarkHash};
 use strum_macros::EnumIter;
+use time::OffsetDateTime;
 
 use crate::core::{
     ContractAddress,
@@ -311,6 +312,50 @@ impl BlockNumber {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub struct PreviousBlockNumber(Option<BlockNumber>);
+
+impl std::fmt::Display for PreviousBlockNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.0 {
+            Some(block_number) => write!(f, "{}", block_number),
+            None => write!(f, "None"),
+        }
+    }
+}
+
+impl TryFrom<Felt> for PreviousBlockNumber {
+    type Error = StarknetApiError;
+
+    /// Returns None if the Felt is Felt::MAX, which represents the previous block number for the
+    /// first block.
+    /// Otherwise, returns Some(BlockNumber) if the Felt is a valid block number.
+    fn try_from(value: Felt) -> Result<Self, Self::Error> {
+        // -1 in the Field (Felt::MAX) represents the previous block number for the first block.
+        if value == Felt::MAX {
+            Ok(Self(None))
+        } else {
+            Ok(Self(Some(BlockNumber(value.try_into().map_err(|_| {
+                StarknetApiError::OutOfRange {
+                    string: format!("Block number {value} is out of range"),
+                }
+            })?))))
+        }
+    }
+}
+
+impl From<PreviousBlockNumber> for Felt {
+    /// Converts a [PreviousBlockNumber](`crate::block::PreviousBlockNumber`) into a Felt.
+    /// Returns Felt::MAX (-1 in the field) if the previous block number is None, which means the
+    /// current block is the first block.
+    fn from(value: PreviousBlockNumber) -> Self {
+        match value.0 {
+            Some(block_number) => Self::from(block_number.0),
+            None => Self::MAX,
+        }
+    }
+}
+
 /// A pair of a [BlockHash](`crate::block::BlockHash`) and a
 /// [BlockNumber](`crate::block::BlockNumber`).
 #[derive(Copy, Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -351,19 +396,28 @@ pub struct GasPricePerToken {
 pub struct GasPrice(pub u128);
 
 impl GasPrice {
-    pub fn wei_to_fri(self, eth_to_fri_rate: u128) -> GasPrice {
+    pub fn wei_to_fri(self, eth_to_fri_rate: u128) -> Result<GasPrice, StarknetApiError> {
         // We use integer division since wei * eth_to_fri_rate is expected to be high enough to not
         // cause too much precision loss.
-        self.checked_mul_u128(eth_to_fri_rate)
-            .expect("Gas price is too high.")
+        Ok(self
+            .checked_mul_u128(eth_to_fri_rate)
+            .ok_or_else(|| {
+                StarknetApiError::GasPriceConversionError("Gas price is too high".to_string())
+            })?
             .checked_div(WEI_PER_ETH)
-            .expect("ETH to FRI rate must be non-zero")
+            .expect("WEI_PER_ETH must be non-zero"))
     }
-    pub fn fri_to_wei(self, eth_to_fri_rate: u128) -> GasPrice {
+    pub fn fri_to_wei(self, eth_to_fri_rate: u128) -> Result<GasPrice, StarknetApiError> {
         self.checked_mul_u128(WEI_PER_ETH)
-            .expect("Gas price is too high")
+            .ok_or_else(|| {
+                StarknetApiError::GasPriceConversionError("Gas price is too high".to_string())
+            })?
             .checked_div(eth_to_fri_rate)
-            .expect("FRI to ETH rate must be non-zero")
+            .ok_or_else(|| {
+                StarknetApiError::GasPriceConversionError(
+                    "FRI to ETH rate must be non-zero".to_string(),
+                )
+            })
     }
 }
 
@@ -541,11 +595,15 @@ impl GasPrices {
     }
 }
 
+// TODO(Arni): replace all relevant instances of `u64` with UnixTimestamp.
+/// A Unix timestamp in seconds since the Unix epoch (January 1, 1970).
+pub type UnixTimestamp = u64;
+
 /// The timestamp of a [Block](`crate::block::Block`).
 #[derive(
     Debug, Default, Copy, Clone, Eq, PartialEq, Hash, Deserialize, Serialize, PartialOrd, Ord,
 )]
-pub struct BlockTimestamp(pub u64);
+pub struct BlockTimestamp(pub UnixTimestamp);
 
 impl BlockTimestamp {
     pub fn saturating_add(self, rhs: &u64) -> Self {
@@ -573,7 +631,10 @@ impl From<u64> for BlockTimestamp {
 
 impl Display for BlockTimestamp {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        let seconds_from_epoch = i64::try_from(self.0).map_err(|_| std::fmt::Error)?;
+        let time_in_range =
+            OffsetDateTime::from_unix_timestamp(seconds_from_epoch).map_err(|_| std::fmt::Error)?;
+        write!(f, "{}", time_in_range)
     }
 }
 

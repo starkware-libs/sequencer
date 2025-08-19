@@ -229,9 +229,13 @@ impl TransfersGenerator {
         // Execution infos of transactions that were executed.
         let mut collected_execution_infos = Vec::<TransactionExecutionInfo>::new();
         for result in results {
-            let execution_info = result.unwrap().0;
+            let execution_info = &result.unwrap().0;
+
             assert!(!execution_info.is_reverted());
-            collected_execution_infos.push(execution_info);
+
+            let expected_cairo_native = self.config.cairo_version.is_cairo_native();
+            execution_info.check_call_infos_native_execution(expected_cairo_native);
+            collected_execution_infos.push(execution_info.clone());
         }
 
         (block_summary, collected_execution_infos)

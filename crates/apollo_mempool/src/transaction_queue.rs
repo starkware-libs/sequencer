@@ -30,13 +30,9 @@ pub struct TransactionQueue {
 impl TransactionQueue {
     /// Adds a transaction to the mempool, ensuring unique keys.
     /// Panics: if given a duplicate tx.
-    /// If `override_gas_price_threshold_check` is true, the transaction is added to the priority
-    /// queue, regardless of it's L2 gas price bound.
-    pub fn insert(
-        &mut self,
-        tx_reference: TransactionReference,
-        override_gas_price_threshold_check: bool,
-    ) {
+    /// If `validate_resource_bounds` is false, the transaction is added to the priority queue,
+    /// regardless of it's L2 gas price bound.
+    pub fn insert(&mut self, tx_reference: TransactionReference, validate_resource_bounds: bool) {
         assert_eq!(
             self.address_to_tx.insert(tx_reference.address, tx_reference),
             None,
@@ -44,8 +40,8 @@ impl TransactionQueue {
              time."
         );
 
-        let to_pending_queue = !override_gas_price_threshold_check
-            && tx_reference.max_l2_gas_price < self.gas_price_threshold;
+        let to_pending_queue =
+            validate_resource_bounds && tx_reference.max_l2_gas_price < self.gas_price_threshold;
         let new_tx_successfully_inserted = if to_pending_queue {
             self.pending_queue.insert(tx_reference.into())
         } else {
@@ -99,13 +95,16 @@ impl TransactionQueue {
 
     /// Removes the given transactions from the queue.
     /// If a transaction is not found, it is ignored.
-    pub fn remove_txs(&mut self, txs: &[TransactionReference]) {
+    pub fn remove_txs(&mut self, txs: &[TransactionReference]) -> Vec<TransactionReference> {
+        let mut removed_txs = Vec::new();
         for tx in txs {
             let queued_tx = self.address_to_tx.get(&tx.address);
             if queued_tx.is_some_and(|queued_tx| queued_tx.tx_hash == tx.tx_hash) {
                 self.remove(tx.address);
+                removed_txs.push(*tx);
             };
         }
+        removed_txs
     }
 
     pub fn has_ready_txs(&self) -> bool {

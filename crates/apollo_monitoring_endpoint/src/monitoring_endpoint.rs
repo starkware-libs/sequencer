@@ -144,7 +144,7 @@ impl ComponentStarter for MonitoringEndpoint {
 /// Returns prometheus metrics.
 /// In case the node doesn’t collect metrics returns an empty response with status code 405: method
 /// not allowed.
-#[instrument(level = "debug", ret, skip(prometheus_handle))]
+#[instrument(level = "trace", ret, skip(prometheus_handle))]
 // TODO(tsabary): handle the Option setup.
 async fn metrics(prometheus_handle: Option<PrometheusHandle>) -> Response {
     match prometheus_handle {
@@ -159,13 +159,23 @@ async fn mempool_snapshot(
     mempool_client: Option<SharedMempoolClient>,
 ) -> Result<Json<MempoolSnapshot>, StatusCode> {
     match mempool_client {
-        Some(client) => match client.get_mempool_snapshot().await {
-            Ok(snapshot) => Ok(snapshot.into()),
-            Err(err) => {
-                error!("Failed to get mempool snapshot: {:?}", err);
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
+        Some(client) => {
+            // Wrap the mempool client interaction with a tokio::spawn as it is NOT cancel-safe.
+            // Even if the current task is cancelled, e.g., when a request is dropped while still
+            // being processed, the inner task will continue to run.
+            let mempool_snapshot_result =
+                tokio::spawn(async move { client.get_mempool_snapshot().await })
+                    .await
+                    .expect("Should be able to get mempool_snapshot result");
+
+            match mempool_snapshot_result {
+                Ok(snapshot) => Ok(snapshot.into()),
+                Err(err) => {
+                    error!("Failed to get mempool snapshot: {:?}", err);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
             }
-        },
+        }
         None => Err(StatusCode::METHOD_NOT_ALLOWED),
     }
 }
@@ -176,13 +186,23 @@ async fn get_l1_provider_snapshot(
     l1_provider_client: Option<SharedL1ProviderClient>,
 ) -> Result<Json<L1ProviderSnapshot>, StatusCode> {
     match l1_provider_client {
-        Some(client) => match client.get_l1_provider_snapshot().await {
-            Ok(snapshot) => Ok(snapshot.into()),
-            Err(err) => {
-                error!("Failed to get L1 provider snapshot: {:?}", err);
-                Err(StatusCode::INTERNAL_SERVER_ERROR)
+        Some(client) => {
+            // Wrap the l1 client interaction with a tokio::spawn as it is NOT cancel-safe.
+            // Even if the current task is cancelled, e.g., when a request is dropped while still
+            // being processed, the inner task will continue to run.
+            let l1_provider_snapshot_result =
+                tokio::spawn(async move { client.get_l1_provider_snapshot().await })
+                    .await
+                    .expect("Should be able to get l1 provider result");
+
+            match l1_provider_snapshot_result {
+                Ok(snapshot) => Ok(snapshot.into()),
+                Err(err) => {
+                    error!("Failed to get L1 provider snapshot: {:?}", err);
+                    Err(StatusCode::INTERNAL_SERVER_ERROR)
+                }
             }
-        },
+        }
         None => Err(StatusCode::METHOD_NOT_ALLOWED),
     }
 }

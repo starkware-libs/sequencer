@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use apollo_batcher_types::communication::SharedBatcherClient;
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra_utils::info_every_n_sec;
 use apollo_l1_provider_types::errors::L1ProviderError;
 use apollo_l1_provider_types::{
     Event,
@@ -40,6 +41,7 @@ pub struct L1Provider {
     // and we see how well it handles consuming the L1Provider when moving between states.
     pub state: ProviderState,
     pub clock: Arc<dyn Clock>,
+    pub start_height: BlockNumber,
 }
 
 impl L1Provider {
@@ -49,7 +51,12 @@ impl L1Provider {
         height: BlockNumber,
         state: SessionState,
     ) -> L1ProviderResult<()> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         self.validate_height(height)?;
+        info!("Starting block at height: {height}");
         self.state = state.into();
         self.tx_manager.start_block();
         Ok(())
@@ -76,6 +83,10 @@ impl L1Provider {
         n_txs: usize,
         height: BlockNumber,
     ) -> L1ProviderResult<Vec<L1HandlerTransaction>> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         self.validate_height(height)?;
 
         match self.state {
@@ -107,6 +118,10 @@ impl L1Provider {
         tx_hash: TransactionHash,
         height: BlockNumber,
     ) -> L1ProviderResult<ValidationStatus> {
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
         self.validate_height(height)?;
         match self.state {
             ProviderState::Validate => {
@@ -128,6 +143,19 @@ impl L1Provider {
         rejected_txs: IndexSet<TransactionHash>,
         height: BlockNumber,
     ) -> L1ProviderResult<()> {
+        info!("Committing block to L1 provider at height {}.", height);
+        if self.state.uninitialized() {
+            return Err(L1ProviderError::Uninitialized);
+        }
+
+        if self.is_historical_height(height) {
+            debug!(
+                "Skipping commit block for historical height: {}, current height is higher: {}",
+                height, self.current_height
+            );
+            return Ok(());
+        }
+
         if self.state.is_bootstrapping() {
             // Once bootstrap completes it will transition to Pending state by itself.
             return self.bootstrap(committed_txs, height);
@@ -146,14 +174,19 @@ impl L1Provider {
             return Err(L1ProviderError::Uninitialized);
         }
 
-        info!("Adding {} l1 events", events.len());
+        info_every_n_sec!(1, "Adding {} l1 events", events.len());
         trace!("Adding events: {events:?}");
 
         for event in events {
             match event {
-                Event::L1HandlerTransaction { l1_handler_tx, timestamp } => {
+                Event::L1HandlerTransaction {
+                    l1_handler_tx,
+                    block_timestamp,
+                    scrape_timestamp,
+                } => {
                     let tx_hash = l1_handler_tx.tx_hash;
-                    let successfully_inserted = self.tx_manager.add_tx(l1_handler_tx, timestamp);
+                    let successfully_inserted =
+                        self.tx_manager.add_tx(l1_handler_tx, block_timestamp, scrape_timestamp);
                     if !successfully_inserted {
                         debug!(
                             "Unexpected L1 Handler transaction with hash: {tx_hash}, already \
@@ -221,6 +254,7 @@ impl L1Provider {
         consumed_txs: IndexSet<TransactionHash>,
         rejected_txs: IndexSet<TransactionHash>,
     ) {
+        debug!("Applying commit_block to height: {}", self.current_height);
         let (rejected_and_consumed, committed_txs): (Vec<_>, Vec<_>) =
             consumed_txs.iter().copied().partition(|tx| rejected_txs.contains(tx));
         self.tx_manager.commit_txs(&committed_txs, &rejected_and_consumed);
@@ -235,6 +269,11 @@ impl L1Provider {
         new_height: BlockNumber,
     ) -> L1ProviderResult<()> {
         let current_height = self.current_height;
+        debug!(
+            "Bootstrapper processing commit-block at height: {new_height}, current height is \
+             {current_height}"
+        );
+
         match new_height.cmp(&current_height) {
             // This is likely a bug in the batcher/sync, it should never be _behind_ the provider.
             Less => {
@@ -285,6 +324,10 @@ impl L1Provider {
 
         // If caught up, apply the backlog, drop the Bootstrapper and transition to Pending.
         if bootstrapper.is_caught_up(self.current_height) {
+            info!(
+                "Bootstrapper sync completed, provider height is now {}, processing backlog...",
+                self.current_height
+            );
             let backlog = std::mem::take(&mut bootstrapper.commit_block_backlog);
             assert!(
                 backlog.is_empty()
@@ -297,15 +340,32 @@ impl L1Provider {
                 self.current_height,
                 backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
             );
+
+            info!(
+                "Applying commit-block backlog for heights: {:?}",
+                backlog.iter().map(|commit_block| commit_block.height).collect::<Vec<_>>()
+            );
+
             for commit_block in backlog {
                 self.apply_commit_block(commit_block.committed_txs, Default::default());
             }
+
+            info!(
+                "Bootstrapping done: commit-block backlog was processed, now transitioning to \
+                 Pending state at new height: {} and dropping the bootstrapper.",
+                self.current_height
+            );
 
             // Drops bootstrapper and all of its assets.
             self.state = ProviderState::Pending;
         }
 
         Ok(())
+    }
+
+    /// Checks if the given height appears before the timeline of which the provider is aware of.
+    fn is_historical_height(&self, height: BlockNumber) -> bool {
+        height < self.start_height
     }
 }
 
@@ -326,6 +386,7 @@ pub struct L1ProviderBuilder {
     pub state_sync_client: SharedStateSyncClient,
     startup_height: Option<BlockNumber>,
     catchup_height: Option<BlockNumber>,
+    clock: Option<Arc<dyn Clock>>,
 }
 
 impl L1ProviderBuilder {
@@ -342,6 +403,7 @@ impl L1ProviderBuilder {
             state_sync_client,
             startup_height: None,
             catchup_height: None,
+            clock: None,
         }
     }
 
@@ -352,6 +414,11 @@ impl L1ProviderBuilder {
 
     pub fn catchup_height(mut self, catchup_height: BlockNumber) -> Self {
         self.catchup_height = Some(catchup_height);
+        self
+    }
+
+    pub fn clock(mut self, clock: Arc<dyn Clock>) -> Self {
+        self.clock = Some(clock);
         self
     }
 
@@ -398,15 +465,18 @@ impl L1ProviderBuilder {
             catchup_height,
         );
 
+        info!("Starting L1 provider at height: {l1_provider_startup_height}");
         L1Provider {
+            start_height: l1_provider_startup_height,
             current_height: l1_provider_startup_height,
             tx_manager: TransactionManager::new(
                 self.config.new_l1_handler_cooldown_seconds,
                 self.config.l1_handler_cancellation_timelock_seconds,
+                self.config.l1_handler_consumption_timelock_seconds,
             ),
             state: ProviderState::Bootstrap(bootstrapper),
             config: self.config,
-            clock: Arc::new(DefaultClock),
+            clock: self.clock.unwrap_or_else(|| Arc::new(DefaultClock)),
         }
     }
 }

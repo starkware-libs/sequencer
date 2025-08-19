@@ -1,18 +1,26 @@
 use std::sync::Arc;
 
 use apollo_infra::component_client::{ClientError, LocalComponentClient, RemoteComponentClient};
-use apollo_infra::component_definitions::{ComponentClient, ComponentRequestAndResponseSender};
-use apollo_infra::impl_debug_for_infra_requests_and_responses;
+use apollo_infra::component_definitions::{
+    ComponentClient,
+    PrioritizedRequest,
+    RequestPriority,
+    RequestWrapper,
+};
+use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
+use apollo_infra::{impl_debug_for_infra_requests_and_responses, impl_labeled_request};
+use apollo_metrics::generate_permutation_labels;
 use apollo_proc_macros::handle_all_response_variants;
 use async_trait::async_trait;
 #[cfg(any(feature = "testing", test))]
 use mockall::automock;
 use serde::{Deserialize, Serialize};
-use starknet_api::block::BlockNumber;
+use starknet_api::block::{BlockHash, BlockNumber};
 use starknet_api::core::{ClassHash, ContractAddress, Nonce};
 use starknet_api::state::StorageKey;
 use starknet_types_core::felt::Felt;
-use strum_macros::AsRefStr;
+use strum::{EnumVariantNames, VariantNames};
+use strum_macros::{AsRefStr, EnumDiscriminants, EnumIter, IntoStaticStr};
 use thiserror::Error;
 
 use crate::errors::StateSyncError;
@@ -22,11 +30,14 @@ use crate::state_sync_types::{StateSyncResult, SyncBlock};
 #[async_trait]
 pub trait StateSyncClient: Send + Sync {
     /// Request for a block at a specific height.
-    /// Returns None if the block doesn't exist or the sync hasn't downloaded it yet.
-    async fn get_block(
-        &self,
-        block_number: BlockNumber,
-    ) -> StateSyncClientResult<Option<SyncBlock>>;
+    /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
+    /// the sync hasn't been downloaded yet.
+    async fn get_block(&self, block_number: BlockNumber) -> StateSyncClientResult<SyncBlock>;
+
+    /// Request for a block hash at a specific height.
+    /// Returns a [BlockNotFound](StateSyncError::BlockNotFound) error if the block doesn't exist or
+    /// the sync hasn't been downloaded yet.
+    async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncClientResult<BlockHash>;
 
     /// Notify the sync that a new block has been created within the node so that other peers can
     /// learn about it through sync.
@@ -92,12 +103,17 @@ pub type StateSyncClientResult<T> = Result<T, StateSyncClientError>;
 pub type LocalStateSyncClient = LocalComponentClient<StateSyncRequest, StateSyncResponse>;
 pub type RemoteStateSyncClient = RemoteComponentClient<StateSyncRequest, StateSyncResponse>;
 pub type SharedStateSyncClient = Arc<dyn StateSyncClient>;
-pub type StateSyncRequestAndResponseSender =
-    ComponentRequestAndResponseSender<StateSyncRequest, StateSyncResponse>;
+pub type StateSyncRequestWrapper = RequestWrapper<StateSyncRequest, StateSyncResponse>;
 
-#[derive(Clone, Serialize, Deserialize, AsRefStr)]
+#[derive(Serialize, Deserialize, Clone, AsRefStr, EnumDiscriminants)]
+#[strum_discriminants(
+    name(StateSyncRequestLabelValue),
+    derive(IntoStaticStr, EnumIter, EnumVariantNames),
+    strum(serialize_all = "snake_case")
+)]
 pub enum StateSyncRequest {
     GetBlock(BlockNumber),
+    GetBlockHash(BlockNumber),
     AddNewBlock(Box<SyncBlock>),
     GetStorageAt(BlockNumber, ContractAddress, StorageKey),
     GetNonceAt(BlockNumber, ContractAddress),
@@ -106,10 +122,27 @@ pub enum StateSyncRequest {
     IsClassDeclaredAt(BlockNumber, ClassHash),
 }
 impl_debug_for_infra_requests_and_responses!(StateSyncRequest);
+impl_labeled_request!(StateSyncRequest, StateSyncRequestLabelValue);
+impl PrioritizedRequest for StateSyncRequest {
+    fn priority(&self) -> RequestPriority {
+        match self {
+            StateSyncRequest::GetBlock(_) | StateSyncRequest::GetBlockHash(_) => {
+                RequestPriority::High
+            }
+            StateSyncRequest::GetStorageAt(_, _, _)
+            | StateSyncRequest::GetNonceAt(_, _)
+            | StateSyncRequest::GetClassHashAt(_, _)
+            | StateSyncRequest::AddNewBlock(_)
+            | StateSyncRequest::GetLatestBlockNumber()
+            | StateSyncRequest::IsClassDeclaredAt(_, _) => RequestPriority::Normal,
+        }
+    }
+}
 
 #[derive(Clone, Serialize, Deserialize, AsRefStr)]
 pub enum StateSyncResponse {
-    GetBlock(StateSyncResult<Box<Option<SyncBlock>>>),
+    GetBlock(StateSyncResult<Box<SyncBlock>>),
+    GetBlockHash(StateSyncResult<BlockHash>),
     AddNewBlock(StateSyncResult<()>),
     GetStorageAt(StateSyncResult<Felt>),
     GetNonceAt(StateSyncResult<Nonce>),
@@ -124,10 +157,7 @@ impl<ComponentClientType> StateSyncClient for ComponentClientType
 where
     ComponentClientType: Send + Sync + ComponentClient<StateSyncRequest, StateSyncResponse>,
 {
-    async fn get_block(
-        &self,
-        block_number: BlockNumber,
-    ) -> StateSyncClientResult<Option<SyncBlock>> {
+    async fn get_block(&self, block_number: BlockNumber) -> StateSyncClientResult<SyncBlock> {
         let request = StateSyncRequest::GetBlock(block_number);
         handle_all_response_variants!(
             StateSyncResponse,
@@ -135,6 +165,17 @@ where
             StateSyncClientError,
             StateSyncError,
             Boxed
+        )
+    }
+
+    async fn get_block_hash(&self, block_number: BlockNumber) -> StateSyncClientResult<BlockHash> {
+        let request = StateSyncRequest::GetBlockHash(block_number);
+        handle_all_response_variants!(
+            StateSyncResponse,
+            GetBlockHash,
+            StateSyncClientError,
+            StateSyncError,
+            Direct
         )
     }
 
@@ -220,4 +261,9 @@ where
             Direct
         )
     }
+}
+
+generate_permutation_labels! {
+    STATE_SYNC_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, StateSyncRequestLabelValue),
 }

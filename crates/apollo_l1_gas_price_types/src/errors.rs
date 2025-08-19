@@ -12,6 +12,13 @@ pub enum L1GasPriceProviderError {
     InsufficientHistoryError { expected: usize, found: usize },
     #[error("Price Provider is not initialized")]
     NotInitializedError,
+    #[error(
+        "Stale L1 gas prices: no new data received for {current_timestamp} - \
+         {last_valid_price_timestamp} seconds"
+    )]
+    StaleL1GasPricesError { current_timestamp: u64, last_valid_price_timestamp: u64 },
+    #[error(transparent)]
+    EthToStrkOracleClientError(#[from] EthToStrkOracleClientError),
 }
 
 #[derive(Clone, Debug, Error)]
@@ -20,20 +27,30 @@ pub enum L1GasPriceClientError {
     ClientError(#[from] ClientError),
     #[error(transparent)]
     L1GasPriceProviderError(#[from] L1GasPriceProviderError),
+    #[error(transparent)]
+    EthToStrkOracleClientError(#[from] EthToStrkOracleClientError),
 }
 
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EthToStrkOracleClientError {
-    #[error(transparent)]
-    JoinError(#[from] tokio::task::JoinError),
-    #[error(transparent)]
-    RequestError(#[from] reqwest::Error),
-    #[error(transparent)]
-    ParseError(#[from] serde_json::Error),
-    #[error("Missing or invalid field: {0}")]
-    MissingFieldError(&'static str),
+    #[error("Join error: {0}")]
+    JoinError(String),
+    #[error("Request error: {0}")]
+    RequestError(String),
+    #[error("Parse error: {0}")]
+    ParseError(String),
+    #[error("Missing or invalid field: {0}. Body: {1}")]
+    MissingFieldError(String, String),
     #[error("Invalid decimals value: expected {0}, got {1}")]
     InvalidDecimalsError(u64, u64),
     #[error("Query not yet resolved: timestamp={0}")]
     QueryNotReadyError(u64),
+    #[error("All URLs in the list failed for timestamp {0}, starting with index {1}")]
+    AllUrlsFailedError(u64, usize),
+}
+
+impl From<reqwest::Error> for EthToStrkOracleClientError {
+    fn from(value: reqwest::Error) -> Self {
+        EthToStrkOracleClientError::RequestError(value.to_string())
+    }
 }

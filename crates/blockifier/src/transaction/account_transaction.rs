@@ -795,6 +795,14 @@ impl<U: UpdatableState> ExecutableTransaction<U> for AccountTransaction {
         // Do not run validate or perform any account-related actions for declare transactions that
         // meet the following conditions.
         // This flow is used for the sequencer to bootstrap a new system.
+        // Note: The absence of any account-related action leads to some unintuitive but expected
+        // behavior:
+        // - After the transaction is executed successfully, the batcher does not notify the mempool
+        //   about its inclusion in a block. As a result, the transaction remains in the mempool.
+        // - When the next block is produced, the mempool will propose the same transaction again.
+        // - This time, execution will fail because the contract has already been declared.
+        // - The transaction will then be marked as rejected, the mempool will be notified, and the
+        //   transaction will be removed from the mempool.
         if let Transaction::Declare(tx) = &self.tx {
             if tx.is_bootstrap_declare(self.execution_flags.charge_fee) {
                 let mut context = EntryPointExecutionContext::new_invoke(
@@ -959,6 +967,10 @@ impl ValidatableTransaction for AccountTransaction {
                     actual: validate_call_info.execution.retdata,
                 });
             }
+        } else if validate_call_info.execution.failed {
+            return Err(TransactionExecutionError::ValidateCairo0Error(
+                validate_call_info.execution.retdata,
+            ));
         }
         remaining_gas.subtract_used_gas(&validate_call_info);
         Ok(Some(validate_call_info))

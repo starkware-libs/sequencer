@@ -1,8 +1,0 @@
-{
-  "base_layer_config.starknet_contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
-  "chain_id": "CHAIN_ID_SUBDIR",
-  "consensus_manager_config.eth_to_strk_oracle_config.base_url": "https://api.devnet.pragma.build/node/v1/data/eth/strk?interval=15min&aggregation=median",
-  "eth_fee_token_address": "0x1001",
-  "starknet_url": "https://integration-sepolia.starknet.io/",
-  "strk_fee_token_address": "0x1002"
-}

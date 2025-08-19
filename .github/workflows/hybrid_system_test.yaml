@@ -1,0 +1,364 @@
+name: Sequencer - Hybrid Node System Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      liveness_test_duration_sec:
+        description: Time in seconds to keep the liveness test running.
+        required: false
+        default: 10
+        type: number
+
+  pull_request:
+
+env:
+  job_link: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+  deployment_config_path: ${{ github.workspace }}/crates/apollo_deployments/resources/deployments/testing/deployment_config_hybrid.json
+  namespace: sequencer-hybrid-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
+  cluster_name: hybrid-system-test
+  crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
+  path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py,deployments/sequencer/**"
+  pvc_storage_class_name: "premium-rwo"
+  anvil_port: "8545"
+
+permissions:
+  contents: read
+
+# On PR events, cancel existing CI runs on this same PR for this workflow.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.job }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || 'pr' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check-system-test-trigger:
+    runs-on: starkware-ubuntu-24.04-small
+    outputs:
+      should_run: ${{ steps.system_check.outputs.should_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        id: setup-pypy
+        with:
+          python-version: "pypy3.9"
+          cache: "pip"
+
+      - run: pip install -r scripts/requirements.txt
+
+      - name: Check for system-test-triggering changes
+        id: system_check
+        run: |
+          echo "Checking if any system-test-triggering crates were modified..."
+          OUTPUT_FILE=$(mktemp)
+
+          python ./scripts/check_test_trigger.py --output_file $OUTPUT_FILE \
+            --commit_id ${{ github.event.pull_request.base.sha }} \
+            --crate_triggers ${{ env.crate_triggers }} \
+            --path_triggers ${{ env.path_triggers }}
+
+          should_run=$(cat "$OUTPUT_FILE")
+          echo "Captured output: $should_run"
+          echo "should_run=$should_run" >> $GITHUB_OUTPUT
+
+  system_test_hybrid:
+    needs: check-system-test-trigger
+    if: needs.check-system-test-trigger.outputs.should_run == 'true'
+    runs-on: starkware-ubuntu-24.04-large
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create k3d cluster (Local k8s)
+        uses: AbsaOSS/k3d-action@v2
+        with:
+          # Assumption: only one PR can run per machine at a time.
+          cluster-name: ${{ env.cluster_name }}
+          args: >-
+            --verbose
+            --agents 1
+            --no-lb
+            --wait
+            --timeout 120s
+
+      - name: Install crds
+        working-directory: deployments/sequencer
+        run: |
+          echo "🔧 Installing CRDs..."
+          kubectl apply -R -f ./resources/crds
+          echo "✅ CRDs installed successfully."
+
+      # Install rust components.
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install local-path-provisioner (for PVC support)
+        run: |
+          echo "🔧 Installing local-path-provisioner..."
+          kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
+
+          echo "⏳ Waiting for local-path-provisioner pod to be ready..."
+          kubectl wait --for=condition=Ready pod -l app=local-path-provisioner -n local-path-storage --timeout=60s
+
+          echo "✅ local-path-provisioner is ready."
+
+          echo "📦 Verifying default StorageClass is set..."
+          kubectl patch storageclass local-path -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+          echo "📦 Creating alias StorageClass ${pvc_storage_class_name} for compatibility with PVCs..."
+          cat <<EOF | envsubst | kubectl apply -f -
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: ${pvc_storage_class_name}
+          provisioner: rancher.io/local-path
+          volumeBindingMode: WaitForFirstConsumer
+          reclaimPolicy: Delete
+          EOF
+
+          echo "🎉 StorageClasses available:"
+          kubectl get storageclass
+
+      - name: Install Anvil
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v0.3.0
+
+      - name: Setup python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pipenv
+
+      - name: Setup pipenv
+        run: python3 -m pip install pipenv
+
+      - name: Install dependencies with pipenv
+        run: pipenv install kubernetes
+
+      - name: Setup cdk8s-cli
+        run: npm install -g cdk8s-cli
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build sequencer docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployments/images/sequencer/Dockerfile
+          tags: sequencer:local
+          load: true
+          push: false
+          build-args: |
+            BUILD_MODE=debug
+
+      - name: Import sequencer image into k3d
+        run: k3d image import sequencer:local -c ${{ env.cluster_name }}
+
+      - name: Build dummy recorder docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployments/images/sequencer/dummy_recorder.Dockerfile
+          tags: recorder:local
+          load: true
+          push: false
+
+      - name: Import dummy recorder image into k3d
+        run: k3d image import recorder:local -c ${{ env.cluster_name }}
+
+      - name: Deploy Dummy Recorder
+        env:
+          dummy_recorder_namespace: dummy-recorder
+        working-directory: deployments/dummy_recorder
+        run: |
+          echo "Deploying Dummy Recorder..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_recorder_namespace }} --image recorder:local"
+          kubectl create namespace ${{ env.dummy_recorder_namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Dummy Recorder to become ready..."
+
+          # Wait for pod to be ready
+          kubectl wait --namespace ${{ env.dummy_recorder_namespace }} --for=condition=Ready -l app=dummy-recorder pod --timeout=300s
+
+          echo "🚀 Dummy Recorder deployed successfully."
+
+      - name: Build dummy Eth2Strk oracle docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile
+          tags: eth_to_strk:local
+          load: true
+          push: false
+
+      - name: Import eth_to_strk image into k3d
+        run: k3d image import eth_to_strk:local -c ${{ env.cluster_name }}
+
+      - name: Deploy Eth2Strk Oracle
+        env:
+          dummy_eth_to_strk_namespace: dummy-eth-to-strk
+        working-directory: deployments/dummy_eth2strk_oracle
+        run: |
+          echo "Deploying Dummy Eth2Strk Oracle..."
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image eth_to_strk:local"
+          kubectl create namespace ${{ env.dummy_eth_to_strk_namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Dummy Eth2Strk Oracle to become ready..."
+          kubectl wait --namespace ${{ env.dummy_eth_to_strk_namespace }} --for=condition=Ready -l app=dummy-eth2strk-oracle pod --timeout 60s
+          echo "🚀 Dummy Eth2Strk Oracle deployed successfully."
+
+      - name: Deploy Anvil
+        env:
+          namespace: anvil
+        working-directory: deployments/anvil
+        run: |
+          echo "Deploying Anvil..."
+          # Delete namespace if it already exists
+          if kubectl get namespace "${{ env.namespace }}" &> /dev/null; then
+            echo "🔁 Namespace '${{ env.namespace }}' already exists. Deleting it..."
+            kubectl delete namespace "${{ env.namespace }}"
+            echo "⏳ Waiting for namespace deletion..."
+            while kubectl get namespace "${{ env.namespace }}" &> /dev/null; do sleep 2; done
+            echo "✅ Namespace '${{ env.namespace }}' deleted."
+          fi
+          pipenv install
+          cdk8s import
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }}"
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist
+          echo "⏳ Waiting for Anvil to become ready..."
+          kubectl wait --namespace ${{ env.namespace }} --for=condition=Ready -l app=anvil pod --timeout 60s
+          echo "🚀 Anvil deployed successfully."
+
+          echo "🔍 Extracting Anvil addresses from logs."
+
+          ANVIL_POD=$(kubectl get pods -n "${{ env.namespace }}" -l app=anvil -o jsonpath="{.items[0].metadata.name}")
+          ANVIL_LOGS=$(kubectl logs -n "${{ env.namespace }}" "$ANVIL_POD")
+
+          echo "🔍 Extracting Anvil addresses from logs..."
+          ANVIL_POD=$(kubectl get pods -n ${{ env.namespace }} -l app=anvil -o jsonpath="{.items[0].metadata.name}")
+          ADDRESSES=$(kubectl logs -n ${{ env.namespace }} "$ANVIL_POD" | grep -oP '0x[a-fA-F0-9]{40}' | head -n 2)
+
+          SENDER_ADDRESS=$(echo "$ADDRESSES" | head -n 1)
+          RECEIVER_ADDRESS=$(echo "$ADDRESSES" | tail -n 1)
+
+          echo "💡 SENDER_ADDRESS=$SENDER_ADDRESS"
+          echo "💡 RECEIVER_ADDRESS=$RECEIVER_ADDRESS"
+
+          echo "SENDER_ADDRESS=$SENDER_ADDRESS" >> "$GITHUB_ENV"
+          echo "RECEIVER_ADDRESS=$RECEIVER_ADDRESS" >> "$GITHUB_ENV"
+
+      - name: Build binaries
+        run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
+
+      - name: Create storage files
+        run: ./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-consolidated 1 --n-distributed 0
+
+      - name: Export application config dir
+        run: |
+          set -euo pipefail
+
+          # Get the config directory
+          app_config_dir=$(jq -r '.application_config_subdir' ${{ env.deployment_config_path }})
+
+          # Export to environment for the next step
+          echo "app_config_dir=$app_config_dir" >> $GITHUB_ENV
+          echo "app_config_dir is: $app_config_dir"
+
+      # TODO(Nadin): move the config definition out of the GitHub Actions secret section, since it no longer contains sensitive values.
+      - name: Inject Config Secrets
+        run: |
+          python ./scripts/system_tests/config_secrets_injector.py --deployment_config_path ${{ env.deployment_config_path }}
+
+      - name: Generate k8s manifests
+        working-directory: deployments/sequencer
+        run: |
+          pipenv install
+          cdk8s import
+          echo "Generating Kubernetes manifests using deployment config at: ${{ env.deployment_config_path }}:"
+          cat "${{ env.deployment_config_path }}"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }} --deployment-image sequencer:local"
+
+      - name: Deploy Sequencer
+        working-directory: deployments/sequencer
+        run: |
+          echo "Deploying Sequencer..."
+          kubectl create namespace ${{ env.namespace }}
+          kubectl apply -R -f ./dist/
+
+      - name: Set default namespace
+        run: kubectl config set-context --current --namespace ${{ env.namespace }}
+
+      - name: Run readiness check
+        run: pipenv run python ./scripts/system_tests/readiness_check.py --deployment_config_path ${{ env.deployment_config_path }} --namespace ${{ env.namespace }}
+
+      - name: Get Config Dir
+        run: |
+          set -euo pipefail
+
+          # Get the config directory
+          config_dir=$(jq -r '.application_config_subdir' ${{ env.deployment_config_path }})
+
+          echo "config_dir is: $config_dir"
+          # Export to environment for the next step.
+          echo "config_dir=$config_dir" >> $GITHUB_ENV
+
+      - name: Test sequencer is alive
+        env:
+          initial_delay_sec: 10
+          check_interval_sec: 5
+          check_timeout_sec: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.liveness_test_duration_sec || 10 }}
+        run: |
+          # TODO(Nadin): Calculate config_dir dynamically in liveness_check.py based on deployment_config_path
+          pipenv run python ./scripts/system_tests/liveness_check.py \
+            --deployment-config-path ${{ env.deployment_config_path }} \
+            --config-dir ${{ env.config_dir }} \
+            --timeout ${{ env.check_timeout_sec }} \
+            --interval ${{ env.check_interval_sec }}
+
+      - name: Copy state and restart pod
+        run: pipenv run python ./scripts/system_tests/copy_state_and_restart.py --deployment_config_path ${{ env.deployment_config_path }} --data-dir "./output/data/node_0/executable_0"
+
+      - name: Port-forward Anvil pod to localhost:${{ env.anvil_port }}
+        run: |
+          echo "🔌 Setting up port-forward to Anvil..."
+
+          ANVIL_POD=$(kubectl get pods -n anvil -l app=anvil -o jsonpath="{.items[0].metadata.name}")
+          echo "🌐 Found Anvil pod: $ANVIL_POD"
+
+          # Start port-forwarding in background and keep it running
+          kubectl port-forward -n anvil "$ANVIL_POD" ${{ env.anvil_port }}:${{ env.anvil_port }} &
+          echo "⏳ Waiting a few seconds to ensure port-forward is established..."
+          sleep 2
+
+      - name: Send transactions test
+        run: pipenv run python ./scripts/system_tests/sequencer_simulator.py --deployment_config_path ${{ env.deployment_config_path }} --config_dir "${{ env.config_dir }}" --node_type "hybrid" --sender_address "${{ env.SENDER_ADDRESS }}" --receiver_address "${{ env.RECEIVER_ADDRESS }}"
+
+      - name: Get container logs
+        if: always()
+        run: |
+          echo "📥 Getting pod logs and descriptions from namespace: $namespace"
+
+          # List all pods in the namespace
+          kubectl get pods -n "$namespace"
+
+          # For each pod, get logs and description
+          for pod in $(kubectl get pods -n "$namespace" -o jsonpath='{.items[*].metadata.name}'); do
+            echo "----------------------------------------------"
+            echo "Logs for pod: $pod"
+            kubectl logs -n "$namespace" "$pod" || echo "⚠️ Failed to get logs for $pod"
+
+            # echo ""
+            # echo "Description for pod: $pod"
+            # kubectl describe pod -n "$namespace" "$pod" || echo "⚠️ Failed to describe pod $pod"
+            # echo "---------------------------------------------"
+            # echo ""
+          done

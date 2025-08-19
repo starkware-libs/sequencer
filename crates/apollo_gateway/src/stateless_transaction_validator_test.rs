@@ -3,6 +3,7 @@ use std::vec;
 
 use assert_matches::assert_matches;
 use rstest::rstest;
+use starknet_api::block::GasPrice;
 use starknet_api::core::{EntryPointSelector, L2_ADDRESS_UPPER_BOUND};
 use starknet_api::data_availability::DataAvailabilityMode;
 use starknet_api::rpc_transaction::EntryPointByType;
@@ -12,6 +13,7 @@ use starknet_api::transaction::fields::{
     AccountDeploymentData,
     AllResourceBounds,
     PaymasterData,
+    ResourceBounds,
     TransactionSignature,
 };
 use starknet_api::{calldata, contract_address, declare_tx_args, felt, StarknetApiError};
@@ -32,12 +34,15 @@ use crate::test_utils::{
     NON_EMPTY_RESOURCE_BOUNDS,
 };
 
+static DEFAULT_VALIDATOR_CONFIG: LazyLock<StatelessTransactionValidatorConfig> =
+    LazyLock::new(StatelessTransactionValidatorConfig::default);
 static MIN_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new(1, 1, 0));
 static MAX_SIERRA_VERSION: LazyLock<VersionId> = LazyLock::new(|| VersionId::new(1, 5, usize::MAX));
 
 static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValidatorConfig> =
     LazyLock::new(|| StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: false,
+        validate_resource_bounds: false,
+        min_gas_price: 0,
         max_calldata_length: 1,
         max_signature_length: 1,
         max_contract_bytecode_size: 100000,
@@ -49,7 +54,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 #[rstest]
 #[case::valid_l1_gas(
     StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
+        validate_resource_bounds: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
     RpcTransactionArgs {
@@ -62,7 +67,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 )]
 #[case::valid_l2_gas(
     StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
+        validate_resource_bounds: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
     RpcTransactionArgs {
@@ -75,7 +80,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 )]
 #[case::valid_l1_and_l2_gas(
     StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
+        validate_resource_bounds: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
     RpcTransactionArgs {
@@ -89,7 +94,7 @@ static DEFAULT_VALIDATOR_CONFIG_FOR_TESTING: LazyLock<StatelessTransactionValida
 )]
 #[case::valid_l1_data_gas(
     StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
+        validate_resource_bounds: true,
         ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
     },
     RpcTransactionArgs {
@@ -123,24 +128,43 @@ fn test_positive_flow(
 }
 
 #[rstest]
+#[case::zero_resource_bounds(
+    RpcTransactionArgs {
+        resource_bounds: AllResourceBounds::default(),
+        ..Default::default()
+    },
+    StatelessTransactionValidatorError::ZeroResourceBounds {
+        resource_bounds: AllResourceBounds::default()
+    },
+)]
+#[case::max_l2_gas_price_below_min(
+    RpcTransactionArgs {
+        resource_bounds: AllResourceBounds {
+            l2_gas: ResourceBounds {
+                max_price_per_unit: GasPrice(DEFAULT_VALIDATOR_CONFIG.min_gas_price - 1),
+                ..NON_EMPTY_RESOURCE_BOUNDS
+            },
+            ..Default::default()
+        },
+        ..Default::default()
+    },
+    StatelessTransactionValidatorError::MaxGasPriceTooLow {
+        gas_price: GasPrice(DEFAULT_VALIDATOR_CONFIG.min_gas_price - 1),
+        min_gas_price: DEFAULT_VALIDATOR_CONFIG.min_gas_price
+    },
+)]
 fn test_invalid_resource_bounds(
+    #[case] rpc_tx_args: RpcTransactionArgs,
+    #[case] expected_error: StatelessTransactionValidatorError,
     #[values(TransactionType::Declare, TransactionType::DeployAccount, TransactionType::Invoke)]
     tx_type: TransactionType,
 ) {
-    let config = StatelessTransactionValidatorConfig {
-        validate_non_zero_resource_bounds: true,
-        ..*DEFAULT_VALIDATOR_CONFIG_FOR_TESTING
-    };
-    let tx_validator = StatelessTransactionValidator { config };
+    let tx_validator =
+        StatelessTransactionValidator { config: DEFAULT_VALIDATOR_CONFIG.to_owned() };
 
-    let resource_bounds = AllResourceBounds::default();
-    let tx =
-        rpc_tx_for_testing(tx_type, RpcTransactionArgs { resource_bounds, ..Default::default() });
+    let tx = rpc_tx_for_testing(tx_type, rpc_tx_args);
 
-    assert_eq!(
-        tx_validator.validate(&tx).unwrap_err(),
-        StatelessTransactionValidatorError::ZeroResourceBounds { resource_bounds }
-    );
+    assert_eq!(tx_validator.validate(&tx).unwrap_err(), expected_error);
 }
 
 #[rstest]

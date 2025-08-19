@@ -26,7 +26,14 @@ use url::Url;
 use validator::Validate;
 
 use crate::eth_events::parse_event;
-use crate::{BaseLayerContract, L1BlockHeader, L1BlockNumber, L1BlockReference, L1Event};
+use crate::{
+    BaseLayerContract,
+    L1BlockHash,
+    L1BlockHeader,
+    L1BlockNumber,
+    L1BlockReference,
+    L1Event,
+};
 
 pub type EthereumBaseLayerResult<T> = Result<T, EthereumBaseLayerError>;
 
@@ -97,7 +104,6 @@ impl EthereumBaseLayerContract {
         let current_node_url = config.node_url.clone();
         let contract =
             build_contract_instance(config.starknet_contract_address, current_node_url.clone());
-
         Self { contract, config }
     }
 }
@@ -214,7 +220,7 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
         Ok(block.map(|block| L1BlockReference {
             number: block.header.number,
-            hash: block.header.hash.0,
+            hash: L1BlockHash(block.header.hash.0),
         }))
     }
 
@@ -249,12 +255,18 @@ impl BaseLayerContract for EthereumBaseLayerContract {
 
         Ok(Some(L1BlockHeader {
             number: block.header.number,
-            hash: block.header.hash.0,
-            parent_hash: block.header.parent_hash.0,
+            hash: L1BlockHash(block.header.hash.0),
+            parent_hash: L1BlockHash(block.header.parent_hash.0),
             timestamp: block.header.timestamp.into(),
             base_fee_per_gas: base_fee.into(),
             blob_fee,
         }))
+    }
+
+    /// Rebuilds the provider on the new url.
+    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error> {
+        self.contract = build_contract_instance(self.config.starknet_contract_address, url.clone());
+        Ok(())
     }
 }
 
@@ -264,7 +276,7 @@ pub enum EthereumBaseLayerError {
     Contract(#[from] alloy::contract::Error),
     #[error("{0}")]
     FeeOutOfRange(alloy::primitives::ruint::FromUintError<u128>),
-    #[error("L1 provider response timed out.")]
+    #[error("timed-out while querying the L1 base layer")]
     ProviderTimeout(#[from] Elapsed),
     #[error(transparent)]
     RpcError(#[from] RpcError<TransportErrorKind>),
@@ -306,7 +318,9 @@ impl SerializeConfig for EthereumBaseLayerConfig {
             ser_param(
                 "node_url",
                 &self.node_url.to_string(),
-                "Ethereum node URL. A schema to match to Infura node: https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used.",
+                "Initial ethereum node URL. A schema to match to Infura node: \
+                 https://mainnet.infura.io/v3/<your_api_key>, but any other node can be used. \
+                 May be be replaced during runtime if becomes inoperative",
                 ParamPrivacyInput::Private,
             ),
             ser_param(
@@ -327,7 +341,6 @@ impl SerializeConfig for EthereumBaseLayerConfig {
                 "The timeout (milliseconds) for a query of the L1 base layer",
                 ParamPrivacyInput::Public,
             ),
-
         ])
     }
 }

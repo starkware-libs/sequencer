@@ -1,0 +1,18 @@
+{
+  "node_ids": [0, 1, 2],
+  "num_validators": 3,
+  "http_server_ingress_alternative_name": "potc-mock-sepolia.starknet.io",
+  "ingress_domain": "starknet.io",
+  "secret_name_format": "apollo-potc-2-sepolia-mock-sharp-{}",
+  "node_namespace_format": "apollo-potc-2-sepolia-mock-sharp-{}",
+  "starknet_contract_address": "0xd8A5518cf4AC3ECD3b4cec772478109679a73E78",
+  "chain_id_string": "PRIVATE_SN_POTC_MOCK_SEPOLIA",
+  "eth_fee_token_address": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+  "starknet_gateway_url": "https://feeder.potc-mock-sepolia-fgw.starknet.io/",
+  "strk_fee_token_address": "0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
+  "l1_startup_height_override": null,
+  "state_sync_type": "Central",
+  "p2p_communication_type": "Internal",
+  "deployment_environment": "Potc2",
+  "requires_k8s_service_config_params": true
+}

@@ -1,0 +1,5 @@
+{
+  "l1_scraper_config.finality": 10,
+  "l1_scraper_config.polling_interval_seconds": 60,
+  "l1_scraper_config.startup_rewind_time_seconds": 3600
+}

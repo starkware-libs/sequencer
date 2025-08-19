@@ -1,5 +1,6 @@
 use std::any::type_name;
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use apollo_config::converters::deserialize_float_seconds_to_duration;
@@ -8,8 +9,10 @@ use apollo_config::validators::validate_ascii;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_client::ClientError;
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra_utils::{debug_every_n, info_every_n_sec};
 use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{Event, SharedL1ProviderClient};
+use apollo_time::time::{Clock, DefaultClock};
 use async_trait::async_trait;
 use itertools::zip_eq;
 use papyrus_base_layer::constants::EventIdentifier;
@@ -19,13 +22,14 @@ use starknet_api::core::ChainId;
 use starknet_api::StarknetApiError;
 use thiserror::Error;
 use tokio::time::sleep;
-use tracing::{debug, error, info, instrument, warn};
+use tracing::{debug, error, info, instrument, trace, warn};
 use validator::Validate;
 
 use crate::metrics::{
     register_scraper_metrics,
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
+    L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
 };
 
 #[cfg(test)]
@@ -43,6 +47,7 @@ pub struct L1Scraper<B: BaseLayerContract> {
     pub last_l1_block_processed: L1BlockReference,
     pub l1_provider_client: SharedL1ProviderClient,
     tracked_event_identifiers: Vec<EventIdentifier>,
+    pub clock: Arc<dyn Clock>,
 }
 
 impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
@@ -51,30 +56,15 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         l1_provider_client: SharedL1ProviderClient,
         base_layer: B,
         events_identifiers_to_track: &[EventIdentifier],
+        l1_start_block: L1BlockReference,
     ) -> L1ScraperResult<Self, B> {
-        let latest_l1_block = get_latest_l1_block_number(config.finality, &base_layer).await?;
-        // Estimate the number of blocks in the interval, to rewind from the latest block.
-        let blocks_in_interval = config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
-        // Add 50% safety margin.
-        let safe_blocks_in_interval = blocks_in_interval + blocks_in_interval / 2;
-
-        let l1_block_number_rewind = latest_l1_block.saturating_sub(safe_blocks_in_interval);
-
-        let block_reference_rewind = base_layer
-            .l1_block_at(l1_block_number_rewind)
-            .await
-            .map_err(L1ScraperError::BaseLayerError)?
-            .expect(
-                "Rewound L1 block number is between 0 and the verified latest L1 block, so should \
-                 exist",
-            );
-
         Ok(Self {
             l1_provider_client,
             base_layer,
-            last_l1_block_processed: block_reference_rewind,
+            last_l1_block_processed: l1_start_block,
             config,
             tracked_event_identifiers: events_identifiers_to_track.to_vec(),
+            clock: Arc::new(DefaultClock),
         })
     }
 
@@ -95,6 +85,8 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         self.assert_no_l1_reorgs().await?;
 
         let (latest_l1_block, events) = self.fetch_events().await?;
+        trace!("scraped up to {latest_l1_block:?}");
+        info_every_n_sec!(1, "scraped up to {latest_l1_block:?}");
 
         // Sending even if there are no events, to keep the flow as simple/debuggable as possible.
         // Perf hit is minimal, since the scraper is on the same machine as the provider (no net).
@@ -108,6 +100,8 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
     }
 
     async fn fetch_events(&self) -> L1ScraperResult<(L1BlockReference, Vec<Event>), B> {
+        let scrape_timestamp = self.clock.unix_now();
+
         let latest_l1_block = self
             .base_layer
             .latest_l1_block(self.config.finality)
@@ -128,10 +122,12 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
 
         let l1_events = scraping_result.map_err(L1ScraperError::BaseLayerError)?;
         // Used for debug.
-        let l1_hashes = l1_events
+        let l1_messages_info = l1_events
             .iter()
             .filter_map(|event| match event {
-                L1Event::LogMessageToL2 { l1_tx_hash, .. } => Some(*l1_tx_hash),
+                L1Event::LogMessageToL2 { l1_tx_hash, block_timestamp, .. } => {
+                    Some((*l1_tx_hash, *block_timestamp))
+                }
                 _ => None,
             })
             .collect::<Vec<_>>();
@@ -139,7 +135,7 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
         let events = l1_events
             .into_iter()
             .map(|event| {
-                Event::from_l1_event(&self.config.chain_id, event)
+                Event::from_l1_event(&self.config.chain_id, event, scrape_timestamp)
                     .map_err(L1ScraperError::HashCalculationError)
             })
             .collect::<L1ScraperResult<Vec<_>, _>>()?;
@@ -150,11 +146,16 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
             _ => None,
         });
 
-        let formatted_pairs = zip_eq(l1_hashes, l2_hashes)
-            .map(|(l1_hash, l2_hash)| format!("L1 hash: {:?}, L2 hash: {}", l1_hash, l2_hash))
+        let formatted_pairs = zip_eq(l1_messages_info, l2_hashes)
+            .map(|((l1_hash, timestamp), l2_hash)| {
+                format!("L1 hash: {l1_hash:?}, L1 timestamp: {timestamp}, L2 hash: {l2_hash}")
+            })
             .collect::<Vec<_>>();
-        debug!("Got Messages to L2: {:?}", formatted_pairs);
-
+        if formatted_pairs.is_empty() {
+            debug_every_n!(100, "Got Messages to L2: []");
+        } else {
+            debug!("Got Messages to L2: {formatted_pairs:?}");
+        }
         Ok((latest_l1_block, events))
     }
 
@@ -182,7 +183,9 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT.increment(1);
                     warn!("BaseLayerError during scraping: {e:?}");
                 }
-                Ok(_) => {}
+                Ok(_) => {
+                    L1_MESSAGE_SCRAPER_SUCCESS_COUNT.increment(1);
+                }
                 Err(e) => return Err(e),
             }
         }
@@ -212,15 +215,48 @@ impl<B: BaseLayerContract + Send + Sync> L1Scraper<B> {
                 reason: format!(
                     "Last processed L1 block hash, {}, for block number {}, is different from the \
                      hash stored, {}",
-                    hex::encode(last_block_processed_fresh.hash),
+                    last_block_processed_fresh.hash,
                     last_processed_l1_block_number,
-                    hex::encode(self.last_l1_block_processed.hash),
+                    self.last_l1_block_processed.hash,
                 ),
             });
         }
 
         Ok(())
     }
+}
+
+pub async fn fetch_start_block<B: BaseLayerContract + Send + Sync>(
+    base_layer: &B,
+    config: &L1ScraperConfig,
+) -> Result<L1BlockReference, L1ScraperError<B>> {
+    let finality = config.finality;
+    let latest_l1_block_number = base_layer
+        .latest_l1_block_number(finality)
+        .await
+        .map_err(L1ScraperError::BaseLayerError)?;
+
+    let latest_l1_block = match latest_l1_block_number {
+        Some(latest_l1_block_number) => Ok(latest_l1_block_number),
+        None => Err(L1ScraperError::finality_too_high(finality, base_layer).await),
+    }?;
+
+    // Estimate the number of blocks in the interval, to rewind from the latest block.
+    let blocks_in_interval = config.startup_rewind_time_seconds.as_secs() / L1_BLOCK_TIME;
+    // Add 50% safety margin.
+    let safe_blocks_in_interval = blocks_in_interval + blocks_in_interval / 2;
+
+    let l1_block_number_rewind = latest_l1_block.saturating_sub(safe_blocks_in_interval);
+
+    let block_reference_rewind = base_layer
+        .l1_block_at(l1_block_number_rewind)
+        .await
+        .map_err(L1ScraperError::BaseLayerError)?
+        .expect(
+            "Rewound L1 block number is between 0 and the verified latest L1 block, so should \
+             exist",
+        );
+    Ok(block_reference_rewind)
 }
 
 #[async_trait]
@@ -246,10 +282,10 @@ pub struct L1ScraperConfig {
 impl Default for L1ScraperConfig {
     fn default() -> Self {
         Self {
-            startup_rewind_time_seconds: Duration::from_secs(0),
+            startup_rewind_time_seconds: Duration::from_secs(60 * 60),
             chain_id: ChainId::Mainnet,
             finality: 0,
-            polling_interval_seconds: Duration::from_secs(1),
+            polling_interval_seconds: Duration::from_secs(60),
         }
     }
 }
@@ -357,20 +393,5 @@ fn handle_client_error<B: BaseLayerContract + Send + Sync>(
             )
         }
         error => panic!("Unexpected error: {error}"),
-    }
-}
-
-async fn get_latest_l1_block_number<B: BaseLayerContract + Send + Sync>(
-    finality: u64,
-    base_layer: &B,
-) -> Result<L1BlockNumber, L1ScraperError<B>> {
-    let latest_l1_block_number = base_layer
-        .latest_l1_block_number(finality)
-        .await
-        .map_err(L1ScraperError::BaseLayerError)?;
-
-    match latest_l1_block_number {
-        Some(latest_l1_block_number) => Ok(latest_l1_block_number),
-        None => Err(L1ScraperError::finality_too_high(finality, base_layer).await),
     }
 }

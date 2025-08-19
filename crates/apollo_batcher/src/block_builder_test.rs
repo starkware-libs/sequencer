@@ -6,7 +6,8 @@ use apollo_l1_provider_types::InvalidValidationStatus;
 use apollo_l1_provider_types::InvalidValidationStatus::{
     AlreadyIncludedInProposedBlock,
     AlreadyIncludedOnL2,
-    ConsumedOnL1OrUnknown,
+    ConsumedOnL1,
+    NotFound,
 };
 use assert_matches::assert_matches;
 use blockifier::blockifier::transaction_executor::{
@@ -91,7 +92,8 @@ fn block_execution_artifacts(
         bouncer_weights: BouncerWeights { l1_gas: 100, ..BouncerWeights::empty() },
         // Each mock transaction uses 1 L2 gas so the total amount should be the number of txs.
         l2_gas_used,
-        casm_hash_computation_data: CasmHashComputationData::default(),
+        casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
+        casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
         final_n_executed_txs,
     }
 }
@@ -115,7 +117,7 @@ fn one_chunk_test_expectations() -> TestExpectations {
     let input_txs = test_txs(0..3);
     let block_size = input_txs.len();
     let (mock_transaction_executor, expected_block_artifacts) =
-        one_chunk_mock_executor(&input_txs, block_size);
+        one_chunk_mock_executor(&input_txs, block_size, false);
 
     let mock_tx_provider = mock_tx_provider_limitless_calls(vec![input_txs.clone()]);
 
@@ -188,14 +190,19 @@ impl ExpectationHelper {
 fn one_chunk_mock_executor(
     input_txs: &[InternalConsensusTransaction],
     block_size: usize,
+    is_validator: bool,
 ) -> (MockTransactionExecutorTrait, BlockExecutionArtifacts) {
     let mut helper = ExpectationHelper::new();
 
     helper.expect_successful_get_new_results(0);
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.expect_add_txs_to_block(input_txs);
     helper.expect_successful_get_new_results(block_size);
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.deadline_expectations();
 
     let expected_block_artifacts =
@@ -203,7 +210,9 @@ fn one_chunk_mock_executor(
     (helper.mock_transaction_executor, expected_block_artifacts)
 }
 
-fn two_chunks_mock_executor() -> (
+fn two_chunks_mock_executor(
+    is_validator: bool,
+) -> (
     Vec<InternalConsensusTransaction>,
     Vec<InternalConsensusTransaction>,
     MockTransactionExecutorTrait,
@@ -215,20 +224,27 @@ fn two_chunks_mock_executor() -> (
     let mut helper = ExpectationHelper::new();
 
     helper.expect_successful_get_new_results(0);
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.expect_add_txs_to_block(&first_chunk);
     helper.expect_successful_get_new_results(first_chunk.len());
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.expect_add_txs_to_block(&second_chunk);
     helper.expect_successful_get_new_results(second_chunk.len());
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.deadline_expectations();
 
     (first_chunk, second_chunk, helper.mock_transaction_executor)
 }
 
 fn two_chunks_test_expectations() -> TestExpectations {
-    let (first_chunk, second_chunk, mut mock_transaction_executor) = two_chunks_mock_executor();
+    let (first_chunk, second_chunk, mut mock_transaction_executor) =
+        two_chunks_mock_executor(false);
     let block_size = first_chunk.len() + second_chunk.len();
 
     let expected_block_artifacts =
@@ -295,15 +311,20 @@ fn mock_partial_transaction_execution(
     first_chunk: &[InternalConsensusTransaction],
     second_chunk: &[InternalConsensusTransaction],
     n_completed_txs: usize,
+    is_validator: bool,
 ) -> MockTransactionExecutorTrait {
     assert!(n_completed_txs <= first_chunk.len());
     let mut helper = ExpectationHelper::new();
     helper.expect_successful_get_new_results(0);
-    helper.expect_is_done(false);
+    if !is_validator {
+        helper.expect_is_done(false);
+    }
     helper.expect_add_txs_to_block(first_chunk);
     if n_completed_txs > 0 {
         helper.expect_successful_get_new_results(n_completed_txs);
-        helper.expect_is_done(false);
+        if !is_validator {
+            helper.expect_is_done(false);
+        }
         helper.expect_add_txs_to_block(second_chunk);
     }
 
@@ -322,7 +343,7 @@ fn test_expectations_partial_transaction_execution() -> TestExpectations {
     // provider.
     let second_chunk = input_txs[N_CONCURRENT_TXS..].to_vec();
     let mut mock_transaction_executor =
-        mock_partial_transaction_execution(&first_chunk, &second_chunk, n_completed_txs);
+        mock_partial_transaction_execution(&first_chunk, &second_chunk, n_completed_txs, false);
 
     let expected_block_artifacts =
         set_close_block_expectations(&mut mock_transaction_executor, n_completed_txs);
@@ -389,7 +410,10 @@ fn transaction_failed_test_expectations() -> TestExpectations {
             state_diff: expected_block_artifacts_copy.commitment_state_diff,
             compressed_state_diff: None,
             bouncer_weights: expected_block_artifacts_copy.bouncer_weights,
-            casm_hash_computation_data: expected_block_artifacts_copy.casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas: expected_block_artifacts_copy
+                .casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas: expected_block_artifacts_copy
+                .casm_hash_computation_data_proving_gas,
         })
     });
 
@@ -433,7 +457,10 @@ fn set_close_block_expectations(
             state_diff: output_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
             bouncer_weights: output_block_artifacts.bouncer_weights,
-            casm_hash_computation_data: output_block_artifacts.casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas: output_block_artifacts
+                .casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas: output_block_artifacts
+                .casm_hash_computation_data_proving_gas,
         })
     });
     output_block_artifacts_copy
@@ -646,7 +673,7 @@ async fn test_build_block(#[case] test_expectations: TestExpectations) {
 async fn test_validate_block() {
     let input_txs = test_txs(0..3);
     let (mock_transaction_executor, expected_block_artifacts) =
-        one_chunk_mock_executor(&input_txs, input_txs.len());
+        one_chunk_mock_executor(&input_txs, input_txs.len(), true);
     let mock_tx_provider = mock_tx_provider_stream_done(input_txs);
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
@@ -668,7 +695,7 @@ async fn test_validate_block() {
 /// of transactions that were executed.
 #[tokio::test]
 async fn test_validate_block_excluded_txs() {
-    let (first_chunk, second_chunk, mut mock_transaction_executor) = two_chunks_mock_executor();
+    let (first_chunk, second_chunk, mut mock_transaction_executor) = two_chunks_mock_executor(true);
     let n_executed_txs = first_chunk.len() + second_chunk.len();
     let final_n_executed_txs = n_executed_txs - 1;
 
@@ -699,7 +726,7 @@ async fn test_validate_block_excluded_txs() {
 
 #[rstest]
 #[case::deadline_reached(
-    test_txs(0..3), mock_partial_transaction_execution(&input_txs, &[], 0),
+    test_txs(0..3), mock_partial_transaction_execution(&input_txs, &[], 0, true),
     FailOnErrorCause::DeadlineReached
 )]
 #[tokio::test]
@@ -734,7 +761,8 @@ async fn test_validate_block_with_error(
 #[rstest]
 #[case::already_included_in_proposed_block(AlreadyIncludedInProposedBlock)]
 #[case::already_included_on_l2(AlreadyIncludedOnL2)]
-#[case::consumed_on_l1_or_unknown(ConsumedOnL1OrUnknown)]
+#[case::consumed_on_l1(ConsumedOnL1)]
+#[case::not_found(NotFound)]
 #[tokio::test]
 async fn test_validate_block_l1_handler_validation_error(#[case] status: InvalidValidationStatus) {
     let tx_provider = mock_tx_provider_with_error(L1HandlerTransactionValidationFailed {
@@ -848,7 +876,7 @@ async fn test_build_block_abort_immediately() {
 async fn test_l2_gas_used() {
     let n_txs = 3;
     let input_txs = test_txs(0..n_txs);
-    let (mock_transaction_executor, _) = one_chunk_mock_executor(&input_txs, input_txs.len());
+    let (mock_transaction_executor, _) = one_chunk_mock_executor(&input_txs, input_txs.len(), true);
     let mock_tx_provider = mock_tx_provider_stream_done(input_txs);
 
     let (_abort_sender, abort_receiver) = tokio::sync::oneshot::channel();
@@ -872,7 +900,8 @@ async fn test_l2_gas_used() {
 // starknet.
 #[tokio::test]
 async fn test_execution_info_order() {
-    let (first_chunk, second_chunk, mut mock_transaction_executor) = two_chunks_mock_executor();
+    let (first_chunk, second_chunk, mut mock_transaction_executor) =
+        two_chunks_mock_executor(false);
     let input_txs = first_chunk.iter().chain(second_chunk.iter()).collect::<Vec<_>>();
 
     set_close_block_expectations(&mut mock_transaction_executor, input_txs.len());
@@ -915,13 +944,15 @@ async fn failed_l1_handler_transaction_consumed() {
         Ok((execution_info(), StateMaps::default())),
     ]);
     helper.expect_is_done(true);
+    helper.expect_successful_get_new_results(0);
 
     helper.mock_transaction_executor.expect_close_block().times(1).return_once(|_| {
         Ok(BlockExecutionSummary {
             state_diff: Default::default(),
             compressed_state_diff: None,
             bouncer_weights: BouncerWeights::empty(),
-            casm_hash_computation_data: CasmHashComputationData::default(),
+            casm_hash_computation_data_sierra_gas: CasmHashComputationData::default(),
+            casm_hash_computation_data_proving_gas: CasmHashComputationData::default(),
         })
     });
 
@@ -975,7 +1006,10 @@ async fn partial_chunk_execution_proposer() {
             state_diff: expected_block_artifacts.commitment_state_diff,
             compressed_state_diff: None,
             bouncer_weights: expected_block_artifacts.bouncer_weights,
-            casm_hash_computation_data: expected_block_artifacts.casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas: expected_block_artifacts
+                .casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas: expected_block_artifacts
+                .casm_hash_computation_data_proving_gas,
         })
     });
 
@@ -1007,11 +1041,9 @@ async fn partial_chunk_execution_validator(#[case] successful: bool) {
 
     let mut helper = ExpectationHelper::new();
     helper.expect_successful_get_new_results(0);
-    helper.expect_is_done(false);
     helper.expect_add_txs_to_block(&input_txs);
     // Return only 2 txs, simulating a partial chunk execution.
     helper.expect_successful_get_new_results(2);
-    helper.expect_is_done(true);
 
     let expected_block_artifacts = if successful {
         helper.mock_transaction_executor.expect_abort_block().times(0);
@@ -1019,7 +1051,6 @@ async fn partial_chunk_execution_validator(#[case] successful: bool) {
     } else {
         // Validator continues the loop even after the scheduler is done.
         helper.mock_transaction_executor.expect_get_new_results().times(1..).returning(Vec::new);
-        helper.mock_transaction_executor.expect_is_done().times(1..).return_const(true);
 
         helper.mock_transaction_executor.expect_close_block().times(0);
         helper.mock_transaction_executor.expect_abort_block().times(1).return_once(|| ());

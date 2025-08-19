@@ -1,7 +1,8 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use blockifier_test_utils::cairo_versions::{CairoVersion, RunnableCairo1};
 use blockifier_test_utils::contracts::FeatureContract;
+use cairo_vm::types::builtin_name::BuiltinName;
 use expect_test::expect;
 use pretty_assertions::assert_eq;
 use starknet_api::abi::abi_utils::selector_from_name;
@@ -41,7 +42,10 @@ fn test_library_call(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    let mut execution = entry_point_call.execute_directly(&mut state).unwrap().execution;
+    assert_eq!(execution.cairo_native, runnable_version.is_cairo_native());
+    execution.cairo_native = false;
+
     expect![[r#"
         CallExecution {
             retdata: Retdata(
@@ -51,6 +55,7 @@ fn test_library_call(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: false,
             failed: false,
             gas_consumed: 127470,
         }
@@ -80,7 +85,9 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
         class_hash: Some(test_contract.get_class_hash()),
         ..trivial_external_entry_point_new(test_contract)
     };
-    let call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    let mut call_info = entry_point_call.execute_directly(&mut state).unwrap();
+    assert_eq!(call_info.execution.cairo_native, runnable_version.is_cairo_native());
+    call_info.execution.cairo_native = false;
 
     expect![[r#"
         CallExecution {
@@ -92,6 +99,7 @@ fn test_library_call_assert_fails(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: false,
             failed: true,
             gas_consumed: 111020,
         }
@@ -190,6 +198,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
             gas_consumed: 0, // Tested via expect![] macro.
+            cairo_native: runnable_version.is_cairo_native(),
             ..CallExecution::default()
         },
         tracked_resource,
@@ -198,6 +207,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             accessed_storage_keys: HashSet::from([storage_key!(key + 1)]),
             ..Default::default()
         },
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 7)]),
         ..Default::default()
     };
 
@@ -209,10 +219,12 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         execution: CallExecution {
             retdata: retdata![felt!(value + 1)],
             gas_consumed: 0, // Tested via expect![] macro.
+            cairo_native: runnable_version.is_cairo_native(),
             ..CallExecution::default()
         },
         inner_calls: vec![nested_storage_call_info],
         tracked_resource,
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 26)]),
         ..Default::default()
     };
 
@@ -224,6 +236,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         execution: CallExecution {
             retdata: retdata![felt!(value)],
             gas_consumed: 0, // Tested via expect![] macro.
+            cairo_native: runnable_version.is_cairo_native(),
             ..CallExecution::default()
         },
         storage_access_tracker: StorageAccessTracker {
@@ -232,6 +245,7 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
             ..Default::default()
         },
         tracked_resource,
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 7)]),
         ..Default::default()
     };
 
@@ -243,10 +257,12 @@ fn test_nested_library_call(runnable_version: RunnableCairo1) {
         execution: CallExecution {
             retdata: retdata![felt!(value)],
             gas_consumed: 0, // Tested via expect![] macro.
+            cairo_native: runnable_version.is_cairo_native(),
             ..CallExecution::default()
         },
         inner_calls: vec![library_call_info, storage_call_info],
         tracked_resource,
+        builtin_counters: HashMap::from([(BuiltinName::range_check, 41)]),
         ..Default::default()
     };
 

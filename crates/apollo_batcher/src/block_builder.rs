@@ -46,13 +46,14 @@ use starknet_api::execution_resources::GasAmount;
 use starknet_api::state::ThinStateDiff;
 use starknet_api::transaction::TransactionHash;
 use thiserror::Error;
+use tokio::sync::mpsc::error::TrySendError;
 use tokio::sync::{Mutex, MutexGuard};
 use tracing::{debug, error, info, trace, warn};
 
 use crate::block_builder::FailOnErrorCause::L1HandlerTransactionValidationFailed;
 use crate::cende_client_types::{StarknetClientStateDiff, StarknetClientTransactionReceipt};
 use crate::metrics::FULL_BLOCKS;
-use crate::pre_confirmed_block_writer::{CandidateTxSender, PreConfirmedTxSender};
+use crate::pre_confirmed_block_writer::{CandidateTxSender, PreconfirmedTxSender};
 use crate::transaction_executor::TransactionExecutorTrait;
 use crate::transaction_provider::{TransactionProvider, TransactionProviderError};
 
@@ -105,7 +106,8 @@ pub struct BlockExecutionArtifacts {
     pub compressed_state_diff: Option<CommitmentStateDiff>,
     pub bouncer_weights: BouncerWeights,
     pub l2_gas_used: GasAmount,
-    pub casm_hash_computation_data: CasmHashComputationData,
+    pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
+    pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
     // The number of transactions executed by the proposer out of the transactions that were sent.
     // This value includes rejected transactions.
     pub final_n_executed_txs: usize,
@@ -166,7 +168,7 @@ pub struct BlockBuilder {
     output_content_sender: Option<tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>>,
     /// The senders are utilized only during block proposal and not during block validation.
     candidate_tx_sender: Option<CandidateTxSender>,
-    pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+    pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
     abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
     transaction_converter: TransactionConverter,
     /// The number of transactions whose execution is completed.
@@ -190,7 +192,7 @@ impl BlockBuilder {
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
         candidate_tx_sender: Option<CandidateTxSender>,
-        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+        pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         abort_signal_receiver: tokio::sync::oneshot::Receiver<()>,
         transaction_converter: TransactionConverter,
         n_concurrent_txs: usize,
@@ -254,8 +256,7 @@ impl BlockBuilder {
             // Check if the block is full. This is only relevant in propose mode.
             // In validate mode, this is ignored and we simply wait for the proposer to send the
             // final number of transactions in the block.
-            // TODO(lior): Check !self.execution_params.is_validator before calling `is_done()`.
-            if lock_executor(&self.executor).is_done() && !self.execution_params.is_validator {
+            if !self.execution_params.is_validator && lock_executor(&self.executor).is_done() {
                 // Call `handle_executed_txs()` once more to get the last results.
                 self.handle_executed_txs().await?;
                 info!("Block is full.");
@@ -284,7 +285,7 @@ impl BlockBuilder {
 
         info!(
             "Finished building block. Started executing {} transactions. Finished executing {} \
-             transactions. Final number of transactions: {}.",
+             transactions. Final number of transactions (as set by the proposer): {}.",
             self.block_txs.len(),
             self.n_executed_txs,
             final_n_executed_txs_nonopt,
@@ -302,7 +303,8 @@ impl BlockBuilder {
             state_diff,
             compressed_state_diff,
             bouncer_weights,
-            casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas,
         } = block_summary;
         let mut execution_data = std::mem::take(&mut self.execution_data);
         if let Some(final_n_executed_txs) = final_n_executed_txs {
@@ -320,7 +322,8 @@ impl BlockBuilder {
             compressed_state_diff,
             bouncer_weights,
             l2_gas_used,
-            casm_hash_computation_data,
+            casm_hash_computation_data_sierra_gas,
+            casm_hash_computation_data_proving_gas,
             final_n_executed_txs: final_n_executed_txs_nonopt,
         })
     }
@@ -359,6 +362,7 @@ impl BlockBuilder {
             Err(e @ TransactionProviderError::L1HandlerTransactionValidationFailed { .. })
                 if self.execution_params.is_validator =>
             {
+                warn!("Failed to validate L1 Handler transaction: {:?}", e);
                 return Err(BlockBuilderError::FailOnError(L1HandlerTransactionValidationFailed(
                     e,
                 )));
@@ -370,11 +374,12 @@ impl BlockBuilder {
             Ok(result) => result,
         };
 
-        let n_txs = next_txs.len();
-        debug!("Got {} transactions from the transaction provider.", n_txs);
         if next_txs.is_empty() {
             return Ok(AddTxsToExecutorResult::NoNewTxs);
         }
+
+        let n_txs = next_txs.len();
+        debug!("Got {} transactions from the transaction provider.", n_txs);
 
         self.send_candidate_txs(&next_txs);
 
@@ -417,13 +422,13 @@ impl BlockBuilder {
             &self.block_txs[old_n_executed_txs..self.n_executed_txs],
             results,
             &mut self.execution_data,
-            &self.pre_confirmed_tx_sender,
+            &mut self.pre_confirmed_tx_sender,
         )
         .await
     }
 
     fn send_candidate_txs(&mut self, next_tx_chunk: &[InternalConsensusTransaction]) {
-        // Skip sending candidate transactions during validation flow.
+        // Skip sending candidate transactions during validation flow or if the channel was closed.
         // In validate flow candidate_tx_sender is None.
         let Some(candidate_tx_sender) = &self.candidate_tx_sender else {
             return;
@@ -434,23 +439,28 @@ impl BlockBuilder {
 
         trace!(
             "Attempting to send a candidate transaction chunk with {num_txs} transactions to the \
-             PreConfirmedBlockWriter.",
+             PreconfirmedBlockWriter.",
         );
 
         match candidate_tx_sender.try_send(txs) {
             Ok(_) => {
                 info!(
                     "Successfully sent a candidate transaction chunk with {num_txs} transactions \
-                     to the PreConfirmedBlockWriter.",
+                     to the PreconfirmedBlockWriter.",
                 );
             }
-            // We continue with block building even if sending candidate transactions to
-            // the PreConfirmedBlockWriter fails because it is not critical for the block
-            // building process.
+            Err(TrySendError::Closed(_)) => {
+                warn!(
+                    "Candidate transaction channel was closed. Further candidate transactions \
+                     will not be sent. This is not critical for the block building process."
+                );
+                self.candidate_tx_sender = None;
+            }
             Err(err) => {
-                error!(
+                warn!(
                     "Failed to send a candidate transaction chunk with {num_txs} transactions to \
-                     the PreConfirmedBlockWriter: {:?}",
+                     the PreconfirmedBlockWriter: {:?}. This is not critical for the block \
+                     building process.",
                     err
                 );
             }
@@ -482,7 +492,7 @@ async fn collect_execution_results_and_stream_txs(
     tx_chunk: &[InternalConsensusTransaction],
     results: Vec<TransactionExecutorResult<TransactionExecutionOutput>>,
     execution_data: &mut BlockTransactionExecutionData,
-    pre_confirmed_tx_sender: &Option<PreConfirmedTxSender>,
+    pre_confirmed_tx_sender: &mut Option<PreconfirmedTxSender>,
 ) -> BlockBuilderResult<()> {
     assert!(
         results.len() == tx_chunk.len(),
@@ -513,8 +523,9 @@ async fn collect_execution_results_and_stream_txs(
                 assert_eq!(duplicate_tx_hash, None, "Duplicate transaction: {tx_hash}.");
 
                 // Skip sending the pre confirmed executed transactions, receipts and state diffs
-                // during validation flow. In validate flow pre_confirmed_tx_sender is None.
-                if let Some(pre_confirmed_tx_sender) = pre_confirmed_tx_sender {
+                // during validation flow or if the channel was closed. In validate flow
+                // pre_confirmed_tx_sender is None.
+                if let Some(pre_confirmed_sender) = pre_confirmed_tx_sender {
                     let tx_receipt = StarknetClientTransactionReceipt::from((
                         tx_hash,
                         tx_index,
@@ -526,16 +537,24 @@ async fn collect_execution_results_and_stream_txs(
 
                     let tx_state_diff = StarknetClientStateDiff::from(state_maps).0;
 
-                    let result = pre_confirmed_tx_sender.try_send((
+                    let result = pre_confirmed_sender.try_send((
                         input_tx.clone(),
                         tx_receipt,
                         tx_state_diff,
                     ));
-                    if result.is_err() {
-                        // We continue with block building even if sending data to The
-                        // PreConfirmedBlockWriter fails because it is not critical
-                        // for the block building process.
-                        warn!("Sending data to preconfirmed block writer failed.");
+
+                    match result {
+                        Ok(_) => {}
+                        Err(TrySendError::Closed(_)) => {
+                            warn!(
+                                "Preconfirmed block writer channel was closed. Skipping to send \
+                                 further preconfirmed transactions."
+                            );
+                            *pre_confirmed_tx_sender = None;
+                        }
+                        Err(err) => {
+                            warn!("Sending data to preconfirmed block writer failed: {:?}", err);
+                        }
                     }
                 }
             }
@@ -578,7 +597,7 @@ pub trait BlockBuilderFactoryTrait: Send + Sync {
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
         candidate_tx_sender: Option<CandidateTxSender>,
-        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+        pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)>;
 }
@@ -601,7 +620,7 @@ impl Default for BlockBuilderConfig {
             execute_config: WorkerPoolConfig::default(),
             bouncer_config: BouncerConfig::default(),
             n_concurrent_txs: 100,
-            tx_polling_interval_millis: 100,
+            tx_polling_interval_millis: 10,
             versioned_constants_overrides: VersionedConstantsOverrides::default(),
         }
     }
@@ -651,6 +670,10 @@ impl BlockBuilderFactory {
     ) -> BlockBuilderResult<
         ConcurrentTransactionExecutor<StateReaderAndContractManager<PapyrusReader>>,
     > {
+        info!(
+            "preprocess and create transaction executor for block {}",
+            block_metadata.block_info.block_number
+        );
         let height = block_metadata.block_info.block_number;
         let block_builder_config = self.block_builder_config.clone();
         let versioned_constants = VersionedConstants::get_versioned_constants(
@@ -693,7 +716,7 @@ impl BlockBuilderFactoryTrait for BlockBuilderFactory {
             tokio::sync::mpsc::UnboundedSender<InternalConsensusTransaction>,
         >,
         candidate_tx_sender: Option<CandidateTxSender>,
-        pre_confirmed_tx_sender: Option<PreConfirmedTxSender>,
+        pre_confirmed_tx_sender: Option<PreconfirmedTxSender>,
         runtime: tokio::runtime::Handle,
     ) -> BlockBuilderResult<(Box<dyn BlockBuilderTrait>, AbortSignalSender)> {
         let executor = self.preprocess_and_create_transaction_executor(block_metadata, runtime)?;

@@ -12,9 +12,11 @@ use starknet_api::block::{BlockHashAndNumber, BlockTimestamp};
 use starknet_api::core::{ContractAddress, EntryPointSelector, EthAddress, Nonce};
 use starknet_api::transaction::fields::{Calldata, Fee};
 use starknet_api::transaction::L1HandlerTransaction;
+use url::Url;
 
 pub mod constants;
 pub mod ethereum_base_layer_contract;
+pub mod monitored_base_layer;
 
 pub(crate) mod eth_events;
 
@@ -25,7 +27,20 @@ pub mod test_utils;
 mod base_layer_test;
 
 pub type L1BlockNumber = u64;
-pub type L1BlockHash = [u8; 32];
+#[derive(Clone, Copy, Default, Eq, PartialEq, Hash, PartialOrd, Ord)]
+pub struct L1BlockHash(pub [u8; 32]);
+
+impl std::fmt::Debug for L1BlockHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{}", hex::encode(self.0))
+    }
+}
+
+impl std::fmt::Display for L1BlockHash {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "0x{}", hex::encode(self.0))
+    }
+}
 
 #[cfg(any(feature = "testing", test))]
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
@@ -35,7 +50,7 @@ pub enum MockError {}
 #[cfg_attr(any(feature = "testing", test), automock(type Error = MockError;))]
 #[async_trait]
 pub trait BaseLayerContract {
-    type Error: Error + PartialEq + Display + Debug;
+    type Error: Error + PartialEq + Display + Debug + Send + Sync;
 
     /// Get the latest Starknet block that is proved on the base layer at a specific L1 block
     /// number. If the number is too low, return an error.
@@ -75,6 +90,8 @@ pub trait BaseLayerContract {
         &self,
         block_number: L1BlockNumber,
     ) -> Result<Option<L1BlockHeader>, Self::Error>;
+
+    async fn set_provider_url(&mut self, url: Url) -> Result<(), Self::Error>;
 }
 
 /// Reference to an L1 block, extend as needed.
@@ -98,13 +115,17 @@ pub struct L1BlockHeader {
 /// Wraps Starknet L1 events with Starknet API types.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum L1Event {
-    ConsumedMessageToL2(EventData),
+    ConsumedMessageToL2 {
+        tx: L1HandlerTransaction,
+        timestamp: BlockTimestamp,
+    },
     // TODO(Arni): Consider adding the l1_tx_hash to all variants of L1 Event.
     LogMessageToL2 {
         tx: L1HandlerTransaction,
         fee: Fee,
         l1_tx_hash: Option<FixedBytes<32>>,
-        timestamp: BlockTimestamp,
+        // The timestamp of the L1 block that this event was emitted in.
+        block_timestamp: BlockTimestamp,
     },
     MessageToL2CancellationStarted {
         cancelled_tx: L1HandlerTransaction,

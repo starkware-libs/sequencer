@@ -1,11 +1,11 @@
 #!/bin/env python3
 
 import argparse
-from enum import Enum
 import subprocess
-from typing import List, Set, Optional
-from tests_utils import get_tested_packages
+from enum import Enum
+from typing import List, Optional, Set
 
+from tests_utils import get_tested_packages
 
 # Set of crates which - if changed - should trigger the integration tests.
 INTEGRATION_TEST_CRATE_TRIGGERS: Set[str] = {"apollo_integration_tests"}
@@ -44,14 +44,10 @@ class BaseCommand(Enum):
             return [["cargo", "test"] + package_args]
         elif self == BaseCommand.CLIPPY:
             clippy_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return [
-                ["cargo", "clippy"] + clippy_args + ["--all-targets", "--all-features"]
-            ]
+            return [["cargo", "clippy"] + clippy_args + ["--all-targets", "--all-features"]]
         elif self == BaseCommand.DOC:
             doc_args = package_args if len(package_args) > 0 else ["--workspace"]
-            return [
-                ["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args
-            ]
+            return [["cargo", "doc", "--document-private-items", "--no-deps"] + doc_args]
         elif self == BaseCommand.INTEGRATION:
             # Do nothing if integration tests should not be triggered; on nightly, run the tests.
             if INTEGRATION_TEST_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
@@ -68,15 +64,12 @@ class BaseCommand(Enum):
 
             def build_cmds(with_feature: bool) -> List[List[str]]:
                 feature_flag = (
-                    ["--features", "cairo_native"]
-                    if (with_feature and is_nightly)
-                    else []
+                    ["--features", "cairo_native"] if (with_feature and is_nightly) else []
                 )
                 # Commands to build the node and all the test binaries.
                 build_cmds = [
                     ["cargo", "build", "--bin", binary_name] + feature_flag
-                    for binary_name in [SEQUENCER_BINARY_NAME]
-                    + integration_test_names_to_run
+                    for binary_name in [SEQUENCER_BINARY_NAME] + integration_test_names_to_run
                 ]
                 return build_cmds
 
@@ -92,9 +85,7 @@ class BaseCommand(Enum):
             if CAIRO_NATIVE_CRATE_TRIGGERS.isdisjoint(crates) and not is_nightly:
                 return cmds_no_feat
 
-            print(
-                "Composing sequencer integration test commands with cairo_native feature."
-            )
+            print("Composing sequencer integration test commands with cairo_native feature.")
             cmds_with_feat = build_cmds(with_feature=True) + run_cmds
             return cmds_no_feat + cmds_with_feat
 
@@ -137,19 +128,13 @@ def run_test(
     if changes_only and len(tested_packages) == 0:
         print("No changes detected.")
         return
-    test_crates(
-        crates=tested_packages, base_command=base_command, is_nightly=is_nightly
-    )
+    test_crates(crates=tested_packages, base_command=base_command, is_nightly=is_nightly)
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Presubmit script.")
-    parser.add_argument(
-        "--changes_only", action="store_true", help="Only test modified crates."
-    )
-    parser.add_argument(
-        "--commit_id", type=str, help="GIT commit ID to compare against."
-    )
+    parser.add_argument("--changes_only", action="store_true", help="Only test modified crates.")
+    parser.add_argument("--commit_id", type=str, help="GIT commit ID to compare against.")
     parser.add_argument(
         "--command",
         required=True,

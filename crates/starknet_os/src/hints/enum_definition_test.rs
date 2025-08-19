@@ -11,10 +11,20 @@ use cairo_vm::hint_processor::builtin_hint_processor::hint_code::HINT_CODES;
 use cairo_vm::hint_processor::builtin_hint_processor::kzg_da::WRITE_DIVMOD_SEGMENT;
 use cairo_vm::hint_processor::builtin_hint_processor::secp::cairo0_hints::CAIRO0_HINT_CODES;
 use cairo_vm::types::program::Program;
+use rstest::{fixture, rstest};
 use starknet_api::deprecated_contract_class::ContractClass;
 use strum::IntoEnumIterator;
 
-use crate::hints::enum_definition::{AllHints, DeprecatedSyscallHint, TEST_HINT_PREFIX};
+use crate::hints::enum_definition::{
+    AggregatorHint,
+    AllHints,
+    CommonHint,
+    DeprecatedSyscallHint,
+    HintExtension,
+    OsHint,
+    StatelessHint,
+    TEST_HINT_PREFIX,
+};
 use crate::hints::types::HintEnum;
 
 static VM_HINTS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
@@ -69,14 +79,62 @@ fn unknown_hints_for_program(program: &Program) -> HashSet<String> {
         .collect()
 }
 
-#[test]
+#[fixture]
+fn vm_hints() -> HashSet<String> {
+    VM_HINTS.iter().map(|s| s.to_string()).collect()
+}
+
+#[fixture]
+fn common_hints() -> HashSet<String> {
+    CommonHint::iter().map(|hint| hint.to_str().to_string()).collect()
+}
+
+#[fixture]
+fn stateless_hints() -> HashSet<String> {
+    StatelessHint::iter().map(|hint| hint.to_str().to_string()).collect()
+}
+
+#[fixture]
+fn os_hints() -> HashSet<String> {
+    OsHint::iter().map(|hint| hint.to_str().to_string()).collect()
+}
+
+#[fixture]
+fn aggregator_hints() -> HashSet<String> {
+    AggregatorHint::iter().map(|hint| hint.to_str().to_string()).collect()
+}
+
+#[fixture]
+fn hint_extension() -> HashSet<String> {
+    HintExtension::iter().map(|hint| hint.to_str().to_string()).collect()
+}
+
+#[fixture]
+fn os_program_hints() -> HashSet<String> {
+    program_hints(&OS_PROGRAM)
+}
+
+#[fixture]
+fn aggregator_program_hints() -> HashSet<String> {
+    program_hints(&AGGREGATOR_PROGRAM)
+}
+
+#[fixture]
+fn vm_union_stateless(
+    vm_hints: HashSet<String>,
+    stateless_hints: HashSet<String>,
+) -> HashSet<String> {
+    vm_hints.union(&stateless_hints).cloned().collect()
+}
+
+#[rstest]
 fn test_hint_strings_are_unique() {
     let all_hints = AllHints::all_iter().map(|hint| hint.to_str()).collect::<Vec<_>>();
     let all_hints_set: HashSet<&&str> = HashSet::from_iter(all_hints.iter());
     assert_eq!(all_hints.len(), all_hints_set.len(), "Duplicate hint strings.");
 }
 
-#[test]
+#[rstest]
 fn test_from_str_for_all_hints() {
     for hint in AllHints::all_iter() {
         let hint_str = hint.to_str();
@@ -85,7 +143,7 @@ fn test_from_str_for_all_hints() {
     }
 }
 
-#[test]
+#[rstest]
 fn test_syscall_compatibility_with_blockifier() {
     let syscall_hint_strings =
         DeprecatedSyscallHint::iter().map(|hint| hint.to_str()).collect::<HashSet<_>>();
@@ -98,7 +156,7 @@ fn test_syscall_compatibility_with_blockifier() {
     );
 }
 
-#[test]
+#[rstest]
 fn test_all_hints_are_known() {
     let unknown_os_hints = unknown_hints_for_program(&OS_PROGRAM);
     let unknown_aggregator_hints = unknown_hints_for_program(&AGGREGATOR_PROGRAM);
@@ -113,11 +171,13 @@ fn test_all_hints_are_known() {
 
 /// Tests that we do not keep any hint including the TEST_HINT_PREFIX as a prefix in the OS or
 /// aggregator code.
-#[test]
-fn test_the_debug_hint_isnt_merged() {
-    let os_hints = program_hints(&OS_PROGRAM);
-    let aggregator_hints = program_hints(&AGGREGATOR_PROGRAM);
-    let all_program_hints: HashSet<&String> = os_hints.union(&aggregator_hints).collect();
+#[rstest]
+fn test_the_debug_hint_isnt_merged(
+    os_program_hints: HashSet<String>,
+    aggregator_program_hints: HashSet<String>,
+) {
+    let all_program_hints: HashSet<&String> =
+        os_program_hints.union(&aggregator_program_hints).collect();
 
     let debug_hints: HashSet<_> =
         all_program_hints.iter().filter(|hint| hint.trim().starts_with(TEST_HINT_PREFIX)).collect();
@@ -129,11 +189,13 @@ fn test_the_debug_hint_isnt_merged() {
     );
 }
 
-#[test]
-fn test_all_hints_are_used() {
-    let os_hints = program_hints(&OS_PROGRAM);
-    let aggregator_hints = program_hints(&AGGREGATOR_PROGRAM);
-    let all_program_hints: HashSet<&String> = os_hints.union(&aggregator_hints).collect();
+#[rstest]
+fn test_all_hints_are_used(
+    os_program_hints: HashSet<String>,
+    aggregator_program_hints: HashSet<String>,
+) {
+    let all_program_hints: HashSet<&String> =
+        os_program_hints.union(&aggregator_program_hints).collect();
     let redundant_hints: HashSet<_> = AllHints::all_iter()
         .filter(|hint| {
             // Skip syscalls; they do not appear in the OS code.
@@ -150,7 +212,7 @@ fn test_all_hints_are_used() {
 
 /// Tests that the set of deprecated syscall hints is consistent with the enum of deprecated
 /// syscalls.
-#[test]
+#[rstest]
 fn test_deprecated_syscall_hint_consistency() {
     let deprecated_syscall_hints: Vec<DeprecatedSyscallHint> =
         DeprecatedSyscallHint::iter().collect();
@@ -203,10 +265,124 @@ fn test_deprecated_syscall_hint_consistency() {
     );
 }
 
+#[rstest]
+/// If OP = OS program hints, AP = aggregator program hints, VM = VM hints,
+/// S = `StatelessHint`, C = `CommonHint`, then we verify that:
+/// C = (OP ∩ AP) \ VM \ S
+fn test_common_hints_in_both_os_and_aggregator_programs(
+    common_hints: HashSet<String>,
+    vm_union_stateless: HashSet<String>,
+    os_program_hints: HashSet<String>,
+    aggregator_program_hints: HashSet<String>,
+) {
+    let common_program_hints: HashSet<String> = os_program_hints
+        .intersection(&aggregator_program_hints)
+        .filter(|hint| !vm_union_stateless.contains(hint.as_str()))
+        .cloned()
+        .collect();
+
+    if common_program_hints != common_hints {
+        let missing_in_common_hints: HashSet<_> =
+            common_program_hints.difference(&common_hints).cloned().collect();
+        let extra_in_common_hints: HashSet<_> =
+            common_hints.difference(&common_program_hints).cloned().collect();
+        panic!(
+            "The Common hints should contain exactly the common program hints, excluding VM and \
+             stateless hints. Missing in Common hints: {missing_in_common_hints:#?}, Extra in \
+             Common hints: {extra_in_common_hints:#?}"
+        );
+    }
+}
+
+#[rstest]
+/// If OP = OS program hints, AP = aggregator program hints, VM = VM hints,
+/// S = `StatelessHint`, then we verify that:
+/// S ⊆ (OP ∪ AP) \ VM
+fn test_stateless_hints_in_os_or_aggregator_programs(
+    stateless_hints: HashSet<String>,
+    os_program_hints: HashSet<String>,
+    aggregator_program_hints: HashSet<String>,
+    vm_hints: HashSet<String>,
+) {
+    let all_program_hints_excluding_vm: HashSet<String> = os_program_hints
+        .union(&aggregator_program_hints)
+        .filter(|hint| !vm_hints.contains(hint.as_str()))
+        .cloned()
+        .collect();
+    let difference = stateless_hints
+        .difference(&all_program_hints_excluding_vm)
+        .cloned()
+        .collect::<HashSet<_>>();
+
+    assert!(
+        difference.is_empty(),
+        "The following stateless hints are not present in the OS or Aggregator programs: \
+         {difference:#?}."
+    );
+}
+
+#[rstest]
+/// If A = `AggregatorHint` enum hints, OP = OS program hints, AP = aggregator program hints, VM =
+/// VM hints, S = `StatelessHint`, then we verify that:
+/// A = AP \ (VM ∪ OP ∪ S)
+fn test_aggregator_hints_are_unique_aggregator_program_hints(
+    aggregator_hints: HashSet<String>,
+    os_program_hints: HashSet<String>,
+    aggregator_program_hints: HashSet<String>,
+    vm_union_stateless: HashSet<String>,
+) {
+    let union_os_program_vm_stateless: HashSet<String> =
+        vm_union_stateless.union(&os_program_hints).cloned().collect();
+    let unique_aggregator_program_hints: HashSet<String> =
+        aggregator_program_hints.difference(&union_os_program_vm_stateless).cloned().collect();
+
+    if unique_aggregator_program_hints != aggregator_hints {
+        let missing_in_aggregator_hints: HashSet<_> =
+            unique_aggregator_program_hints.difference(&aggregator_hints).cloned().collect();
+        let extra_in_aggregator_hints: HashSet<_> =
+            aggregator_hints.difference(&unique_aggregator_program_hints).cloned().collect();
+        panic!(
+            "The Aggregator hints should contain exactly the unique Aggregator program hints. \
+             Missing in Aggregator hints: {missing_in_aggregator_hints:#?}, Extra in Aggregator \
+             hints: {extra_in_aggregator_hints:#?}"
+        );
+    }
+}
+
+#[rstest]
+/// If O = `OsHint` enum hints, OP = OS program hints, A = `AggregatorHint` enum hints, VM = VM
+/// hints, S = `StatelessHint`, E = `ExtensionHint`, then we verify that:
+/// O ∪ E = OP \ (AP ∪ VM ∪ S)
+fn test_os_hints_are_unique_os_program_hints(
+    os_hints: HashSet<String>,
+    hint_extension: HashSet<String>,
+    os_program_hints: HashSet<String>,
+    aggregator_program_hints: HashSet<String>,
+    vm_union_stateless: HashSet<String>,
+) {
+    let union_aggregator_program_vm_stateless: HashSet<String> =
+        vm_union_stateless.union(&aggregator_program_hints).cloned().collect();
+    let os_union_extension: HashSet<String> = os_hints.union(&hint_extension).cloned().collect();
+    let unique_os_program_hints: HashSet<String> =
+        os_program_hints.difference(&union_aggregator_program_vm_stateless).cloned().collect();
+
+    if unique_os_program_hints != os_union_extension {
+        let missing_in_os_or_extension: HashSet<_> =
+            unique_os_program_hints.difference(&os_union_extension).cloned().collect();
+        let extra_in_os_or_extension: HashSet<_> =
+            os_union_extension.difference(&unique_os_program_hints).cloned().collect();
+        panic!(
+            "The OS & Extension hints should contain exactly the unique OS program hints. Missing \
+             in OS or Extension hints: {missing_in_os_or_extension:#?}, Extra in OS or Extension \
+             hints: {extra_in_os_or_extension:#?}"
+        );
+    }
+}
+
 /// Tests that the deprecated syscall hint strings match the strings in compiled Cairo0 contracts.
 /// If a new deprecated syscall was added, it should be added to the `other_syscalls` function of
 /// the Cairo0 test contract.
-#[test]
+#[rstest]
 fn test_deprecated_syscall_hint_strings() {
     let test_contract: ContractClass =
         serde_json::from_str(&FeatureContract::TestContract(CairoVersion::Cairo0).get_raw_class())

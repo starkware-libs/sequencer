@@ -27,6 +27,8 @@ apollo_gateway_types.workspace = true
 apollo_http_server.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
+apollo_l1_endpoint_monitor.workspace = true
+apollo_l1_endpoint_monitor_types.workspace = true
 apollo_l1_gas_price.workspace = true
 apollo_l1_gas_price_types.workspace = true
 apollo_l1_provider.workspace = true
@@ -38,6 +40,7 @@ apollo_mempool_types.workspace = true
 apollo_monitoring_endpoint.workspace = true
 apollo_reverts.workspace = true
 apollo_state_sync.workspace = true
+apollo_state_sync_metrics.workspace = true
 apollo_state_sync_types.workspace = true
 clap.workspace = true
 const_format.workspace = true
@@ -54,9 +57,6 @@ validator.workspace = true
 
 [dev-dependencies]
 apollo_infra_utils = { workspace = true, features = ["testing"] }
-assert_matches.workspace = true
-colored.workspace = true
-mempool_test_utils.workspace = true
 pretty_assertions.workspace = true
 tokio-util = { workspace = true, features = ["rt"] }
 

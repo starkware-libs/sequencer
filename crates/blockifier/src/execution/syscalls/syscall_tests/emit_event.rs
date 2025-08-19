@@ -32,8 +32,10 @@ const N_EMITTED_EVENTS: [Felt; 1] = [Felt::from_hex_unchecked("0x1")];
 #[test_case(RunnableCairo1::Casm;"VM")]
 fn positive_flow(runnable_version: RunnableCairo1) {
     let test_contract = FeatureContract::TestContract(CairoVersion::Cairo1(runnable_version));
-    let call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA)
+    let mut call_info = emit_events(test_contract, &N_EMITTED_EVENTS, &KEYS, &DATA)
         .expect("emit_events failed with valued parameters");
+    assert_eq!(call_info.execution.cairo_native, runnable_version.is_cairo_native());
+    call_info.execution.cairo_native = false;
     let event = EventContent {
         keys: KEYS.into_iter().map(EventKey).collect(),
         data: EventData(DATA.to_vec()),
@@ -67,6 +69,7 @@ fn positive_flow(runnable_version: RunnableCairo1) {
                 },
             ],
             l2_to_l1_messages: [],
+            cairo_native: false,
             failed: false,
             gas_consumed: 34580,
         }

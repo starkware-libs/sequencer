@@ -9,10 +9,11 @@ use starknet_api::core::deserialize_chain_id_from_hex;
 use starknet_api::core::{ChainId, ClassHash, CompiledClassHash, ContractAddress, Nonce};
 use starknet_api::deprecated_contract_class::ContractClass;
 use starknet_api::executable_transaction::Transaction;
-use starknet_api::state::StorageKey;
+use starknet_api::state::{ContractClassComponentHashes, StorageKey};
 use starknet_patricia::hash::hash_trait::HashOutput;
 use starknet_patricia::patricia_merkle_tree::types::SubTreeHeight;
 use starknet_types_core::felt::Felt;
+use tracing::level_filters::LevelFilter;
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[derive(Debug)]
@@ -41,30 +42,6 @@ impl Default for CommitmentInfo {
 }
 
 #[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
-#[derive(Clone, Debug)]
-pub struct ContractClassComponentHashes {
-    contract_class_version: Felt,
-    external_functions_hash: HashOutput,
-    l1_handlers_hash: HashOutput,
-    constructors_hash: HashOutput,
-    abi_hash: HashOutput,
-    sierra_program_hash: HashOutput,
-}
-
-impl ContractClassComponentHashes {
-    pub(crate) fn flatten(&self) -> Vec<Felt> {
-        vec![
-            self.contract_class_version,
-            self.external_functions_hash.0,
-            self.l1_handlers_hash.0,
-            self.constructors_hash.0,
-            self.abi_hash.0,
-            self.sierra_program_hash.0,
-        ]
-    }
-}
-
-#[cfg_attr(feature = "deserialize", derive(serde::Deserialize))]
 #[cfg_attr(any(test, feature = "testing"), derive(Default))]
 #[derive(Debug)]
 pub struct OsHints {
@@ -78,8 +55,8 @@ pub struct OsHints {
 pub struct StarknetOsInput {
     pub os_block_inputs: Vec<OsBlockInput>,
     pub cached_state_inputs: Vec<CachedStateInput>,
-    pub(crate) deprecated_compiled_classes: BTreeMap<ClassHash, ContractClass>,
-    pub(crate) compiled_classes: BTreeMap<ClassHash, CasmContractClass>,
+    pub(crate) deprecated_compiled_classes: BTreeMap<CompiledClassHash, ContractClass>,
+    pub(crate) compiled_classes: BTreeMap<CompiledClassHash, CasmContractClass>,
 }
 
 // TODO(Meshi): Remove Once the blockifier ChainInfo do not support deprecated fee token.
@@ -133,6 +110,12 @@ pub struct OsHintsConfig {
     pub full_output: bool,
     pub use_kzg_da: bool,
     pub chain_info: OsChainInfo,
+}
+
+impl OsHintsConfig {
+    pub fn log_level(&self) -> LevelFilter {
+        if self.debug_mode { LevelFilter::DEBUG } else { LevelFilter::INFO }
+    }
 }
 
 #[derive(Default, Debug)]

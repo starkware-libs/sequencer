@@ -1,0 +1,356 @@
+{
+  "application_config_subdir": "crates/apollo_deployments/resources/",
+  "services": [
+    {
+      "name": "Batcher",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "app_configs/batcher_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/distributed.json",
+        "services/distributed/batcher.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "Batcher": 55000,
+        "MonitoringEndpoint": 8082
+      }
+    },
+    {
+      "name": "ClassManager",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "app_configs/class_manager_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/distributed.json",
+        "services/distributed/class_manager.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "update_strategy_type": "Recreate",
+      "ports": {
+        "ClassManager": 55001,
+        "MonitoringEndpoint": 8082
+      }
+    },
+    {
+      "name": "ConsensusManager",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "app_configs/consensus_manager_config.json",
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/distributed.json",
+        "services/distributed/consensus_manager.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "update_strategy_type": "Recreate",
+      "ports": {
+        "ConsensusP2P": 53080,
+        "MonitoringEndpoint": 8082
+      }
+    },
+    {
+      "name": "HttpServer",
+      "controller": "Deployment",
+      "config_paths": [
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/http_server_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/distributed.json",
+        "services/distributed/http_server.json"
+      ],
+      "ingress": {
+        "domain": "sw-dev.io",
+        "alternative_names": [],
+        "internal": true,
+        "rules": [
+          {
+            "path": "/gateway",
+            "port": 8080,
+            "backend": null
+          }
+        ]
+      },
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "HttpServer": 8080,
+        "MonitoringEndpoint": 8082
+      }
+    },
+    {
+      "name": "Gateway",
+      "controller": "Deployment",
+      "config_paths": [
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/gateway_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/distributed.json",
+        "services/distributed/gateway.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": true,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "Gateway": 55002,
+        "MonitoringEndpoint": 8082
+      }
+    },
+    {
+      "name": "L1",
+      "controller": "Deployment",
+      "config_paths": [
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/l1_endpoint_monitor_config.json",
+        "app_configs/l1_gas_price_provider_config.json",
+        "app_configs/l1_gas_price_scraper_config.json",
+        "app_configs/l1_provider_config.json",
+        "app_configs/l1_scraper_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/distributed.json",
+        "services/distributed/l1.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "L1EndpointMonitor": 55005,
+        "L1GasPriceProvider": 55003,
+        "L1Provider": 55004,
+        "MonitoringEndpoint": 8082
+      }
+    },
+    {
+      "name": "Mempool",
+      "controller": "Deployment",
+      "config_paths": [
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/mempool_config.json",
+        "app_configs/mempool_p2p_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/distributed.json",
+        "services/distributed/mempool.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "update_strategy_type": "Recreate",
+      "ports": {
+        "Mempool": 55006,
+        "MonitoringEndpoint": 8082
+      }
+    },
+    {
+      "name": "SierraCompiler",
+      "controller": "Deployment",
+      "config_paths": [
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "app_configs/sierra_compiler_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/distributed.json",
+        "services/distributed/sierra_compiler.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": true,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "update_strategy_type": "RollingUpdate",
+      "ports": {
+        "SierraCompiler": 55007,
+        "MonitoringEndpoint": 8082
+      }
+    },
+    {
+      "name": "StateSync",
+      "controller": "StatefulSet",
+      "config_paths": [
+        "app_configs/revert_config.json",
+        "app_configs/versioned_constants_overrides_config.json",
+        "app_configs/validate_resource_bounds_config.json",
+        "app_configs/monitoring_endpoint_config.json",
+        "app_configs/state_sync_config.json",
+        "deployments/testing/deployment_config_override.json",
+        "deployments/testing/distributed.json",
+        "services/distributed/state_sync.json"
+      ],
+      "ingress": null,
+      "k8s_service_config": null,
+      "autoscale": false,
+      "replicas": 1,
+      "storage": null,
+      "toleration": null,
+      "resources": {
+        "requests": {
+          "cpu": 1,
+          "memory": 2
+        },
+        "limits": {
+          "cpu": 4,
+          "memory": 8
+        }
+      },
+      "external_secret": null,
+      "anti_affinity": false,
+      "update_strategy_type": "Recreate",
+      "ports": {
+        "StateSync": 55009,
+        "MonitoringEndpoint": 8082
+      }
+    }
+  ]
+}

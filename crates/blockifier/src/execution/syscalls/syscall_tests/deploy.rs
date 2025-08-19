@@ -39,7 +39,10 @@ fn no_constructor(runnable_version: RunnableCairo1) {
 
     let entry_point_call = create_deploy_entry_point(class_hash, &[], true, deployer_contract);
 
-    let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
+    let mut deploy_call = entry_point_call.execute_directly(&mut state).unwrap();
+    assert_eq!(deploy_call.execution.cairo_native, runnable_version.is_cairo_native());
+    deploy_call.execution.cairo_native = false;
+
     expect![[r#"
         CallExecution {
             retdata: Retdata(
@@ -47,6 +50,7 @@ fn no_constructor(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: false,
             failed: false,
             gas_consumed: 156540,
         }
@@ -119,7 +123,9 @@ fn with_constructor(runnable_version: RunnableCairo1) {
     )
     .unwrap();
 
-    let deploy_call = &entry_point_call.execute_directly(&mut state).unwrap();
+    let mut deploy_call = entry_point_call.execute_directly(&mut state).unwrap();
+    assert_eq!(deploy_call.execution.cairo_native, runnable_version.is_cairo_native());
+    deploy_call.execution.cairo_native = false;
 
     expect![[r#"
         CallExecution {
@@ -128,6 +134,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: false,
             failed: false,
             gas_consumed: 184620,
         }
@@ -135,8 +142,9 @@ fn with_constructor(runnable_version: RunnableCairo1) {
     .assert_debug_eq(&deploy_call.execution);
     assert_eq!(deploy_call.execution.retdata, retdata![]);
 
-    let constructor_call = &deploy_call.inner_calls[0];
-
+    let mut constructor_call = deploy_call.inner_calls[0].clone();
+    assert_eq!(constructor_call.execution.cairo_native, runnable_version.is_cairo_native());
+    constructor_call.execution.cairo_native = false;
     expect![[r#"
         CallExecution {
             retdata: Retdata(
@@ -146,6 +154,7 @@ fn with_constructor(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: false,
             failed: false,
             gas_consumed: 14640,
         }

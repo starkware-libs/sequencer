@@ -1,0 +1,13 @@
+{
+  "base_layer_config.starknet_contract_address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+  "chain_id": "CHAIN_ID_SUBDIR",
+  "consensus_manager_config.context_config.num_validators": 1,
+  "eth_fee_token_address": "0x1001",
+  "l1_provider_config.provider_startup_height_override": 1,
+  "l1_provider_config.provider_startup_height_override.#is_none": false,
+  "starknet_url": "https://integration-sepolia.starknet.io/",
+  "state_sync_config.central_sync_client_config.#is_none": true,
+  "state_sync_config.network_config.#is_none": false,
+  "state_sync_config.p2p_sync_client_config.#is_none": false,
+  "strk_fee_token_address": "0x1002"
+}

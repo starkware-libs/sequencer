@@ -55,7 +55,7 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         ..trivial_external_entry_point_new(test_contract)
     };
 
-    let call_info = entry_point_call.clone().execute_directly(&mut state).unwrap();
+    let mut call_info = entry_point_call.clone().execute_directly(&mut state).unwrap();
 
     assert_eq!(call_info.storage_access_tracker.accessed_blocks.len(), 1);
     assert!(
@@ -69,6 +69,9 @@ fn positive_flow(runnable_version: RunnableCairo1) {
         vec![BlockHash(block_hash)]
     );
 
+    assert_eq!(call_info.execution.cairo_native, runnable_version.is_cairo_native());
+    call_info.execution.cairo_native = false;
+
     expect![[r#"
         CallExecution {
             retdata: Retdata(
@@ -78,6 +81,7 @@ fn positive_flow(runnable_version: RunnableCairo1) {
             ),
             events: [],
             l2_to_l1_messages: [],
+            cairo_native: false,
             failed: false,
             gas_consumed: 15220,
         }

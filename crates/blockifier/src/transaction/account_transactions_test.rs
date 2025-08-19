@@ -77,11 +77,11 @@ use starknet_api::{
 };
 use starknet_types_core::felt::Felt;
 
-use crate::check_tx_execution_error_for_invalid_scenario;
 use crate::context::{BlockContext, TransactionContext};
 use crate::execution::call_info::CallInfo;
 use crate::execution::contract_class::TrackedResource;
 use crate::execution::entry_point::{EntryPointExecutionContext, SierraGasRevertTracker};
+use crate::execution::syscalls::hint_processor::ENTRYPOINT_NOT_FOUND_ERROR;
 use crate::execution::syscalls::vm_syscall_utils::SyscallSelector;
 use crate::fee::fee_utils::{
     get_fee_by_gas_vector,
@@ -139,6 +139,7 @@ use crate::transaction::test_utils::{
 };
 use crate::transaction::transactions::ExecutableTransaction;
 use crate::utils::u64_from_usize;
+use crate::{check_tx_execution_error_for_invalid_scenario, retdata};
 
 #[rstest]
 #[case::cairo1(CairoVersion::Cairo1(RunnableCairo1::Casm))]
@@ -216,8 +217,12 @@ fn test_rc96_holes(
     if tx_execution_info.validate_call_info.unwrap().tracked_resource == TrackedResource::CairoSteps
     {
         assert_eq!(
-            tx_execution_info.receipt.resources.computation.vm_resources.builtin_instance_counter
-                [&BuiltinName::range_check96],
+            tx_execution_info
+                .receipt
+                .resources
+                .computation
+                .total_vm_resources()
+                .builtin_instance_counter[&BuiltinName::range_check96],
             24
         );
     }
@@ -1353,7 +1358,7 @@ fn test_max_fee_to_max_steps_conversion(
     );
     let max_steps_limit1 = execution_context1.vm_run_resources.get_n_steps();
     let tx_execution_info1 = account_tx1.execute(&mut state, &block_context).unwrap();
-    let n_steps1 = tx_execution_info1.receipt.resources.computation.vm_resources.n_steps;
+    let n_steps1 = tx_execution_info1.receipt.resources.computation.total_vm_resources().n_steps;
     let gas_used_vector1 = tx_execution_info1.receipt.resources.to_gas_vector(
         &block_context.versioned_constants,
         block_context.block_info.use_kzg_da,
@@ -1378,7 +1383,7 @@ fn test_max_fee_to_max_steps_conversion(
     );
     let max_steps_limit2 = execution_context2.vm_run_resources.get_n_steps();
     let tx_execution_info2 = account_tx2.execute(&mut state, &block_context).unwrap();
-    let n_steps2 = tx_execution_info2.receipt.resources.computation.vm_resources.n_steps;
+    let n_steps2 = tx_execution_info2.receipt.resources.computation.total_vm_resources().n_steps;
     let gas_used_vector2 = tx_execution_info2.receipt.resources.to_gas_vector(
         &block_context.versioned_constants,
         block_context.block_info.use_kzg_da,
@@ -2128,4 +2133,31 @@ fn test_call_contract_that_panics(
             assert_eq!(call.tracked_resource, TrackedResource::SierraGas);
         }
     }
+}
+
+#[rstest]
+fn test_missing_validate_entrypoint_rejects(
+    block_context: BlockContext,
+    default_all_resource_bounds: ValidResourceBounds,
+) {
+    let chain_info = &block_context.chain_info;
+    let account = FeatureContract::AccountWithoutValidations(CairoVersion::Cairo0);
+    let test_contract = FeatureContract::TestContract(CairoVersion::Cairo0);
+    let mut state = test_state(chain_info, BALANCE, &[(account, 1u16), (test_contract, 1u16)]);
+    let test_contract_address = test_contract.get_instance_address(0_u16);
+    // Fund the test contract.
+    fund_account(chain_info, test_contract_address, BALANCE, &mut state.state);
+    // Send an invoke transaction with the test contract as the sender.
+    let tx_args = invoke_tx_args! {
+        sender_address: test_contract_address,
+        resource_bounds: default_all_resource_bounds
+    };
+    let result = run_invoke_tx(&mut state, &block_context, tx_args);
+    assert!(result.is_err());
+    let error = result.unwrap_err();
+    assert_matches!(
+        error,
+        TransactionExecutionError::ValidateCairo0Error(ret)
+        if ret == retdata![Felt::from_hex(ENTRYPOINT_NOT_FOUND_ERROR).unwrap()]
+    );
 }

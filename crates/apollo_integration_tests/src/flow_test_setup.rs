@@ -7,6 +7,7 @@ use apollo_consensus_manager::config::ConsensusManagerConfig;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
 use apollo_infra_utils::test_utils::AvailablePorts;
+use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
 use apollo_mempool_p2p::config::MempoolP2pConfig;
 use apollo_monitoring_endpoint::config::MonitoringEndpointConfig;
 use apollo_monitoring_endpoint::test_utils::MonitoringClient;
@@ -50,7 +51,6 @@ use starknet_api::transaction::{TransactionHash, TransactionHasher, TransactionV
 use starknet_types_core::felt::Felt;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument, Instrument};
-use url::Url;
 
 use crate::state_reader::{StorageTestHandles, StorageTestSetup};
 use crate::utils::{
@@ -64,7 +64,7 @@ use crate::utils::{
     AccumulatedTransactions,
 };
 
-const NUM_OF_SEQUENCERS: usize = 2;
+pub const NUM_OF_SEQUENCERS: usize = 2;
 const SEQUENCER_0: usize = 0;
 const SEQUENCER_1: usize = 1;
 const BUILDER_BASE_ADDRESS: Felt = Felt::from_hex_unchecked("0x42");
@@ -136,6 +136,7 @@ impl FlowTestSetup {
         )
         .await;
 
+        // TODO(Itamar): Remove txs collector logic when flow tests are stable enough.
         // Spawn a thread that listens to proposals and collects batched transactions.
         let accumulated_txs = Arc::new(Mutex::new(AccumulatedTransactions::default()));
         let tx_collector_task = TxCollector {
@@ -180,7 +181,15 @@ impl FlowTestSetup {
 
     pub fn chain_id(&self) -> &ChainId {
         // TODO(Arni): Get the chain ID from a shared canonic location.
-        &self.sequencer_0.node_config.batcher_config.block_builder_config.chain_info.chain_id
+        &self
+            .sequencer_0
+            .node_config
+            .batcher_config
+            .as_ref()
+            .unwrap()
+            .block_builder_config
+            .chain_info
+            .chain_id
     }
 
     pub async fn send_messages_to_l2(&self, l1_to_l2_messages_args: &[L1ToL2MessageArgs]) {
@@ -235,9 +244,12 @@ impl FlowSequencerSetup {
             spawn_local_success_recorder(available_ports.get_next_port());
         consensus_manager_config.cende_config.recorder_url = recorder_url;
 
-        let (eth_to_strk_oracle_url, _join_handle) =
+        let (eth_to_strk_oracle_url_headers, _join_handle) =
             spawn_local_eth_to_strk_oracle(available_ports.get_next_port());
-        consensus_manager_config.eth_to_strk_oracle_config.base_url = eth_to_strk_oracle_url;
+        let eth_to_strk_oracle_config = EthToStrkOracleConfig {
+            url_header_list: Some(vec![eth_to_strk_oracle_url_headers]),
+            ..Default::default()
+        };
 
         let validator_id = set_validator_id(&mut consensus_manager_config, node_index);
 
@@ -259,6 +271,7 @@ impl FlowSequencerSetup {
             storage_config,
             state_sync_config,
             consensus_manager_config,
+            eth_to_strk_oracle_config,
             mempool_p2p_config,
             monitoring_endpoint_config,
             component_config,
@@ -268,16 +281,20 @@ impl FlowSequencerSetup {
             allow_bootstrap_txs,
         );
         let num_l1_txs = u64::try_from(NUM_L1_TRANSACTIONS).unwrap();
-        node_config.l1_gas_price_scraper_config.number_of_blocks_for_mean = num_l1_txs;
-        node_config.l1_gas_price_provider_config.number_of_blocks_for_mean = num_l1_txs;
+        node_config.l1_gas_price_scraper_config.as_mut().unwrap().number_of_blocks_for_mean =
+            num_l1_txs;
+        node_config.l1_gas_price_provider_config.as_mut().unwrap().number_of_blocks_for_mean =
+            num_l1_txs;
 
         debug!("Sequencer config: {:#?}", node_config);
         let (clients, servers) = create_node_modules(&node_config).await;
 
-        let MonitoringEndpointConfig { ip, port, .. } = node_config.monitoring_endpoint_config;
+        let MonitoringEndpointConfig { ip, port, .. } =
+            node_config.monitoring_endpoint_config.as_ref().unwrap().to_owned();
         let monitoring_client = MonitoringClient::new(SocketAddr::from((ip, port)));
 
-        let HttpServerConfig { ip, port } = node_config.http_server_config;
+        let HttpServerConfig { ip, port } =
+            node_config.http_server_config.as_ref().unwrap().to_owned();
         let add_tx_http_client = HttpTestClient::new(SocketAddr::from((ip, port)));
 
         // Run the sequencer node.
@@ -311,7 +328,6 @@ pub fn create_consensus_manager_configs_and_channels(
 ) {
     let mut network_configs = create_connected_network_configs(ports);
 
-    // TODO(Tsabary): Need to also add a channel for votes, in addition to the proposals channel.
     let channels_network_config = network_configs.pop().unwrap();
 
     let n_network_configs = network_configs.len();
@@ -324,8 +340,6 @@ pub fn create_consensus_manager_configs_and_channels(
     for (i, config) in consensus_manager_configs.iter_mut().enumerate() {
         config.context_config.builder_address =
             ContractAddress::try_from(BUILDER_BASE_ADDRESS + Felt::from(i)).unwrap();
-        config.eth_to_strk_oracle_config.base_url =
-            Url::parse("https://eth_to_strk_oracle_url").expect("Should be a valid URL");
     }
 
     let broadcast_channels = network_config_into_broadcast_channels(

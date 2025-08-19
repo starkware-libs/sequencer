@@ -13,11 +13,12 @@ import os
 import subprocess
 import time
 from typing import Dict, List, Optional
+
 from utils import run_command
 
 FINAL_BRANCH = "main"
 MERGE_PATHS_FILE = "scripts/merge_paths.json"
-FILES_TO_PRESERVE = {"rust-toolchain.toml", "scripts/parent_branch.txt"}
+FILES_TO_PRESERVE = {"scripts/parent_branch.txt"}
 
 
 def load_merge_paths() -> Dict[str, str]:

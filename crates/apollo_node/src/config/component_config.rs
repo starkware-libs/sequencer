@@ -10,6 +10,9 @@ use crate::config::component_execution_config::{
     ReactiveComponentExecutionConfig,
 };
 
+// TODO(Tsabary): consider adding hierarchical structure to the components config based on
+// active/reactive components.
+
 /// The components configuration.
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Validate, PartialEq)]
 pub struct ComponentConfig {
@@ -21,6 +24,12 @@ pub struct ComponentConfig {
     #[validate]
     pub gateway: ReactiveComponentExecutionConfig,
     #[validate]
+    pub l1_endpoint_monitor: ReactiveComponentExecutionConfig,
+    #[validate]
+    pub l1_provider: ReactiveComponentExecutionConfig,
+    #[validate]
+    pub l1_gas_price_provider: ReactiveComponentExecutionConfig,
+    #[validate]
     pub mempool: ReactiveComponentExecutionConfig,
     #[validate]
     pub mempool_p2p: ReactiveComponentExecutionConfig,
@@ -28,10 +37,6 @@ pub struct ComponentConfig {
     pub sierra_compiler: ReactiveComponentExecutionConfig,
     #[validate]
     pub state_sync: ReactiveComponentExecutionConfig,
-    #[validate]
-    pub l1_provider: ReactiveComponentExecutionConfig,
-    #[validate]
-    pub l1_gas_price_provider: ReactiveComponentExecutionConfig,
 
     // Active component configs.
     #[validate]
@@ -54,11 +59,12 @@ impl SerializeConfig for ComponentConfig {
             prepend_sub_config_name(self.consensus_manager.dump(), "consensus_manager"),
             prepend_sub_config_name(self.gateway.dump(), "gateway"),
             prepend_sub_config_name(self.http_server.dump(), "http_server"),
-            prepend_sub_config_name(self.mempool.dump(), "mempool"),
+            prepend_sub_config_name(self.l1_endpoint_monitor.dump(), "l1_endpoint_monitor"),
             prepend_sub_config_name(self.l1_provider.dump(), "l1_provider"),
             prepend_sub_config_name(self.l1_gas_price_provider.dump(), "l1_gas_price_provider"),
             prepend_sub_config_name(self.l1_scraper.dump(), "l1_scraper"),
             prepend_sub_config_name(self.l1_gas_price_scraper.dump(), "l1_gas_price_scraper"),
+            prepend_sub_config_name(self.mempool.dump(), "mempool"),
             prepend_sub_config_name(self.mempool_p2p.dump(), "mempool_p2p"),
             prepend_sub_config_name(self.monitoring_endpoint.dump(), "monitoring_endpoint"),
             prepend_sub_config_name(self.sierra_compiler.dump(), "sierra_compiler"),
@@ -74,18 +80,19 @@ impl ComponentConfig {
         ComponentConfig {
             batcher: ReactiveComponentExecutionConfig::disabled(),
             class_manager: ReactiveComponentExecutionConfig::disabled(),
+            consensus_manager: ActiveComponentExecutionConfig::disabled(),
             gateway: ReactiveComponentExecutionConfig::disabled(),
-            mempool: ReactiveComponentExecutionConfig::disabled(),
-            mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
-            sierra_compiler: ReactiveComponentExecutionConfig::disabled(),
-            state_sync: ReactiveComponentExecutionConfig::disabled(),
+            http_server: ActiveComponentExecutionConfig::disabled(),
+            l1_endpoint_monitor: ReactiveComponentExecutionConfig::disabled(),
             l1_provider: ReactiveComponentExecutionConfig::disabled(),
             l1_gas_price_provider: ReactiveComponentExecutionConfig::disabled(),
             l1_scraper: ActiveComponentExecutionConfig::disabled(),
             l1_gas_price_scraper: ActiveComponentExecutionConfig::disabled(),
-            consensus_manager: ActiveComponentExecutionConfig::disabled(),
-            http_server: ActiveComponentExecutionConfig::disabled(),
+            mempool: ReactiveComponentExecutionConfig::disabled(),
+            mempool_p2p: ReactiveComponentExecutionConfig::disabled(),
             monitoring_endpoint: ActiveComponentExecutionConfig::disabled(),
+            sierra_compiler: ReactiveComponentExecutionConfig::disabled(),
+            state_sync: ReactiveComponentExecutionConfig::disabled(),
         }
     }
 
@@ -94,12 +101,13 @@ impl ComponentConfig {
         self.batcher.set_url_to_localhost();
         self.class_manager.set_url_to_localhost();
         self.gateway.set_url_to_localhost();
+        self.l1_endpoint_monitor.set_url_to_localhost();
+        self.l1_provider.set_url_to_localhost();
+        self.l1_gas_price_provider.set_url_to_localhost();
         self.mempool.set_url_to_localhost();
         self.mempool_p2p.set_url_to_localhost();
         self.sierra_compiler.set_url_to_localhost();
         self.state_sync.set_url_to_localhost();
-        self.l1_provider.set_url_to_localhost();
-        self.l1_gas_price_provider.set_url_to_localhost();
     }
 }
 

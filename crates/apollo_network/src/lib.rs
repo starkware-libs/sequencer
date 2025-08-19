@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod config_test;
 /// This crate is responsible for sending messages to a given peer and responding to them according
 /// to the [`Starknet p2p specs`]
 ///
@@ -15,7 +17,7 @@ mod sqmr;
 mod test_utils;
 pub mod utils;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -33,12 +35,13 @@ use apollo_config::dumping::{
 use apollo_config::validators::validate_vec_u256;
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use discovery::DiscoveryConfig;
+use libp2p::swarm::dial_opts::DialOpts;
 use libp2p::Multiaddr;
 use peer_manager::PeerManagerConfig;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize};
 use starknet_api::core::ChainId;
-use validator::Validate;
+use validator::{Validate, ValidationError};
 
 // TODO(AndrewL): Fix this
 /// This function considers `""` to be `None` and
@@ -89,6 +92,7 @@ pub struct NetworkConfig {
     #[serde(deserialize_with = "deserialize_seconds_to_duration")]
     pub idle_connection_timeout: Duration,
     #[serde(deserialize_with = "deserialize_multi_addrs")]
+    #[validate(custom(function = "validate_bootstrap_peer_multiaddr_list"))]
     pub bootstrap_peer_multiaddr: Option<Vec<Multiaddr>>,
     #[validate(custom = "validate_vec_u256")]
     #[serde(deserialize_with = "deserialize_optional_vec_u8")]
@@ -194,4 +198,28 @@ impl Default for NetworkConfig {
             reported_peer_ids_buffer_size: 100000,
         }
     }
+}
+
+/// Validates a list of bootstrap peers.
+///
+/// The list must be comprised of `Multiaddr` each containing a `PeerId`.
+/// Each `PeerId` must be unique in the list.
+fn validate_bootstrap_peer_multiaddr_list(
+    bootstrap_peer_multiaddr: &[Multiaddr],
+) -> Result<(), validator::ValidationError> {
+    let mut peers = HashSet::new();
+    for address in bootstrap_peer_multiaddr.iter() {
+        let Some(peer_id) = DialOpts::from(address.clone()).get_peer_id() else {
+            return Err(ValidationError::new(
+                "Bootstrap peer Multiaddr does not contain a PeerId.",
+            ));
+        };
+
+        if !peers.insert(peer_id) {
+            let mut error = ValidationError::new("Bootstrap peer PeerIds are not unique.");
+            error.message = Some(std::borrow::Cow::from(format!("Repeated PeerId: {}", peer_id)));
+            return Err(error);
+        }
+    }
+    Ok(())
 }

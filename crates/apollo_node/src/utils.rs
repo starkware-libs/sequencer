@@ -1,9 +1,6 @@
-use std::process::exit;
-
 use apollo_config::presentation::get_config_presentation;
-use apollo_config::validators::config_validate;
 use apollo_config::ConfigError;
-use tracing::{error, info};
+use tracing::info;
 
 use crate::clients::{create_node_clients, SequencerNodeClients};
 use crate::communication::create_node_channels;
@@ -16,7 +13,7 @@ pub async fn create_node_modules(
 ) -> (SequencerNodeClients, SequencerNodeServers) {
     info!("Creating node modules.");
 
-    let mut channels = create_node_channels();
+    let mut channels = create_node_channels(config);
     let clients = create_node_clients(config, &mut channels);
     let components = create_node_components(config, &clients).await;
     let servers = create_node_servers(config, &mut channels, components, &clients);
@@ -25,27 +22,23 @@ pub async fn create_node_modules(
 }
 
 pub fn load_and_validate_config(args: Vec<String>) -> Result<SequencerNodeConfig, ConfigError> {
-    let config = SequencerNodeConfig::load_and_process(args);
-    if let Err(ConfigError::CommandInput(clap_err)) = &config {
-        error!("Failed loading configuration: {}", clap_err);
-        clap_err.exit();
-    }
+    let config_load_result = SequencerNodeConfig::load_and_process(args);
+    let loaded_config =
+        config_load_result.unwrap_or_else(|err| panic!("Failed loading configuration: {err}"));
     info!("Finished loading configuration.");
 
-    let config = config?;
-    if let Err(error) = config_validate(&config) {
-        error!("{}", error);
-        exit(1);
+    if let Err(error) = loaded_config.validate_node_config() {
+        panic!("Config validation failed: {error}");
     }
     info!("Finished validating configuration.");
 
     info!("Config map:");
     info!(
         "{:#?}",
-        get_config_presentation::<SequencerNodeConfig>(&config, false)
+        get_config_presentation::<SequencerNodeConfig>(&loaded_config, false)
             .expect("Should be able to get representation.")
     );
     info!("Finished dumping configuration.");
 
-    Ok(config)
+    Ok(loaded_config)
 }

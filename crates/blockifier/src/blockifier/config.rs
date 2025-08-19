@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use apollo_compile_to_native::config::SierraCompilationConfig;
+use apollo_compile_to_native_types::SierraCompilationConfig;
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
@@ -155,7 +155,8 @@ impl ContractClassManagerConfig {
             wait_on_native_compilation,
             ..Default::default()
         };
-        Self { cairo_native_run_config, ..Default::default() }
+        let native_compiler_config = SierraCompilationConfig::create_for_testing();
+        Self { cairo_native_run_config, native_compiler_config, ..Default::default() }
     }
 }
 
@@ -197,6 +198,9 @@ pub struct CairoNativeRunConfig {
 impl Default for CairoNativeRunConfig {
     fn default() -> Self {
         Self {
+            #[cfg(feature = "cairo_native")]
+            run_cairo_native: true,
+            #[cfg(not(feature = "cairo_native"))]
             run_cairo_native: false,
             wait_on_native_compilation: false,
             channel_size: DEFAULT_COMPILATION_REQUEST_CHANNEL_SIZE,

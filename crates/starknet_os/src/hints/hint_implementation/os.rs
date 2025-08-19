@@ -123,7 +123,7 @@ pub(crate) fn log_remaining_blocks(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_blocks = get_integer_from_var_name(Ids::NBlocks.into(), vm, ids_data, ap_tracking)?;
-    log::debug!("execute_blocks: {n_blocks} blocks remaining.");
+    log::info!("execute_blocks: {n_blocks} blocks remaining.");
     Ok(())
 }
 
@@ -131,7 +131,6 @@ pub(crate) fn create_block_additional_hints<S: StateReader>(
     hint_processor: &mut SnosHintProcessor<'_, S>,
     HintArgs { .. }: HintArgs<'_>,
 ) -> OsHintResult {
-    // TODO(Nimrod): Verify hint implementation once syscall handlers are per block.
     hint_processor.execution_helpers_manager.increment_current_helper_index();
     Ok(())
 }

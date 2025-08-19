@@ -1,62 +1,22 @@
 use std::future::ready;
-use std::sync::{Arc, LazyLock, OnceLock};
-use std::time::Duration;
+use std::sync::Arc;
 use std::vec;
 
-use apollo_batcher_types::batcher_types::{
-    CentralObjects,
-    DecisionReachedResponse,
-    GetProposalContent,
-    GetProposalContentResponse,
-    ProposalCommitment,
-    ProposalStatus,
-    ProposeBlockInput,
-    SendProposalContent,
-    SendProposalContentInput,
-    SendProposalContentResponse,
-    ValidateBlockInput,
-};
-use apollo_batcher_types::communication::{BatcherClientError, MockBatcherClient};
+use apollo_batcher_types::batcher_types::{CentralObjects, DecisionReachedResponse};
+use apollo_batcher_types::communication::BatcherClientError;
 use apollo_batcher_types::errors::BatcherError;
-use apollo_class_manager_types::transaction_converter::{
-    MockTransactionConverterTrait,
-    TransactionConverter,
-    TransactionConverterTrait,
-};
-use apollo_class_manager_types::EmptyClassManagerClient;
 use apollo_consensus::types::{ConsensusContext, Round};
 use apollo_l1_gas_price_types::errors::{
     EthToStrkOracleClientError,
     L1GasPriceClientError,
     L1GasPriceProviderError,
 };
-use apollo_l1_gas_price_types::{
-    MockEthToStrkOracleClientTrait,
-    MockL1GasPriceProviderClient,
-    PriceInfo,
-    DEFAULT_ETH_TO_FRI_RATE,
-};
-use apollo_network::network_manager::test_utils::{
-    mock_register_broadcast_topic,
-    BroadcastNetworkMock,
-    TestSubscriberChannels,
-};
-use apollo_network::network_manager::{BroadcastTopicChannels, BroadcastTopicClient};
-use apollo_protobuf::consensus::{
-    ConsensusBlockInfo,
-    HeightAndRound,
-    ProposalFin,
-    ProposalInit,
-    ProposalPart,
-    TransactionBatch,
-    Vote,
-};
-use apollo_state_sync_types::communication::MockStateSyncClient;
-use apollo_time::time::{Clock, DefaultClock, MockClock};
+use apollo_l1_gas_price_types::{MockL1GasPriceProviderClient, PriceInfo, DEFAULT_ETH_TO_FRI_RATE};
+use apollo_protobuf::consensus::{ProposalFin, ProposalInit, ProposalPart, TransactionBatch, Vote};
+use apollo_time::time::MockClock;
 use chrono::{TimeZone, Utc};
 use futures::channel::mpsc;
 use futures::channel::oneshot::Canceled;
-use futures::executor::block_on;
 use futures::future::pending;
 use futures::{FutureExt, SinkExt, StreamExt};
 use metrics_exporter_prometheus::PrometheusBuilder;
@@ -68,265 +28,22 @@ use starknet_api::block::{
     TEMP_ETH_BLOB_GAS_FEE_IN_WEI,
     TEMP_ETH_GAS_FEE_IN_WEI,
 };
-use starknet_api::consensus_transaction::{ConsensusTransaction, InternalConsensusTransaction};
-use starknet_api::core::{ChainId, Nonce, StateDiffCommitment};
-use starknet_api::data_availability::L1DataAvailabilityMode;
 use starknet_api::execution_resources::GasAmount;
-use starknet_api::felt;
-use starknet_api::hash::PoseidonHash;
 use starknet_api::state::ThinStateDiff;
-use starknet_api::test_utils::invoke::{rpc_invoke_tx, InvokeTxArgs};
-use starknet_types_core::felt::Felt;
 
-use super::SequencerConsensusContextDeps;
 use crate::cende::MockCendeContext;
 use crate::config::ContextConfig;
 use crate::metrics::CONSENSUS_L2_GAS_PRICE;
 use crate::orchestrator_versioned_constants::VersionedConstants;
-use crate::sequencer_consensus_context::SequencerConsensusContext;
-
-const TIMEOUT: Duration = Duration::from_millis(1200);
-const CHANNEL_SIZE: usize = 5000;
-const NUM_VALIDATORS: u64 = 4;
-const STATE_DIFF_COMMITMENT: StateDiffCommitment = StateDiffCommitment(PoseidonHash(Felt::ZERO));
-const CHAIN_ID: ChainId = ChainId::Mainnet;
-
-// In order for gas price in ETH to be greather than 0 (required) we must have large enough
-// values here.
-const ETH_TO_FRI_RATE: u128 = u128::pow(10, 18);
-
-static TX_BATCH: LazyLock<Vec<ConsensusTransaction>> =
-    LazyLock::new(|| (0..3).map(generate_invoke_tx).collect());
-
-static INTERNAL_TX_BATCH: LazyLock<Vec<InternalConsensusTransaction>> = LazyLock::new(|| {
-    // TODO(shahak): Use MockTransactionConverter instead.
-    static TRANSACTION_CONVERTER: LazyLock<TransactionConverter> =
-        LazyLock::new(|| TransactionConverter::new(Arc::new(EmptyClassManagerClient), CHAIN_ID));
-    TX_BATCH
-        .iter()
-        .cloned()
-        .map(|tx| {
-            block_on(TRANSACTION_CONVERTER.convert_consensus_tx_to_internal_consensus_tx(tx))
-                .unwrap()
-        })
-        .collect()
-});
-
-struct TestDeps {
-    pub transaction_converter: MockTransactionConverterTrait,
-    pub state_sync_client: MockStateSyncClient,
-    pub batcher: MockBatcherClient,
-    pub cende_ambassador: MockCendeContext,
-    pub eth_to_strk_oracle_client: MockEthToStrkOracleClientTrait,
-    pub l1_gas_price_provider: MockL1GasPriceProviderClient,
-    pub clock: Arc<dyn Clock>,
-    pub outbound_proposal_sender: mpsc::Sender<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-    pub vote_broadcast_client: BroadcastTopicClient<Vote>,
-}
-
-impl From<TestDeps> for SequencerConsensusContextDeps {
-    fn from(deps: TestDeps) -> Self {
-        SequencerConsensusContextDeps {
-            transaction_converter: Arc::new(deps.transaction_converter),
-            state_sync_client: Arc::new(deps.state_sync_client),
-            batcher: Arc::new(deps.batcher),
-            cende_ambassador: Arc::new(deps.cende_ambassador),
-            eth_to_strk_oracle_client: Arc::new(deps.eth_to_strk_oracle_client),
-            l1_gas_price_provider: Arc::new(deps.l1_gas_price_provider),
-            clock: deps.clock,
-            outbound_proposal_sender: deps.outbound_proposal_sender,
-            vote_broadcast_client: deps.vote_broadcast_client,
-        }
-    }
-}
-
-impl TestDeps {
-    fn setup_default_expectations(&mut self) {
-        self.setup_default_transaction_converter();
-        self.setup_default_cende_ambassador();
-        self.setup_default_gas_price_provider();
-        self.setup_default_eth_to_strk_oracle_client();
-    }
-
-    fn setup_deps_for_build(&mut self, block_number: BlockNumber, final_n_executed_txs: usize) {
-        assert!(final_n_executed_txs <= INTERNAL_TX_BATCH.len());
-        self.setup_default_expectations();
-        let proposal_id = Arc::new(OnceLock::new());
-        let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_propose_block().times(1).returning(move |input: ProposeBlockInput| {
-            proposal_id_clone.set(input.proposal_id).unwrap();
-            Ok(())
-        });
-        self.batcher
-            .expect_start_height()
-            .times(1)
-            .withf(move |input| input.height == block_number)
-            .return_const(Ok(()));
-        let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_get_proposal_content().times(1).returning(move |input| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            Ok(GetProposalContentResponse {
-                content: GetProposalContent::Txs(INTERNAL_TX_BATCH.clone()),
-            })
-        });
-        let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_get_proposal_content().times(1).returning(move |input| {
-            assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-            Ok(GetProposalContentResponse {
-                content: GetProposalContent::Finished {
-                    id: ProposalCommitment { state_diff_commitment: STATE_DIFF_COMMITMENT },
-                    final_n_executed_txs,
-                },
-            })
-        });
-    }
-
-    fn setup_deps_for_validate(&mut self, block_number: BlockNumber, final_n_executed_txs: usize) {
-        assert!(final_n_executed_txs <= INTERNAL_TX_BATCH.len());
-        self.setup_default_expectations();
-        let proposal_id = Arc::new(OnceLock::new());
-        let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_validate_block().times(1).returning(
-            move |input: ValidateBlockInput| {
-                proposal_id_clone.set(input.proposal_id).unwrap();
-                Ok(())
-            },
-        );
-        self.batcher
-            .expect_start_height()
-            .times(1)
-            .withf(move |input| input.height == block_number)
-            .return_const(Ok(()));
-        let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_send_proposal_content().times(1).returning(
-            move |input: SendProposalContentInput| {
-                assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-                let SendProposalContent::Txs(txs) = input.content else {
-                    panic!("Expected SendProposalContent::Txs, got {:?}", input.content);
-                };
-                assert_eq!(txs, *INTERNAL_TX_BATCH);
-                Ok(SendProposalContentResponse { response: ProposalStatus::Processing })
-            },
-        );
-        let proposal_id_clone = Arc::clone(&proposal_id);
-        self.batcher.expect_send_proposal_content().times(1).returning(
-            move |input: SendProposalContentInput| {
-                assert_eq!(input.proposal_id, *proposal_id_clone.get().unwrap());
-                assert_eq!(input.content, SendProposalContent::Finish(final_n_executed_txs));
-                Ok(SendProposalContentResponse {
-                    response: ProposalStatus::Finished(ProposalCommitment {
-                        state_diff_commitment: STATE_DIFF_COMMITMENT,
-                    }),
-                })
-            },
-        );
-    }
-
-    fn setup_default_transaction_converter(&mut self) {
-        for (tx, internal_tx) in TX_BATCH.iter().zip(INTERNAL_TX_BATCH.iter()) {
-            self.transaction_converter
-                .expect_convert_internal_consensus_tx_to_consensus_tx()
-                .withf(move |tx| tx == internal_tx)
-                .returning(|_| Ok(tx.clone()));
-            self.transaction_converter
-                .expect_convert_consensus_tx_to_internal_consensus_tx()
-                .withf(move |internal_tx| internal_tx == tx)
-                .returning(|_| Ok(internal_tx.clone()));
-        }
-    }
-
-    fn setup_default_cende_ambassador(&mut self) {
-        self.cende_ambassador
-            .expect_write_prev_height_blob()
-            .return_once(|_height| tokio::spawn(ready(true)));
-    }
-
-    fn setup_default_gas_price_provider(&mut self) {
-        self.l1_gas_price_provider.expect_get_price_info().return_const(Ok(PriceInfo {
-            base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
-            blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
-        }));
-    }
-
-    fn setup_default_eth_to_strk_oracle_client(&mut self) {
-        self.eth_to_strk_oracle_client.expect_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
-    }
-
-    fn build_context(self) -> SequencerConsensusContext {
-        SequencerConsensusContext::new(
-            ContextConfig {
-                proposal_buffer_size: CHANNEL_SIZE,
-                num_validators: NUM_VALIDATORS,
-                chain_id: CHAIN_ID,
-                ..Default::default()
-            },
-            self.into(),
-        )
-    }
-}
-
-fn create_test_and_network_deps() -> (TestDeps, NetworkDependencies) {
-    let (outbound_proposal_sender, outbound_proposal_receiver) =
-        mpsc::channel::<(HeightAndRound, mpsc::Receiver<ProposalPart>)>(CHANNEL_SIZE);
-
-    let TestSubscriberChannels { mock_network: mock_vote_network, subscriber_channels } =
-        mock_register_broadcast_topic().expect("Failed to create mock network");
-    let BroadcastTopicChannels { broadcast_topic_client: votes_topic_client, .. } =
-        subscriber_channels;
-
-    let transaction_converter = MockTransactionConverterTrait::new();
-    let state_sync_client = MockStateSyncClient::new();
-    let batcher = MockBatcherClient::new();
-    let cende_ambassador = MockCendeContext::new();
-    let eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-    let l1_gas_price_provider = MockL1GasPriceProviderClient::new();
-    let clock = Arc::new(DefaultClock);
-
-    let test_deps = TestDeps {
-        transaction_converter,
-        state_sync_client,
-        batcher,
-        cende_ambassador,
-        eth_to_strk_oracle_client,
-        l1_gas_price_provider,
-        clock,
-        outbound_proposal_sender,
-        vote_broadcast_client: votes_topic_client,
-    };
-
-    let network_deps =
-        NetworkDependencies { _vote_network: mock_vote_network, outbound_proposal_receiver };
-
-    (test_deps, network_deps)
-}
-
-fn generate_invoke_tx(nonce: u8) -> ConsensusTransaction {
-    ConsensusTransaction::RpcTransaction(rpc_invoke_tx(InvokeTxArgs {
-        nonce: Nonce(felt!(nonce)),
-        ..Default::default()
-    }))
-}
-
-fn block_info(height: BlockNumber) -> ConsensusBlockInfo {
-    let context_config = ContextConfig::default();
-    ConsensusBlockInfo {
-        height,
-        timestamp: chrono::Utc::now().timestamp().try_into().expect("Timestamp conversion failed"),
-        builder: Default::default(),
-        l1_da_mode: L1DataAvailabilityMode::Blob,
-        l2_gas_price_fri: VersionedConstants::latest_constants().min_gas_price,
-        l1_gas_price_wei: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI + context_config.l1_gas_tip_wei),
-        l1_data_gas_price_wei: GasPrice(
-            TEMP_ETH_BLOB_GAS_FEE_IN_WEI * context_config.l1_data_gas_price_multiplier_ppt / 1000,
-        ),
-        eth_to_fri_rate: ETH_TO_FRI_RATE,
-    }
-}
-// Structs which aren't utilized but should not be dropped.
-struct NetworkDependencies {
-    _vote_network: BroadcastNetworkMock<Vote>,
-    outbound_proposal_receiver: mpsc::Receiver<(HeightAndRound, mpsc::Receiver<ProposalPart>)>,
-}
+use crate::test_utils::{
+    block_info,
+    create_test_and_network_deps,
+    ETH_TO_FRI_RATE,
+    INTERNAL_TX_BATCH,
+    STATE_DIFF_COMMITMENT,
+    TIMEOUT,
+    TX_BATCH,
+};
 
 #[tokio::test]
 async fn cancelled_proposal_aborts() {
@@ -752,6 +469,7 @@ async fn gas_price_limits(#[case] maximum: bool) {
         0
     };
     let mut l1_gas_price_provider = MockL1GasPriceProviderClient::new();
+    l1_gas_price_provider.expect_get_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
     l1_gas_price_provider.expect_get_price_info().returning(move |_| {
         Ok(PriceInfo { base_fee_per_gas: GasPrice(price), blob_fee: GasPrice(price) })
     });
@@ -864,6 +582,7 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
 
     if l1_oracle_failure {
         let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+        l1_prices_oracle_client.expect_get_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
         l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Err(
             L1GasPriceClientError::L1GasPriceProviderError(
                 // random error, these parameters don't mean anything
@@ -872,12 +591,19 @@ async fn oracle_fails_on_startup(#[case] l1_oracle_failure: bool) {
         ));
         deps.l1_gas_price_provider = l1_prices_oracle_client;
     } else {
-        let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-        eth_to_strk_oracle_client
-            .expect_eth_to_fri_rate()
-            .times(1)
-            .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
-        deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
+        let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+        l1_prices_oracle_client.expect_get_price_info().returning(|_| {
+            Ok(PriceInfo {
+                base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+                blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
+            })
+        });
+        l1_prices_oracle_client.expect_get_eth_to_fri_rate().times(1).return_once(|_| {
+            Err(L1GasPriceClientError::EthToStrkOracleClientError(
+                EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()),
+            ))
+        });
+        deps.l1_gas_price_provider = l1_prices_oracle_client;
     }
 
     let mut context = deps.build_context();
@@ -946,6 +672,7 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     // set the oracle to succeed on first block and fail on second
     if l1_oracle_failure {
         let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+        l1_prices_oracle_client.expect_get_eth_to_fri_rate().returning(|_| Ok(ETH_TO_FRI_RATE));
         l1_prices_oracle_client.expect_get_price_info().times(1).return_const(Ok(PriceInfo {
             base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
             blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
@@ -958,16 +685,26 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
         ));
         deps.l1_gas_price_provider = l1_prices_oracle_client;
     } else {
-        let mut eth_to_strk_oracle_client = MockEthToStrkOracleClientTrait::new();
-        eth_to_strk_oracle_client
-            .expect_eth_to_fri_rate()
+        let mut l1_prices_oracle_client = MockL1GasPriceProviderClient::new();
+        // Make sure the L1 gas price always returns with good values.
+        l1_prices_oracle_client.expect_get_price_info().returning(|_| {
+            Ok(PriceInfo {
+                base_fee_per_gas: GasPrice(TEMP_ETH_GAS_FEE_IN_WEI),
+                blob_fee: GasPrice(TEMP_ETH_BLOB_GAS_FEE_IN_WEI),
+            })
+        });
+        // Set the eth_to_fri_rate to succeed on first block and fail on second.
+        l1_prices_oracle_client
+            .expect_get_eth_to_fri_rate()
             .times(1)
             .return_once(|_| Ok(ETH_TO_FRI_RATE));
-        eth_to_strk_oracle_client
-            .expect_eth_to_fri_rate()
-            .times(1)
-            .return_once(|_| Err(EthToStrkOracleClientError::MissingFieldError("")));
-        deps.eth_to_strk_oracle_client = eth_to_strk_oracle_client;
+        // Set the eth_to_fri_rate to fail on second block.
+        l1_prices_oracle_client.expect_get_eth_to_fri_rate().times(1).return_once(|_| {
+            Err(L1GasPriceClientError::EthToStrkOracleClientError(
+                EthToStrkOracleClientError::MissingFieldError("".to_string(), "".to_string()),
+            ))
+        });
+        deps.l1_gas_price_provider = l1_prices_oracle_client;
     }
 
     let mut context = deps.build_context();
@@ -1047,4 +784,60 @@ async fn oracle_fails_on_second_block(#[case] l1_oracle_failure: bool) {
     );
     assert!(receiver.next().await.is_none());
     assert_eq!(fin_receiver.await.unwrap().0, STATE_DIFF_COMMITMENT.0.0);
+}
+
+#[rstest]
+#[case::constant_l2_gas_price_true(true, GasAmount::default())]
+#[case::constant_l2_gas_price_false(false, VersionedConstants::latest_constants().max_block_size)]
+#[tokio::test]
+async fn constant_l2_gas_price_behavior(
+    #[case] constant_l2_gas_price: bool,
+    #[case] mock_l2_gas_used: GasAmount,
+) {
+    let (mut deps, _network) = create_test_and_network_deps();
+
+    let recorder = PrometheusBuilder::new().build_recorder();
+    let _recorder_guard = metrics::set_default_local_recorder(&recorder);
+
+    // Setup dependencies and mocks.
+    deps.setup_deps_for_build(BlockNumber(0), INTERNAL_TX_BATCH.len());
+
+    deps.batcher.expect_decision_reached().times(1).return_once(move |_| {
+        Ok(DecisionReachedResponse {
+            state_diff: ThinStateDiff::default(),
+            l2_gas_used: mock_l2_gas_used,
+            central_objects: CentralObjects::default(),
+        })
+    });
+
+    deps.state_sync_client.expect_add_new_block().times(1).return_once(|_| Ok(()));
+    deps.cende_ambassador.expect_prepare_blob_for_next_height().times(1).return_once(|_| Ok(()));
+
+    let context_config = ContextConfig { constant_l2_gas_price, ..Default::default() };
+    let mut context = deps.build_context();
+    context.config = context_config;
+
+    // Run proposal and decision logic.
+    let _fin_receiver = context.build_proposal(ProposalInit::default(), TIMEOUT).await.await;
+    context
+        .decision_reached(BlockHash(STATE_DIFF_COMMITMENT.0.0), vec![Vote::default()])
+        .await
+        .unwrap();
+
+    let min_gas_price = VersionedConstants::latest_constants().min_gas_price.0;
+    let actual_l2_gas_price = context.l2_gas_price.0;
+
+    if constant_l2_gas_price {
+        assert_eq!(
+            actual_l2_gas_price, min_gas_price,
+            "Expected L2 gas price to match constant min_gas_price"
+        );
+    } else {
+        assert!(
+            actual_l2_gas_price > min_gas_price,
+            "Expected L2 gas price > min ({}) due to high usage (EIP-1559), but got {}",
+            min_gas_price,
+            actual_l2_gas_price
+        );
+    }
 }

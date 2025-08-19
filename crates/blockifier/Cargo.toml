@@ -11,11 +11,12 @@ workspace = true
 
 [features]
 cairo_native = [
-  "apollo_compilation_utils/cairo_native",
-  "apollo_compile_to_native/cairo_native",
   "blockifier_test_utils/cairo_native",
+  "dep:apollo_compilation_utils",
+  "dep:apollo_compile_to_native",
   "dep:cairo-native",
 ]
+mocks = []
 native_blockifier = []
 node_api = []
 reexecution = ["transaction_serde"]
@@ -28,7 +29,8 @@ transaction_serde = []
 [dependencies]
 anyhow.workspace = true
 apollo_compilation_utils = { workspace = true, optional = true }
-apollo_compile_to_native.workspace = true
+apollo_compile_to_native = { workspace = true, optional = true }
+apollo_compile_to_native_types.workspace = true
 apollo_config.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true

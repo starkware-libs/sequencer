@@ -54,8 +54,8 @@ macro_rules! define_hint_enum_helper {
                 match self {
                     $(Self::$hint_name => {
                         #[cfg(any(test, feature = "testing"))]
-                        $hp_arg.get_unused_hints().remove(&Self::$hint_name.into());
-                        $implementation($($passed_arg, )? hint_args)
+                        $hp_arg.get_mut_unused_hints().remove(&Self::$hint_name.into());
+                        $crate::log_time!($implementation($($passed_arg, )? hint_args), Self::$hint_name)
                     })+
                 }
             }
@@ -87,21 +87,26 @@ macro_rules! define_common_hint_enum {
 
 #[macro_export]
 macro_rules! define_hint_enum {
-    ($enum_name:ident, $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?) => {
+    (
+        $enum_name:ident,
+        $hp: ty
+        $(, $generic_var:ident, $generic:ident)?,
+        $(($hint_name:ident, $implementation:ident, $hint_str:expr)),+ $(,)?
+    ) => {
 
         $crate::define_hint_enum_base!($enum_name, $(($hint_name, $hint_str)),+);
 
         impl $enum_name {
-            pub fn execute_hint<S: StateReader>(
+            pub fn execute_hint$(<$generic_var: $generic>)?(
                 &self,
-                hint_processor: &mut SnosHintProcessor<'_, S>,
+                hint_processor: &mut $hp,
                 hint_args: HintArgs<'_>
             ) -> OsHintResult {
                 match self {
                     $(Self::$hint_name => {
                         #[cfg(any(test, feature = "testing"))]
                         hint_processor.unused_hints.remove(&Self::$hint_name.into());
-                        $implementation::<S>(hint_processor, hint_args)
+                        $crate::log_time!($implementation(hint_processor, hint_args), Self::$hint_name)
                     })+
 
                 }
@@ -131,10 +136,21 @@ macro_rules! define_hint_extension_enum {
                             hint_processor
                             .unused_hints
                             .remove(&Self::$hint_name.into());
-                        $implementation::<S>(hint_processor, hint_extension_args)
+                        $crate::log_time!($implementation::<S>(hint_processor, hint_extension_args), Self::$hint_name)
                     })+
                 }
             }
         }
     };
+}
+
+#[macro_export]
+macro_rules! log_time {
+    ($command:expr, $hint:expr) => {{
+        let start = std::time::Instant::now();
+        let result = $command;
+        let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+        log::debug!("Took {elapsed:>7.3} ms to execute hint {:?}.", $hint);
+        result
+    }};
 }

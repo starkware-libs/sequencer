@@ -28,7 +28,8 @@ pub(crate) fn set_sha256_segment_in_syscall_handler<S: StateReader>(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let sha256_ptr = get_ptr_from_var_name(Ids::Sha256Ptr.into(), vm, ids_data, ap_tracking)?;
-    hint_processor.syscall_hint_processor.sha256_segment = Some(sha256_ptr);
+    hint_processor.get_mut_current_execution_helper()?.syscall_hint_processor.sha256_segment =
+        Some(sha256_ptr);
     Ok(())
 }
 
@@ -36,7 +37,7 @@ pub(crate) fn log_remaining_txs(
     HintArgs { vm, ids_data, ap_tracking, .. }: HintArgs<'_>,
 ) -> OsHintResult {
     let n_txs = get_integer_from_var_name(Ids::NTxs.into(), vm, ids_data, ap_tracking)?;
-    log::debug!("execute_transactions_inner: {n_txs} transactions remaining.");
+    log::info!("execute_transactions_inner: {n_txs} transactions remaining.");
     Ok(())
 }
 

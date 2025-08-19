@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use apollo_starknet_client::reader::objects::state::StateDiff;
 use apollo_starknet_client::reader::objects::transaction::ReservedDataAvailabilityMode;
 use apollo_starknet_client::reader::{DeclaredClassHashEntry, DeployedContract, StorageEntry};
-use blockifier::execution::call_info::OrderedEvent;
+use blockifier::execution::call_info::{CallExecution, OrderedEvent, OrderedL2ToL1Message};
 use blockifier::state::cached_state::{StateMaps, StorageView};
 // TODO(noamsp): find a way to share the TransactionReceipt from apollo_starknet_client and
 // remove this module.
@@ -199,6 +199,7 @@ pub struct StarknetClientTransactionReceipt {
 }
 
 // Conversion logic from blockifier types to StarknetClient types.
+// TODO(Arni): Convert to a `new` method instead of an `impl From` block.
 impl
     From<(
         TransactionHash,
@@ -232,7 +233,6 @@ impl
         Self {
             transaction_index: TransactionOffsetInBlock(tx_index),
             transaction_hash: tx_hash,
-            // TODO(Arni): Fill this up. This is relevant only for L1 handler transactions.
             l1_to_l2_consumed_message: l1_handler.map(L1ToL2Message::from),
             l2_to_l1_messages,
             events,
@@ -244,59 +244,100 @@ impl
     }
 }
 
-fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL1Message> {
-    // TODO(Arni): Fix this call. The iterator returns all the call infos in the order: `validate`,
-    // `execute`, `fee_transfer`. For `deploy_account` transactions, the order is `execute`,
-    // `validate`, `fee_transfer`.
-    let call_info_iterator = execution_info.non_optional_call_infos();
+trait OrderedItem {
+    type UnorderedItem;
 
-    let mut l2_to_l1_messages = vec![];
-    for call in call_info_iterator {
-        let messages =
-            call.execution.l2_to_l1_messages.iter().map(|l2_to_l1_message| L2ToL1Message {
-                from_address: call.call.caller_address,
-                to_address: l2_to_l1_message.message.to_address,
-                payload: l2_to_l1_message.message.payload.clone(),
-            });
-        l2_to_l1_messages.extend(messages);
+    /// converts to a tuple of (order, non-ordered struct).
+    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem);
+
+    fn get_items_from_call_execution<'a>(
+        execution: &'a CallExecution,
+    ) -> impl Iterator<Item = &'a Self>
+    where
+        Self: 'a;
+
+    fn accumulated_sorted_items(
+        execution_info: &TransactionExecutionInfo,
+    ) -> Vec<Self::UnorderedItem>
+    where
+        Self: std::marker::Sized,
+    {
+        let main_call_info_iterator = execution_info.non_optional_call_infos();
+
+        // Collect all the structs from the call infos, along with their order.
+        let mut accumulated_sortable_structs = vec![];
+        for main_call_info in main_call_info_iterator {
+            for call_info in main_call_info.iter() {
+                let sortable_structs = Self::get_items_from_call_execution(&call_info.execution)
+                    .map(|ordered_struct| {
+                        ordered_struct.to_ordered_tuple(call_info.call.storage_address)
+                    });
+                accumulated_sortable_structs.extend(sortable_structs);
+            }
+        }
+        // Sort the items by their order.
+        accumulated_sortable_structs.sort_by_key(|(order, _)| *order);
+
+        // Return the sorted items .
+        accumulated_sortable_structs
+            .into_iter()
+            .map(|(_, unordered_sturct)| unordered_sturct)
+            .collect()
+    }
+}
+
+impl OrderedItem for OrderedL2ToL1Message {
+    type UnorderedItem = L2ToL1Message;
+
+    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
+        (
+            self.order,
+            L2ToL1Message {
+                from_address,
+                to_address: self.message.to_address,
+                payload: self.message.payload.clone(),
+            },
+        )
     }
 
-    l2_to_l1_messages
+    fn get_items_from_call_execution<'a>(
+        execution: &'a CallExecution,
+    ) -> impl Iterator<Item = &'a Self>
+    where
+        Self: 'a,
+    {
+        execution.l2_to_l1_messages.iter()
+    }
+}
+
+impl OrderedItem for OrderedEvent {
+    type UnorderedItem = Event;
+
+    fn to_ordered_tuple(&self, from_address: ContractAddress) -> (usize, Self::UnorderedItem) {
+        (self.order, Event { from_address, content: self.event.clone() })
+    }
+
+    fn get_items_from_call_execution<'a>(
+        execution: &'a CallExecution,
+    ) -> impl Iterator<Item = &'a Self>
+    where
+        Self: 'a,
+    {
+        execution.events.iter()
+    }
+}
+
+fn get_l2_to_l1_messages(execution_info: &TransactionExecutionInfo) -> Vec<L2ToL1Message> {
+    OrderedL2ToL1Message::accumulated_sorted_items(execution_info)
 }
 
 fn get_events_from_execution_info(execution_info: &TransactionExecutionInfo) -> Vec<Event> {
-    let call_info = if let Some(ref call_info) = execution_info.execute_call_info {
-        call_info
-    } else {
-        return vec![];
-    };
-
-    // Collect all the events from the call infos, along with their order.
-    let mut accumulated_sortable_events = vec![];
-    for call_info in call_info.iter() {
-        let sortable_events = call_info
-            .execution
-            .events
-            .iter()
-            .map(|orderable_event| (call_info.call.caller_address, orderable_event));
-        accumulated_sortable_events.extend(sortable_events);
-    }
-    // Sort the events by their order.
-    accumulated_sortable_events.sort_by_key(|(_, OrderedEvent { order, .. })| *order);
-
-    // Convert the sorted events into the StarknetClient Event type.
-    accumulated_sortable_events
-        .iter()
-        .map(|(from_address, OrderedEvent { event, .. })| Event {
-            from_address: *from_address,
-            content: event.clone(),
-        })
-        .collect()
+    OrderedEvent::accumulated_sorted_items(execution_info)
 }
 
 fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> ExecutionResources {
     let receipt = &execution_info.receipt;
-    let resources = &receipt.resources.computation.vm_resources;
+    let resources = &receipt.resources.computation.total_vm_resources();
     let builtin_instance_counter = resources
         .builtin_instance_counter
         .iter()
@@ -324,7 +365,7 @@ fn get_execution_resources(execution_info: &TransactionExecutionInfo) -> Executi
 // Also a few modifications were made to the serialization format.
 #[derive(Debug, Deserialize, Serialize, Clone, Eq, PartialEq)]
 #[serde(tag = "type")]
-pub enum CendePreConfirmedTransaction {
+pub enum CendePreconfirmedTransaction {
     #[serde(rename = "DECLARE")]
     Declare(IntermediateDeclareTransaction),
     #[serde(rename = "DEPLOY_ACCOUNT")]
@@ -335,18 +376,18 @@ pub enum CendePreConfirmedTransaction {
     L1Handler(L1HandlerTransaction),
 }
 
-impl CendePreConfirmedTransaction {
+impl CendePreconfirmedTransaction {
     pub fn transaction_hash(&self) -> TransactionHash {
         match self {
-            CendePreConfirmedTransaction::Declare(tx) => tx.transaction_hash,
-            CendePreConfirmedTransaction::DeployAccount(tx) => tx.transaction_hash,
-            CendePreConfirmedTransaction::Invoke(tx) => tx.transaction_hash,
-            CendePreConfirmedTransaction::L1Handler(tx) => tx.transaction_hash,
+            CendePreconfirmedTransaction::Declare(tx) => tx.transaction_hash,
+            CendePreconfirmedTransaction::DeployAccount(tx) => tx.transaction_hash,
+            CendePreconfirmedTransaction::Invoke(tx) => tx.transaction_hash,
+            CendePreconfirmedTransaction::L1Handler(tx) => tx.transaction_hash,
         }
     }
 }
 
-impl From<InternalConsensusTransaction> for CendePreConfirmedTransaction {
+impl From<InternalConsensusTransaction> for CendePreconfirmedTransaction {
     fn from(transaction: InternalConsensusTransaction) -> Self {
         match transaction {
             InternalConsensusTransaction::RpcTransaction(internal_rpc_transaction) => {
@@ -467,7 +508,7 @@ pub struct IntermediateInvokeTransaction {
     pub version: TransactionVersion,
 }
 
-impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
+impl From<InternalRpcTransaction> for CendePreconfirmedTransaction {
     fn from(internal_rpc_transaction: InternalRpcTransaction) -> Self {
         let tx_hash = internal_rpc_transaction.tx_hash;
         match internal_rpc_transaction.tx {
@@ -475,7 +516,7 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
                 declare_transaction,
             ) => {
                 let version = declare_transaction.version();
-                CendePreConfirmedTransaction::Declare(IntermediateDeclareTransaction {
+                CendePreconfirmedTransaction::Declare(IntermediateDeclareTransaction {
                     resource_bounds: Some(declare_transaction.resource_bounds.into()),
                     tip: Some(declare_transaction.tip),
                     signature: declare_transaction.signature,
@@ -505,7 +546,7 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
                     tx: RpcDeployAccountTransaction::V3(tx),
                     contract_address,
                 } = deploy_account_transaction;
-                CendePreConfirmedTransaction::DeployAccount(IntermediateDeployAccountTransaction {
+                CendePreconfirmedTransaction::DeployAccount(IntermediateDeployAccountTransaction {
                     resource_bounds: Some(tx.resource_bounds.into()),
                     tip: Some(tx.tip),
                     signature: tx.signature,
@@ -528,7 +569,7 @@ impl From<InternalRpcTransaction> for CendePreConfirmedTransaction {
             ) => {
                 let version = invoke_transaction.version();
                 let RpcInvokeTransaction::V3(tx) = invoke_transaction;
-                CendePreConfirmedTransaction::Invoke(IntermediateInvokeTransaction {
+                CendePreconfirmedTransaction::Invoke(IntermediateInvokeTransaction {
                     resource_bounds: Some(tx.resource_bounds.into()),
                     tip: Some(tx.tip),
                     calldata: tx.calldata,
@@ -562,10 +603,10 @@ pub struct L1HandlerTransaction {
     pub calldata: Calldata,
 }
 
-impl From<ExecutableL1HandlerTransaction> for CendePreConfirmedTransaction {
+impl From<ExecutableL1HandlerTransaction> for CendePreconfirmedTransaction {
     fn from(l1_handler_transaction: ExecutableL1HandlerTransaction) -> Self {
         let ExecutableL1HandlerTransaction { tx, tx_hash, .. } = l1_handler_transaction;
-        CendePreConfirmedTransaction::L1Handler(L1HandlerTransaction {
+        CendePreconfirmedTransaction::L1Handler(L1HandlerTransaction {
             transaction_hash: tx_hash,
             version: tx.version,
             nonce: tx.nonce,
@@ -636,10 +677,10 @@ fn get_gas_prices(
 }
 
 #[derive(Serialize)]
-pub struct CendePreConfirmedBlock {
+pub struct CendePreconfirmedBlock {
     #[serde(flatten)]
     pub metadata: CendeBlockMetadata,
-    pub transactions: Vec<CendePreConfirmedTransaction>,
+    pub transactions: Vec<CendePreconfirmedTransaction>,
     pub transaction_receipts: Vec<Option<StarknetClientTransactionReceipt>>,
     pub transaction_state_diffs: Vec<Option<StateDiff>>,
 }

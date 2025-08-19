@@ -1,7 +1,9 @@
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 
 use apollo_l1_gas_price_types::{GasPriceData, MockL1GasPriceProviderClient};
 use papyrus_base_layer::{L1BlockHash, L1BlockHeader, MockBaseLayerContract};
+use rstest::rstest;
 use starknet_api::block::GasPrice;
 
 use crate::l1_gas_price_scraper::{
@@ -18,7 +20,7 @@ fn u64_to_block_hash(value: u64) -> L1BlockHash {
     let mut result = [0u8; 32];
     let bytes = value.to_be_bytes();
     result[24..].copy_from_slice(&bytes);
-    result
+    L1BlockHash(result)
 }
 
 fn create_l1_block_header(block_number: u64) -> L1BlockHeader {
@@ -74,7 +76,8 @@ async fn run_l1_gas_price_scraper_single_block() {
     const END_BLOCK: u64 = 1;
     const EXPECT_NUMBER: usize = 1;
     let mut scraper = setup_scraper(END_BLOCK, EXPECT_NUMBER);
-    scraper.update_prices(START_BLOCK).await.unwrap();
+    let mut block_number = START_BLOCK;
+    scraper.update_prices(&mut block_number).await.unwrap();
 }
 
 #[tokio::test]
@@ -120,9 +123,10 @@ async fn run_l1_gas_price_scraper_two_blocks() {
         mock_contract,
     );
 
-    let block_number = scraper.update_prices(START_BLOCK).await.unwrap();
+    let mut block_number = START_BLOCK;
+    scraper.update_prices(&mut block_number).await.unwrap();
     assert_eq!(block_number, END_BLOCK1);
-    let block_number = scraper.update_prices(block_number).await.unwrap();
+    scraper.update_prices(&mut block_number).await.unwrap();
     assert_eq!(block_number, END_BLOCK2);
 }
 
@@ -134,7 +138,8 @@ async fn run_l1_gas_price_scraper_multiple_blocks() {
     let mut scraper = setup_scraper(END_BLOCK, EXPECT_NUMBER);
 
     // Should update prices from 5 to 10 (not inclusive) and on 10 get a None from base layer.
-    scraper.update_prices(START_BLOCK).await.unwrap();
+    let mut block_number = START_BLOCK;
+    scraper.update_prices(&mut block_number).await.unwrap();
 }
 
 #[tokio::test]
@@ -191,11 +196,87 @@ async fn l1_reorg_gas_price_scraper_error() {
         mock_contract,
     );
     // The first call should succeed.
-    let result = scraper.update_prices(START_BLOCK).await;
+    let mut block_number = START_BLOCK;
+    let result = scraper.update_prices(&mut block_number).await;
     assert!(result.is_ok());
     // The second call should fail with a reorg error.
-    let result = scraper.update_prices(END_BLOCK1).await;
+    let result = scraper.update_prices(&mut block_number).await;
     assert!(matches!(result, Err(L1GasPriceScraperError::L1ReorgDetected { .. })));
+}
+
+#[rstest]
+#[case::high_finality(3)]
+#[case::low_finality(1)]
+#[tokio::test]
+async fn l1_short_reorg_gas_price_scraper_is_fine(#[case] finality: u64) {
+    const START_BLOCK: u64 = 0;
+    const END_BLOCK: u64 = 10;
+    const REORG_BLOCK: u64 = 9;
+
+    let end_of_chain = Arc::new(AtomicU64::new(END_BLOCK));
+    let end_of_chain_clone = end_of_chain.clone();
+    let has_reorg_happened = Arc::new(AtomicBool::new(false));
+    let has_reorg_happened_clone = has_reorg_happened.clone();
+
+    // Returns a spoof hash, based on the block number and whether a reorg happened.
+    fn block_hash_calculator(block_number: u64, is_reorg: bool) -> L1BlockHash {
+        let mut hash_number = block_number;
+        if is_reorg && block_number >= REORG_BLOCK {
+            // If a reorg happened, we change the hash number, but only for blocks after
+            // REORG_BLOCK.
+            hash_number += 100;
+        }
+        u64_to_block_hash(hash_number)
+    }
+
+    // Explicitly making the mocks here, so we can customize them for the test.
+    let mut mock_contract = MockBaseLayerContract::new();
+    // This expectation just returns the last block number we want (which is end_of_chain-finality).
+    mock_contract
+        .expect_latest_l1_block_number()
+        .returning(move |finality| Ok(Some(end_of_chain_clone.load(Ordering::SeqCst) - finality)));
+    // This expectation will return the regular chain, or the chain with the reorg (depending on
+    // has_reorg_happened).
+    mock_contract.expect_get_block_header().returning(move |block_number| {
+        // We never return None, since latest_l1_block_number will stop earlier, due to finality.
+        let reorg = has_reorg_happened_clone.load(Ordering::SeqCst);
+
+        let mut header = create_l1_block_header(block_number);
+        header.hash = block_hash_calculator(block_number, reorg);
+        header.parent_hash = block_hash_calculator(block_number.saturating_sub(1), reorg);
+        Ok(Some(header))
+    });
+    let mut mock_provider = MockL1GasPriceProviderClient::new();
+    mock_provider.expect_add_price_info().withf(check_gas_prices).returning(|_| Ok(()));
+
+    // Make a scraper with the finality set.
+    let mut scraper = L1GasPriceScraper::new(
+        L1GasPriceScraperConfig { finality, ..Default::default() },
+        Arc::new(mock_provider),
+        mock_contract,
+    );
+    // The first call should succeed.
+    let mut block_number = START_BLOCK;
+    scraper.update_prices(&mut block_number).await.unwrap();
+    // Successfully scraped the first blocks (we don't reach END_BLOCK, because of finality).
+    assert_eq!(block_number, END_BLOCK - finality + 1);
+
+    // Now we simulate a reorg by setting has_reorg_happened to true.
+    has_reorg_happened.store(true, Ordering::SeqCst);
+    // We allow the chain to keep going to a higher block number.
+    end_of_chain.store(END_BLOCK + finality * 2, Ordering::SeqCst);
+    // The second call should succeed, as the scraper will handle the reorg.
+    let result = scraper.update_prices(&mut block_number).await;
+
+    if finality > 1 {
+        // High finality case, means we can safely skip over this short reorg.
+        result.unwrap();
+        // The final block number should be one after the end of the chain minus finality.
+        assert_eq!(block_number, end_of_chain.load(Ordering::SeqCst) - finality + 1);
+    } else {
+        // Low finality case, means we will trigger a reorg error.
+        assert!(matches!(result, Err(L1GasPriceScraperError::L1ReorgDetected { .. })));
+    }
 }
 
 // TODO(guyn): test scraper with a provider timeout

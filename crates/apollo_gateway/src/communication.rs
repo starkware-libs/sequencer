@@ -1,12 +1,20 @@
-use apollo_gateway_types::communication::{GatewayRequest, GatewayResponse};
+use apollo_gateway_types::communication::{
+    GatewayRequest,
+    GatewayRequestLabelValue,
+    GatewayResponse,
+};
 use apollo_gateway_types::errors::GatewayError;
 use apollo_infra::component_definitions::ComponentRequestHandler;
-use apollo_infra::component_server::{LocalComponentServer, RemoteComponentServer};
+use apollo_infra::component_server::{ConcurrentLocalComponentServer, RemoteComponentServer};
+use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
+use apollo_metrics::generate_permutation_labels;
 use async_trait::async_trait;
+use strum::VariantNames;
 
 use crate::gateway::Gateway;
 
-pub type LocalGatewayServer = LocalComponentServer<Gateway, GatewayRequest, GatewayResponse>;
+pub type LocalGatewayServer =
+    ConcurrentLocalComponentServer<Gateway, GatewayRequest, GatewayResponse>;
 pub type RemoteGatewayServer = RemoteComponentServer<GatewayRequest, GatewayResponse>;
 
 #[async_trait]
@@ -26,4 +34,9 @@ impl ComponentRequestHandler<GatewayRequest, GatewayResponse> for Gateway {
             }
         }
     }
+}
+
+generate_permutation_labels! {
+    GATEWAY_REQUEST_LABELS,
+    (LABEL_NAME_REQUEST_VARIANT, GatewayRequestLabelValue),
 }

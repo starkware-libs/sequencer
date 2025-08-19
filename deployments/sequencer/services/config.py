@@ -106,7 +106,9 @@ class SequencerConfig(Config):
             path = os.path.join(self.config_subdir, config_path)
             data = self._try_load(file_path=path, file_description="Config")
             result.update(data)  # later values overwrite previous
-        return result
+
+        # Return a lexicographically sorted dict to ensure consistent ordering and simpler CM diffs.
+        return dict(sorted(result.items()))
 
 
 class GrafanaDashboardConfig(Config):

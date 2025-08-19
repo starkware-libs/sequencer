@@ -23,7 +23,9 @@ apollo_gateway_types.workspace = true
 apollo_infra.workspace = true
 apollo_infra_utils.workspace = true
 apollo_metrics.workspace = true
+apollo_proc_macros.workspace = true
 axum.workspace = true
+blockifier_reexecution.workspace = true
 blockifier_test_utils = { workspace = true, optional = true }
 futures.workspace = true
 hyper.workspace = true

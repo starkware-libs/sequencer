@@ -8,7 +8,6 @@ description = "The source (Cairo) code of the Starknet OS."
 build = "build/main.rs"
 
 [features]
-dump_source_files = []
 test_programs = []
 
 [lints]

@@ -7,8 +7,8 @@ use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
-pub(crate) const DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
-pub(crate) const DEFAULT_PORT: u16 = 8082;
+pub(crate) const MONITORING_ENDPOINT_DEFAULT_IP: IpAddr = IpAddr::V4(Ipv4Addr::UNSPECIFIED);
+pub const MONITORING_ENDPOINT_DEFAULT_PORT: u16 = 8082;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Validate)]
 pub struct MonitoringEndpointConfig {
@@ -21,8 +21,8 @@ pub struct MonitoringEndpointConfig {
 impl MonitoringEndpointConfig {
     pub fn deployment() -> Self {
         Self {
-            ip: DEFAULT_IP,
-            port: DEFAULT_PORT,
+            ip: MONITORING_ENDPOINT_DEFAULT_IP,
+            port: MONITORING_ENDPOINT_DEFAULT_PORT,
             collect_metrics: true,
             collect_profiling_metrics: true,
         }

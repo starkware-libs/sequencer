@@ -16,6 +16,8 @@ alloy.workspace = true
 anyhow.workspace = true
 apollo_batcher.workspace = true
 apollo_class_manager = { workspace = true, features = ["testing"] }
+apollo_compile_to_casm.workspace = true
+apollo_config.workspace = true
 apollo_consensus.workspace = true
 apollo_consensus_manager.workspace = true
 apollo_consensus_orchestrator.workspace = true
@@ -24,6 +26,7 @@ apollo_gateway = { workspace = true, features = ["testing"] }
 apollo_http_server = { workspace = true, features = ["testing"] }
 apollo_infra = { workspace = true, features = ["testing"] }
 apollo_infra_utils = { workspace = true, features = ["testing"] }
+apollo_l1_endpoint_monitor.workspace = true
 apollo_l1_gas_price.workspace = true
 apollo_l1_gas_price_types.workspace = true
 apollo_l1_provider.workspace = true
@@ -43,7 +46,7 @@ axum.workspace = true
 blockifier.workspace = true
 blockifier_test_utils.workspace = true
 cairo-lang-starknet-classes.workspace = true
-clap.workspace = true
+clap = { workspace = true, features = ["derive"] }
 futures.workspace = true
 hex.workspace = true
 indexmap.workspace = true

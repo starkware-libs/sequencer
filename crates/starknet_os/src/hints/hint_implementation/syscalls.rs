@@ -70,7 +70,7 @@ macro_rules! create_syscall_func {
                     exec_scopes.get::<SyscallHandlerType>(Scope::SyscallHandlerType.into())?,
                     SyscallHandlerType::DeprecatedSyscallHandler
                 );
-                let syscall_hint_processor = &mut hint_processor.deprecated_syscall_hint_processor;
+                let syscall_hint_processor = &mut hint_processor.get_mut_current_execution_helper()?.deprecated_syscall_hint_processor;
                 let syscall_ptr = get_ptr_from_var_name(
                     Ids::SyscallPtr.into(), vm, ids_data, ap_tracking
                 )?;
@@ -132,6 +132,9 @@ pub(crate) fn set_syscall_ptr<S: StateReader>(
         "Syscall handler type should either be unset or non-deprecated."
     );
     let syscall_ptr = get_ptr_from_var_name(Ids::SyscallPtr.into(), vm, ids_data, ap_tracking)?;
-    hint_processor.syscall_hint_processor.set_syscall_ptr(syscall_ptr);
+    hint_processor
+        .get_mut_current_execution_helper()?
+        .syscall_hint_processor
+        .set_syscall_ptr(syscall_ptr);
     Ok(())
 }

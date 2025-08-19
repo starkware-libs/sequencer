@@ -44,15 +44,18 @@ ENV BUILD_MODE=${BUILD_MODE}
 
 # Required for https requests
 RUN apt-get update && apt-get install -y ca-certificates
+# Required for starknet-native-compile
+RUN apt-get install -y binutils libc6-dev
 
 ENV ID=1001
 WORKDIR /app
 COPY --from=builder /app/target/${BUILD_MODE}/apollo_node ./target/${BUILD_MODE}/apollo_node
 COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-sierra-compile ./target/${BUILD_MODE}/shared_executables/starknet-sierra-compile
+COPY --from=builder /app/target/${BUILD_MODE}/shared_executables/starknet-native-compile ./target/${BUILD_MODE}/shared_executables/starknet-native-compile
 COPY --from=builder /usr/bin/tini /usr/bin/tini
 
-# Copy sequencer config
-COPY config/sequencer config/sequencer
+# Copy apollo config schema, used when it loads its configuration.
+COPY crates/apollo_node/resources/config_schema.json crates/apollo_node/resources/config_schema.json
 
 # Create a new user "sequencer".
 RUN set -ex; \
