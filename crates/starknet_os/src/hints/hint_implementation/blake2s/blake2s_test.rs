@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use blake2s::encode_felt252_data_and_calc_blake_hash;
+use blockifier::execution::casm_hash_estimation::encode_and_blake_hash_resources;
 use blockifier::execution::contract_class::FeltSizeCount;
-use blockifier::execution::execution_utils::encode_and_blake_hash_resources;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::MaybeRelocatable;
