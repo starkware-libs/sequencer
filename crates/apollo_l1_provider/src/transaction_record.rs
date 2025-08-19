@@ -101,6 +101,7 @@ impl TransactionRecord {
     }
 
     /// Mark a transaction as consumed on L1.
+    /// The timestamp is the L1 block timestamp where this tx was marked consumed.
     /// If tx was not already consumed (expected result), return None.
     /// If tx was already consumed (double consumption), return the time when it was previously
     /// consumed. Note that double consumption is a bug.
