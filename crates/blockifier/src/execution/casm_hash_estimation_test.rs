@@ -7,9 +7,8 @@ use pretty_assertions::assert_eq;
 use rstest::rstest;
 use starknet_types_core::felt::Felt;
 
-use crate::execution::casm_hash_estimation::blake_estimation::STEPS_EMPTY_INPUT;
 use crate::execution::casm_hash_estimation::{
-    estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
+    blake_estimation,
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
     EstimatedExecutionResources,
@@ -123,11 +122,15 @@ fn test_u32_constants() {
 #[test]
 fn test_zero_inputs() {
     // logic was written.
-    let steps = estimate_steps_of_encode_felt252_data_and_calc_blake_hash(&FeltSizeCount {
-        large: 0,
-        small: 0,
-    });
-    assert_eq!(steps, STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
+    let steps =
+        CasmV2HashResourceEstimate::estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
+            &FeltSizeCount::default(),
+        );
+    assert_eq!(
+        steps,
+        blake_estimation::STEPS_EMPTY_INPUT,
+        "Unexpected base step cost for zero inputs"
+    );
 
     // No opcodes should be emitted.
     let opcodes = FeltSizeCount::default().blake_opcode_count();
@@ -136,7 +139,8 @@ fn test_zero_inputs() {
     // Should result in base cost only (no opcode cost).
     let resources =
         CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount::default());
-    let expected = ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
+    let expected =
+        ExecutionResources { n_steps: blake_estimation::STEPS_EMPTY_INPUT, ..Default::default() };
     assert_eq!(resources.resources(), &expected, "Unexpected resources values for zero-input hash");
     assert_eq!(resources.blake_count(), 0, "Expected zero BLAKE opcodes for zero inputs");
 }
