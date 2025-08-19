@@ -39,7 +39,7 @@ impl<B: BaseLayerContract + Send + Sync> MonitoredBaseLayer<B> {
 
     /// Returns a guard to the inner base layer, wrapped in order to hide the inner Mutex type.
     async fn get(&self) -> Result<BaseLayerGuard<'_, B>, MonitoredBaseLayerError<B>> {
-        self.ensure_operational().await.unwrap();
+        self.ensure_operational().await?;
         Ok(BaseLayerGuard { inner: self.base_layer.lock().await })
     }
 
