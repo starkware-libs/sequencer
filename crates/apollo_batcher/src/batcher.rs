@@ -29,6 +29,7 @@ use apollo_l1_provider_types::errors::{L1ProviderClientError, L1ProviderError};
 use apollo_l1_provider_types::{SessionState, SharedL1ProviderClient};
 use apollo_mempool_types::communication::SharedMempoolClient;
 use apollo_mempool_types::mempool_types::CommitBlockArgs;
+use apollo_proc_macros::sequencer_latency_histogram;
 use apollo_reverts::revert_block;
 use apollo_state_sync_types::state_sync_types::SyncBlock;
 use apollo_storage::state::{StateStorageReader, StateStorageWriter};
@@ -62,6 +63,7 @@ use crate::metrics::{
     register_metrics,
     ProposalMetricsHandle,
     BATCHED_TRANSACTIONS,
+    BATCHER_COMMIT_PROPOSAL_LATENCY,
     LAST_BATCHED_BLOCK,
     LAST_PROPOSED_BLOCK,
     LAST_SYNCED_BLOCK,
@@ -942,17 +944,14 @@ pub trait BatcherStorageWriterTrait: Send + Sync {
 }
 
 impl BatcherStorageWriterTrait for apollo_storage::StorageWriter {
+    #[sequencer_latency_histogram(BATCHER_COMMIT_PROPOSAL_LATENCY, false)]
     fn commit_proposal(
         &mut self,
         height: BlockNumber,
         state_diff: ThinStateDiff,
     ) -> apollo_storage::StorageResult<()> {
         // TODO(AlonH): write casms.
-        let mut txn = self.begin_rw_txn()?;
-        info!("Appending state diff for height {}", height.0);
-        txn = txn.append_state_diff(height, state_diff)?;
-        info!("Committing state diff for height {}", height.0);
-        txn.commit()
+        self.begin_rw_txn()?.append_state_diff(height, state_diff)?.commit()
     }
 
     // This function will panic if there is a storage failure to revert the block.

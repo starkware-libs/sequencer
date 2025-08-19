@@ -23,6 +23,7 @@ define_metrics!(
 
         MetricCounter { FULL_BLOCKS, "batcher_full_blocks", "Counter of blocks closed on full capacity", init = 0 },
         MetricCounter { PRECONFIRMED_BLOCK_WRITTEN, "batcher_preconfirmed_block_written", "Counter of preconfirmed blocks written to storage", init = 0 },
+        MetricHistogram { BATCHER_COMMIT_PROPOSAL_LATENCY, "batcher_commit_proposal_latency_secs", "Time taken to commit a proposal to storage (secs)" },
     },
     Infra => {
         // Batcher request labels
@@ -53,6 +54,7 @@ pub fn register_metrics(storage_height: BlockNumber) {
 
     FULL_BLOCKS.register();
     PRECONFIRMED_BLOCK_WRITTEN.register();
+    BATCHER_COMMIT_PROPOSAL_LATENCY.register();
 }
 
 /// A handle to update the proposal metrics when the proposal is created and dropped.
