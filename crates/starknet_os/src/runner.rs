@@ -99,8 +99,6 @@ pub fn run_os<S: StateReader>(
                 cached_state_inputs,
                 deprecated_compiled_classes,
                 compiled_classes,
-                public_key_x,
-                public_key_y,
             },
     }: OsHints,
     state_readers: Vec<S>,
@@ -114,8 +112,6 @@ pub fn run_os<S: StateReader>(
         deprecated_compiled_classes,
         compiled_classes,
         state_readers,
-        public_key_x,
-        public_key_y,
     )?;
 
     let mut runner_output = run_program(layout, &OS_PROGRAM, &mut snos_hint_processor)?;

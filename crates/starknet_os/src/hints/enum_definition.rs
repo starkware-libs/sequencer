@@ -35,7 +35,6 @@ use crate::hints::hint_implementation::block_context::{
     chain_id,
     fee_token_address,
     get_block_mapping,
-    public_key_hash,
     sequencer_address,
     write_use_kzg_da_to_memory,
 };
@@ -141,8 +140,8 @@ use crate::hints::hint_implementation::os::{
     create_block_additional_hints,
     get_n_blocks,
     get_n_class_hashes_to_migrate,
-    get_public_key_x_from_os_input,
-    get_public_key_y_from_os_input,
+    get_public_key_x_in_os,
+    get_public_key_y_in_os,
     init_state_update_pointer,
     initialize_class_hashes,
     initialize_state_changes,
@@ -1087,11 +1086,6 @@ define_hint_enum!(
         "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.fee_token_address)"
     ),
     (
-        PublicKeyHash,
-        public_key_hash,
-        "memory[ap] = to_felt_or_relocatable(os_hints_config.starknet_os_config.public_key_hash)"
-    ),
-    (
         SequencerAddress,
         sequencer_address,
         "memory[ap] = to_felt_or_relocatable(syscall_handler.block_info.sequencer_address)"
@@ -1859,13 +1853,13 @@ block_input = next(block_input_iterator)
 )"#}
     ),
     (
-        GetPublicKeyXFromOsInput,
-        get_public_key_x_from_os_input,
+        GetPublicKeyXInOs,
+        get_public_key_x_in_os,
         r#"memory[ap] = to_felt_or_relocatable(os_input.public_key_x)"#
     ),
     (
-        GetPublicKeyYFromOsInput,
-        get_public_key_y_from_os_input,
+        GetPublicKeyYInOs,
+        get_public_key_y_in_os,
         r#"memory[ap] = to_felt_or_relocatable(os_input.public_key_y)"#
     ),
 );

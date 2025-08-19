@@ -284,6 +284,7 @@ func execute_blocks{
         execute_syscalls_ptr=execute_syscalls_ptr,
         execute_deprecated_syscalls_ptr=execute_deprecated_syscalls_ptr,
         compiled_class_facts_bundle=compiled_class_facts_bundle,
+        public_key_hash=public_key_hash,
     );
 
     // Pre-process block.
@@ -343,7 +344,6 @@ func execute_blocks{
     }
 
     let pedersen_ptr = hash_ptr;
-    assert public_key_hash = block_context.starknet_os_config.public_key_hash;
 
     // All blocks inside of a multi block should be off-chain and therefore
     // should not be compressed.
