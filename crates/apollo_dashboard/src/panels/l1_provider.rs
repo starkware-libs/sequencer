@@ -12,8 +12,10 @@ use apollo_l1_provider::metrics::{
     L1_MESSAGE_SCRAPER_BASELAYER_ERROR_COUNT,
     L1_MESSAGE_SCRAPER_REORG_DETECTED,
     L1_MESSAGE_SCRAPER_SUCCESS_COUNT,
+    L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     L1_PROVIDER_LABELED_PROCESSING_TIMES_SECS,
     L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+    L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
 };
 
 use crate::dashboard::{create_request_type_labeled_hist_panels, Panel, PanelType, Row};
@@ -48,6 +50,18 @@ fn get_processing_times_panels() -> Vec<Panel> {
 fn get_queueing_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
         L1_PROVIDER_LABELED_QUEUEING_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_local_client_response_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_remote_client_response_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
         PanelType::TimeSeries,
     )
 }
@@ -93,6 +107,8 @@ pub(crate) fn get_l1_provider_infra_row() -> Row {
         .into_iter()
         .chain(get_processing_times_panels())
         .chain(get_queueing_times_panels())
+        .chain(get_local_client_response_times_panels())
+        .chain(get_remote_client_response_times_panels())
         .collect::<Vec<_>>(),
     )
 }

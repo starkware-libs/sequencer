@@ -1,7 +1,9 @@
 use apollo_batcher::metrics::{
     BATCHED_TRANSACTIONS,
+    BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     BATCHER_LABELED_PROCESSING_TIMES_SECS,
     BATCHER_LABELED_QUEUEING_TIMES_SECS,
+    BATCHER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
     LAST_BATCHED_BLOCK,
     PROPOSAL_FAILED,
     PROPOSAL_STARTED,
@@ -73,6 +75,18 @@ fn get_queueing_times_panels() -> Vec<Panel> {
 fn get_panel_remote_client_send_attempts() -> Panel {
     Panel::from_hist(BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS, PanelType::TimeSeries)
 }
+fn get_local_client_response_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_remote_client_response_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        BATCHER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
 fn get_panel_rejection_ratio() -> Panel {
     Panel::ratio_time_series(
         "rejection_ratio",
@@ -124,6 +138,8 @@ pub(crate) fn get_batcher_infra_row() -> Row {
         .into_iter()
         .chain(get_processing_times_panels())
         .chain(get_queueing_times_panels())
+        .chain(get_local_client_response_times_panels())
+        .chain(get_remote_client_response_times_panels())
         .collect::<Vec<_>>(),
     )
 }

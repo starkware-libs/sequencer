@@ -1,7 +1,9 @@
 use apollo_compile_to_casm::metrics::{
     COMPILATION_DURATION,
+    SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     SIERRA_COMPILER_LABELED_PROCESSING_TIMES_SECS,
     SIERRA_COMPILER_LABELED_QUEUEING_TIMES_SECS,
+    SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
 };
 use apollo_infra::metrics::{
     SIERRA_COMPILER_LOCAL_MSGS_PROCESSED,
@@ -53,6 +55,18 @@ fn get_queueing_times_panels() -> Vec<Panel> {
         PanelType::TimeSeries,
     )
 }
+fn get_local_client_response_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
+fn get_remote_client_response_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
 
 fn get_panel_compilation_duration() -> Panel {
     Panel::from_hist(COMPILATION_DURATION, PanelType::TimeSeries)
@@ -74,6 +88,8 @@ pub(crate) fn get_sierra_compiler_infra_row() -> Row {
         .into_iter()
         .chain(get_processing_times_panels())
         .chain(get_queueing_times_panels())
+        .chain(get_local_client_response_times_panels())
+        .chain(get_remote_client_response_times_panels())
         .collect::<Vec<_>>(),
     )
 }
