@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use apollo_batcher::metrics::BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS;
+use apollo_batcher::metrics::{
+    BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    BATCHER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
 use apollo_batcher_types::communication::{
     BatcherRequest,
     BatcherResponse,
@@ -8,7 +11,10 @@ use apollo_batcher_types::communication::{
     RemoteBatcherClient,
     SharedBatcherClient,
 };
-use apollo_class_manager::metrics::CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS;
+use apollo_class_manager::metrics::{
+    CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
 use apollo_class_manager_types::{
     ClassManagerRequest,
     ClassManagerResponse,
@@ -16,7 +22,10 @@ use apollo_class_manager_types::{
     RemoteClassManagerClient,
     SharedClassManagerClient,
 };
-use apollo_compile_to_casm::metrics::SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS;
+use apollo_compile_to_casm::metrics::{
+    SIERRA_COMPILER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
 use apollo_compile_to_casm_types::{
     LocalSierraCompilerClient,
     RemoteSierraCompilerClient,
@@ -24,7 +33,10 @@ use apollo_compile_to_casm_types::{
     SierraCompilerRequest,
     SierraCompilerResponse,
 };
-use apollo_gateway::metrics::GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS;
+use apollo_gateway::metrics::{
+    GATEWAY_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
 use apollo_gateway_types::communication::{
     GatewayRequest,
     GatewayResponse,
@@ -56,15 +68,28 @@ use apollo_l1_endpoint_monitor_types::{
     L1EndpointMonitorResponse,
     SharedL1EndpointMonitorClient,
     L1_ENDPOINT_MONITOR_LOCAL_RESPONSE_TIMES_SECS,
+    L1_ENDPOINT_MONITOR_REMOTE_RESPONSE_TIMES_SECS,
 };
 use apollo_l1_gas_price::communication::{LocalL1GasPriceClient, RemoteL1GasPriceClient};
-use apollo_l1_gas_price::metrics::L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS;
+use apollo_l1_gas_price::metrics::{
+    L1_GAS_PRICE_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
 use apollo_l1_gas_price_types::{L1GasPriceRequest, L1GasPriceResponse, SharedL1GasPriceClient};
 use apollo_l1_provider::communication::{LocalL1ProviderClient, RemoteL1ProviderClient};
-use apollo_l1_provider::metrics::L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS;
+use apollo_l1_provider::metrics::{
+    L1_PROVIDER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
 use apollo_l1_provider_types::{L1ProviderRequest, L1ProviderResponse, SharedL1ProviderClient};
-use apollo_mempool::metrics::MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS;
-use apollo_mempool_p2p::metrics::MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS;
+use apollo_mempool::metrics::{
+    MEMPOOL_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
+use apollo_mempool_p2p::metrics::{
+    MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
 use apollo_mempool_p2p_types::communication::{
     LocalMempoolP2pPropagatorClient,
     MempoolP2pPropagatorRequest,
@@ -79,7 +104,10 @@ use apollo_mempool_types::communication::{
     RemoteMempoolClient,
     SharedMempoolClient,
 };
-use apollo_state_sync_metrics::metrics::STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS;
+use apollo_state_sync_metrics::metrics::{
+    STATE_SYNC_LABELED_LOCAL_RESPONSE_TIMES_SECS,
+    STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+};
 use apollo_state_sync_types::communication::{
     LocalStateSyncClient,
     RemoteStateSyncClient,
@@ -117,26 +145,46 @@ const STATE_SYNC_LOCAL_CLIENT_METRICS: LocalClientMetrics =
 
 // Remote client metrics per component (static references are required by
 // RemoteComponentClient::new)
-const BATCHER_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS);
-const CLASS_MANAGER_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS);
-const GATEWAY_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS);
-const L1_ENDPOINT_MONITOR_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&L1_ENDPOINT_MONITOR_SEND_ATTEMPTS);
-const L1_PROVIDER_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS);
-const L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS);
-const MEMPOOL_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS);
-const MEMPOOL_P2P_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS);
-const SIERRA_COMPILER_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS);
-const STATE_SYNC_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS);
+const BATCHER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &BATCHER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &BATCHER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+);
+const CLASS_MANAGER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &CLASS_MANAGER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+);
+const GATEWAY_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &GATEWAY_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &GATEWAY_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+);
+const L1_ENDPOINT_MONITOR_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &L1_ENDPOINT_MONITOR_SEND_ATTEMPTS,
+    &L1_ENDPOINT_MONITOR_REMOTE_RESPONSE_TIMES_SECS,
+);
+const L1_PROVIDER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &L1_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &L1_PROVIDER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+);
+const L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &L1_GAS_PRICE_PROVIDER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &L1_GAS_PRICE_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+);
+const MEMPOOL_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &MEMPOOL_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &MEMPOOL_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+);
+const MEMPOOL_P2P_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &MEMPOOL_P2P_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+);
+const SIERRA_COMPILER_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &SIERRA_COMPILER_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &SIERRA_COMPILER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+);
+const STATE_SYNC_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &STATE_SYNC_REMOTE_CLIENT_SEND_ATTEMPTS,
+    &STATE_SYNC_LABELED_REMOTE_RESPONSE_TIMES_SECS,
+);
 
 pub struct SequencerNodeClients {
     batcher_client: Client<BatcherRequest, BatcherResponse>,
