@@ -9,6 +9,7 @@ use starknet_api::core::ClassHash;
 use starknet_api::execution_resources::GasAmount;
 
 use crate::blockifier::transaction_executor::{
+    CompiledClassHashV2ToV1,
     TransactionExecutorError,
     TransactionExecutorResult,
 };
@@ -304,7 +305,7 @@ pub struct TxWeights {
     pub bouncer_weights: BouncerWeights,
     pub casm_hash_computation_data_sierra_gas: CasmHashComputationData,
     pub casm_hash_computation_data_proving_gas: CasmHashComputationData,
-    pub class_hashes_to_migrate: HashSet<ClassHash>,
+    pub class_hashes_to_migrate: HashMap<ClassHash, CompiledClassHashV2ToV1>,
 }
 
 impl TxWeights {
@@ -313,7 +314,7 @@ impl TxWeights {
             bouncer_weights: BouncerWeights::empty(),
             casm_hash_computation_data_sierra_gas: CasmHashComputationData::empty(),
             casm_hash_computation_data_proving_gas: CasmHashComputationData::empty(),
-            class_hashes_to_migrate: HashSet::default(),
+            class_hashes_to_migrate: HashMap::default(),
         }
     }
 }
@@ -514,7 +515,7 @@ impl Bouncer {
         &mut self.accumulated_weights.casm_hash_computation_data_proving_gas
     }
 
-    pub fn class_hashes_to_migrate(&self) -> &HashSet<ClassHash> {
+    pub fn class_hashes_to_migrate(&self) -> &HashMap<ClassHash, CompiledClassHashV2ToV1> {
         &self.accumulated_weights.class_hashes_to_migrate
     }
 
@@ -780,7 +781,7 @@ pub fn get_tx_weights<S: StateReader>(
                 bouncer_config.blake_weight,
             )?
         } else {
-            (HashSet::new(), GasAmount::ZERO, HashMap::new())
+            (HashMap::new(), GasAmount::ZERO, HashMap::new())
         };
     let sierra_gas_without_casm_hash_computation =
         sierra_gas.checked_add_panic_on_overflow(vm_resources_sierra_gas);
@@ -908,12 +909,18 @@ fn get_migration_data<S: StateReader>(
     executed_class_hashes: &HashSet<ClassHash>,
     versioned_constants: &VersionedConstants,
     blake_weight: usize,
-) -> TransactionExecutionResult<(HashSet<ClassHash>, GasAmount, BuiltinCounterMap)> {
+) -> TransactionExecutionResult<(
+    HashMap<ClassHash, CompiledClassHashV2ToV1>,
+    GasAmount,
+    BuiltinCounterMap,
+)> {
     // TODO(Aviv): Return hash_map<class_hash, compiled_class_hashes_v2_to_v1>.
     executed_class_hashes.iter().try_fold(
-        (HashSet::new(), GasAmount::ZERO, HashMap::new()),
-        |(mut compiled_class_hashes, mut gas, mut poseidon_builtins), &class_hash| {
-            if should_migrate(state_reader, class_hash)? {
+        (HashMap::new(), GasAmount::ZERO, HashMap::new()),
+        |(mut class_hashes_to_migrate, mut gas, mut poseidon_builtins), &class_hash| {
+            if let Some((class_hash, compiled_class_hash_v2_to_v1)) =
+                should_migrate(state_reader, class_hash)?
+            {
                 let class = state_reader.get_compiled_class(class_hash)?;
                 let (new_gas, new_builtins) = class
                     .estimate_compiled_class_hash_migration_resources(
@@ -921,12 +928,12 @@ fn get_migration_data<S: StateReader>(
                         blake_weight,
                     );
 
-                compiled_class_hashes.insert(class_hash);
+                class_hashes_to_migrate.insert(class_hash, compiled_class_hash_v2_to_v1);
                 gas = gas.checked_add_panic_on_overflow(new_gas);
                 // TODO(Aviv): Use add maps instead of extend.
                 poseidon_builtins.extend(new_builtins);
             }
-            Ok((compiled_class_hashes, gas, poseidon_builtins))
+            Ok((class_hashes_to_migrate, gas, poseidon_builtins))
         },
     )
 }
