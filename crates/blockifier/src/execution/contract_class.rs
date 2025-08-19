@@ -572,7 +572,7 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
 /// Cost to hash a single flat segment of `len` felts.
 fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
     // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    encode_and_blake_hash_resources(felt_size_groups.large, felt_size_groups.small)
+    encode_and_blake_hash_resources(felt_size_groups)
 }
 
 /// Cost to hash a multi-segment contract:
@@ -596,7 +596,8 @@ fn node_cost(segs: &[NestedFeltCounts]) -> EstimatedExecutionResources {
 
     // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
     // and one segment length (“small” felt) per segment.
-    resources += &encode_and_blake_hash_resources(segs.len(), segs.len());
+    resources +=
+        &encode_and_blake_hash_resources(&FeltSizeCount { large: segs.len(), small: segs.len() });
 
     resources
 }

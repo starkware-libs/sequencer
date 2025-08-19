@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use blake2s::encode_felt252_data_and_calc_blake_hash;
+use blockifier::execution::contract_class::FeltSizeCount;
 use blockifier::execution::execution_utils::encode_and_blake_hash_resources;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
@@ -19,19 +20,27 @@ use crate::test_utils::cairo_runner::{
 };
 
 /// Counts the number of small and big felts in the data.
-fn data_to_felt_count(data: &[Felt]) -> (usize, usize) {
+// TODO(AvivG): use From<&[Felt]> for FeltSizeCount.
+fn data_to_felt_count(data: &[Felt]) -> FeltSizeCount {
     // TODO(AvivG): Use `Blake2Felt252::SMALL_THRESHOLD` when exposed.
     const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000"); // 2^63
 
-    data.iter().fold((0, 0), |(small, big), felt| {
-        if *felt >= SMALL_THRESHOLD { (small, big + 1) } else { (small + 1, big) }
+    let felt_size_groups = FeltSizeCount::default();
+
+    data.iter().fold(felt_size_groups, |mut felt_size_groups, felt| {
+        if *felt >= SMALL_THRESHOLD {
+            felt_size_groups.large += 1;
+        } else {
+            felt_size_groups.small += 1;
+        }
+        felt_size_groups
     })
 }
 
 /// Return the estimated execution resources for Blake2s hashing.
 fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> ExecutionResources {
-    let (n_small_felts, n_big_felts) = data_to_felt_count(data);
-    let estimated = encode_and_blake_hash_resources(n_big_felts, n_small_felts);
+    let felt_size_groups = data_to_felt_count(data);
+    let estimated = encode_and_blake_hash_resources(&felt_size_groups);
 
     let mut resources = estimated.resources().clone();
     resources.n_steps -= 1;
