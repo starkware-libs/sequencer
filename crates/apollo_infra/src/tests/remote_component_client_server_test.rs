@@ -4,7 +4,6 @@ use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
 
 use apollo_infra_utils::run_until::run_until;
-use apollo_metrics::metrics::{MetricHistogram, MetricScope};
 use async_trait::async_trait;
 use hyper::body::to_bytes;
 use hyper::header::CONTENT_TYPE;
@@ -40,7 +39,6 @@ use crate::component_server::{
     LocalServerConfig,
     RemoteComponentServer,
 };
-use crate::metrics::RemoteClientMetrics;
 use crate::serde_utils::SerdeWrapper;
 use crate::tests::{
     test_a_b_functionality,
@@ -80,8 +78,6 @@ const FAST_FAILING_CLIENT_CONFIG: RemoteClientConfig = RemoteClientConfig {
     initial_retry_delay_ms: 0,
     log_attempt_interval_ms: 1,
 };
-const TEST_METRIC: MetricHistogram =
-    MetricHistogram::new(MetricScope::Infra, "test_histogram", "description");
 
 #[async_trait]
 impl ComponentAClientTrait for RemoteComponentClient<ComponentARequest, ComponentAResponse> {
@@ -164,7 +160,7 @@ where
         FAST_FAILING_CLIENT_CONFIG,
         &socket.ip().to_string(),
         socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     )
 }
 
@@ -192,13 +188,11 @@ async fn remote_connection_concurrency() {
     // pass the semaphore into the server’s ComponentA
     setup_for_tests(setup_value, a_socket, b_socket, 2, Some(semaphore.clone())).await;
 
-    let metrics = RemoteClientMetrics::new(&TEST_METRIC);
-
     let client1 = RemoteComponentClient::<ComponentARequest, ComponentAResponse>::new(
         FAST_FAILING_CLIENT_CONFIG,
         &Ipv4Addr::LOCALHOST.to_string(),
         a_socket.port(),
-        metrics,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     let client2 = client1.clone();
     let client3 = client1.clone();
@@ -332,13 +326,13 @@ async fn setup_for_tests(
         a_config,
         &a_socket.ip().to_string(),
         a_socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     let b_remote_client = ComponentBClient::new(
         b_config,
         &b_socket.ip().to_string(),
         b_socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
 
     let component_a = match sem {
@@ -408,13 +402,13 @@ async fn proper_setup() {
         a_client_config,
         &a_socket.ip().to_string(),
         a_socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     let b_remote_client = ComponentBClient::new(
         b_client_config,
         &b_socket.ip().to_string(),
         b_socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
 
     test_a_b_functionality(a_remote_client, b_remote_client, setup_value).await;
@@ -462,7 +456,7 @@ async fn unconnected_server() {
         FAST_FAILING_CLIENT_CONFIG,
         &socket.ip().to_string(),
         socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     let expected_error_contained_keywords = ["Connection refused"];
     verify_error(client, &expected_error_contained_keywords).await;
@@ -537,7 +531,7 @@ async fn retry_request() {
         retry_config,
         &socket.ip().to_string(),
         socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     assert_eq!(a_client_retry.a_get_value().await.unwrap(), VALID_VALUE_A);
 
@@ -547,7 +541,7 @@ async fn retry_request() {
         no_retry_config,
         &socket.ip().to_string(),
         socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     );
     let expected_error_contained_keywords = [StatusCode::IM_A_TEAPOT.as_str()];
     verify_error(a_client_no_retry.clone(), &expected_error_contained_keywords).await;

@@ -173,7 +173,7 @@ async fn setup_concurrent_remote_test() -> RemoteConcurrentComponentClient {
         config,
         &socket.ip().to_string(),
         socket.port(),
-        TEST_REMOTE_CLIENT_METRICS,
+        &TEST_REMOTE_CLIENT_METRICS,
     )
 }
 
