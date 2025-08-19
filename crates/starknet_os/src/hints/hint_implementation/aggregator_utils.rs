@@ -257,7 +257,7 @@ fn write_full_os_output(
 
     let header = vm.gen_arg(&vec![
         state_update_output,
-        Felt::from(common_os_output.prev_block_number.0).into(),
+        Felt::from(common_os_output.prev_block_number).into(),
         Felt::from(common_os_output.new_block_number.0).into(),
         common_os_output.prev_block_hash.into(),
         common_os_output.new_block_hash.into(),
