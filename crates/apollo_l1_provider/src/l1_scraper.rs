@@ -285,7 +285,7 @@ impl Default for L1ScraperConfig {
             startup_rewind_time_seconds: Duration::from_secs(60 * 60),
             chain_id: ChainId::Mainnet,
             finality: 0,
-            polling_interval_seconds: Duration::from_secs(60),
+            polling_interval_seconds: Duration::from_secs(30),
         }
     }
 }
