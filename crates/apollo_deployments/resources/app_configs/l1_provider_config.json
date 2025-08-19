@@ -4,6 +4,6 @@
   "l1_provider_config.startup_sync_sleep_retry_interval_seconds": 2,
   "l1_provider_config.l1_handler_cancellation_timelock_seconds": 300,
   "l1_provider_config.l1_handler_consumption_timelock_seconds": 300.0,
-  "l1_provider_config.new_l1_handler_cooldown_seconds": 245,
+  "l1_provider_config.new_l1_handler_cooldown_seconds": 70,
   "l1_provider_config.dummy_mode": false
 }
