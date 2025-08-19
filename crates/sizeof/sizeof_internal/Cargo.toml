@@ -1,10 +1,10 @@
 [package]
-name = "sizeof_internal"
-version.workspace = true
-edition.workspace = true
-repository.workspace = true
-license-file.workspace = true
 description = "compute size of types in memory"
+edition.workspace = true
+license-file.workspace = true
+name = "sizeof_internal"
+repository.workspace = true
+version.workspace = true
 
 [lints]
 workspace = true
