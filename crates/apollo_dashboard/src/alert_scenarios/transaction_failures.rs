@@ -1,6 +1,6 @@
+use apollo_gateway::metrics::{GATEWAY_TRANSACTIONS_FAILED, GATEWAY_TRANSACTIONS_RECEIVED};
 use apollo_http_server::metrics::{
     ADDED_TRANSACTIONS_DEPRECATED_ERROR,
-    ADDED_TRANSACTIONS_FAILURE,
     ADDED_TRANSACTIONS_INTERNAL_ERROR,
     ADDED_TRANSACTIONS_TOTAL,
 };
@@ -42,19 +42,18 @@ pub(crate) fn get_http_server_high_deprecated_transaction_failure_ratio() -> Ale
     )
 }
 
-fn get_http_server_high_transaction_failure_ratio(
+fn get_gateway_high_transaction_failure_ratio(
     alert_env_filtering: AlertEnvFiltering,
     alert_severity: AlertSeverity,
 ) -> Alert {
     Alert::new(
-        "http_server_high_transaction_failure_ratio",
-        "http server high transaction failure ratio",
-        AlertGroup::HttpServer,
+        "gateway_high_transaction_failure_ratio",
+        "gateway high transaction failure ratio",
+        AlertGroup::Gateway,
         format!(
-            "(increase({}[1h]) - increase({}[1h])) / clamp_min(increase({}[1h]), 1)",
-            ADDED_TRANSACTIONS_FAILURE.get_name_with_filter(),
-            ADDED_TRANSACTIONS_DEPRECATED_ERROR.get_name_with_filter(),
-            ADDED_TRANSACTIONS_TOTAL.get_name_with_filter()
+            "increase({}[1h]) / clamp_min(increase({}[1h]), 1)",
+            GATEWAY_TRANSACTIONS_FAILED.get_name_with_filter(),
+            GATEWAY_TRANSACTIONS_RECEIVED.get_name_with_filter(),
         ),
         vec![AlertCondition {
             comparison_op: AlertComparisonOp::GreaterThan,
@@ -68,13 +67,13 @@ fn get_http_server_high_transaction_failure_ratio(
     )
 }
 
-pub(crate) fn get_http_server_high_transaction_failure_ratio_vec() -> Vec<Alert> {
+pub(crate) fn get_gateway_high_transaction_failure_ratio_vec() -> Vec<Alert> {
     vec![
-        get_http_server_high_transaction_failure_ratio(
+        get_gateway_high_transaction_failure_ratio(
             AlertEnvFiltering::MainnetStyleAlerts,
             AlertSeverity::Regular,
         ),
-        get_http_server_high_transaction_failure_ratio(
+        get_gateway_high_transaction_failure_ratio(
             AlertEnvFiltering::TestnetStyleAlerts,
             AlertSeverity::WorkingHours,
         ),

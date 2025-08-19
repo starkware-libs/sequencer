@@ -1162,10 +1162,10 @@
       "severity": "p4"
     },
     {
-      "name": "http_server_high_transaction_failure_ratio",
-      "title": "http server high transaction failure ratio",
-      "ruleGroup": "http_server",
-      "expr": "(increase(http_server_added_transactions_failure{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) - increase(http_server_added_transactions_deprecated_error{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h])) / clamp_min(increase(http_server_added_transactions_total{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
+      "name": "gateway_high_transaction_failure_ratio",
+      "title": "gateway high transaction failure ratio",
+      "ruleGroup": "gateway",
+      "expr": "increase(gateway_transactions_failed{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]) / clamp_min(increase(gateway_transactions_received{cluster=~\"$cluster\", namespace=~\"$namespace\"}[1h]), 1)",
       "conditions": [
         {
           "evaluator": {

@@ -67,8 +67,8 @@ use crate::alert_scenarios::transaction_delays::{
     get_mempool_p2p_peer_down_vec,
 };
 use crate::alert_scenarios::transaction_failures::{
+    get_gateway_high_transaction_failure_ratio_vec,
     get_http_server_high_deprecated_transaction_failure_ratio,
-    get_http_server_high_transaction_failure_ratio_vec,
     get_http_server_internal_error_once,
     get_http_server_internal_error_ratio_vec,
     get_mempool_transaction_drop_ratio_vec,
@@ -457,7 +457,7 @@ pub fn get_apollo_alerts(alert_env_filtering: AlertEnvFiltering) -> Alerts {
     alerts.append(&mut get_general_pod_memory_utilization_vec());
     alerts.append(&mut get_general_pod_disk_utilization_vec());
     alerts.append(&mut get_http_server_avg_add_tx_latency_alert_vec());
-    alerts.append(&mut get_http_server_high_transaction_failure_ratio_vec());
+    alerts.append(&mut get_gateway_high_transaction_failure_ratio_vec());
     alerts.append(&mut get_http_server_internal_error_ratio_vec());
     alerts.append(&mut get_http_server_low_successful_transaction_rate_vec());
     alerts.append(&mut get_http_server_p95_add_tx_latency_alert_vec());
