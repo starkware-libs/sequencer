@@ -153,6 +153,17 @@ impl Storage for PapyrusStorage {
                 deprecated_declared_classes.insert(class_hash, deprecated_contract_class);
             }
         }
+        // Migrated class hash are class hash in class hash to compiled class hash mapping,
+        // but not in the declared classes.
+        let migrated_class_hash_to_compiled_class_hash: IndexMap<ClassHash, CompiledClassHash> =
+            py_state_diff
+                .class_hash_to_compiled_class_hash
+                .iter()
+                .filter(|(class_hash, _)| !declared_class_hash_to_class.contains_key(*class_hash))
+                .map(|(class_hash, compiled_class_hash)| {
+                    (ClassHash(class_hash.0), CompiledClassHash(compiled_class_hash.0))
+                })
+                .collect();
 
         let mut declared_classes =
             IndexMap::<ClassHash, (CompiledClassHash, SierraContractClass)>::new();
@@ -197,8 +208,12 @@ impl Storage for PapyrusStorage {
         state_diff.deprecated_declared_classes = deprecated_declared_classes;
         state_diff.declared_classes = declared_classes;
 
-        let (thin_state_diff, declared_classes, deprecated_declared_classes) =
+        let (mut thin_state_diff, declared_classes, deprecated_declared_classes) =
             ThinStateDiff::from_state_diff(state_diff);
+        // Add the migrated class hash to the state diff.
+        for (class_hash, compiled_class_hash) in migrated_class_hash_to_compiled_class_hash {
+            thin_state_diff.declared_classes.insert(class_hash, compiled_class_hash);
+        }
 
         append_txn = append_txn.append_state_diff(block_number, thin_state_diff)?.append_classes(
             block_number,
