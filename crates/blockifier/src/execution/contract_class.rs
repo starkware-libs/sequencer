@@ -43,8 +43,8 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
-    blake_execution_resources_estimation_to_gas,
-    encode_and_blake_hash_resources,
+    CasmV2HashResourceEstimate,
+    EstimateCasmHashResources,
 };
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
@@ -592,10 +592,11 @@ fn leaf_cost(
     blake_opcode_gas: usize,
 ) -> GasAmount {
     // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    // TODO(AvivG): Call `encode_and_blake_hash_resources` directly, and perform the resource→gas
-    // conversion only after `estimate_casm_blake_hash_computation_resources` executes.
-    blake_execution_resources_estimation_to_gas(
-        encode_and_blake_hash_resources(felt_size_groups),
+    // TODO(AvivG): Call `estimated_resources_of_hash_function` directly, and perform the
+    // resource→gas conversion only after `estimate_casm_blake_hash_computation_resources`
+    // executes.
+    CasmV2HashResourceEstimate::blake_execution_resources_estimation_to_gas(
+        CasmV2HashResourceEstimate::estimated_resources_of_hash_function(felt_size_groups),
         versioned_constants,
         blake_opcode_gas,
     )
@@ -630,10 +631,14 @@ fn node_cost(
 
     // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
     // and one segment length (“small” felt) per segment.
-    // TODO(AvivG): Call `encode_and_blake_hash_resources` directly, and perform the resource→gas
-    // conversion only after `estimate_casm_blake_hash_computation_resources` executes.
-    let node_hash_cost = blake_execution_resources_estimation_to_gas(
-        encode_and_blake_hash_resources(&FeltSizeCount { large: segs.len(), small: segs.len() }),
+    // TODO(AvivG): Call `estimated_resources_of_hash_function` directly, and perform the
+    // resource→gas conversion only after `estimate_casm_blake_hash_computation_resources`
+    // executes.
+    let node_hash_cost = CasmV2HashResourceEstimate::blake_execution_resources_estimation_to_gas(
+        CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount {
+            large: segs.len(),
+            small: segs.len(),
+        }),
         versioned_constants,
         blake_opcode_gas,
     );
