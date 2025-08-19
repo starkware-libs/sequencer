@@ -54,6 +54,7 @@ use starknet_api::test_utils::{TestingTxArgs, CHAIN_ID_FOR_TESTS};
 use starknet_api::transaction::fields::TransactionSignature;
 use starknet_api::transaction::TransactionHash;
 use starknet_api::{
+    compiled_class_hash,
     contract_address,
     declare_tx_args,
     deploy_account_tx_args,
@@ -393,7 +394,7 @@ async fn test_add_tx_positive(
 async fn test_compiled_class_hash_mismatch(mock_dependencies: MockDependencies) {
     let mut declare_tx =
         assert_matches!(declare_tx(), RpcTransaction::Declare(RpcDeclareTransaction::V3(tx)) => tx);
-    declare_tx.compiled_class_hash = CompiledClassHash::default();
+    declare_tx.compiled_class_hash = compiled_class_hash!(1_u8);
     let tx = RpcTransaction::Declare(RpcDeclareTransaction::V3(declare_tx));
 
     let gateway = mock_dependencies.gateway();
