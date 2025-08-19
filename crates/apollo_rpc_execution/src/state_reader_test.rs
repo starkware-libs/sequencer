@@ -37,7 +37,7 @@ use starknet_api::contract_class::{ContractClass, SierraVersion};
 use starknet_api::core::{ClassHash, CompiledClassHash, Nonce};
 use starknet_api::hash::StarkHash;
 use starknet_api::state::{SierraContractClass, StateNumber, ThinStateDiff};
-use starknet_api::{class_hash, contract_address, felt, storage_key};
+use starknet_api::{class_hash, compiled_class_hash, contract_address, felt, storage_key};
 use starknet_types_core::felt::Felt;
 
 use crate::objects::PendingData;
@@ -337,7 +337,7 @@ fn get_compiled_class() {
         .append_state_diff(
             BlockNumber(0),
             ThinStateDiff {
-                declared_classes: indexmap!(class_hash_0x2 => CompiledClassHash::default()),
+                declared_classes: indexmap!(class_hash_0x2 => compiled_class_hash!(1_u8)),
                 ..Default::default()
             },
         )
@@ -350,7 +350,7 @@ fn get_compiled_class() {
         .append_state_diff(
             BlockNumber(1),
             ThinStateDiff {
-                declared_classes: indexmap!(class_hash_0x3 => CompiledClassHash::default()),
+                declared_classes: indexmap!(class_hash_0x3 => compiled_class_hash!(2_u8)),
                 ..Default::default()
             },
         )

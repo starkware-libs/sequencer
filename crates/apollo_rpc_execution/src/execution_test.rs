@@ -16,7 +16,7 @@ use starknet_api::block::{BlockNumber, StarknetVersion};
 use starknet_api::core::{ChainId, CompiledClassHash, EntryPointSelector};
 use starknet_api::state::{StateNumber, ThinStateDiff};
 use starknet_api::transaction::fields::{Calldata, Fee};
-use starknet_api::{calldata, class_hash, contract_address, felt, nonce};
+use starknet_api::{calldata, class_hash, compiled_class_hash, contract_address, felt, nonce};
 use starknet_types_core::felt::Felt;
 
 use crate::execution_utils::selector_from_name;
@@ -695,7 +695,7 @@ fn induced_state_diff() {
     sequencer_balance += simulation_results[1].fee_estimation.overall_fee.0;
     let expected_declare_class = ThinStateDiff {
         nonces: indexmap! {*ACCOUNT_ADDRESS => nonce!(2_u128)},
-        declared_classes: indexmap! {class_hash!(next_declared_class_hash) => CompiledClassHash::default()},
+        declared_classes: indexmap! {class_hash!(next_declared_class_hash) => compiled_class_hash!(123)},
         storage_diffs: indexmap! {
             *TEST_ERC20_CONTRACT_ADDRESS => indexmap!{
                 account_balance_key => felt!(account_balance),
