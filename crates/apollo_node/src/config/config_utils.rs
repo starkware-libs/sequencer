@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::fs::File;
 use std::path::Path;
 
@@ -95,6 +95,33 @@ pub fn config_to_preset(config_map: &Value) -> Value {
     } else {
         panic!("Config map is not a JSON object: {:?}", config_map);
     }
+}
+
+/// Keep "{prefix}.#is_none": true, remove all other "{prefix}.*" keys.
+pub fn prune_by_is_none(v: Value) -> Value {
+    let Value::Object(mut obj) = v else { return v };
+
+    // Find prefixes whose is_none flag is true
+    let mut prefixes: HashSet<String> = HashSet::new();
+    for (k, val) in obj.iter() {
+        if let Some(prefix) = k.strip_suffix(".#is_none") {
+            if val.as_bool() == Some(true) {
+                prefixes.insert(format!("{prefix}."));
+            }
+        }
+    }
+
+    // Remove keys that begin with any such prefix, except the "#is_none" flag itself
+    obj.retain(|k, _| {
+        if let Some(p) = prefixes.iter().find(|p| k.starts_with(&***p)) {
+            // keep only the "{prefix}.#is_none" key
+            k == &format!("{p}#is_none")
+        } else {
+            true
+        }
+    });
+
+    Value::Object(obj)
 }
 
 // TODO(Nadin): Consider adding methods to ConfigPointers to encapsulate related functionality.
