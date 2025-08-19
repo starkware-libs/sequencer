@@ -661,7 +661,7 @@ impl ServiceNameInner for HybridNodeServiceName {
             HybridNodeServiceName::Core => UpdateStrategy::RollingUpdate,
             HybridNodeServiceName::HttpServer => UpdateStrategy::RollingUpdate,
             HybridNodeServiceName::Gateway => UpdateStrategy::RollingUpdate,
-            HybridNodeServiceName::L1 => UpdateStrategy::RollingUpdate,
+            HybridNodeServiceName::L1 => UpdateStrategy::Recreate,
             HybridNodeServiceName::Mempool => UpdateStrategy::Recreate,
             HybridNodeServiceName::SierraCompiler => UpdateStrategy::RollingUpdate,
         }

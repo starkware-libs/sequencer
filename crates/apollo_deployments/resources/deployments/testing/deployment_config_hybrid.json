@@ -154,7 +154,7 @@
       },
       "external_secret": null,
       "anti_affinity": false,
-      "update_strategy_type": "RollingUpdate",
+      "update_strategy_type": "Recreate",
       "ports": {
         "L1EndpointMonitor": 55005,
         "L1GasPriceProvider": 55003,
