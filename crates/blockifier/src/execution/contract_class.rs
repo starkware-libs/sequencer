@@ -43,7 +43,6 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
-    blake_execution_resources_estimation_to_gas,
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
 };
@@ -596,7 +595,7 @@ fn leaf_cost(
     // TODO(AvivG): Call `estimated_resources_of_hash_function` directly, and perform the
     // resource→gas conversion only after `estimate_casm_blake_hash_computation_resources`
     // executes.
-    blake_execution_resources_estimation_to_gas(
+    CasmV2HashResourceEstimate::blake_execution_resources_estimation_to_gas(
         CasmV2HashResourceEstimate::estimated_resources_of_hash_function(felt_size_groups),
         versioned_constants,
         blake_opcode_gas,
@@ -635,7 +634,7 @@ fn node_cost(
     // TODO(AvivG): Call `estimated_resources_of_hash_function` directly, and perform the
     // resource→gas conversion only after `estimate_casm_blake_hash_computation_resources`
     // executes.
-    let node_hash_cost = blake_execution_resources_estimation_to_gas(
+    let node_hash_cost = CasmV2HashResourceEstimate::blake_execution_resources_estimation_to_gas(
         CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount {
             large: segs.len(),
             small: segs.len(),
