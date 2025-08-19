@@ -10,7 +10,7 @@ use crate::execution::contract_class::{
     FeltSizeCount,
     NestedFeltCounts,
 };
-use crate::execution::execution_utils::poseidon_hash_many_cost;
+use crate::execution::execution_utils::{encode_and_blake_hash_resources, poseidon_hash_many_cost};
 use crate::utils::u64_from_usize;
 
 #[cfg(test)]
@@ -151,8 +151,7 @@ trait EstimateCasmHashResources {
     /// Estimates the Cairo execution resources used when applying the hash function during CASM
     /// hashing.
     fn estimated_resources_of_hash_function(
-        &mut self,
-        _felt_count: FeltSizeCount,
+        _felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources;
 
     /// Estimates the Cairo execution resources for `compiled_class_hash` in the
@@ -177,12 +176,11 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     }
 
     fn estimated_resources_of_hash_function(
-        &mut self,
-        felt_count: FeltSizeCount,
+        felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
         EstimatedExecutionResources::V1Hash {
             // TODO(AvivG): Consider inlining `poseidon_hash_many_cost` logic here.
-            resources: poseidon_hash_many_cost(felt_count.n_felts()),
+            resources: poseidon_hash_many_cost(felt_size_groups.n_felts()),
         }
     }
 }
@@ -197,10 +195,8 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     }
 
     fn estimated_resources_of_hash_function(
-        &mut self,
-        _felt_count: FeltSizeCount,
+        felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
-        // TODO(AvivG): Use `cost_of_encode_felt252_data_and_calc_blake_hash` once it returns ER.
-        EstimatedExecutionResources::new(HashVersion::V2)
+        encode_and_blake_hash_resources(felt_size_groups)
     }
 }
