@@ -14,7 +14,6 @@ use crate::execution::contract_class::{
 };
 use crate::execution::execution_utils::{
     blake_estimation,
-    count_blake_opcode,
     estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
     poseidon_hash_many_cost,
 };
@@ -226,7 +225,7 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
 
         EstimatedExecutionResources::V2Hash {
             resources,
-            blake_count: count_blake_opcode(felt_size_groups),
+            blake_count: felt_size_groups.blake_opcode_count(),
         }
     }
 }
