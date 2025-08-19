@@ -10,7 +10,8 @@ use starknet_types_core::felt::Felt;
 use crate::execution::casm_hash_estimation::blake_estimation::STEPS_EMPTY_INPUT;
 use crate::execution::casm_hash_estimation::{
     compute_blake_hash_steps,
-    encode_and_blake_hash_resources,
+    CasmV2HashResourceEstimate,
+    EstimateCasmHashResources,
     EstimatedExecutionResources,
 };
 use crate::execution::contract_class::FeltSizeCount;
@@ -130,7 +131,11 @@ fn test_zero_inputs() {
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
     // Should result in base cost only (no opcode cost).
-    let resources = encode_and_blake_hash_resources(&FeltSizeCount { large: 0, small: 0 });
+    let resources =
+        CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount {
+            large: 0,
+            small: 0,
+        });
     let expected = ExecutionResources { n_steps: STEPS_EMPTY_INPUT, ..Default::default() };
     assert_eq!(resources.resources(), &expected, "Unexpected resources values for zero-input hash");
     assert_eq!(resources.blake_count(), 0, "Expected zero BLAKE opcodes for zero inputs");

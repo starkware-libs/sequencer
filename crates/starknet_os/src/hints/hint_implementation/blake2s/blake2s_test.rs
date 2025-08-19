@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use blake2s::encode_felt252_data_and_calc_blake_hash;
-use blockifier::execution::casm_hash_estimation::encode_and_blake_hash_resources;
+use blockifier::execution::casm_hash_estimation::{
+    CasmV2HashResourceEstimate,
+    EstimateCasmHashResources,
+};
 use blockifier::execution::contract_class::FeltSizeCount;
 use cairo_vm::types::builtin_name::BuiltinName;
 use cairo_vm::types::layout_name::LayoutName;
@@ -39,7 +42,8 @@ fn data_to_felt_count(data: &[Felt]) -> FeltSizeCount {
 /// Return the estimated execution resources for Blake2s hashing.
 fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> ExecutionResources {
     let felt_size_groups = data_to_felt_count(data);
-    let estimated = encode_and_blake_hash_resources(&felt_size_groups);
+    let estimated =
+        CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&felt_size_groups);
 
     let mut resources = estimated.resources().clone();
     resources.n_steps -= 1;

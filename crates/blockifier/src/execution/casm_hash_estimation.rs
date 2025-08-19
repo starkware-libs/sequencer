@@ -14,7 +14,7 @@ use crate::execution::contract_class::{
     FeltSizeCount,
     NestedFeltCounts,
 };
-use crate::execution::execution_utils::{encode_and_blake_hash_resources, poseidon_hash_many_cost};
+use crate::execution::execution_utils::poseidon_hash_many_cost;
 use crate::utils::u64_from_usize;
 
 #[cfg(test)]
@@ -148,7 +148,7 @@ impl From<(ExecutionResources, HashVersion)> for EstimatedExecutionResources {
 /// This provides resource estimates rather than exact values.
 // TODO(AvivG): Remove allow once used.
 #[allow(unused)]
-trait EstimateCasmHashResources {
+pub trait EstimateCasmHashResources {
     /// Specifies the hash function variant that the estimate is for.
     fn hash_version(&self) -> HashVersion;
 
@@ -191,17 +191,44 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
 
 // TODO(AvivG): Remove allow once used.
 #[allow(unused)]
-struct CasmV2HashResourceEstimate {}
+pub struct CasmV2HashResourceEstimate {}
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn hash_version(&self) -> HashVersion {
         HashVersion::V2
     }
 
+    /// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
+    ///
+    /// # Encoding Details
+    /// - Small felts → 2 `u32`s each; Big felts → 8 `u32`s each.
+    /// - Each felt requires one `range_check` operation.
+    ///
+    /// # Returns:
+    /// - `ExecutionResources`: VM resource usage (e.g., n_steps, range checks).
+    /// - `usize`: number of Blake opcodes used, accounted for separately as those are not reported
+    ///   via `ExecutionResources`.
     fn estimated_resources_of_hash_function(
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
-        encode_and_blake_hash_resources(felt_size_groups)
+        let n_steps = compute_blake_hash_steps(felt_size_groups);
+        let builtin_instance_counter = match felt_size_groups.n_felts() {
+            // The empty case does not use builtins at all.
+            0 => HashMap::new(),
+            // One `range_check` per input felt to validate its size + Overhead for the non empty
+            // case.
+            _ => HashMap::from([(
+                BuiltinName::range_check,
+                felt_size_groups.n_felts() + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
+            )]),
+        };
+
+        let resources = ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter };
+
+        EstimatedExecutionResources::V2Hash {
+            resources,
+            blake_count: felt_size_groups.blake_opcode_count(),
+        }
     }
 }
 
@@ -262,38 +289,6 @@ fn compute_blake_hash_steps(felt_size_groups: &FeltSizeCount) -> usize {
     let felt_steps = felts_steps(felt_size_groups.large, felt_size_groups.small);
 
     base_steps.checked_add(felt_steps).expect("Overflow computing total Blake hash steps")
-}
-
-/// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
-///
-/// # Encoding Details
-/// - Small felts → 2 `u32`s each; Big felts → 8 `u32`s each.
-/// - Each felt requires one `range_check` operation.
-///
-/// # Returns:
-/// - `ExecutionResources`: VM resource usage (e.g., n_steps, range checks).
-/// - `usize`: number of Blake opcodes used, accounted for separately as those are not reported via
-///   `ExecutionResources`.
-pub fn encode_and_blake_hash_resources(
-    felt_size_groups: &FeltSizeCount,
-) -> EstimatedExecutionResources {
-    let n_steps = compute_blake_hash_steps(felt_size_groups);
-    let builtin_instance_counter = match felt_size_groups.n_felts() {
-        // The empty case does not use builtins at all.
-        0 => HashMap::new(),
-        // One `range_check` per input felt to validate its size + Overhead for the non empty case.
-        _ => HashMap::from([(
-            BuiltinName::range_check,
-            felt_size_groups.n_felts() + blake_estimation::BASE_RANGE_CHECK_NON_EMPTY,
-        )]),
-    };
-
-    let resources = ExecutionResources { n_steps, n_memory_holes: 0, builtin_instance_counter };
-
-    EstimatedExecutionResources::V2Hash {
-        resources,
-        blake_count: felt_size_groups.blake_opcode_count(),
-    }
 }
 
 /// Converts the execution resources and blake opcode count to L2 gas.
