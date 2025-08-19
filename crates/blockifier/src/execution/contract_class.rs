@@ -43,10 +43,11 @@ use crate::abi::constants::{self};
 use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::BuiltinCounterMap;
-use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
 use crate::execution::casm_hash_estimation::{
     blake_execution_resources_estimation_to_gas,
-    encode_and_blake_hash_resources,
+    CasmV2HashResourceEstimate,
+    EstimateCasmHashResources,
+    EstimatedExecutionResources,
 };
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
@@ -591,8 +592,7 @@ pub fn estimate_casm_poseidon_hash_computation_resources(
 
 /// Cost to hash a single flat segment of `len` felts.
 fn leaf_cost(felt_size_groups: &FeltSizeCount) -> EstimatedExecutionResources {
-    // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    encode_and_blake_hash_resources(felt_size_groups)
+    CasmV2HashResourceEstimate::estimated_resources_of_hash_function(felt_size_groups)
 }
 
 /// Cost to hash a multi-segment contract:
@@ -617,7 +617,10 @@ fn node_cost(segs: &[NestedFeltCounts]) -> EstimatedExecutionResources {
     // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
     // and one segment length (“small” felt) per segment.
     resources +=
-        &encode_and_blake_hash_resources(&FeltSizeCount { large: segs.len(), small: segs.len() });
+        &CasmV2HashResourceEstimate::estimated_resources_of_hash_function(&FeltSizeCount {
+            large: segs.len(),
+            small: segs.len(),
+        });
 
     resources
 }
