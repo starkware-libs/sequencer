@@ -251,8 +251,8 @@ pub(crate) fn finalize_block<S: StateReader>(
             "Class hashes to migrate should be empty when migration is disabled"
         );
     }
-    let compiled_class_hashes_for_migration =
-        update_compiled_class_hash_migration_in_state(&bouncer, block_state)?;
+
+    update_compiled_class_hash_migration_in_state(&bouncer, block_state)?;
     let state_diff = block_state.to_state_diff()?.state_maps;
 
     let compressed_state_diff = if block_context.versioned_constants.enable_stateful_compression {
@@ -268,6 +268,7 @@ pub(crate) fn finalize_block<S: StateReader>(
         mem::take(bouncer.get_mut_casm_hash_computation_data_sierra_gas());
     let casm_hash_computation_data_proving_gas =
         mem::take(bouncer.get_mut_casm_hash_computation_data_proving_gas());
+
     assert_eq!(
         casm_hash_computation_data_sierra_gas
             .class_hash_to_casm_hash_computation_gas
@@ -278,6 +279,10 @@ pub(crate) fn finalize_block<S: StateReader>(
             .keys()
             .collect::<std::collections::HashSet<_>>()
     );
+
+    // TODO(Aviv): Consider using mem take instead of cloning.
+    let compiled_class_hashes_for_migration =
+        bouncer.class_hashes_to_migrate().values().cloned().collect();
 
     Ok(BlockExecutionSummary {
         state_diff: state_diff.into(),
@@ -294,19 +299,10 @@ pub(crate) fn finalize_block<S: StateReader>(
 fn update_compiled_class_hash_migration_in_state<S: StateReader>(
     bouncer: &Bouncer,
     block_state: &mut CachedState<S>,
-) -> StateResult<CompiledClassHashesForMigration> {
-    // TODO(Aviv): Use compiled_class_hashes_v2_to_v1 from the bouncer after the refactor.
-    let mut compiled_class_hashes_v2_to_v1: CompiledClassHashesForMigration = Vec::new();
-    for &class_hash in bouncer.class_hashes_to_migrate().keys() {
-        let compiled_class_hash_v1 = block_state
-            .get_compiled_class_hash(class_hash)
-            .expect("Failed to get current compiled class hash for migration");
-
-        let compiled_class_hash_v2 = block_state
-            .state
-            .get_compiled_class_hash_v2(class_hash)
-            .expect("Failed to get compiled class hash v2 for migration");
-
+) -> StateResult<()> {
+    for (class_hash, (compiled_class_hash_v2, compiled_class_hash_v1)) in
+        bouncer.class_hashes_to_migrate()
+    {
         // Sanity check: the compiled class hashes should not be equal.
         assert_ne!(
             compiled_class_hash_v1, compiled_class_hash_v2,
@@ -314,10 +310,10 @@ fn update_compiled_class_hash_migration_in_state<S: StateReader>(
         );
 
         // TODO(Meshi): Consider panic here instead of returning an error.
-        block_state.set_compiled_class_hash(class_hash, compiled_class_hash_v2)?;
-        compiled_class_hashes_v2_to_v1.push((compiled_class_hash_v2, compiled_class_hash_v1));
+        block_state.set_compiled_class_hash(*class_hash, *compiled_class_hash_v2)?;
     }
-    Ok(compiled_class_hashes_v2_to_v1)
+
+    Ok(())
 }
 
 impl<S: StateReader + Send + Sync> TransactionExecutor<S> {
