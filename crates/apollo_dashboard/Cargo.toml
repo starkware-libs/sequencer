@@ -29,6 +29,7 @@ apollo_mempool.workspace = true
 apollo_mempool_p2p.workspace = true
 apollo_metrics.workspace = true
 apollo_state_sync_metrics.workspace = true
+apollo_storage.workspace = true
 blockifier.workspace = true
 indexmap = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }

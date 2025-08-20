@@ -10,3 +10,4 @@ pub(crate) mod mempool;
 pub(crate) mod mempool_p2p;
 pub(crate) mod sierra_compiler;
 pub(crate) mod state_sync;
+pub(crate) mod storage;
