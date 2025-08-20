@@ -515,8 +515,10 @@ impl Bouncer {
         &mut self.accumulated_weights.casm_hash_computation_data_proving_gas
     }
 
-    pub fn class_hashes_to_migrate(&self) -> &HashMap<ClassHash, CompiledClassHashV2ToV1> {
-        &self.accumulated_weights.class_hashes_to_migrate
+    pub fn get_mut_class_hashes_to_migrate(
+        &mut self,
+    ) -> &mut HashMap<ClassHash, CompiledClassHashV2ToV1> {
+        &mut self.accumulated_weights.class_hashes_to_migrate
     }
 
     pub fn get_executed_class_hashes(&self) -> HashSet<ClassHash> {
