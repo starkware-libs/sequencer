@@ -33,16 +33,6 @@ async fn main() {
     )
     .await;
 
-    // TODO(Tsabary/Nadin): rename dir from "ports" to "config".
-    // TODO(Tsabary/Nadin): avoid the hard-coded file names, e.g., "node_"
-    let simulator_config_file = format!("{}/simulator_ports", args.output_base_dir);
-    info!("Generate simulator ports json files under {:?}", simulator_config_file);
-    create_dir_all(&simulator_config_file).await.unwrap();
-    for (node_index, node_setup) in test_manager.get_idle_nodes().iter() {
-        let path = format!("{}/node_{}", simulator_config_file, node_index);
-        node_setup.generate_simulator_ports_json(&path);
-    }
-
     info!("Node setup completed");
 }
 
