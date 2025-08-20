@@ -73,7 +73,7 @@ pub struct FeltSizeCount {
 }
 
 impl FeltSizeCount {
-    pub fn n_felts(&self) -> usize {
+    pub(crate) fn n_felts(&self) -> usize {
         self.small + self.large
     }
 }
