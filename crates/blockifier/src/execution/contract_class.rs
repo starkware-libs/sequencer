@@ -120,21 +120,6 @@ impl HashableNestedIntList for NestedFeltCounts {
     }
 }
 
-// TODO(AvivG): Remove this once bytecode_segment_lengths is no longer used.
-impl From<&NestedFeltCounts> for NestedIntList {
-    /// Converts a `NestedFeltCounts` to a `NestedIntList` by extracting only the segment
-    /// lengths. This discards the felt size group information and keeps just the structure and
-    /// lengths.
-    fn from(value: &NestedFeltCounts) -> Self {
-        match value {
-            NestedFeltCounts::Leaf(len, _) => NestedIntList::Leaf(*len),
-            NestedFeltCounts::Node(children) => {
-                NestedIntList::Node(children.iter().map(NestedIntList::from).collect())
-            }
-        }
-    }
-}
-
 impl NestedFeltCounts {
     /// Builds a nested structure matching `layout`, consuming values from `bytecode`.
     #[allow(unused)]
@@ -401,11 +386,6 @@ impl CompiledClassV1 {
 
     pub fn bytecode_length(&self) -> usize {
         self.program.data_len()
-    }
-
-    // TODO(AvivG): Remove this once bytecode_segment_lengths is no longer used.
-    pub fn bytecode_segment_lengths(&self) -> NestedIntList {
-        NestedIntList::from(&self.bytecode_segment_felt_sizes)
     }
 
     pub fn bytecode_segment_felt_sizes(&self) -> &NestedFeltCounts {
