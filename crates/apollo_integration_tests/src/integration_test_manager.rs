@@ -96,7 +96,9 @@ pub const MONITORING_PORT_ARG: &str = "monitoring-port";
 const ALLOW_BOOTSTRAP_TXS: bool = false;
 
 pub struct NodeSetup {
+    // TODO(Nadin): replace Vec with a map keyed by service, i.e. service -> ExecutableSetup.
     executables: Vec<ExecutableSetup>,
+    // TODO(Nadin): remove these index fields once executables is migrated to a map
     batcher_index: usize,
     http_server_index: usize,
     state_sync_index: usize,
@@ -191,7 +193,8 @@ impl NodeSetup {
         serialize_to_file(json_data, path);
     }
 
-    pub fn get_batcher_index(&self) -> usize {
+    pub fn get_batcher_identifier(&self) -> usize {
+        // TODO(Nadin): Change return type to service name.
         self.batcher_index
     }
 
@@ -438,7 +441,7 @@ impl IntegrationTestManager {
                     "Waiting for batcher to reach block {expected_block_number} in sequencer {} \
                      executable {}.",
                     running_node_setup.get_node_index().unwrap(),
-                    running_node_setup.get_batcher_index(),
+                    running_node_setup.get_batcher_identifier(),
                 )),
             );
 
@@ -722,12 +725,12 @@ impl IntegrationTestManager {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| {
             let node_setup = &running_node.node_setup;
             let batcher_monitoring_client = node_setup.batcher_monitoring_client();
-            let batcher_index = node_setup.get_batcher_index();
+            let batcher_identifier = node_setup.get_batcher_identifier();
             let state_sync_monitoring_client = node_setup.state_sync_monitoring_client();
             let state_sync_index = node_setup.get_state_sync_index();
             await_block(
                 batcher_monitoring_client,
-                batcher_index,
+                batcher_identifier,
                 state_sync_monitoring_client,
                 state_sync_index,
                 expected_block_number,
@@ -755,14 +758,14 @@ impl IntegrationTestManager {
         self.perform_action_on_all_running_nodes(|sequencer_idx, running_node| async move {
             let node_setup = &running_node.node_setup;
             let monitoring_client = node_setup.batcher_monitoring_client();
-            let batcher_index = node_setup.get_batcher_index();
+            let batcher_identifier = node_setup.get_batcher_identifier();
             let expected_height = expected_block_number.unchecked_next();
 
             let logger = CustomLogger::new(
                 TraceLevel::Info,
                 Some(format!(
                     "Waiting for sync height metric to reach block {expected_height} in sequencer \
-                     {sequencer_idx} executable {batcher_index}.",
+                     {sequencer_idx} executable {batcher_identifier}.",
                 )),
             );
             await_sync_block(5000, condition, 50, monitoring_client, logger).await.unwrap();
@@ -925,6 +928,7 @@ async fn get_sequencer_setup_configs(
     // Create nodes.
     for (node_index, node_component_config) in node_component_configs.into_iter().enumerate() {
         let mut executables = Vec::new();
+        // TODO(Nadin): replace use of service index with service identifier.
         let batcher_index = node_component_config.get_batcher_index();
         let http_server_index = node_component_config.get_http_server_index();
         let state_sync_index = node_component_config.get_state_sync_index();
