@@ -30,14 +30,12 @@ fn test_u32_constants() {
 #[test]
 fn test_zero_inputs() {
     // logic was written.
-    let steps = estimate_steps_of_encode_felt252_data_and_calc_blake_hash(&FeltSizeCount {
-        large: 0,
-        small: 0,
-    });
+    let steps =
+        estimate_steps_of_encode_felt252_data_and_calc_blake_hash(&FeltSizeCount::default());
     assert_eq!(steps, STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
 
     // No opcodes should be emitted.
-    let opcodes = count_blake_opcode(0, 0);
+    let opcodes = count_blake_opcode(&FeltSizeCount::default());
     assert_eq!(opcodes, 0, "Expected zero BLAKE opcodes for zero inputs");
 
     // Should result in base cost only (no opcode cost).
