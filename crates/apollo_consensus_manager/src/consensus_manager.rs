@@ -98,6 +98,7 @@ impl ConsensusManager {
             num_blacklisted_peers: CONSENSUS_NUM_BLACKLISTED_PEERS,
             broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
             sqmr_metrics: None,
+            gossipsub_metrics: None,
         });
         let mut network_manager =
             NetworkManager::new(self.config.network_config.clone(), None, network_manager_metrics);

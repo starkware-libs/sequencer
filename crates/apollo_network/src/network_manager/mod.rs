@@ -9,6 +9,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::net::Ipv4Addr;
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use std::time::Duration;
 
 use apollo_network_types::network_types::{BroadcastedMessageMetadata, OpaquePeerId};
 use async_trait::async_trait;
@@ -23,6 +24,7 @@ use libp2p::identity::Keypair;
 use libp2p::swarm::SwarmEvent;
 use libp2p::{noise, yamux, Multiaddr, PeerId, StreamProtocol, Swarm, SwarmBuilder};
 use metrics::NetworkMetrics;
+use tokio::time::{sleep_until, Instant};
 use tracing::{debug, error, trace, warn};
 
 use self::swarm_trait::SwarmTrait;
@@ -61,6 +63,7 @@ pub struct GenericNetworkManager<SwarmT: SwarmTrait> {
     continue_propagation_sender: Sender<BroadcastedMessageMetadata>,
     continue_propagation_receiver: Receiver<BroadcastedMessageMetadata>,
     metrics: Option<NetworkMetrics>,
+    next_metrics_update: Instant,
 }
 
 impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
@@ -88,6 +91,12 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
                 Some(peer_id) = self.reported_peers_receiver.next() => self.swarm.report_peer_as_malicious(peer_id, MisconductScore::MALICIOUS),
                 Some(broadcasted_message_metadata) = self.continue_propagation_receiver.next() => {
                     self.swarm.continue_propagation(broadcasted_message_metadata);
+                }
+                _ = sleep_until(self.next_metrics_update) => {
+                    if let Some(ref metrics) = self.metrics {
+                        self.swarm.update_metrics(metrics);
+                    }
+                    self.next_metrics_update = Instant::now() + Duration::from_secs(1);
                 }
             }
         }
@@ -128,6 +137,7 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
             continue_propagation_sender,
             continue_propagation_receiver,
             metrics,
+            next_metrics_update: Instant::now() + Duration::from_secs(1),
         }
     }
 
@@ -527,23 +537,58 @@ impl<SwarmT: SwarmTrait> GenericNetworkManager<SwarmT> {
         }
     }
 
+    /// Update the metrics for gossipsub events if these metrics were requested.
+    fn update_gossipsub_metrics_on_event(&self, event: &gossipsub_impl::ExternalEvent) {
+        if let Some(gossipsub_metrics) =
+            self.metrics.as_ref().and_then(|metrics| metrics.gossipsub_metrics.as_ref())
+        {
+            match &event {
+                gossipsub_impl::ExternalEvent::Received { .. } => {
+                    gossipsub_metrics.count_event_messages_received.increment(1);
+                }
+                gossipsub_impl::ExternalEvent::Subscribed { .. } => {
+                    gossipsub_metrics.count_event_peer_subscribed.increment(1);
+                }
+                gossipsub_impl::ExternalEvent::Unsubscribed { .. } => {
+                    gossipsub_metrics.count_event_peer_unsubscribed.increment(1);
+                }
+                gossipsub_impl::ExternalEvent::GossipsubNotSupported { .. } => {
+                    gossipsub_metrics.count_event_gossipsub_not_supported.increment(1);
+                }
+                gossipsub_impl::ExternalEvent::SlowPeer { .. } => {
+                    gossipsub_metrics.count_event_slow_peers.increment(1);
+                }
+            }
+        }
+    }
+
     fn handle_gossipsub_behaviour_event(
         &mut self,
         event: gossipsub_impl::ExternalEvent,
     ) -> Result<(), NetworkError> {
+        // Record gossipsub metrics if available
+        self.update_gossipsub_metrics_on_event(&event);
+
+        let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
+            event
+        else {
+            return Ok(());
+        };
+
+        // Record broadcast metrics for legacy compatibility
         if let Some(broadcast_metrics_by_topic) =
             self.metrics.as_ref().and_then(|metrics| metrics.broadcast_metrics_by_topic.as_ref())
         {
-            let gossipsub_impl::ExternalEvent::Received { ref topic_hash, .. } = event;
-            match broadcast_metrics_by_topic.get(topic_hash) {
+            match broadcast_metrics_by_topic.get(&topic_hash) {
                 Some(broadcast_metrics) => {
                     broadcast_metrics.num_received_broadcast_messages.increment(1)
                 }
-                None => error!("Attempted to update topic metric with unregistered topic_hash"),
+                None => {
+                    error!("Attempted to update topic metric with unregistered topic_hash")
+                }
             }
         }
-        let gossipsub_impl::ExternalEvent::Received { originated_peer_id, message, topic_hash } =
-            event;
+
         trace!("Received broadcast message with topic hash: {topic_hash:?}");
         let broadcasted_message_metadata = BroadcastedMessageMetadata {
             originator_id: OpaquePeerId::private_new(originated_peer_id),

@@ -201,6 +201,7 @@ impl StateSyncRunner {
                     num_active_inbound_sessions: P2P_SYNC_NUM_ACTIVE_INBOUND_SESSIONS,
                     num_active_outbound_sessions: P2P_SYNC_NUM_ACTIVE_OUTBOUND_SESSIONS,
                 }),
+                gossipsub_metrics: None,
             });
             NetworkManager::new(
                 network_config.clone(),

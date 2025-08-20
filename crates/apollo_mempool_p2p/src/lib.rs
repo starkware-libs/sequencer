@@ -50,6 +50,7 @@ pub fn create_p2p_propagator_and_runner(
         num_blacklisted_peers: MEMPOOL_P2P_NUM_BLACKLISTED_PEERS,
         broadcast_metrics_by_topic: Some(broadcast_metrics_by_topic),
         sqmr_metrics: None,
+        gossipsub_metrics: None,
     });
     let mut network_manager = NetworkManager::new(
         mempool_p2p_config.network_config,

@@ -203,6 +203,8 @@ impl SwarmTrait for MockSwarm {
     fn continue_propagation(&mut self, _message_metadata: super::BroadcastedMessageMetadata) {
         unimplemented!()
     }
+
+    fn update_metrics(&self, _: &super::metrics::NetworkMetrics) {}
 }
 
 const BUFFER_SIZE: usize = 100;

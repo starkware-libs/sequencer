@@ -12,8 +12,11 @@ pub type Topic = gossipsub::Sha256Topic;
 
 #[derive(Debug)]
 pub enum ExternalEvent {
-    #[allow(dead_code)]
     Received { originated_peer_id: PeerId, message: Bytes, topic_hash: TopicHash },
+    Subscribed { peer_id: PeerId, topic_hash: TopicHash },
+    Unsubscribed { peer_id: PeerId, topic_hash: TopicHash },
+    GossipsubNotSupported { peer_id: PeerId },
+    SlowPeer { peer_id: PeerId, failed_messages: gossipsub::FailedMessages },
 }
 
 impl From<gossipsub::Event> for mixed_behaviour::Event {
@@ -40,9 +43,26 @@ impl From<gossipsub::Event> for mixed_behaviour::Event {
                     },
                 ))
             }
-            _ => mixed_behaviour::Event::ToOtherBehaviourEvent(
-                mixed_behaviour::ToOtherBehaviourEvent::NoOp,
-            ),
+            gossipsub::Event::Subscribed { peer_id, topic } => {
+                mixed_behaviour::Event::ExternalEvent(mixed_behaviour::ExternalEvent::GossipSub(
+                    ExternalEvent::Subscribed { peer_id, topic_hash: topic },
+                ))
+            }
+            gossipsub::Event::Unsubscribed { peer_id, topic } => {
+                mixed_behaviour::Event::ExternalEvent(mixed_behaviour::ExternalEvent::GossipSub(
+                    ExternalEvent::Unsubscribed { peer_id, topic_hash: topic },
+                ))
+            }
+            gossipsub::Event::GossipsubNotSupported { peer_id } => {
+                mixed_behaviour::Event::ExternalEvent(mixed_behaviour::ExternalEvent::GossipSub(
+                    ExternalEvent::GossipsubNotSupported { peer_id },
+                ))
+            }
+            gossipsub::Event::SlowPeer { peer_id, failed_messages } => {
+                mixed_behaviour::Event::ExternalEvent(mixed_behaviour::ExternalEvent::GossipSub(
+                    ExternalEvent::SlowPeer { peer_id, failed_messages },
+                ))
+            }
         }
     }
 }
