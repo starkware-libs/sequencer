@@ -6,9 +6,9 @@ use starknet_types_core::felt::Felt;
 use crate::execution::contract_class::FeltSizeCount;
 use crate::execution::execution_utils::blake_estimation::STEPS_EMPTY_INPUT;
 use crate::execution::execution_utils::{
-    compute_blake_hash_steps,
     count_blake_opcode,
     encode_and_blake_hash_resources,
+    estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
 };
 
 #[test]
@@ -30,7 +30,10 @@ fn test_u32_constants() {
 #[test]
 fn test_zero_inputs() {
     // logic was written.
-    let steps = compute_blake_hash_steps(0, 0);
+    let steps = estimate_steps_of_encode_felt252_data_and_calc_blake_hash(&FeltSizeCount {
+        large: 0,
+        small: 0,
+    });
     assert_eq!(steps, STEPS_EMPTY_INPUT, "Unexpected base step cost for zero inputs");
 
     // No opcodes should be emitted.
@@ -45,7 +48,7 @@ fn test_zero_inputs() {
 }
 
 // TODO(AvivG): Add tests for:
-// - `compute_blake_hash_steps` simple cases (felts input).
+// - `estimate_steps_of_encode_felt252_data_and_calc_blake_hash` simple cases (felts input).
 // - `count_blake_opcode` simple cases (felts input).
 // - `cost_of_encode_felt252_data_and_calc_blake_hash` simple cases (felts input) (including partial
 //   remainder).
