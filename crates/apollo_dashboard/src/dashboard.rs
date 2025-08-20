@@ -1,5 +1,12 @@
 use std::collections::HashMap;
 
+use apollo_infra::metrics::{
+    InfraMetrics,
+    LocalClientMetrics,
+    LocalServerMetrics,
+    RemoteClientMetrics,
+    RemoteServerMetrics,
+};
 use apollo_infra::requests::LABEL_NAME_REQUEST_VARIANT;
 use apollo_metrics::metrics::{
     LabeledMetricHistogram,
@@ -226,4 +233,91 @@ impl Serialize for Row {
         map.serialize_entry(self.name, &self.panels)?;
         map.end()
     }
+}
+
+fn _get_local_client_panels(local_client_metrics: &LocalClientMetrics) -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        local_client_metrics.get_response_time_metric(),
+        PanelType::TimeSeries,
+    )
+}
+
+fn _get_remote_client_panels(remote_client_metrics: &RemoteClientMetrics) -> Vec<Panel> {
+    let attempts_panel =
+        Panel::from_hist(remote_client_metrics.get_attempts_metric(), PanelType::TimeSeries);
+    let response_times_panels = create_request_type_labeled_hist_panels(
+        remote_client_metrics.get_response_time_metric(),
+        PanelType::TimeSeries,
+    );
+    let communication_failure_times_panels = create_request_type_labeled_hist_panels(
+        remote_client_metrics.get_communication_failure_time_metric(),
+        PanelType::TimeSeries,
+    );
+    vec![attempts_panel]
+        .into_iter()
+        .chain(response_times_panels)
+        .chain(communication_failure_times_panels)
+        .collect()
+}
+
+fn _get_local_server_panels(local_server_metrics: &LocalServerMetrics) -> Vec<Panel> {
+    let received_msgs_panel =
+        Panel::from_counter(local_server_metrics.get_received_metric(), PanelType::TimeSeries);
+    let processed_msgs_panel =
+        Panel::from_counter(local_server_metrics.get_processed_metric(), PanelType::TimeSeries);
+    let queue_depth_panel =
+        Panel::from_gauge(local_server_metrics.get_queue_depth_metric(), PanelType::TimeSeries);
+    let processing_times_panels = create_request_type_labeled_hist_panels(
+        local_server_metrics.get_processing_time_metric(),
+        PanelType::TimeSeries,
+    );
+    let queueing_times_panels = create_request_type_labeled_hist_panels(
+        local_server_metrics.get_queueing_time_metric(),
+        PanelType::TimeSeries,
+    );
+    vec![received_msgs_panel, processed_msgs_panel, queue_depth_panel]
+        .into_iter()
+        .chain(processing_times_panels)
+        .chain(queueing_times_panels)
+        .collect()
+}
+
+fn _get_remote_server_panels(remote_server_metrics: &RemoteServerMetrics) -> Vec<Panel> {
+    let total_received_msgs_panel = Panel::from_counter(
+        remote_server_metrics.get_total_received_metric(),
+        PanelType::TimeSeries,
+    );
+    let valid_received_msgs_panel = Panel::from_counter(
+        remote_server_metrics.get_valid_received_metric(),
+        PanelType::TimeSeries,
+    );
+    let processed_msgs_panel =
+        Panel::from_counter(remote_server_metrics.get_processed_metric(), PanelType::TimeSeries);
+    let number_of_connections_panel = Panel::from_gauge(
+        remote_server_metrics.get_number_of_connections_metric(),
+        PanelType::TimeSeries,
+    );
+    vec![
+        total_received_msgs_panel,
+        valid_received_msgs_panel,
+        processed_msgs_panel,
+        number_of_connections_panel,
+    ]
+    .into_iter()
+    .collect()
+}
+
+fn _get_component_row(row_name: &'static str, metrics: &InfraMetrics) -> Row {
+    Row::new(
+        row_name,
+        vec![
+            _get_local_client_panels(metrics.get_local_client_metrics()),
+            _get_remote_client_panels(metrics.get_remote_client_metrics()),
+            _get_local_server_panels(metrics.get_local_server_metrics()),
+            _get_remote_server_panels(metrics.get_remote_server_metrics()),
+        ]
+        .into_iter()
+        .flatten()
+        .collect(),
+    )
 }
