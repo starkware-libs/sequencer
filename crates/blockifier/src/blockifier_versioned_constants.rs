@@ -901,8 +901,7 @@ pub struct BaseGasCosts {
     pub syscall_base_gas_cost: u64,
 }
 
-#[cfg_attr(any(test, feature = "testing"), derive(Serialize))]
-#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Serialize)]
 pub struct BuiltinGasCosts {
     // Range check has a hard-coded cost higher than its proof percentage to avoid the overhead of
     // retrieving its price from the table.
