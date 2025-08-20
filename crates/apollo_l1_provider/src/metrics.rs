@@ -32,6 +32,12 @@ define_metrics!(
             "Request remote response times of the L1 provider, per label (secs)",
             labels = L1_PROVIDER_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            L1_PROVIDER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+            "l1_provider_labeled_remote_client_communication_failure_times_secs",
+            "Request communication failure times of the L1 provider, per label (secs)",
+            labels = L1_PROVIDER_REQUEST_LABELS
+        },
     },
 );
 

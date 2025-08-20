@@ -47,6 +47,12 @@ define_metrics!(
             "Request remote response times of the mempool, per label (secs)",
             labels = MEMPOOL_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            MEMPOOL_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+            "mempool_labeled_remote_client_communication_failure_times_secs",
+            "Request communication failure times of the mempool, per label (secs)",
+            labels = MEMPOOL_REQUEST_LABELS
+        },
     },
 );
 
