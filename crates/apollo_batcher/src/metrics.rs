@@ -1,5 +1,13 @@
 use apollo_batcher_types::communication::BATCHER_REQUEST_LABELS;
 use apollo_metrics::define_metrics;
+use blockifier::metrics::{
+    CALLS_RUNNING_NATIVE,
+    CLASS_CACHE_HITS,
+    CLASS_CACHE_MISSES,
+    NATIVE_CLASS_RETURNED,
+    NATIVE_COMPILATION_ERROR,
+    TOTAL_CALLS,
+};
 use starknet_api::block::BlockNumber;
 
 define_metrics!(
@@ -53,6 +61,14 @@ pub fn register_metrics(storage_height: BlockNumber) {
 
     FULL_BLOCKS.register();
     PRECONFIRMED_BLOCK_WRITTEN.register();
+
+    // Blockifier's metrics
+    CALLS_RUNNING_NATIVE.register();
+    CLASS_CACHE_HITS.register();
+    CLASS_CACHE_MISSES.register();
+    NATIVE_CLASS_RETURNED.register();
+    NATIVE_COMPILATION_ERROR.register();
+    TOTAL_CALLS.register();
 }
 
 /// A handle to update the proposal metrics when the proposal is created and dropped.
