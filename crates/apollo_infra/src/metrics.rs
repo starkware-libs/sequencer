@@ -351,3 +351,10 @@ impl RemoteServerMetrics {
         self.number_of_connections
     }
 }
+
+pub struct InfraMetrics {
+    pub local_client_metrics: LocalClientMetrics,
+    pub remote_client_metrics: RemoteClientMetrics,
+    pub local_server_metrics: LocalServerMetrics,
+    pub remote_server_metrics: RemoteServerMetrics,
+}
