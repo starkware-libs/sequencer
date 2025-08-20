@@ -11,6 +11,7 @@ use apollo_config::converters::{
 use apollo_config::dumping::{ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
 use apollo_infra::component_definitions::ComponentStarter;
+use apollo_infra_utils::info_every_n;
 use apollo_l1_endpoint_monitor_types::{L1EndpointMonitorError, L1EndpointMonitorResult};
 use serde::{Deserialize, Serialize};
 use tracing::{error, warn};
@@ -103,7 +104,10 @@ impl L1EndpointMonitor {
                 error!("L1 endpoint {l1_endpoint_url} is not operational: {e}");
                 false
             }
-            Ok(Ok(_)) => true,
+            Ok(Ok(_)) => {
+                info_every_n!(1000, "L1 endpoint {l1_endpoint_url} is operational");
+                true
+            }
         }
     }
 }

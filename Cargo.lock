@@ -1439,6 +1439,7 @@ dependencies = [
  "alloy",
  "apollo_config",
  "apollo_infra",
+ "apollo_infra_utils",
  "apollo_l1_endpoint_monitor_types",
  "async-trait",
  "mockito 1.6.1",
