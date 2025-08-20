@@ -78,21 +78,32 @@ impl FeltSizeCount {
     }
 }
 
-/// Counts felts in bytecode by size (small < 2^63, large >= 2^63).
+// TODO(AvivG): use blake2s::SMALL_THRESHOLD.
+const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
+
+
+/// Counts elements into “small” vs “large” buckets using the provided predicate.
+#[inline]
+fn count_felts_by_size<T>(slice: &[T], mut is_small: impl FnMut(&T) -> bool) -> FeltSizeCount {
+    let mut small = 0;
+    let mut large = 0;
+    for it in slice {
+        if is_small(it) { small += 1 } else { large += 1 }
+    }
+    FeltSizeCount { small, large }
+}
+
+/// Classifies bytecode words by felt size using `SMALL_THRESHOLD = 2^63`.
 impl From<&[BigUintAsHex]> for FeltSizeCount {
     fn from(bytecode: &[BigUintAsHex]) -> Self {
-        // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
-        const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
+        count_felts_by_size(bytecode, |x| Felt::from(&x.value) < SMALL_THRESHOLD)
+    }
+}
 
-        let (small, large) = bytecode.iter().fold((0, 0), |(small_count, large_count), x| {
-            if Felt::from(&x.value) < SMALL_THRESHOLD {
-                (small_count + 1, large_count)
-            } else {
-                (small_count, large_count + 1)
-            }
-        });
-
-        FeltSizeCount { small, large }
+/// Classifies felts by size using `SMALL_THRESHOLD = 2^63`.
+impl From<&[Felt]> for FeltSizeCount {
+    fn from(bytecode: &[Felt]) -> Self {
+        count_felts_by_size(bytecode, |felt| *felt < SMALL_THRESHOLD)
     }
 }
 
