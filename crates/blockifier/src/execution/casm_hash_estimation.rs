@@ -147,8 +147,6 @@ impl From<(ExecutionResources, HashVersion)> for EstimatedExecutionResources {
 /// `compiled_class_hash`.
 ///
 /// This provides resource estimates rather than exact values.
-// TODO(AvivG): Remove allow once used.
-#[allow(unused)]
 pub trait EstimateCasmHashResources {
     /// Specifies the hash function variant that the estimate is for.
     fn hash_version(&self) -> HashVersion;
@@ -173,7 +171,7 @@ pub trait EstimateCasmHashResources {
 
 // TODO(AvivG): Remove allow once used.
 #[allow(unused)]
-struct CasmV1HashResourceEstimate {}
+pub(crate) struct CasmV1HashResourceEstimate {}
 
 impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     fn hash_version(&self) -> HashVersion {
@@ -210,7 +208,8 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn estimated_resources_of_hash_function(
         felt_size_groups: &FeltSizeCount,
     ) -> EstimatedExecutionResources {
-        let n_steps = estimate_steps_of_encode_felt252_data_and_calc_blake_hash(felt_size_groups);
+        let n_steps =
+            Self::estimate_steps_of_encode_felt252_data_and_calc_blake_hash(felt_size_groups);
         let builtin_instance_counter = match felt_size_groups.n_felts() {
             // The empty case does not use builtins at all.
             0 => HashMap::new(),
@@ -230,7 +229,6 @@ impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
         }
     }
 }
-
 // Constants used for estimating the cost of BLAKE hashing inside Starknet OS.
 // These values are based on empirical measurement by running
 // `encode_felt252_data_and_calc_blake_hash` on various combinations of big and small felts.
@@ -252,71 +250,59 @@ mod blake_estimation {
     pub const STEPS_EMPTY_INPUT: usize = 170;
 }
 
-fn base_steps_for_blake_hash(n_u32s: usize) -> usize {
-    let rem_u32s = n_u32s % FeltSizeCount::U32_WORDS_PER_MESSAGE;
-    if rem_u32s == 0 {
-        blake_estimation::BASE_STEPS_FULL_MSG
-    } else {
-        // This computation is based on running blake2s with different inputs.
-        // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
-        blake_estimation::BASE_STEPS_PARTIAL_MSG
-            + (rem_u32s / 2) * blake_estimation::STEPS_PER_2_U32_REMINDER
-    }
-}
+impl CasmV2HashResourceEstimate {
+    /// Estimates the total number of VM steps needed to hash the given felts with Blake in the
+    /// Starknet OS.
+    fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
+        felt_size_groups: &FeltSizeCount,
+    ) -> usize {
+        let encoded_u32_len = felt_size_groups.encoded_u32_len();
+        if encoded_u32_len == 0 {
+            // The empty input case is a special case.
+            return blake_estimation::STEPS_EMPTY_INPUT;
+        }
 
-fn felts_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
-    let big_steps = n_big_felts
-        .checked_mul(blake_estimation::STEPS_BIG_FELT)
-        .expect("Overflow computing big felt steps");
-    let small_steps = n_small_felts
-        .checked_mul(blake_estimation::STEPS_SMALL_FELT)
-        .expect("Overflow computing small felt steps");
-    big_steps.checked_add(small_steps).expect("Overflow computing total felt steps")
-}
+        // Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
+        let base_steps = if encoded_u32_len % FeltSizeCount::U32_WORDS_PER_MESSAGE == 0 {
+            blake_estimation::BASE_STEPS_FULL_MSG
+        } else {
+            // This computation is based on running blake2s with different inputs.
+            // Note: all inputs expand to an even number of u32s --> `rem_u32s` is always even.
+            blake_estimation::BASE_STEPS_PARTIAL_MSG
+                + (encoded_u32_len % FeltSizeCount::U32_WORDS_PER_MESSAGE / 2)
+                    * blake_estimation::STEPS_PER_2_U32_REMINDER
+        };
 
-/// Estimates the number of VM steps needed to hash the given felts with Blake in Starknet OS.
-/// Each small felt unpacks into 2 u32s, and each big felt into 8 u32s.
-/// Adds a base cost depending on whether the total fits exactly into full 16-u32 messages.
-fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
-    felt_size_groups: &FeltSizeCount,
-) -> usize {
-    let total_u32s = felt_size_groups.encoded_u32_len();
-    if total_u32s == 0 {
-        // The empty input case is a special case.
-        return blake_estimation::STEPS_EMPTY_INPUT;
+        base_steps
+            + felt_size_groups.large * blake_estimation::STEPS_BIG_FELT
+            + felt_size_groups.small * blake_estimation::STEPS_SMALL_FELT
     }
 
-    let base_steps = base_steps_for_blake_hash(total_u32s);
-    let felt_steps = felts_steps(felt_size_groups.large, felt_size_groups.small);
+    /// Converts the execution resources and blake opcode count to L2 gas.
+    ///
+    /// Used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations, which differ in
+    /// builtin costs. This unified logic is valid because only the `range_check` builtin is used,
+    /// and its cost is identical across provers (see `bouncer.get_tx_weights`).
+    pub(crate) fn blake_execution_resources_estimation_to_gas(
+        resources: EstimatedExecutionResources,
+        versioned_constants: &VersionedConstants,
+        blake_opcode_gas: usize,
+    ) -> GasAmount {
+        // TODO(AvivG): Remove this once gas computation is separated from resource estimation.
+        assert!(
+            resources
+                .resources()
+                .builtin_instance_counter
+                .keys()
+                .all(|&k| k == BuiltinName::range_check),
+            "Expected either empty builtins or only `range_check` builtin, got: {:?}. This breaks \
+             the assumption that builtin costs are identical between provers.",
+            resources.resources().builtin_instance_counter.keys().collect::<Vec<_>>()
+        );
 
-    base_steps.checked_add(felt_steps).expect("Overflow computing total Blake hash steps")
-}
-
-/// Converts the execution resources and blake opcode count to L2 gas.
-///
-/// Used for both Stwo ("proving_gas") and Stone ("sierra_gas") estimations, which differ in
-/// builtin costs. This unified logic is valid because only the `range_check` builtin is used,
-/// and its cost is identical across provers (see `bouncer.get_tx_weights`).
-// TODO(AvivG): Move inside blake estimation struct.
-pub fn blake_execution_resources_estimation_to_gas(
-    resources: EstimatedExecutionResources,
-    versioned_constants: &VersionedConstants,
-    blake_opcode_gas: usize,
-) -> GasAmount {
-    // TODO(AvivG): Remove this once gas computation is separated from resource estimation.
-    assert!(
-        resources
-            .resources()
-            .builtin_instance_counter
-            .keys()
-            .all(|&k| k == BuiltinName::range_check),
-        "Expected either empty builtins or only `range_check` builtin, got: {:?}. This breaks the \
-         assumption that builtin costs are identical between provers.",
-        resources.resources().builtin_instance_counter.keys().collect::<Vec<_>>()
-    );
-
-    resources.to_sierra_gas(
-        |resources| vm_resources_to_sierra_gas(resources, versioned_constants),
-        Some(blake_opcode_gas),
-    )
+        resources.to_sierra_gas(
+            |resources| vm_resources_to_sierra_gas(resources, versioned_constants),
+            Some(blake_opcode_gas),
+        )
+    }
 }

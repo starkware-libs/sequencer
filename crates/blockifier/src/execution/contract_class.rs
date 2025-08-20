@@ -44,7 +44,6 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::{
-    blake_execution_resources_estimation_to_gas,
     CasmV2HashResourceEstimate,
     EstimateCasmHashResources,
     EstimatedExecutionResources,
@@ -476,11 +475,12 @@ impl CompiledClassV1 {
     ) -> (GasAmount, BuiltinCounterMap) {
         let blake_hash_resources =
             estimate_casm_blake_hash_computation_resources(&self.bytecode_segment_felt_sizes);
-        let blake_hash_gas = blake_execution_resources_estimation_to_gas(
-            blake_hash_resources,
-            versioned_constants,
-            blake_weight,
-        );
+        let blake_hash_gas =
+            CasmV2HashResourceEstimate::blake_execution_resources_estimation_to_gas(
+                blake_hash_resources,
+                versioned_constants,
+                blake_weight,
+            );
 
         let poseidon_hash_resources =
             estimate_casm_poseidon_hash_computation_resources(&self.bytecode_segment_felt_sizes);
