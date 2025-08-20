@@ -187,9 +187,12 @@ impl EstimateCasmHashResources for CasmV1HashResourceEstimate {
     }
 }
 
-// TODO(AvivG): Remove allow once used.
-#[allow(unused)]
-struct CasmV2HashResourceEstimate {}
+pub(crate) struct CasmV2HashResourceEstimate {}
+
+impl CasmV2HashResourceEstimate {
+    // Input for Blake hash function is a sequence of 16 `u32` words.
+    pub(crate) const U32_WORDS_PER_MESSAGE: usize = 16;
+}
 
 impl EstimateCasmHashResources for CasmV2HashResourceEstimate {
     fn hash_version(&self) -> HashVersion {

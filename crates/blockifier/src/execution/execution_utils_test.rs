@@ -6,7 +6,6 @@ use starknet_types_core::felt::Felt;
 use crate::execution::contract_class::FeltSizeCount;
 use crate::execution::execution_utils::blake_estimation::STEPS_EMPTY_INPUT;
 use crate::execution::execution_utils::{
-    blake_encoding,
     count_blake_opcode,
     encode_and_blake_hash_resources,
     estimate_steps_of_encode_felt252_data_and_calc_blake_hash,
@@ -23,8 +22,8 @@ fn test_u32_constants() {
     let big_u32s = encode_felts_to_u32s(vec![big_felt]);
 
     // Blake estimation constants should match the actual encoding.
-    assert_eq!(small_u32s.len(), blake_encoding::U32_WORDS_PER_SMALL_FELT);
-    assert_eq!(big_u32s.len(), blake_encoding::U32_WORDS_PER_LARGE_FELT);
+    assert_eq!(small_u32s.len(), FeltSizeCount::U32_WORDS_PER_SMALL_FELT);
+    assert_eq!(big_u32s.len(), FeltSizeCount::U32_WORDS_PER_LARGE_FELT);
 }
 
 /// Test the edge case of hashing an empty array of felt values.
