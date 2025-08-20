@@ -23,7 +23,7 @@ use futures::{FutureExt, StreamExt};
 use starknet_api::block::BlockNumber;
 use tracing::{debug, error, info, instrument, trace, warn};
 
-use crate::config::TimeoutsConfig;
+use crate::config::{FutureMsgLimitsConfig, TimeoutsConfig};
 use crate::metrics::{
     register_metrics,
     CONSENSUS_BLOCK_NUMBER,
@@ -54,13 +54,8 @@ pub struct RunConsensusArguments {
     pub sync_retry_interval: Duration,
     /// Set to Byzantine by default. Using Honest means we trust all validators. Use with caution!
     pub quorum_type: QuorumType,
-    // TODO(Asmaa): Extract these three limit parameters into a struct (e.g., `FutureMsgsLimits`).
-    /// How many heights in the future should we cache.
-    pub future_height_limit: u32,
-    /// How many rounds in the future (for current height) should we cache.
-    pub future_round_limit: u32,
-    /// How many rounds should we cache for future heights.
-    pub future_height_round_limit: u32,
+    /// Future message limits configuration.
+    pub future_msg_limit: FutureMsgLimitsConfig,
 }
 
 /// Run consensus indefinitely.
@@ -98,9 +93,7 @@ where
         run_consensus_args.sync_retry_interval,
         run_consensus_args.quorum_type,
         run_consensus_args.timeouts,
-        run_consensus_args.future_height_limit,
-        run_consensus_args.future_round_limit,
-        run_consensus_args.future_height_round_limit,
+        run_consensus_args.future_msg_limit,
     );
     loop {
         let must_observer = current_height < run_consensus_args.start_active_height;
@@ -158,12 +151,7 @@ struct MultiHeightManager<ContextT: ConsensusContext> {
     // Mapping: { Height : { Round : (Init, Receiver)}}
     cached_proposals: BTreeMap<u64, BTreeMap<u32, ProposalReceiverTuple<ContextT::ProposalPart>>>,
     timeouts: TimeoutsConfig,
-    /// How many heights in the future should we cache.
-    future_height_limit: u32,
-    /// How many rounds in the future (for current height) should we cache.
-    future_round_limit: u32,
-    /// How many rounds should we cache for future heights.
-    future_height_round_limit: u32,
+    future_msg_limit: FutureMsgLimitsConfig,
 }
 
 impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
@@ -173,9 +161,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         sync_retry_interval: Duration,
         quorum_type: QuorumType,
         timeouts: TimeoutsConfig,
-        future_height_limit: u32,
-        future_round_limit: u32,
-        future_height_round_limit: u32,
+        future_msg_limit: FutureMsgLimitsConfig,
     ) -> Self {
         Self {
             validator_id,
@@ -184,9 +170,7 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
             future_votes: BTreeMap::new(),
             cached_proposals: BTreeMap::new(),
             timeouts,
-            future_height_limit,
-            future_round_limit,
-            future_height_round_limit,
+            future_msg_limit,
         }
     }
 
@@ -566,27 +550,14 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
         msg_round: u32,
         msg_description: &str,
     ) -> bool {
+        let limits = &self.future_msg_limit;
         let height_diff = msg_height.saturating_sub(current_height.0);
-        let round_diff = msg_round.saturating_sub(current_round);
-        let mut should_cache = true;
 
-        // Check height limits first
-        if height_diff > self.future_height_limit.into() {
-            should_cache = false;
-        }
-
-        // Check round limits based on height
-        if height_diff == 0 {
+        let should_cache = height_diff <= limits.future_height_limit.into()
             // For current height, check against current round + future_round_limit
-            if round_diff > self.future_round_limit {
-                should_cache = false;
-            }
-        } else {
-            // For future heights, check absolute round limit
-            if msg_round > self.future_height_round_limit {
-                should_cache = false;
-            }
-        }
+            && (height_diff == 0 && msg_round <= current_round + limits.future_round_limit
+                // For future heights, check absolute round limit
+                || height_diff > 0 && msg_round <= limits.future_height_round_limit);
 
         if !should_cache {
             warn!(
@@ -597,9 +568,9 @@ impl<ContextT: ConsensusContext> MultiHeightManager<ContextT> {
                 msg_round,
                 current_height.0,
                 current_round,
-                self.future_height_limit,
-                self.future_height_round_limit,
-                self.future_round_limit
+                limits.future_height_limit,
+                limits.future_height_round_limit,
+                limits.future_round_limit
             );
         }
 
