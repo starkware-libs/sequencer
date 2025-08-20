@@ -76,22 +76,22 @@ impl FeltSizeCount {
     pub fn n_felts(&self) -> usize {
         self.small + self.large
     }
-}
 
-/// Counts felts in bytecode by size (small < 2^63, large >= 2^63).
-impl From<&[BigUintAsHex]> for FeltSizeCount {
-    fn from(bytecode: &[BigUintAsHex]) -> Self {
+    /// Builds a `FeltSizeCount` by mapping each element to a `Felt` with `to_felt`,
+    /// then classifying it according to its size using `SMALL_THRESHOLD`.
+    pub fn from_slice<T, F>(items: &[T], to_felt: F) -> Self
+    where
+        F: Fn(&T) -> Felt,
+    {
         // TODO(AvivG): use blake2s::SMALL_THRESHOLD.
         const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000");
 
-        let (small, large) = bytecode.iter().fold((0, 0), |(small_count, large_count), x| {
-            if Felt::from(&x.value) < SMALL_THRESHOLD {
-                (small_count + 1, large_count)
-            } else {
-                (small_count, large_count + 1)
-            }
-        });
+        let mut small = 0;
+        let mut large = 0;
 
+        for x in items {
+            if to_felt(x) < SMALL_THRESHOLD { small += 1 } else { large += 1 }
+        }
         FeltSizeCount { small, large }
     }
 }
@@ -156,7 +156,10 @@ impl NestedFeltCounts {
 
         match bytecode_segment_lengths {
             NestedIntList::Leaf(len) => {
-                let felt_size_groups = FeltSizeCount::from(&bytecode[..*len]);
+                let felt_size_groups =
+                    FeltSizeCount::from_slice(&bytecode[..*len], |x: &BigUintAsHex| {
+                        Felt::from(&x.value)
+                    });
                 (NestedFeltCounts::Leaf(*len, felt_size_groups), *len)
             }
             NestedIntList::Node(segments_vec) => {

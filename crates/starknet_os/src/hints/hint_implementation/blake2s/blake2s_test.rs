@@ -19,27 +19,9 @@ use crate::test_utils::cairo_runner::{
     ValueArg,
 };
 
-/// Counts the number of small and big felts in the data.
-// TODO(AvivG): use From<&[Felt]> for FeltSizeCount.
-fn data_to_felt_count(data: &[Felt]) -> FeltSizeCount {
-    // TODO(AvivG): Use `Blake2Felt252::SMALL_THRESHOLD` when exposed.
-    const SMALL_THRESHOLD: Felt = Felt::from_hex_unchecked("8000000000000000"); // 2^63
-
-    let felt_size_groups = FeltSizeCount::default();
-
-    data.iter().fold(felt_size_groups, |mut felt_size_groups, felt| {
-        if *felt >= SMALL_THRESHOLD {
-            felt_size_groups.large += 1;
-        } else {
-            felt_size_groups.small += 1;
-        }
-        felt_size_groups
-    })
-}
-
 /// Return the estimated execution resources for Blake2s hashing.
 fn estimated_encode_and_blake_hash_execution_resources(data: &[Felt]) -> ExecutionResources {
-    let felt_size_groups = data_to_felt_count(data);
+    let felt_size_groups = FeltSizeCount::from_slice(data, |&felt| felt);
     let estimated = encode_and_blake_hash_resources(&felt_size_groups);
 
     let mut resources = estimated.resources().clone();
