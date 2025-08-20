@@ -373,16 +373,6 @@ pub fn poseidon_hash_many_cost(data_length: usize) -> ExecutionResources {
     }
 }
 
-// Constants that define how felts are encoded into u32s for BLAKE hashing.
-mod blake_encoding {
-    /// Number of u32s in a Blake input message.
-    pub const N_U32S_MESSAGE: usize = 16;
-
-    /// Number of u32s a felt is encoded into.
-    pub const N_U32S_BIG_FELT: usize = 8;
-    pub const N_U32S_SMALL_FELT: usize = 2;
-}
-
 // Constants used for estimating the cost of BLAKE hashing inside Starknet OS.
 // These values are based on empirical measurement by running
 // `encode_felt252_data_and_calc_blake_hash` on various combinations of big and small felts.
@@ -408,16 +398,16 @@ mod blake_estimation {
 /// Big felts encode to 8 u32s each, small felts encode to 2 u32s each.
 fn total_u32s_from_felts(n_big_felts: usize, n_small_felts: usize) -> usize {
     let big_u32s = n_big_felts
-        .checked_mul(blake_encoding::N_U32S_BIG_FELT)
+        .checked_mul(FeltSizeCount::U32_WORDS_PER_LARGE_FELT)
         .expect("Overflow computing big felts u32s");
     let small_u32s = n_small_felts
-        .checked_mul(blake_encoding::N_U32S_SMALL_FELT)
+        .checked_mul(FeltSizeCount::U32_WORDS_PER_SMALL_FELT)
         .expect("Overflow computing small felts u32s");
     big_u32s.checked_add(small_u32s).expect("Overflow computing total u32s")
 }
 
 fn base_steps_for_blake_hash(n_u32s: usize) -> usize {
-    let rem_u32s = n_u32s % blake_encoding::N_U32S_MESSAGE;
+    let rem_u32s = n_u32s % FeltSizeCount::U32_WORDS_PER_MESSAGE;
     if rem_u32s == 0 {
         blake_estimation::BASE_STEPS_FULL_MSG
     } else {
@@ -459,7 +449,7 @@ fn compute_blake_hash_steps(n_big_felts: usize, n_small_felts: usize) -> usize {
 fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
     // Count the total number of u32s to be hashed.
     let total_u32s = total_u32s_from_felts(n_big_felts, n_small_felts);
-    total_u32s.div_ceil(blake_encoding::N_U32S_MESSAGE)
+    total_u32s.div_ceil(FeltSizeCount::U32_WORDS_PER_MESSAGE)
 }
 
 /// Estimates resource usage for `encode_felt252_data_and_calc_blake_hash` in the Starknet OS.
