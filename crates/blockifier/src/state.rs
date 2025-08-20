@@ -1,4 +1,5 @@
 pub mod cached_state;
+pub mod compiled_class_hash_migration;
 pub mod contract_class_manager;
 #[cfg(test)]
 pub mod error_format_test;
