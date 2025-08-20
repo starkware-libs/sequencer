@@ -9,14 +9,14 @@ on:
       - edited
     paths:
       # Other than code-related changes, all changes related to the blockifier should trigger the build.
-      - '.github/workflows/blockifier_reexecution_ci.yml'
-      - 'Cargo.lock'
-      - 'Cargo.toml'
-      - 'crates/blockifier/**'
-      - 'crates/blockifier_reexecution/**'
-      - 'scripts/dependencies.sh'
-      - 'scripts/install_build_tools.sh'
-      - 'scripts/sequencer-ci.Dockerfile'
+      - ".github/workflows/blockifier_reexecution_ci.yml"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "crates/blockifier/**"
+      - "crates/blockifier_reexecution/**"
+      - "scripts/dependencies.sh"
+      - "scripts/install_build_tools.sh"
+      - "scripts/sequencer-ci.Dockerfile"
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -32,7 +32,7 @@ concurrency:
 
 jobs:
   blockifier_reexecution:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -43,7 +43,7 @@ jobs:
         uses: "google-github-actions/auth@v2"
         with:
           credentials_json: ${{ secrets.SA_REEXECUTION_ARTIFACTS_READ_ACCESS_KEY }}
-      - uses: 'google-github-actions/setup-gcloud@v2'
+      - uses: "google-github-actions/setup-gcloud@v2"
       - run: echo "REEXECUTION_INPUT_FILES_PREFIX=$(cat ./crates/blockifier_reexecution/resources/offline_reexecution_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp -r gs://reexecution_artifacts/$REEXECUTION_INPUT_FILES_PREFIX/resources/* ./crates/blockifier_reexecution/resources/
       # Run blockifier re-execution tests.

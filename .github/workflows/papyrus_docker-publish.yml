@@ -10,19 +10,19 @@ on:
       - v[0-9].**
       - papyrus-v[0-9].**
     paths:
-      - '.github/workflows/papyrus_docker-publish.yml'
-      - 'crates/papyrus**/**'
-      - 'scripts/dependencies.sh'
-      - 'deployments/images/base/Dockerfile'
-      - 'deployments/images/papyrus/Dockerfile'
+      - ".github/workflows/papyrus_docker-publish.yml"
+      - "crates/papyrus**/**"
+      - "scripts/dependencies.sh"
+      - "deployments/images/base/Dockerfile"
+      - "deployments/images/papyrus/Dockerfile"
 
   pull_request:
     paths:
-      - '.github/workflows/papyrus_docker-publish.yml'
-      - 'crates/papyrus**/**'
-      - 'scripts/dependencies.sh'
-      - 'deployments/images/base/Dockerfile'
-      - 'deployments/images/papyrus/Dockerfile'
+      - ".github/workflows/papyrus_docker-publish.yml"
+      - "crates/papyrus**/**"
+      - "scripts/dependencies.sh"
+      - "deployments/images/base/Dockerfile"
+      - "deployments/images/papyrus/Dockerfile"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
@@ -40,7 +40,7 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
 
     steps:
       - name: Checkout repository

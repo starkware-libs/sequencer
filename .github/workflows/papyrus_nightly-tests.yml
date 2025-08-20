@@ -2,9 +2,9 @@ name: Papyrus-Nightly-Tests
 # We run gateway_integration_test at different times, to avoid a nonce race between parallel runs.
 on:
   schedule:
-    - cron: '30 22 * * *'  # Uses ubuntu runner.
-    - cron: '30 0 * * *'  # Uses macos runner.
-  workflow_dispatch:  # Uses ubuntu runner.
+    - cron: "30 22 * * *" # Uses ubuntu runner.
+    - cron: "30 0 * * *" # Uses macos runner.
+  workflow_dispatch: # Uses ubuntu runner.
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -13,7 +13,7 @@ jobs:
   GW-integration-test-ubuntu:
     uses: ./.github/workflows/papyrus_nightly-tests-call.yml
     with:
-      os: starkware-ubuntu-24.04-medium
+      os: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     secrets:
       INTEGRATION_TESTNET_NODE_URL: ${{ secrets.INTEGRATION_TESTNET_NODE_URL }}
       INTEGRATION_TESTNET_SENDER_PRIVATE_KEY: ${{ secrets.INTEGRATION_TESTNET_SENDER_PRIVATE_KEY }}
@@ -95,7 +95,7 @@ jobs:
   # TODO(dvir): make this run only if the path 'crates/apollo_storage/src/db/**' (same path as in the CI)  was changed on the
   # last day and increase the number of repetitions.
   random-table-test:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap

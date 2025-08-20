@@ -34,7 +34,7 @@ env:
 
 jobs:
   docker-build-push:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
 
     steps:
       - name: Checkout repository

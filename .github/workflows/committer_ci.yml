@@ -8,14 +8,14 @@ on:
       - synchronize
       - edited
     paths:
-      - '.github/workflows/committer_ci.yml'
-      - 'Cargo.toml'
-      - 'Cargo.lock'
-      - 'crates/starknet_committer_and_os_cli/**'
-      - 'crates/starknet_api/**'
-      - 'crates/starknet_committer/**'
-      - 'crates/starknet_patricia/**'
-      - 'scripts/dependencies.sh'
+      - ".github/workflows/committer_ci.yml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/starknet_committer_and_os_cli/**"
+      - "crates/starknet_api/**"
+      - "crates/starknet_committer/**"
+      - "crates/starknet_patricia/**"
+      - "scripts/dependencies.sh"
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   run-regression-tests:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +42,7 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: 'pip'
+          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
@@ -57,13 +57,13 @@ jobs:
         uses: "google-github-actions/auth@v2"
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
-      - uses: 'google-github-actions/setup-gcloud@v2'
+      - uses: "google-github-actions/setup-gcloud@v2"
       - run: echo "BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp -r gs://committer-testing-artifacts/$BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
       - run: cargo test -p starknet_committer_and_os_cli --release -- --include-ignored test_regression
 
   benchmarking:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       # Checkout the base branch to get the old code.
@@ -77,7 +77,7 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: 'pip'
+          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
@@ -93,7 +93,7 @@ jobs:
         uses: "google-github-actions/auth@v2"
         with:
           credentials_json: ${{ secrets.COMMITER_PRODUCTS_EXT_WRITER_JSON }}
-      - uses: 'google-github-actions/setup-gcloud@v2'
+      - uses: "google-github-actions/setup-gcloud@v2"
       - run: echo "OLD_BENCH_INPUT_FILES_PREFIX=$(cat ./crates/starknet_committer_and_os_cli/src/committer_cli/tests/flow_test_files_prefix)" >> $GITHUB_ENV
       - run: gcloud storage cp -r gs://committer-testing-artifacts/$OLD_BENCH_INPUT_FILES_PREFIX/* ./crates/starknet_committer_and_os_cli/test_inputs
 
@@ -138,12 +138,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           issue-number: ${{ github.event.pull_request.number }}
-          comment-author: 'github-actions[bot]'
+          comment-author: "github-actions[bot]"
           body-includes: Benchmark movements
 
       - name: Create comment
         # If the PR number is found and the comment is not found, create a new comment.
-        if:  github.event_name == 'pull_request' 
+        if: github.event_name == 'pull_request'
           && steps.find-benchmark-comment.outputs.comment-id == ''
         uses: starkware-libs/create-or-update-comment@v4
         with:
@@ -153,7 +153,7 @@ jobs:
 
       - name: Update comment
         # If the PR number is found and the comment exists, update it.
-        if: github.event_name == 'pull_request' 
+        if: github.event_name == 'pull_request'
           && steps.find-benchmark-comment.outputs.comment-id != ''
         uses: starkware-libs/create-or-update-comment@v4
         with:

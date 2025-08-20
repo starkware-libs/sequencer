@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   executable-run:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -48,7 +48,7 @@ jobs:
           & sleep 30 ; kill $!
 
   executable-run-no-rpc:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -67,7 +67,7 @@ jobs:
   # FIXME: Job is currently running out of disk space, error is hidden inside the `Annoatations`
   # tab on github. FIX THE ISSUE AND RE-ENABLE THE JOB.
   # p2p-sync-e2e-test:
-  #   runs-on: starkware-ubuntu-24.04-medium
+  #   runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
   #   steps:
   #     - uses: actions/checkout@v4
   #     - uses: ./.github/actions/bootstrap
@@ -81,7 +81,7 @@ jobs:
   #       run: scripts/papyrus/p2p_sync_e2e_test/main.sh ${{ secrets.CI_BASE_LAYER_NODE_URL }}
 
   integration-test:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -96,7 +96,7 @@ jobs:
           cargo run -p papyrus_node --bin central_source_integration_test --features="futures-util tokio-stream"
 
   test-no-rpc:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -110,7 +110,7 @@ jobs:
   # TODO(DanB): Re-enable this job when necessary.
   # Note that currently the `papyrus_load_test` build fails.
   # build-papyrus-utilities-image:
-  #   runs-on: starkware-ubuntu-24.04-medium
+  #   runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
   #   steps:
   #     - uses: actions/checkout@v4
   #     - name: Set up Docker Buildx
@@ -123,7 +123,7 @@ jobs:
   #         file: papyrus_utilities.Dockerfile
 
   random-table-test:
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
       # run this job only if the path 'crates/apollo_storage/src/db/**' is changed, because it takes around 2 minutes.

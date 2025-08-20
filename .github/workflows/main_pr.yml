@@ -23,7 +23,7 @@ concurrency:
 
 jobs:
   commitlint:
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,7 +46,7 @@ jobs:
         run: echo "$TITLE" | commitlint --verbose
 
   merge-gatekeeper:
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     # Restrict permissions of the GITHUB_TOKEN.
     # Docs: https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs
     permissions:

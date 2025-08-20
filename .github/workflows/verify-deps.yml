@@ -2,7 +2,7 @@ name: Nightly Latest Dependencies Check
 
 on:
   schedule:
-    - cron: '0 0 * * *' # Runs at 00:00 UTC every day
+    - cron: "0 0 * * *" # Runs at 00:00 UTC every day
 
 env:
   RUSTFLAGS: "-D warnings -C link-arg=-fuse-ld=lld"
@@ -10,7 +10,7 @@ env:
 jobs:
   latest_deps:
     name: Latest Dependencies
-    runs-on: starkware-ubuntu-24.04-medium
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap

@@ -8,12 +8,12 @@ on:
       - synchronize
       - edited
     paths:
-      - '.github/workflows/merge_paths_ci.yml'
-      - 'scripts/dependencies.sh'
-      - 'scripts/merge_branches.py'
-      - 'scripts/merge_paths.json'
-      - 'scripts/merge_paths_test.py'
-      - 'scripts/merge_status.py'
+      - ".github/workflows/merge_paths_ci.yml"
+      - "scripts/dependencies.sh"
+      - "scripts/merge_branches.py"
+      - "scripts/merge_paths.json"
+      - "scripts/merge_paths_test.py"
+      - "scripts/merge_status.py"
 
 # On PR events, cancel existing CI runs on this same PR for this workflow.
 # Also, create different concurrency groups for different pushed commits, on push events.
@@ -26,13 +26,13 @@ concurrency:
 
 jobs:
   merge-paths-test:
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.9'
-          cache: 'pip'
+          python-version: "3.9"
+          cache: "pip"
       - run: |
           python -m pip install --upgrade pip
           pip install pytest

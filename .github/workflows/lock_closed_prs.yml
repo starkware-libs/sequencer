@@ -9,7 +9,7 @@ on:
 jobs:
   lock:
     name: 🔒 Lock closed issues and PRs
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: dessant/lock-threads@v2.0.3
         with:

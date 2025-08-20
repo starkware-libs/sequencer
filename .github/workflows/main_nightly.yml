@@ -9,7 +9,7 @@ env:
 
 jobs:
   codecov:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -25,7 +25,7 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: 'pip'
+          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ env.Python3_ROOT_DIR }}/bin
@@ -44,7 +44,7 @@ jobs:
           verbose: true
 
   feature_combos:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
 
@@ -53,7 +53,7 @@ jobs:
         id: setup-pypy
         with:
           python-version: "pypy3.9"
-          cache: 'pip'
+          cache: "pip"
       - run: ln -s '${{ steps.setup-pypy.outputs.python-path }}' /usr/local/bin/pypy3.9
       - env:
           LD_LIBRARY_PATH: ${{ steps.setup-pypy.outputs.pythonLocation }}/bin
@@ -70,7 +70,7 @@ jobs:
         run: scripts/run_feature_combos_test.py
 
   run-integration-tests:
-    runs-on: starkware-ubuntu-24.04-large
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
 
