@@ -2,6 +2,7 @@ use apollo_class_manager::metrics::{
     CLASS_MANAGER_LABELED_LOCAL_RESPONSE_TIMES_SECS,
     CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
     CLASS_MANAGER_LABELED_QUEUEING_TIMES_SECS,
+    CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
     CLASS_MANAGER_LABELED_REMOTE_RESPONSE_TIMES_SECS,
 };
 use apollo_infra::metrics::{
@@ -53,6 +54,12 @@ fn get_remote_client_response_times_panels() -> Vec<Panel> {
         PanelType::TimeSeries,
     )
 }
+fn get_remote_client_communication_failure_times_panels() -> Vec<Panel> {
+    create_request_type_labeled_hist_panels(
+        CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+        PanelType::TimeSeries,
+    )
+}
 fn get_processing_times_panels() -> Vec<Panel> {
     create_request_type_labeled_hist_panels(
         CLASS_MANAGER_LABELED_PROCESSING_TIMES_SECS,
@@ -84,6 +91,7 @@ pub(crate) fn get_class_manager_infra_row() -> Row {
         .chain(get_queueing_times_panels())
         .chain(get_local_client_response_times_panels())
         .chain(get_remote_client_response_times_panels())
+        .chain(get_remote_client_communication_failure_times_panels())
         .collect::<Vec<_>>(),
     )
 }
