@@ -8,7 +8,6 @@ use std::time::Duration;
 use alloy::node_bindings::AnvilInstance;
 use apollo_http_server::config::HttpServerConfig;
 use apollo_http_server::test_utils::HttpTestClient;
-use apollo_infra_utils::dumping::serialize_to_file;
 use apollo_infra_utils::test_utils::{AvailablePortsGenerator, TestIdentifier};
 use apollo_infra_utils::tracing::{CustomLogger, TraceLevel};
 use apollo_l1_gas_price::eth_to_strk_oracle::EthToStrkOracleConfig;
@@ -90,9 +89,6 @@ pub const BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE: BlockNumber = BlockNumber(4);
 pub const BLOCK_TO_WAIT_FOR_DECLARE: BlockNumber =
     BlockNumber(BLOCK_TO_WAIT_FOR_DEPLOY_AND_INVOKE.0 + 10);
 
-pub const HTTP_PORT_ARG: &str = "http-port";
-pub const MONITORING_PORT_ARG: &str = "monitoring-port";
-
 const ALLOW_BOOTSTRAP_TXS: bool = false;
 
 pub struct NodeSetup {
@@ -100,7 +96,6 @@ pub struct NodeSetup {
     executables: Vec<ExecutableSetup>,
     // TODO(Nadin): remove these index fields once executables is migrated to a map
     batcher_index: usize,
-    http_server_index: usize,
     state_sync_index: usize,
     consensus_manager_index: usize,
 
@@ -118,7 +113,6 @@ impl NodeSetup {
     pub fn new(
         executables: Vec<ExecutableSetup>,
         batcher_index: usize,
-        http_server_index: usize,
         state_sync_index: usize,
         consensus_manager_index: usize,
         add_tx_http_client: HttpTestClient,
@@ -137,14 +131,12 @@ impl NodeSetup {
         }
 
         validate_index(batcher_index, len, "Batcher");
-        validate_index(http_server_index, len, "HTTP server");
         validate_index(state_sync_index, len, "State sync");
         validate_index(consensus_manager_index, len, "Consensus manager");
 
         Self {
             executables,
             batcher_index,
-            http_server_index,
             state_sync_index,
             consensus_manager_index,
             add_tx_http_client,
@@ -185,21 +177,9 @@ impl NodeSetup {
         }
     }
 
-    pub fn generate_simulator_ports_json(&self, path: &str) {
-        let json_data = serde_json::json!({
-            HTTP_PORT_ARG: self.executables[self.http_server_index].get_config().http_server_config.as_ref().expect("Should have http server config").port,
-            MONITORING_PORT_ARG: self.executables[self.batcher_index].get_config().monitoring_endpoint_config.as_ref().expect("Should have monitoring endpoint config").port
-        });
-        serialize_to_file(json_data, path);
-    }
-
     pub fn get_batcher_identifier(&self) -> usize {
         // TODO(Nadin): Change return type to service name.
         self.batcher_index
-    }
-
-    pub fn get_http_server_index(&self) -> usize {
-        self.http_server_index
     }
 
     pub fn get_state_sync_index(&self) -> usize {
@@ -1012,7 +992,6 @@ async fn get_sequencer_setup_configs(
         nodes.push(NodeSetup::new(
             executables,
             batcher_index,
-            http_server_index,
             state_sync_index,
             consensus_manager_index,
             add_tx_http_client,
