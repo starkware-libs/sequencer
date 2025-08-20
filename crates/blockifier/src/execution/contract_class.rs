@@ -45,7 +45,8 @@ use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
 use crate::execution::errors::PreExecutionError;
 use crate::execution::execution_utils::{
-    cost_of_encode_felt252_data_and_calc_blake_hash,
+    blake_execution_resources_estimation_to_gas,
+    encode_and_blake_hash_resources,
     poseidon_hash_many_cost,
     sn_api_to_cairo_vm_program,
 };
@@ -571,9 +572,10 @@ fn leaf_cost(
     blake_opcode_gas: usize,
 ) -> GasAmount {
     // All `len` inputs treated as “big” felts; no small-felt optimization here.
-    cost_of_encode_felt252_data_and_calc_blake_hash(
-        felt_size_groups.large,
-        felt_size_groups.small,
+    // TODO(AvivG): Call `encode_and_blake_hash_resources` directly, and perform the resource→gas
+    // conversion only after `estimate_casm_blake_hash_computation_resources` executes.
+    blake_execution_resources_estimation_to_gas(
+        encode_and_blake_hash_resources(felt_size_groups.large, felt_size_groups.small),
         versioned_constants,
         blake_opcode_gas,
     )
@@ -608,9 +610,10 @@ fn node_cost(
 
     // Node‐level hash over (hash1, len1, hash2, len2, …): one segment hash (“big” felt))
     // and one segment length (“small” felt) per segment.
-    let node_hash_cost = cost_of_encode_felt252_data_and_calc_blake_hash(
-        segs.len(),
-        segs.len(),
+    // TODO(AvivG): Call `encode_and_blake_hash_resources` directly, and perform the resource→gas
+    // conversion only after `estimate_casm_blake_hash_computation_resources` executes.
+    let node_hash_cost = blake_execution_resources_estimation_to_gas(
+        encode_and_blake_hash_resources(segs.len(), segs.len()),
         versioned_constants,
         blake_opcode_gas,
     );
