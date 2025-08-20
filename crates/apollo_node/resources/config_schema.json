@@ -1872,7 +1872,7 @@
   "l1_scraper_config.polling_interval_seconds": {
     "description": "Interval in Seconds between each scraping attempt of L1.",
     "privacy": "Public",
-    "value": 60
+    "value": 30
   },
   "l1_scraper_config.startup_rewind_time_seconds": {
     "description": "Duration in seconds to rewind from latest L1 block when starting scraping.",
