@@ -44,14 +44,13 @@ use crate::blockifier_versioned_constants::VersionedConstants;
 use crate::bouncer::vm_resources_to_sierra_gas;
 use crate::execution::call_info::BuiltinCounterMap;
 use crate::execution::casm_hash_estimation::EstimatedExecutionResources;
-use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
-use crate::execution::errors::PreExecutionError;
-use crate::execution::execution_utils::{
+use crate::execution::casm_hash_estimation::{
     blake_execution_resources_estimation_to_gas,
     encode_and_blake_hash_resources,
-    poseidon_hash_many_cost,
-    sn_api_to_cairo_vm_program,
 };
+use crate::execution::entry_point::{EntryPointExecutionContext, EntryPointTypeAndSelector};
+use crate::execution::errors::PreExecutionError;
+use crate::execution::execution_utils::{poseidon_hash_many_cost, sn_api_to_cairo_vm_program};
 #[cfg(feature = "cairo_native")]
 use crate::execution::native::contract_class::NativeCompiledClassV1;
 use crate::transaction::errors::TransactionExecutionError;
