@@ -18,5 +18,6 @@ define_metrics!(
         LabeledMetricHistogram { MEMPOOL_P2P_LABELED_QUEUEING_TIMES_SECS, "mempool_p2p_labeled_queueing_times_secs", "Request queueing times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
         LabeledMetricHistogram { MEMPOOL_P2P_LABELED_LOCAL_RESPONSE_TIMES_SECS, "mempool_p2p_labeled_local_response_times_secs", "Request local response times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
         LabeledMetricHistogram { MEMPOOL_P2P_LABELED_REMOTE_RESPONSE_TIMES_SECS, "mempool_p2p_labeled_remote_response_times_secs", "Request remote response times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
+        LabeledMetricHistogram { MEMPOOL_P2P_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS, "mempool_p2p_labeled_remote_client_communication_failure_times_secs", "Request communication failure times of the mempool p2p, per label (secs)", labels = MEMPOOL_P2P_PROPAGATOR_REQUEST_LABELS },
     },
 );
