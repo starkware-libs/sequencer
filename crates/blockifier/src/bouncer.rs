@@ -399,7 +399,7 @@ impl Default for BuiltinWeights {
             ec_op: 714875,
             bitwise: 583,
             keccak: 510707,
-            poseidon: 6250,
+            poseidon: 10000,
             add_mod: 312,
             mul_mod: 604,
             range_check96: 56,

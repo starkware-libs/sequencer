@@ -12,7 +12,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.ec_op": 714875,
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.bitwise": 583,
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.keccak": 510707,
-  "batcher_config.block_builder_config.bouncer_config.builtin_weights.poseidon": 6250,
+  "batcher_config.block_builder_config.bouncer_config.builtin_weights.poseidon": 10000,
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.add_mod": 312,
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.mul_mod": 604,
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.range_check96": 56,
