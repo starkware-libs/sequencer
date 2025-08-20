@@ -334,8 +334,15 @@ impl PyBlockExecutor {
         self.storage.close();
     }
 
-    #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size, min_sierra_version))]
+    #[pyo3(signature = (enable_casm_hash_migration))]
+    pub fn set_enable_casm_hash_migration_in_vc(&mut self, enable_casm_hash_migration: bool) {
+        // Clear global class cache, to properly revert classes declared in the reverted block.
+        self.versioned_constants.enable_casm_hash_migration = enable_casm_hash_migration;
+    }
+
+    #[pyo3(signature = (concurrency_config, contract_class_manager_config, os_config, path, max_state_diff_size, stack_size, min_sierra_version, enable_casm_hash_migration))]
     #[staticmethod]
+    #[allow(clippy::too_many_arguments)]
     fn create_for_testing(
         concurrency_config: PyConcurrencyConfig,
         contract_class_manager_config: PyContractClassManagerConfig,
@@ -344,6 +351,7 @@ impl PyBlockExecutor {
         max_state_diff_size: usize,
         stack_size: usize,
         min_sierra_version: Option<String>,
+        enable_casm_hash_migration: Option<bool>,
     ) -> Self {
         use blockifier::bouncer::BouncerWeights;
         // TODO(Meshi, 01/01/2025): Remove this once we fix all python tests that re-declare cairo0
@@ -355,6 +363,10 @@ impl PyBlockExecutor {
             versioned_constants.min_sierra_version_for_sierra_gas =
                 SierraVersion::from_str(&min_sierra_version)
                     .expect("failed to parse sierra version.");
+        }
+
+        if let Some(enable_casm_hash_migration) = enable_casm_hash_migration {
+            versioned_constants.enable_casm_hash_migration = enable_casm_hash_migration;
         }
 
         Self {
@@ -453,6 +465,7 @@ impl PyBlockExecutor {
             path,
             max_state_diff_size,
             stack_size,
+            None,
             None,
         )
     }
