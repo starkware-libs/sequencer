@@ -20,6 +20,7 @@ env:
   path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py,deployments/sequencer/**"
   pvc_storage_class_name: "premium-rwo"
   anvil_port: "8545"
+  dockerfile_base_path: ./deployments/images/sequencer
 
 permissions:
   contents: read
@@ -62,13 +63,83 @@ jobs:
           echo "Captured output: $should_run"
           echo "should_run=$should_run" >> $GITHUB_OUTPUT
 
-  system_test_hybrid:
+  build_docker_images:
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
     needs: check-system-test-trigger
     if: needs.check-system-test-trigger.outputs.should_run == 'true'
+    permissions:
+      id-token: write
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - svc: sequencer
+            dockerfile: Dockerfile
+          - svc: dummy_recorder
+            dockerfile: dummy_recorder.Dockerfile
+          - svc: dummy_eth_to_strk_oracle
+            dockerfile: dummy_eth_to_strk_oracle.Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build ${{ matrix.svc }} image remotely
+        uses: docker/build-push-action@v6.18.0
+        with:
+          context: .
+          file: ${{ env.dockerfile_base_path }}/${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ env.NSC_CONTAINER_REGISTRY }}/${{ matrix.svc }}:${{ github.sha }}
+
+  build_rust_tools:
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
+    needs: check-system-test-trigger
+    if: needs.check-system-test-trigger.outputs.should_run == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install rust components.
+      - uses: ./.github/actions/bootstrap
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Rust cache
+        uses: namespacelabs/nscloud-cache-action@v1
+        with:
+          cache: rust
+
+      - name: Build binaries
+        run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
+
+      - name: Upload Archive
+        uses: namespace-actions/upload-artifact@v1
+        with:
+          name: rust-target
+          path: ./target/debug
+          compression-level: 0
+
+  system_test_hybrid:
+    needs:
+      - build_docker_images
+      - build_rust_tools
     runs-on: namespace-profile-large-ubuntu-24-04-amd64
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Create registries.yaml for nscr.io
+        run: |
+          cat << EOF > registries.yaml
+          mirrors:
+            nscr.io:
+              endpoint:
+                - https://nscr.io
+          configs:
+            nscr.io:
+              auth:
+                username: token
+                password: $(cat $NSC_TOKEN_FILE | jq -r .bearer_token)
+          EOF
 
       - name: Create k3d cluster (Local k8s)
         uses: AbsaOSS/k3d-action@v2
@@ -81,6 +152,7 @@ jobs:
             --no-lb
             --wait
             --timeout 120s
+            --registry-config registries.yaml
 
       - name: Install crds
         working-directory: deployments/sequencer
@@ -88,11 +160,6 @@ jobs:
           echo "🔧 Installing CRDs..."
           kubectl apply -R -f ./resources/crds
           echo "✅ CRDs installed successfully."
-
-      # Install rust components.
-      - uses: ./.github/actions/bootstrap
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install local-path-provisioner (for PVC support)
         run: |
@@ -121,11 +188,6 @@ jobs:
           echo "🎉 StorageClasses available:"
           kubectl get storageclass
 
-      - name: Install Anvil
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: v0.3.0
-
       - name: Setup python
         uses: actions/setup-python@v5
         with:
@@ -141,35 +203,6 @@ jobs:
       - name: Setup cdk8s-cli
         run: npm install -g cdk8s-cli
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Build sequencer docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: deployments/images/sequencer/Dockerfile
-          tags: sequencer:local
-          load: true
-          push: false
-          build-args: |
-            BUILD_MODE=debug
-
-      - name: Import sequencer image into k3d
-        run: k3d image import sequencer:local -c ${{ env.cluster_name }}
-
-      - name: Build dummy recorder docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: deployments/images/sequencer/dummy_recorder.Dockerfile
-          tags: recorder:local
-          load: true
-          push: false
-
-      - name: Import dummy recorder image into k3d
-        run: k3d image import recorder:local -c ${{ env.cluster_name }}
-
       - name: Deploy Dummy Recorder
         env:
           dummy_recorder_namespace: dummy-recorder
@@ -178,7 +211,7 @@ jobs:
           echo "Deploying Dummy Recorder..."
           pipenv install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_recorder_namespace }} --image recorder:local"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_recorder_namespace }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/dummy_recorder:${{ github.sha }}"
           kubectl create namespace ${{ env.dummy_recorder_namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Dummy Recorder to become ready..."
@@ -188,18 +221,6 @@ jobs:
 
           echo "🚀 Dummy Recorder deployed successfully."
 
-      - name: Build dummy Eth2Strk oracle docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: deployments/images/sequencer/dummy_eth_to_strk_oracle.Dockerfile
-          tags: eth_to_strk:local
-          load: true
-          push: false
-
-      - name: Import eth_to_strk image into k3d
-        run: k3d image import eth_to_strk:local -c ${{ env.cluster_name }}
-
       - name: Deploy Eth2Strk Oracle
         env:
           dummy_eth_to_strk_namespace: dummy-eth-to-strk
@@ -208,7 +229,7 @@ jobs:
           echo "Deploying Dummy Eth2Strk Oracle..."
           pipenv install
           cdk8s import
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image eth_to_strk:local"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.dummy_eth_to_strk_namespace }} --image ${{ env.NSC_CONTAINER_REGISTRY }}/dummy_eth_to_strk_oracle:${{ github.sha }}"
           kubectl create namespace ${{ env.dummy_eth_to_strk_namespace }}
           kubectl apply -R -f ./dist
           echo "⏳ Waiting for Dummy Eth2Strk Oracle to become ready..."
@@ -256,8 +277,19 @@ jobs:
           echo "SENDER_ADDRESS=$SENDER_ADDRESS" >> "$GITHUB_ENV"
           echo "RECEIVER_ADDRESS=$RECEIVER_ADDRESS" >> "$GITHUB_ENV"
 
-      - name: Build binaries
-        run: cargo build --bin sequencer_node_setup --bin sequencer_simulator
+      - name: Install Anvil
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: v0.3.0
+
+      - name: Download Rust target artifacts
+        uses: namespace-actions/download-artifact@v1
+        with:
+          name: rust-target
+          path: ./target/debug
+
+      - name: Restore executable permissions
+        run: chmod +x ./target/debug/sequencer_node_setup ./target/debug/sequencer_simulator
 
       - name: Create storage files
         run: ./target/debug/sequencer_node_setup --output-base-dir ./output --data-prefix-path /data --n-consolidated 1 --n-distributed 0
@@ -285,7 +317,7 @@ jobs:
           cdk8s import
           echo "Generating Kubernetes manifests using deployment config at: ${{ env.deployment_config_path }}:"
           cat "${{ env.deployment_config_path }}"
-          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }} --deployment-image sequencer:local"
+          cdk8s synth --app "pipenv run python main.py --namespace ${{ env.namespace }} --deployment-config-file ${{ env.deployment_config_path }} --deployment-image ${{ env.NSC_CONTAINER_REGISTRY }}/sequencer:${{ github.sha }}"
 
       - name: Deploy Sequencer
         working-directory: deployments/sequencer
