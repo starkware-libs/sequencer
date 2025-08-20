@@ -36,27 +36,35 @@ async fn scraper_end_to_end() {
     // Send messages from L1 to L2.
     let l2_contract_address = "0x12";
     let l2_entry_point = "0x34";
-    let message_to_l2_0 = contract.sendMessageToL2(
-        l2_contract_address.parse().unwrap(),
-        l2_entry_point.parse().unwrap(),
-        vec![U256::from(1_u8), U256::from(2_u8)],
-    );
-    let message_to_l2_1 = contract.sendMessageToL2(
-        l2_contract_address.parse().unwrap(),
-        l2_entry_point.parse().unwrap(),
-        vec![U256::from(3_u8), U256::from(4_u8)],
-    );
+    let fee = 1_u8;
+    let message_to_l2_0 = contract
+        .sendMessageToL2(
+            l2_contract_address.parse().unwrap(),
+            l2_entry_point.parse().unwrap(),
+            vec![U256::from(1_u8), U256::from(2_u8)],
+        )
+        .value(U256::from(fee));
+    let message_to_l2_1 = contract
+        .sendMessageToL2(
+            l2_contract_address.parse().unwrap(),
+            l2_entry_point.parse().unwrap(),
+            vec![U256::from(3_u8), U256::from(4_u8)],
+        )
+        .value(U256::from(fee));
     let nonce_of_message_to_l2_0 = U256::from(0_u8);
-    let request_cancel_message_0 = contract.startL1ToL2MessageCancellation(
-        l2_contract_address.parse().unwrap(),
-        l2_entry_point.parse().unwrap(),
-        vec![U256::from(1_u8), U256::from(2_u8)],
-        nonce_of_message_to_l2_0,
-    );
+    let request_cancel_message_0 = contract
+        .startL1ToL2MessageCancellation(
+            l2_contract_address.parse().unwrap(),
+            l2_entry_point.parse().unwrap(),
+            vec![U256::from(1_u8), U256::from(2_u8)],
+            nonce_of_message_to_l2_0,
+        )
+        .from(DEFAULT_ANVIL_L1_ACCOUNT_ADDRESS.to_hex_string().parse().unwrap());
 
     // Send the transactions to Anvil, and record the timestamps of the blocks they are included in.
     let mut l1_handler_timestamps: Vec<BlockTimestamp> = Vec::with_capacity(2);
     for msg in &[message_to_l2_0, message_to_l2_1] {
+        msg.call().await.unwrap(); // Query for errors.
         let receipt = msg.send().await.unwrap().get_receipt().await.unwrap();
         l1_handler_timestamps.push(
             base_layer
@@ -68,6 +76,7 @@ async fn scraper_end_to_end() {
         );
     }
 
+    request_cancel_message_0.call().await.unwrap(); // Query for errors;
     let cancel_receipt =
         request_cancel_message_0.send().await.unwrap().get_receipt().await.unwrap();
     let cancel_timestamp = base_layer
@@ -94,7 +103,7 @@ async fn scraper_end_to_end() {
     let expected_executable_l1_handler_0 = ExecutableL1HandlerTransaction {
         tx_hash: tx_hash_first_tx,
         tx: expected_l1_handler_0,
-        paid_fee_on_l1: Fee(0),
+        paid_fee_on_l1: Fee(fee.into()),
     };
     let first_expected_log = Event::L1HandlerTransaction {
         l1_handler_tx: expected_executable_l1_handler_0.clone(),
