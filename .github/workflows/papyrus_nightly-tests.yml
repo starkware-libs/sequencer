@@ -13,7 +13,11 @@ jobs:
   GW-integration-test-ubuntu:
     uses: ./.github/workflows/papyrus_nightly-tests-call.yml
     with:
+<<<<<<< HEAD
       os: namespace-profile-medium-ubuntu-24-04-amd64
+=======
+      os: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
+>>>>>>> f246e8831 (deployment: setup namespace github runners)
     secrets:
       INTEGRATION_TESTNET_NODE_URL: ${{ secrets.INTEGRATION_TESTNET_NODE_URL }}
       INTEGRATION_TESTNET_SENDER_PRIVATE_KEY: ${{ secrets.INTEGRATION_TESTNET_SENDER_PRIVATE_KEY }}
