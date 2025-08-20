@@ -448,9 +448,9 @@ fn estimate_steps_of_encode_felt252_data_and_calc_blake_hash(
 
 /// Returns the number of BLAKE opcodes needed to hash the given felts.
 /// Each BLAKE opcode processes 16 u32s (partial messages are padded).
-fn count_blake_opcode(n_big_felts: usize, n_small_felts: usize) -> usize {
+fn count_blake_opcode(felt_size_groups: &FeltSizeCount) -> usize {
     // Count the total number of u32s to be hashed.
-    let total_u32s = total_u32s_from_felts(n_big_felts, n_small_felts);
+    let total_u32s = total_u32s_from_felts(felt_size_groups.large, felt_size_groups.small);
     total_u32s.div_ceil(FeltSizeCount::U32_WORDS_PER_MESSAGE)
 }
 
@@ -482,7 +482,7 @@ pub fn encode_and_blake_hash_resources(
 
     EstimatedExecutionResources::V2Hash {
         resources,
-        blake_count: count_blake_opcode(felt_size_groups.large, felt_size_groups.small),
+        blake_count: count_blake_opcode(felt_size_groups),
     }
 }
 
