@@ -88,5 +88,6 @@ define_metrics!(
         LabeledMetricHistogram { L1_ENDPOINT_MONITOR_QUEUEING_TIMES_SECS, "l1_endpoint_monitor_queueing_times_secs", "Request queueing times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
         LabeledMetricHistogram { L1_ENDPOINT_MONITOR_LOCAL_RESPONSE_TIMES_SECS, "l1_endpoint_monitor_local_response_times_secs", "Request local response times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
         LabeledMetricHistogram { L1_ENDPOINT_MONITOR_REMOTE_RESPONSE_TIMES_SECS, "l1_endpoint_monitor_remote_response_times_secs", "Request remote response times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
+        LabeledMetricHistogram { L1_ENDPOINT_MONITOR_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS, "l1_endpoint_monitor_remote_client_communication_failure_times_secs", "Request remote client communication failure times of the L1 endpoint monitor (secs)", labels = L1_ENDPOINT_MONITOR_REQUEST_LABELS },
     },
 );

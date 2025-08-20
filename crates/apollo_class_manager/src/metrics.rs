@@ -75,6 +75,12 @@ define_metrics!(
             "Request remote response times of the class manager, per label (secs)",
             labels = CLASS_MANAGER_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            CLASS_MANAGER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+            "class_manager_labeled_remote_client_communication_failure_times_secs",
+            "Request communication failure times of the class manager, per label (secs)",
+            labels = CLASS_MANAGER_REQUEST_LABELS
+        },
     },
 );
 

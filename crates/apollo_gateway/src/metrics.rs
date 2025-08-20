@@ -50,6 +50,12 @@ define_metrics!(
             "Request remote response times of the gateway, per label (secs)",
             labels = GATEWAY_REQUEST_LABELS
         },
+        LabeledMetricHistogram {
+            GATEWAY_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS,
+            "gateway_labeled_remote_client_communication_failure_times_secs",
+            "Request communication failure times of the gateway, per label (secs)",
+            labels = GATEWAY_REQUEST_LABELS
+        },
     },
 );
 
