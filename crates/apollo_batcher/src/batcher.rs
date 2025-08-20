@@ -195,6 +195,10 @@ impl Batcher {
         )?;
 
         // TODO(yair): extract function for the following calls, use join_all.
+        info!(
+            "Committing block {}, round {} in Mempool client",
+            block_number, propose_block_input.proposal_round
+        );
         self.mempool_client.commit_block(CommitBlockArgs::default()).await.map_err(|err| {
             error!(
                 "Mempool is not ready to start proposal {}: {}.",
@@ -202,6 +206,10 @@ impl Batcher {
             );
             BatcherError::NotReady
         })?;
+        info!(
+            "Updating gas price for block {}, round {} in Mempool client",
+            block_number, propose_block_input.proposal_round
+        );
         self.mempool_client
             .update_gas_price(
                 propose_block_input.block_info.gas_prices.strk_gas_prices.l2_gas_price.get(),
@@ -319,7 +327,6 @@ impl Batcher {
             self.l1_provider_client.clone(),
             validate_block_input.block_info.block_number,
         );
-
         let (block_builder, abort_signal_sender) = self
             .block_builder_factory
             .create_block_builder(
@@ -427,7 +434,10 @@ impl Batcher {
         proposal_id: ProposalId,
         final_n_executed_txs: usize,
     ) -> BatcherResult<SendProposalContentResponse> {
-        debug!("Send proposal content done for {}", proposal_id);
+        info!(
+            "BATCHER_FIN_VALIDATOR: Send proposal content done for {}. n_txs: {}",
+            proposal_id, final_n_executed_txs
+        );
 
         self.validate_tx_streams.remove(&proposal_id).expect("validate tx stream should exist.");
         if self.is_active(proposal_id).await {
@@ -506,7 +516,10 @@ impl Batcher {
                 error!("Failed to get commitment: {}", err);
                 BatcherError::InternalError
             })?;
-        info!("Finished building proposal {proposal_id} with {final_n_executed_txs} transactions.");
+        info!(
+            "BATCHER_FIN_PROPOSER: Finished building proposal {proposal_id} with \
+             {final_n_executed_txs} transactions."
+        );
         Ok(GetProposalContentResponse {
             content: GetProposalContent::Finished { id: commitment, final_n_executed_txs },
         })

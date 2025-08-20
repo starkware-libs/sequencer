@@ -1,3 +1,4 @@
+use apollo_batcher_types::communication::BATCHER_REQUEST_LABELS;
 use apollo_metrics::define_metrics;
 use starknet_api::block::BlockNumber;
 
@@ -22,6 +23,14 @@ define_metrics!(
 
         MetricCounter { FULL_BLOCKS, "batcher_full_blocks", "Counter of blocks closed on full capacity", init = 0 },
         MetricCounter { PRECONFIRMED_BLOCK_WRITTEN, "batcher_preconfirmed_block_written", "Counter of preconfirmed blocks written to storage", init = 0 },
+    },
+    Infra => {
+        // Batcher request labels
+        LabeledMetricHistogram { BATCHER_LABELED_PROCESSING_TIMES_SECS, "batcher_labeled_processing_times_secs", "Request processing times of the batcher, per label (secs)", labels = BATCHER_REQUEST_LABELS},
+        LabeledMetricHistogram { BATCHER_LABELED_QUEUEING_TIMES_SECS, "batcher_labeled_queueing_times_secs", "Request queueing times of the batcher, per label (secs)", labels = BATCHER_REQUEST_LABELS},
+        LabeledMetricHistogram { BATCHER_LABELED_LOCAL_RESPONSE_TIMES_SECS, "batcher_labeled_local_response_times_secs", "Request local response times of the batcher, per label (secs)", labels = BATCHER_REQUEST_LABELS},
+        LabeledMetricHistogram { BATCHER_LABELED_REMOTE_RESPONSE_TIMES_SECS, "batcher_labeled_remote_response_times_secs", "Request remote response times of the batcher, per label (secs)", labels = BATCHER_REQUEST_LABELS},
+        LabeledMetricHistogram { BATCHER_LABELED_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES_SECS, "batcher_labeled_remote_client_communication_failure_times_secs", "Request communication failure times of the batcher, per label (secs)", labels = BATCHER_REQUEST_LABELS},
     },
 );
 

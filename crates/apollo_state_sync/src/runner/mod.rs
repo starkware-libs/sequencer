@@ -52,8 +52,8 @@ use papyrus_common::pending_classes::PendingClasses;
 use starknet_api::block::{BlockHash, BlockHashAndNumber};
 use starknet_api::felt;
 use tokio::sync::RwLock;
-use tracing::info_span;
 use tracing::instrument::Instrument;
+use tracing::{debug, info_span};
 
 use crate::config::{CentralSyncClientConfig, StateSyncConfig};
 
@@ -147,7 +147,20 @@ impl StateSyncRunner {
 
         let register_metrics_fn = Self::create_register_metrics_fn(storage_reader.clone());
 
+        // Creating the JSON-RPC server future
+        // Located above the revert if block since we would like to be able to query the RPC server
+        // regardless of state sync activation.
+        let rpc_server_future = spawn_rpc_server(
+            &rpc_config,
+            shared_highest_block.clone(),
+            pending_data.clone(),
+            pending_classes.clone(),
+            storage_reader.clone(),
+            Some(class_manager_client.clone()),
+        );
+
         if revert_config.should_revert {
+            debug!("State sync runner should revert; creating revert futures.");
             let revert_up_to_and_including = revert_config.revert_up_to_and_including;
             // We assume that sync always writes the headers before any other block data.
             let current_header_marker = storage_reader
@@ -185,7 +198,7 @@ impl StateSyncRunner {
                     p2p_sync_server_future: pending().boxed(),
                     central_sync_client_future: pending().boxed(),
                     new_block_dev_null_future: pending().boxed(),
-                    rpc_server_future: pending().boxed(),
+                    rpc_server_future,
                     register_metrics_fn,
                 },
                 storage_reader,
@@ -214,6 +227,7 @@ impl StateSyncRunner {
         let (p2p_sync_client_future, central_sync_client_future, new_block_dev_null_future) =
             match (p2p_sync_client_config, central_sync_client_config) {
                 (Some(p2p_sync_client_config), None) => {
+                    debug!("State sync runner creating peer-to-peer sync client.");
                     // TODO(noamsp): Add this check to the config validation.
                     let network_manager = maybe_network_manager
                         .as_mut()
@@ -234,6 +248,7 @@ impl StateSyncRunner {
                     (p2p_sync_client_future, central_sync_client_future, new_block_dev_null_future)
                 }
                 (None, Some(central_sync_client_config)) => {
+                    debug!("State sync runner creating central sync client.");
                     let central_sync_client = Self::new_central_state_sync_client(
                         storage_reader.clone(),
                         storage_writer,
@@ -283,15 +298,6 @@ impl StateSyncRunner {
                 (p2p_sync_server_future, network_future)
             }
         };
-        // Creating the JSON-RPC server future
-        let rpc_server_future = spawn_rpc_server(
-            &rpc_config,
-            shared_highest_block.clone(),
-            pending_data.clone(),
-            pending_classes.clone(),
-            storage_reader.clone(),
-            Some(class_manager_client.clone()),
-        );
 
         (
             Self {
@@ -429,6 +435,7 @@ fn spawn_rpc_server(
 ) -> BoxFuture<'static, ()> {
     let rpc_config = rpc_config.clone();
     async move {
+        debug!("Starting state sync runner spawn_rpc_server future");
         let (_, server_handle) = run_server(
             &rpc_config,
             shared_highest_block,

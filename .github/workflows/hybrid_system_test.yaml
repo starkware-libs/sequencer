@@ -17,7 +17,7 @@ env:
   namespace: sequencer-hybrid-system-test-run-${{ github.run_number }}-attempt-${{ github.run_attempt }}
   cluster_name: hybrid-system-test
   crate_triggers: "apollo_node,apollo_deployments,apollo_integration_tests"
-  path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py"
+  path_triggers: ".github/workflows/hybrid_system_test.yaml,scripts/*.py,scripts/system_tests/**/*.py,deployments/sequencer/**"
   pvc_storage_class_name: "premium-rwo"
   anvil_port: "8545"
 
@@ -81,6 +81,13 @@ jobs:
             --no-lb
             --wait
             --timeout 120s
+
+      - name: Install crds
+        working-directory: deployments/sequencer
+        run: |
+          echo "🔧 Installing CRDs..."
+          kubectl apply -R -f ./resources/crds
+          echo "✅ CRDs installed successfully."
 
       # Install rust components.
       - uses: ./.github/actions/bootstrap

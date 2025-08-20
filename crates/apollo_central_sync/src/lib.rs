@@ -536,6 +536,7 @@ impl<
         let (thin_state_diff, classes, deprecated_classes) =
             ThinStateDiff::from_state_diff(state_diff);
 
+        let mut block_contains_old_classes = false;
         // Sending to class manager before updating the storage so that if the class manager send
         // fails we retry the same block.
         if let Some(class_manager_client) = &self.class_manager_client {
@@ -553,6 +554,8 @@ impl<
             let compiler_backward_compatibility_marker =
                 self.reader.begin_ro_txn()?.get_compiler_backward_compatibility_marker()?;
 
+            // A block contains only classes with either STARKNET_VERSION_TO_COMPILE_FROM or higher
+            // or only classes below STARKNET_VERSION_TO_COMPILE_FROM, not both.
             if compiler_backward_compatibility_marker <= block_number {
                 for (expected_class_hash, class) in &classes {
                     let class_hash =
@@ -564,6 +567,8 @@ impl<
                         );
                     }
                 }
+            } else {
+                block_contains_old_classes = true;
             }
 
             for (class_hash, deprecated_class) in &deprecated_classes {
@@ -584,7 +589,11 @@ impl<
             }
             let mut txn = writer.begin_rw_txn()?;
             txn = txn.append_state_diff(block_number, thin_state_diff)?;
-            if store_sierras_and_casms {
+            // Old classes must be stored for later use since we will only be be adding them to the
+            // class manager later, once we have their compiled classes.
+            //
+            // TODO(guy.f): Properly fix handling old classes.
+            if store_sierras_and_casms || block_contains_old_classes {
                 txn = txn.append_classes(
                     block_number,
                     &classes

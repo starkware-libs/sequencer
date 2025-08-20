@@ -782,3 +782,6 @@ async fn pending_sync_classes_are_cleaned_on_first_pending_data_from_latest_bloc
     )
     .await
 }
+
+// TODO(guy.f): Add a test for the case of a block with old classes and config is set to not store
+// classes. Make sure the old classes are still stored.

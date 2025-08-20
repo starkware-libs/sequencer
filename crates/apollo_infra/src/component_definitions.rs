@@ -6,11 +6,14 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::mpsc::{Receiver, Sender};
+use tokio::time::Instant;
 use tracing::{error, info};
 
 use crate::component_client::ClientResult;
+use crate::requests::LabeledRequest;
 
 pub(crate) const APPLICATION_OCTET_STREAM: &str = "application/octet-stream";
+pub const BUSY_PREVIOUS_REQUESTS_MSG: &str = "Server is busy addressing previous requests";
 
 #[async_trait]
 pub trait ComponentRequestHandler<Request, Response> {
@@ -20,7 +23,7 @@ pub trait ComponentRequestHandler<Request, Response> {
 #[async_trait]
 pub trait ComponentClient<Request, Response>
 where
-    Request: Send + Serialize + DeserializeOwned,
+    Request: Send + Serialize + DeserializeOwned + LabeledRequest,
     Response: Send + Serialize + DeserializeOwned,
 {
     async fn send(&self, request: Request) -> ClientResult<Response>;
@@ -77,17 +80,42 @@ impl<T: Send> ComponentCommunication<T> {
     }
 }
 
-pub struct ComponentRequestAndResponseSender<Request, Response>
+pub struct RequestWrapper<Request, Response>
 where
     Request: Send,
     Response: Send,
 {
     pub request: Request,
     pub tx: Sender<Response>,
+    pub creation_time: Instant,
+}
+
+impl<Request, Response> RequestWrapper<Request, Response>
+where
+    Request: Send,
+    Response: Send,
+{
+    pub fn new(request: Request, tx: Sender<Response>) -> Self {
+        Self { request, tx, creation_time: Instant::now() }
+    }
 }
 
 #[derive(Debug, Error, Deserialize, Serialize, Clone, PartialEq, Eq)]
 pub enum ServerError {
     #[error("Could not deserialize client request: {0}")]
     RequestDeserializationFailure(String),
+}
+
+#[derive(Debug)]
+pub enum RequestPriority {
+    High,
+    Normal,
+}
+
+pub trait PrioritizedRequest {
+    // TODO(Tsabary): Default implementation to avoid applying this trait to all request types. Need
+    // to remove this out later on.
+    fn priority(&self) -> RequestPriority {
+        RequestPriority::Normal
+    }
 }
