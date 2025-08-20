@@ -71,6 +71,14 @@ pub struct FeltSizeCount {
 }
 
 impl FeltSizeCount {
+    // Constants that define how felts are encoded into u32s for BLAKE hashing.
+    // Number of `u32` words in a single BLAKE input message block.
+    pub(crate) const U32_WORDS_PER_MESSAGE: usize = 16;
+    // Number of `u32` words a large felt expands into.
+    pub(crate) const U32_WORDS_PER_LARGE_FELT: usize = 8;
+    // Number of `u32` words a small felt expands into.
+    pub(crate) const U32_WORDS_PER_SMALL_FELT: usize = 2;
+
     pub fn n_felts(&self) -> usize {
         self.small + self.large
     }
