@@ -83,6 +83,8 @@ pub mod class_manager;
 pub mod compiled_class;
 #[cfg(feature = "document_calls")]
 pub mod document_calls;
+#[allow(missing_docs)]
+pub mod metrics;
 pub mod storage_metrics;
 // TODO(yair): Make the compression_utils module pub(crate) or extract it from the crate.
 #[doc(hidden)]
@@ -109,7 +111,7 @@ use std::sync::Arc;
 
 use apollo_config::dumping::{prepend_sub_config_name, ser_param, SerializeConfig};
 use apollo_config::{ParamPath, ParamPrivacyInput, SerializedParam};
-use apollo_proc_macros::latency_histogram;
+use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use body::events::EventIndex;
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use db::db_stats::{DbTableStats, DbWholeStats};
@@ -151,6 +153,7 @@ use crate::db::{
     RW,
 };
 use crate::header::StorageBlockHeader;
+use crate::metrics::STORAGE_COMMIT_LATENCY;
 use crate::mmap_file::MMapFileStats;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::version::{VersionStorageReader, VersionStorageWriter};
@@ -490,7 +493,7 @@ pub struct StorageTxn<'env, Mode: TransactionKind> {
 
 impl StorageTxn<'_, RW> {
     /// Commits the changes made in the transaction to the storage.
-    #[latency_histogram("storage_commit_latency_seconds", false)]
+    #[sequencer_latency_histogram(STORAGE_COMMIT_LATENCY, false)]
     pub fn commit(self) -> StorageResult<()> {
         self.file_handlers.flush();
         Ok(self.txn.commit()?)
