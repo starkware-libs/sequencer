@@ -107,7 +107,7 @@
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.poseidon": {
     "description": "Poseidon gas weight.",
     "privacy": "Public",
-    "value": 6250
+    "value": 10000
   },
   "batcher_config.block_builder_config.bouncer_config.builtin_weights.range_check": {
     "description": "Range_check gas weight.",
