@@ -1,8 +1,8 @@
-%builtins output pedersen range_check poseidon
+%builtins output pedersen range_check ec_op poseidon
 
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.bool import FALSE
-from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, HashBuiltin
+from starkware.cairo.common.cairo_builtins import PoseidonBuiltin, HashBuiltin, EcOpBuiltin
 from starkware.cairo.common.ec_point import EcPoint
 from starkware.starknet.core.aggregator.combine_blocks import combine_blocks
 from starkware.starknet.core.os.output import OsOutput, serialize_os_output
@@ -13,7 +13,11 @@ from starkware.starknet.core.os.os_config.os_config import (
 )
 
 func main{
-    output_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr, poseidon_ptr: PoseidonBuiltin*
+    output_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr,
+    ec_op_ptr: EcOpBuiltin*,
+    poseidon_ptr: PoseidonBuiltin*,
 }() {
     alloc_locals;
 
@@ -108,9 +112,9 @@ func main{
 
 // Outputs the given OsOutput instances, with the size of the output and the program hash
 // (to match the bootloader output format).
-func output_blocks{output_ptr: felt*, range_check_ptr, poseidon_ptr: PoseidonBuiltin*}(
-    n_tasks: felt, os_outputs: OsOutput*, os_program_hash: felt, public_key: EcPoint*
-) {
+func output_blocks{
+    output_ptr: felt*, range_check_ptr, ec_op_ptr: EcOpBuiltin*, poseidon_ptr: PoseidonBuiltin*
+}(n_tasks: felt, os_outputs: OsOutput*, os_program_hash: felt, public_key: EcPoint*) {
     if (n_tasks == 0) {
         return ();
     }
