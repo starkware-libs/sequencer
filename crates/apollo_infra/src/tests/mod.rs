@@ -148,8 +148,19 @@ pub(crate) const TEST_REMOTE_CLIENT_RESPONSE_TIMES: LabeledMetricHistogram =
         COMPONENT_A_REQUEST_LABELS,
     );
 
-pub(crate) const TEST_REMOTE_CLIENT_METRICS: RemoteClientMetrics =
-    RemoteClientMetrics::new(&EXAMPLE_HISTOGRAM_METRIC, &TEST_REMOTE_CLIENT_RESPONSE_TIMES);
+pub(crate) const TEST_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES: LabeledMetricHistogram =
+    LabeledMetricHistogram::new(
+        MetricScope::Infra,
+        "test_remote_client_communication_failure_times",
+        "Test remote client communication failure times histogram",
+        COMPONENT_A_REQUEST_LABELS,
+    );
+
+pub(crate) const TEST_REMOTE_CLIENT_METRICS: RemoteClientMetrics = RemoteClientMetrics::new(
+    &EXAMPLE_HISTOGRAM_METRIC,
+    &TEST_REMOTE_CLIENT_RESPONSE_TIMES,
+    &TEST_REMOTE_CLIENT_COMMUNICATION_FAILURE_TIMES,
+);
 
 // Define mock local client metrics.
 const TEST_LOCAL_CLIENT_RESPONSE_TIMES: LabeledMetricHistogram = LabeledMetricHistogram::new(
