@@ -5,6 +5,7 @@ use std::sync::LazyLock;
 use cairo_vm::hint_processor::builtin_hint_processor::dict_hint_utils::DICT_ACCESS_SIZE;
 use cairo_vm::types::layout_name::LayoutName;
 use cairo_vm::types::relocatable::{MaybeRelocatable, Relocatable};
+use cairo_vm::vm::runners::cairo_runner::CairoRunner;
 use cairo_vm::vm::vm_core::VirtualMachine;
 use ethnum::U256;
 use num_bigint::{BigInt, Sign};
@@ -156,4 +157,11 @@ pub(crate) fn get_entrypoint_runner_config() -> EntryPointRunnerConfig {
         add_main_prefix_to_entrypoint: false,
         ..Default::default()
     }
+}
+
+pub(crate) fn validate_builtins(runner: &mut CairoRunner) {
+    let builtins_start = runner.get_builtins_final_stack(runner.vm.get_ap()).unwrap();
+    let n_builtins = runner.get_program().builtins_len();
+    let builtins_end = runner.vm.get_ap();
+    assert_eq!((builtins_start + n_builtins).unwrap(), builtins_end);
 }

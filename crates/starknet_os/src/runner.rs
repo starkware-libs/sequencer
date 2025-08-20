@@ -208,7 +208,7 @@ pub fn run_os_for_testing<S: StateReader>(
     }: OsHints,
     state_readers: Vec<S>,
 ) -> Result<(StarknetOsRunnerOutput, Vec<OsTransactionTrace>), StarknetOsError> {
-    let (runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
+    let (mut runner_output, snos_hint_processor) = create_hint_processor_and_run_os(
         layout,
         os_hints_config,
         &os_block_inputs,
@@ -219,6 +219,8 @@ pub fn run_os_for_testing<S: StateReader>(
         public_key_x,
         public_key_y,
     )?;
+
+    crate::test_utils::utils::validate_builtins(&mut runner_output.cairo_runner);
 
     let txs_trace: Vec<OsTransactionTrace> =
         snos_hint_processor.get_current_execution_helper().unwrap().os_logger.get_txs().clone();
