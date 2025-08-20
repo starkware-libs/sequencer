@@ -9,7 +9,7 @@ env:
 
 jobs:
   codecov:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/bootstrap
@@ -44,7 +44,7 @@ jobs:
           verbose: true
 
   feature_combos:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
 
@@ -70,7 +70,7 @@ jobs:
         run: scripts/run_feature_combos_test.py
 
   run-integration-tests:
-    runs-on: namespace-profile-large-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
+    runs-on: namespace-profile-large-ubuntu-24-04-amd64
     steps:
       - uses: actions/checkout@v4
 

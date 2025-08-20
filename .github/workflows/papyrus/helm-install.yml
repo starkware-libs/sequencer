@@ -14,7 +14,7 @@ on:
 
 jobs:
   deploy-teardown:
-    runs-on: namespace-profile-small-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
     permissions:
       contents: "read"
       id-token: "write"

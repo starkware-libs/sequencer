@@ -31,7 +31,7 @@ concurrency:
 
 jobs:
   run-regression-tests:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
@@ -63,7 +63,7 @@ jobs:
       - run: cargo test -p starknet_committer_and_os_cli --release -- --include-ignored test_regression
 
   benchmarking:
-    runs-on: namespace-profile-medium-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
+    runs-on: namespace-profile-medium-ubuntu-24-04-amd64
     if: ${{ github.event_name == 'pull_request' }}
     steps:
       # Checkout the base branch to get the old code.

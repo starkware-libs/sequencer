@@ -9,7 +9,7 @@ on:
 jobs:
   stale:
     name: 🧹 Clean up stale issues and PRs
-    runs-on: namespace-profile-small-ubuntu-24-04-amd64;override.cache-tag=${{ github.base_ref }}
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
     steps:
       - name: 🚀 Run stale
         uses: actions/stale@v3
