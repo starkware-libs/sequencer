@@ -941,7 +941,28 @@
         "extra_params": {}
       }
     ],
-    "Storage": [],
+    "Storage": [
+      {
+        "title": "storage_append_thin_state_diff_latency_seconds",
+        "description": "Latency to append thin state diff in storage (secs)",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(storage_append_thin_state_diff_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(storage_append_thin_state_diff_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      },
+      {
+        "title": "storage_commit_latency_seconds",
+        "description": "Latency to commit changes in storage (secs)",
+        "type": "timeseries",
+        "exprs": [
+          "histogram_quantile(0.50, sum by (le) (rate(storage_commit_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))",
+          "histogram_quantile(0.95, sum by (le) (rate(storage_commit_latency_seconds_bucket{cluster=~\"$cluster\", namespace=~\"$namespace\"}[5m])))"
+        ],
+        "extra_params": {}
+      }
+    ],
     "MempoolP2p": [
       {
         "title": "apollo_mempool_p2p_num_connected_peers",

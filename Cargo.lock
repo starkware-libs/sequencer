@@ -2117,6 +2117,7 @@ name = "apollo_storage"
 version = "0.15.0-rc.2"
 dependencies = [
  "apollo_config",
+ "apollo_metrics",
  "apollo_proc_macros",
  "apollo_test_utils",
  "assert_matches",
