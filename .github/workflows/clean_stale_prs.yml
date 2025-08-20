@@ -9,7 +9,7 @@ on:
 jobs:
   stale:
     name: 🧹 Clean up stale issues and PRs
-    runs-on: starkware-ubuntu-24.04-small
+    runs-on: namespace-profile-small-ubuntu-24-04-amd64
     steps:
       - name: 🚀 Run stale
         uses: actions/stale@v3
