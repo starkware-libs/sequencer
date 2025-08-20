@@ -56,7 +56,7 @@ mod state_test;
 
 use std::collections::HashSet;
 
-use apollo_proc_macros::latency_histogram;
+use apollo_proc_macros::{latency_histogram, sequencer_latency_histogram};
 use cairo_lang_starknet_classes::casm_contract_class::CasmContractClass;
 use indexmap::IndexMap;
 use starknet_api::block::BlockNumber;
@@ -71,6 +71,7 @@ use crate::db::table_types::{CommonPrefix, DbCursorTrait, SimpleTable, Table};
 use crate::db::{DbTransaction, TableHandle, TransactionKind, RW};
 #[cfg(feature = "document_calls")]
 use crate::document_calls::{add_query, StorageQuery};
+use crate::metrics::STORAGE_APPEND_THIN_STATE_DIFF_LATENCY;
 use crate::mmap_file::LocationInFile;
 use crate::state::data::IndexedDeprecatedContractClass;
 use crate::{
@@ -431,7 +432,7 @@ impl<'env, Mode: TransactionKind> StateReader<'env, Mode> {
 }
 
 impl StateStorageWriter for StorageTxn<'_, RW> {
-    #[latency_histogram("storage_append_thin_state_diff_latency_seconds", false)]
+    #[sequencer_latency_histogram(STORAGE_APPEND_THIN_STATE_DIFF_LATENCY, false)]
     fn append_state_diff(
         self,
         block_number: BlockNumber,
